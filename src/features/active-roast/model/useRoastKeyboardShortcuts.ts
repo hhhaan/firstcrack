@@ -29,7 +29,7 @@ export function isRoastShortcutBaseEnabled(p: {
 }
 
 /**
- * Event-marking hotkeys (Yellow / FC / Drop) only while roasting.
+ * Event-marking hotkeys (Yellow / FC / SC / Drop) only while roasting.
  * Standby/preheating must not create Drop etc. (disarms alerts).
  */
 export function isRoastMarkShortcutEnabled(p: {
@@ -134,6 +134,17 @@ export const useRoastKeyboardShortcuts = ({
         (e) => {
             e.preventDefault();
             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
+        },
+        { enabled: canMark },
+        [canMark, onMarkEvent],
+    );
+
+    // Ctrl/Meta + 4 → Mark SC Start (do not reuse mod+3)
+    useHotkeys(
+        'mod+4',
+        (e) => {
+            e.preventDefault();
+            onMarkEvent('SC Start', 'Second crack started', 'Mark SC Start');
         },
         { enabled: canMark },
         [canMark, onMarkEvent],

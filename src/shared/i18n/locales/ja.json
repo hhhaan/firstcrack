@@ -164,7 +164,7 @@
                 "showFcBand": "First Crack バンド",
                 "showFcBandDescription": "FC Start から FC End までチャート背景を塗りつぶす",
                 "eventMarkers": "イベントマーカー",
-                "eventMarkersDescription": "Yellow、FC、Drop、Turning Point の描画方法です。",
+                "eventMarkersDescription": "Yellow、FC、SC、Drop、Turning Point の描画方法です。",
                 "eventMarkerPoint": "カーブ上のポイント",
                 "eventMarkerPointDescription": "BT カーブ上の点とラベルボックス（イベント・時間・温度）",
                 "eventMarkerLine": "垂直線",
@@ -547,6 +547,7 @@
             "yellow": "イエロー",
             "fcStart": "ファーストクラック開始",
             "fcEnd": "ファーストクラック終了",
+            "scStart": "セカンドクラック開始",
             "markDrop": "ドロップ",
             "inProgress": "{{phase}} 進行中",
             "roastComplete": "ロースト完了",
@@ -558,6 +559,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
+            "scStart": "⌘4",
             "markDrop": "⌘D"
         },
         "sidebar": {

@@ -31,6 +31,7 @@ const mockColors: ResolvedChartColors = {
     eventYellow: '#1a',
     eventFcStart: '#1b',
     eventFcEnd: '#1c',
+    eventScStart: '#sc',
     eventEnd: '#1d',
     eventNote: '#1e',
     eventDrop: '#1f',

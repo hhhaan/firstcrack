@@ -164,7 +164,7 @@
                 "showFcBand": "First Crack band",
                 "showFcBandDescription": "Shade the chart background from FC Start to FC End",
                 "eventMarkers": "Event Markers",
-                "eventMarkersDescription": "How Yellow, FC, Drop, and Turning Point are drawn on the temperature chart.",
+                "eventMarkersDescription": "How Yellow, FC, SC, Drop, and Turning Point are drawn on the temperature chart.",
                 "eventMarkerPoint": "Point on curve",
                 "eventMarkerPointDescription": "Dot on the BT curve with a label box (event, time, temp)",
                 "eventMarkerLine": "Vertical line",
@@ -547,6 +547,7 @@
             "yellow": "Yellow",
             "fcStart": "FC Start",
             "fcEnd": "FC End",
+            "scStart": "SC Start",
             "markDrop": "Mark Drop",
             "inProgress": "{{phase}} in progress",
             "roastComplete": "Roast complete",
@@ -558,6 +559,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
+            "scStart": "⌘4",
             "markDrop": "⌘D"
         },
         "sidebar": {

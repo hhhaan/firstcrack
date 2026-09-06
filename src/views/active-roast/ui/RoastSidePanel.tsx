@@ -314,6 +314,13 @@ export const RoastSidePanel = ({
                             onClick: () => onMarkEvent('FC End', 'First crack ended', 'Mark FC End'),
                         },
                         {
+                            label: 'SC Start',
+                            event: 'SC Start',
+                            shortcutKey: '4',
+                            pressKey: 'Mark SC Start',
+                            onClick: () => onMarkEvent('SC Start', 'Second crack started', 'Mark SC Start'),
+                        },
+                        {
                             label: 'Mark Drop',
                             event: 'Drop',
                             shortcutKey: 'D',

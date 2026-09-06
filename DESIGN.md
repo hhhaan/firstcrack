@@ -118,6 +118,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | `--color-event-fc-start` | `oklch(0.6 0.17 225)` | `#44bffc` |
 | `--color-event-fc-rolling` | `oklch(0.58 0.16 250)` | `#5a9ef5` |
 | `--color-event-fc-end` | `oklch(0.58 0.18 280)` | `#756afc` |
+| `--color-event-sc-start` | `oklch(0.62 0.19 25)` | `#ff7a54` |
 | `--color-event-end` | `oklch(0.58 0.15 275)` | `#8080f0` |
 | `--color-event-note` | `oklch(0.62 0.16 165)` | `#72ebbc` |
 | `--color-event-tp` | `oklch(0.6 0.18 155)` | `#81fba5` |

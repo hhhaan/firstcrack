@@ -164,7 +164,7 @@
                 "showFcBand": "First Crack 밴드",
                 "showFcBandDescription": "FC Start부터 FC End까지 차트 배경을 음영 처리",
                 "eventMarkers": "이벤트 마커",
-                "eventMarkersDescription": "Yellow, FC, Drop, Turning Point를 온도 차트에 그리는 방식입니다.",
+                "eventMarkersDescription": "Yellow, FC, SC, Drop, Turning Point를 온도 차트에 그리는 방식입니다.",
                 "eventMarkerPoint": "곡선 위 포인트",
                 "eventMarkerPointDescription": "BT 곡선 위 점과 라벨 박스(이벤트, 시간, 온도)",
                 "eventMarkerLine": "세로선",
@@ -840,6 +840,7 @@
             "yellow": "옐로잉",
             "fcStart": "FC 시작",
             "fcEnd": "FC 종료",
+            "scStart": "SC 시작",
             "markDrop": "배출 표시",
             "end": "종료",
             "endRoast": "로스팅 종료",
@@ -853,6 +854,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
+            "scStart": "⌘4",
             "markDrop": "⌘D"
         },
         "log": {

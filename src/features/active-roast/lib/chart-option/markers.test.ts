@@ -37,6 +37,7 @@ describe('LABEL_BELOW_EVENTS', () => {
         expect(LABEL_BELOW_EVENTS.has('FC End')).toBe(true);
         expect(LABEL_BELOW_EVENTS.has('Drop')).toBe(true);
         expect(LABEL_BELOW_EVENTS.has('FC Start')).toBe(false);
+        expect(LABEL_BELOW_EVENTS.has('SC Start')).toBe(false);
         expect(LABEL_BELOW_EVENTS.has('Yellow')).toBe(false);
     });
 });

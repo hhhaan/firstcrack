@@ -1,5 +1,6 @@
 import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it, vi } from 'vitest';
+import { TOGGLEABLE_LOG_EVENTS } from './constants';
 import {
     logEntryTimeSec,
     parseStoredRoastEvents,
@@ -151,6 +152,17 @@ describe('storedEventsToMarkers', () => {
 
         const fMarkers = storedEventsToMarkers([{ id: '4', type: 'Drop', time_sec: 600, temp_c: 210 }], 'F');
         expect(fMarkers[0].temp).toBe('410');
+
+        vi.unstubAllGlobals();
+    });
+
+    it('keeps SC Start as a history chart marker', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#ff7a54' }));
+
+        const markers = storedEventsToMarkers([{ id: 'sc', type: 'SC Start', time_sec: 720, temp_c: 220 }]);
+        expect(markers).toEqual([{ timeSec: 720, event: 'SC Start', color: '#ff7a54', timeStr: '12:00', temp: '220' }]);
+        expect(TOGGLEABLE_LOG_EVENTS.has('SC Start')).toBe(true);
 
         vi.unstubAllGlobals();
     });

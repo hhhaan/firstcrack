@@ -164,7 +164,7 @@
                 "showFcBand": "一爆区间底色",
                 "showFcBandDescription": "在 FC Start 到 FC End 之间为图表背景着色",
                 "eventMarkers": "事件标记",
-                "eventMarkersDescription": "Yellow、FC、Drop、Turning Point 在温度图上的绘制方式。",
+                "eventMarkersDescription": "Yellow、FC、SC、Drop、Turning Point 在温度图上的绘制方式。",
                 "eventMarkerPoint": "曲线上的点",
                 "eventMarkerPointDescription": "BT 曲线上的点与标签框（事件、时间、温度）",
                 "eventMarkerLine": "垂直线",
@@ -547,6 +547,7 @@
             "yellow": "转黄",
             "fcStart": "一爆开始",
             "fcEnd": "一爆结束",
+            "scStart": "二爆开始",
             "markDrop": "标记下豆",
             "inProgress": "{{phase}} 进行中",
             "roastComplete": "烘焙完成",
@@ -558,6 +559,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
+            "scStart": "⌘4",
             "markDrop": "⌘D"
         },
         "sidebar": {
