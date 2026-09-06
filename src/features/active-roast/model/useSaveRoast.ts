@@ -6,6 +6,7 @@ import { useUpdateSingleBatch } from '@entities/plan';
 import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
 import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
+import { dropTempC } from '@features/active-roast/lib/roast-log';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
@@ -34,14 +35,7 @@ import { useCallback, useMemo, useState } from 'react';
 export type SyncRoastCurve = (input: { sessionId: string; roastSessionId: string }) => Promise<unknown>;
 
 /** Prefer Drop event temp, then End, then live BT (#173). */
-export function resolveDropTempCelsius(logEntries: LogEntry[], rawBT: number | null | undefined): number | null {
-    const drop =
-        logEntries.find((e) => e.event === 'Drop' && e.tempC != null) ??
-        logEntries.find((e) => e.event === 'End' && e.tempC != null);
-    if (drop?.tempC != null) return Math.round(drop.tempC);
-    if (rawBT != null) return Math.round(rawBT);
-    return null;
-}
+export const resolveDropTempCelsius = dropTempC;
 
 /** Form fields required to persist a completed roast (matches summary modal). */
 export type SaveRoastFormData = {

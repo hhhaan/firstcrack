@@ -28,7 +28,7 @@ export interface UseRoastLifecycleParams {
     resetAutoDetectionRef: React.RefObject<() => void>;
     disableAutoChargeRef: React.RefObject<() => void>;
     rearmAutoChargeRef: React.RefObject<() => void>;
-    setLogEntries: (entries: LogEntry[]) => void;
+    clearLog: () => void;
     setLivePoints: (points: LiveRoastPoint[]) => void;
     setZoomRange: (range: { start: number; end: number } | null) => void;
     setHoveredChartIndex: (index: number | null) => void;
@@ -63,7 +63,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         resetAutoDetectionRef,
         disableAutoChargeRef,
         rearmAutoChargeRef,
-        setLogEntries,
+        clearLog,
         setLivePoints,
         setZoomRange,
         setHoveredChartIndex,
@@ -157,7 +157,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             sidecar.resetRoast().catch(() => {});
             enterPreheating();
         }
-        setLogEntries([]);
+        clearLog();
         setLivePoints([]);
         setZoomRange(null);
         setHoveredChartIndex(null);
@@ -168,7 +168,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         resetStore,
         sidecarConnected,
         enterPreheating,
-        setLogEntries,
+        clearLog,
         setLivePoints,
         setZoomRange,
         setHoveredChartIndex,

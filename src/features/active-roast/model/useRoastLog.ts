@@ -1,10 +1,11 @@
-import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
+import type { MarkerDragLivePoint } from '../lib/event-marker-drag';
+import { applyEventMarkerDrag } from '../lib/event-marker-drag';
 import { cycleFcDualEntries } from '../lib/fc-dual-mark';
-import { logEntryTimeSec } from '../lib/serialize-roast-events';
-import { formatTemp } from '../lib/temperature';
+import { mark, markDropIfAbsent, replaceWithCharge, resetLog, unmark, upsertTurningPoint } from '../lib/roast-log';
+import type { TurningPoint } from '../lib/turningPoints';
 import type { TemperatureUnit } from './settings';
 
 export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed: number) => {
@@ -25,27 +26,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
     const markEvent = useCallback(
         (event: string, note: string, buttonLabel?: string) => {
             const isRemoval = TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((e) => e.event === event);
-            const timeSec = elapsed;
-            const timeStr = formatElapsed(timeSec);
-
-            setLogEntries((prev) => {
-                if (TOGGLEABLE_LOG_EVENTS.has(event) && prev.some((e) => e.event === event)) {
-                    return prev.filter((e) => e.event !== event);
-                }
-
-                const newEntry: LogEntry = {
-                    id: crypto.randomUUID(),
-                    time: timeStr,
-                    timeSec,
-                    event,
-                    temp: rawBT !== null ? formatTemp(rawBT, unit) : '',
-                    tempC: rawBT,
-                    note,
-                };
-
-                return [...prev, newEntry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
-            });
-
+            setLogEntries((prev) => mark(prev, event, { elapsed, rawBT, unit, note }));
             if (!isRemoval && buttonLabel) {
                 flashButton(buttonLabel);
             }
@@ -64,8 +45,46 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
     }, [markEvent]);
 
     const removeLogEntry = useCallback((id: string) => {
-        setLogEntries((prev) => prev.filter((entry) => entry.id !== id));
+        setLogEntries((prev) => unmark(prev, id));
     }, []);
+
+    const clearLog = useCallback(() => {
+        setLogEntries(resetLog());
+    }, []);
+
+    const markCharge = useCallback(
+        (bt: number | null) => {
+            setLogEntries(replaceWithCharge({ rawBT: bt, unit }));
+        },
+        [unit],
+    );
+
+    const markAutoDrop = useCallback(
+        (onset?: { timeSec: number; bt: number | null }) => {
+            setLogEntries((prev) =>
+                markDropIfAbsent(prev, {
+                    timeSec: onset?.timeSec ?? elapsed,
+                    bt: onset?.bt ?? rawBT,
+                    unit,
+                }),
+            );
+        },
+        [elapsed, rawBT, unit],
+    );
+
+    const markTurningPoint = useCallback(
+        (tp: TurningPoint) => {
+            setLogEntries((prev) => upsertTurningPoint(prev, tp, unit));
+        },
+        [unit],
+    );
+
+    const applyMarkerDrag = useCallback(
+        (event: string, newTimeSec: number, livePoints: ReadonlyArray<MarkerDragLivePoint>) => {
+            setLogEntries((prev) => applyEventMarkerDrag(prev, event, newTimeSec, livePoints, unit));
+        },
+        [unit],
+    );
 
     return {
         logEntries,
@@ -74,7 +93,11 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
         cycleFc,
         flashButton,
         handleDrop,
-        setLogEntries, // reset할 때 필요
         removeLogEntry,
+        clearLog,
+        markCharge,
+        markAutoDrop,
+        markTurningPoint,
+        applyMarkerDrag,
     };
 };

@@ -3,6 +3,7 @@ import { detectTurningPoints } from '@features/active-roast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { detectChargeOnset } from '../lib/chargeOnset';
+import { isFinished, yellow } from '../lib/roast-log';
 import { toDisplayTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
@@ -124,7 +125,7 @@ export const useAutoDetection = ({
     // Auto Yellow by temperature — only fire after turning point (FC is manual / dual-mark only)
     useEffect(() => {
         if (phase !== 'roasting' || bt == null || !markEvent) return;
-        if (logEntries.some((e) => e.event === 'Drop' || e.event === 'End')) return;
+        if (isFinished(logEntries)) return;
 
         // 상승 크로싱만 발화: 레벨 비교(≥)는 뜨거운 드럼 투입 직후 하강 중에도
         // 임계 이상이라 TP 게이트가 열리는 순간 Yellow가 즉시 오발된다.
@@ -140,12 +141,7 @@ export const useAutoDetection = ({
         else if (displayBT < th) yellowPendingRef.current = false;
 
         if (!tpFiredRef.current) return;
-        if (
-            autoYellowEnabled &&
-            !yellowFiredRef.current &&
-            yellowPendingRef.current &&
-            !logEntries.some((e) => e.event === 'Yellow')
-        ) {
+        if (autoYellowEnabled && !yellowFiredRef.current && yellowPendingRef.current && !yellow(logEntries)) {
             yellowFiredRef.current = true;
             markEvent('Yellow', 'Auto-marked by temperature');
         }

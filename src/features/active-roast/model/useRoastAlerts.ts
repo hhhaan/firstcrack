@@ -1,6 +1,7 @@
 import { logger } from '@shared/lib/logger';
 import type { LogEntry } from '@shared/types/roast';
 import { useEffect, useRef, useState } from 'react';
+import { isFinished } from '../lib/roast-log';
 import { evaluateRoastAlerts, type RoastAlertKind } from '../lib/roastAlerts';
 import { useRoastingStore } from './status';
 
@@ -61,7 +62,7 @@ export const useRoastAlerts = ({
         soundRef.current = soundEnabled;
     }, [soundEnabled]);
 
-    const dropped = logEntries.some((e) => e.event === 'Drop' || e.event === 'End');
+    const dropped = isFinished(logEntries);
     const armed = enabled && phase === 'roasting' && !dropped;
 
     useEffect(() => {

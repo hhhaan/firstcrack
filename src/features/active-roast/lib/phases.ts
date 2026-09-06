@@ -1,4 +1,5 @@
 import type { LogEntry } from '@shared/types/roast';
+import { fcStart, findEvent, yellow } from './roast-log';
 import { logEntryTimeSec } from './serialize-roast-events';
 
 export interface PhaseSegment {
@@ -33,19 +34,15 @@ const resolvePhaseFill = (name: string): string => {
 export const computePhaseSegments = (logEntries: LogEntry[], elapsed: number, charged: boolean): PhaseSegment[] => {
     if (!charged || elapsed === 0) return [];
 
-    const get = (event: string) => {
-        const e = logEntries.find((l) => l.event === event);
-        return e ? logEntryTimeSec(e) : null;
-    };
-
-    const yellow = get('Yellow');
-    const fcStart = get('FC Start');
-    const dropTime = get('Drop') ?? get('End') ?? elapsed;
+    const eventTime = (e: LogEntry | undefined) => (e ? logEntryTimeSec(e) : null);
+    const yellowTime = eventTime(yellow(logEntries));
+    const fcStartTime = eventTime(fcStart(logEntries));
+    const dropTime = eventTime(findEvent(logEntries, 'Drop')) ?? eventTime(findEvent(logEntries, 'End')) ?? elapsed;
 
     const bounds: { name: string; start: number | null; end: number }[] = [
-        { name: 'Drying', start: 0, end: yellow ?? fcStart ?? dropTime },
-        { name: 'Maillard', start: yellow, end: fcStart ?? dropTime },
-        { name: 'Development', start: fcStart, end: dropTime },
+        { name: 'Drying', start: 0, end: yellowTime ?? fcStartTime ?? dropTime },
+        { name: 'Maillard', start: yellowTime, end: fcStartTime ?? dropTime },
+        { name: 'Development', start: fcStartTime, end: dropTime },
     ];
 
     return bounds

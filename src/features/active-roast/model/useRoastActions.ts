@@ -1,17 +1,13 @@
-import { formatElapsed } from '@shared/lib/format';
 import { sidecar } from '@shared/lib/sidecar';
-import type { LogEntry } from '@shared/types/roast';
 import { useCallback } from 'react';
-import { logEntryTimeSec } from '../lib/serialize-roast-events';
-import { formatTemp } from '../lib/temperature';
 import type { TurningPoint } from '../lib/turningPoints';
-import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
 interface UseRoastActionsParams {
-    unit: TemperatureUnit;
     rawBT: number | null;
-    setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
+    markCharge: (bt: number | null) => void;
+    markAutoDrop: (onset?: { timeSec: number; bt: number | null }) => void;
+    markTurningPoint: (tp: TurningPoint) => void;
     setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
     setShowEndRoastModal: () => void;
     storeStartCharge: (originMs?: number) => void;
@@ -27,9 +23,10 @@ interface UseRoastActionsReturn {
 }
 
 export const useRoastActions = ({
-    unit,
     rawBT,
-    setLogEntries,
+    markCharge,
+    markAutoDrop,
+    markTurningPoint,
     setIsRunning,
     setShowEndRoastModal,
     storeStartCharge,
@@ -46,66 +43,25 @@ export const useRoastActions = ({
             roastStartTimeRef.current = origin;
             storeStartCharge(origin);
             setIsRunning(true);
-            const btVal = btAtCharge ?? rawBT;
-            setLogEntries([
-                {
-                    id: crypto.randomUUID(),
-                    time: '0:00',
-                    timeSec: 0,
-                    event: 'Charge',
-                    temp: formatTemp(btVal, unit),
-                    tempC: btVal,
-                    note: 'Bean drop detected',
-                },
-            ]);
+            markCharge(btAtCharge ?? rawBT);
         },
-        [unit, rawBT, setLogEntries, setIsRunning, storeStartCharge, roastStartTimeRef],
+        [rawBT, markCharge, setIsRunning, storeStartCharge, roastStartTimeRef],
     );
 
     const handleAutoDrop = useCallback(
         (onset?: { timeSec: number; bt: number }) => {
-            setLogEntries((prev) => {
-                if (prev.some((e) => e.event === 'Drop')) return prev;
-                const timeSec = Math.max(0, onset?.timeSec ?? useRoastingStore.getState().elapsed);
-                const btVal = onset?.bt ?? rawBT;
-                return [
-                    ...prev,
-                    {
-                        id: crypto.randomUUID(),
-                        time: formatElapsed(timeSec),
-                        timeSec,
-                        event: 'Drop',
-                        temp: formatTemp(btVal, unit),
-                        tempC: btVal,
-                        note: 'Bean drop detected',
-                    },
-                ].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
-            });
+            const timeSec = Math.max(0, onset?.timeSec ?? useRoastingStore.getState().elapsed);
+            markAutoDrop({ timeSec, bt: onset?.bt ?? rawBT });
             setShowEndRoastModal();
         },
-        [rawBT, unit, setLogEntries, setShowEndRoastModal],
+        [rawBT, markAutoDrop, setShowEndRoastModal],
     );
 
     const handleTurningPoint = useCallback(
         (tp: TurningPoint) => {
-            setLogEntries((prev) => {
-                const idx = prev.findIndex((e) => e.event === 'TP');
-                // 폴백은 잠정치 — 기존 항목을 덮지 않고, 실감지만 승격 교체한다
-                if (idx !== -1 && tp.fallback) return prev;
-                const newEntry: LogEntry = {
-                    id: idx === -1 ? crypto.randomUUID() : prev[idx].id,
-                    time: formatElapsed(tp.timeSec),
-                    timeSec: tp.timeSec,
-                    event: 'TP',
-                    temp: formatTemp(tp.temp, unit),
-                    tempC: tp.temp,
-                    note: tp.fallback ? 'Turning Point (fallback timeout)' : 'Turning Point detected',
-                };
-                const next = idx === -1 ? [...prev, newEntry] : prev.map((e, i) => (i === idx ? newEntry : e));
-                return next.sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
-            });
+            markTurningPoint(tp);
         },
-        [unit, setLogEntries],
+        [markTurningPoint],
     );
 
     return { triggerCharge, handleAutoDrop, handleTurningPoint };

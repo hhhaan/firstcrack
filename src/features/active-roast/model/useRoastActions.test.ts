@@ -13,14 +13,15 @@ vi.mock('@shared/lib/sidecar', () => ({
 
 const renderActions = (roastStartTimeRef: { current: number }) => {
     const root = createRoot(document.createElement('div'));
-    const setLogEntries = vi.fn();
+    const markCharge = vi.fn();
     let latest: ReturnType<typeof useRoastActions>;
 
     const Probe = () => {
         latest = useRoastActions({
-            unit: 'C',
             rawBT: 200,
-            setLogEntries,
+            markCharge,
+            markAutoDrop: vi.fn(),
+            markTurningPoint: vi.fn(),
             setIsRunning: vi.fn(),
             setShowEndRoastModal: vi.fn(),
             storeStartCharge: (ms) => useRoastingStore.getState().startCharge(ms),
@@ -31,7 +32,7 @@ const renderActions = (roastStartTimeRef: { current: number }) => {
 
     void act(() => root.render(createElement(Probe)));
     return {
-        setLogEntries,
+        markCharge,
         get result() {
             return latest;
         },
@@ -67,7 +68,7 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         expect(after.sessionId).toBe(sessionId);
         expect(after.roastStartMs).toBe(roastStartMs);
         expect(ref.current).toBe(originAfterFirst);
-        expect(h.setLogEntries).toHaveBeenCalledTimes(1);
+        expect(h.markCharge).toHaveBeenCalledTimes(1);
     });
 });
 

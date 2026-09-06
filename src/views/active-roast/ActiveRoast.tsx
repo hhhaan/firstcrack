@@ -12,7 +12,7 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
-import { applyEventMarkerDrag } from '@features/active-roast/lib/event-marker-drag';
+import { fcStart, heaterAutoOff } from '@features/active-roast/lib/roast-log';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -194,14 +194,22 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const rawET = liveData?.et ?? null;
     const timeStr = formatElapsed(elapsed);
 
-    const { logEntries, pressedButtons, markEvent, cycleFc, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
-        unit,
-        rawBT,
-        elapsed,
-    );
+    const {
+        logEntries,
+        pressedButtons,
+        markEvent,
+        cycleFc,
+        handleDrop,
+        removeLogEntry,
+        clearLog,
+        markCharge,
+        markAutoDrop,
+        markTurningPoint,
+        applyMarkerDrag,
+    } = useRoastLog(unit, rawBT, elapsed);
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
-    const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
+    const fcStartEntry = fcStart(logEntries);
     // 고아 Rolling(FC Start 삭제됨)은 기준점이 없어 지표를 내지 않는다
     const fcRollingEntry = fcStartEntry ? logEntries.find((e) => e.event === 'FC Rolling') : undefined;
     const { devTimeStr, devTimeOnly, dtrPct } = useMemo(
@@ -236,7 +244,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         resetAutoDetectionRef,
         disableAutoChargeRef,
         rearmAutoChargeRef,
-        setLogEntries,
+        clearLog,
         setLivePoints,
         setZoomRange: chart.setZoomRange,
         setHoveredChartIndex: chart.setHoveredChartIndex,
@@ -263,9 +271,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     });
 
     const { triggerCharge, handleAutoDrop, handleTurningPoint } = useRoastActions({
-        unit,
         rawBT,
-        setLogEntries,
+        markCharge,
+        markAutoDrop,
+        markTurningPoint,
         setIsRunning,
         setShowEndRoastModal: saveFlow.flow.openEndRoast,
         storeStartCharge,
@@ -465,9 +474,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const handleEventMarkerDrag = useCallback(
         (event: string, newTimeSec: number) => {
-            setLogEntries((prev) => applyEventMarkerDrag(prev, event, newTimeSec, livePoints, unit));
+            applyMarkerDrag(event, newTimeSec, livePoints);
         },
-        [setLogEntries, livePoints, unit],
+        [applyMarkerDrag, livePoints],
     );
 
     const [noteInput, setNoteInput] = useState('');
@@ -598,7 +607,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         liveData={liveData}
                         pidRuntime={pidRuntime}
                         // 배출·로스팅 종료 시 PID 자동 해제 (무인 화력 방지)
-                        roastFinished={roastEnded || logEntries.some((e) => e.event === 'Drop')}
+                        roastFinished={heaterAutoOff(roastEnded, logEntries)}
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
                         replayPoints={targetCurvePoints}
