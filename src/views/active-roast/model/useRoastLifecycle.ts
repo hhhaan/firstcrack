@@ -1,5 +1,6 @@
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { clearLiveRoastDraft } from '@features/active-roast/model/liveRoastDraft';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
@@ -23,7 +24,6 @@ export interface UseRoastLifecycleParams {
     enterPreheating: (capabilities?: string[]) => void;
     storeEndRoast: () => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
-    setIsRunning: (running: boolean) => void;
     resetStore: () => void;
     resetAutoDetectionRef: React.RefObject<() => void>;
     disableAutoChargeRef: React.RefObject<() => void>;
@@ -58,7 +58,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         enterPreheating,
         storeEndRoast,
         setConnected,
-        setIsRunning,
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
@@ -151,7 +150,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     const resetActiveRoast = useCallback(() => {
         roastStartTimeRef.current = 0;
         resetAutoDetectionRef.current?.();
-        setIsRunning(false);
+        clearLiveRoastDraft();
         resetStore();
         if (sidecarConnected) {
             sidecar.resetRoast().catch(() => {});
@@ -164,7 +163,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     }, [
         roastStartTimeRef,
         resetAutoDetectionRef,
-        setIsRunning,
         resetStore,
         sidecarConnected,
         enterPreheating,
@@ -195,13 +193,13 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             logEntries: completedLogEntries,
         };
         storeEndRoast();
+        clearLiveRoastDraft();
         // BBP: 드롭 시점부터 다음 charge까지 배치간 기록 시작 (Pro 전용 — 유일한 게이팅 지점).
         // ponytail: 기준점은 Drop 로그 시각이 아니라 종료 확정 시각 — 그 사이 phase가 'roasting'이라
         // 어차피 커브가 안 쌓인다. 확정을 늦게 누르면 bbp_seconds가 그만큼 짧게 잡힌다.
         if (bbpEnabled) useBbpStore.getState().begin(Date.now());
-        setIsRunning(false);
         return summaryData;
-    }, [logEntries, timeStr, devTimeStr, rawBT, unit, storeEndRoast, setIsRunning, bbpEnabled]);
+    }, [logEntries, timeStr, devTimeStr, rawBT, unit, storeEndRoast, bbpEnabled]);
 
     return {
         handleEnterStandby,

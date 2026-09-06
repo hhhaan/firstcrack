@@ -1,4 +1,5 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
+import { resumeSessionTsv } from '@shared/lib/tsv-writer';
 import { create } from 'zustand';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
@@ -54,6 +55,8 @@ export interface RoastingState {
     setPendingBean: (beanId: string | null, beanName?: string | null) => void;
     setPendingProfile: (profileId: string | null) => void;
     rememberMachineSnapshot: (snapshot: MachineSnapshot) => void;
+    /** Hydrate Charge–Drop crash journal without minting a new sessionId. */
+    restoreDraft: (draft: { sessionId: string; roastStartMs: number; elapsed: number }) => void;
     reset: () => void;
 }
 
@@ -135,6 +138,22 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     setPendingProfile: (profileId) => set({ pendingProfileId: profileId }),
+
+    restoreDraft: (draft) => {
+        if (get().isRoasting) return;
+        resumeSessionTsv(draft.sessionId);
+        const now = Date.now();
+        const origin = draft.roastStartMs > 0 ? draft.roastStartMs : now;
+        const elapsed = draft.elapsed >= 0 ? draft.elapsed : Math.floor((now - origin) / 1000);
+        set({
+            phase: 'roasting',
+            charged: true,
+            isRoasting: true,
+            sessionId: draft.sessionId,
+            roastStartMs: origin,
+            elapsed,
+        });
+    },
 
     rememberMachineSnapshot: (snapshot) => {
         const current = get().machineSnapshot;

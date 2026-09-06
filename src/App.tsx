@@ -3,7 +3,7 @@ import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useState } from 'react';
-import { useRoastingStore } from './features/active-roast';
+import { isReloadShortcut, shouldBlockReload, useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
 import { useRoastSessionStore } from './shared/store/roastSession';
 import type { PlanBatchHandoff } from './shared/types/database.types';
@@ -29,6 +29,7 @@ import { Pricing } from './views/pricing/Pricing';
 import { Profiles } from './views/profiles/Profiles';
 import { Schedule } from './views/schedule/Schedule';
 import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
+import { LiveRoastRecovery } from './widgets/live-roast-recovery';
 import { PendingRoastRecovery } from './widgets/pending-roast-recovery';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
@@ -63,6 +64,17 @@ export const App = () => {
     // 다운로드는 백그라운드에서 이미 완료되어, 로스팅 종료 후 앱을 다시 열면 자동 반영된다.
     const roastPhase = useRoastingStore((s) => s.phase);
     const isRoastIdle = roastPhase === 'idle';
+
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (!isReloadShortcut(e)) return;
+            if (!shouldBlockReload(useRoastingStore.getState().phase)) return;
+            e.preventDefault();
+            e.stopPropagation();
+        };
+        window.addEventListener('keydown', onKeyDown, true);
+        return () => window.removeEventListener('keydown', onKeyDown, true);
+    }, []);
 
     useEffect(() => {
         void checkAndDownload();
@@ -207,6 +219,7 @@ export const App = () => {
             >
                 {theme === null && <ThemeSelectModal />}
                 <PendingRoastRecovery />
+                <LiveRoastRecovery onResume={() => setView('roast')} />
                 <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <Sidebar
                         activeView={view}

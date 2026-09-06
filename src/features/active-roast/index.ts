@@ -1,11 +1,12 @@
 // model
 
+// lib
+export { isReloadShortcut, shouldBlockReload } from './lib/blockReload';
 export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
 export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
-// lib
 export {
     formatTemp,
     fromDisplayTemp,

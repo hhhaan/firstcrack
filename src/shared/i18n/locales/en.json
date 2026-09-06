@@ -697,6 +697,12 @@
             "saved": "Recovered and saved your previous unsaved roast.",
             "failed": "Could not save the recovered roast. It will be retried on next launch.",
             "discarded": "The recovered roast had invalid data and could not be saved, so it was discarded."
+        },
+        "liveRecovery": {
+            "title": "Resume roast",
+            "askMsg": "An unfinished roast was found. Resume from the last recorded curve and events?",
+            "resume": "Resume",
+            "discard": "Discard"
         }
     },
     "schedule": {

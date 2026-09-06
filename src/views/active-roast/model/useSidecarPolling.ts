@@ -1,6 +1,7 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { readLiveRoastDraft } from '@features/active-roast/model/liveRoastDraft';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
@@ -146,6 +147,16 @@ export const useSidecarPolling = ({
     // (preheating 중 세션 상대 시간으로 쌓인 display 포인트는 버퍼 기반으로 덮어쓴다)
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
+            const sid = useRoastingStore.getState().sessionId;
+            const draft = sid ? readLiveRoastDraft() : null;
+            if (draft && draft.sessionId === sid && draft.livePoints.length > 0) {
+                setLivePoints(draft.livePoints);
+                lastRoastPointTimeRef.current = draft.livePoints[draft.livePoints.length - 1]?.time ?? null;
+                preChargeBufferRef.current = [];
+                preChargeStartRef.current = 0;
+                prevPhaseRef.current = phase;
+                return;
+            }
             const chargeTime = roastStartTimeRef.current;
             // BBP 확정: 요약은 스토어(finalized)에 남고 커브는 로컬 TSV로 — 저장 시 업로드
             const bbpSessionId = useRoastingStore.getState().sessionId;

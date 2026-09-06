@@ -21,7 +21,6 @@ const renderActions = (roastStartTimeRef: { current: number }) => {
             unit: 'C',
             rawBT: 200,
             setLogEntries,
-            setIsRunning: vi.fn(),
             setShowEndRoastModal: vi.fn(),
             storeStartCharge: (ms) => useRoastingStore.getState().startCharge(ms),
             roastStartTimeRef: roastStartTimeRef as React.MutableRefObject<number>,

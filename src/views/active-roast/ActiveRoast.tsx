@@ -14,6 +14,7 @@ import {
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { applyEventMarkerDrag } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { readLiveRoastDraft, scheduleLiveRoastDraftWrite } from '@features/active-roast/model/liveRoastDraft';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -80,6 +81,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         reconnecting,
         machineCapabilities,
         machineSnapshot,
+        isRoasting,
+        roastStartMs,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -92,6 +95,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             reconnecting: s.reconnecting,
             machineCapabilities: s.machineCapabilities,
             machineSnapshot: s.machineSnapshot,
+            isRoasting: s.isRoasting,
+            roastStartMs: s.roastStartMs,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -123,18 +128,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
         useRoastProfileSelection({ isActive, charged, userProfile, beans, beansReady });
 
-    // ── UI 상태 ───────────────────────────────────────────────────
-    const [isRunning, setIsRunning] = useState(false);
-    const isRunningRef = useRef(isRunning);
-    useEffect(() => {
-        isRunningRef.current = isRunning;
-    }, [isRunning]);
-
     // 미저장 로스트(진행 중 or ended 요약) — 창 닫기 가드용 (#177)
+    // isRoasting lives in the store so ErrorBoundary remount still prompts (#354 / #274)
     const hasUnsavedRoastRef = useRef(false);
     useEffect(() => {
-        hasUnsavedRoastRef.current = isRunning || phase === 'ended';
-    }, [isRunning, phase]);
+        hasUnsavedRoastRef.current = isRoasting || phase === 'ended';
+    }, [isRoasting, phase]);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
@@ -142,8 +141,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 공유 ref ──────────────────────────────────────────────────
     // 리마운트(ErrorBoundary 재시도 등) 시 스토어 roastStartMs로 재수화 —
-    // 0으로 남으면 폴링이 로스팅 분기를 영원히 건너뛴다 (#317)
+    // 0으로 남으면 폴링이 로스팅 분기를 영원히 건너뛴다 (#317).
+    // Draft restore updates roastStartMs after mount — keep the ref in sync (#354).
     const roastStartTimeRef = useRef(useRoastingStore.getState().roastStartMs);
+    useEffect(() => {
+        if (roastStartMs > 0) roastStartTimeRef.current = roastStartMs;
+    }, [roastStartMs]);
 
     // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
     const { livePoints, setLivePoints } = useSidecarPolling({
@@ -231,7 +234,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         enterPreheating,
         storeEndRoast,
         setConnected,
-        setIsRunning,
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
@@ -266,7 +268,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         unit,
         rawBT,
         setLogEntries,
-        setIsRunning,
         setShowEndRoastModal: saveFlow.flow.openEndRoast,
         storeStartCharge,
         roastStartTimeRef,
@@ -319,10 +320,34 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── Effect: 타이머 ────────────────────────────────────────────
     useEffect(() => {
-        if (!isRunning) return;
+        if (!isRoasting) return;
         const interval = setInterval(() => tick(), 1000);
         return () => clearInterval(interval);
-    }, [isRunning, tick]);
+    }, [isRoasting, tick]);
+
+    // ── Effect: Charge–Drop crash journal (#354 A5) ───────────────
+    useEffect(() => {
+        if (phase !== 'roasting' || !sessionId) return;
+        // Don't clobber a crash journal with empty RAM during restore hydration.
+        if (livePoints.length === 0 && logEntries.length === 0) return;
+        scheduleLiveRoastDraftWrite({
+            version: 1,
+            sessionId,
+            roastStartMs: roastStartTimeRef.current || roastStartMs,
+            elapsed,
+            livePoints,
+            logEntries,
+            updatedAt: Date.now(),
+        });
+    }, [phase, sessionId, roastStartMs, elapsed, livePoints, logEntries]);
+
+    useEffect(() => {
+        if (phase !== 'roasting' || !sessionId) return;
+        if (logEntries.length > 0) return;
+        const draft = readLiveRoastDraft();
+        if (!draft || draft.sessionId !== sessionId || draft.logEntries.length === 0) return;
+        setLogEntries(draft.logEntries);
+    }, [phase, sessionId, logEntries.length, setLogEntries]);
 
     // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
     useEffect(() => {
@@ -334,7 +359,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             .onCloseRequested(async (e) => {
                 if (!hasUnsavedRoastRef.current) return;
                 e.preventDefault();
-                const running = isRunningRef.current;
+                const running = useRoastingStore.getState().isRoasting;
                 const ok = await ask(
                     running
                         ? '로스팅이 진행 중입니다. 정말 종료하시겠습니까?'

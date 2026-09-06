@@ -64,6 +64,15 @@ export const _resetTsvWriterForTests = (opts?: { write?: TsvWriteFn; remove?: Ts
     removeImpl = opts?.remove ?? defaultRemove;
 };
 
+/** Adopt an on-disk TSV after crash resume — do not rewrite the header. */
+export const resumeSessionTsv = (sessionId: string): void => {
+    const q = getQueue(sessionId);
+    if (q.ready) return;
+    q.initScheduled = true;
+    q.ready = true;
+    q.initError = null;
+};
+
 export const initSessionTsv = async (sessionId: string): Promise<void> => {
     const q = getQueue(sessionId);
     if (q.ready) return;

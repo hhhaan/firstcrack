@@ -7,6 +7,7 @@ import {
     enqueueTsvRow,
     flushTsv,
     initSessionTsv,
+    resumeSessionTsv,
     sessionTsvPath,
     TSV_HEADER,
     writeBbpTsv,
@@ -45,6 +46,14 @@ describe('tsv-writer', () => {
     it('init writes header without append', async () => {
         await initSessionTsv('s1');
         expect(writes).toEqual([{ path: 'session_s1.tsv', contents: TSV_HEADER, append: false }]);
+    });
+
+    it('resumeSessionTsv appends without rewriting header', async () => {
+        resumeSessionTsv('s1');
+        enqueueTsvRow('s1', '1.00\t200\t\t\t\t0\t0\n');
+        await flushTsv('s1');
+        expect(writes.some((w) => w.contents === TSV_HEADER)).toBe(false);
+        expect(writes).toEqual([{ path: 'session_s1.tsv', contents: '1.00\t200\t\t\t\t0\t0\n', append: true }]);
     });
 
     it('serializes concurrent enqueues in order', async () => {
