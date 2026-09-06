@@ -8,7 +8,8 @@ from typing import Any
 import sentry_sdk
 
 import config
-from adapters import WRITABLE_PROTOCOLS, make_adapter
+from adapters import make_adapter
+from adapters.base import MachineAdapter
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
 from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
@@ -46,104 +47,6 @@ def _validate_bt(bt: float) -> None:
         )
 
 
-def _format_connection_error(
-    exc: Exception,
-    protocol: str,
-    params: dict[str, Any],
-    first_read_failure: bool = False,
-) -> str:
-    """Python 예외를 사용자 친화적인 연결 오류 메시지로 변환.
-
-    first_read_failure=True: connect()는 성공했지만 첫 read부터 실패한 경우.
-    포트/소켓은 열렸으므로 원본 예외(대개 timeout/IO 오류)가 사용자에게 도움이
-    안 됨 — 설정 불일치(RTU/ASCII 프레이머, Unit ID 등)를 안내한다.
-    """
-    msg = str(exc)
-    exc_type = type(exc).__name__
-
-    # ── 라이브러리/드라이버 미설치 ──────────────────────────────────────
-    if "No module named 'snap7'" in msg:
-        return "snap7 라이브러리가 설치되지 않았습니다. 설치 가이드를 확인하세요."
-    if "No module named 'pymodbus'" in msg:
-        return "pymodbus 라이브러리가 설치되지 않았습니다."
-    if "No module named 'Phidget22'" in msg:
-        return "Phidget22 SDK가 설치되지 않았습니다. phidgets.com에서 시스템 드라이버를 설치하세요."
-    if "No module named 'websockets'" in msg:
-        return "websockets 라이브러리가 설치되지 않았습니다."
-
-    # ── 시리얼 포트 (MODBUS RTU, Kaleido Serial) ────────────────────────
-    if protocol in ("modbus", "kaleido") and params.get("mode", "").lower() in (
-        "rtu",
-        "ascii",
-        "serial",
-    ):
-        comport = params.get("comport", "")
-        if "No such file or directory" in msg or "could not open port" in msg:
-            return f"시리얼 포트 '{comport}'를 찾을 수 없습니다. 포트 이름과 케이블 연결을 확인하세요."
-        if "Device or resource busy" in msg or "Access is denied" in msg:
-            return f"시리얼 포트 '{comport}'가 다른 프로그램에서 사용 중입니다. 다른 앱을 종료 후 다시 시도하세요."
-        if "Permission denied" in msg:
-            return f"시리얼 포트 '{comport}' 접근 권한이 없습니다. (Linux: sudo usermod -aG dialout $USER)"
-
-    # ── Phidget 장치 미연결 ──────────────────────────────────────────────
-    if "PhidgetException" in exc_type or "EPHIDGET" in msg or "Not Attached" in msg:
-        return "Phidget 장치가 감지되지 않습니다. USB 연결과 시스템 드라이버 설치를 확인하세요."
-    if "Phidget" in exc_type and ("Timeout" in msg or "timed out" in msg.lower()):
-        return "Phidget 장치 응답 없음. USB 케이블과 시스템 드라이버를 확인하세요."
-
-    # ── 네트워크 연결 실패 ───────────────────────────────────────────────
-    if "Connection refused" in msg:
-        host = params.get("host", "")
-        port = params.get("port", "")
-        if protocol == "s7":
-            return f"PLC({host}:{port})가 연결을 거부했습니다. 머신 전원과 S7 통신 설정을 확인하세요."
-        if protocol in ("modbus", "probat_ws", "kaleido"):
-            return (
-                f"{host}:{port} 연결이 거부됐습니다. 머신 전원과 IP/포트를 확인하세요."
-            )
-        return f"연결이 거부됐습니다 ({host}:{port}). 머신 전원과 네트워크 설정을 확인하세요."
-
-    if "timed out" in msg.lower() or exc_type in (
-        "TimeoutError",
-        "asyncio.TimeoutError",
-    ):
-        host = params.get("host", "")
-        if protocol == "s7":
-            return f"PLC({host}) 응답 없음. 같은 네트워크에 있는지, IP 주소가 맞는지 확인하세요."
-        return f"{host} 응답 없음. 머신이 같은 네트워크에 있는지 확인하세요."
-
-    if exc_type == "gaierror" or "nodename nor servname" in msg or "Name or service not known" in msg:
-        return f"호스트({params.get('host', '')})를 찾을 수 없습니다. IP 주소를 확인하세요."
-
-    if "Network is unreachable" in msg or "No route to host" in msg:
-        return f"호스트({params.get('host', '')})에 도달할 수 없습니다. 네트워크 연결을 확인하세요."
-
-    # ── S7 PLC 연결 확인 실패 (snap7 connected=False) ───────────────────
-    if "S7 연결 실패" in msg or ("S7" in msg and "연결" in msg):
-        host = params.get("host", "")
-        return f"S7 PLC({host}) 연결 실패. rack/slot 값과 머신 전원을 확인하세요."
-
-    # ── MODBUS 연결 확인 실패 ────────────────────────────────────────────
-    if "MODBUS 연결 실패" in msg:
-        if params.get("mode", "tcp").lower() in ("tcp", "udp"):
-            return f"MODBUS {params.get('mode', 'tcp').upper()} 연결 실패 ({params.get('host')}:{params.get('port')}). IP와 포트를 확인하세요."
-        return (
-            f"MODBUS RTU 연결 실패 ({params.get('comport')}). 시리얼 포트를 확인하세요."
-        )
-
-    # ── 연결은 됐지만 첫 read부터 실패 (설정 불일치 의심) ──────────────────
-    if first_read_failure and protocol == "modbus":
-        if params.get("mode", "tcp").lower() in ("tcp", "udp"):
-            return "연결됐지만 장치가 응답하지 않습니다. Unit ID와 레지스터 설정을 확인하세요."
-        return (
-            "포트는 열렸지만 장치가 응답하지 않습니다. "
-            "연결 방식(RTU/ASCII)·Baud Rate·Unit ID를 확인하세요."
-        )
-
-    # ── fallback: 원본 메시지 ────────────────────────────────────────────
-    return msg
-
-
 _MAP_KEYS = ("write_map", "channels")
 
 
@@ -175,7 +78,7 @@ def _merge_connect_params(
 
 class RoasterManager:
     def __init__(self) -> None:
-        self._adapter: Any = None
+        self._adapter: MachineAdapter | None = None
         self._roaster_key: str = ""
         self._protocol: str = ""
         self._merged_params: dict[str, Any] = {}
@@ -210,6 +113,17 @@ class RoasterManager:
         self._resetting: bool = False
         # once=True 캡처가 이미 나간 event. 성공/disconnect 때 비운다.
         self._hw_alerts_sent: set[str] = set()
+
+    def _adapter_error(
+        self, exc: Exception, *, first_read_failure: bool = False
+    ) -> str:
+        """연결 오류 카피는 어댑터가 소유한다. 매니저는 프로토콜 백과사전을 두지 않는다."""
+        adapter = self._adapter
+        if adapter is None:
+            return str(exc)
+        return adapter.format_connection_error(
+            exc, first_read_failure=first_read_failure
+        )
 
     def _capture_hardware_error(
         self, exc: Exception, event: str = "hardware_error", *, once: bool = False
@@ -273,7 +187,7 @@ class RoasterManager:
             _log.exception("_capture_hardware_error failed (event=%s)", event)
             pass
 
-    async def _run_adapter_connect(self, adapter: Any) -> None:
+    async def _run_adapter_connect(self, adapter: MachineAdapter) -> None:
         """adapter.connect() **한 줄만** 취소 가능한 태스크로 감싼다.
 
         connect() 전체를 감싸면 취소 시 매니저 상태가 반쪽으로 남는다. 취소 지점을
@@ -368,7 +282,7 @@ class RoasterManager:
                 except Exception:
                     _log.exception("adapter.disconnect() failed after connect_failed [%s]", roaster_key)
                     pass
-                self._error = _format_connection_error(exc, protocol, merged)
+                self._error = self._adapter_error(exc)
                 self._connected = False
                 self._protocol = protocol
                 self._roaster_key = roaster_key
@@ -487,9 +401,7 @@ class RoasterManager:
                         # 어댑터 정리는 곧이어 실행될 _disconnect_internal이 맡는다.
                         return
                     except Exception as exc:
-                        self._error = _format_connection_error(
-                            exc, self._protocol, self._merged_params
-                        )
+                        self._error = self._adapter_error(exc)
                         _log.error("재연결 실패 (%d): %s", attempt, exc)
                         sentry_sdk.add_breadcrumb(
                             category="hardware",
@@ -598,8 +510,8 @@ class RoasterManager:
             # 정상 동작 중 끊김(하드웨어/케이블 가능성)과 Sentry에서 구분 집계한다.
             first_read_failure = self._last_good is None
             event = "first_read_failed" if first_read_failure else "read_failed_disconnected"
-            self._error = _format_connection_error(
-                exc, self._protocol, self._merged_params, first_read_failure
+            self._error = self._adapter_error(
+                exc, first_read_failure=first_read_failure
             )
             self._connected = False
             _log.error("읽기 실패: %s", exc, exc_info=True)
@@ -665,8 +577,9 @@ class RoasterManager:
         return dict(self._merged_params.get("write_map") or {})
 
     def _control_writable(self) -> bool:
-        """실제로 하드웨어에 쓸 수 있는지. write_map ∩ WRITABLE_PROTOCOLS."""
-        return bool(self.write_limits()) and self._protocol in WRITABLE_PROTOCOLS
+        """실제로 하드웨어에 쓸 수 있는지. write_map ∩ adapter.writable."""
+        adapter = self._adapter
+        return bool(self.write_limits()) and adapter is not None and adapter.writable
 
     async def control(
         self,
@@ -690,7 +603,7 @@ class RoasterManager:
             raise ControlUnavailable("로스터 초기화 중입니다.")
         if not self._connected or adapter is None:
             raise ControlUnavailable("머신이 연결되지 않았습니다.")
-        if self._protocol not in WRITABLE_PROTOCOLS:
+        if not adapter.writable:
             raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
 
         write_map = self.write_limits()
@@ -835,11 +748,7 @@ class RoasterManager:
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""
         async with self._lock:
-            if (
-                self._adapter is not None
-                and self._connected
-                and hasattr(self._adapter, "enter_standby")
-            ):
+            if self._adapter is not None and self._connected:
                 await self._adapter.enter_standby()
 
     async def start_roast(self) -> None:
@@ -852,7 +761,7 @@ class RoasterManager:
             self._bt_display_ema = None
             self._et_display_ema = None
             self._ror_warmup = config.ROR_WARMUP_READS
-            if self._adapter is not None and hasattr(self._adapter, "start_roast"):
+            if self._adapter is not None:
                 await self._adapter.start_roast()
 
     async def reset_roast(self) -> None:
@@ -897,9 +806,7 @@ class RoasterManager:
                 self._consecutive_errors = 0
             except Exception as exc:
                 self._connected = False
-                self._error = _format_connection_error(
-                    exc, self._protocol, self._merged_params
-                )
+                self._error = self._adapter_error(exc)
                 _log.error("reset 재연결 실패: %s", exc, exc_info=True)
                 self._capture_hardware_error(exc, "reset_failed")
                 # _refresh_reading은 _connected=False면 재연결을 안 띄운다.

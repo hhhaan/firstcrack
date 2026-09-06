@@ -16,7 +16,7 @@ from bisect import bisect_right
 from collections.abc import Callable
 from typing import Any
 
-from adapters.base import Reading
+from adapters.base import MachineAdapter, Reading
 from adapters.thermal_model import FirstOrderThermalModel
 
 _log = logging.getLogger(__name__)
@@ -115,13 +115,15 @@ def _noise(scale: float = 0.3) -> float:
 # ── 어댑터 ─────────────────────────────────────────────────
 
 
-class VirtualMachineAdapter:
+class VirtualMachineAdapter(MachineAdapter):
     """개발/테스트용 가상 머신 어댑터.
 
     connect() → 예열 상승
     enter_standby() → 예열 목표 온도에서 안정 유지 (강하 없음)
     start_roast() → Charge 시점 BT 기록 후 로스팅 커브 재생
     """
+
+    writable = True
 
     def __init__(
         self,

@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from adapters.base import Reading
+from adapters.base import MachineAdapter, Reading
 from manager import RoasterManager
 
 
@@ -26,8 +26,10 @@ def make_reading(bt: float = 150.0, et: float = 200.0, ts: float | None = None) 
     )
 
 
-class FakeAdapter:
+class FakeAdapter(MachineAdapter):
     """Controllable fake adapter for unit tests."""
+
+    writable = True
 
     def __init__(
         self,

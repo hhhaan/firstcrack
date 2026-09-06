@@ -3,13 +3,13 @@ import time
 import logging
 from typing import Any
 
-from adapters.base import Reading
+from adapters.base import MachineAdapter, Reading, format_missing_module
 from control_guard import ControlUnavailable
 
 _log = logging.getLogger(__name__)
 
 
-class PhidgetAdapter:
+class PhidgetAdapter(MachineAdapter):
     """
     Phidget USB 온도 센서 어댑터 (TMP1101, TMP1200, 1048 등).
     Phidget22 Python SDK 직접 사용.
@@ -23,6 +23,7 @@ class PhidgetAdapter:
     serial_number: 여러 Phidget 연결 시 특정 장치 지정. None이면 아무거나.
     """
 
+    writable = False
     _ATTACH_TIMEOUT_MS = 5000
 
     def __init__(
@@ -127,3 +128,24 @@ class PhidgetAdapter:
     @property
     def connected(self) -> bool:
         return self._connected
+
+    def format_connection_error(
+        self, exc: Exception, *, first_read_failure: bool = False
+    ) -> str:
+        missing = format_missing_module(
+            exc,
+            "Phidget22",
+            "Phidget22 SDK가 설치되지 않았습니다. "
+            "phidgets.com에서 시스템 드라이버를 설치하세요.",
+        )
+        if missing:
+            return missing
+        msg, exc_type = str(exc), type(exc).__name__
+        if "PhidgetException" in exc_type or "EPHIDGET" in msg or "Not Attached" in msg:
+            return (
+                "Phidget 장치가 감지되지 않습니다. "
+                "USB 연결과 시스템 드라이버 설치를 확인하세요."
+            )
+        if "Phidget" in exc_type and ("Timeout" in msg or "timed out" in msg.lower()):
+            return "Phidget 장치 응답 없음. USB 케이블과 시스템 드라이버를 확인하세요."
+        return str(exc)

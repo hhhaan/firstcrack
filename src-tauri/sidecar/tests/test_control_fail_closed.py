@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from adapters import WRITABLE_PROTOCOLS, _PROTOCOL_ADAPTER
+from adapters import _PROTOCOL_ADAPTER
 from adapters.kaleido import KaleidoAdapter
 from adapters.modbus import ModbusAdapter
 from adapters.phidget import PhidgetAdapter
@@ -65,7 +65,7 @@ class TestNoopProtocolControl:
     @pytest.mark.parametrize("roaster,protocol", NOOP_ROASTERS)
     async def test_noop_protocol_with_write_map_not_200(self, client, roaster, protocol):
         cls = _PROTOCOL_ADAPTER[protocol]
-        assert protocol not in WRITABLE_PROTOCOLS
+        assert cls.writable is False
         with (
             patch.object(cls, "connect", new_callable=AsyncMock),
             patch.object(cls, "disconnect", new_callable=AsyncMock),
@@ -107,7 +107,8 @@ class TestWritableHonorsProtocol:
             for v in ROASTER_REGISTRY.values()
             if v["default_params"].get("write_map")
         }
-        assert protocols <= WRITABLE_PROTOCOLS
+        for protocol in protocols:
+            assert _PROTOCOL_ADAPTER[protocol].writable is True
 
     @pytest.mark.parametrize("roaster", ("kaleido", "custom_kaleido"))
     def test_kaleido_client_write_map_not_writable(self, manager, roaster):

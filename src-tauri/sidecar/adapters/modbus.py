@@ -4,7 +4,13 @@ import time
 import logging
 from typing import Any
 from pymodbus.framer import FramerType
-from adapters.base import Reading
+from adapters.base import (
+    MachineAdapter,
+    Reading,
+    format_missing_module,
+    format_network_error,
+    format_serial_port_error,
+)
 from control_guard import ControlUnavailable
 from protocol_trace import TRACE
 
@@ -24,7 +30,7 @@ def _bcd_decode(raw: int) -> int:
     return result
 
 
-class ModbusAdapter:
+class ModbusAdapter(MachineAdapter):
     """
     MODBUS TCP/RTU 어댑터 (Diedrich, Easyster, Proaster, Trinitas, Probat Probatone, Loring).
     pymodbus 3.x AsyncModbusTcpClient / AsyncModbusSerialClient 사용.
@@ -54,6 +60,8 @@ class ModbusAdapter:
                                   float 2레지스터를 [low, high] 순서로 해석.
     word_order="big"           → [high, low] 순서.
     """
+
+    writable = False
 
     def __init__(
         self,
@@ -326,3 +334,46 @@ class ModbusAdapter:
     @property
     def connected(self) -> bool:
         return self._client is not None and self._client.connected
+
+    def format_connection_error(
+        self, exc: Exception, *, first_read_failure: bool = False
+    ) -> str:
+        missing = format_missing_module(
+            exc, "pymodbus", "pymodbus 라이브러리가 설치되지 않았습니다."
+        )
+        if missing:
+            return missing
+        serial = self._mode in ("rtu", "ascii")
+        if serial:
+            port_err = format_serial_port_error(exc, self._comport)
+            if port_err:
+                return port_err
+        network = format_network_error(
+            exc,
+            host=self._host,
+            port=self._port,
+            refused=(
+                f"{self._host}:{self._port} 연결이 거부됐습니다. "
+                "머신 전원과 IP/포트를 확인하세요."
+            ),
+        )
+        if network:
+            return network
+        if "MODBUS 연결 실패" in str(exc):
+            if self._mode in ("tcp", "udp"):
+                return (
+                    f"MODBUS {self._mode.upper()} 연결 실패 "
+                    f"({self._host}:{self._port}). IP와 포트를 확인하세요."
+                )
+            return f"MODBUS RTU 연결 실패 ({self._comport}). 시리얼 포트를 확인하세요."
+        if first_read_failure:
+            if self._mode in ("tcp", "udp"):
+                return (
+                    "연결됐지만 장치가 응답하지 않습니다. "
+                    "Unit ID와 레지스터 설정을 확인하세요."
+                )
+            return (
+                "포트는 열렸지만 장치가 응답하지 않습니다. "
+                "연결 방식(RTU/ASCII)·Baud Rate·Unit ID를 확인하세요."
+            )
+        return str(exc)

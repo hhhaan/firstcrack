@@ -6,14 +6,19 @@ import time
 import logging
 from typing import Any
 
-from adapters.base import Reading
+from adapters.base import (
+    MachineAdapter,
+    Reading,
+    format_missing_module,
+    format_network_error,
+)
 from control_guard import ControlUnavailable
 from protocol_trace import TRACE
 
 _log = logging.getLogger(__name__)
 
 
-class ProbatWSAdapter:
+class ProbatWSAdapter(MachineAdapter):
     """
     Probat WebSocket 어댑터 (G/UG WebSockets, P Series III, Sample Roaster).
     extern/wsport.py는 Qt + ApplicationWindow에 깊게 결합돼 있어 직접 구현.
@@ -27,6 +32,7 @@ class ProbatWSAdapter:
       {"BT":"beanTemp","ET":"ambientTemp","heater":"burner","fan":"exhaustFan"}
     """
 
+    writable = False
     _WS_PATH = "WebSocket"
     _REQUEST_TIMEOUT = 3.0
     _CONNECT_TIMEOUT = 5.0
@@ -163,3 +169,24 @@ class ProbatWSAdapter:
     @property
     def connected(self) -> bool:
         return self._connected
+
+    def format_connection_error(
+        self, exc: Exception, *, first_read_failure: bool = False
+    ) -> str:
+        missing = format_missing_module(
+            exc, "websockets", "websockets 라이브러리가 설치되지 않았습니다."
+        )
+        if missing:
+            return missing
+        return (
+            format_network_error(
+                exc,
+                host=self._host,
+                port=self._port,
+                refused=(
+                    f"{self._host}:{self._port} 연결이 거부됐습니다. "
+                    "머신 전원과 IP/포트를 확인하세요."
+                ),
+            )
+            or str(exc)
+        )

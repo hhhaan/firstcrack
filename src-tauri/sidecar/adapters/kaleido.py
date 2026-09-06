@@ -3,7 +3,13 @@ import time
 import logging
 from typing import Any
 
-from adapters.base import Reading
+from adapters.base import (
+    MachineAdapter,
+    Reading,
+    format_missing_module,
+    format_network_error,
+    format_serial_port_error,
+)
 from control_guard import ControlUnavailable
 
 _log = logging.getLogger(__name__)
@@ -15,7 +21,7 @@ _CONNECT_POLL = 0.1
 _TEARDOWN_TIMEOUT = 2.0
 
 
-class KaleidoAdapter:
+class KaleidoAdapter(MachineAdapter):
     """
     Kaleido 전용 드라이버 (extern/kaleido.py).
     mode="TCP"    → WebSocket (Network.aset, port 80)
@@ -31,6 +37,8 @@ class KaleidoAdapter:
     KaleidoPort.getBTET/stop/send_request는 동기 future.result()를 쓰므로
     aiohttp 이벤트 루프를 막지 않도록 to_thread로 오프로드한다.
     """
+
+    writable = False
 
     def __init__(
         self,
@@ -177,3 +185,28 @@ class KaleidoAdapter:
     @property
     def connected(self) -> bool:
         return self._connected
+
+    def format_connection_error(
+        self, exc: Exception, *, first_read_failure: bool = False
+    ) -> str:
+        missing = format_missing_module(
+            exc, "websockets", "websockets 라이브러리가 설치되지 않았습니다."
+        )
+        if missing:
+            return missing
+        if self._mode.lower() == "serial":
+            serial = format_serial_port_error(exc, self._comport)
+            if serial:
+                return serial
+        return (
+            format_network_error(
+                exc,
+                host=self._host,
+                port=self._port,
+                refused=(
+                    f"{self._host}:{self._port} 연결이 거부됐습니다. "
+                    "머신 전원과 IP/포트를 확인하세요."
+                ),
+            )
+            or str(exc)
+        )

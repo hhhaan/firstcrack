@@ -7,7 +7,12 @@ import logging
 from typing import Any
 
 import config
-from adapters.base import Reading
+from adapters.base import (
+    MachineAdapter,
+    Reading,
+    format_missing_module,
+    format_network_error,
+)
 from protocol_trace import TRACE
 
 _log = logging.getLogger(__name__)
@@ -35,13 +40,13 @@ def _probe_tcp(host: str, port: int, timeout: float) -> None:
 
     도달 불가 IP에서 Cli_ConnectTo는 커널 SYN 타임아웃(macOS 75s)까지 블로킹되고
     PingTimeout(750ms)은 connect에 적용되지 않는다(실측). 소켓 예외는 그대로 올린다 —
-    manager._format_connection_error가 refused/timed out/unreachable을 분류한다.
+    format_connection_error가 refused/timed out/unreachable을 분류한다.
     """
     with socket.create_connection((host, port), timeout=timeout):
         pass
 
 
-class S7Adapter:
+class S7Adapter(MachineAdapter):
     """
     Siemens S7 PLC 어댑터 (Giesen, Probat S7 모델).
     python-snap7 직접 사용 (extern/s7port.py는 Qt에 깊게 결합돼 있어 사용 불가).
@@ -59,6 +64,8 @@ class S7Adapter:
     snap7은 동기 API → run_in_executor로 이벤트 루프 블로킹 방지.
     read_retries=1, min_request_interval=0.04s (40ms) — artisan s7port.py 기준.
     """
+
+    writable = True
 
     # INT16 인코딩 한계 — 스케일링 후 이 범위를 넘으면 랩어라운드로 엉뚱한 값이 써진다.
     _INT16_MIN = -32768
@@ -414,3 +421,34 @@ class S7Adapter:
         읽기 경로에서는 절대 쓰지 않는다(예산 초과의 주범이었다).
         """
         return _client_alive(self._plc)  # await 중 교체될 수 있어 스냅샷으로 넘긴다
+
+    def format_connection_error(
+        self, exc: Exception, *, first_read_failure: bool = False
+    ) -> str:
+        missing = format_missing_module(
+            exc,
+            "snap7",
+            "snap7 라이브러리가 설치되지 않았습니다. 설치 가이드를 확인하세요.",
+        )
+        if missing:
+            return missing
+        host, port = self._host, self._port
+        network = format_network_error(
+            exc,
+            host=host,
+            port=port,
+            refused=(
+                f"PLC({host}:{port})가 연결을 거부했습니다. "
+                "머신 전원과 S7 통신 설정을 확인하세요."
+            ),
+            timeout=(
+                f"PLC({host}) 응답 없음. 같은 네트워크에 있는지, "
+                "IP 주소가 맞는지 확인하세요."
+            ),
+        )
+        if network:
+            return network
+        msg = str(exc)
+        if "S7 연결 실패" in msg or ("S7" in msg and "연결" in msg):
+            return f"S7 PLC({host}) 연결 실패. rack/slot 값과 머신 전원을 확인하세요."
+        return msg

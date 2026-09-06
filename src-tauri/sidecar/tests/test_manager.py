@@ -7,7 +7,8 @@ from unittest.mock import patch
 import pytest
 
 import config
-from adapters.base import Reading
+from adapters.base import MachineAdapter, Reading
+from adapters.modbus import ModbusAdapter
 from manager import RoasterManager
 from tests.conftest import FakeAdapter, make_reading
 
@@ -314,8 +315,10 @@ class TestRorAccumulation:
 # _reconnect_loop — infinite retry
 # ---------------------------------------------------------------------------
 
-class FlakyConnectAdapter:
+class FlakyConnectAdapter(MachineAdapter):
     """connect가 fail_times번 실패한 뒤 성공하는 페이크."""
+
+    writable = True
 
     def __init__(self, fail_times: int):
         self._remaining_failures = fail_times
@@ -508,10 +511,13 @@ class TestManagerStaleData:
 
     async def test_first_read_failure_gets_serial_hint_message(self, manager):
         """첫 read 실패(연결은 됐지만 응답 없음) + serial(rtu/ascii) → 설정 불일치 안내 메시지."""
-        adapter = FakeAdapter(readings=[])
+
+        class FailingModbus(ModbusAdapter):
+            async def read(self):
+                raise RuntimeError("no more readings")
+
+        adapter = FailingModbus(mode="rtu")
         await self._connect_with(manager, adapter)
-        manager._protocol = "modbus"
-        manager._merged_params = {"mode": "rtu"}
         await manager.read_temperatures()
         assert "연결 방식(RTU/ASCII)" in manager._error
         if manager._reconnect_task is not None:
@@ -519,10 +525,13 @@ class TestManagerStaleData:
 
     async def test_first_read_failure_gets_network_hint_message(self, manager):
         """첫 read 실패 + tcp/udp → Unit ID/레지스터 안내 메시지."""
-        adapter = FakeAdapter(readings=[])
+
+        class FailingModbus(ModbusAdapter):
+            async def read(self):
+                raise RuntimeError("no more readings")
+
+        adapter = FailingModbus(mode="tcp")
         await self._connect_with(manager, adapter)
-        manager._protocol = "modbus"
-        manager._merged_params = {"mode": "tcp"}
         await manager.read_temperatures()
         assert "Unit ID" in manager._error
         if manager._reconnect_task is not None:
@@ -530,10 +539,19 @@ class TestManagerStaleData:
 
     async def test_subsequent_read_failure_keeps_generic_message(self, manager):
         """이전 정상 값이 있던 상태(로스팅 중 끊김)에서는 기존 메시지 경로 유지."""
-        adapter = FakeAdapter(readings=[make_reading(bt=180.0)])
+
+        class OneShotModbus(ModbusAdapter):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self._readings = [make_reading(bt=180.0)]
+
+            async def read(self):
+                if self._readings:
+                    return self._readings.pop(0)
+                raise RuntimeError("no more readings")
+
+        adapter = OneShotModbus(mode="rtu")
         await self._connect_with(manager, adapter)
-        manager._protocol = "modbus"
-        manager._merged_params = {"mode": "rtu"}
         await manager.read_temperatures()  # 성공 → _last_good 세팅
         for _ in range(config.STALE_TOLERANCE_READS):
             await manager.read_temperatures()  # stale 소진
@@ -617,7 +635,7 @@ class TestBtValidation:
 # read 타임아웃 (H7) / disconnect 경합 (H4)
 # ---------------------------------------------------------------------------
 
-class HangingAdapter:
+class HangingAdapter(MachineAdapter):
     """read()가 영원히 끝나지 않는 어댑터."""
 
     def __init__(self) -> None:
@@ -700,7 +718,8 @@ class TestDisconnectRace:
         assert manager._reconnect_task is None
 
     async def test_control_after_disconnect_is_silent(self, manager):
-        class ControlFailsAfterDisconnect:
+        class ControlFailsAfterDisconnect(MachineAdapter):
+            writable = True
             connected = True
 
             async def control(inner, heater=None, fan=None, drum=None):
