@@ -18,6 +18,7 @@ export interface RoasterFormField {
     required: boolean;
     placeholder?: string;
     options?: { value: string; label: string }[];
+    step?: string;
 }
 
 export interface RoasterDef {

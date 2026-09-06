@@ -405,7 +405,13 @@
         "saveAndConnect": "保存して接続",
         "failedToSave": "保存に失敗しました",
         "phidgetDriverNotice": "このデバイスには Phidget22 システムドライバが別途必要です。",
-        "phidgetDriverLink": "Phidget22ドライバーをダウンロード"
+        "phidgetDriverLink": "Phidget22ドライバーをダウンロード",
+        "machineControl": "マシン制御 / PID",
+        "machineControlHint": "任意。ヒーター・ファン・ドラムのPLC書き込み/読み取りアドレスを入力します。書き込みDBを空にするとそのチャネルは無効です。Enterprise専用。",
+        "machineControlWrite": "{{role}} 書き込み",
+        "machineControlRead": "{{role}} 読み取り（フィードバック）",
+        "pidGains": "PIDゲイン",
+        "pidGainsHint": "ソフトウェアPIDに必要です。ヒーター書き込みアドレスが必要です。"
     },
     "dashboard": {
         "greeting": {

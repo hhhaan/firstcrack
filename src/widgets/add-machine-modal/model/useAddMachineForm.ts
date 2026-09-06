@@ -62,6 +62,7 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
 
     const editingIsCustom = isEdit && !!editing && isCustomConnectKey(editing.roasterKey);
     const isCustom = (!isEdit && tab === 'custom') || editingIsCustom;
+    const canConfigureControl = useFeature(FEATURE.customMachineControl);
 
     useAddMachineFormSync({
         open,
@@ -70,6 +71,7 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         selectedKey,
         isCustom,
         customProtocol,
+        canConfigureControl,
         setError,
         setTestState,
         setTestMessage,
@@ -112,7 +114,6 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
     const protocolForAddress = selectedDef?.protocol ?? '';
     const showAddressMap = isCustom && PROTOCOLS_WITH_ADDRESS_MAP.has(protocolForAddress);
     const addressFields = showAddressMap ? addressFormFieldsForProtocol(protocolForAddress) : [];
-    const canConfigureControl = useFeature(FEATURE.customMachineControl);
     const { showWriteMap, includeWriteMap } = writeMapFormFlags({
         isCustom,
         protocol: protocolForAddress,

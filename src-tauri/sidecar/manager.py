@@ -728,12 +728,23 @@ class RoasterManager:
 
     # ── 소프트웨어 PID ─────────────────────────────────────────────────────
 
+    def _pid_gains(self) -> dict[str, Any] | None:
+        """Connect params `pid` override registry gains — custom machines supply their own."""
+        merged = self._merged_params.get("pid")
+        if isinstance(merged, dict):
+            try:
+                kp, ki, kd = merged["Kp"], merged["Ki"], merged["Kd"]
+                if all(isinstance(v, (int, float)) and math.isfinite(float(v)) for v in (kp, ki, kd)):
+                    return {"Kp": float(kp), "Ki": float(ki), "Kd": float(kd)}
+            except (KeyError, TypeError, ValueError):
+                pass
+        gains = ROASTER_REGISTRY.get(self._roaster_key, {}).get("pid")
+        return gains if gains else None
+
     def pid_capability(self) -> dict[str, Any]:
         """PID 지원 여부(정적). 게인 + heater 쓰기 + 실제 쓰기 프로토콜."""
-        reg = ROASTER_REGISTRY.get(self._roaster_key, {})
-        gains = reg.get("pid")
         supported = (
-            bool(gains)
+            bool(self._pid_gains())
             and "heater" in self.write_limits()
             and self._control_writable()
         )
@@ -778,7 +789,9 @@ class RoasterManager:
                 f"목표 온도는 {cap['sv_min']:.0f}~{cap['sv_max']:.0f}°C 범위여야 합니다."
             )
 
-        gains_cfg = ROASTER_REGISTRY[self._roaster_key]["pid"]
+        gains_cfg = self._pid_gains()
+        if not gains_cfg:
+            raise ControlUnavailable("이 머신은 PID 제어를 지원하지 않습니다.")
         if self._pid is None:
             self._pid = PidRunner(
                 read_pv=self._pv_snapshot,

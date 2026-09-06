@@ -61,4 +61,51 @@ describe('assembleConnectionParams write-map gate', () => {
             persistConnectionParams({ host: '10.0.0.1', write_map: { heater: { db: 2 } } }, flags.includeWriteMap),
         ).toEqual({ host: '10.0.0.1', write_map: { heater: { db: 2 } } });
     });
+
+    it('nests heater write_map and pid from form when includeWriteMap is true', () => {
+        const def = buildProtocolRoasterDef('s7');
+        const assembled = assembleConnectionParams(
+            def,
+            {
+                host: '10.0.0.1',
+                heater_w_db: '2',
+                heater_w_offset: '14',
+                heater_w_type: '0',
+                heater_w_div: '0',
+                heater_w_min: '0',
+                heater_w_max: '100',
+                pid_kp: '20',
+                pid_ki: '0.01',
+                pid_kd: '3',
+            },
+            false,
+            true,
+        );
+        expect(assembled.ok).toBe(true);
+        if (!assembled.ok) return;
+        expect(assembled.typed.write_map).toEqual({
+            heater: { db: 2, offset: 14, area: 6, type: 0, div: 0, min: 0, max: 100, unit: '%' },
+        });
+        expect(assembled.typed.pid).toEqual({ Kp: 20, Ki: 0.01, Kd: 3 });
+    });
+
+    it('does not nest write_map from form when includeWriteMap is false', () => {
+        const def = buildProtocolRoasterDef('s7');
+        const assembled = assembleConnectionParams(
+            def,
+            {
+                host: '10.0.0.1',
+                heater_w_db: '2',
+                heater_w_offset: '14',
+                heater_w_type: '0',
+                heater_w_div: '0',
+                heater_w_min: '0',
+                heater_w_max: '100',
+            },
+            false,
+            false,
+        );
+        expect(assembled.ok).toBe(true);
+        if (assembled.ok) expect(assembled.typed).not.toHaveProperty('write_map');
+    });
 });

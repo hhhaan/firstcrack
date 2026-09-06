@@ -4,6 +4,7 @@ import {
     initRoasterFormParams,
     isCustomConnectKey,
     ROASTER_REGISTRY,
+    writeMapFormFlags,
 } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
 import type { Dispatch, SetStateAction } from 'react';
@@ -17,6 +18,7 @@ type Args = {
     selectedKey: string;
     isCustom: boolean;
     customProtocol: string;
+    canConfigureControl: boolean;
     setError: (v: string) => void;
     setTestState: (v: TestState) => void;
     setTestMessage: (v: string) => void;
@@ -38,6 +40,7 @@ export const useAddMachineFormSync = ({
     selectedKey,
     isCustom,
     customProtocol,
+    canConfigureControl,
     setError,
     setTestState,
     setTestMessage,
@@ -71,10 +74,21 @@ export const useAddMachineFormSync = ({
             setCustomBrand(editing.brand === 'Custom' ? '' : editing.brand);
             setCustomProtocol(editing.protocol);
             const includeAddressMap = isCustomConnectKey(editing.roasterKey);
+            const { includeWriteMap } = writeMapFormFlags({
+                isCustom: includeAddressMap,
+                protocol: editing.protocol,
+                canConfigureControl,
+            });
             const def = includeAddressMap
                 ? buildProtocolRoasterDef(editing.protocol)
                 : ROASTER_REGISTRY[editing.roasterKey];
-            if (def) setParams(initRoasterFormParams(def, editing.connectionParams, { includeAddressMap }));
+            if (def)
+                setParams(
+                    initRoasterFormParams(def, editing.connectionParams, {
+                        includeAddressMap,
+                        includeWriteMap,
+                    }),
+                );
             return;
         }
         setTab('supported');
@@ -83,7 +97,18 @@ export const useAddMachineFormSync = ({
         setCustomName('');
         setCustomBrand('');
         setCustomProtocol('');
-    }, [open, editingId, editing, setTab, setSelectedKey, setParams, setCustomName, setCustomBrand, setCustomProtocol]);
+    }, [
+        open,
+        editingId,
+        editing,
+        canConfigureControl,
+        setTab,
+        setSelectedKey,
+        setParams,
+        setCustomName,
+        setCustomBrand,
+        setCustomProtocol,
+    ]);
 
     useEffect(() => {
         if (!open || editingId || !selectedKey || isCustom) return;
@@ -94,6 +119,11 @@ export const useAddMachineFormSync = ({
     useEffect(() => {
         if (!open || editingId || !isCustom || !customProtocol) return;
         const def = buildProtocolRoasterDef(customProtocol);
-        setParams(initRoasterFormParams(def, undefined, { includeAddressMap: true }));
-    }, [open, editingId, isCustom, customProtocol, setParams]);
+        const { includeWriteMap } = writeMapFormFlags({
+            isCustom: true,
+            protocol: customProtocol,
+            canConfigureControl,
+        });
+        setParams(initRoasterFormParams(def, undefined, { includeAddressMap: true, includeWriteMap }));
+    }, [open, editingId, isCustom, customProtocol, canConfigureControl, setParams]);
 };

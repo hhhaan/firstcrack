@@ -132,6 +132,44 @@ class TestStatus:
 
 
 # ---------------------------------------------------------------------------
+# _pid_gains()
+# ---------------------------------------------------------------------------
+
+class TestPidGains:
+    async def test_custom_s7_pid_from_connect_params(self, manager):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect(
+                "custom_s7",
+                {
+                    "write_map": {
+                        "heater": {"db": 2, "offset": 14, "min": 0, "max": 100, "unit": "%"}
+                    },
+                    "pid": {"Kp": 10, "Ki": 0.2, "Kd": 1.5},
+                    "channels": [
+                        {"role": "BT", "db": 3, "offset": 0, "area": 6, "type": 0, "div": 0}
+                    ],
+                },
+            )
+        cap = manager.pid_capability()
+        assert cap["supported"] is True
+        assert manager._pid_gains() == {"Kp": 10.0, "Ki": 0.2, "Kd": 1.5}
+
+    async def test_custom_s7_without_pid_is_unsupported(self, manager):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("custom_s7", {"write_map": {"heater": {"min": 0, "max": 100}}})
+        assert manager.pid_capability()["supported"] is False
+
+    async def test_registry_pid_still_used_when_params_omit_pid(self, manager):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+        assert manager.pid_capability()["supported"] is True
+        assert manager._pid_gains()["Kp"] == 4
+
+
+# ---------------------------------------------------------------------------
 # connect()
 # ---------------------------------------------------------------------------
 

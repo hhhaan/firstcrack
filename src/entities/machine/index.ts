@@ -1,8 +1,11 @@
+export type { ControlRole } from './lib';
 export {
     addressFormFieldsForProtocol,
     buildProtocolRoasterDef,
     buildTypedConnectionParams,
+    CONTROL_ROLES,
     CUSTOM_CONNECT_KEYS,
+    controlCapabilitiesFromParams,
     copyMachineSnapshot,
     EMPTY_MACHINE_SNAPSHOT,
     flattenAddressMaps,
@@ -14,11 +17,16 @@ export {
     listProtocols,
     nestAddressMaps,
     networkScanProtocol,
+    PID_FORM_FIELDS,
     PROTOCOLS_WITH_ADDRESS_MAP,
+    PROTOCOLS_WITH_WRITE_MAP,
+    pidFromParams,
+    readFieldsForRole,
     resolveCustomConnectKey,
     snapshotFromSidecar,
     validateAddressMaps,
     validateRoasterFormFields,
+    writeFieldsForRole,
     writeMapFormFlags,
 } from './lib';
 export { useMachines, VIRTUAL_ID } from './model';

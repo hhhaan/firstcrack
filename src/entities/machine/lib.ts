@@ -8,6 +8,7 @@ import {
 } from './addressMap';
 import { PROTOCOL_FORM_FIELDS } from './roasterRegistry';
 import type { Machine, MachineSnapshot, RoasterDef, SidecarStatus } from './types';
+import { flattenWriteMaps, nestWriteMaps, PROTOCOLS_WITH_WRITE_MAP, validateWriteMaps } from './writeMap';
 
 export {
     addressDefaultsForProtocol,
@@ -19,19 +20,17 @@ export {
     PROTOCOLS_WITH_ADDRESS_MAP,
     validateAddressMaps,
 } from './addressMap';
-
-/** Protocols whose adapters honor a client-supplied write_map. */
-const WRITE_MAP_PROTOCOLS = new Set(['s7']);
-
-/** Show and persist use the same plan/protocol gate — never persist a hidden write map. */
-export const writeMapFormFlags = (input: {
-    isCustom: boolean;
-    protocol: string;
-    canConfigureControl: boolean;
-}): { showWriteMap: boolean; includeWriteMap: boolean } => {
-    const showWriteMap = input.isCustom && WRITE_MAP_PROTOCOLS.has(input.protocol) && input.canConfigureControl;
-    return { showWriteMap, includeWriteMap: showWriteMap };
-};
+export type { ControlRole } from './writeMap';
+export {
+    CONTROL_ROLES,
+    controlCapabilitiesFromParams,
+    PID_FORM_FIELDS,
+    PROTOCOLS_WITH_WRITE_MAP,
+    pidFromParams,
+    readFieldsForRole,
+    writeFieldsForRole,
+    writeMapFormFlags,
+} from './writeMap';
 
 export const TCP_ONLY_FIELDS = new Set(['host', 'port']);
 export const RTU_ONLY_FIELDS = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
@@ -60,10 +59,23 @@ export const isRoasterFieldVisible = (fieldKey: string, mode: string | undefined
     return true;
 };
 
+type FormParamOptions = { includeAddressMap?: boolean; includeWriteMap?: boolean };
+
+const mergeControlChannels = (result: Record<string, unknown>, extra: Record<string, unknown>): void => {
+    const extraChannels = extra.control_channels;
+    const rest = { ...extra };
+    delete rest.control_channels;
+    if (Array.isArray(extraChannels) && extraChannels.length > 0) {
+        const existing = result.channels;
+        result.channels = Array.isArray(existing) ? [...existing, ...extraChannels] : extraChannels;
+    }
+    Object.assign(result, rest);
+};
+
 export const initRoasterFormParams = (
     def: RoasterDef,
     existing?: Record<string, unknown>,
-    options?: { includeAddressMap?: boolean },
+    options?: FormParamOptions,
 ): Record<string, string> => {
     const initial: Record<string, string> = {};
     for (const field of def.form_fields) {
@@ -77,13 +89,16 @@ export const initRoasterFormParams = (
             Object.assign(initial, addressDefaultsForProtocol(def.protocol));
         }
     }
+    if (options?.includeWriteMap && PROTOCOLS_WITH_WRITE_MAP.has(def.protocol)) {
+        Object.assign(initial, flattenWriteMaps(def.protocol, existing));
+    }
     return initial;
 };
 
 export const buildTypedConnectionParams = (
     def: RoasterDef,
     stringParams: Record<string, string>,
-    options?: { includeAddressMap?: boolean },
+    options?: FormParamOptions,
 ): Record<string, unknown> => {
     const mode = stringParams.mode;
     const result: Record<string, unknown> = {};
@@ -96,13 +111,16 @@ export const buildTypedConnectionParams = (
     if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
         Object.assign(result, nestAddressMaps(def.protocol, stringParams));
     }
+    if (options?.includeWriteMap && PROTOCOLS_WITH_WRITE_MAP.has(def.protocol)) {
+        mergeControlChannels(result, nestWriteMaps(def.protocol, stringParams));
+    }
     return result;
 };
 
 export const validateRoasterFormFields = (
     def: RoasterDef,
     stringParams: Record<string, string>,
-    options?: { includeAddressMap?: boolean },
+    options?: FormParamOptions,
 ): string | null => {
     const mode = stringParams.mode;
     for (const field of def.form_fields) {
@@ -112,7 +130,11 @@ export const validateRoasterFormFields = (
         }
     }
     if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
-        return validateAddressMaps(def.protocol, stringParams);
+        const missing = validateAddressMaps(def.protocol, stringParams);
+        if (missing) return missing;
+    }
+    if (options?.includeWriteMap && PROTOCOLS_WITH_WRITE_MAP.has(def.protocol)) {
+        return validateWriteMaps(def.protocol, stringParams);
     }
     return null;
 };

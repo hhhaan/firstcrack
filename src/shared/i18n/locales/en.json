@@ -405,7 +405,13 @@
         "saveAndConnect": "Save & Connect",
         "failedToSave": "Failed to save",
         "phidgetDriverNotice": "This device needs the Phidget22 system driver installed separately.",
-        "phidgetDriverLink": "Download Phidget22 driver"
+        "phidgetDriverLink": "Download Phidget22 driver",
+        "machineControl": "Machine control / PID",
+        "machineControlHint": "Optional. Enter PLC write/read addresses for heater, fan, and drum. Leave a write DB empty to disable that channel. Enterprise only.",
+        "machineControlWrite": "{{role}} write",
+        "machineControlRead": "{{role}} read (feedback)",
+        "pidGains": "PID gains",
+        "pidGainsHint": "Required for software PID. Needs a heater write address."
     },
     "dashboard": {
         "greeting": {

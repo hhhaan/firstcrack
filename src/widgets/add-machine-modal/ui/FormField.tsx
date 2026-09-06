@@ -64,6 +64,7 @@ export const FormField = ({
                 type={field.type === 'number' ? 'number' : 'text'}
                 placeholder={field.placeholder ?? ''}
                 value={value}
+                step={field.step}
                 onChange={(e) => onChange(e.target.value)}
             />
         )}

@@ -513,8 +513,24 @@ Giesen을 포함한 대부분의 로스터에는 PLC 내장 PID가 없어(`PID_a
 
 상태 코드: `400` 형식/범위 오류, `409` 미연결·PID 미지원·미실행.
 
-PID를 켜려면 레지스트리에 **게인(`pid`)과 heater `write_map`이 둘 다** 있어야 한다
-(`GET /status.control.pid.supported`로 확인).
+PID를 켜려면 **게인(`pid`)과 heater `write_map`이 둘 다** 있어야 한다
+(`GET /status.control.pid.supported`로 확인). 알려진 로스터는 레지스트리 값을 쓰고,
+커스텀 S7은 connect params의 `write_map` / `pid`가 레지스트리를 override한다
+(`RoasterManager._pid_gains`). 게인이 없으면 `ControlUnavailable`.
+
+### 커스텀 S7 write map 실기 검증 (#269, #292)
+
+하드웨어 읽기/쓰기는 레지스트리 머신에서 이미 동작한다. 커스텀 S7 폼은 Enterprise
+`customMachineControl` 게이트 뒤에만 보이며, 게이트가 폼을 숨기면 커밋도
+`write_map`/`pid`를 저장하지 않는다.
+
+실기 절차 (Giesen 등 S7 PLC, 버너 켜기 전):
+
+1. Enterprise 플랜으로 Custom S7을 추가하고 BT 채널 + heater write DB/offset/type/scale/min/max를 입력한다. 읽기 셀과 쓰기 셀을 공유하지 않는다 (#269: Giesen heater write `DB2.14`, feedback `DB2.48`).
+2. Test Connection → BT가 읽히는지 확인한다. `/status.control.writable`과 `limits.heater`가 폼 min/max와 같은지 확인한다.
+3. 수동 heater를 작은 step으로 쓰고, `applied`가 클램프 후 값인지, PLC 피드백 레지스터가 따라오는지 확인한다. fan/drum은 모델 맵이 없으면 no-op.
+4. PID 게인(Kp/Ki/Kd)을 넣은 뒤에만 `/status.control.pid.supported === true`가 된다. 소프트웨어 PID는 실열 튜닝 전 금지 (#269). 기본 DROP은 `hold`라서 PID off ≠ burner off.
+5. 실패 시 Sentry breadcrumb(`control`/`pid`)과 sidecar 로그를 남긴다. 앱 강제 종료 시 duty가 PLC에 남을 수 있다.
 
 **안전 동작**
 

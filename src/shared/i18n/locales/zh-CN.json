@@ -405,7 +405,13 @@
         "saveAndConnect": "保存并连接",
         "failedToSave": "保存失败",
         "phidgetDriverNotice": "此设备需单独安装 Phidget22 系统驱动。",
-        "phidgetDriverLink": "下载 Phidget22 驱动"
+        "phidgetDriverLink": "下载 Phidget22 驱动",
+        "machineControl": "设备控制 / PID",
+        "machineControlHint": "可选。填写加热器、风扇、滚筒的 PLC 写入/读取地址。写入 DB 留空则禁用该通道。仅 Enterprise。",
+        "machineControlWrite": "{{role}} 写入",
+        "machineControlRead": "{{role}} 读取（反馈）",
+        "pidGains": "PID 增益",
+        "pidGainsHint": "软件 PID 需要此项，且必须有加热器写入地址。"
     },
     "dashboard": {
         "greeting": {
