@@ -129,3 +129,32 @@ class TestShutdownEndpoint:
                 resp = await client.post("/shutdown")
                 assert resp.status == 200
         app["manager"].disconnect.assert_awaited()
+
+
+# ---------------------------------------------------------------------------
+# _exit_if_parent_dead
+# ---------------------------------------------------------------------------
+
+class TestExitIfParentDead:
+    def test_absent_parent_pid_allows_direct_dev_run(self, monkeypatch):
+        from main import _exit_if_parent_dead
+
+        monkeypatch.delenv("SIDECAR_PARENT_PID", raising=False)
+        _exit_if_parent_dead()
+
+    def test_live_parent_allows_bind(self, monkeypatch):
+        from main import _exit_if_parent_dead
+
+        monkeypatch.setenv("SIDECAR_PARENT_PID", str(os.getpid()))
+        with mock.patch("main._pid_alive", return_value=True):
+            _exit_if_parent_dead()
+
+    @pytest.mark.parametrize("parent_pid", ["invalid", "999999999"])
+    def test_invalid_or_dead_parent_exits_before_bind(self, monkeypatch, parent_pid):
+        from main import _exit_if_parent_dead
+
+        monkeypatch.setenv("SIDECAR_PARENT_PID", parent_pid)
+        with mock.patch("main._pid_alive", return_value=False):
+            with pytest.raises(SystemExit) as exc:
+                _exit_if_parent_dead()
+        assert exc.value.code == 0
