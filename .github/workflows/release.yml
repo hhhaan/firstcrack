@@ -268,9 +268,9 @@ jobs:
         with:
           args: --target ${{ matrix.target }}
 
-      # JS 소스맵은 Vite 플러그인이 이미 업로드+삭제했다 — 여기서는 Rust 네이티브 심볼만 다룬다
+      # JS 소스맵은 Vite 플러그인이 이미 업로드+삭제했다 — 여기는 Rust 네이티브 심볼만.
       # (macOS .dSYM / Windows .pdb). @sentry/cli는 devDependency — lockfile 핀 + integrity 검증,
-      # curl|sh 설치 스크립트 없음.
+      # curl|sh / npm -g 설치 없음.
       - name: Upload native debug symbols to Sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

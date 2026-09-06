@@ -22,6 +22,7 @@ const TEMP = {
  * Minimal sidecar HTTP mock so Active Roast can Charge without Tauri/Python.
  */
 export function startSidecarMock(port = 9999): Promise<http.Server> {
+    let tick = 0;
     const server = http.createServer((req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -40,7 +41,7 @@ export function startSidecarMock(port = 9999): Promise<http.Server> {
         if (url.startsWith('/status')) return send(200, STATUS);
         if (url.startsWith('/temperatures')) {
             TEMP.timestamp = Date.now() / 1000;
-            TEMP.bt += (Math.random() - 0.4) * 0.5;
+            TEMP.bt += ((tick++ % 10) / 10 - 0.4) * 0.5;
             return send(200, TEMP);
         }
         if (url.startsWith('/roasters')) return send(200, { roasters: [{ key: 'virtual', name: 'Virtual' }] });

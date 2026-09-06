@@ -193,9 +193,11 @@ function loadTs() {
 // Compare
 // ---------------------------------------------------------------------------
 
+const localeSort = (a, b) => String(a).localeCompare(String(b));
+
 function diffSets(a, b) {
-    const onlyA = [...a].filter((k) => !b.has(k)).sort();
-    const onlyB = [...b].filter((k) => !a.has(k)).sort();
+    const onlyA = [...a].filter((k) => !b.has(k)).sort(localeSort);
+    const onlyB = [...b].filter((k) => !a.has(k)).sort(localeSort);
     return { onlyA, onlyB };
 }
 
@@ -214,7 +216,7 @@ function main() {
     if (onlyPy.length) failures.push(`keys only in Python (missing UI mirror): ${onlyPy.join(', ')}`);
     if (onlyTs.length) failures.push(`keys only in TypeScript (missing sidecar): ${onlyTs.join(', ')}`);
 
-    for (const key of [...pyKeys].sort()) {
+    for (const key of [...pyKeys].sort(localeSort)) {
         if (!tsKeys.has(key)) continue;
         const p = py.registry[key];
         const t = ts.registry.get(key);
@@ -233,14 +235,14 @@ function main() {
         }
         const pyParams = Object.keys(p.default_params ?? {})
             .filter((k) => !PY_ONLY_PARAM_KEYS.has(k))
-            .sort();
+            .sort(localeSort);
         const leaked = t.paramKeys.filter((k) => PY_ONLY_PARAM_KEYS.has(k));
         if (leaked.length) {
             failures.push(`${key}: Python-only map keys dumped into TS default_params: ${leaked.join(', ')}`);
         }
-        if (!eq(pyParams, [...t.paramKeys].sort())) {
+        if (!eq(pyParams, [...t.paramKeys].sort(localeSort))) {
             failures.push(
-                `${key}: default_params keys py=[${pyParams.join(',')}] ts=[${[...t.paramKeys].sort().join(',')}]`,
+                `${key}: default_params keys py=[${pyParams.join(',')}] ts=[${[...t.paramKeys].sort(localeSort).join(',')}]`,
             );
         }
     }
@@ -252,7 +254,7 @@ function main() {
     if (onlyPyProto.length) failures.push(`form protocols only in Python: ${onlyPyProto.join(', ')}`);
     if (onlyTsProto.length) failures.push(`form protocols only in TypeScript: ${onlyTsProto.join(', ')}`);
 
-    for (const proto of [...pyProtoKeys].sort()) {
+    for (const proto of [...pyProtoKeys].sort(localeSort)) {
         if (!tsProtoKeys.has(proto)) continue;
         const pyFields = py.form[proto].map((f) => f.key);
         const tsFields = ts.form.get(proto);
