@@ -3,8 +3,8 @@ import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
-import { sidecar } from '@shared/lib/sidecar';
-import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
+import { buildSidecarSessionStart, sidecar } from '@shared/lib/sidecar';
+import { writeBbpTsv } from '@shared/lib/tsv-writer';
 import { listen } from '@tauri-apps/api/event';
 import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -113,7 +113,7 @@ export async function checkSidecarAndRecoverIdle(deps: {
  * livePoints는 차트·자동감지 훅에서 공유되므로 이 훅에서 소유한다.
  * resetActiveRoast 등 외부에서 초기화가 필요할 때를 위해 setLivePoints도 반환한다.
  *
- * sessionId가 설정되면 AppLocalData/session_{sessionId}.tsv에 커브 데이터를 기록한다.
+ * 세션 TSV는 sidecar recorder가 쓴다 (#308). 이 훅은 표시·자동감지용 livePoints만 쌓는다.
  */
 export const useSidecarPolling = ({
     isActive,
@@ -134,12 +134,8 @@ export const useSidecarPolling = ({
     const prevPhaseRef = useRef(phase);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef(createBtFilter());
-
-    // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
-    useEffect(() => {
-        if (!sessionId) return;
-        void initSessionTsv(sessionId).catch(() => {});
-    }, [sessionId]);
+    // sidecar 재시작 후 같은 sessionId로 /session/start를 다시 보낸다.
+    const recorderArmedRef = useRef<string | null>(null);
 
     // phase → 'roasting' 전환 감지:
     // 버퍼를 음수 상대 시간으로 변환 후 livePoints를 교체한다.
@@ -222,6 +218,7 @@ export const useSidecarPolling = ({
             store.setError(decision.error);
             store.setReconnecting(decision.reconnecting);
             setConnected(decision.connected);
+            if (!decision.connected) recorderArmedRef.current = null;
         };
 
         const poll = async () => {
@@ -297,10 +294,15 @@ export const useSidecarPolling = ({
                         drum: data.drum ?? 0,
                     };
 
-                    const currentSessionId = useRoastingStore.getState().sessionId;
-                    if (currentSessionId) {
-                        const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? ''}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
-                        enqueueTsvRow(currentSessionId, row);
+                    const currentSessionId = useRoastingStore.getState().sessionId ?? sessionId;
+                    if (currentSessionId && recorderArmedRef.current !== currentSessionId) {
+                        recorderArmedRef.current = currentSessionId;
+                        const origin = roastStartTimeRef.current;
+                        void buildSidecarSessionStart(currentSessionId, origin)
+                            .then((body) => sidecar.startSession(body))
+                            .catch(() => {
+                                recorderArmedRef.current = null;
+                            });
                     }
                     setLivePoints((prev) => [...prev, point]);
                 } else if (currentPhase === 'standby') {

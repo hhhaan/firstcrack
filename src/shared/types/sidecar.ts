@@ -75,6 +75,17 @@ export interface PidRuntime {
     error: string | null;
 }
 
+export interface SidecarRecording {
+    session_id: string;
+    path: string;
+}
+
+export interface SidecarSessionStart {
+    session_id: string;
+    charge_epoch_ms: number;
+    path?: string;
+}
+
 export interface SidecarStatus {
     connected: boolean;
     reconnecting?: boolean;
@@ -86,6 +97,7 @@ export interface SidecarStatus {
     control?: ControlCapability;
     uptime: number;
     error: string | null;
+    recording?: SidecarRecording | null;
 }
 
 // GET /temperatures 응답

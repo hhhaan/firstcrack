@@ -1,7 +1,16 @@
-import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@shared/types/sidecar';
+import type {
+    NetworkHost,
+    PidRuntime,
+    SerialPort,
+    SidecarRecording,
+    SidecarSessionStart,
+    SidecarStatus,
+    TemperatureReading,
+} from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
 import { isSidecarStartingError } from './errorMessage';
 import { logger } from './logger';
+import { resolveSessionTsvPath } from './tsv-writer';
 
 export const SIDECAR_BASE = 'http://127.0.0.1:9999';
 
@@ -72,6 +81,18 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
     }
 }
 
+export const buildSidecarSessionStart = async (
+    sessionId: string,
+    chargeEpochMs: number,
+): Promise<SidecarSessionStart> => {
+    const path = await resolveSessionTsvPath(sessionId);
+    return {
+        session_id: sessionId,
+        charge_epoch_ms: chargeEpochMs,
+        ...(path ? { path } : {}),
+    };
+};
+
 export const sidecar = {
     getStatus: () => request<SidecarStatus>('/status'),
 
@@ -104,8 +125,23 @@ export const sidecar = {
     // READY 버튼과 연동 — 가상 머신에 standby 진입 알림 (생두 투입 시뮬레이션 시작)
     enterStandby: () => request<{ ok: boolean }>('/standby', { method: 'POST' }),
 
-    // Charge 버튼과 연동 — 시뮬레이터 타이머 리셋 + RoR 윈도우 초기화
-    startRoast: () => request<{ ok: boolean }>('/start', { method: 'POST' }),
+    // Charge 버튼과 연동 — 시뮬레이터 타이머 리셋 + RoR 윈도우 초기화.
+    // session_id가 있으면 sidecar가 session_{id}.tsv를 기록한다 (#308).
+    startRoast: (body?: SidecarSessionStart) =>
+        request<{ ok: boolean; recording?: SidecarRecording | null }>('/start', {
+            method: 'POST',
+            ...(body ? { body: JSON.stringify(body) } : {}),
+        }),
+
+    /** 재연결 재전송 — recorder만 연다 (RoR/어댑터 리셋 없음). */
+    startSession: (body: SidecarSessionStart) =>
+        request<{ ok: boolean; recording?: SidecarRecording | null }>('/session/start', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        }),
+
+    /** 업로드 전 파일 핸들을 닫는다. 기록 중이 아니면 no-op. */
+    stopSession: () => request<{ ok: boolean; recording: null }>('/session/stop', { method: 'POST' }),
 
     // 로스트 종료/리셋 — 어댑터 상태를 초기화해 다음 로스트를 예열 상태에서 시작
     resetRoast: () => request<{ ok: boolean }>('/reset', { method: 'POST' }),

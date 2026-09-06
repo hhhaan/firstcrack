@@ -1,5 +1,5 @@
 import { formatElapsed } from '@shared/lib/format';
-import { sidecar } from '@shared/lib/sidecar';
+import { buildSidecarSessionStart, sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback } from 'react';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
@@ -39,12 +39,19 @@ export const useRoastActions = ({
         (btAtCharge?: number | null, chargeTimeMs?: number) => {
             // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
             if (useRoastingStore.getState().charged) return;
-            sidecar.startRoast().catch(() => {});
             const now = Date.now();
             const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
             // Same origin for livePoints.time (ref) and elapsed (store roastStartMs)
             roastStartTimeRef.current = origin;
             storeStartCharge(origin);
+            const sessionId = useRoastingStore.getState().sessionId;
+            if (sessionId) {
+                void buildSidecarSessionStart(sessionId, origin)
+                    .then((body) => sidecar.startRoast(body))
+                    .catch(() => {});
+            } else {
+                sidecar.startRoast().catch(() => {});
+            }
             setIsRunning(true);
             const btVal = btAtCharge ?? rawBT;
             setLogEntries([

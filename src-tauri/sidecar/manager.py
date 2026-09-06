@@ -13,6 +13,12 @@ from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
 from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
+from session_recorder import (
+    SessionRecorder,
+    parse_charge_epoch_ms,
+    parse_session_id,
+    resolve_tsv_path,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -210,6 +216,9 @@ class RoasterManager:
         self._resetting: bool = False
         # once=True 캡처가 이미 나간 event. 성공/disconnect 때 비운다.
         self._hw_alerts_sent: set[str] = set()
+        # 세션 TSV recorder. 연결 lock과 분리 — 하드웨어 disconnect 중에도 파일을 닫을 수 있다.
+        self._recorder: SessionRecorder | None = None
+        self._recorder_lock: asyncio.Lock = asyncio.Lock()
 
     def _capture_hardware_error(
         self, exc: Exception, event: str = "hardware_error", *, once: bool = False
@@ -855,12 +864,51 @@ class RoasterManager:
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
+    def recording_status(self) -> dict[str, str] | None:
+        rec = self._recorder
+        return rec.snapshot() if rec is not None else None
+
+    async def start_session_recorder(
+        self,
+        session_id: Any,
+        charge_epoch_ms: Any,
+        path: Any | None = None,
+    ) -> dict[str, str]:
+        """Charge 이후 TSV 기록을 시작한다. 같은 session_id면 no-op (재연결 재전송)."""
+        sid = parse_session_id(session_id)
+        epoch = parse_charge_epoch_ms(charge_epoch_ms)
+        tsv_path = resolve_tsv_path(sid, path)
+        async with self._recorder_lock:
+            if self._recorder is not None and self._recorder.session_id == sid:
+                return self._recorder.snapshot()
+            await self._stop_recorder_unlocked()
+            rec = SessionRecorder(
+                session_id=sid,
+                path=tsv_path,
+                charge_epoch_ms=epoch,
+                read_fn=self.read_temperatures,
+            )
+            await rec.start()
+            self._recorder = rec
+            return rec.snapshot()
+
+    async def stop_session_recorder(self) -> None:
+        async with self._recorder_lock:
+            await self._stop_recorder_unlocked()
+
+    async def _stop_recorder_unlocked(self) -> None:
+        rec = self._recorder
+        self._recorder = None
+        if rec is not None:
+            await rec.stop()
+
     async def reset_roast(self) -> None:
         """로스트 종료 후 어댑터 상태를 초기화한다 (connect() 재호출). RoR 윈도우도 클리어.
 
         재연결 실패 시 _connected=False 를 남긴다. HTTP 200 + connected=True 로
         끝나서는 안 된다. 연결 게이트는 두지 않는다 — 어댑터만 있으면 재시도한다.
         """
+        await self.stop_session_recorder()
         async with self._lock:
             self._ror_window.clear()
             self._et_ror_window.clear()
@@ -942,6 +990,7 @@ class RoasterManager:
             },
             "uptime": uptime,
             "error": self._error,
+            "recording": self.recording_status(),
         }
 
     async def probe(self) -> dict[str, Any]:

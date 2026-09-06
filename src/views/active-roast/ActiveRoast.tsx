@@ -350,6 +350,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     const sid = useRoastingStore.getState().sessionId;
                     if (sid) {
                         try {
+                            await sidecar.stopSession().catch(() => {});
                             await flushTsv(sid);
                         } catch (err) {
                             logger.capture(err, { scope: 'activeRoast.flushOnClose' });

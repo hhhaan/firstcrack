@@ -7,6 +7,7 @@ import {
     enqueueTsvRow,
     flushTsv,
     initSessionTsv,
+    resolveSessionTsvPath,
     sessionTsvPath,
     TSV_HEADER,
     writeBbpTsv,
@@ -40,6 +41,10 @@ describe('tsv-writer', () => {
 
     it('sessionTsvPath formats filename', () => {
         expect(sessionTsvPath('abc')).toBe('session_abc.tsv');
+    });
+
+    it('resolveSessionTsvPath is null outside Tauri', async () => {
+        await expect(resolveSessionTsvPath('abc')).resolves.toBeNull();
     });
 
     it('init writes header without append', async () => {

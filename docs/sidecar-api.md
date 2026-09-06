@@ -1,6 +1,6 @@
 # First Crack Sidecar API
 
-작성일: 2026-05-08 · 갱신일: 2026-07-26
+작성일: 2026-05-08 · 갱신일: 2026-09-07
 
 이 문서는 `src-tauri/sidecar/main.py`의 현재 `aiohttp` 기반 HTTP API를 기준으로 한다. 프론트엔드는 `src/shared/lib/sidecar.ts`에서 이 API를 호출한다.
 
@@ -46,6 +46,7 @@ interface SidecarStatus {
     capabilities: string[];
     uptime: number;
     error: string | null;
+    recording: { session_id: string; path: string } | null;
 }
 ```
 
@@ -385,13 +386,25 @@ Behavior:
 
 Charge 버튼과 연동되는 시작 신호다.
 
-Request body: 없음
+Request body: 없음, 또는
+
+```json
+{
+  "session_id": "uuid",
+  "charge_epoch_ms": 1700000000000,
+  "path": "/abs/session_<uuid>.tsv"
+}
+```
+
+`path`는 절대 경로이고 파일명은 `session_{session_id}.tsv`여야 한다. 생략 시 `SIDECAR_DATA_DIR` env 아래 같은 이름으로 쓴다. 둘 다 없으면 recorder는 시작하지 않고 기존 Charge 동작만 한다.
 
 Response:
 
 ```json
-{ "ok": true }
+{ "ok": true, "recording": { "session_id": "uuid", "path": "/abs/session_<uuid>.tsv" } }
 ```
+
+`session_id`가 없으면 `recording`은 `null`이다.
 
 Behavior:
 
@@ -399,6 +412,15 @@ Behavior:
 - ET RoR window를 초기화한다.
 - 현재 adapter에 `start_roast()` 메서드가 있으면 호출한다.
 - virtual adapter는 이 호출 시 profile 재생 시작 시간을 현재 시각으로 리셋한다.
+- `session_id`가 있으면 sidecar가 자체 tick으로 TSV를 append한다 (btFilter 적용, max_age 재사용). 같은 session_id 재전송은 no-op.
+
+### POST /session/start
+
+재연결 재전송용. RoR/어댑터는 건드리지 않고 recorder만 연다. body는 `/start`의 세션 필드와 같다. `session_id` 필수.
+
+### POST /session/stop
+
+Recorder를 멈추고 파일 핸들을 닫는다. 업로드/창 종료 전에 호출한다. 기록 중이 아니면 no-op `{ ok: true, recording: null }`.
 
 ### POST /reset
 
@@ -688,8 +710,10 @@ const BASE = 'http://127.0.0.1:9999';
 | `sidecar.getTemperatures()`           | `GET /temperatures` |
 | `sidecar.updateSettings(settings)`    | `POST /settings`    |
 | `sidecar.enterStandby()`              | `POST /standby`     |
-| `sidecar.startRoast()`                | `POST /start`       |
-| `sidecar.resetRoast()`                | `POST /reset`       |
+| `sidecar.startRoast(body?)`           | `POST /start`         |
+| `sidecar.startSession(body)`          | `POST /session/start` |
+| `sidecar.stopSession()`               | `POST /session/stop`  |
+| `sidecar.resetRoast()`                | `POST /reset`         |
 | `sidecar.getSerialPorts()`            | `GET /serial-ports` |
 | `sidecar.scanNetwork(protocol)`       | `GET /scan-network` |
 
@@ -699,10 +723,11 @@ const BASE = 'http://127.0.0.1:9999';
 
 - API handler 파일: `src-tauri/sidecar/main.py`
 - 연결 상태 관리자: `src-tauri/sidecar/manager.py`
+- 세션 TSV recorder: `src-tauri/sidecar/session_recorder.py` (`bt_filter.py`는 프론트 createBtFilter와 동일 계약)
 - 로스터별 주소맵: `src-tauri/sidecar/roaster_registry.py`
 - Adapter factory: `src-tauri/sidecar/adapters/__init__.py`
 - 공통 reading shape: `src-tauri/sidecar/adapters/base.py`
-- 프론트 타입: `src/shared/types/machine.ts`
+- 프론트 타입: `src/shared/types/sidecar.ts`
 - 프론트 API wrapper: `src/shared/lib/sidecar.ts`
 
 ## Packaging & Deployment

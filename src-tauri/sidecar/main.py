@@ -12,6 +12,9 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   POST /disconnect
   GET  /temperatures  → {"bt", "et", "ror", "heater", "fan", "timestamp"}
   POST /start         → Charge 버튼 연동: 가상 머신 타이머 리셋 + RoR 윈도우 초기화
+                        optional JSON {session_id, charge_epoch_ms, path} 로 TSV 기록 시작
+  POST /session/start → TSV recorder만 (재연결 재전송, RoR 리셋 없음)
+  POST /session/stop  → recorder 종료 + 파일 close (업로드 전 필수)
 
 어댑터 추가 방법:
   1. adapters/<protocol>.py 에 XxxAdapter 클래스 작성
@@ -99,6 +102,10 @@ def _exit_if_parent_dead() -> None:
 
 async def _cleanup_manager(manager: RoasterManager) -> None:
     """어댑터 정리(Kaleido CL/AR, 시리얼 해제 등). 실패해도 종료 경로를 막지 않음."""
+    try:
+        await manager.stop_session_recorder()
+    except Exception:
+        _log.exception("shutdown session recorder stop failed")
     try:
         await manager.disconnect()
     except Exception:
@@ -198,10 +205,60 @@ async def handle_standby(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def _optional_json(request: web.Request) -> dict[str, Any]:
+    try:
+        body = await request.json()
+    except Exception:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
 async def handle_start(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
+    body = await _optional_json(request)
     await manager.start_roast()
-    return web.json_response({"ok": True})
+    session_id = body.get("session_id")
+    if session_id:
+        try:
+            recording = await manager.start_session_recorder(
+                session_id,
+                body.get("charge_epoch_ms"),
+                body.get("path"),
+            )
+        except ValueError as exc:
+            return web.json_response({"error": str(exc)}, status=400)
+        except OSError as exc:
+            _log.error("session recorder start failed: %s", exc, exc_info=True)
+            return web.json_response({"error": str(exc)}, status=500)
+        return web.json_response({"ok": True, "recording": recording})
+    return web.json_response({"ok": True, "recording": manager.recording_status()})
+
+
+async def handle_session_start(request: web.Request) -> web.Response:
+    """재연결 재전송용 — RoR/어댑터는 건드리지 않고 recorder만 연다."""
+    manager: RoasterManager = request.app["manager"]
+    body = await _optional_json(request)
+    session_id = body.get("session_id")
+    if not session_id:
+        return web.json_response({"error": "session_id required"}, status=400)
+    try:
+        recording = await manager.start_session_recorder(
+            session_id,
+            body.get("charge_epoch_ms"),
+            body.get("path"),
+        )
+    except ValueError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except OSError as exc:
+        _log.error("session recorder start failed: %s", exc, exc_info=True)
+        return web.json_response({"error": str(exc)}, status=500)
+    return web.json_response({"ok": True, "recording": recording})
+
+
+async def handle_session_stop(request: web.Request) -> web.Response:
+    manager: RoasterManager = request.app["manager"]
+    await manager.stop_session_recorder()
+    return web.json_response({"ok": True, "recording": None})
 
 
 async def handle_reset(request: web.Request) -> web.Response:
@@ -515,6 +572,8 @@ def create_app() -> web.Application:
     app.router.add_get("/temperatures", handle_temperatures)
     app.router.add_post("/standby", handle_standby)
     app.router.add_post("/start", handle_start)
+    app.router.add_post("/session/start", handle_session_start)
+    app.router.add_post("/session/stop", handle_session_stop)
     app.router.add_post("/reset", handle_reset)
     app.router.add_post("/settings", handle_settings)
     app.router.add_post("/control", handle_control)

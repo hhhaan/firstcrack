@@ -91,6 +91,7 @@ def reset_trace():
 async def manager():
     m = RoasterManager()
     yield m
+    await m.stop_session_recorder()
     # Cancel any pending reconnect/connect task to avoid asyncio teardown warnings
     for task in (m._reconnect_task, m._connect_task):
         if task is not None and not task.done():

@@ -6,9 +6,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { useSidecarPolling } from './useSidecarPolling';
 
 const mocks = vi.hoisted(() => ({
-    enqueueTsvRow: vi.fn(),
-    initSessionTsv: vi.fn(),
     getTemperatures: vi.fn(),
+    startSession: vi.fn().mockResolvedValue({ ok: true }),
     listen: vi.fn(),
 }));
 
@@ -17,15 +16,19 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 
 vi.mock('@shared/lib/sidecar', () => ({
+    buildSidecarSessionStart: vi.fn(async (sessionId: string, chargeEpochMs: number) => ({
+        session_id: sessionId,
+        charge_epoch_ms: chargeEpochMs,
+    })),
     sidecar: {
         getTemperatures: mocks.getTemperatures,
         getStatus: vi.fn().mockResolvedValue({ connected: true }),
+        startSession: mocks.startSession,
+        stopSession: vi.fn().mockResolvedValue({ ok: true }),
     },
 }));
 
 vi.mock('@shared/lib/tsv-writer', () => ({
-    enqueueTsvRow: mocks.enqueueTsvRow,
-    initSessionTsv: mocks.initSessionTsv,
     writeBbpTsv: vi.fn(),
 }));
 
@@ -70,13 +73,7 @@ const renderProbe = (pollIntervalMs: number) => {
     return root;
 };
 
-it('enqueues the first sample with controls while TSV initialization is pending', async () => {
-    let finishInit = () => {};
-    mocks.initSessionTsv.mockReturnValue(
-        new Promise<void>((resolve) => {
-            finishInit = resolve;
-        }),
-    );
+it('starts sidecar session recorder on first roast sample, does not write TSV in the webview', async () => {
     mocks.getTemperatures.mockResolvedValue({
         bt: 200,
         et: 210,
@@ -114,14 +111,12 @@ it('enqueues the first sample with controls while TSV initialization is pending'
         await act(async () => {
             await vi.waitFor(() => expect(mocks.getTemperatures).toHaveBeenCalled());
         });
-
-        expect(mocks.enqueueTsvRow).toHaveBeenCalledOnce();
-        const [sessionId, row] = mocks.enqueueTsvRow.mock.calls[0];
-        expect(sessionId).toBe('issue-315');
-        expect(row).toMatch(/\t80\t40\t60\n$/);
+        await act(async () => {
+            await vi.waitFor(() => expect(mocks.startSession).toHaveBeenCalled());
+        });
+        expect(mocks.startSession).toHaveBeenCalledWith(expect.objectContaining({ session_id: 'issue-315' }));
     } finally {
         await act(async () => {
-            finishInit();
             root.unmount();
         });
     }
@@ -130,7 +125,6 @@ it('enqueues the first sample with controls while TSV initialization is pending'
 it('accepts the first sample when roast-relative time moves backwards for a new batch', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-29T12:00:00Z'));
-    mocks.initSessionTsv.mockResolvedValue(undefined);
     mocks.getTemperatures.mockResolvedValue({
         bt: 200,
         et: 210,
@@ -164,14 +158,14 @@ it('accepts the first sample when roast-relative time moves backwards for a new 
         await act(async () => {
             await Promise.resolve();
         });
-        expect(mocks.enqueueTsvRow).toHaveBeenCalledOnce();
+        expect(mocks.getTemperatures).toHaveBeenCalledOnce();
 
         roastStartTimeRef.current = Date.now();
         await act(async () => {
             await vi.advanceTimersByTimeAsync(500);
         });
 
-        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(2);
+        expect(mocks.getTemperatures).toHaveBeenCalledTimes(2);
     } finally {
         act(() => root.unmount());
     }
@@ -180,7 +174,6 @@ it('accepts the first sample when roast-relative time moves backwards for a new 
 it('Tauri: host poll tick drives polling through the gate', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-30T12:00:00Z'));
-    mocks.initSessionTsv.mockResolvedValue(undefined);
     stubTemps();
     (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
 
@@ -222,7 +215,6 @@ it('Tauri: host poll tick drives polling through the gate', async () => {
 it('Tauri: listen 실패 시 setInterval 폴백으로 폴링이 계속된다', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-30T12:00:00Z'));
-    mocks.initSessionTsv.mockResolvedValue(undefined);
     stubTemps();
     (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     mocks.listen.mockRejectedValue(new Error('ipc unavailable'));

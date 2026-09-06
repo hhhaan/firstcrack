@@ -307,13 +307,16 @@ fn spawn_sidecar(
     let parent_pid = std::process::id().to_string();
     let version = app.package_info().version.to_string();
     let token = app.state::<SidecarToken>().0.clone();
-    let (rx, child) = app
+    let mut cmd = app
         .shell()
         .sidecar("sidecar")?
         .env("SIDECAR_PARENT_PID", &parent_pid)
         .env("SIDECAR_VERSION", &version)
-        .env("SIDECAR_TOKEN", &token)
-        .spawn()?;
+        .env("SIDECAR_TOKEN", &token);
+    if let Ok(dir) = app.path().app_local_data_dir() {
+        cmd = cmd.env("SIDECAR_DATA_DIR", dir.to_string_lossy().as_ref());
+    }
+    let (rx, child) = cmd.spawn()?;
     Ok((rx, child))
 }
 

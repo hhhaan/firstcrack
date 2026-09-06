@@ -46,7 +46,7 @@ export function startSidecarMock(port = 9999): Promise<http.Server> {
         }
         if (url.startsWith('/roasters')) return send(200, { roasters: [{ key: 'virtual', name: 'Virtual' }] });
         if (url.startsWith('/serial-ports')) return send(200, []);
-        if (url.startsWith('/connect') || url.startsWith('/disconnect') || url.startsWith('/standby') || url.startsWith('/start') || url.startsWith('/reset') || url.startsWith('/settings')) {
+        if (url.startsWith('/connect') || url.startsWith('/disconnect') || url.startsWith('/standby') || url.startsWith('/start') || url.startsWith('/session/') || url.startsWith('/reset') || url.startsWith('/settings')) {
             return send(200, { ok: true, ...STATUS });
         }
         return send(404, { error: 'not found' });

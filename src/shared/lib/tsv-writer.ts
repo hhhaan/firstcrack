@@ -19,6 +19,17 @@ const defaultRemove: TsvRemoveFn = async (path) => {
 
 export const sessionTsvPath = (sessionId: string): string => `session_${sessionId}.tsv`;
 
+/** Sidecar recorder에 넘길 AppLocalData 절대 경로. 웹 전용/테스트는 null. */
+export const resolveSessionTsvPath = async (sessionId: string): Promise<string | null> => {
+    if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return null;
+    try {
+        const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
+        return await join(await appLocalDataDir(), sessionTsvPath(sessionId));
+    } catch {
+        return null;
+    }
+};
+
 interface SessionQueue {
     chain: Promise<void>;
     ready: boolean;

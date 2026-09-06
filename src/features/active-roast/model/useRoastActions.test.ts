@@ -6,7 +6,11 @@ import { useRoastingStore } from './status';
 import { useRoastActions } from './useRoastActions';
 
 vi.mock('@shared/lib/sidecar', () => ({
-    sidecar: { startRoast: vi.fn().mockResolvedValue(undefined) },
+    buildSidecarSessionStart: vi.fn(async (sessionId: string, chargeEpochMs: number) => ({
+        session_id: sessionId,
+        charge_epoch_ms: chargeEpochMs,
+    })),
+    sidecar: { startRoast: vi.fn().mockResolvedValue({ ok: true }) },
 }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -52,13 +56,20 @@ const resetStore = () => {
 describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
     beforeEach(resetStore);
 
-    it('2회 연속 호출해도 sessionId·기준점 불변, Charge 로그 1회', () => {
+    it('2회 연속 호출해도 sessionId·기준점 불변, Charge 로그 1회', async () => {
+        const { sidecar } = await import('@shared/lib/sidecar');
         const ref = { current: 0 };
         const h = renderActions(ref);
 
         void act(() => h.result.triggerCharge(200));
+        await act(async () => {
+            await Promise.resolve();
+        });
         const { sessionId, roastStartMs } = useRoastingStore.getState();
         expect(sessionId).not.toBeNull();
+        expect(sidecar.startRoast).toHaveBeenCalledWith(
+            expect.objectContaining({ session_id: sessionId, charge_epoch_ms: roastStartMs }),
+        );
         const originAfterFirst = ref.current;
 
         // 2차 호출은 과거 chargeTimeMs를 줘도 (가드 실패 시 기준점이 이동하도록) 전부 무시돼야 한다

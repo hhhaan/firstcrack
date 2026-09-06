@@ -27,9 +27,10 @@ Live roast logging (sidecar temps → log entries → local TSV) and durable sav
 
 ## Runtime loop (read)
 
-1. Sidecar poll (`useSidecarPolling`) → temperatures
-2. Log / auto detection / BBP / phases in feature model+lib
-3. Continuous local TSV under app local data (`session_<uuid>.tsv`, optional `bbp_*.tsv`) — durability before network
+1. Sidecar poll (`useSidecarPolling`) → temperatures → livePoints (chart / auto-detect). Display only.
+2. Charge → `POST /start {session_id, charge_epoch_ms, path}` starts sidecar TSV recorder (`session_{uuid}.tsv` under AppLocalData). Recorder tick uses `read_temperatures(max_age=READING_MAX_AGE_S)` so it does not dual-poll while the webview is alive, and becomes the pacer if the webview stops (#308).
+3. Log / auto detection / BBP / phases stay in feature model+lib (webview). BBP TSV is still written by the frontend.
+4. Save/upload: `POST /session/stop` (close sidecar file handle) → `flushTsv` (legacy queue no-op) → read local TSV → R2. Sidecar restart mid-roast: frontend re-sends `POST /session/start` (append, no RoR reset).
 
 ---
 

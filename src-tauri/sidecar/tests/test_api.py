@@ -21,6 +21,7 @@ async def client(monkeypatch):
         yield c
     # Cancel any background task left by tests
     manager = app["manager"]
+    await manager.stop_session_recorder()
     for task in (manager._reconnect_task, manager._pid_task, manager._connect_task):
         if task is not None and not task.done():
             task.cancel()
@@ -335,6 +336,61 @@ class TestStartResetEndpoints:
         assert resp.status == 200
         data = await resp.json()
         assert data["ok"] is True
+
+    async def test_start_without_session_does_not_record(self, client):
+        resp = await client.post("/start")
+        data = await resp.json()
+        assert data["recording"] is None
+        status = await (await client.get("/status")).json()
+        assert status["recording"] is None
+
+    async def test_session_start_stop_writes_header(self, client, tmp_path):
+        session_id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        path = tmp_path / f"session_{session_id}.tsv"
+        resp = await client.post(
+            "/session/start",
+            json={
+                "session_id": session_id,
+                "charge_epoch_ms": 1_700_000_000_000,
+                "path": str(path),
+            },
+        )
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["ok"] is True
+        assert data["recording"]["session_id"] == session_id
+        status = await (await client.get("/status")).json()
+        assert status["recording"]["session_id"] == session_id
+        assert path.read_text(encoding="utf-8").startswith("time\tbt\tet\tror\theater\tfan\tdrum\n")
+        stop = await client.post("/session/stop")
+        assert stop.status == 200
+        after = await (await client.get("/status")).json()
+        assert after["recording"] is None
+
+    async def test_session_start_rejects_bad_id(self, client, tmp_path):
+        resp = await client.post(
+            "/session/start",
+            json={
+                "session_id": "../escape",
+                "charge_epoch_ms": 1,
+                "path": str(tmp_path / "session_x.tsv"),
+            },
+        )
+        assert resp.status == 400
+
+    async def test_start_with_session_is_idempotent(self, client, tmp_path):
+        session_id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        path = tmp_path / f"session_{session_id}.tsv"
+        body = {
+            "session_id": session_id,
+            "charge_epoch_ms": 1_700_000_000_000,
+            "path": str(path),
+        }
+        first = await (await client.post("/start", json=body)).json()
+        second = await (await client.post("/session/start", json=body)).json()
+        assert first["recording"]["path"] == second["recording"]["path"]
+        text = path.read_text(encoding="utf-8")
+        assert text.count("time\tbt") == 1
 
 
 # ---------------------------------------------------------------------------

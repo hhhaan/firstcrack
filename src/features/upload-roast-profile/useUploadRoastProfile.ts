@@ -1,6 +1,7 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { patchRoastSessionTsvPaths, roastSessionApi } from '@entities/roast';
 import { logger } from '@shared/lib/logger';
+import { sidecar } from '@shared/lib/sidecar';
 import { deleteBbpTsv, deleteSessionTsv, flushTsv } from '@shared/lib/tsv-writer';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadBbpProfile, uploadRoastProfile } from './uploadRoastProfile';
@@ -33,6 +34,7 @@ export const useUploadRoastProfile = () => {
         mutationFn: async ({ sessionId, roastSessionId }: SyncRoastCurveInput): Promise<UploadResult> => {
             if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Not authenticated');
             const ownerId = workspaceOwnerId;
+            await sidecar.stopSession().catch(() => {});
             await flushTsv(sessionId);
             const key = await uploadRoastProfile(sessionId, ownerId);
             if (!key) throw new Error('Local TSV missing or empty upload key');
