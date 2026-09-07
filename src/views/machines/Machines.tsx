@@ -165,7 +165,7 @@ export const Machines = ({
                                                 <div className="text-[13px] font-medium text-primary mb-0.5">
                                                     {machine.name}
                                                 </div>
-                                                <div className="text-[12px] text-muted)">{machine.displayName}</div>
+                                                <div className="text-[12px] text-muted">{machine.displayName}</div>
                                             </div>
                                             <Badge
                                                 size="sm"
@@ -232,7 +232,7 @@ export const Machines = ({
                                 </div>
 
                                 {/* Temperature cards — 항상 표시, 선택된 머신이 연결된 머신일 때만 실제 값 표시 */}
-                                <div className="grid grid-cols-3 gap-3.5 mb-6">
+                                <div className="grid grid-cols-2 gap-3.5 mb-6">
                                     {[
                                         {
                                             label: t('machines.temperature.bean'),
@@ -252,7 +252,7 @@ export const Machines = ({
                                             <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
                                                 {s.label}
                                             </div>
-                                            <div className="text-[22px] font-light text-primary tracking-[-0.3px]">
+                                            <div className="text-[22px] font-light text-primary tracking-[-0.3px] whitespace-nowrap tabular-nums">
                                                 {s.value}
                                             </div>
                                             <div className="text-[11px] text-muted mt-0.5">{s.sub}</div>
