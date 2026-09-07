@@ -232,9 +232,8 @@ it('stale:true skips TSV and livePoints but still updates liveData', async () =>
 
     try {
         act(() => root.render(createElement(Probe)));
-        await act(async () => {
-            await vi.waitFor(() => expect(mocks.getTemperatures).toHaveBeenCalled());
-        });
+        await flushReady();
+        await vi.waitFor(() => expect(mocks.getTemperatures).toHaveBeenCalled());
 
         expect(mocks.enqueueTsvRow).not.toHaveBeenCalled();
         expect(livePoints).toEqual([]);
