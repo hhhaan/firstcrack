@@ -2,14 +2,17 @@
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useSidecarPolling } from './useSidecarPolling';
+import hookSrc from './useSidecarPolling.ts?raw';
 
 const mocks = vi.hoisted(() => ({
     enqueueTsvRow: vi.fn(),
     initSessionTsv: vi.fn(),
     getTemperatures: vi.fn(),
-    listen: vi.fn(),
+    getStatus: vi.fn().mockResolvedValue({ connected: true }),
+    waitUntilReady: vi.fn().mockResolvedValue({ connected: true }),
+    listen: vi.fn().mockResolvedValue(() => {}),
 }));
 
 vi.mock('@tauri-apps/api/event', () => ({
@@ -19,7 +22,8 @@ vi.mock('@tauri-apps/api/event', () => ({
 vi.mock('@shared/lib/sidecar', () => ({
     sidecar: {
         getTemperatures: mocks.getTemperatures,
-        getStatus: vi.fn().mockResolvedValue({ connected: true }),
+        getStatus: mocks.getStatus,
+        waitUntilReady: mocks.waitUntilReady,
     },
 }));
 
@@ -31,12 +35,25 @@ vi.mock('@shared/lib/tsv-writer', () => ({
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+beforeEach(() => {
+    mocks.waitUntilReady.mockResolvedValue({ connected: true });
+    mocks.getStatus.mockResolvedValue({ connected: true });
+    mocks.listen.mockResolvedValue(() => {});
+});
+
 afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
     useRoastingStore.getState().reset();
     delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 });
+
+const flushReady = async () => {
+    await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+    });
+};
 
 const stubTemps = () =>
     mocks.getTemperatures.mockResolvedValue({
@@ -111,9 +128,8 @@ it('enqueues the first sample with controls while TSV initialization is pending'
 
     try {
         act(() => root.render(createElement(StrictMode, null, createElement(Probe))));
-        await act(async () => {
-            await vi.waitFor(() => expect(mocks.getTemperatures).toHaveBeenCalled());
-        });
+        await flushReady();
+        await vi.waitFor(() => expect(mocks.getTemperatures).toHaveBeenCalled());
 
         expect(mocks.enqueueTsvRow).toHaveBeenCalledOnce();
         const [sessionId, row] = mocks.enqueueTsvRow.mock.calls[0];
@@ -161,9 +177,7 @@ it('accepts the first sample when roast-relative time moves backwards for a new 
 
     try {
         act(() => root.render(createElement(Probe)));
-        await act(async () => {
-            await Promise.resolve();
-        });
+        await flushReady();
         expect(mocks.enqueueTsvRow).toHaveBeenCalledOnce();
 
         roastStartTimeRef.current = Date.now();
@@ -240,16 +254,14 @@ it('Tauri: host poll tick drives polling through the gate', async () => {
 
     let tick: (() => void) | undefined;
     const unlisten = vi.fn();
-    mocks.listen.mockImplementation((_event: string, handler: () => void) => {
-        tick = handler;
+    mocks.listen.mockImplementation((event: string, handler: () => void) => {
+        if (event === 'sidecar-poll-tick') tick = handler;
         return Promise.resolve(unlisten);
     });
 
     const root = renderProbe(500);
     try {
-        await act(async () => {
-            await Promise.resolve();
-        });
+        await flushReady();
         expect(mocks.listen).toHaveBeenCalledWith('sidecar-poll-tick', expect.any(Function));
         const initialPolls = mocks.getTemperatures.mock.calls.length;
 
@@ -283,9 +295,7 @@ it('Tauri: listen 실패 시 setInterval 폴백으로 폴링이 계속된다', a
 
     const root = renderProbe(500);
     try {
-        await act(async () => {
-            await Promise.resolve();
-        });
+        await flushReady();
         const initialPolls = mocks.getTemperatures.mock.calls.length;
 
         await act(async () => {
@@ -294,5 +304,92 @@ it('Tauri: listen 실패 시 setInterval 폴백으로 폴링이 계속된다', a
         expect(mocks.getTemperatures.mock.calls.length).toBe(initialPolls + 3);
     } finally {
         act(() => root.unmount());
+    }
+});
+
+it('waits for sidecar-ready / waitUntilReady before polling (same rule as Machines)', () => {
+    expect(hookSrc).toContain("listen<null>('sidecar-ready'");
+    expect(hookSrc).toContain('sidecar.waitUntilReady()');
+    expect(hookSrc).toContain('if (!isActive || !sidecarReady) return');
+    expect(hookSrc).toContain("if (phase === 'idle' || !sidecarReady) return");
+});
+
+it('does not poll until waitUntilReady resolves', async () => {
+    let resolveReady = (_status: { connected: boolean }) => {};
+    mocks.waitUntilReady.mockReturnValue(
+        new Promise((resolve) => {
+            resolveReady = resolve;
+        }),
+    );
+
+    const setConnected = vi.fn();
+    useRoastingStore.setState({ phase: 'idle' });
+    const roastStartTimeRef = { current: 0 };
+    const root = createRoot(document.createElement('div'));
+    const Probe = () => {
+        useSidecarPolling({
+            isActive: true,
+            phase: 'idle',
+            pollIntervalMs: 60_000,
+            enterPreheating: vi.fn(),
+            setConnected,
+            roastStartTimeRef,
+            sessionId: null,
+            preChargeDisplaySec: 30,
+        });
+        return null;
+    };
+
+    try {
+        act(() => root.render(createElement(Probe)));
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(mocks.getStatus).not.toHaveBeenCalled();
+        expect(mocks.getTemperatures).not.toHaveBeenCalled();
+
+        await act(async () => {
+            resolveReady({ connected: false });
+            await Promise.resolve();
+        });
+        await vi.waitFor(() => expect(mocks.getStatus).toHaveBeenCalled());
+        expect(mocks.getTemperatures).not.toHaveBeenCalled();
+    } finally {
+        await act(async () => {
+            root.unmount();
+        });
+    }
+});
+
+it('does not promote poll unauthorized to disconnect', async () => {
+    mocks.getTemperatures.mockRejectedValue(new Error('unauthorized'));
+    mocks.getStatus.mockRejectedValue(new Error('unauthorized'));
+    const setConnected = vi.fn();
+    useRoastingStore.setState({ phase: 'roasting', sessionId: 'issue-380' });
+    const roastStartTimeRef = { current: Date.now() - 1000 };
+    const root = createRoot(document.createElement('div'));
+    const Probe = () => {
+        useSidecarPolling({
+            isActive: true,
+            phase: 'roasting',
+            pollIntervalMs: 60_000,
+            enterPreheating: vi.fn(),
+            setConnected,
+            roastStartTimeRef,
+            sessionId: 'issue-380',
+            preChargeDisplaySec: 30,
+        });
+        return null;
+    };
+
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        await vi.waitFor(() => expect(mocks.getTemperatures).toHaveBeenCalled());
+        expect(setConnected).not.toHaveBeenCalledWith(false);
+    } finally {
+        await act(async () => {
+            root.unmount();
+        });
     }
 });
