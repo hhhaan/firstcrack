@@ -23,20 +23,19 @@ const fetchOpenMeteo = async (lat: number, lng: number): Promise<WeatherData> =>
     };
 };
 
+/** Unset location is empty, not a query error — QueryCache.onError reports throws to Sentry. */
+export const fetchWeatherCoords = async () => (await locationStore.get()) ?? null;
+
 export const useWeather = () => {
     const coords = useQuery({
         queryKey: weatherKeys.coords,
-        queryFn: async () => {
-            const c = await locationStore.get();
-            if (!c) throw new Error('no coords');
-            return c;
-        },
+        queryFn: fetchWeatherCoords,
         staleTime: Infinity,
     });
 
     const weather = useQuery({
         queryKey: weatherKeys.current(coords.data?.lat, coords.data?.lng),
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
+        // biome-ignore lint/style/noNonNullAssertion: enabled when coords.data is set
         queryFn: () => fetchOpenMeteo(coords.data!.lat, coords.data!.lng),
         enabled: !!coords.data,
         staleTime: WEATHER_TTL,
