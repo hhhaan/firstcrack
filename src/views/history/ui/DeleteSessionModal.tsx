@@ -7,11 +7,20 @@ interface DeleteSessionModalProps {
     open: boolean;
     sessionName: string;
     isLoading?: boolean;
+    /** Why the last attempt failed (e.g. a profile still points at this session). */
+    error?: string | null;
     onClose: () => void;
     onConfirm: () => void;
 }
 
-export const DeleteSessionModal = ({ open, sessionName, isLoading, onClose, onConfirm }: DeleteSessionModalProps) => {
+export const DeleteSessionModal = ({
+    open,
+    sessionName,
+    isLoading,
+    error,
+    onClose,
+    onConfirm,
+}: DeleteSessionModalProps) => {
     const { t } = useTranslation();
 
     if (!open) return null;
@@ -36,6 +45,11 @@ export const DeleteSessionModal = ({ open, sessionName, isLoading, onClose, onCo
             <p className="text-sm text-secondary leading-[1.6] mb-5.5">
                 {t('history.delete.description', { name: sessionName })}
             </p>
+            {error ? (
+                <p role="alert" className="text-[13px] leading-[1.5] text-[#dc2626] mb-4">
+                    {error}
+                </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-2">
                 <button
                     type="button"

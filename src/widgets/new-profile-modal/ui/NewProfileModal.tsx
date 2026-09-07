@@ -4,7 +4,6 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { useNewProfileForm } from '../model/useNewProfileForm';
 import { ProfileFormBody } from './ProfileFormBody';
-import { ProfileModePicker } from './ProfileModePicker';
 import { ProfileSessionPicker } from './ProfileSessionPicker';
 
 interface NewProfileModalProps {
@@ -31,26 +30,17 @@ export const NewProfileModal = ({
 
     return (
         <ModalShell onClose={onClose} labelledBy="new-profile-modal-title" contentClassName={modalPanel.formLg}>
-            {form.mode === 'pick' && !editingProfile && (
-                <ProfileModePicker onSelectMode={form.setMode} onClose={onClose} />
-            )}
-            {form.mode === 'session-list' && !editingProfile && (
-                <ProfileSessionPicker
-                    sessions={form.sessions}
-                    onSelect={form.handleSessionSelect}
-                    onBack={() => form.setMode('pick')}
-                    onClose={onClose}
-                />
-            )}
-            {(form.mode === 'manual' || form.mode === 'from-session') && (
+            {form.mode === 'session-list' && !editingProfile ? (
+                <ProfileSessionPicker sessions={form.sessions} onSelect={form.handleSessionSelect} onClose={onClose} />
+            ) : (
                 <ProfileFormBody
-                    mode={form.mode}
                     form={form.form}
                     setField={form.setField}
                     nameRef={form.nameRef}
                     isEditing={!!editingProfile}
                     isValid={form.isValid}
                     selectedSession={form.selectedSession}
+                    summary={form.summary}
                     beans={form.beans}
                     blends={form.blends}
                     defaultType={form.defaultType}
@@ -59,7 +49,8 @@ export const NewProfileModal = ({
                     setDefaultBeanId={form.setDefaultBeanId}
                     defaultBlendId={form.defaultBlendId}
                     setDefaultBlendId={form.setDefaultBlendId}
-                    onBackToPick={() => form.setMode('pick')}
+                    // History 진입(initialSessionId)은 목록으로 돌아가면 즉시 재선택되므로 뒤로가기 없음
+                    onBack={editingProfile || initialSessionId ? undefined : () => form.setMode('session-list')}
                     onClose={onClose}
                     onSubmit={form.handleSubmit}
                 />

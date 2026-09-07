@@ -227,7 +227,17 @@ export const History = () => {
     }, [isRawLoading, pendingExportRange, runExport]);
 
     const handleDeleteClick = useCallback((id: string) => setDeletingId(id), []);
-    const handleCloseDelete = useCallback(() => setDeletingId(null), []);
+    const resetDelete = deleteSession.reset;
+    const handleCloseDelete = useCallback(() => {
+        setDeletingId(null);
+        resetDelete();
+    }, [resetDelete]);
+    // 23503 = FK violation: a profile still points at this session (RESTRICT, #352)
+    const deleteError = deleteSession.error
+        ? (deleteSession.error as { code?: string }).code === '23503'
+            ? t('history.delete.blockedByProfile')
+            : t('history.delete.failed')
+        : null;
     const handleConfirmDelete = useCallback(() => {
         if (!deletingId) return;
         deleteSession.mutate(deletingId, {
@@ -363,6 +373,7 @@ export const History = () => {
                             : ''
                     }
                     isLoading={deleteSession.isPending}
+                    error={deleteError}
                     onClose={handleCloseDelete}
                     onConfirm={handleConfirmDelete}
                 />
