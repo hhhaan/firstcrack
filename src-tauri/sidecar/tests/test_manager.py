@@ -713,6 +713,44 @@ class TestDisconnectRace:
         manager._merged_params = {"write_map": {"heater": {"min": 0, "max": 100}}}
         assert await manager.control(heater=50) == {}  # 예외가 새어나오지 않아야 한다
 
+    async def test_control_breadcrumb_has_roaster_protocol_roles_not_values(self, manager):
+        fake = FakeAdapter()
+        manager._adapter = fake
+        manager._connected = True
+        manager._roaster_key = "giesen_w6a"
+        manager._protocol = "s7"
+        manager._merged_params = {"write_map": {"heater": {"min": 0, "max": 100}}}
+        with patch("manager.sentry_sdk.add_breadcrumb") as breadcrumb:
+            applied = await manager.control(heater=47)
+        assert applied == {"heater": 47.0}
+        kwargs = breadcrumb.call_args.kwargs
+        assert kwargs["category"] == "control"
+        assert kwargs["message"] == "control write ok"
+        assert kwargs["data"] == {
+            "roaster": "giesen_w6a",
+            "protocol": "s7",
+            "roles": ["heater"],
+        }
+        assert "47" not in repr(kwargs["data"])
+
+    async def test_control_write_failure_breadcrumb_omits_values(self, manager):
+        class Boom:
+            async def control(inner, heater=None, fan=None, drum=None):
+                raise OSError("PLC unreachable")
+
+        manager._adapter = Boom()
+        manager._connected = True
+        manager._roaster_key = "giesen_w6a"
+        manager._protocol = "s7"
+        manager._merged_params = {"write_map": {"heater": {"min": 0, "max": 100}}}
+        with patch("manager.sentry_sdk.add_breadcrumb") as breadcrumb:
+            with pytest.raises(OSError):
+                await manager.control(heater=47)
+        kwargs = breadcrumb.call_args.kwargs
+        assert kwargs["message"] == "control write failed"
+        assert kwargs["data"]["roles"] == ["heater"]
+        assert "47" not in repr(kwargs["data"])
+
 
 # ---------------------------------------------------------------------------
 # TestConnectCancellation (#208) — disconnect가 진행 중인 연결 시도를 취소한다
