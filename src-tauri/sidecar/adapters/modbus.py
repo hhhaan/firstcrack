@@ -223,9 +223,14 @@ class ModbusAdapter:
                     )
 
                 if result.isError():
-                    raise IOError(
+                    err = OSError(
                         f"MODBUS 오류 응답: func={func} register={register} unit={unit_id} → {result}"
                     )
+                    code = getattr(result, "exception_code", None)
+                    if isinstance(code, int):
+                        # pymodbus ExceptionResponse: 2 = Illegal Data Address
+                        setattr(err, "modbus_exception_code", code)
+                    raise err
 
                 # func=1/2: bit 반환
                 if func in (1, 2):
@@ -293,6 +298,11 @@ class ModbusAdapter:
                     unit_id,
                     exc,
                 )
+                # ponytail: Illegal Data Address is a device map refusal; the same
+                # register will not become valid on retry. Ceiling: other exception
+                # codes (busy/slave failure) still retry below.
+                if getattr(exc, "modbus_exception_code", None) == 2:
+                    break
         raise last_exc
 
     async def read(self) -> Reading:

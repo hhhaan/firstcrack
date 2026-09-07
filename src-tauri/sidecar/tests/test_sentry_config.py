@@ -103,6 +103,18 @@ class TestActionability:
     def test_unhandled_exception_kept(self):
         assert sentry_config.is_actionable(OSError("PLC unreachable")) is True
 
+    def test_modbus_illegal_data_address_dropped(self):
+        """FC-1C: device refused the register map — config noise, not a crash."""
+        exc = OSError(
+            "MODBUS 오류 응답: func=3 register=12392 unit=1 → "
+            "ExceptionResponse(dev_id=1, function_code=131, exception_code=2)"
+        )
+        setattr(exc, "modbus_exception_code", 2)
+        assert sentry_config.is_actionable(exc) is False
+
+    def test_modbus_other_oserror_kept(self):
+        assert sentry_config.is_actionable(OSError("MODBUS 오류 응답: timeout")) is True
+
 
 class _HttpError(Exception):
     def __init__(self, status: int):

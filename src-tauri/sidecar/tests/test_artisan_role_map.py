@@ -54,3 +54,23 @@ def test_loring_778_is_heater_not_drum() -> None:
         assert "drum" not in regs
         assert regs["heater"]["register"] == 778
         assert ROASTER_REGISTRY[key]["capabilities"] == ["heater"]
+
+
+def test_probatone_bt_register_matches_artisan_aset() -> None:
+    """Probatone.aset: input1register=12392, input1code=3, input1div=2, input1deviceId=1,
+    input2deviceId=0 (ET off), type=3 TCP. FC-1C: map is correct; do not 'fix' 12392.
+    """
+    params = ROASTER_REGISTRY["probat_probatone"]["default_params"]
+    bt = params["modbus_registers"]["BT"]
+    assert (bt["register"], bt["func"], bt["div"], bt["unit_id"]) == (12392, 3, 2, 1)
+    assert params["modbus_registers"]["ET"] is None
+    assert params["mode"] == "tcp"
+
+
+def test_probatone_7_registers_match_artisan_aset() -> None:
+    """Probatone_7''.aset: BT=12392, ET=12393, func=3, div=2, unit_id=1, type=3 TCP."""
+    params = ROASTER_REGISTRY["probat_probatone_7"]["default_params"]
+    regs = params["modbus_registers"]
+    assert (regs["BT"]["register"], regs["BT"]["func"], regs["BT"]["div"]) == (12392, 3, 2)
+    assert (regs["ET"]["register"], regs["ET"]["func"], regs["ET"]["div"]) == (12393, 3, 2)
+    assert params["mode"] == "tcp"

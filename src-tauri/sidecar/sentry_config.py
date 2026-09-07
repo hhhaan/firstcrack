@@ -122,6 +122,10 @@ def is_actionable(exc: BaseException | None) -> bool:
         status = getattr(exc, "status_code", None)
     if isinstance(status, int) and 400 <= status < 500:
         return status == 429
+    # Modbus exception 2 = Illegal Data Address. Device refused the register map
+    # (wrong profile / ASCII vs TCP / Unit ID) — config mismatch, not a crash.
+    if getattr(exc, "modbus_exception_code", None) == 2:
+        return False
     return True
 
 

@@ -543,6 +543,48 @@ class TestManagerStaleData:
         if manager._reconnect_task is not None:
             manager._reconnect_task.cancel()
 
+    async def test_illegal_data_address_does_not_reconnect(self, manager):
+        """FC-1C: exception_code=2는 맵 거부 — 포트를 다시 열어도 같은 주소다."""
+        exc = OSError(
+            "MODBUS 오류 응답: func=3 register=12392 unit=1 → "
+            "ExceptionResponse(dev_id=1, function_code=131, exception_code=2)"
+        )
+        setattr(exc, "modbus_exception_code", 2)
+
+        class _IllegalAddrAdapter(FakeAdapter):
+            async def read(self):
+                raise exc
+
+        adapter = _IllegalAddrAdapter()
+        await self._connect_with(manager, adapter)
+        manager._protocol = "modbus"
+        manager._merged_params = {"mode": "ascii"}
+        manager._roaster_key = "probat_probatone"
+
+        with patch("manager.sentry_sdk.capture_exception") as capture:
+            data = await manager.read_temperatures()
+            data2 = await manager.read_temperatures()
+
+        assert data["bt"] is None
+        assert data["reconnecting"] is False
+        assert data2["reconnecting"] is False
+        assert manager._connected is False
+        assert manager._reconnect_task is None or manager._reconnect_task.done()
+        assert "레지스터" in manager._error
+        assert capture.call_count == 1
+
+    async def test_first_read_failed_captures_once_across_reconnect(self, manager):
+        """재연결이 포트만 다시 열면 first_read_failed가 폴링마다 이슈가 되면 안 된다."""
+        adapter = FakeAdapter(readings=[])
+        await self._connect_with(manager, adapter)
+        with patch("manager.sentry_sdk.capture_exception") as capture:
+            await manager.read_temperatures()
+            manager._connected = True  # 재연결 "성공" (읽기는 아직 실패)
+            await manager.read_temperatures()
+        assert capture.call_count == 1
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
+
 
 # ---------------------------------------------------------------------------
 # BT 유효성 검증 — 어댑터가 예외 대신 센티넬을 반환하는 silent fail (H1)

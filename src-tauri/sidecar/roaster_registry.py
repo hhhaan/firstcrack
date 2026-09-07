@@ -910,8 +910,9 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": None,
         "capabilities": ["heater"],
     },
-    # Probatone — MODBUS RTU, BT만 읽힘 (ET deviceId=0 → 비활성)
-    # BT: register=12392, func=3, float=false, div=2(÷100), unit_id=1
+    # Probatone — MODBUS TCP (Artisan type=3), BT만 읽힘 (ET deviceId=0 → 비활성)
+    # 출처: artisan Probat/Probatone.aset input1register=12392 / input1code=3 /
+    #   input1div=2 / input1deviceId=1. input2deviceId=0 → ET 비활성.
     "probat_probatone": {
         "display_name": "Probat Probatone",
         "brand": "Probat",
@@ -943,7 +944,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "capabilities": [],
     },
     # Probatone 7'' — ET register가 Probatone과 다름 (12393, div=2)
-    # BT: register=12392, ET: register=12393, func=3, div=2(÷100), unit_id=1
+    # 출처: artisan Probat/Probatone_7''.aset input1=12392, input2=12393, type=3 TCP
     "probat_probatone_7": {
         "display_name": 'Probat Probatone 7"',
         "brand": "Probat",

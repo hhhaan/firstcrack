@@ -352,6 +352,50 @@ class TestReadChannel:
         assert client.read_holding_registers.call_count == 2
 
 
+class MockErrorResponse:
+    def __init__(self, exception_code: int):
+        self.exception_code = exception_code
+
+    def isError(self):
+        return True
+
+    def __str__(self):
+        return f"ExceptionResponse(exception_code={self.exception_code})"
+
+
+class TestIllegalDataAddress:
+    async def test_does_not_retry(self):
+        """exception_code=2 is a map refusal — the same register cannot succeed on retry."""
+        regs = {"BT": {"register": 12392, "func": 3, "unit_id": 1,
+                       "float": False, "div": 2, "mode": "C", "signed": False}}
+        a = ModbusAdapter(mode="ascii", comport="/dev/ttyUSB0", modbus_registers=regs)
+        client = AsyncMock()
+        client.connected = True
+        a._client = client
+        a._read_retries = 1
+        client.read_holding_registers = AsyncMock(return_value=MockErrorResponse(2))
+
+        with pytest.raises(OSError, match="MODBUS 오류") as ei:
+            await a._read_channel(regs["BT"])
+        assert client.read_holding_registers.call_count == 1
+        assert getattr(ei.value, "modbus_exception_code") == 2
+
+    async def test_other_exception_response_still_retries(self):
+        regs = {"BT": {"register": 100, "func": 3, "unit_id": 1,
+                       "float": False, "div": 1, "mode": "C", "signed": False}}
+        a = ModbusAdapter(mode="tcp", modbus_registers=regs)
+        client = AsyncMock()
+        client.connected = True
+        a._client = client
+        a._read_retries = 1
+        client.read_holding_registers = AsyncMock(
+            side_effect=[MockErrorResponse(4), MockModbusResponse(registers=[1500])]
+        )
+        val = await a._read_channel(regs["BT"])
+        assert val == 150.0
+        assert client.read_holding_registers.call_count == 2
+
+
 # ---------------------------------------------------------------------------
 # read() tests
 # ---------------------------------------------------------------------------
@@ -412,13 +456,11 @@ class TestRead:
     async def test_read_error_response_raises(self, adapter):
         client = AsyncMock()
         client.connected = True
-        err = MagicMock()
-        err.isError.return_value = True
-        client.read_holding_registers = AsyncMock(return_value=err)
+        client.read_holding_registers = AsyncMock(return_value=MockErrorResponse(4))
         adapter._client = client
         adapter._read_retries = 0
 
-        with pytest.raises(IOError, match="MODBUS 오류"):
+        with pytest.raises(OSError, match="MODBUS 오류"):
             await adapter.read()
 
 

@@ -131,6 +131,13 @@ def _format_connection_error(
             f"MODBUS RTU 연결 실패 ({params.get('comport')}). 시리얼 포트를 확인하세요."
         )
 
+    # ── 장치가 레지스터를 거부 (exception_code=2 Illegal Data Address) ──
+    if _is_modbus_illegal_address(exc):
+        return (
+            "장치가 요청한 레지스터 주소를 거부했습니다. "
+            "로스터 모델과 연결 방식·Unit ID·레지스터 설정을 확인하세요."
+        )
+
     # ── 연결은 됐지만 첫 read부터 실패 (설정 불일치 의심) ──────────────────
     if first_read_failure and protocol == "modbus":
         if params.get("mode", "tcp").lower() in ("tcp", "udp"):
@@ -142,6 +149,11 @@ def _format_connection_error(
 
     # ── fallback: 원본 메시지 ────────────────────────────────────────────
     return msg
+
+
+def _is_modbus_illegal_address(exc: BaseException) -> bool:
+    """pymodbus ExceptionResponse code 2 — device refused the register map."""
+    return getattr(exc, "modbus_exception_code", None) == 2
 
 
 _MAP_KEYS = ("write_map", "channels")
@@ -608,7 +620,14 @@ class RoasterManager:
                 message=f"{event}: {self._roaster_key} ({self._protocol}) — {exc}",
                 level="error",
             )
-            self._capture_hardware_error(exc, event)
+            # 재연결 루프가 포트만 다시 열면 first_read_failed가 폴링마다 재발한다.
+            # 사고 1건 = 이슈 1건 (reconnect_failed와 동일).
+            self._capture_hardware_error(exc, event, once=True)
+            # Artisan invalidResult(ExceptionResponse) → disconnect=False.
+            # Illegal Data Address is a map refusal; opening the port again cannot
+            # fix it (FC-1C: 79 events / 5 min from reconnect-success → first read).
+            if _is_modbus_illegal_address(exc):
+                return self._null_payload(reconnecting=False)
             if self._reconnect_task is None or self._reconnect_task.done():
                 self._reconnect_task = asyncio.create_task(self._reconnect_loop())
             return self._null_payload(reconnecting=True)
@@ -624,6 +643,8 @@ class RoasterManager:
                 level="info",
             )
         self._consecutive_errors = 0
+        self._hw_alerts_sent.discard("first_read_failed")
+        self._hw_alerts_sent.discard("read_failed_disconnected")
 
         if reading.bt > 0:
             self._add_to_ror_window(reading.timestamp, reading.bt)
