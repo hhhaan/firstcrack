@@ -1,11 +1,17 @@
 import { useBeans } from '@entities/bean/queries';
 import { useBlends } from '@entities/blend';
-import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT } from '@entities/machine';
+import { copyMachineSnapshot } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useRoastSessions } from '@entities/roast';
-import type { RoastProfileWithSource } from '@entities/roast-profile';
+import {
+    type RoastProfileWithSource,
+    resolveSourceSession,
+    type SessionSummary,
+    summarizeSessionEvents,
+} from '@entities/roast-profile';
+import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import type { RoastProfile } from '@shared/types/database.types';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fmtDate } from '../lib/format';
 import {
     INITIAL_PROFILE_FORM,
@@ -32,7 +38,7 @@ export const useNewProfileForm = ({
     onUpdated,
     initialSessionId,
 }: UseNewProfileFormArgs) => {
-    const [mode, setMode] = useState<ProfileFormMode>('pick');
+    const [mode, setMode] = useState<ProfileFormMode>('session-list');
     const [form, setForm] = useState<ProfileFormState>(INITIAL_PROFILE_FORM);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
     const [defaultType, setDefaultType] = useState<ProfileDefaultType>('none');
@@ -52,27 +58,20 @@ export const useNewProfileForm = ({
         setPrevOpen(open);
         setPrevEditingProfile(editingProfile);
         if (editingProfile) {
-            setMode('manual');
+            setMode('from-session');
             setForm({
                 name: editingProfile.name ?? '',
                 description: editingProfile.description ?? '',
                 target_level: editingProfile.target_level ?? 'Medium',
-                charge_temp_celsius:
-                    editingProfile.charge_temp_celsius != null ? String(editingProfile.charge_temp_celsius) : '',
-                drop_temp_celsius:
-                    editingProfile.drop_temp_celsius != null ? String(editingProfile.drop_temp_celsius) : '',
-                duration_sec: editingProfile.duration_sec != null ? String(editingProfile.duration_sec) : '',
-                dev_time_sec: editingProfile.dev_time_sec != null ? String(editingProfile.dev_time_sec) : '',
-                dev_pct: editingProfile.dev_pct != null ? String(editingProfile.dev_pct) : '',
             });
-            setSelectedSessionId(editingProfile.source_session_id ?? null);
+            setSelectedSessionId(editingProfile.source_session_id);
             setDefaultType(
                 editingProfile.default_bean_id ? 'bean' : editingProfile.default_blend_id ? 'blend' : 'none',
             );
             setDefaultBeanId(editingProfile.default_bean_id ?? null);
             setDefaultBlendId(editingProfile.default_blend_id ?? null);
         } else {
-            setMode('pick');
+            setMode('session-list');
             setForm(INITIAL_PROFILE_FORM);
             setSelectedSessionId(null);
             setDefaultType('none');
@@ -91,7 +90,7 @@ export const useNewProfileForm = ({
     }, [open, onClose]);
 
     useEffect(() => {
-        if (mode === 'manual' || mode === 'from-session') {
+        if (mode === 'from-session') {
             const id = setTimeout(() => nameRef.current?.focus(), 50);
             return () => clearTimeout(id);
         }
@@ -113,24 +112,35 @@ export const useNewProfileForm = ({
             name: beanName ? `${beanName} ${date}` : date,
             description: '',
             target_level: session.roast_level ?? 'Medium',
-            charge_temp_celsius: '200',
-            drop_temp_celsius: session.drop_temp_celsius != null ? String(session.drop_temp_celsius) : '200',
-            duration_sec: session.duration_seconds != null ? String(session.duration_seconds) : '720',
-            dev_time_sec: '90',
-            dev_pct: '13',
         });
         setMode('from-session');
     };
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: handleSessionSelect는 렌더마다 재생성 — mode 가드로 1회만 실행
     useEffect(() => {
-        if (open && initialSessionId && !editingProfile && mode === 'pick' && sessions.length > 0) {
+        if (open && initialSessionId && !editingProfile && mode === 'session-list' && sessions.length > 0) {
             handleSessionSelect(initialSessionId);
         }
     }, [open, initialSessionId, editingProfile, mode, sessions.length]);
 
-    const isValid = form.name.trim().length > 0;
     const selectedSession = selectedSessionId ? (sessions.find((s) => s.id === selectedSessionId) ?? null) : null;
+
+    /** Curve numbers are never typed — always cut from the source session's marks (legacy 90/13 rows show "—"). */
+    const summary: SessionSummary | null = useMemo(() => {
+        if (editingProfile) {
+            return summarizeSessionEvents(
+                parseStoredRoastEvents(resolveSourceSession(editingProfile.source_session)?.events),
+                {
+                    duration_seconds: editingProfile.duration_sec,
+                    drop_temp_celsius: editingProfile.drop_temp_celsius,
+                },
+            );
+        }
+        if (!selectedSession) return null;
+        return summarizeSessionEvents(parseStoredRoastEvents(selectedSession.events), selectedSession);
+    }, [editingProfile, selectedSession]);
+
+    const isValid = form.name.trim().length > 0 && (!!editingProfile || (selectedSession != null && summary != null));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -141,30 +151,23 @@ export const useNewProfileForm = ({
                 name: form.name.trim(),
                 description: form.description.trim() || null,
                 target_level: form.target_level,
-                charge_temp_celsius: Number(form.charge_temp_celsius) || null,
-                drop_temp_celsius: Number(form.drop_temp_celsius) || null,
-                duration_sec: Number(form.duration_sec) || null,
-                dev_time_sec: Number(form.dev_time_sec) || null,
-                dev_pct: Number(form.dev_pct) || null,
                 default_bean_id: defaultType === 'bean' ? defaultBeanId : null,
                 default_blend_id: defaultType === 'blend' ? defaultBlendId : null,
             };
             onUpdated?.({ id: editingProfile.id, ...patch } as RoastProfile);
-        } else {
+        } else if (selectedSession && summary) {
+            const { fc_time_sec: _fc, ...columns } = summary;
+            void _fc;
             const profile: Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> = {
                 user_id: workspaceOwnerId,
                 name: form.name.trim(),
                 description: form.description.trim() || null,
                 target_level: form.target_level,
-                charge_temp_celsius: Number(form.charge_temp_celsius) || null,
-                drop_temp_celsius: Number(form.drop_temp_celsius) || null,
-                duration_sec: Number(form.duration_sec) || null,
-                dev_time_sec: Number(form.dev_time_sec) || null,
-                dev_pct: Number(form.dev_pct) || null,
-                source_session_id: mode === 'from-session' ? selectedSessionId : null,
+                ...columns,
+                source_session_id: selectedSession.id,
                 default_bean_id: defaultType === 'bean' ? defaultBeanId : null,
                 default_blend_id: defaultType === 'blend' ? defaultBlendId : null,
-                ...copyMachineSnapshot(mode === 'from-session' ? selectedSession : EMPTY_MACHINE_SNAPSHOT),
+                ...copyMachineSnapshot(selectedSession),
             };
 
             onCreated(profile as RoastProfile);
@@ -188,6 +191,7 @@ export const useNewProfileForm = ({
         defaultBlendId,
         setDefaultBlendId,
         selectedSession,
+        summary,
         handleSessionSelect,
         isValid,
         handleSubmit,

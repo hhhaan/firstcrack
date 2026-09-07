@@ -197,7 +197,7 @@
                 "fcMarking": "First Crack 마킹",
                 "fcMarkingDescription": "FC 버튼(⌘2)이 퍼스트 크랙을 기록하는 방식입니다.",
                 "fcDualMark": "이중 마킹 (첫 팝 + 롤링)",
-                "fcDualMarkDescription": "1클릭: 첫 팝(FC Start). 2클릭: 롤링(FC Rolling). 3클릭: 둘 다 삭제. Start·Rolling 각각 DTR을 기록합니다. 끄면 기존처럼 FC Start만 토글합니다.",
+                "fcDualMarkDescription": "1클릭: 첫 팝(FC Start). 2클릭: 롤링(FC Rolling). 삭제는 로그에서. Start·Rolling 각각 DTR을 기록합니다. 끄면 기존처럼 FC Start만 토글합니다.",
                 "autoCharge": "자동 Charge 감지",
                 "autoChargeDescription": "감지 창 안에서 BT가 이 값만큼 떨어지면 Charge가 트리거됩니다.",
                 "dropThreshold": "하락 임계값",
@@ -205,7 +205,7 @@
                 "autoDropSensitivity": "자동 Drop 감도",
                 "autoDropSensitivityDescription": "감지 창 안에서 BT가 이 값만큼 떨어지면 Drop이 자동 감지됩니다(3분 이후).",
                 "alerts": "실시간 알람",
-                "alertsDescription": "로스팅이 정상 범위를 벗어나면 경고합니다.",
+                "alertsDescription": "임계값 경고와 시간 리마인더를 로스팅 중에 알립니다.",
                 "alertsEnabled": "알람 사용",
                 "alertsEnabledDescription": "로스팅 중 경고 배너를 표시합니다.",
                 "alertSound": "알람 소리",
@@ -213,7 +213,15 @@
                 "alertRorCrash": "RoR 크래시",
                 "alertRorCrashDescription": "BT RoR이 이 값 이하로 떨어지면 경고. 터닝포인트 이후에만 동작.",
                 "alertBtMax": "BT 상한",
-                "alertBtMaxDescription": "원두 온도가 이 값에 도달하면 경고합니다."
+                "alertBtMaxDescription": "원두 온도가 이 값에 도달하면 경고합니다.",
+                "alertAfterCharge": "투입 후",
+                "alertAfterChargeDescription": "Charge 후 이 시간이 지나면 알립니다.",
+                "alertBeforeFc": "1차 크랙 전",
+                "alertBeforeFcDescription": "타깃 프로파일 FC Start 이 시간 전에 알립니다. FC Start 마크가 있는 타깃 프로파일이 필요합니다.",
+                "alertBeforeDrop": "배출 전",
+                "alertBeforeDropDescription": "타깃 프로파일 Drop 이 시간 전에 알립니다. Drop 마크가 있는 타깃 프로파일이 필요합니다.",
+                "alertAfterDrop": "배출 후",
+                "alertAfterDropDescription": "Drop 후 이 시간이 지나면 알립니다. 타이머는 로스팅 종료까지 계속 갑니다."
             },
             "account": {
                 "label": "계정",
@@ -725,7 +733,9 @@
             "title": "로스팅 기록을 삭제할까요?",
             "description": "\"{{name}}\" 기록이 영구 삭제됩니다. 되돌릴 수 없습니다.",
             "cancel": "취소",
-            "confirm": "삭제"
+            "confirm": "삭제",
+            "blockedByProfile": "이 기록을 기준으로 만든 프로파일이 있어 삭제할 수 없습니다. 프로파일을 먼저 삭제하세요.",
+            "failed": "삭제하지 못했습니다. 다시 시도하세요."
         },
         "saveAsProfile": "프로파일로 저장",
         "exportCsv": "Export CSV",
@@ -805,7 +815,8 @@
             "mockRoastInProgress": "모의 — 로스팅 진행 중",
             "roastComplete": "로스팅 완료",
             "settings": "로스팅 설정",
-            "openSettings": "로스팅 설정 열기"
+            "openSettings": "로스팅 설정 열기",
+            "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요"
         },
         "readings": {
             "beanTemp": "생두 온도",
@@ -825,7 +836,8 @@
             "ror": "RoR",
             "deltaBt": "ΔBT (30초)",
             "deltaEt": "ΔET (30초)",
-            "dtr": "DTR"
+            "dtr": "DTR",
+            "bbp": "BBP"
         },
         "phase": {
             "idle": "대기",
@@ -952,15 +964,6 @@
             "backToSchedule": "일정으로 돌아가기",
             "doneForToday": "오늘은 여기까지"
         },
-        "stockDeduct": {
-            "title": "재고 차감",
-            "description": "로스팅 기록이 저장되었습니다. 재고를 차감할지 선택하세요.",
-            "deductionAmount": "차감 예정량: {{kg}}kg",
-            "deductStock": "재고 차감",
-            "deductStockDisabled": "연결된 원두가 없어 재고를 차감할 수 없습니다.",
-            "skip": "차감 안 함",
-            "confirm": "확인"
-        },
         "onboarding": {
             "next": "다음",
             "done": "확인",
@@ -979,7 +982,11 @@
         },
         "alerts": {
             "rorCrash": "RoR 크래시 — 화력이 죽고 있습니다",
-            "btOver": "BT 상한 초과"
+            "btOver": "BT 상한 초과",
+            "afterCharge": "투입 {{minutes}}분 후",
+            "beforeFc": "1차 크랙 {{minutes}}분 전 (레퍼런스)",
+            "beforeDrop": "배출 {{minutes}}분 전 (레퍼런스)",
+            "afterDrop": "배출 {{minutes}}분 후"
         },
         "recovery": {
             "title": "저장되지 않은 로스팅",
@@ -1055,15 +1062,10 @@
         "description": "설명",
         "descriptionPlaceholder": "간단한 설명…",
         "targetLevel": "Target Roast Level",
-        "chargeTemp": "투입 온도 (°C)",
-        "tempPlaceholder": "예: 200",
-        "dropTemp": "배출 온도 (°C)",
-        "duration": "시간 (초)",
-        "durationPlaceholder": "예: 720",
-        "devTime": "DT (초)",
-        "devTimePlaceholder": "예: 90",
+        "chargeTemp": "투입 온도",
+        "dropTemp": "배출 온도",
+        "devTime": "DT",
         "devPct": "DTR",
-        "devPctPlaceholder": "예: 13",
         "defaultBean": "기본 생두 (선택)",
         "none": "없음",
         "singleOrigin": "싱글",
@@ -1075,18 +1077,17 @@
         "createProfile": "프로파일 생성",
         "noSessions": "완료된 로스팅 세션이 없습니다.",
         "drop": "Drop",
-        "howToCreate": "프로파일을 어떻게 만들까요?",
-        "manualInput": "직접 입력",
-        "manualInputDesc": "투입·배출 온도, 시간 등을 직접 입력",
-        "fromSessionOption": "로스팅 기록에서 불러오기",
-        "fromSessionDesc": "과거 로스팅 세션 기준으로 파라미터 자동 완성",
         "roastLevel": {
             "Light": "라이트",
             "Medium-Light": "미디엄 라이트",
             "Medium": "미디엄",
             "Medium-Dark": "미디엄 다크",
             "Dark": "다크"
-        }
+        },
+        "dropTime": "배출 시각",
+        "fcTime": "1차 크랙",
+        "computedHint": "세션 이벤트에서 계산됩니다. 값을 바꾸려면 로스팅 기록을 수정하세요.",
+        "noMarks": "마킹 없음"
     },
     "beanList": {
         "searchPlaceholder": "생두 검색...",

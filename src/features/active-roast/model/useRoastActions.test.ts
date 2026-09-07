@@ -9,6 +9,10 @@ vi.mock('@shared/lib/sidecar', () => ({
     sidecar: { startRoast: vi.fn().mockResolvedValue(undefined) },
 }));
 
+vi.mock('@entities/organization', () => ({
+    useActiveWorkspace: () => ({ workspaceOwnerId: 'owner-A' }),
+}));
+
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const renderActions = (roastStartTimeRef: { current: number }) => {
@@ -23,7 +27,7 @@ const renderActions = (roastStartTimeRef: { current: number }) => {
             setLogEntries,
             setIsRunning: vi.fn(),
             setShowEndRoastModal: vi.fn(),
-            storeStartCharge: (ms) => useRoastingStore.getState().startCharge(ms),
+            storeStartCharge: (ms, ownerId) => useRoastingStore.getState().startCharge(ms, ownerId),
             roastStartTimeRef: roastStartTimeRef as React.MutableRefObject<number>,
         });
         return null;
@@ -68,6 +72,7 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         expect(after.roastStartMs).toBe(roastStartMs);
         expect(ref.current).toBe(originAfterFirst);
         expect(h.setLogEntries).toHaveBeenCalledTimes(1);
+        expect(useRoastingStore.getState().sessionOwnerId).toBe('owner-A');
     });
 });
 

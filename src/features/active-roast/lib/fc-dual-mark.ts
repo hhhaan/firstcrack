@@ -9,8 +9,6 @@ export type FcDualStage = 0 | 1 | 2;
 export const FC_START_EVENT = 'FC Start';
 export const FC_ROLLING_EVENT = 'FC Rolling';
 
-const FC_DUAL_EVENTS = new Set([FC_START_EVENT, FC_ROLLING_EVENT]);
-
 /** Stage from log: 0 empty/orphan, 1 Start only, 2 Start+Rolling. Orphan Rolling → 0. */
 export const getFcDualStage = (entries: readonly Pick<LogEntry, 'event'>[]): FcDualStage => {
     const hasStart = entries.some((e) => e.event === FC_START_EVENT);
@@ -39,9 +37,14 @@ const makeEntry = (event: string, note: string, ctx: CycleFcDualCtx): LogEntry =
 const sortByTime = (entries: LogEntry[]): LogEntry[] =>
     [...entries].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
 
+/** Button label: empty → Start (next action); Start/both → Rolling. */
+export const fcDualButtonLabel = (stage: FcDualStage): typeof FC_START_EVENT | typeof FC_ROLLING_EVENT =>
+    stage === 0 ? FC_START_EVENT : FC_ROLLING_EVENT;
+
 /**
- * Dual-mark cycle: empty → FC Start → FC Rolling → clear both.
- * Orphan Rolling (no Start) is cleared on cycle (stage 0 behavior).
+ * Dual-mark cycle: empty → FC Start → FC Rolling. Stage 2 is a no-op
+ * (clear via roast-log delete / undo, not a 3rd click).
+ * Orphan Rolling (no Start) is cleared on cycle (stage 0 repair).
  */
 export const cycleFcDualEntries = (prev: LogEntry[], ctx: CycleFcDualCtx): LogEntry[] => {
     const hasStart = prev.some((e) => e.event === FC_START_EVENT);
@@ -59,5 +62,5 @@ export const cycleFcDualEntries = (prev: LogEntry[], ctx: CycleFcDualCtx): LogEn
     if (stage === 1) {
         return sortByTime([...prev, makeEntry(FC_ROLLING_EVENT, 'First crack rolling', ctx)]);
     }
-    return prev.filter((e) => !FC_DUAL_EVENTS.has(e.event));
+    return prev;
 };

@@ -47,6 +47,26 @@ describe('normalize — phase temperatures', () => {
     });
 });
 
+describe('normalize — time alerts', () => {
+    it('defaults time alarms off with Cropster 3.1 minute values', () => {
+        expect(normalizeRoastSettings({})).toMatchObject({
+            alertAfterChargeEnabled: false,
+            alertAfterChargeMin: 5,
+            alertBeforeFcEnabled: false,
+            alertBeforeFcMin: 1,
+            alertBeforeDropEnabled: false,
+            alertBeforeDropMin: 1,
+            alertAfterDropEnabled: false,
+            alertAfterDropMin: 5,
+        });
+    });
+
+    it('clamps time-alarm minutes to 1–30', () => {
+        expect(normalizeRoastSettings({ alertAfterChargeMin: 0 }).alertAfterChargeMin).toBe(1);
+        expect(normalizeRoastSettings({ alertBeforeFcMin: 99 }).alertBeforeFcMin).toBe(30);
+    });
+});
+
 describe('FEATURE.fastPolling plan matrix', () => {
     it('grants Pro core level (trial runs at Pro)', () => {
         for (const plan of ['trial', 'pro', 'pro_plus', 'enterprise', 'team']) {

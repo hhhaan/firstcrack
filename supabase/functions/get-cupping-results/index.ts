@@ -1,5 +1,5 @@
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
-import { type BeanMeta, beanMetaLine } from '../_shared/cupping-bean-meta.ts';
+import { type BeanMeta, beanMetaFromJoin, beanMetaLine } from '../_shared/cupping-bean-meta.ts';
 import { SCA_V1_KEYS } from '../_shared/cupping-score.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
@@ -145,7 +145,7 @@ serveWithSentry('get-cupping-results', async (req) => {
             .select('id, beans(name, origin, region, variety, process, farm)')
             .in('id', roastIds);
         for (const s of sessions ?? []) {
-            const beans = s.beans as BeanMeta | null;
+            const beans = beanMetaFromJoin(s.beans);
             if (beans) beanByRoast.set(s.id, beans);
         }
     }

@@ -71,6 +71,7 @@ export const PidControlPanel = ({ pid, dropBehavior, replayActive }: Props) => {
                     onChange={(e) => pid.previewSv(Number(e.target.value))}
                     onPointerUp={(e) => void pid.commitSv(Number(e.currentTarget.value))}
                     // 드래그 취소·포커스 이탈·AT 입력에서도 마지막 값이 나가야 한다 (#269)
+                    onLostPointerCapture={(e) => void pid.commitSv(Number(e.currentTarget.value))}
                     onPointerCancel={(e) => void pid.commitSv(Number(e.currentTarget.value))}
                     onBlur={(e) => void pid.commitSv(Number(e.currentTarget.value))}
                     onKeyUp={(e) => void pid.commitSv(Number(e.currentTarget.value))}

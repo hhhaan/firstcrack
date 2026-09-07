@@ -152,6 +152,17 @@ describe('createControlSender', () => {
         expect(onApplied).toHaveBeenCalledWith({ heater: 100 });
     });
 
+    it('commitNow는 성공 시 applied, 실패 시 null을 돌려준다', async () => {
+        const send = vi.fn(async () => ({ heater: 1 }));
+        const sender = createControlSender({ send });
+        sender.queue('heater', 0);
+        await expect(sender.commitNow()).resolves.toEqual({ heater: 1 });
+
+        send.mockRejectedValueOnce(new Error('409'));
+        sender.queue('heater', 0);
+        await expect(sender.commitNow()).resolves.toBeNull();
+    });
+
     it('전송 실패를 onError로 알리고 이후 전송을 막지 않는다', async () => {
         const onError = vi.fn();
         let shouldFail = true;

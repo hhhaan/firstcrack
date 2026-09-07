@@ -247,7 +247,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
 
     const allMarkLines = usePointMarkers ? guideMarkLines : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines];
 
-    // FC Start → FC End 세로 밴드 (End 없으면 live currentTime까지)
+    // FC Start → FC End 세로 밴드 (End 없으면 live currentTime까지).
+    // dual-mark FC Rolling is not End — band stays on FC End.
     let fcMarkArea: object | null = null;
     if (showFcBand) {
         const fcStart = eventMarkers.find((m) => m.event === 'FC Start');

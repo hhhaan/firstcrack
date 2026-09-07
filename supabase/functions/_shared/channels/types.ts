@@ -46,7 +46,10 @@ export interface PlatformListing {
     sku: string | null;
 }
 
-export type ChannelSecrets = Record<string, string | number | boolean | null | undefined>;
+export type ChannelSecrets = Record<
+    string,
+    string | number | boolean | string[] | null | undefined
+>;
 
 export interface PollCursor {
     /** ISO timestamp of last successful poll window start / lastChangedFrom */

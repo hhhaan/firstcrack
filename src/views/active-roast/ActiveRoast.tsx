@@ -6,6 +6,7 @@ import {
     computePhaseSegments,
     formatTemp,
     toDisplayRoR,
+    useBbpTimer,
     useEffectivePollIntervalMs,
     useRoastActions,
     useRoastKeyboardShortcuts,
@@ -21,6 +22,7 @@ import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel } from '@features/machine-control';
 import { useWeather } from '@shared/api/weather';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
@@ -48,8 +50,6 @@ import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
 import { useSidecarPolling } from './model/useSidecarPolling';
 import { EndRoastModal } from './ui/EndRoastModal';
-import { LiveReadings } from './ui/LiveReadings';
-import { MachineControls } from './ui/MachineControls';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
 import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
@@ -67,6 +67,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
+    const bbpEnabled = useFeature(FEATURE.bbp);
+    const bbpElapsed = useBbpTimer();
+    const bbpTimer = bbpEnabled ? bbpElapsed : null;
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -78,7 +81,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sessionId,
         sidecarConnected,
         reconnecting,
-        machineCapabilities,
         machineSnapshot,
     } = useRoastingStore(
         useShallow((s) => ({
@@ -90,7 +92,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
-            machineCapabilities: s.machineCapabilities,
             machineSnapshot: s.machineSnapshot,
         })),
     );
@@ -165,10 +166,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
     // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
-    const replayDropTime = useMemo(() => {
-        const events = parseStoredRoastEvents(resolveSourceSession(targetProfile?.source_session)?.events);
-        return events.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null;
-    }, [targetProfile]);
+    const sourceEvents = useMemo(
+        () => parseStoredRoastEvents(resolveSourceSession(targetProfile?.source_session)?.events),
+        [targetProfile],
+    );
+    const replayDropTime = useMemo(
+        () => sourceEvents.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null,
+        [sourceEvents, targetProfile?.duration_sec],
+    );
+    const referenceFcStartSec = useMemo(
+        () => sourceEvents.find((e) => e.type === 'FC Start')?.time_sec ?? null,
+        [sourceEvents],
+    );
 
     // Replay는 같은 기기만 — 키가 양쪽 다 있고 다를 때만 차단(레거시 null 프로파일은 허용)
     const referenceKey = targetProfile?.machine_roaster_key ?? null;
@@ -293,6 +302,25 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         triggerChargeRef.current = triggerCharge;
     }, [resetAutoDetection, disableAutoCharge, rearmAutoCharge, triggerCharge]);
 
+    const timeAlerts = useMemo(
+        () => ({
+            afterChargeMin: roastSettings.alertAfterChargeEnabled ? roastSettings.alertAfterChargeMin : null,
+            beforeFcMin: roastSettings.alertBeforeFcEnabled ? roastSettings.alertBeforeFcMin : null,
+            beforeDropMin: roastSettings.alertBeforeDropEnabled ? roastSettings.alertBeforeDropMin : null,
+            afterDropMin: roastSettings.alertAfterDropEnabled ? roastSettings.alertAfterDropMin : null,
+        }),
+        [
+            roastSettings.alertAfterChargeEnabled,
+            roastSettings.alertAfterChargeMin,
+            roastSettings.alertBeforeFcEnabled,
+            roastSettings.alertBeforeFcMin,
+            roastSettings.alertBeforeDropEnabled,
+            roastSettings.alertBeforeDropMin,
+            roastSettings.alertAfterDropEnabled,
+            roastSettings.alertAfterDropMin,
+        ],
+    );
+
     const activeAlerts = useRoastAlerts({
         enabled: roastSettings.alertsEnabled,
         soundEnabled: roastSettings.alertSoundEnabled,
@@ -300,6 +328,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         btMaxC: roastSettings.alertBtMaxC,
         afterTurningPoint: turningPoints.length > 0,
         logEntries,
+        timeAlerts,
+        referenceFcStartSec,
+        referenceDropSec: replayDropTime,
     });
 
     // ── Effect: rorSpanSec 변경 시 사이드카에 전달 ────────────────
@@ -504,25 +535,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onOpenRoastSettings={onOpenRoastSettings}
             />
 
-            {isFullscreen && (
-                <LiveReadings
-                    rawBT={rawBT}
-                    rawET={rawET}
-                    displayRoR={displayRoR}
-                    unit={unit}
-                    phase={roastPhaseName}
-                    phaseColor={roastPhaseColor}
-                    connected={sidecarConnected}
-                />
-            )}
-            {isFullscreen && (
-                <MachineControls
-                    machineCapabilities={machineCapabilities}
-                    sidecarConnected={sidecarConnected}
-                    liveData={liveData}
-                />
-            )}
-
             <div
                 className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
@@ -645,6 +657,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onEnterStandby={lifecycle.handleEnterStandby}
                         onManualCharge={lifecycle.handleManualCharge}
                         onEndRoast={handleEndRoastClick}
+                        bbpTimer={bbpTimer}
                     />
                 </div>
             </div>

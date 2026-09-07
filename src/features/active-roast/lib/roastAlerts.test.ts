@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateRoastAlerts, type RoastAlertThresholds } from './roastAlerts';
+import { evaluateRoastAlerts, evaluateTimeAlerts, type RoastAlertThresholds, type TimeAlertInput } from './roastAlerts';
 
 const T: RoastAlertThresholds = { rorCrashBelowCPerMin: 0, btMaxC: 250 };
 
@@ -36,5 +36,64 @@ describe('evaluateRoastAlerts', () => {
 
     it('reports both kinds at once', () => {
         expect(evaluateRoastAlerts({ ror: -3, bt: 260, afterTurningPoint: true }, T)).toEqual(['ror-crash', 'bt-over']);
+    });
+});
+
+const baseTime = (patch: Partial<TimeAlertInput> = {}): TimeAlertInput => ({
+    elapsedSec: 0,
+    dropped: false,
+    referenceFcStartSec: 480,
+    referenceDropSec: 720,
+    sessionDropSec: null,
+    ...patch,
+});
+
+describe('evaluateTimeAlerts', () => {
+    it('fires after-charge at N minutes, not one second earlier', () => {
+        const cfg = { afterChargeMin: 5, beforeFcMin: null, beforeDropMin: null, afterDropMin: null };
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 299 }), cfg)).toEqual([]);
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 300 }), cfg)).toEqual(['after-charge']);
+    });
+
+    it('silences after-charge once Drop/End is marked', () => {
+        const cfg = { afterChargeMin: 5, beforeFcMin: null, beforeDropMin: null, afterDropMin: null };
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 400, dropped: true, sessionDropSec: 360 }), cfg)).toEqual([]);
+    });
+
+    it('fires before-fc in the [refFc - N min, refFc) window only', () => {
+        const cfg = { afterChargeMin: null, beforeFcMin: 1, beforeDropMin: null, afterDropMin: null };
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 419 }), cfg)).toEqual([]);
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 420 }), cfg)).toEqual(['before-fc']);
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 479 }), cfg)).toEqual(['before-fc']);
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 480 }), cfg)).toEqual([]);
+    });
+
+    it('skips before-fc without a reference FC Start', () => {
+        const cfg = { afterChargeMin: null, beforeFcMin: 1, beforeDropMin: null, afterDropMin: null };
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 420, referenceFcStartSec: null }), cfg)).toEqual([]);
+    });
+
+    it('fires before-drop in the [refDrop - N min, refDrop) window only', () => {
+        const cfg = { afterChargeMin: null, beforeFcMin: null, beforeDropMin: 1, afterDropMin: null };
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 659 }), cfg)).toEqual([]);
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 660 }), cfg)).toEqual(['before-drop']);
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 720 }), cfg)).toEqual([]);
+    });
+
+    it('skips before-drop without a reference Drop', () => {
+        const cfg = { afterChargeMin: null, beforeFcMin: null, beforeDropMin: 1, afterDropMin: null };
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 660, referenceDropSec: null }), cfg)).toEqual([]);
+    });
+
+    it('fires after-drop N minutes after the session Drop, not before', () => {
+        const cfg = { afterChargeMin: null, beforeFcMin: null, beforeDropMin: null, afterDropMin: 5 };
+        const dropped = { dropped: true as const, sessionDropSec: 720 };
+        expect(evaluateTimeAlerts(baseTime({ ...dropped, elapsedSec: 1019 }), cfg)).toEqual([]);
+        expect(evaluateTimeAlerts(baseTime({ ...dropped, elapsedSec: 1020 }), cfg)).toEqual(['after-drop']);
+    });
+
+    it('skips after-drop until Drop is marked', () => {
+        const cfg = { afterChargeMin: null, beforeFcMin: null, beforeDropMin: null, afterDropMin: 5 };
+        expect(evaluateTimeAlerts(baseTime({ elapsedSec: 2000, sessionDropSec: null }), cfg)).toEqual([]);
     });
 });

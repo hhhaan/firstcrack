@@ -109,7 +109,7 @@ export const RoastSummaryModal = ({
             beanLabel: '',
             linkMode: hasHandoff ? 'schedule' : 'none',
             planBatchId: planBatchHandoff?.planBatchId ?? null,
-            deductStock: false,
+            deductStock: hasHandoff || selectedBeanId != null,
         },
     });
 
@@ -165,7 +165,7 @@ export const RoastSummaryModal = ({
                 beanLabel: '',
                 linkMode: handoff ? 'schedule' : 'none',
                 planBatchId: handoff?.planBatchId ?? null,
-                deductStock: false,
+                deductStock: Boolean(handoff) || prefill.beanId != null,
             });
             setBeanComboboxKey((k) => k + 1);
         }

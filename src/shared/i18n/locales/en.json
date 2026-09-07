@@ -197,7 +197,7 @@
                 "fcMarking": "First Crack Marking",
                 "fcMarkingDescription": "How the FC button (⌘2) records first crack.",
                 "fcDualMark": "Dual mark (first pop + rolling)",
-                "fcDualMarkDescription": "1st click: first pop (FC Start). 2nd: rolling (FC Rolling). 3rd: clear both. Records DTR from Start and from Rolling. Off = classic toggle FC Start only.",
+                "fcDualMarkDescription": "1st click: first pop (FC Start). 2nd: rolling (FC Rolling). Clear via the roast log. Records DTR from Start and from Rolling. Off = classic toggle FC Start only.",
                 "autoCharge": "Auto Charge Detection",
                 "autoChargeDescription": "Charge is triggered when BT drops by this amount within the detection window.",
                 "dropThreshold": "Drop Threshold",
@@ -205,7 +205,7 @@
                 "autoDropSensitivity": "Auto Drop Sensitivity",
                 "autoDropSensitivityDescription": "Drop is auto-detected when BT falls by this amount within the detection window (after 3 min).",
                 "alerts": "Live Alarms",
-                "alertsDescription": "Warn when the roast leaves safe bounds.",
+                "alertsDescription": "Threshold warnings and time reminders during the roast.",
                 "alertsEnabled": "Enable alarms",
                 "alertsEnabledDescription": "Show a warning banner during the roast.",
                 "alertSound": "Alarm sound",
@@ -213,7 +213,15 @@
                 "alertRorCrash": "RoR crash",
                 "alertRorCrashDescription": "Warn when BT RoR falls to this. Only after the turning point.",
                 "alertBtMax": "BT ceiling",
-                "alertBtMaxDescription": "Warn when bean temperature reaches this."
+                "alertBtMaxDescription": "Warn when bean temperature reaches this.",
+                "alertAfterCharge": "After charge",
+                "alertAfterChargeDescription": "Remind this many minutes after Charge.",
+                "alertBeforeFc": "Before first crack",
+                "alertBeforeFcDescription": "Remind this many minutes before the target profile's FC Start. Needs a target profile with an FC Start mark.",
+                "alertBeforeDrop": "Before drop",
+                "alertBeforeDropDescription": "Remind this many minutes before the target profile's Drop. Needs a target profile with a Drop mark.",
+                "alertAfterDrop": "After drop",
+                "alertAfterDropDescription": "Remind this many minutes after Drop. The timer keeps running until End roast."
             },
             "account": {
                 "label": "Account",
@@ -515,7 +523,8 @@
             "liveRoastInProgress": "Live — Roast in Progress",
             "machineConnected": "Machine connected · Ready to roast",
             "settings": "Roast settings",
-            "openSettings": "Open roast settings"
+            "openSettings": "Open roast settings",
+            "reconnecting": "Reconnecting — curve paused. Do not reload the window"
         },
         "readings": {
             "beanTemp": "Bean Temp",
@@ -567,7 +576,8 @@
             "deltaEt": "ΔET (30s)",
             "ror": "RoR",
             "time": "Time",
-            "dtr": "DTR"
+            "dtr": "DTR",
+            "bbp": "BBP"
         },
         "chart": {
             "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
@@ -648,15 +658,6 @@
             "sessionsComplete": "Session {{done}}/{{total}} complete. Start the next session?",
             "allDone": "{{done}}/{{total}} batches complete"
         },
-        "stockDeduct": {
-            "title": "Deduct Stock",
-            "description": "Roast saved. Choose whether to deduct green coffee from inventory.",
-            "deductionAmount": "Amount to deduct: {{kg}}kg",
-            "deductStock": "Deduct green coffee stock",
-            "deductStockDisabled": "No bean linked — stock cannot be deducted.",
-            "skip": "Skip",
-            "confirm": "Confirm"
-        },
         "onboarding": {
             "next": "Next",
             "done": "Got it",
@@ -689,7 +690,11 @@
         },
         "alerts": {
             "rorCrash": "RoR crash — heat is stalling",
-            "btOver": "BT over the ceiling"
+            "btOver": "BT over the ceiling",
+            "afterCharge": "{{minutes}} min after charge",
+            "beforeFc": "{{minutes}} min before first crack (reference)",
+            "beforeDrop": "{{minutes}} min before drop (reference)",
+            "afterDrop": "{{minutes}} min after drop"
         },
         "recovery": {
             "title": "Unsaved roast",
@@ -973,7 +978,9 @@
             "title": "Delete roast session?",
             "description": "{{name}} will be permanently deleted. This can't be undone.",
             "cancel": "Cancel",
-            "confirm": "Delete"
+            "confirm": "Delete",
+            "blockedByProfile": "A profile is based on this record, so it can't be deleted. Delete the profile first.",
+            "failed": "Couldn't delete. Try again."
         },
         "saveAsProfile": "Save as profile",
         "exportCsv": "Export CSV",
@@ -1055,15 +1062,10 @@
         "description": "Description",
         "descriptionPlaceholder": "Short description…",
         "targetLevel": "Target roast level",
-        "chargeTemp": "Charge Temp (°C)",
-        "tempPlaceholder": "e.g. 200",
-        "dropTemp": "Drop Temp (°C)",
-        "duration": "Duration (sec)",
-        "durationPlaceholder": "e.g. 720",
-        "devTime": "DT (sec)",
-        "devTimePlaceholder": "e.g. 90",
+        "chargeTemp": "Charge Temp",
+        "dropTemp": "Drop Temp",
+        "devTime": "DT",
         "devPct": "DTR",
-        "devPctPlaceholder": "e.g. 13",
         "defaultBean": "Default Bean (optional)",
         "none": "None",
         "singleOrigin": "Single",
@@ -1075,18 +1077,17 @@
         "createProfile": "Create Profile",
         "noSessions": "No completed roast sessions.",
         "drop": "Drop",
-        "howToCreate": "How would you like to create the profile?",
-        "manualInput": "Manual Input",
-        "manualInputDesc": "Enter charge temp, drop temp, duration, and more",
-        "fromSessionOption": "From Roast History",
-        "fromSessionDesc": "Auto-fill parameters from a past roast session",
         "roastLevel": {
             "Light": "Light",
             "Medium-Light": "Medium-Light",
             "Medium": "Medium",
             "Medium-Dark": "Medium-Dark",
             "Dark": "Dark"
-        }
+        },
+        "dropTime": "Drop Time",
+        "fcTime": "First Crack",
+        "computedHint": "Calculated from the session's event marks. Edit the roast record to change them.",
+        "noMarks": "No marks"
     },
     "beanList": {
         "searchPlaceholder": "Search beans...",

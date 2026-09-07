@@ -1,5 +1,7 @@
 import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDuration } from '@shared/lib/format';
+import type { Json } from '@shared/types/database.types';
 import { modalCancelBtnCls, modalFooterChrome, modalHeaderChrome } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ChevronRight } from 'lucide-react';
@@ -13,16 +15,23 @@ type SessionOption = {
     drop_temp_celsius: number | null;
     duration_seconds: number | null;
     roast_level: string | null;
+    events: Json | null;
 };
 
 type ProfileSessionPickerProps = {
     sessions: SessionOption[];
     onSelect: (sessionId: string) => void;
-    onBack: () => void;
     onClose: () => void;
 };
 
-export const ProfileSessionPicker = ({ sessions, onSelect, onBack, onClose }: ProfileSessionPickerProps) => {
+/** "FC · DROP" — which marks the session carries; without FC the profile has no dev time and no time alarms. */
+const marksLabel = (events: Json | null): string | null => {
+    const types = new Set(parseStoredRoastEvents(events).map((e) => e.type));
+    const marks = [types.has('FC Start') ? 'FC' : null, types.has('Drop') ? 'DROP' : null].filter(Boolean);
+    return marks.length > 0 ? marks.join(' · ') : null;
+};
+
+export const ProfileSessionPicker = ({ sessions, onSelect, onClose }: ProfileSessionPickerProps) => {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
 
@@ -35,15 +44,6 @@ export const ProfileSessionPicker = ({ sessions, onSelect, onBack, onClose }: Pr
                     onClose={onClose}
                     closeLabel={t('common.close')}
                     className="px-8 pt-6 pb-4"
-                    leading={
-                        <button
-                            type="button"
-                            onClick={onBack}
-                            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-xl border-none bg-surface text-muted transition-all duration-200 hover:text-primary dark:bg-surface-elevated"
-                        >
-                            <ChevronRight size={14} strokeWidth={2.5} className="rotate-180" />
-                        </button>
-                    }
                 />
             </div>
 
@@ -52,35 +52,49 @@ export const ProfileSessionPicker = ({ sessions, onSelect, onBack, onClose }: Pr
                     <p className="text-sm text-muted text-center py-8">{t('newProfileModal.noSessions')}</p>
                 ) : (
                     <div className="flex flex-col gap-2">
-                        {sessions.map((session) => (
-                            <button
-                                key={session.id}
-                                type="button"
-                                onClick={() => onSelect(session.id)}
-                                className="w-full px-4 py-3 rounded-xl border border-black/6 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-left cursor-pointer hover:bg-white/90 dark:hover:bg-[#262b31] transition-all duration-200 group"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="text-sm font-semibold text-primary">
-                                            {session.beans?.name ?? t('newProfileModal.unknownBean')}
-                                        </span>
-                                        <span className="text-[12px] text-muted">
-                                            {fmtDate(session.roasted_at)}
-                                            {session.drop_temp_celsius != null &&
-                                                ` · ${t('newProfileModal.drop')} ${formatTemp(session.drop_temp_celsius, unit)}`}
-                                            {session.duration_seconds != null &&
-                                                ` · ${formatDuration(session.duration_seconds)}`}
-                                            {session.roast_level && ` · ${session.roast_level}`}
-                                        </span>
+                        {sessions.map((session) => {
+                            const marks = marksLabel(session.events);
+                            return (
+                                <button
+                                    key={session.id}
+                                    type="button"
+                                    onClick={() => onSelect(session.id)}
+                                    className="w-full px-4 py-3 rounded-xl border border-black/6 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-left cursor-pointer hover:bg-white/90 dark:hover:bg-[#262b31] transition-all duration-200 group"
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex flex-col gap-0.5 min-w-0">
+                                            <span className="text-sm font-semibold text-primary">
+                                                {session.beans?.name ?? t('newProfileModal.unknownBean')}
+                                            </span>
+                                            <span className="text-[12px] text-muted">
+                                                {fmtDate(session.roasted_at)}
+                                                {session.drop_temp_celsius != null &&
+                                                    ` · ${t('newProfileModal.drop')} ${formatTemp(session.drop_temp_celsius, unit)}`}
+                                                {session.duration_seconds != null &&
+                                                    ` · ${formatDuration(session.duration_seconds)}`}
+                                                {session.roast_level && ` · ${session.roast_level}`}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {marks ? (
+                                                <span className="text-[10px] font-semibold tracking-[0.04em] px-1.5 py-0.5 rounded bg-palette-blue text-white">
+                                                    {marks}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] font-semibold tracking-[0.04em] px-1.5 py-0.5 rounded border border-border text-muted">
+                                                    {t('newProfileModal.noMarks')}
+                                                </span>
+                                            )}
+                                            <ChevronRight
+                                                size={16}
+                                                strokeWidth={2}
+                                                className="text-muted opacity-0 group-hover:opacity-100 transition-opacity"
+                                            />
+                                        </div>
                                     </div>
-                                    <ChevronRight
-                                        size={16}
-                                        strokeWidth={2}
-                                        className="text-muted opacity-0 group-hover:opacity-100 transition-opacity"
-                                    />
-                                </div>
-                            </button>
-                        ))}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
             </div>

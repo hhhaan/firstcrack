@@ -197,7 +197,7 @@
                 "fcMarking": "一爆标记",
                 "fcMarkingDescription": "FC 按钮（⌘2）记录一爆的方式。",
                 "fcDualMark": "双重标记（首爆 + 连爆）",
-                "fcDualMarkDescription": "第 1 次：首爆（FC Start）。第 2 次：连爆（FC Rolling）。第 3 次：清除两者。分别记录 Start 与 Rolling 的 DTR。关闭时仅为经典 FC Start 开关。",
+                "fcDualMarkDescription": "第 1 次：首爆（FC Start）。第 2 次：连爆（FC Rolling）。删除请用日志。分别记录 Start 与 Rolling 的 DTR。关闭时仅为经典 FC Start 开关。",
                 "autoCharge": "自动 Charge 检测",
                 "autoChargeDescription": "在检测窗口内 BT 下降达到该值时触发 Charge。",
                 "dropThreshold": "下降阈值",
@@ -205,7 +205,7 @@
                 "autoDropSensitivity": "自动 Drop 灵敏度",
                 "autoDropSensitivityDescription": "在检测窗口内 BT 下降达到该值时自动检测 Drop（3 分钟后）。",
                 "alerts": "实时警报",
-                "alertsDescription": "烘焙偏离正常范围时发出警告。",
+                "alertsDescription": "烘焙过程中的阈值警告与时间提醒。",
                 "alertsEnabled": "启用警报",
                 "alertsEnabledDescription": "烘焙过程中显示警告横幅。",
                 "alertSound": "警报声",
@@ -213,7 +213,15 @@
                 "alertRorCrash": "RoR 骤降",
                 "alertRorCrashDescription": "BT RoR 降至该值时警告。仅在回温点之后生效。",
                 "alertBtMax": "BT 上限",
-                "alertBtMaxDescription": "豆温达到该值时警告。"
+                "alertBtMaxDescription": "豆温达到该值时警告。",
+                "alertAfterCharge": "投豆后",
+                "alertAfterChargeDescription": "Charge 后经过该分钟数时提醒。",
+                "alertBeforeFc": "一爆前",
+                "alertBeforeFcDescription": "目标曲线 FC Start 前该分钟数提醒。需要带有 FC Start 标记的目标曲线。",
+                "alertBeforeDrop": "下豆前",
+                "alertBeforeDropDescription": "目标曲线 Drop 前该分钟数提醒。需要带有 Drop 标记的目标曲线。",
+                "alertAfterDrop": "下豆后",
+                "alertAfterDropDescription": "Drop 后经过该分钟数时提醒。计时器持续到结束烘焙。"
             },
             "account": {
                 "label": "账户",
@@ -515,7 +523,8 @@
             "liveRoastInProgress": "实时 — 烘焙进行中",
             "machineConnected": "设备已连接 · 可以开始烘焙",
             "settings": "烘焙设置",
-            "openSettings": "打开烘焙设置"
+            "openSettings": "打开烘焙设置",
+            "reconnecting": "正在重新连接 — 曲线已暂停。请勿刷新窗口"
         },
         "readings": {
             "beanTemp": "豆温",
@@ -567,7 +576,8 @@
             "deltaEt": "ΔET (30秒)",
             "ror": "RoR",
             "time": "时间",
-            "dtr": "DTR"
+            "dtr": "DTR",
+            "bbp": "BBP"
         },
         "chart": {
             "ariaLabel": "温度曲线图。使用滚轮或 +/- 缩放，拖拽或方向键平移，按 0 重置缩放。"
@@ -648,15 +658,6 @@
             "sessionsComplete": "批次 {{done}}/{{total}} 完成。开始下一批次？",
             "allDone": "{{done}}/{{total}} 批次完成"
         },
-        "stockDeduct": {
-            "title": "扣减库存",
-            "description": "烘焙记录已保存。请选择是否扣减生豆库存。",
-            "deductionAmount": "预计扣减量：{{kg}}kg",
-            "deductStock": "扣减生豆库存",
-            "deductStockDisabled": "未关联豆子，无法扣减库存。",
-            "skip": "不扣减",
-            "confirm": "确认"
-        },
         "onboarding": {
             "next": "下一步",
             "done": "知道了",
@@ -689,7 +690,11 @@
         },
         "alerts": {
             "rorCrash": "RoR 骤降 — 火力正在衰减",
-            "btOver": "BT 超过上限"
+            "btOver": "BT 超过上限",
+            "afterCharge": "投豆 {{minutes}} 分钟后",
+            "beforeFc": "一爆前 {{minutes}} 分钟（参考）",
+            "beforeDrop": "下豆前 {{minutes}} 分钟（参考）",
+            "afterDrop": "下豆 {{minutes}} 分钟后"
         },
         "recovery": {
             "title": "未保存的烘焙",
@@ -945,7 +950,9 @@
             "title": "删除烘焙记录？",
             "description": "“{{name}}” 将被永久删除，无法恢复。",
             "cancel": "取消",
-            "confirm": "删除"
+            "confirm": "删除",
+            "blockedByProfile": "已有基于此记录创建的曲线，无法删除。请先删除该曲线。",
+            "failed": "删除失败，请重试。"
         },
         "saveAsProfile": "保存为曲线",
         "exportCsv": "导出 CSV",
@@ -1067,15 +1074,10 @@
         "description": "描述",
         "descriptionPlaceholder": "简短描述…",
         "targetLevel": "目标烘焙度",
-        "chargeTemp": "投豆温度 (°C)",
-        "tempPlaceholder": "例如：200",
-        "dropTemp": "下豆温度 (°C)",
-        "duration": "时长 (秒)",
-        "durationPlaceholder": "例如：720",
-        "devTime": "DT (秒)",
-        "devTimePlaceholder": "例如：90",
+        "chargeTemp": "投豆温度",
+        "dropTemp": "下豆温度",
+        "devTime": "DT",
         "devPct": "DTR",
-        "devPctPlaceholder": "例如：13",
         "defaultBean": "默认生豆 (可选)",
         "none": "无",
         "singleOrigin": "单品",
@@ -1087,18 +1089,17 @@
         "createProfile": "创建曲线",
         "noSessions": "暂无完成的烘焙记录。",
         "drop": "下豆",
-        "howToCreate": "您希望如何创建曲线？",
-        "manualInput": "手动输入",
-        "manualInputDesc": "直接输入入豆/下豆温度、时间等",
-        "fromSessionOption": "从烘焙记录导入",
-        "fromSessionDesc": "根据历史烘焙记录自动填充参数",
         "roastLevel": {
             "Light": "浅烘焙",
             "Medium-Light": "中浅烘焙",
             "Medium": "中烘焙",
             "Medium-Dark": "中深烘焙",
             "Dark": "深烘焙"
-        }
+        },
+        "dropTime": "下豆时间",
+        "fcTime": "一爆",
+        "computedHint": "根据烘焙记录的事件标记计算。如需更改，请编辑烘焙记录。",
+        "noMarks": "无标记"
     },
     "addBeanModal": {
         "newTitle": "新批次",

@@ -62,6 +62,23 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
         hook.unmount();
     });
 
+    it('한 번 확보한 capability는 성공 이후 재조회로 지워지지 않는다', async () => {
+        getStatus.mockResolvedValue({ control: CONTROL } as Awaited<ReturnType<typeof sidecar.getStatus>>);
+        const hook = await renderHook(true);
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(hook.get().writable).toBe(true);
+
+        await act(async () => {
+            vi.advanceTimersByTime(10_000);
+        });
+        expect(getStatus).toHaveBeenCalledTimes(1);
+        expect(hook.get().writable).toBe(true);
+        expect(hook.get().limits.heater).toEqual({ min: 0, max: 100 });
+        hook.unmount();
+    });
+
     it('언마운트 후에는 재시도 타이머가 조회를 다시 쏘지 않는다', async () => {
         getStatus.mockRejectedValue(new Error('down'));
         const hook = await renderHook(true);

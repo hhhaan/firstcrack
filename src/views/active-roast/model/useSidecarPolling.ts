@@ -2,6 +2,7 @@ import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { errorMessage } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
@@ -10,6 +11,9 @@ import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
 import { shouldAcceptTick } from '../lib/poll-tick-gate';
+
+/** 좀비 사이드카 401. ready가 아니며 연결 끊김으로 승격하지 않는다. */
+const isUnauthorizedSidecar = (err: unknown): boolean => errorMessage(err).toLowerCase() === 'unauthorized';
 
 /** 폴링 중 누적하는 실시간 측정 포인트 */
 export interface LiveRoastPoint {
@@ -100,6 +104,7 @@ export async function checkSidecarAndRecoverIdle(deps: {
         deps.setConnected(decision.connected);
         // reconnecting hold: do not enter preheating from idle until link is solid
     } catch (err) {
+        if (isUnauthorizedSidecar(err)) return;
         logger.capture(err, { scope: 'sidecarPolling.status' });
         deps.setReconnecting?.(false);
         deps.setConnected(false);
@@ -126,6 +131,7 @@ export const useSidecarPolling = ({
     preChargeDisplaySec,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
+    const [sidecarReady, setSidecarReady] = useState(false);
     // pre-charge 버퍼: absTime으로 누적 (charge 시 음수 상대 시간으로 변환에 사용)
     const preChargeBufferRef = useRef<(Omit<LiveRoastPoint, 'time' | 'label'> & { absTime: number })[]>([]);
     // preheating 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
@@ -183,11 +189,41 @@ export const useSidecarPolling = ({
         prevPhaseRef.current = phase;
     }, [phase, roastStartTimeRef, preChargeDisplaySec]);
 
-    // 뷰 활성화 시 연결 확인 + idle 동안 저주기 재확인 → 복구 시 예열 재진입 (#178).
-    // non-idle에서는 온도 폴링 루프가 connected를 관리하므로 interval은 idle만.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
+    // Rust는 인증된 200 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
+    // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (Machines와 같은 규칙).
     useEffect(() => {
         if (!isActive) return;
+        let cancelled = false;
+        let unlisten: (() => void) | undefined;
+
+        const markReady = () => {
+            if (cancelled) return;
+            setSidecarReady(true);
+        };
+
+        void listen<null>('sidecar-ready', () => {
+            void sidecar.waitUntilReady().then(markReady, () => null);
+        })
+            .then((fn) => {
+                if (cancelled) fn();
+                else unlisten = fn;
+            })
+            .catch(() => null);
+
+        void sidecar.waitUntilReady().then(markReady, () => null);
+
+        return () => {
+            cancelled = true;
+            unlisten?.();
+        };
+    }, [isActive]);
+
+    // 뷰 활성화 시 연결 확인 + idle 동안 저주기 재확인 → 복구 시 예열 재진입 (#178).
+    // non-idle에서는 온도 폴링 루프가 connected를 관리하므로 interval은 idle만.
+    // ready 전에는 폴이 나가지 않는다 — 콜드 기동 401/Load failed를 끊김으로 승격하지 않기 위함.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
+    useEffect(() => {
+        if (!isActive || !sidecarReady) return;
 
         const check = () =>
             void checkSidecarAndRecoverIdle({
@@ -203,17 +239,17 @@ export const useSidecarPolling = ({
                 },
             });
 
-        check(); // 즉시 1회 (기존 isActive 전환 동작 보존)
+        check(); // ready 이후 1회 (기존 isActive 전환 동작 보존)
         if (phase !== 'idle') return;
         const id = setInterval(check, IDLE_STATUS_POLL_MS);
         return () => clearInterval(id);
-    }, [isActive, phase]);
+    }, [isActive, phase, sidecarReady]);
 
     // 예열·대기·로스팅·종료 단계에서 주기적으로 온도를 폴링한다.
     // idle 단계에서만 폴링을 중단 — ended(요약 모달)에는 BBP 쿨다운 기록을 위해 폴링 유지.
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
-        if (phase === 'idle') return;
+        if (phase === 'idle' || !sidecarReady) return;
 
         let cancelled = false;
         const applyConnection = (decision: ReturnType<typeof classifySidecarConnection>) => {
@@ -257,7 +293,7 @@ export const useSidecarPolling = ({
 
                 // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
                 // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
-                if (currentPhase !== 'roasting') {
+                if (currentPhase !== 'roasting' && !data.stale) {
                     useBbpStore.getState().append(
                         {
                             bt,
@@ -278,6 +314,8 @@ export const useSidecarPolling = ({
                     if (useRoastingStore.getState().elapsed !== elapsedSec) {
                         useRoastingStore.setState({ elapsed: elapsedSec });
                     }
+                    // stale = last-good 재전송. 표시(updateLiveData)는 유지하되 시계열엔 안 쓴다
+                    if (data.stale) return;
                     // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
                     const lastRoastPointTime = lastRoastPointTimeRef.current;
                     if (lastRoastPointTime !== null && t >= lastRoastPointTime && t - lastRoastPointTime < 0.4) return;
@@ -343,10 +381,14 @@ export const useSidecarPolling = ({
                 }
             } catch (e) {
                 logger.debug(e, 'sidecar polling error');
+                if (isUnauthorizedSidecar(e)) return;
                 // Transient HTTP/timeout must not wipe reconnecting or force hard disconnect
                 // while the sidecar is still up or hardware auto-reconnect is running.
-                const status = await sidecar.getStatus().catch(() => null);
-                if (cancelled) return;
+                const status = await sidecar.getStatus().catch((statusErr: unknown) => {
+                    if (isUnauthorizedSidecar(statusErr)) return 'unauthorized' as const;
+                    return null;
+                });
+                if (cancelled || status === 'unauthorized') return;
                 applyConnection(
                     classifySidecarConnection({
                         kind: 'poll_error',
@@ -389,7 +431,7 @@ export const useSidecarPolling = ({
             cancelled = true;
             clearInterval(id);
         };
-    }, [phase, pollIntervalMs]);
+    }, [phase, pollIntervalMs, sidecarReady]);
 
     return { livePoints, setLivePoints };
 };

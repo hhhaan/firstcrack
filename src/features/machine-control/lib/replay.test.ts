@@ -147,6 +147,11 @@ describe('extractReplayEvents', () => {
         expect(plan?.events.map((e) => e.heater)).toEqual([80, 40]);
     });
 
+    it('Drop 시각(t===cutoff) heater 0은 컷오프 밖이다 — 같은 tick zero write가 다음 배치 계획에 안 섞인다', () => {
+        const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), { t: 600, bt: 204, heater: 0 }], 600);
+        expect(plan?.events.map((e) => e.heater)).toEqual([80, 40]);
+    });
+
     it('pre-charge(t<0) 포인트는 무시한다', () => {
         const pts: ReplayPoint[] = [{ t: -30, bt: 150, heater: 90 }, ...curve({ 100: 70 })];
         const plan = extractReplayEvents(pts);
