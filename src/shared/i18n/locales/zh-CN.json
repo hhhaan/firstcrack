@@ -568,7 +568,8 @@
             "deltaEt": "ΔET (30秒)",
             "ror": "RoR",
             "time": "时间",
-            "dtr": "DTR"
+            "dtr": "DTR",
+            "bbp": "BBP"
         },
         "chart": {
             "ariaLabel": "温度曲线图。使用滚轮或 +/- 缩放，拖拽或方向键平移，按 0 重置缩放。"

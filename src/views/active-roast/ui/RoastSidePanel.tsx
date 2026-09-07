@@ -8,6 +8,7 @@ import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKe
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
@@ -53,6 +54,9 @@ interface RoastSidePanelProps {
     onEnterStandby: () => void;
     onManualCharge: () => void;
     onEndRoast: () => void;
+    /** Pro BBP cooldown — null when inactive or plan-gated */
+    bbpTimer: string | null;
+    liveData: { heater: number | null; fan: number; drum: number } | null;
 }
 
 export const RoastSidePanel = ({
@@ -88,7 +92,10 @@ export const RoastSidePanel = ({
     onEnterStandby,
     onManualCharge,
     onEndRoast,
+    bbpTimer,
+    liveData,
 }: RoastSidePanelProps) => {
+    const { t } = useTranslation();
     const showRollingDtr = rollingDtrPct != null;
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
@@ -186,6 +193,42 @@ export const RoastSidePanel = ({
                     style={{ color: roastPhaseColor }}
                 >
                     {roastPhaseName}
+                </span>
+            </div>
+            {bbpTimer != null && (
+                <div className="flex items-center justify-between" data-testid="bbp-timer">
+                    <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.sidebar.bbp')}</span>
+                    <span className="font-mono text-xl font-medium leading-tight">{bbpTimer}</span>
+                </div>
+            )}
+            <div className="flex items-center justify-between">
+                <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.controls.heater')}</span>
+                <span
+                    data-testid="live-heater"
+                    className="font-mono text-base font-medium leading-tight"
+                    style={{ color: PHASE_COLORS.development }}
+                >
+                    {liveData?.heater != null ? `${liveData.heater}%` : '—'}
+                </span>
+            </div>
+            <div className="flex items-center justify-between">
+                <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.controls.fan')}</span>
+                <span
+                    data-testid="live-fan"
+                    className="font-mono text-base font-medium leading-tight"
+                    style={{ color: SENSOR_COLORS.et }}
+                >
+                    {liveData != null ? `${liveData.fan}` : '—'}
+                </span>
+            </div>
+            <div className="flex items-center justify-between">
+                <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.controls.drum')}</span>
+                <span
+                    data-testid="live-drum"
+                    className="font-mono text-base font-medium leading-tight"
+                    style={{ color: PHASE_COLORS.ready }}
+                >
+                    {liveData != null ? `${liveData.drum}` : '—'}
                 </span>
             </div>
             {/* DTR + Dev (Start = canonical; Rolling when dual-mark event present) */}
