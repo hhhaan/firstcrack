@@ -70,7 +70,7 @@ jobs:
           # skipped (ios-check path filter) is success, not pending.
           for i in $(seq 1 20); do
             RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
-              --jq '[.check_runs[] | select(.name == "paths" or .name == "check" or .name == "test" or .name == "sidecar" or .name == "ios-check" or .name == "semgrep" or .name == "gitleaks")]')
+              --jq '[.check_runs[] | select(.name == "paths" or .name == "check" or .name == "test" or .name == "sidecar" or .name == "ios-check" or .name == "semgrep" or .name == "gitleaks" or .name == "edge-check")]')
             TOTAL=$(echo "$RESPONSE" | jq 'length')
 
             if [ "$TOTAL" -eq 0 ]; then

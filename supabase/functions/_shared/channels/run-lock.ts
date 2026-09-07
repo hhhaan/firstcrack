@@ -27,7 +27,8 @@ type FilterQuery = PromiseLike<{ error: PostgrestLikeError | null }> & {
 
 type InsertQuery = PromiseLike<{ error: PostgrestLikeError | null }> & {
     select: (columns: string) => {
-        single: () => Promise<{
+        // PromiseLike: supabase-js `single()` is a thenable PostgrestBuilder, not a Promise.
+        single: () => PromiseLike<{
             data: { id: string } | null;
             error: PostgrestLikeError | null;
         }>;

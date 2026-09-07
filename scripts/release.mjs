@@ -108,7 +108,7 @@ if (!force) {
 
     // origin/main HEAD의 CI 게이트가 green인지 (이름 = ci.yml job id).
     // ios-check is skipped when src-tauri did not change — treat skipped as pass.
-    const gateChecks = new Set(['paths', 'check', 'test', 'sidecar', 'ios-check', 'semgrep', 'gitleaks']);
+    const gateChecks = new Set(['paths', 'check', 'test', 'sidecar', 'ios-check', 'semgrep', 'gitleaks', 'edge-check']);
     let runs;
     try {
         runs = JSON.parse(
