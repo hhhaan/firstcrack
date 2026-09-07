@@ -41,6 +41,37 @@ describe('LABEL_BELOW_EVENTS', () => {
     });
 });
 
+describe('FC band vs dual-mark Rolling', () => {
+    it('ends the band at FC End, not FC Rolling', () => {
+        const { fcMarkArea } = buildMarkers({
+            ...baseParams,
+            showFcBand: true,
+            eventMarkerStyle: 'line',
+            eventMarkers: [
+                { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
+                { timeSec: 520, event: 'FC Rolling', color: '#5a9', timeStr: '8:40', temp: '200°C' },
+                { timeSec: 560, event: 'FC End', color: '#c00', timeStr: '9:20', temp: '205°C' },
+            ],
+        });
+        expect(fcMarkArea).toEqual(expect.objectContaining({ data: [[{ xAxis: 480 }, { xAxis: 560 }]] }));
+    });
+
+    it('live-extends to now when FC End is missing, ignoring Rolling', () => {
+        const { fcMarkArea } = buildMarkers({
+            ...baseParams,
+            showFcBand: true,
+            charged: true,
+            currentTimeSec: 600,
+            eventMarkerStyle: 'line',
+            eventMarkers: [
+                { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
+                { timeSec: 520, event: 'FC Rolling', color: '#5a9', timeStr: '8:40', temp: '200°C' },
+            ],
+        });
+        expect(fcMarkArea).toEqual(expect.objectContaining({ data: [[{ xAxis: 480 }, { xAxis: 600 }]] }));
+    });
+});
+
 describe('buildMarkers label position', () => {
     it('point style: FC Start top, FC Rolling bottom', () => {
         const { markPointData } = buildMarkers({

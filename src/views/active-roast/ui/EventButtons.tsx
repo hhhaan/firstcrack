@@ -21,11 +21,14 @@ export const EventButtons = ({
     logEntries,
     pressedButtons,
     variant,
+    disabled = false,
 }: {
     buttons: EventButtonDef[];
     logEntries: LogEntry[];
     pressedButtons: Set<string>;
     variant: 'sidebar' | 'main';
+    /** Same gate as mark shortcuts: off during preheating/standby. */
+    disabled?: boolean;
 }) => {
     const isSidebar = variant === 'sidebar';
     const isDark = useThemeStore((s) => s.resolvedTheme) === 'dark';
@@ -78,8 +81,9 @@ export const EventButtons = ({
                 return (
                     <button
                         type="button"
-                        key={label}
+                        key={shortcutKey}
                         onClick={onClick}
+                        disabled={disabled}
                         aria-keyshortcuts={`Meta+${shortcutKey} Control+${shortcutKey}`}
                         style={{
                             display: 'flex',
@@ -94,18 +98,21 @@ export const EventButtons = ({
                             color: textColor,
                             fontSize: isSidebar ? 12 : 13,
                             fontWeight,
-                            cursor: 'pointer',
+                            cursor: disabled ? 'default' : 'pointer',
+                            opacity: disabled ? 0.4 : 1,
                             letterSpacing: isSidebar ? '-0.025em' : '0.14px',
                             transition: 'background 0.1s ease, color 0.1s ease, border-color 0.1s ease',
                             boxShadow,
                         }}
                         onMouseEnter={(e) => {
+                            if (disabled) return;
                             if (isSidebar && color && !fullResolved && !partial) {
                                 e.currentTarget.style.background = `${color}30`;
                                 e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color}88`;
                             }
                         }}
                         onMouseLeave={(e) => {
+                            if (disabled) return;
                             if (isSidebar && color && !fullResolved && !partial) {
                                 e.currentTarget.style.background = `${color}18`;
                                 e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${color}55`;

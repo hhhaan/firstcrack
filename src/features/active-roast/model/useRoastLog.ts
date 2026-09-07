@@ -53,7 +53,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
         [logEntries, elapsed, rawBT, unit, flashButton],
     );
 
-    /** Dual-mark cycle: empty → FC Start → FC Rolling → clear both. */
+    /** Dual-mark cycle: empty → FC Start → FC Rolling. Stage 2 is a no-op. */
     // ponytail: 플래시 없음 — 버튼이 stage로 즉시 스타일이 바뀌어 피드백이 이미 보인다
     const cycleFc = useCallback(() => {
         setLogEntries((prev) => cycleFcDualEntries(prev, { elapsed, rawBT, unit }));
