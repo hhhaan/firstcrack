@@ -89,9 +89,6 @@ artifacts/
 
 .pnpm-store/
 
-# Repomix output (manual: pnpm repomix)
-repomix-output.txt
-repomix-output.xml
 
 .cursor/
 

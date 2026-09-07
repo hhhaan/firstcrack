@@ -33,7 +33,6 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | CI | `check` (typecheck+biome+i18n+registry+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), ios-check (`src-tauri/**` only), edge-check (`deno check`) | no |
 | schedule (Mon 09:00 KST) | gitleaks (HEAD tree + last 7d history) | no |
 | `pnpm release` / `v*` tag | 3-platform build (+ sidecar `/status` smoke) → `supabase db push` → R2 publish | no |
-| repomix | manual — `pnpm repomix` at session start or after large/structural change | — |
 
 ### Hook bypass (use sparingly)
 CI still runs on remote — local skip is **not** a quality pass.
@@ -71,7 +70,6 @@ Read before changing write paths:
 
 ## Agent Rules
 - When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
-- repomix-output.xml: regenerate at session start and after large/structural changes (not every edit) via `pnpm repomix`.
 - Commit: `git add` → `bash scripts/ai-commit.sh` (non-interactive gen-cmt wrapper; no manual commit messages). Never `git commit -m`.
 
 ## Sidecar

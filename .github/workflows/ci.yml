@@ -18,7 +18,6 @@ on:
       - '.codex/**'
       - '.opencode/**'
       - '.superpowers/**'
-      - 'repomix-output.xml'
       - 'code_review.txt'
       - 'code_review.*'
       - 'code-review.*'
@@ -36,7 +35,6 @@ on:
       - '.codex/**'
       - '.opencode/**'
       - '.superpowers/**'
-      - 'repomix-output.xml'
       - 'code_review.txt'
       - 'code_review.*'
       - 'code-review.*'
@@ -189,7 +187,6 @@ jobs:
           --config p/default --config p/typescript --config p/react --config p/python --config p/rust --config p/github-actions --config p/secrets
           --exclude-rule javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
           --exclude-rule yaml.github-actions.security.secrets-inherit.secrets-inherit
-          --exclude repomix-output.xml
 
   # History-range only. Full git history still has a June 2026 sentry-org-token
   # in now-ignored .codex/.mcp.json/repomix dumps — that is the Monday job's catch-up window, not this gate.
