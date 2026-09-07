@@ -515,7 +515,8 @@
             "liveRoastInProgress": "ライブ — ロースト中",
             "machineConnected": "マシン接続済み · 焙煎準備完了",
             "settings": "ロースト設定",
-            "openSettings": "ロースト設定を開く"
+            "openSettings": "ロースト設定を開く",
+            "reconnecting": "再接続中 — 曲線が停止しています。ウィンドウを再読み込みしないでください"
         },
         "readings": {
             "beanTemp": "ベーン温度",
@@ -647,15 +648,6 @@
             "kgPerBatch": "{{kg}}kg / バッチ",
             "sessionsComplete": "セッション {{done}}/{{total}} 完了。次のセッションを開始しますか？",
             "allDone": "{{done}}/{{total}} バッチ完了"
-        },
-        "stockDeduct": {
-            "title": "在庫差し引き",
-            "description": "ロースト記録を保存しました。生豆在庫を差し引くか選択してください。",
-            "deductionAmount": "差し引き予定量: {{kg}}kg",
-            "deductStock": "生豆在庫を差し引く",
-            "deductStockDisabled": "豆がリンクされていないため在庫を差し引けません。",
-            "skip": "差し引かない",
-            "confirm": "確認"
         },
         "onboarding": {
             "next": "次へ",

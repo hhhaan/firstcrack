@@ -515,7 +515,8 @@
             "liveRoastInProgress": "实时 — 烘焙进行中",
             "machineConnected": "设备已连接 · 可以开始烘焙",
             "settings": "烘焙设置",
-            "openSettings": "打开烘焙设置"
+            "openSettings": "打开烘焙设置",
+            "reconnecting": "正在重新连接 — 曲线已暂停。请勿刷新窗口"
         },
         "readings": {
             "beanTemp": "豆温",
@@ -647,15 +648,6 @@
             "kgPerBatch": "{{kg}}kg / 批次",
             "sessionsComplete": "批次 {{done}}/{{total}} 完成。开始下一批次？",
             "allDone": "{{done}}/{{total}} 批次完成"
-        },
-        "stockDeduct": {
-            "title": "扣减库存",
-            "description": "烘焙记录已保存。请选择是否扣减生豆库存。",
-            "deductionAmount": "预计扣减量：{{kg}}kg",
-            "deductStock": "扣减生豆库存",
-            "deductStockDisabled": "未关联豆子，无法扣减库存。",
-            "skip": "不扣减",
-            "confirm": "确认"
         },
         "onboarding": {
             "next": "下一步",

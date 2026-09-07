@@ -515,7 +515,8 @@
             "liveRoastInProgress": "Live — Roast in Progress",
             "machineConnected": "Machine connected · Ready to roast",
             "settings": "Roast settings",
-            "openSettings": "Open roast settings"
+            "openSettings": "Open roast settings",
+            "reconnecting": "Reconnecting — curve paused. Do not reload the window"
         },
         "readings": {
             "beanTemp": "Bean Temp",
@@ -647,15 +648,6 @@
             "kgPerBatch": "{{kg}}kg / batch",
             "sessionsComplete": "Session {{done}}/{{total}} complete. Start the next session?",
             "allDone": "{{done}}/{{total}} batches complete"
-        },
-        "stockDeduct": {
-            "title": "Deduct Stock",
-            "description": "Roast saved. Choose whether to deduct green coffee from inventory.",
-            "deductionAmount": "Amount to deduct: {{kg}}kg",
-            "deductStock": "Deduct green coffee stock",
-            "deductStockDisabled": "No bean linked — stock cannot be deducted.",
-            "skip": "Skip",
-            "confirm": "Confirm"
         },
         "onboarding": {
             "next": "Next",

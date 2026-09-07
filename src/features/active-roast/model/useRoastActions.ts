@@ -1,3 +1,4 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { formatElapsed } from '@shared/lib/format';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
@@ -14,7 +15,7 @@ interface UseRoastActionsParams {
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
     setShowEndRoastModal: () => void;
-    storeStartCharge: (originMs?: number) => void;
+    storeStartCharge: (originMs?: number, ownerId?: string) => void;
     roastStartTimeRef: React.MutableRefObject<number>;
 }
 
@@ -35,6 +36,7 @@ export const useRoastActions = ({
     storeStartCharge,
     roastStartTimeRef,
 }: UseRoastActionsParams): UseRoastActionsReturn => {
+    const { workspaceOwnerId } = useActiveWorkspace();
     const triggerCharge = useCallback(
         (btAtCharge?: number | null, chargeTimeMs?: number) => {
             // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
@@ -44,7 +46,7 @@ export const useRoastActions = ({
             const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
             // Same origin for livePoints.time (ref) and elapsed (store roastStartMs)
             roastStartTimeRef.current = origin;
-            storeStartCharge(origin);
+            storeStartCharge(origin, workspaceOwnerId);
             setIsRunning(true);
             const btVal = btAtCharge ?? rawBT;
             setLogEntries([
@@ -59,7 +61,7 @@ export const useRoastActions = ({
                 },
             ]);
         },
-        [unit, rawBT, setLogEntries, setIsRunning, storeStartCharge, roastStartTimeRef],
+        [unit, rawBT, setLogEntries, setIsRunning, storeStartCharge, roastStartTimeRef, workspaceOwnerId],
     );
 
     const handleAutoDrop = useCallback(

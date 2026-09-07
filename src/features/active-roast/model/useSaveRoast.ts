@@ -327,9 +327,10 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
     // Counts below are owner-scoped, and so is the server's plan lookup — pairing them
     // with the personal plan would block an org member on the host's workspace.
-    const plan = useEffectivePlan();
+    const sessionOwnerId = useRoastingStore((s) => s.sessionOwnerId);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const userId = workspaceOwnerId;
+    const userId = sessionOwnerId ?? workspaceOwnerId;
+    const plan = useEffectivePlan(undefined, userId);
     const qc = useQueryClient();
     const [isSaving, setIsSaving] = useState(false);
 

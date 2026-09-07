@@ -177,6 +177,60 @@ it('accepts the first sample when roast-relative time moves backwards for a new 
     }
 });
 
+it('stale:true skips TSV and livePoints but still updates liveData', async () => {
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    mocks.getTemperatures.mockResolvedValue({
+        bt: 200,
+        et: 210,
+        ror: 5,
+        ror_et: 4,
+        heater: 80,
+        fan: 40,
+        drum: 60,
+        stale: true,
+    });
+
+    useRoastingStore.setState({
+        phase: 'roasting',
+        sessionId: 'issue-357',
+        roastStartMs: Date.now() - 1000,
+        elapsed: 0,
+        liveData: null,
+    });
+    const roastStartTimeRef = { current: Date.now() - 1000 };
+    const root = createRoot(document.createElement('div'));
+    let livePoints: unknown[] = [];
+
+    const Probe = () => {
+        const r = useSidecarPolling({
+            isActive: true,
+            phase: 'roasting',
+            pollIntervalMs: 60_000,
+            enterPreheating: vi.fn(),
+            setConnected: vi.fn(),
+            roastStartTimeRef,
+            sessionId: 'issue-357',
+            preChargeDisplaySec: 30,
+        });
+        livePoints = r.livePoints;
+        return null;
+    };
+
+    try {
+        act(() => root.render(createElement(Probe)));
+        await act(async () => {
+            await vi.waitFor(() => expect(mocks.getTemperatures).toHaveBeenCalled());
+        });
+
+        expect(mocks.enqueueTsvRow).not.toHaveBeenCalled();
+        expect(livePoints).toEqual([]);
+        expect(useRoastingStore.getState().liveData?.bt).toBe(200);
+        expect(useRoastingStore.getState().elapsed).toBeGreaterThan(0);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
 it('Tauri: host poll tick drives polling through the gate', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-30T12:00:00Z'));

@@ -807,7 +807,8 @@
             "mockRoastInProgress": "모의 — 로스팅 진행 중",
             "roastComplete": "로스팅 완료",
             "settings": "로스팅 설정",
-            "openSettings": "로스팅 설정 열기"
+            "openSettings": "로스팅 설정 열기",
+            "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요"
         },
         "readings": {
             "beanTemp": "생두 온도",
@@ -953,15 +954,6 @@
             "kgPerBatch": "{{kg}}kg / 배치",
             "backToSchedule": "일정으로 돌아가기",
             "doneForToday": "오늘은 여기까지"
-        },
-        "stockDeduct": {
-            "title": "재고 차감",
-            "description": "로스팅 기록이 저장되었습니다. 재고를 차감할지 선택하세요.",
-            "deductionAmount": "차감 예정량: {{kg}}kg",
-            "deductStock": "재고 차감",
-            "deductStockDisabled": "연결된 원두가 없어 재고를 차감할 수 없습니다.",
-            "skip": "차감 안 함",
-            "confirm": "확인"
         },
         "onboarding": {
             "next": "다음",

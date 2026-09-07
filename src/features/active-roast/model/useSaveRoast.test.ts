@@ -1,8 +1,53 @@
-import { BatchLimitError, resolveEffectivePlan } from '@shared/lib/features';
+// @vitest-environment jsdom
+import { BatchLimitError, resolveEffectivePlan, useEffectivePlan } from '@shared/lib/features';
+import { useAuthStore } from '@shared/store/auth';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type SaveRoastDeps, saveRoastCore } from './useSaveRoast';
+import { useRoastingStore } from './status';
+import { type SaveRoastDeps, saveRoastCore, useSaveRoast } from './useSaveRoast';
+
+const hookMocks = vi.hoisted(() => ({
+    useEffectivePlan: vi.fn(() => 'pro'),
+    saveOp: vi.fn().mockResolvedValue({ id: 'sess-db-1' }),
+    flushTsv: vi.fn().mockResolvedValue(undefined),
+    useActiveWorkspace: vi.fn(() => ({ workspaceOwnerId: 'B', isWorkspaceReady: true })),
+}));
+
+vi.mock('@shared/lib/features', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/features')>();
+    return { ...actual, useEffectivePlan: hookMocks.useEffectivePlan };
+});
+
+vi.mock('@entities/organization', () => ({
+    useActiveWorkspace: () => hookMocks.useActiveWorkspace(),
+}));
+
+vi.mock('@entities/plan', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@entities/plan')>();
+    return { ...actual, useUpdateSingleBatch: () => ({ mutateAsync: vi.fn() }) };
+});
+
+vi.mock('@entities/roast', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@entities/roast')>();
+    return {
+        ...actual,
+        roastSessionApi: {
+            ...actual.roastSessionApi,
+            countCompletedThisMonth: vi.fn().mockResolvedValue(0),
+            countCompletedTotal: vi.fn().mockResolvedValue(0),
+            saveOp: (...args: unknown[]) => hookMocks.saveOp(...args),
+            invalidateRoastSessionQueries: vi.fn().mockResolvedValue(undefined),
+        },
+        invalidateRoastSessionQueries: vi.fn().mockResolvedValue(undefined),
+    };
+});
+
+vi.mock('@shared/lib/tsv-writer', () => ({
+    flushTsv: (...args: unknown[]) => hookMocks.flushTsv(...args),
+}));
 
 const baseParams = {
     formData: {
@@ -380,5 +425,59 @@ describe('saveRoastCore', () => {
         const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
         expect(arg.session.bean_id).toBe('bean-1');
         expect(arg.session.bean_label).toBeNull();
+    });
+});
+
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+describe('useSaveRoast sessionOwnerId', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        hookMocks.useEffectivePlan.mockReturnValue('pro');
+        hookMocks.saveOp.mockResolvedValue({ id: 'sess-db-1' });
+        hookMocks.useActiveWorkspace.mockReturnValue({ workspaceOwnerId: 'B', isWorkspaceReady: true });
+        useRoastingStore.setState({ sessionOwnerId: 'A' });
+        useAuthStore.setState({ user: { id: 'auth-1' } as never });
+    });
+
+    it('passes sessionOwnerId to saveRoastCore when workspaceOwnerId differs', async () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const host = document.createElement('div');
+        const root = createRoot(host);
+        let api: ReturnType<typeof useSaveRoast> | undefined;
+        const Probe = () => {
+            api = useSaveRoast(null, vi.fn().mockResolvedValue(undefined));
+            return null;
+        };
+        act(() => root.render(createElement(QueryClientProvider, { client: qc }, createElement(Probe))));
+
+        expect(useEffectivePlan).toHaveBeenCalledWith(undefined, 'A');
+
+        await act(async () => {
+            await api!.saveRoast({
+                formData: {
+                    notes: '',
+                    weightGrams: 5,
+                    outputWeightKg: 4.2,
+                    roastLevel: 'city',
+                    beanId: 'bean-1',
+                    deductStock: false,
+                },
+                handoffBeanName: null,
+                sessionId: 'local-sess',
+                userId: 'B',
+                elapsed: 600,
+                roastStartTimeRef: { current: 1750000000000 },
+                rawBT: 205.4,
+                selectedBeanId: 'bean-1',
+                targetProfileId: null,
+                planBatchHandoff: null,
+                logEntries: [],
+            });
+        });
+
+        expect(hookMocks.saveOp).toHaveBeenCalledTimes(1);
+        expect(hookMocks.saveOp.mock.calls[0][0].session.user_id).toBe('A');
+        act(() => root.unmount());
     });
 });
