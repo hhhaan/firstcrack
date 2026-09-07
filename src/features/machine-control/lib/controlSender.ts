@@ -50,15 +50,16 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
     let generation = 0;
 
     /**
-     * 전송 성공 여부를 돌려준다 — Replay는 실패한 이벤트를 소진하면 안 된다 (#312).
+     * 성공 시 사이드카가 범위로 자른 applied, 실패 시 null.
+     * Replay는 실패한 이벤트를 소진하면 안 되고, lastWritten은 요청값이 아니라 applied다 (#376).
      * ponytail: 다른 요청이 in-flight면 committed에 합쳐져 그 요청의 후속 flush가 보내는데,
-     * 그 결과는 여기로 돌아오지 않아 true로 본다. 슬라이더와 Replay가 겹치는 짧은 창이고,
-     * 그 창의 실패는 unacknowledged 워치독이 잡는다. 결과가 필요해지면 후속 flush를 체인할 것.
+     * 그 결과는 여기로 돌아오지 않아 committed(요청값)를 돌려준다. 슬라이더와 Replay가
+     * 겹치는 짧은 창이고, 그 창의 실패는 unacknowledged 워치독이 잡는다.
      */
-    const flush = async (): Promise<boolean> => {
-        if (inFlight) return true;
+    const flush = async (): Promise<ControlCommand | null> => {
+        if (inFlight) return committed;
         const cmd = committed;
-        if (Object.keys(cmd).length === 0) return true;
+        if (Object.keys(cmd).length === 0) return {};
         const gen = generation;
         committed = {};
         inFlight = true;
@@ -66,10 +67,10 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
         try {
             const applied = await send(cmd);
             if (gen === generation) onApplied?.(applied);
-            return true;
+            return applied;
         } catch (err) {
             if (gen === generation) onError?.(err);
-            return false;
+            return null;
         } finally {
             inFlight = false;
             if (gen === generation) {
@@ -85,7 +86,7 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
             draft = { ...draft, [role]: value };
         },
         /** 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송 */
-        commitNow(): Promise<boolean> {
+        commitNow(): Promise<ControlCommand | null> {
             committed = { ...committed, ...draft };
             draft = {};
             return flush();

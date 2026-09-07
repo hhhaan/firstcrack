@@ -76,7 +76,7 @@ const TP_MIN_ELAPSED_S = 20;
  */
 export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | null): ReplayPlan | null => {
     const cutoff = dropTime ?? Number.POSITIVE_INFINITY;
-    const post = points.filter((p) => p.t >= 0 && p.t <= cutoff);
+    const post = points.filter((p) => p.t >= 0 && p.t < cutoff);
     if (post.length === 0) return null;
 
     const events: ReplayEvent[] = [];
