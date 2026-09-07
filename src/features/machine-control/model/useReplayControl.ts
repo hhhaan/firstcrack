@@ -64,6 +64,8 @@ export type ReplayStopReason =
  * 정상치가 정확히 2라 초과(>) 판정이어야 오탐이 없다. 수렴 허용치를 머신별로
  * 바꾸게 되면 이 값도 독립 상수가 아니라 거기서 유도해야 경계 불변식이 유지된다.
  * ponytail: 고정 deadband — 아날로그 duty 리드백이 더 시끄러운 기종이 나오면 머신별 설정으로.
+ * 0~100% 스케일 전제. 0~10 스텝 기종(giesen_wxa_coarse)은 ±2가 범위의 20%라 5→7 손 조작을
+ * 못 잡는다(위음성). write_map.heater.max 비율로 유도해야 함 — #428.
  */
 const DIVERGE_TOLERANCE = 2;
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
