@@ -47,7 +47,6 @@ const baseProps = {
     onManualCharge: noop,
     onEndRoast: noop,
     bbpTimer: null as string | null,
-    liveData: null as { heater: number | null; fan: number; drum: number } | null,
 };
 
 describe('RoastSidePanel live readings (#358)', () => {
@@ -76,22 +75,5 @@ describe('RoastSidePanel live readings (#358)', () => {
         renderPanel({ bbpTimer: '1:05' });
         const row = container.querySelector('[data-testid="bbp-timer"]');
         expect(row?.textContent).toContain('1:05');
-    });
-
-    it('always shows heater/fan/drum, using — when a channel has no reading', () => {
-        renderPanel();
-        expect(container.querySelector('[data-testid="live-heater"]')?.textContent).toBe('—');
-        expect(container.querySelector('[data-testid="live-fan"]')?.textContent).toBe('—');
-        expect(container.querySelector('[data-testid="live-drum"]')?.textContent).toBe('—');
-
-        renderPanel({ liveData: { heater: 50, fan: 12, drum: 40 } });
-        expect(container.querySelector('[data-testid="live-heater"]')?.textContent).toBe('50%');
-        expect(container.querySelector('[data-testid="live-fan"]')?.textContent).toBe('12');
-        expect(container.querySelector('[data-testid="live-drum"]')?.textContent).toBe('40');
-
-        renderPanel({ liveData: { heater: null, fan: 0, drum: 0 } });
-        expect(container.querySelector('[data-testid="live-heater"]')?.textContent).toBe('—');
-        expect(container.querySelector('[data-testid="live-fan"]')?.textContent).toBe('0');
-        expect(container.querySelector('[data-testid="live-drum"]')?.textContent).toBe('0');
     });
 });

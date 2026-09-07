@@ -658,7 +658,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onManualCharge={lifecycle.handleManualCharge}
                         onEndRoast={handleEndRoastClick}
                         bbpTimer={bbpTimer}
-                        liveData={liveData}
                     />
                 </div>
             </div>
