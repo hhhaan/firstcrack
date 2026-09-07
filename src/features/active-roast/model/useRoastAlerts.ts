@@ -1,7 +1,8 @@
 import { logger } from '@shared/lib/logger';
 import type { LogEntry } from '@shared/types/roast';
 import { useEffect, useRef, useState } from 'react';
-import { evaluateRoastAlerts, type RoastAlertKind } from '../lib/roastAlerts';
+import { evaluateRoastAlerts, evaluateTimeAlerts, type RoastAlertKind, type TimeAlertConfig } from '../lib/roastAlerts';
+import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { useRoastingStore } from './status';
 
 type UseRoastAlertsParams = {
@@ -12,6 +13,9 @@ type UseRoastAlertsParams = {
     /** RoR is legitimately negative until the turning point is confirmed. */
     afterTurningPoint: boolean;
     logEntries: LogEntry[];
+    timeAlerts: TimeAlertConfig;
+    referenceFcStartSec: number | null;
+    referenceDropSec: number | null;
 };
 
 /** Reused across beeps — a context per beep would leak until GC and can hit the per-page limit. */
@@ -40,8 +44,9 @@ const beep = () => {
 };
 
 /**
- * Live threshold alarms. Only runs while roasting and before drop; beeps on the rising
- * edge of each alert so a sustained condition doesn't sound every poll.
+ * Live threshold + time alarms. Runs while roasting; Drop/End silences threshold and
+ * charge/FC/drop-before alarms, but leaves after-drop armed until End roast.
+ * Beeps on the rising edge of each kind so a sustained window doesn't sound every poll.
  */
 export const useRoastAlerts = ({
     enabled,
@@ -50,9 +55,13 @@ export const useRoastAlerts = ({
     btMaxC,
     afterTurningPoint,
     logEntries,
+    timeAlerts,
+    referenceFcStartSec,
+    referenceDropSec,
 }: UseRoastAlertsParams): RoastAlertKind[] => {
     const phase = useRoastingStore((s) => s.phase);
     const liveData = useRoastingStore((s) => s.liveData);
+    const elapsed = useRoastingStore((s) => s.elapsed);
     const [active, setActive] = useState<RoastAlertKind[]>([]);
     const activeRef = useRef<RoastAlertKind[]>([]);
     const soundRef = useRef(soundEnabled);
@@ -61,8 +70,9 @@ export const useRoastAlerts = ({
         soundRef.current = soundEnabled;
     }, [soundEnabled]);
 
-    const dropped = logEntries.some((e) => e.event === 'Drop' || e.event === 'End');
-    const armed = enabled && phase === 'roasting' && !dropped;
+    const dropEntry = logEntries.find((e) => e.event === 'Drop');
+    const dropped = dropEntry != null || logEntries.some((e) => e.event === 'End');
+    const armed = enabled && phase === 'roasting';
 
     useEffect(() => {
         if (!armed) {
@@ -73,20 +83,48 @@ export const useRoastAlerts = ({
             return;
         }
 
-        const next = evaluateRoastAlerts(
-            { ror: liveData?.ror ?? null, bt: liveData?.bt ?? null, afterTurningPoint },
-            { rorCrashBelowCPerMin: rorCrashCPerMin, btMaxC },
-            activeRef.current,
+        const threshold = dropped
+            ? []
+            : evaluateRoastAlerts(
+                  { ror: liveData?.ror ?? null, bt: liveData?.bt ?? null, afterTurningPoint },
+                  { rorCrashBelowCPerMin: rorCrashCPerMin, btMaxC },
+                  activeRef.current,
+              );
+        const timed = evaluateTimeAlerts(
+            {
+                elapsedSec: elapsed,
+                dropped,
+                referenceFcStartSec,
+                referenceDropSec,
+                sessionDropSec: dropEntry ? logEntryTimeSec(dropEntry) : null,
+            },
+            timeAlerts,
         );
+        const next = [...threshold, ...timed];
 
         const rising = next.filter((k) => !activeRef.current.includes(k));
-        const changed = rising.length > 0 || next.length !== activeRef.current.length;
+        const changed =
+            rising.length > 0 ||
+            next.length !== activeRef.current.length ||
+            activeRef.current.some((k) => !next.includes(k));
         if (!changed) return;
 
         activeRef.current = next;
         setActive(next);
         if (rising.length > 0 && soundRef.current) beep();
-    }, [armed, liveData, afterTurningPoint, rorCrashCPerMin, btMaxC]);
+    }, [
+        armed,
+        dropped,
+        dropEntry,
+        liveData,
+        elapsed,
+        afterTurningPoint,
+        rorCrashCPerMin,
+        btMaxC,
+        timeAlerts,
+        referenceFcStartSec,
+        referenceDropSec,
+    ]);
 
     return active;
 };

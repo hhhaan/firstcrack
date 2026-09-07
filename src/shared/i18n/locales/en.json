@@ -205,7 +205,7 @@
                 "autoDropSensitivity": "Auto Drop Sensitivity",
                 "autoDropSensitivityDescription": "Drop is auto-detected when BT falls by this amount within the detection window (after 3 min).",
                 "alerts": "Live Alarms",
-                "alertsDescription": "Warn when the roast leaves safe bounds.",
+                "alertsDescription": "Threshold warnings and time reminders during the roast.",
                 "alertsEnabled": "Enable alarms",
                 "alertsEnabledDescription": "Show a warning banner during the roast.",
                 "alertSound": "Alarm sound",
@@ -213,7 +213,15 @@
                 "alertRorCrash": "RoR crash",
                 "alertRorCrashDescription": "Warn when BT RoR falls to this. Only after the turning point.",
                 "alertBtMax": "BT ceiling",
-                "alertBtMaxDescription": "Warn when bean temperature reaches this."
+                "alertBtMaxDescription": "Warn when bean temperature reaches this.",
+                "alertAfterCharge": "After charge",
+                "alertAfterChargeDescription": "Remind this many minutes after Charge.",
+                "alertBeforeFc": "Before first crack",
+                "alertBeforeFcDescription": "Remind this many minutes before the target profile's FC Start. Needs a target profile with an FC Start mark.",
+                "alertBeforeDrop": "Before drop",
+                "alertBeforeDropDescription": "Remind this many minutes before the target profile's Drop. Needs a target profile with a Drop mark.",
+                "alertAfterDrop": "After drop",
+                "alertAfterDropDescription": "Remind this many minutes after Drop. The timer keeps running until End roast."
             },
             "account": {
                 "label": "Account",
@@ -682,7 +690,11 @@
         },
         "alerts": {
             "rorCrash": "RoR crash — heat is stalling",
-            "btOver": "BT over the ceiling"
+            "btOver": "BT over the ceiling",
+            "afterCharge": "{{minutes}} min after charge",
+            "beforeFc": "{{minutes}} min before first crack (reference)",
+            "beforeDrop": "{{minutes}} min before drop (reference)",
+            "afterDrop": "{{minutes}} min after drop"
         },
         "recovery": {
             "title": "Unsaved roast",

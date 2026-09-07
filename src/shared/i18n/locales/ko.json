@@ -205,7 +205,7 @@
                 "autoDropSensitivity": "자동 Drop 감도",
                 "autoDropSensitivityDescription": "감지 창 안에서 BT가 이 값만큼 떨어지면 Drop이 자동 감지됩니다(3분 이후).",
                 "alerts": "실시간 알람",
-                "alertsDescription": "로스팅이 정상 범위를 벗어나면 경고합니다.",
+                "alertsDescription": "임계값 경고와 시간 리마인더를 로스팅 중에 알립니다.",
                 "alertsEnabled": "알람 사용",
                 "alertsEnabledDescription": "로스팅 중 경고 배너를 표시합니다.",
                 "alertSound": "알람 소리",
@@ -213,7 +213,15 @@
                 "alertRorCrash": "RoR 크래시",
                 "alertRorCrashDescription": "BT RoR이 이 값 이하로 떨어지면 경고. 터닝포인트 이후에만 동작.",
                 "alertBtMax": "BT 상한",
-                "alertBtMaxDescription": "원두 온도가 이 값에 도달하면 경고합니다."
+                "alertBtMaxDescription": "원두 온도가 이 값에 도달하면 경고합니다.",
+                "alertAfterCharge": "투입 후",
+                "alertAfterChargeDescription": "Charge 후 이 시간이 지나면 알립니다.",
+                "alertBeforeFc": "1차 크랙 전",
+                "alertBeforeFcDescription": "타깃 프로파일 FC Start 이 시간 전에 알립니다. FC Start 마크가 있는 타깃 프로파일이 필요합니다.",
+                "alertBeforeDrop": "배출 전",
+                "alertBeforeDropDescription": "타깃 프로파일 Drop 이 시간 전에 알립니다. Drop 마크가 있는 타깃 프로파일이 필요합니다.",
+                "alertAfterDrop": "배출 후",
+                "alertAfterDropDescription": "Drop 후 이 시간이 지나면 알립니다. 타이머는 로스팅 종료까지 계속 갑니다."
             },
             "account": {
                 "label": "계정",
@@ -974,7 +982,11 @@
         },
         "alerts": {
             "rorCrash": "RoR 크래시 — 화력이 죽고 있습니다",
-            "btOver": "BT 상한 초과"
+            "btOver": "BT 상한 초과",
+            "afterCharge": "투입 {{minutes}}분 후",
+            "beforeFc": "1차 크랙 {{minutes}}분 전 (레퍼런스)",
+            "beforeDrop": "배출 {{minutes}}분 전 (레퍼런스)",
+            "afterDrop": "배출 {{minutes}}분 후"
         },
         "recovery": {
             "title": "저장되지 않은 로스팅",
