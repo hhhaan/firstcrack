@@ -40,13 +40,22 @@ async function retryWhileSidecarStarts<T>(operation: () => Promise<T>, budgetMs:
         try {
             return await operation();
         } catch (error) {
-            if (!isSidecarStartingError(error) || Date.now() >= deadline) throw error;
+            if (!isSidecarStartingError(error)) throw error;
+            if (Date.now() >= deadline) {
+                logger.error('[sidecar] startup retry exhausted:', error);
+                throw error;
+            }
             await wait(STARTUP_RETRY_GAP_MS);
         }
     }
 }
 
-async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
+async function request<T>(
+    path: string,
+    init?: RequestInit,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    reportErrors = true,
+): Promise<T> {
     try {
         const token = await getSidecarToken();
         const res = await fetch(`${SIDECAR_BASE}${path}`, {
@@ -60,12 +69,12 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             const msg = (body as { error?: string }).error ?? `HTTP ${res.status}`;
-            logger.error(`[sidecar] ${init?.method ?? 'GET'} ${path} 실패:`, msg);
+            if (reportErrors) logger.error(`[sidecar] ${init?.method ?? 'GET'} ${path} 실패:`, msg);
             throw new Error(msg);
         }
         return await (res.json() as Promise<T>);
     } catch (err) {
-        if (!(err instanceof Error && err.message.startsWith('HTTP'))) {
+        if (reportErrors && !(err instanceof Error && err.message.startsWith('HTTP'))) {
             logger.error(`[sidecar] ${path} 네트워크 오류:`, err);
         }
         throw err;
@@ -76,7 +85,11 @@ export const sidecar = {
     getStatus: () => request<SidecarStatus>('/status'),
 
     /** 재시작 직후 30초 예산 동안 사이드카 기동 실패를 삼키고 첫 정상 상태를 기다린다. */
-    waitUntilReady: () => retryWhileSidecarStarts(() => request<SidecarStatus>('/status'), READY_RETRY_BUDGET_MS),
+    waitUntilReady: () =>
+        retryWhileSidecarStarts(
+            () => request<SidecarStatus>('/status', undefined, DEFAULT_TIMEOUT_MS, false),
+            READY_RETRY_BUDGET_MS,
+        ),
 
     connect: (roasterKey: string, params: Record<string, unknown>) =>
         retryWhileSidecarStarts(
@@ -88,6 +101,7 @@ export const sidecar = {
                         body: JSON.stringify({ roaster: roasterKey, ...params }),
                     },
                     CONNECT_TIMEOUT_MS,
+                    false,
                 ),
             CONNECT_RETRY_BUDGET_MS,
         ),

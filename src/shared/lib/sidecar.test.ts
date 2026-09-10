@@ -4,11 +4,17 @@ vi.mock('@tauri-apps/api/core', () => ({
     invoke: vi.fn().mockResolvedValue('test-token'),
 }));
 
+vi.mock('./logger', () => ({
+    logger: { error: vi.fn() },
+}));
+
+import { logger } from './logger';
 import { sidecar } from './sidecar';
 
 describe('sidecar.waitUntilReady', () => {
     beforeEach(() => {
         vi.useFakeTimers();
+        vi.mocked(logger.error).mockClear();
     });
 
     afterEach(() => {
@@ -37,5 +43,17 @@ describe('sidecar.waitUntilReady', () => {
 
         await expect(pending).resolves.toMatchObject({ connected: false });
         expect(sidecarCalls).toBe(2);
+        expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('reports once when the startup retry budget is exhausted', async () => {
+        const error = new TypeError('Load failed');
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
+
+        const result = expect(sidecar.waitUntilReady()).rejects.toBe(error);
+        await vi.advanceTimersByTimeAsync(30_000);
+
+        await result;
+        expect(logger.error).toHaveBeenCalledOnce();
     });
 });
