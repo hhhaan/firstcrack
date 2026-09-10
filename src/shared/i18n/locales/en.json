@@ -379,7 +379,7 @@
         "connection": "Connection",
         "disconnect": "Disconnect",
         "connect": "Connect",
-        "sidecarStarting": "Sidecar starting...",
+        "sidecarStarting": "Preparing to connect...",
         "startRoasting": "Start Roasting",
         "selectMachine": "Select a machine",
         "limit": {

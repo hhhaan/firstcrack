@@ -379,7 +379,7 @@
         "connection": "连接",
         "disconnect": "断开连接",
         "connect": "连接",
-        "sidecarStarting": "正在启动边车服务...",
+        "sidecarStarting": "正在准备连接...",
         "startRoasting": "开始烘焙",
         "selectMachine": "请选择设备",
         "limit": {
