@@ -9,6 +9,7 @@ import { usePackageProduct } from '@features/package-product';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TableSkeleton } from '@shared/ui/TableSkeleton';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { AddProductModal } from '@widgets/add-product-modal';
 import { Link2, Package, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
@@ -233,8 +234,8 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => {
-                                                            if (window.confirm(t('orders.product.deleteConfirm'))) {
+                                                        onClick={async () => {
+                                                            if (await confirm(t('orders.product.deleteConfirm'))) {
                                                                 deleteProduct.mutate(p.id);
                                                             }
                                                         }}

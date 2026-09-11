@@ -9,6 +9,7 @@ import { Badge } from '@shared/ui/Badge';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TablePagination } from '@shared/ui/TablePagination';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { AddOrderModal } from '@widgets/add-order-modal';
 import { DateRangeFilter } from '@widgets/date-range-filter';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
@@ -167,8 +168,8 @@ export function OrdersTab() {
                                     onToggle={() => setExpandedId((id) => (id === o.id ? null : o.id))}
                                     fulfillPending={fulfill.isPending}
                                     onFulfill={() => fulfill.mutate(o.id)}
-                                    onCancel={() => {
-                                        if (window.confirm(t('orders.order.cancelConfirm'))) {
+                                    onCancel={async () => {
+                                        if (await confirm(t('orders.order.cancelConfirm'))) {
                                             cancel.mutate(o.id);
                                         }
                                     }}
@@ -220,7 +221,7 @@ function OrderRow({
     onToggle: () => void;
     fulfillPending: boolean;
     onFulfill: () => void;
-    onCancel: () => void;
+    onCancel: () => Promise<void>;
     onDispatch: () => void;
     onLinkLine: (line: OrderLine) => void;
 }) {

@@ -6,6 +6,7 @@ import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -163,9 +164,9 @@ export const CuppingEventList = ({
                                             <button
                                                 type="button"
                                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted hover:bg-red-50 hover:text-red-600"
-                                                onClick={(e) => {
+                                                onClick={async (e) => {
                                                     e.stopPropagation();
-                                                    if (window.confirm(t('cupping.deleteEventConfirm'))) {
+                                                    if (await confirm(t('cupping.deleteEventConfirm'))) {
                                                         void deleteEvent.mutateAsync(ev.id);
                                                     }
                                                 }}
