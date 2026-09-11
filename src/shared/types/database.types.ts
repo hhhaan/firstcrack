@@ -1500,7 +1500,7 @@ export type Database = {
                     machine_protocol: string | null;
                     machine_roaster_key: string | null;
                     name: string;
-                    source_session_id: string;
+                    source_session_id: string | null;
                     target_level: string;
                     updated_at: string;
                     user_id: string;
@@ -1522,7 +1522,7 @@ export type Database = {
                     machine_protocol?: string | null;
                     machine_roaster_key?: string | null;
                     name: string;
-                    source_session_id: string;
+                    source_session_id?: string | null;
                     target_level: string;
                     updated_at?: string;
                     user_id: string;
@@ -1544,7 +1544,7 @@ export type Database = {
                     machine_protocol?: string | null;
                     machine_roaster_key?: string | null;
                     name?: string;
-                    source_session_id?: string;
+                    source_session_id?: string | null;
                     target_level?: string;
                     updated_at?: string;
                     user_id?: string;
