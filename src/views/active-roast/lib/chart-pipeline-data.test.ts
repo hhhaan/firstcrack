@@ -36,9 +36,9 @@ describe('buildLiveChartData', () => {
     });
 
     it('adds start/end sentinels for axis extent', () => {
-        const rows = buildLiveChartData([pt(10)], 30, 0);
+        const rows = buildLiveChartData([pt(10)], 0, 0);
         expect(rows[0]).toEqual({
-            time: -30,
+            time: 0,
             btActual: null,
             etActual: null,
             rorActual: null,
@@ -56,6 +56,12 @@ describe('buildLiveChartData', () => {
 
     it('extends end sentinel past long profiles and long live sessions', () => {
         const rows = buildLiveChartData([pt(900)], 0, 850);
+        expect(rows[rows.length - 1].time).toBe(900);
+    });
+
+    it('uses xMaxFloor for BBP wait window', () => {
+        const rows = buildLiveChartData([pt(10)], 0, 0, 900);
+        expect(rows[0].time).toBe(0);
         expect(rows[rows.length - 1].time).toBe(900);
     });
 });

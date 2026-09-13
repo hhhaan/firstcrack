@@ -18,8 +18,8 @@ export {
 } from './lib/temperature';
 export type { TurningPoint } from './lib/turningPoints';
 export { detectTurningPoints } from './lib/turningPoints';
-export type { BbpSample, BbpSummary } from './model/bbp';
-export { BBP_MAX_SECONDS, useBbpStore } from './model/bbp';
+export type { BbpPoint, BbpSample, BbpSummary } from './model/bbp';
+export { BBP_DISPLAY_SECONDS, BBP_MAX_SECONDS, useBbpStore } from './model/bbp';
 export type {
     EventMarkerStyle,
     PidDropBehavior,

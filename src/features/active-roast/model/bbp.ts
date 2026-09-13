@@ -3,6 +3,8 @@ import { create } from 'zustand';
 
 /** charge가 이 시간(초)보다 늦으면 드럼 열 상태가 리셋된 것으로 보고 BBP를 폐기한다. */
 export const BBP_MAX_SECONDS = 1800;
+/** 대기 중 차트 창 (#433). 기록 캡과 별개. */
+export const BBP_DISPLAY_SECONDS = 900;
 
 export interface BbpSample {
     bt: number;
@@ -12,8 +14,8 @@ export interface BbpSample {
     drum: number;
 }
 
-interface BbpPoint extends BbpSample {
-    /** BBP 시작(이전 드롭) 기준 상대 초 */
+export interface BbpPoint extends BbpSample {
+    /** BBP 시작(End 확정) 기준 상대 초 */
     t: number;
 }
 

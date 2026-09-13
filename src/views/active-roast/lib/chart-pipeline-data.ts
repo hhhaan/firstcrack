@@ -22,11 +22,13 @@ const emptyRow = (t: number): LiveChartRow => ({
 /**
  * Map live poll points into chart rows (dedupe + axis sentinels).
  * Target profile BT is NOT interpolated here — chart draws target via its own series.
+ * xMin is the left axis (0 after #433 — no pre-charge lookback).
  */
 export const buildLiveChartData = (
     livePoints: LiveRoastPoint[],
-    preChargeDisplaySec: number,
+    xMin: number,
     profileDuration: number,
+    xMaxFloor: number = CHART_TOTAL_SECS,
 ): LiveChartRow[] => {
     const seen = new Set<number>();
     const deduped: LiveChartRow[] = [];
@@ -50,9 +52,8 @@ export const buildLiveChartData = (
         }
     }
 
-    const xMin = -preChargeDisplaySec;
     const liveMax = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : 0;
-    const chartTotalSecs = Math.max(CHART_TOTAL_SECS, profileDuration, liveMax);
+    const chartTotalSecs = Math.max(xMaxFloor, profileDuration, liveMax);
     const needsStart = deduped.length === 0 || deduped[0].time > xMin + 0.5;
     const needsEnd = deduped.length === 0 || deduped[deduped.length - 1].time < chartTotalSecs - 1;
     return [...(needsStart ? [emptyRow(xMin)] : []), ...deduped, ...(needsEnd ? [emptyRow(chartTotalSecs)] : [])];

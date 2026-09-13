@@ -44,8 +44,6 @@ interface Params {
     roastStartTimeRef: MutableRefObject<number>;
     /** Charge 시 생성된 세션 UUID. null이면 미시작 */
     sessionId: string | null;
-    /** Charge 이전 그래프에 표시할 구간 (초) */
-    preChargeDisplaySec: number;
 }
 
 /** idle 중 /status 재확인 주기 — 온도 폴링보다 느슨 (부하 거의 없음). */
@@ -130,14 +128,12 @@ export const useSidecarPolling = ({
     setConnected,
     roastStartTimeRef,
     sessionId,
-    preChargeDisplaySec,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
     const [sidecarReady, setSidecarReady] = useState(false);
-    // pre-charge 버퍼: absTime으로 누적 (charge 시 음수 상대 시간으로 변환에 사용)
-    const preChargeBufferRef = useRef<(Omit<LiveRoastPoint, 'time' | 'label'> & { absTime: number })[]>([]);
-    // preheating 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
+    // standby 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
     const preChargeStartRef = useRef<number>(0);
+    const lastPreChargeAbsRef = useRef(0);
     const lastRoastPointTimeRef = useRef<number | null>(null);
     const prevPhaseRef = useRef(phase);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
@@ -150,8 +146,7 @@ export const useSidecarPolling = ({
     }, [sessionId]);
 
     // phase → 'roasting' 전환 감지:
-    // 버퍼를 음수 상대 시간으로 변환 후 livePoints를 교체한다.
-    // (preheating 중 세션 상대 시간으로 쌓인 display 포인트는 버퍼 기반으로 덮어쓴다)
+    // BBP finalize + 차트 00:00 (#433). 음수 lookback 없음.
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
             const chargeTime = roastStartTimeRef.current;
@@ -168,28 +163,14 @@ export const useSidecarPolling = ({
                     });
                 });
             }
-            let prePoints: LiveRoastPoint[] = [];
-            if (chargeTime !== 0 && preChargeBufferRef.current.length > 0) {
-                const cutoff = chargeTime - preChargeDisplaySec * 1000;
-                prePoints = preChargeBufferRef.current
-                    .filter((p) => p.absTime >= cutoff)
-                    .map((p) => {
-                        const relSec = (p.absTime - chargeTime) / 1000;
-                        return {
-                            ...p,
-                            time: relSec,
-                            label: formatLookbackLabel(relSec),
-                        };
-                    });
-            }
-            // 세션 상대 시간 display 포인트를 버퍼 기반 음수 포인트로 완전 교체
-            setLivePoints(prePoints);
-            preChargeBufferRef.current = [];
+            // #433: 대기 커브는 시야에서 사라진다. 로스트는 00:00. BBP TSV는 위에서 저장.
+            setLivePoints([]);
             preChargeStartRef.current = 0;
+            lastPreChargeAbsRef.current = 0;
             lastRoastPointTimeRef.current = null;
         }
         prevPhaseRef.current = phase;
-    }, [phase, roastStartTimeRef, preChargeDisplaySec]);
+    }, [phase, roastStartTimeRef]);
 
     // Rust는 인증된 200 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
     // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (Machines와 같은 규칙).
@@ -345,32 +326,15 @@ export const useSidecarPolling = ({
                     }
                     setLivePoints((prev) => [...prev, point]);
                 } else if (currentPhase === 'standby') {
-                    // pre-charge: 버퍼(absTime)와 livePoints(세션 상대 시간) 동시 기록
+                    // 첫 배치 예열 표시. Charge 때 livePoints는 비운다 (#433). BBP 대기는 스토어 차트.
                     const absTime = Date.now();
-                    const buf = preChargeBufferRef.current;
-                    if (buf.length > 0 && absTime - buf[buf.length - 1].absTime < 400) return;
+                    if (lastPreChargeAbsRef.current > 0 && absTime - lastPreChargeAbsRef.current < 400) return;
+                    lastPreChargeAbsRef.current = absTime;
 
-                    // 첫 폴링 시 세션 기준점 설정
                     if (preChargeStartRef.current === 0) {
                         preChargeStartRef.current = absTime;
                     }
 
-                    const pointData = {
-                        bt,
-                        et: data.et ?? null,
-                        ror: data.ror,
-                        ror_et: data.ror_et ?? null,
-                        heater: data.heater ?? null,
-                        fan: data.fan ?? 0,
-                        drum: data.drum ?? 0,
-                        heaterSet: data.heater_set ?? null,
-                    };
-
-                    // 버퍼: charge 시 음수 상대 시간 변환에 사용
-                    buf.push({ absTime, ...pointData });
-                    if (buf.length > 1200) buf.splice(0, buf.length - 1200);
-
-                    // livePoints: 세션 상대 시간으로 차트에 실시간 표시
                     const sessionTime = (absTime - preChargeStartRef.current) / 1000;
                     const m = Math.floor(sessionTime / 60);
                     const s = Math.floor(sessionTime % 60);
@@ -379,7 +343,14 @@ export const useSidecarPolling = ({
                         {
                             time: sessionTime,
                             label: `${m}:${String(s).padStart(2, '0')}`,
-                            ...pointData,
+                            bt,
+                            et: data.et ?? null,
+                            ror: data.ror,
+                            ror_et: data.ror_et ?? null,
+                            heater: data.heater ?? null,
+                            fan: data.fan ?? 0,
+                            drum: data.drum ?? 0,
+                            heaterSet: data.heater_set ?? null,
                         },
                     ]);
                 }
