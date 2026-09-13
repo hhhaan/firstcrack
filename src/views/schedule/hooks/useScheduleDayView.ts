@@ -7,6 +7,7 @@ import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
 import { logger } from '@shared/lib/logger';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
 import { useCallback, useMemo, useState } from 'react';
 import { batchStatus, toDateKey, unknownErrorMessage } from '../lib';
@@ -71,16 +72,16 @@ export const useScheduleDayView = ({
             if (!batch.recurrence_rule_id) return;
             const confirmed =
                 scope === 'single'
-                    ? window.confirm(i18n.t('schedule.deleteConfirm.single'))
+                    ? await confirm(i18n.t('schedule.deleteConfirm.single'))
                     : scope === 'from_this'
-                      ? window.confirm(
+                      ? await confirm(
                             i18n.t('schedule.deleteConfirm.fromThis', {
                                 date: format(selectedDate, i18n.t('schedule.dateFormat'), {
                                     locale: getDateFnsLocale(),
                                 }),
                             }),
                         )
-                      : window.confirm(i18n.t('schedule.deleteConfirm.all'));
+                      : await confirm(i18n.t('schedule.deleteConfirm.all'));
             if (confirmed) {
                 writes.deleteRecurring(batch, scope).catch((err) => logger.error('Failed to delete batch:', err));
             }
@@ -101,11 +102,11 @@ export const useScheduleDayView = ({
     }, []);
 
     const handleBatchDelete = useCallback(
-        (batch: PlanBatchWithProgress) => {
+        async (batch: PlanBatchWithProgress) => {
             if (batch.recurrence_rule_id) {
                 setScopeBatch(batch);
                 setIsDeleteScopeModalOpen(true);
-            } else if (window.confirm(i18n.t('schedule.deleteConfirm.batch', { name: batch.bean_name }))) {
+            } else if (await confirm(i18n.t('schedule.deleteConfirm.batch', { name: batch.bean_name }))) {
                 writes.deleteBatch(batch).catch((err) => logger.error('Failed to delete batch:', err));
             }
         },

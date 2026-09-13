@@ -11,6 +11,7 @@ import { Badge } from '@shared/ui/Badge';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { ChevronLeft, Plus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -86,8 +87,8 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                                 <button
                                     type="button"
                                     disabled={endEvent.isPending}
-                                    onClick={() => {
-                                        if (window.confirm(t('cupping.endEventConfirm'))) {
+                                    onClick={async () => {
+                                        if (await confirm(t('cupping.endEventConfirm'))) {
                                             void endEvent.mutateAsync(eventId);
                                         }
                                     }}
@@ -99,8 +100,8 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                         ) : null}
                         <button
                             type="button"
-                            onClick={() => {
-                                if (window.confirm(t('cupping.deleteEventConfirm'))) {
+                            onClick={async () => {
+                                if (await confirm(t('cupping.deleteEventConfirm'))) {
                                     void deleteEvent.mutateAsync(eventId).then(onDeleted);
                                 }
                             }}

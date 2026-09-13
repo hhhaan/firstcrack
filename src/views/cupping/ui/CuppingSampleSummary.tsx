@@ -6,6 +6,7 @@ import {
 } from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Fragment, type KeyboardEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -198,8 +199,8 @@ export const CuppingSampleSummary = ({
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => {
-                                                        if (window.confirm(t('cupping.deleteSampleConfirm'))) {
+                                                    onClick={async () => {
+                                                        if (await confirm(t('cupping.deleteSampleConfirm'))) {
                                                             void deleteSample.mutateAsync(s.id);
                                                         }
                                                     }}

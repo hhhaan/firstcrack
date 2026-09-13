@@ -11,6 +11,7 @@ import { formatDateShort } from '@shared/lib/format';
 import { useToastStore } from '@shared/store/toast';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { ConnectChannelModal } from '@widgets/connect-channel-modal';
 import { Link2, RefreshCw, Store } from 'lucide-react';
 import { useState } from 'react';
@@ -91,8 +92,8 @@ export function ChannelsTab() {
                             busy={sync.isPending || disconnect.isPending || setAutoFulfill.isPending}
                             onSync={() => void handleSync(c.id)}
                             onToggleAutoFulfill={(enabled) => setAutoFulfill.mutate({ connectionId: c.id, enabled })}
-                            onDisconnect={() => {
-                                if (window.confirm(t('orders.channel.disconnectConfirm'))) {
+                            onDisconnect={async () => {
+                                if (await confirm(t('orders.channel.disconnectConfirm'))) {
                                     disconnect.mutate(c.id);
                                 }
                             }}
@@ -120,7 +121,7 @@ function ChannelCard({
     channel: SalesChannelConnection;
     busy: boolean;
     onSync: () => void;
-    onDisconnect: () => void;
+    onDisconnect: () => Promise<void>;
     onToggleAutoFulfill: (enabled: boolean) => void;
 }) {
     const { t } = useTranslation();
