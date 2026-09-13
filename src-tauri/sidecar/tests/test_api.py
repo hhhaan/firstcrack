@@ -136,8 +136,22 @@ class TestTemperaturesEndpoint:
     async def test_temperatures_required_keys_present(self, client):
         resp = await client.get("/temperatures")
         data = await resp.json()
-        for key in ("bt", "et", "ror", "ror_et", "heater", "fan", "drum", "timestamp"):
+        for key in ("bt", "et", "ror", "ror_et", "heater", "heater_set", "fan", "drum", "timestamp"):
             assert key in data
+
+    async def test_temperatures_heater_set_follows_control_writes(self, client):
+        """heater_set = 이 연결에서 마지막으로 쓴 세트포인트. 쓰기 전·해제 후는 None."""
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)] * 6)
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+        assert (await (await client.get("/temperatures")).json())["heater_set"] is None
+
+        resp = await client.post("/control", json={"heater": 72.4})
+        assert (await resp.json())["applied"] == {"heater": 72.4}
+        assert (await (await client.get("/temperatures")).json())["heater_set"] == 72.4
+
+        await client.post("/disconnect")
+        assert (await (await client.get("/temperatures")).json())["heater_set"] is None
 
 
 # ---------------------------------------------------------------------------

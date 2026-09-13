@@ -1,4 +1,4 @@
-import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
+import type { ControlData, RoastEventMarker } from '@features/active-roast/lib/chart-option';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
@@ -26,12 +26,7 @@ interface RoastChartContainerProps {
     showET: boolean;
     showRoR: boolean;
     showRoRET: boolean;
-    controlData?: {
-        xs: number[];
-        drumTemp: (number | null)[];
-        heatPower: (number | null)[];
-        fanSpeed: (number | null)[];
-    };
+    controlData?: ControlData;
     showControlDrum?: boolean;
     showControlHeat?: boolean;
     showControlFan?: boolean;

@@ -6,6 +6,8 @@ export interface TsvPoint {
     heater: number | null;
     fan: number | null;
     drum: number | null;
+    /** 사이드카가 쓴 heater 세트포인트(8열). 열이 생기기 전 기록에는 없다 */
+    heaterSet?: number | null;
 }
 
 const optionalCol = (raw: string | undefined): number | null => {
@@ -15,7 +17,7 @@ const optionalCol = (raw: string | undefined): number | null => {
 };
 
 // TSV 형식 (useSidecarPolling.ts:21):
-// time\tbt\tet\tror\theater\tfan\tdrum
+// time\tbt\tet\tror\theater\tfan\tdrum\theater_set (8열은 선택 — 구 기록엔 없다)
 // t는 charge 시점(=0) 기준 post-charge 상대 시간(초).
 export const parseTsv = (text: string): TsvPoint[] => {
     const lines = text.split('\n');
@@ -36,6 +38,7 @@ export const parseTsv = (text: string): TsvPoint[] => {
             heater: optionalCol(cols[4]),
             fan: optionalCol(cols[5]),
             drum: optionalCol(cols[6]),
+            heaterSet: optionalCol(cols[7]),
         });
     }
     return points;

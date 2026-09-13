@@ -1,7 +1,7 @@
 import { logger } from '@shared/lib/logger';
 import { BaseDirectory, remove, writeTextFile } from '@tauri-apps/plugin-fs';
 
-export const TSV_HEADER = 'time\tbt\tet\tror\theater\tfan\tdrum\n';
+export const TSV_HEADER = 'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\n';
 
 export type TsvWriteFn = (path: string, contents: string, options: { append?: boolean }) => Promise<void>;
 export type TsvRemoveFn = (path: string) => Promise<void>;

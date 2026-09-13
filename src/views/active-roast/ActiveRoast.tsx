@@ -577,6 +577,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                       drumTemp: chart.visibleDrumTemp,
                                       heatPower: chart.visibleHeatPower,
                                       fanSpeed: chart.visibleFanSpeed,
+                                      heatSet: chart.visibleHeatSet,
                                   }
                                 : undefined
                         }

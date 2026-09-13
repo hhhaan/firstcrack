@@ -48,7 +48,10 @@ interface BbpState {
 
 const toTsv = (points: BbpPoint[]): string =>
     TSV_HEADER +
-    points.map((p) => `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\n`).join('');
+    // 8열(heater_set)은 비워 둔다 — pre-charge 샘플에는 세트포인트가 없다
+    points
+        .map((p) => `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t\n`)
+        .join('');
 
 export const useBbpStore = create<BbpState>((set, get) => ({
     active: false,

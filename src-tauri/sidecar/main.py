@@ -10,7 +10,7 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   GET  /status        → 현재 연결 상태
   POST /connect       → {"roaster": "easyster", "host": "...", ...}
   POST /disconnect
-  GET  /temperatures  → {"bt", "et", "ror", "heater", "fan", "timestamp"}
+  GET  /temperatures  → {"bt", "et", "ror", "heater", "heater_set", "fan", "timestamp"}
   POST /start         → Charge 버튼 연동: 가상 머신 타이머 리셋 + RoR 윈도우 초기화
 
 어댑터 추가 방법:
@@ -184,6 +184,9 @@ async def handle_disconnect(request: web.Request) -> web.Response:
 async def handle_temperatures(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     data = await manager.read_temperatures()
+    # 마지막으로 쓴 heater 세트포인트 — 실측(heater)과 나란히 기록·차트에 쓴다.
+    # 여기서 합치므로 last-good 캐시·null payload를 건드리지 않는다.
+    data = {**data, "heater_set": manager.last_applied().get("heater")}
     # PID 런타임 상태는 여기 실어 보낸다 — 프론트는 이미 이 엔드포인트를 폴링 중이라
     # 별도 타이머가 필요 없다. (정적 지원 여부는 /status.control.pid)
     pid_state = manager.pid_state()

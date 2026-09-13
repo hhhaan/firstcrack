@@ -84,6 +84,21 @@ describe('buildRoastChartOption', () => {
         expect(option.dataZoom).toEqual([]);
     });
 
+    it('draws a dashed Heat set series only when heatSet has values', () => {
+        const controlData = { xs: [0, 60], drumTemp: [50, 55], heatPower: [40, 45], fanSpeed: [30, 35] };
+        const heatSetSeries = (p: ChartOptionParams) =>
+            (buildRoastChartOption(p).series as { name?: string; lineStyle?: { type?: string } }[]).filter(
+                (s) => s.name === 'Heat set',
+            );
+
+        expect(heatSetSeries({ ...baseParams(), controlData })).toHaveLength(0);
+        expect(heatSetSeries({ ...baseParams(), controlData: { ...controlData, heatSet: [null, null] } })).toHaveLength(
+            0,
+        );
+        const [series] = heatSetSeries({ ...baseParams(), controlData: { ...controlData, heatSet: [70, null] } });
+        expect(series?.lineStyle?.type).toBe('dashed');
+    });
+
     it('adds dual grid and control series when controlData present', () => {
         const option = buildRoastChartOption({
             ...baseParams(),

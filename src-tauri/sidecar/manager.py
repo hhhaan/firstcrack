@@ -202,6 +202,10 @@ class RoasterManager:
         self._consecutive_errors: int = 0
         self._last_good: dict[str, Any] | None = None
         self._last_good_ts: float = 0.0
+        # role → 이 연결에서 마지막으로 어댑터에 쓴(클램프 후) 값. /temperatures의
+        # heater_set 출처. 수동·Replay·PID 쓰기가 전부 control()을 지나므로 여기서 잡힌다.
+        # 본체 조작반에서 돌린 값은 모른다 — 세트포인트 셀 readback이 붙기 전까지.
+        self._last_applied: dict[str, float] = {}
         self._ror_window_secs: float = config.ROR_WINDOW_SECS
         self._pid: PidRunner | None = None
         self._pid_task: asyncio.Task[None] | None = None
@@ -420,6 +424,7 @@ class RoasterManager:
         self._adapter = None
         self._connected = False
         self._resetting = False
+        self._last_applied = {}
         self._roaster_key = ""
         self._protocol = ""
         self._merged_params = {}
@@ -518,6 +523,8 @@ class RoasterManager:
         try:
             if self._adapter is not None:
                 await self._adapter.control(heater=0.0)
+                # control()을 우회하는 쓰기 — heater_set도 같이 맞춘다 (어댑터와 같은 클램프)
+                self._last_applied.update(clamp_command({"heater": 0.0}, self.write_limits()))
         except Exception:
             pass
 
@@ -656,6 +663,10 @@ class RoasterManager:
         self._last_good_ts = time.monotonic()
         return payload
 
+    def last_applied(self) -> dict[str, float]:
+        """이 연결에서 마지막으로 쓴 role별 값. 쓴 적 없으면 빈 dict."""
+        return dict(self._last_applied)
+
     def write_limits(self) -> dict[str, dict[str, Any]]:
         """쓰기 가능한 role → spec(min/max/unit). 빈 dict면 이 머신은 제어 불가.
 
@@ -711,6 +722,7 @@ class RoasterManager:
             self._control_breadcrumb(applied, ok=False)
             raise
         self._control_breadcrumb(applied, ok=True)
+        self._last_applied.update(applied)
         return applied
 
     def _control_breadcrumb(self, applied: dict[str, float], *, ok: bool) -> None:
