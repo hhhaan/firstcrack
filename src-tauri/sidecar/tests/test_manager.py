@@ -85,6 +85,16 @@ class TestStatus:
         await manager.disconnect()
         assert manager.status()["connected"] is False
 
+    async def test_reset_clears_last_applied_setpoint(self, manager):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+        await manager.control(heater=70)
+
+        await manager.reset_roast()
+
+        assert manager.last_applied() == {}
+
     async def test_disconnect_stops_pid_at_zero_before_teardown(self, manager):
         """#219: disconnect must write heater 0 while control() still accepts writes."""
         from pid_runner import STOP_ZERO
@@ -712,6 +722,36 @@ class TestDisconnectRace:
         manager._protocol = "virtual"
         manager._merged_params = {"write_map": {"heater": {"min": 0, "max": 100}}}
         assert await manager.control(heater=50) == {}  # 예외가 새어나오지 않아야 한다
+
+    async def test_control_success_after_disconnect_does_not_restore_setpoint(self, manager):
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        class DelayedControl:
+            async def control(inner, heater=None, fan=None, drum=None):
+                started.set()
+                await release.wait()
+
+            async def disconnect(inner):
+                pass
+
+        manager._adapter = DelayedControl()
+        manager._connected = True
+        manager._protocol = "virtual"
+        manager._merged_params = {"write_map": {"heater": {"min": 0, "max": 100}}}
+
+        control_task = asyncio.create_task(manager.control(heater=73))
+        await started.wait()
+        await manager.disconnect()
+        assert manager.last_applied() == {}
+
+        with patch("manager.make_adapter", return_value=FakeAdapter()):
+            await manager.connect("virtual", {})
+        assert manager.last_applied() == {}
+
+        release.set()
+        assert await control_task == {}
+        assert manager.last_applied() == {}
 
     async def test_control_breadcrumb_has_roaster_protocol_roles_not_values(self, manager):
         fake = FakeAdapter()
