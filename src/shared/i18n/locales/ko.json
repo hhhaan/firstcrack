@@ -210,6 +210,18 @@
                 "alertsEnabledDescription": "로스팅 중 경고 배너를 표시합니다.",
                 "alertSound": "알람 소리",
                 "alertSoundDescription": "알람이 처음 발생할 때 소리로 알립니다.",
+                "alertSoundKind": "알람음",
+                "alertSoundKindDescription": "로스팅장 소음 위에서 들리는지 미리듣기로 확인하세요.",
+                "alertSoundPreview": "미리듣기",
+                "alertSoundKinds": {
+                    "pulse": "펄스 (기본)",
+                    "chime": "차임",
+                    "xylophone": "실로폰",
+                    "pluck": "신스 펄스",
+                    "marimba": "마림바",
+                    "kalimba": "칼림바",
+                    "tubular": "종"
+                },
                 "alertRorCrash": "RoR 크래시",
                 "alertRorCrashDescription": "BT RoR이 이 값 이하로 떨어지면 경고. 터닝포인트 이후에만 동작.",
                 "alertBtMax": "BT 상한",

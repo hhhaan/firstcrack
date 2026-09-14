@@ -210,6 +210,18 @@
                 "alertsEnabledDescription": "焙煎中に警告バナーを表示します。",
                 "alertSound": "警報音",
                 "alertSoundDescription": "警報が最初に発生したときに音で知らせます。",
+                "alertSoundKind": "警報音の種類",
+                "alertSoundKindDescription": "焙煎室の騒音の中で聞こえるか、試聴で確認してください。",
+                "alertSoundPreview": "試聴",
+                "alertSoundKinds": {
+                    "pulse": "パルス（標準）",
+                    "chime": "チャイム",
+                    "xylophone": "シロフォン",
+                    "pluck": "シンセプラック",
+                    "marimba": "マリンバ",
+                    "kalimba": "カリンバ",
+                    "tubular": "鐘"
+                },
                 "alertRorCrash": "RoRクラッシュ",
                 "alertRorCrashDescription": "BT RoRがこの値以下に落ちたら警告。ターニングポイント以降のみ。",
                 "alertBtMax": "BT上限",

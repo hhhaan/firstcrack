@@ -210,6 +210,18 @@
                 "alertsEnabledDescription": "烘焙过程中显示警告横幅。",
                 "alertSound": "警报声",
                 "alertSoundDescription": "警报首次触发时发出提示音。",
+                "alertSoundKind": "警报音色",
+                "alertSoundKindDescription": "请用试听确认在烘焙车间噪音中能否听清。",
+                "alertSoundPreview": "试听",
+                "alertSoundKinds": {
+                    "pulse": "脉冲（默认）",
+                    "chime": "风铃",
+                    "xylophone": "木琴",
+                    "pluck": "合成拨弦",
+                    "marimba": "马林巴",
+                    "kalimba": "卡林巴",
+                    "tubular": "钟声"
+                },
                 "alertRorCrash": "RoR 骤降",
                 "alertRorCrashDescription": "BT RoR 降至该值时警告。仅在回温点之后生效。",
                 "alertBtMax": "BT 上限",

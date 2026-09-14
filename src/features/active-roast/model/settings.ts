@@ -1,6 +1,7 @@
 import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
+import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
@@ -54,6 +55,8 @@ export type RoastSettings = {
     /** Live threshold alarms (RoR crash / BT ceiling). */
     alertsEnabled: boolean;
     alertSoundEnabled: boolean;
+    /** Which synthesized alarm plays. See lib/alertSound.ts. */
+    alertSoundKind: AlertSoundKind;
     alertRorCrashCPerMin: number;
     alertBtMaxC: number;
     /** Minutes after Charge. Off by default. */
@@ -112,6 +115,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     preChargeDisplaySec: 60,
     alertsEnabled: true,
     alertSoundEnabled: true,
+    alertSoundKind: 'pulse',
     alertRorCrashCPerMin: 0,
     alertBtMaxC: 250,
     alertAfterChargeEnabled: false,
@@ -183,6 +187,9 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         fcDualMarkEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
         alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
+        alertSoundKind: isAlertSoundKind(merged.alertSoundKind)
+            ? merged.alertSoundKind
+            : DEFAULT_SETTINGS.alertSoundKind,
         alertRorCrashCPerMin: clampNum(merged.alertRorCrashCPerMin, -20, 20, DEFAULT_SETTINGS.alertRorCrashCPerMin),
         alertBtMaxC: clampNum(merged.alertBtMaxC, 100, 400, DEFAULT_SETTINGS.alertBtMaxC),
         alertAfterChargeEnabled: asBool(merged.alertAfterChargeEnabled, DEFAULT_SETTINGS.alertAfterChargeEnabled),
