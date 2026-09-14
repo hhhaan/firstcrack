@@ -1,8 +1,11 @@
 import {
+    ALERT_SOUND_KINDS,
     type EventMarkerStyle,
     fromDisplayTemp,
+    isAlertSoundKind,
     type PidDropBehavior,
     type PollIntervalMs,
+    playAlertSound,
     type RorSpanSec,
     type TemperatureUnit,
     toDisplayTemp,
@@ -13,7 +16,9 @@ import {
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { Badge } from '@shared/ui/Badge';
 import { SectionCard } from '@shared/ui/SectionCard';
-import { Lock } from 'lucide-react';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
+import { Lock, Play } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
@@ -519,6 +524,39 @@ export const RoastSettingsTab = () => {
                         description={tk('alertSoundDescription')}
                         onChange={() => updateRoastSettings({ alertSoundEnabled: !roastSettings.alertSoundEnabled })}
                     />
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('alertSoundKind')}</div>
+                            <div className={settingsOptionDescCls}>{tk('alertSoundKindDescription')}</div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <Select
+                                value={roastSettings.alertSoundKind}
+                                onValueChange={(v) => {
+                                    if (isAlertSoundKind(v)) updateRoastSettings({ alertSoundKind: v });
+                                }}
+                                disabled={!roastSettings.alertSoundEnabled}
+                            >
+                                <SelectTrigger className="w-36" aria-label={tk('alertSoundKind')}>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ALERT_SOUND_KINDS.map((kind) => (
+                                        <SelectItem key={kind} value={kind}>
+                                            {tk(`alertSoundKinds.${kind}`)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <SurfaceButton
+                                icon={<Play size={14} strokeWidth={2} />}
+                                disabled={!roastSettings.alertSoundEnabled}
+                                onClick={() => playAlertSound(roastSettings.alertSoundKind)}
+                            >
+                                {tk('alertSoundPreview')}
+                            </SurfaceButton>
+                        </div>
+                    </SettingsOptionRow>
                     <SettingsOptionRow justify="between">
                         <div>
                             <div className={settingsOptionLabelCls}>{tk('alertRorCrash')}</div>

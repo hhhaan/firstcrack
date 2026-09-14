@@ -67,6 +67,17 @@ describe('normalize — time alerts', () => {
     });
 });
 
+describe('normalize — alert sound kind', () => {
+    it('defaults alertSoundKind to pulse', () => {
+        expect(normalizeRoastSettings({})).toMatchObject({ alertSoundKind: 'pulse' });
+    });
+
+    it('keeps a known kind and falls back to pulse on an unknown one', () => {
+        expect(normalizeRoastSettings({ alertSoundKind: 'kalimba' })).toMatchObject({ alertSoundKind: 'kalimba' });
+        expect(normalizeRoastSettings({ alertSoundKind: 'siren' } as never)).toMatchObject({ alertSoundKind: 'pulse' });
+    });
+});
+
 describe('FEATURE.fastPolling plan matrix', () => {
     it('grants Pro core level (trial runs at Pro)', () => {
         for (const plan of ['trial', 'pro', 'pro_plus', 'enterprise', 'team']) {

@@ -324,6 +324,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const activeAlerts = useRoastAlerts({
         enabled: roastSettings.alertsEnabled,
         soundEnabled: roastSettings.alertSoundEnabled,
+        soundKind: roastSettings.alertSoundKind,
         rorCrashCPerMin: roastSettings.alertRorCrashCPerMin,
         btMaxC: roastSettings.alertBtMaxC,
         afterTurningPoint: turningPoints.length > 0,
