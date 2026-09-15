@@ -199,7 +199,7 @@
                 "fcMarking": "First Crack 마킹",
                 "fcMarkingDescription": "FC 버튼(⌘2)이 퍼스트 크랙을 기록하는 방식입니다.",
                 "fcDualMark": "이중 마킹 (첫 팝 + 롤링)",
-                "fcDualMarkDescription": "1클릭: 첫 팝(FC Start). 2클릭: 롤링(FC Rolling). 삭제는 로그에서. Start·Rolling 각각 DTR을 기록합니다. 끄면 기존처럼 FC Start만 토글합니다.",
+                "fcDualMarkDescription": "1클릭: 첫 팝(FC Start). 2클릭: 롤링(FC Rolling). 3클릭: 롤링 해제. Start 해제는 로그에서. 끄면 FC Start 토글(Rolling도 같이 지움).",
                 "autoCharge": "자동 Charge 감지",
                 "autoChargeDescription": "감지 창 안에서 BT가 이 값만큼 떨어지면 Charge가 트리거됩니다.",
                 "dropThreshold": "하락 임계값",

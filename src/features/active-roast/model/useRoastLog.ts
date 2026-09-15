@@ -2,7 +2,7 @@ import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
-import { cycleFcDualEntries } from '../lib/fc-dual-mark';
+import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
@@ -45,7 +45,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
 
             setLogEntries((prev) => {
                 if (TOGGLEABLE_LOG_EVENTS.has(event) && prev.some((e) => e.event === event)) {
-                    return prev.filter((e) => e.event !== event);
+                    return withoutLogEvent(prev, event);
                 }
 
                 const newEntry: LogEntry = {
@@ -68,7 +68,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
         [logEntries, elapsed, rawBT, unit, flashButton],
     );
 
-    /** Dual-mark cycle: empty → FC Start → FC Rolling. Stage 2 is a no-op. */
+    /** Dual-mark cycle: empty → FC Start → FC Rolling → drop Rolling. */
     // ponytail: 플래시 없음 — 버튼이 stage로 즉시 스타일이 바뀌어 피드백이 이미 보인다
     const cycleFc = useCallback(() => {
         setLogEntries((prev) => cycleFcDualEntries(prev, { elapsed, rawBT, unit }));

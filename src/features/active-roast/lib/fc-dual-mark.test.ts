@@ -1,6 +1,6 @@
 import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it, vi } from 'vitest';
-import { cycleFcDualEntries, fcDualButtonLabel, getFcDualStage } from './fc-dual-mark';
+import { cycleFcDualEntries, fcDualButtonLabel, getFcDualStage, withoutLogEvent } from './fc-dual-mark';
 
 const entry = (event: string, timeSec = 100): LogEntry => ({
     id: `${event}-${timeSec}`,
@@ -41,7 +41,7 @@ describe('fcDualButtonLabel', () => {
 });
 
 describe('cycleFcDualEntries', () => {
-    it('cycles 0 → Start → Rolling; stage 2 is a no-op', () => {
+    it('cycles 0 → Start → Rolling; stage 2 removes Rolling (#453)', () => {
         vi.spyOn(crypto, 'randomUUID')
             .mockReturnValueOnce('00000000-0000-0000-0000-00000000000a')
             .mockReturnValueOnce('00000000-0000-0000-0000-00000000000b');
@@ -64,7 +64,7 @@ describe('cycleFcDualEntries', () => {
         });
 
         const s3 = cycleFcDualEntries(s2, ctx);
-        expect(s3).toEqual(s2);
+        expect(s3.map((e) => e.event)).toEqual(['FC Start']);
     });
 
     it('clears orphan Rolling on cycle', () => {
@@ -72,8 +72,15 @@ describe('cycleFcDualEntries', () => {
         expect(next.map((e) => e.event)).toEqual(['Yellow']);
     });
 
-    it('does not clear Start+Rolling on a third cycle', () => {
+    it('third cycle removes Rolling and keeps Start + other events', () => {
         const prev = [entry('Yellow', 240), entry('FC Start', 480), entry('FC Rolling', 520)];
+        const next = cycleFcDualEntries(prev, ctx);
+        expect(next.map((e) => e.event)).toEqual(['Yellow', 'FC Start']);
+    });
+
+    it('fourth cycle from Start-only re-adds Rolling', () => {
+        vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-0000-0000-00000000000c');
+        const prev = [entry('Yellow', 240), entry('FC Start', 480)];
         const next = cycleFcDualEntries(prev, ctx);
         expect(next.map((e) => e.event)).toEqual(['Yellow', 'FC Start', 'FC Rolling']);
     });
@@ -83,5 +90,17 @@ describe('cycleFcDualEntries', () => {
         const prev = [entry('Yellow', 600)];
         const next = cycleFcDualEntries(prev, { ...ctx, elapsed: 100 });
         expect(next.map((e) => e.event)).toEqual(['FC Start', 'Yellow']);
+    });
+});
+
+describe('withoutLogEvent', () => {
+    it('removing FC Start also drops Rolling', () => {
+        const prev = [entry('Yellow', 240), entry('FC Start', 480), entry('FC Rolling', 520)];
+        expect(withoutLogEvent(prev, 'FC Start').map((e) => e.event)).toEqual(['Yellow']);
+    });
+
+    it('removing FC Rolling keeps Start', () => {
+        const prev = [entry('FC Start', 480), entry('FC Rolling', 520)];
+        expect(withoutLogEvent(prev, 'FC Rolling').map((e) => e.event)).toEqual(['FC Start']);
     });
 });

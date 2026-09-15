@@ -199,7 +199,7 @@
                 "fcMarking": "First Crack Marking",
                 "fcMarkingDescription": "How the FC button (⌘2) records first crack.",
                 "fcDualMark": "Dual mark (first pop + rolling)",
-                "fcDualMarkDescription": "1st click: first pop (FC Start). 2nd: rolling (FC Rolling). Clear via the roast log. Records DTR from Start and from Rolling. Off = classic toggle FC Start only.",
+                "fcDualMarkDescription": "1st click: first pop (FC Start). 2nd: rolling. 3rd: unmark rolling. Clear Start from the roast log. Off = toggle FC Start (also drops leftover Rolling).",
                 "autoCharge": "Auto Charge Detection",
                 "autoChargeDescription": "Charge is triggered when BT drops by this amount within the detection window.",
                 "dropThreshold": "Drop Threshold",

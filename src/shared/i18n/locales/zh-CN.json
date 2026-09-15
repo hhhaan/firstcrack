@@ -199,7 +199,7 @@
                 "fcMarking": "一爆标记",
                 "fcMarkingDescription": "FC 按钮（⌘2）记录一爆的方式。",
                 "fcDualMark": "双重标记（首爆 + 连爆）",
-                "fcDualMarkDescription": "第 1 次：首爆（FC Start）。第 2 次：连爆（FC Rolling）。删除请用日志。分别记录 Start 与 Rolling 的 DTR。关闭时仅为经典 FC Start 开关。",
+                "fcDualMarkDescription": "第 1 次：首爆（FC Start）。第 2 次：连爆。第 3 次：取消连爆。Start 请在日志删除。关闭时为 FC Start 开关（并清掉残留 Rolling）。",
                 "autoCharge": "自动 Charge 检测",
                 "autoChargeDescription": "在检测窗口内 BT 下降达到该值时触发 Charge。",
                 "dropThreshold": "下降阈值",
