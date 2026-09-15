@@ -221,6 +221,7 @@ export const RoastTempChart: React.FC<Props> = ({
     );
 
     const prevHasControlData = useRef(!!controlData);
+    const prevHasHeatSet = useRef(!!controlData?.heatSet?.some((value) => value != null));
     const prevHasPhaseBar = useRef(phaseSegments.length > 0);
     const prevHasTargetData = useRef(!!(targetXs?.length && targetBt?.length));
     const prevEventMarkerStyle = useRef(eventMarkerStyle);
@@ -229,13 +230,16 @@ export const RoastTempChart: React.FC<Props> = ({
         const chart = chartInstanceRef.current;
         if (!chart) return;
         const hasPhaseBar = phaseSegments.length > 0;
+        const hasHeatSet = !!controlData?.heatSet?.some((value) => value != null);
         const hasTargetData = !!(targetXs?.length && targetBt?.length);
         const structureChanged =
             prevHasControlData.current !== !!controlData ||
+            prevHasHeatSet.current !== hasHeatSet ||
             prevHasPhaseBar.current !== hasPhaseBar ||
             prevHasTargetData.current !== hasTargetData ||
             prevEventMarkerStyle.current !== eventMarkerStyle;
         prevHasControlData.current = !!controlData;
+        prevHasHeatSet.current = hasHeatSet;
         prevHasPhaseBar.current = hasPhaseBar;
         prevHasTargetData.current = hasTargetData;
         prevEventMarkerStyle.current = eventMarkerStyle;

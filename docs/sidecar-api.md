@@ -62,6 +62,7 @@ interface TemperatureReading {
     heater: number | null;
     fan: number;
     drum: number;
+    heater_set: number | null;
     timestamp: number;
     stale: boolean;
     reconnecting: boolean;
@@ -79,6 +80,7 @@ interface TemperatureReading {
 | `heater`    | 히터/버너 출력 값. adapter에 따라 0-100 또는 장비 raw 값. 화력 피드백 채널이 없는 머신(Phidget, heater 미매핑 Modbus/Probat WS)은 `null`. |
 | `fan`       | 팬 출력 값. adapter에 따라 0-100 또는 장비 raw 값.                               |
 | `drum`      | 드럼 속도 값. adapter에 따라 0-100, RPM %, 또는 raw speed.                       |
+| `heater_set` | 사이드카가 이 연결에서 마지막으로 쓴 heater 세트포인트(클램프 후). 수동 `/control`·Replay·PID 쓰기 모두 포함. 쓰기 전·쓰기 맵 없는 머신·해제 후는 `null`. 본체 조작반에서 돌린 값은 반영되지 않는다. |
 | `timestamp` | Python `time.monotonic()` 값.                                                    |
 | `stale`     | 직전 read가 실패해 이전 성공 값을 그대로 반환 중임 (fail-open, 최대 `STALE_TOLERANCE_READS`회). |
 | `reconnecting` | 백그라운드 자동 재연결 태스크가 동작 중임.                                    |
@@ -94,6 +96,7 @@ interface TemperatureReading {
     "heater": 0,
     "fan": 0,
     "drum": 0,
+    "heater_set": null,
     "timestamp": 483729.129392
 }
 ```
@@ -329,6 +332,7 @@ Example response:
     "heater": 65,
     "fan": 42,
     "drum": 50.0,
+    "heater_set": 65,
     "timestamp": 483729.129392
 }
 ```
@@ -484,6 +488,7 @@ Notes:
 - 상태 코드: `400` 형식 오류(JSON이 객체가 아님, 비수치, NaN/Inf), `409` 미연결·쓰기 미지원.
   값이 없는 빈 요청 `{}`만 연결 여부와 무관하게 `200` no-op이다.
 - 응답의 `applied`는 클램프 **이후** 실제로 쓴 값이다 — 요청값과 다를 수 있다.
+- 성공한 쓰기의 `applied`는 role별로 기억돼 `GET /temperatures`의 `heater_set`으로 나간다(해제 시 초기화).
 - **쓰기는 `write_map`이 있는 로스터에서만 일어난다.** `write_map`은 레지스트리
   `default_params` 안에 있고, 읽기용 `channels`와 **셀이 다르다**. Giesen을 예로 들면
   heater 피드백은 DB2.48(읽기 전용)이고 duty 세트포인트는 DB2.14(쓰기 대상)다.

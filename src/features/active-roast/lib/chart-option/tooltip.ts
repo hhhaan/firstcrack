@@ -37,6 +37,8 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${y} RPM</span></div>`;
             if (controlData && p.seriesName === 'Heat' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${y}%</span></div>`;
+            if (controlData && p.seriesName === 'Heat set' && y != null)
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlHeat}"></div>Heat set: <span>${Math.round(y)}%</span></div>`;
             if (controlData && p.seriesName === 'Fan' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${y}%</span></div>`;
         }

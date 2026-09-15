@@ -45,9 +45,9 @@ describe('bbp store', () => {
         expect(result?.seconds).toBe(180);
         expect(result?.chargeTemp).toBe(195.4); // 마지막 pre-charge 포인트 BT
         expect(result?.tsv).toBe(
-            'time\tbt\tet\tror\theater\tfan\tdrum\n' +
-                '1.0\t210\t200\t\t50\t40\t60\n' +
-                '2.0\t195.4\t200\t\t50\t40\t60\n',
+            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\n' +
+                '1.0\t210\t200\t\t50\t40\t60\t\n' +
+                '2.0\t195.4\t200\t\t50\t40\t60\t\n',
         );
         const s = useBbpStore.getState();
         expect(s.finalized).toEqual({ sessionId: 's1', seconds: 180, chargeTemp: 195.4 });

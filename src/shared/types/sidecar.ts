@@ -97,6 +97,8 @@ export interface TemperatureReading {
     heater: number | null;
     fan: number;
     drum: number;
+    /** 사이드카가 이 연결에서 마지막으로 쓴 heater 세트포인트(수동·Replay·PID). 쓰기 전·쓰기 맵 없음·해제 후 null */
+    heater_set?: number | null;
     timestamp: number;
     /** 직전 read 실패로 이전 값을 유지 중인지 (사이드카 fail-open) */
     stale?: boolean;

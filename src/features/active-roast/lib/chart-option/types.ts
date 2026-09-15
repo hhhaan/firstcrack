@@ -16,6 +16,8 @@ export interface ControlData {
     drumTemp: (number | null)[];
     heatPower: (number | null)[];
     fanSpeed: (number | null)[];
+    /** 사이드카가 쓴 heater 세트포인트 — 실측(heatPower) 위에 점선. 구 기록엔 없다 */
+    heatSet?: (number | null)[];
 }
 
 export interface ChartOptionParams {

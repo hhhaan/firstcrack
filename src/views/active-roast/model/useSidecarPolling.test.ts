@@ -102,6 +102,7 @@ it('enqueues the first sample with controls while TSV initialization is pending'
         heater: 80,
         fan: 40,
         drum: 60,
+        heater_set: 75,
     });
 
     useRoastingStore.setState({
@@ -134,7 +135,7 @@ it('enqueues the first sample with controls while TSV initialization is pending'
         expect(mocks.enqueueTsvRow).toHaveBeenCalledOnce();
         const [sessionId, row] = mocks.enqueueTsvRow.mock.calls[0];
         expect(sessionId).toBe('issue-315');
-        expect(row).toMatch(/\t80\t40\t60\n$/);
+        expect(row).toMatch(/\t80\t40\t60\t75\n$/);
     } finally {
         await act(async () => {
             finishInit();

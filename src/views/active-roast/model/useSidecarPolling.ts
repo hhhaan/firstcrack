@@ -27,6 +27,8 @@ export interface LiveRoastPoint {
     heater: number | null;
     fan: number;
     drum: number;
+    /** 사이드카가 마지막으로 쓴 heater 세트포인트. 열이 생기기 전 기록·쓰기 맵 없는 머신에는 없다 */
+    heaterSet?: number | null;
 }
 
 interface Params {
@@ -333,11 +335,12 @@ export const useSidecarPolling = ({
                         heater: data.heater ?? null,
                         fan: data.fan ?? 0,
                         drum: data.drum ?? 0,
+                        heaterSet: data.heater_set ?? null,
                     };
 
                     const currentSessionId = useRoastingStore.getState().sessionId;
                     if (currentSessionId) {
-                        const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? ''}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
+                        const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? ''}\t${data.fan ?? 0}\t${data.drum ?? 0}\t${data.heater_set ?? ''}\n`;
                         enqueueTsvRow(currentSessionId, row);
                     }
                     setLivePoints((prev) => [...prev, point]);
@@ -360,6 +363,7 @@ export const useSidecarPolling = ({
                         heater: data.heater ?? null,
                         fan: data.fan ?? 0,
                         drum: data.drum ?? 0,
+                        heaterSet: data.heater_set ?? null,
                     };
 
                     // 버퍼: charge 시 음수 상대 시간 변환에 사용
