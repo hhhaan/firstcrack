@@ -48,6 +48,7 @@ export const ChartZoomSurface = ({
             onPointerMoveCapture={handleChartPointerMove}
             onPointerUpCapture={endChartDrag}
             onPointerCancelCapture={endChartDrag}
+            onLostPointerCapture={endChartDrag}
             {...(ariaLabel ? { role: 'region', 'aria-label': ariaLabel } : {})}
         >
             {children}

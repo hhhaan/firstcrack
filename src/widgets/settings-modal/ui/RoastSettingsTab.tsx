@@ -35,6 +35,11 @@ const rorOptions: RorSpanSec[] = [15, 30, 60];
 
 const eventMarkerStyleOptions: { value: EventMarkerStyle; labelKey: string; descKey: string }[] = [
     {
+        value: 'both',
+        labelKey: 'settings.tabs.roast.eventMarkerBoth',
+        descKey: 'settings.tabs.roast.eventMarkerBothDescription',
+    },
+    {
         value: 'point',
         labelKey: 'settings.tabs.roast.eventMarkerPoint',
         descKey: 'settings.tabs.roast.eventMarkerPointDescription',

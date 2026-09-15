@@ -165,6 +165,8 @@
                 "showFcBandDescription": "FC Start から FC End までチャート背景を塗りつぶす",
                 "eventMarkers": "イベントマーカー",
                 "eventMarkersDescription": "Yellow、FC、Drop、Turning Point の描画方法です。",
+                "eventMarkerBoth": "ラベルと垂直線",
+                "eventMarkerBothDescription": "BTカーブの横のラベルと制御チャートまで続く垂直線",
                 "eventMarkerPoint": "カーブ上のポイント",
                 "eventMarkerPointDescription": "BT カーブ上の点とラベルボックス（イベント・時間・温度）",
                 "eventMarkerLine": "垂直線",

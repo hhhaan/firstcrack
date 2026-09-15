@@ -11,11 +11,13 @@ vi.mock('@shared/lib/sidecar', () => ({
 }));
 
 import { sidecar } from '@shared/lib/sidecar';
+import type { ControlCommand } from '../lib/controlSender';
 import { useMachineControl } from './useMachineControl';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const getStatus = vi.mocked(sidecar.getStatus);
+const setControl = vi.mocked(sidecar.setControl);
 
 const CONTROL = {
     writable: true,
@@ -23,21 +25,25 @@ const CONTROL = {
 } as Awaited<ReturnType<typeof sidecar.getStatus>>['control'];
 
 /** 실제 훅을 렌더해 반환값을 노출한다 (repo 표준 패턴 — useAutoDetection.test.ts). */
-const renderHook = async (connected: boolean) => {
+const renderHook = async (connected: boolean, onCommitted?: (committed: ControlCommand) => void) => {
     const root = createRoot(document.createElement('div'));
     let latest!: ReturnType<typeof useMachineControl>;
-    const Probe = ({ on }: { on: boolean }) => {
-        latest = useMachineControl(on, null);
+    const Probe = ({ on, onCommit }: { on: boolean; onCommit?: (committed: ControlCommand) => void }) => {
+        latest = useMachineControl(on, null, onCommit);
         return null;
     };
-    await act(async () => root.render(createElement(Probe, { on: connected })));
-    return { get: () => latest, unmount: () => act(() => root.unmount()) };
+    const render = (onCommit = onCommitted) =>
+        act(async () => root.render(createElement(Probe, { on: connected, onCommit })));
+    await render();
+    return { get: () => latest, render, unmount: () => act(() => root.unmount()) };
 };
 
 describe('useMachineControl capability 조회 (#269 회귀)', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         getStatus.mockReset();
+        setControl.mockReset();
+        setControl.mockImplementation(async (cmd) => ({ ok: true, applied: cmd }));
     });
     afterEach(() => {
         vi.useRealTimers();
@@ -88,5 +94,21 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
             vi.advanceTimersByTime(10_000);
         });
         expect(getStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it('최신 onCommitted를 sender 재생성 없이 사용한다', async () => {
+        getStatus.mockResolvedValue({ control: CONTROL } as Awaited<ReturnType<typeof sidecar.getStatus>>);
+        const first = vi.fn();
+        const second = vi.fn();
+        const hook = await renderHook(true, first);
+
+        act(() => hook.get().setValue('heater', 0));
+        await hook.render(second);
+        await act(async () => hook.get().commitNow());
+
+        expect(first).not.toHaveBeenCalled();
+        expect(second).toHaveBeenCalledWith({ heater: 0 });
+        expect(setControl).toHaveBeenCalledWith({ heater: 0 });
+        hook.unmount();
     });
 });

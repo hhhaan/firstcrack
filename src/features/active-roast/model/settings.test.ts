@@ -78,6 +78,17 @@ describe('normalize — alert sound kind', () => {
     });
 });
 
+describe('normalize — event marker style', () => {
+    it('defaults missing and invalid values to both', () => {
+        expect(normalizeRoastSettings({}).eventMarkerStyle).toBe('both');
+        expect(normalizeRoastSettings({ eventMarkerStyle: 'unknown' as never }).eventMarkerStyle).toBe('both');
+    });
+
+    it.each(['point', 'line', 'both'] as const)('preserves stored %s mode', (eventMarkerStyle) => {
+        expect(normalizeRoastSettings({ eventMarkerStyle }).eventMarkerStyle).toBe(eventMarkerStyle);
+    });
+});
+
 describe('FEATURE.fastPolling plan matrix', () => {
     it('grants Pro core level (trial runs at Pro)', () => {
         for (const plan of ['trial', 'pro', 'pro_plus', 'enterprise', 'team']) {

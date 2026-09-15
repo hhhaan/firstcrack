@@ -2,8 +2,8 @@ import type { ControlData, RoastEventMarker } from '@features/active-roast/lib/c
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
-import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
-import type { RefObject } from 'react';
+import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
+import { type RefObject, useRef } from 'react';
 import { ChartLegend } from './ChartLegend';
 
 interface RoastChartContainerProps {
@@ -47,7 +47,8 @@ interface RoastChartContainerProps {
     unit: TemperatureUnit;
     targetProfileName?: string;
     onCursorIdx: (idx: number | null) => void;
-    onEventMarkerDrag: (event: string, newTimeSec: number) => void;
+    onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
+    onAddNote?: (body: string, timeSec: number) => void;
 }
 
 export const RoastChartContainer = ({
@@ -92,15 +93,52 @@ export const RoastChartContainer = ({
     targetProfileName,
     onCursorIdx,
     onEventMarkerDrag,
+    onAddNote,
 }: RoastChartContainerProps) => {
+    const chartRef = useRef<RoastTempChartHandle>(null);
+    const markerPointerId = useRef<number | null>(null);
+
+    const pointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+        if ((event.target as Element).closest('[data-chart-note-form]')) return;
+        if (chartRef.current?.beginMarkerDrag(event)) {
+            markerPointerId.current = event.pointerId;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            event.currentTarget.focus();
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+        handleChartPointerDown(event);
+    };
+
+    const pointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (markerPointerId.current === event.pointerId && chartRef.current?.moveMarkerDrag(event)) {
+            event.preventDefault();
+            return;
+        }
+        handleChartPointerMove(event);
+    };
+
+    const pointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (markerPointerId.current === event.pointerId) {
+            chartRef.current?.endMarkerDrag(event.pointerId);
+            markerPointerId.current = null;
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+            return;
+        }
+        endChartDrag(event);
+    };
+
     return (
         <ChartZoomSurface
             chartAreaRef={chartAreaRef}
             effectiveZoomRange={effectiveZoomRange}
             isChartDragging={isChartDragging}
-            handleChartPointerDown={handleChartPointerDown}
-            handleChartPointerMove={handleChartPointerMove}
-            endChartDrag={endChartDrag}
+            handleChartPointerDown={pointerDown}
+            handleChartPointerMove={pointerMove}
+            endChartDrag={pointerEnd}
             className="relative flex-1 flex flex-col min-w-0 min-h-0 outline-none"
             idleCursorClassName="cursor-default"
             ariaLabel="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
@@ -114,6 +152,7 @@ export const RoastChartContainer = ({
             />
 
             <RoastTempChart
+                ref={chartRef}
                 xs={xs}
                 btTarget={[]}
                 targetXs={targetXs}
@@ -129,6 +168,7 @@ export const RoastChartContainer = ({
                 height={mainChartHeight}
                 onCursorIdx={onCursorIdx}
                 onEventMarkerDrag={onEventMarkerDrag}
+                onAddNote={onAddNote}
                 showET={showET}
                 showTargetCurve={showTargetCurve}
                 showTargetDeltaLabel={showTargetDeltaLabel}

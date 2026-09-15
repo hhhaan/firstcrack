@@ -1,6 +1,6 @@
 import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
-import { toDisplayTemp } from '@features/active-roast/lib/temperature';
-import { fmtSec } from './axes';
+import { isControlEvent } from '@features/active-roast/lib/chart-config';
+import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
 
@@ -10,7 +10,7 @@ export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: 
     let bestIdx = -1;
     let bestDist = Infinity;
     for (let i = 0; i < xs.length; i++) {
-        if (btActual[i] == null) continue;
+        if (!Number.isFinite(xs[i]) || !Number.isFinite(btActual[i])) continue;
         const d = Math.abs(xs[i] - timeSec);
         if (d < bestDist) {
             bestDist = d;
@@ -20,9 +20,54 @@ export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: 
     return bestIdx >= 0 ? btActual[bestIdx] : null;
 };
 
-// Charge는 t=0 고정 → 시간 생략 (event + temp만)
-export const eventLabelText = (event: string, timeStr: string, temp: string) =>
-    event === 'Charge' ? `${event} ${temp}` : `${event} ${timeStr} ${temp}`;
+const formatMarkerTime = (timeSec: number) => {
+    const sec = Math.max(0, Math.floor(timeSec));
+    return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+};
+
+export const eventLabelText = (event: string, timeSec: number, temp: string, note?: string) => {
+    const name = event === 'Note' ? note?.trim() || event : event === 'Heater' && note ? `${event} → ${note}` : event;
+    return `[${formatMarkerTime(timeSec)}] ${name} @ ${temp || '—'}`;
+};
+
+export const MARKER_LABEL_STACK_PX = 14;
+export const MARKER_LABEL_DISTANCE_PX = 6;
+
+export interface MarkerLabelGeometry {
+    x: number;
+    y: number;
+    align: 'left' | 'right';
+    text: string;
+    rank: number;
+}
+
+/** Exact curve-label geometry shared with pointer hit-testing. Coordinates are CSS pixels. */
+export const getMarkerLabelGeometry = ({
+    anchorX,
+    anchorY,
+    timeSec,
+    xMin,
+    xMax,
+    rank,
+    text,
+}: {
+    anchorX: number;
+    anchorY: number;
+    timeSec: number;
+    xMin: number;
+    xMax: number;
+    rank: number;
+    text: string;
+}): MarkerLabelGeometry => {
+    const right = xMax > xMin && (timeSec - xMin) / (xMax - xMin) > 0.9;
+    return {
+        x: anchorX + (right ? -MARKER_LABEL_DISTANCE_PX : MARKER_LABEL_DISTANCE_PX),
+        y: anchorY - MARKER_LABEL_STACK_PX * rank,
+        align: right ? 'right' : 'left',
+        text,
+        rank,
+    };
+};
 
 /**
  * 하단 라벨 — 상단 이벤트와 겹침 완화.
@@ -30,18 +75,34 @@ export const eventLabelText = (event: string, timeStr: string, temp: string) =>
  */
 export const LABEL_BELOW_EVENTS = new Set(['FC Rolling', 'FC End', 'Drop', 'TP']);
 
-const buildPointLabel = (text: string, below = false) => ({
+const buildPointLabel = (
+    text: string,
+    below: boolean,
+    rank: number,
+    inward: boolean,
+    color: string,
+    curveAdjacent: boolean,
+) => ({
     show: true,
-    position: (below ? 'bottom' : 'top') as 'top' | 'bottom',
-    distance: 5,
-    formatter: text,
+    position: (curveAdjacent ? (inward ? 'left' : 'right') : below ? 'bottom' : 'top') as
+        | 'left'
+        | 'right'
+        | 'top'
+        | 'bottom',
+    distance: curveAdjacent ? MARKER_LABEL_DISTANCE_PX : 5,
+    offset: [0, rank === 0 ? 0 : -MARKER_LABEL_STACK_PX * rank],
+    align: curveAdjacent ? (inward ? 'right' : 'left') : 'center',
+    formatter: () => text,
     fontSize: 10,
     fontWeight: 600 as const,
     fontFamily: 'monospace',
-    color: '#0b0b0b',
+    color,
     backgroundColor: 'transparent',
     borderWidth: 0,
     padding: 0,
+    width: 240,
+    overflow: 'truncate' as const,
+    ellipsis: '…',
 });
 
 export interface MarkerBuildParams {
@@ -58,6 +119,7 @@ export interface MarkerBuildParams {
     btActual: (number | null)[];
     colors: ResolvedChartColors;
     tempYMin: number;
+    tempYMax: number;
     hasControlSeries: boolean;
     showFcBand?: boolean;
     showTargetDeltaLabel?: boolean;
@@ -66,12 +128,12 @@ export interface MarkerBuildParams {
 }
 
 export interface MarkerBuildResult {
-    usePointMarkers: boolean;
     allMarkLines: object[];
     markPointData: object[];
     /** FC Start–End vertical band (null if incomplete / invalid range) */
     fcMarkArea: object | null;
     controlGuideMarkLines: object[];
+    continuousMarkerLines: { timeSec: number; color: string; width: number }[];
     tempBottomBorderLine: object | null;
 }
 
@@ -90,6 +152,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         btActual,
         colors,
         tempYMin,
+        tempYMax,
         hasControlSeries,
         showFcBand = true,
         showTargetDeltaLabel = false,
@@ -100,7 +163,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     // Charge: eventMarkers 경유 → eventMarkerStyle(point|line)과 동일 처리
     // NOW: 세로 markLine 가이드 (항상)
     // 이벤트 / TP: eventMarkerStyle 에 따라 line | point
-    const usePointMarkers = eventMarkerStyle === 'point';
+    const usePointMarkers = eventMarkerStyle !== 'line';
+    const useContinuousLines = eventMarkerStyle === 'both';
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];
     // Control chart 전용: charge 기준 t=0 무음 가이드 (라벨 없음)
@@ -143,86 +207,121 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         });
     }
 
-    // ── line style: 세로 markLine + 라벨 (기본 상단, FC End/Drop은 하단) ─
-    const eventMarkLines = eventMarkers.map((m) => {
+    const labelTimes = [...eventMarkers.map((marker) => marker.timeSec), ...turningPoints.map((tp) => tp.timeSec)];
+    const labelRanks = labelTimes.map(
+        (timeSec, index) =>
+            labelTimes.slice(0, index).filter((prior) => Math.round(prior) === Math.round(timeSec)).length,
+    );
+    const isInward = (timeSec: number) => xMax > xMin && (timeSec - xMin) / (xMax - xMin) > 0.9;
+    const markerColor = (event: string) => (isControlEvent(event) ? colors.eventControl : colors.eventMark);
+    const markerLabelColor = (event: string) => (isControlEvent(event) ? colors.eventControl : colors.markerLabelColor);
+    const markerTemp = (m: RoastEventMarker, nearest: number | null) => {
+        if (typeof m.tempC === 'number' && Number.isFinite(m.tempC)) return formatTemp(m.tempC, temperatureUnit);
+        if (nearest != null) return `${nearest.toFixed(1)}${unitLabel}`;
+        return m.temp?.trim() || '—';
+    };
+
+    // ── retained line mode: vertical markLine + edge label ────────────────────
+    const eventMarkLines = eventMarkers.map((m, index) => {
         const below = LABEL_BELOW_EVENTS.has(m.event);
+        const inward = isInward(m.timeSec);
+        const color = markerColor(m.event);
         return {
             xAxis: m.timeSec,
             lineStyle: {
-                color: m.color,
-                width: 1.5,
+                color,
+                width: isControlEvent(m.event) ? 1 : 0.6,
                 type: 'solid' as const,
                 opacity: 1,
             },
             label: {
                 show: true,
-                // vertical xAxis line: start=top, end=bottom
                 position: (below ? 'end' : 'start') as 'start' | 'end',
-                formatter: eventLabelText(m.event, m.timeStr, m.temp),
-                color: m.color,
+                formatter: () =>
+                    eventLabelText(m.event, m.timeSec, markerTemp(m, nearestBtAt(xs, btActual, m.timeSec)), m.note),
+                color: markerLabelColor(m.event),
                 fontSize: 11,
                 fontWeight: 700,
+                align: inward ? 'right' : 'left',
+                offset: [inward ? -4 : 4, -MARKER_LABEL_STACK_PX * labelRanks[index]],
             },
         };
     });
 
-    const tpMarkLines = turningPoints.map((tp) => ({
+    const tpMarkLines = turningPoints.map((tp, index) => ({
         xAxis: tp.timeSec,
         lineStyle: {
-            color: colors.tp,
-            width: 1.5,
+            color: colors.eventMark,
+            width: 0.6,
             type: 'solid' as const,
             opacity: 1,
         },
         label: {
             show: true,
             position: 'end' as const,
-            formatter: `TP ${fmtSec(tp.timeSec)} ${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`,
-            color: colors.tp,
+            formatter: () => eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+            color: colors.markerLabelColor,
             fontSize: 11,
             fontWeight: 700,
+            align: isInward(tp.timeSec) ? 'right' : 'left',
+            offset: [isInward(tp.timeSec) ? -4 : 4, -MARKER_LABEL_STACK_PX * labelRanks[eventMarkers.length + index]],
         },
     }));
 
     // ── point style: 작은 점 + 텍스트만 (박스/배경 없음) ────────────────
     const markPointData: object[] = usePointMarkers
         ? ([
-              ...eventMarkers
-                  .map((m) => {
-                      const y = nearestBtAt(xs, btActual, m.timeSec);
-                      if (y == null) return null;
-                      const tempStr = m.temp || `${y.toFixed(1)}${unitLabel}`;
-                      return {
-                          name: m.event,
-                          coord: [m.timeSec, y] as [number, number],
-                          symbol: 'circle' as const,
-                          symbolSize: 5,
-                          itemStyle: {
-                              color: m.color,
-                              borderColor: colors.markerLabelColor,
-                              borderWidth: 1,
-                          },
-                          label: buildPointLabel(
-                              eventLabelText(m.event, m.timeStr, tempStr),
-                              LABEL_BELOW_EVENTS.has(m.event),
-                          ),
-                      };
-                  })
-                  .filter(Boolean),
-              ...turningPoints.map((tp) => {
+              ...eventMarkers.map((m, index) => {
+                  const nearest = nearestBtAt(xs, btActual, m.timeSec);
+                  const y =
+                      nearest ??
+                      (typeof m.tempC === 'number' && Number.isFinite(m.tempC)
+                          ? toDisplayTemp(m.tempC, temperatureUnit)
+                          : tempYMax);
+                  const tempStr = markerTemp(m, nearest);
+                  const curveAdjacent = eventMarkerStyle === 'both';
+                  return {
+                      name: m.logId ?? m.event,
+                      logId: m.logId,
+                      coord: [m.timeSec, y] as [number, number],
+                      symbol: 'circle' as const,
+                      symbolSize: curveAdjacent ? 0 : 5,
+                      itemStyle: {
+                          color: markerColor(m.event),
+                          borderColor: colors.markerLabelColor,
+                          borderWidth: 1,
+                      },
+                      label: buildPointLabel(
+                          eventLabelText(m.event, m.timeSec, tempStr, m.note),
+                          LABEL_BELOW_EVENTS.has(m.event),
+                          labelRanks[index],
+                          isInward(m.timeSec),
+                          markerLabelColor(m.event),
+                          curveAdjacent,
+                      ),
+                  };
+              }),
+              ...turningPoints.map((tp, index) => {
                   const yDisp = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
-                  const tempStr = `${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`;
+                  const curveAdjacent = eventMarkerStyle === 'both';
                   return {
                       name: 'TP',
                       coord: [tp.timeSec, yDisp] as [number, number],
                       symbol: 'circle' as const,
-                      symbolSize: 5,
+                      symbolSize: curveAdjacent ? 0 : 5,
                       itemStyle: {
-                          color: colors.tp,
+                          color: colors.eventMark,
                           borderColor: colors.markerLabelColor,
                           borderWidth: 1,
                       },
-                      label: buildPointLabel(`TP ${fmtSec(tp.timeSec)} ${tempStr}`, true),
+                      label: buildPointLabel(
+                          eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+                          true,
+                          labelRanks[eventMarkers.length + index],
+                          isInward(tp.timeSec),
+                          colors.markerLabelColor,
+                          curveAdjacent,
+                      ),
                   };
               }),
           ] as object[])
@@ -245,7 +344,27 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     });
     if (targetDeltaPoint) markPointData.push(targetDeltaPoint);
 
-    const allMarkLines = usePointMarkers ? guideMarkLines : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines];
+    const allMarkLines =
+        eventMarkerStyle === 'line' ? [...guideMarkLines, ...eventMarkLines, ...tpMarkLines] : guideMarkLines;
+    if (eventMarkerStyle === 'line') {
+        controlGuideMarkLines.push(
+            ...[...eventMarkLines, ...tpMarkLines].map(({ xAxis, lineStyle }) => ({
+                xAxis,
+                lineStyle,
+                label: { show: false },
+            })),
+        );
+    }
+    const continuousMarkerLines = useContinuousLines
+        ? [
+              ...eventMarkers.map((m) => ({
+                  timeSec: m.timeSec,
+                  color: markerColor(m.event),
+                  width: isControlEvent(m.event) ? 1 : 0.6,
+              })),
+              ...turningPoints.map((tp) => ({ timeSec: tp.timeSec, color: colors.eventMark, width: 0.6 })),
+          ]
+        : [];
 
     // FC Start → FC End 세로 밴드 (End 없으면 live currentTime까지).
     // dual-mark FC Rolling is not End — band stays on FC End.
@@ -280,11 +399,11 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         : null;
 
     return {
-        usePointMarkers,
         allMarkLines,
         markPointData: markPointData as object[],
         fcMarkArea,
         controlGuideMarkLines,
+        continuousMarkerLines,
         tempBottomBorderLine,
     };
 };

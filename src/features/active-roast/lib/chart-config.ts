@@ -65,15 +65,15 @@ export const getResolvedChartColors = () => {
     };
 
     return {
-        btTarget: gv('--color-sensor-bt-target', 'rgba(0,157,76,0.55)'),
-        btTargetTooltip: gv('--color-sensor-bt-target-hover', 'rgba(0,157,76,0.75)'),
+        btTarget: gv('--color-sensor-bt-target', '#777'),
+        btTargetTooltip: gv('--color-sensor-bt-target', '#777'),
         btActual: gv('--color-sensor-bt', '#009d4c'),
         etActual: gv('--color-sensor-et', '#0091cb'),
         rorActual: gv('--color-sensor-ror', '#e7ae00'),
-        tp: gv('--color-event-tp', '#009d4c'),
+        tp: gv('--color-event-mark', '#777'),
         phaseLines: gv('--color-chart-phaseline', 'rgba(0,0,0,0.07)'),
         currentTimeLine: gv('--color-chart-current-line', 'rgba(0,0,0,0.3)'),
-        nowLabel: gv('--color-event-tp', '#009d4c'),
+        nowLabel: gv('--color-phase-ready', '#009d4c'),
         gridLine: gv('--color-chart-grid-stroke', 'rgba(0,0,0,0.05)'),
         gridLineMinor: gv('--color-chart-grid', 'rgba(0,0,0,0.05)'),
         axisLabel: gv('--color-chart-axis-label', '#666'),
@@ -95,13 +95,9 @@ export const getResolvedChartColors = () => {
         controlFan: gv('--color-control-fan', '#0091cb'),
         controlFanArea: gv('--color-control-fan-area', 'rgba(0,145,203,0.22)'),
 
-        // Event marker colors (resolved for canvas)
-        eventYellow: gv('--color-event-yellow', '#e7ae00'),
-        eventFcStart: gv('--color-event-fc-start', '#0091cb'),
-        eventFcEnd: gv('--color-event-fc-end', '#6967e1'),
-        eventEnd: gv('--color-event-end', '#626fd2'),
-        eventNote: gv('--color-event-note', '#00a36d'),
-        eventDrop: gv('--color-event-drop', '#7483e0'),
+        // Event marker categories (resolved for canvas)
+        eventMark: gv('--color-event-mark', '#777'),
+        eventControl: gv('--color-event-control', '#c33'),
         // FC Start–End band fill on temp chart (lighter than phase bar)
         fcBandFill: gv('--color-fc-band-fill', 'rgba(105,103,225,0.1)'),
 
@@ -112,22 +108,18 @@ export const getResolvedChartColors = () => {
     };
 };
 
-/** Resolve a single event marker color to a raw hex/rgba value (for ECharts canvas) */
+export const isControlEvent = (event: string): boolean => event === 'Heater';
+
+export const eventMarkerCssColor = (event: string): string =>
+    `var(${isControlEvent(event) ? '--color-event-control' : '--color-event-mark'})`;
+
+/** Resolve a single event marker color to a raw color value for ECharts canvas. */
 export const getResolvedEventColor = (event: string): string => {
-    const varMap: Record<string, string> = {
-        Charge: '--color-event-charge',
-        Yellow: '--color-event-yellow',
-        'FC Start': '--color-event-fc-start',
-        'FC Rolling': '--color-event-fc-rolling',
-        'FC End': '--color-event-fc-end',
-        End: '--color-event-end',
-        Note: '--color-event-note',
-        TP: '--color-event-tp',
-        Drop: '--color-event-drop',
-    };
-    const varName = varMap[event];
-    if (!varName) return '#888';
-    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || '#888';
+    const token = isControlEvent(event) ? '--color-event-control' : '--color-event-mark';
+    return (
+        getComputedStyle(document.documentElement).getPropertyValue(token).trim() ||
+        (isControlEvent(event) ? '#b33' : '#888')
+    );
 };
 
 // ── Static base colors (for non-ECharts use) ───────────────────────────────
@@ -156,23 +148,19 @@ export const CONTROL_COLORS = {
     fanArea: 'var(--color-control-fan-area)',
 } as const;
 
-export const EVENT_MARKER_COLORS: Record<string, string> = {
-    Charge: 'var(--color-event-charge)',
-    Yellow: 'var(--color-event-yellow)',
-    'FC Start': 'var(--color-event-fc-start)',
-    'FC Rolling': 'var(--color-event-fc-rolling)',
-    'FC End': 'var(--color-event-fc-end)',
-    End: 'var(--color-event-end)',
-    Note: 'var(--color-event-note)',
-    TP: 'var(--color-event-tp)',
-    Drop: 'var(--color-event-drop)',
-};
+const CHART_EVENT_MARKERS = new Set([
+    'Charge',
+    'Yellow',
+    'FC Start',
+    'FC Rolling',
+    'FC End',
+    'Drop',
+    'End',
+    'Note',
+    'Heater',
+]);
 
-/** Logged but not drawn as chart markLines (TP is separate series; Note is free text). */
-export const MARKER_EXCLUDED_EVENTS = new Set(['TP', 'Note']);
-
-export const isChartEventMarker = (event: string): boolean =>
-    Boolean(EVENT_MARKER_COLORS[event]) && !MARKER_EXCLUDED_EVENTS.has(event);
+export const isChartEventMarker = (event: string): boolean => CHART_EVENT_MARKERS.has(event);
 
 export const PHASE_SECS = [180, 300, 630] as const;
 export const ROR_Y_MIN = -5;

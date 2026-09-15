@@ -59,11 +59,14 @@ export const parseStoredRoastEvents = (raw: unknown): StoredRoastEvent[] => {
 };
 
 export type HistoryEventMarker = {
+    logId?: string;
     timeSec: number;
     event: string;
     color: string;
     timeStr: string;
     temp: string;
+    tempC?: number | null;
+    note?: string;
 };
 
 /** Stored events → read-only log rows for profile/history UI. */
@@ -85,9 +88,12 @@ export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: Temperat
     events
         .filter((e) => isChartEventMarker(e.type))
         .map((e) => ({
+            logId: e.id,
             timeSec: Math.max(0, e.time_sec),
             event: e.type,
             color: getResolvedEventColor(e.type),
             timeStr: formatElapsed(e.time_sec),
             temp: e.temp_c != null ? `${Math.round(toDisplayTemp(e.temp_c, unit))}` : '',
+            tempC: e.temp_c ?? null,
+            note: e.note ?? '',
         }));

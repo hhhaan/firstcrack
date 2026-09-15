@@ -165,6 +165,8 @@
                 "showFcBandDescription": "在 FC Start 到 FC End 之间为图表背景着色",
                 "eventMarkers": "事件标记",
                 "eventMarkersDescription": "Yellow、FC、Drop、Turning Point 在温度图上的绘制方式。",
+                "eventMarkerBoth": "标签和垂直线",
+                "eventMarkerBothDescription": "BT 曲线旁的标签，以及贯穿控制图的垂直线",
                 "eventMarkerPoint": "曲线上的点",
                 "eventMarkerPointDescription": "BT 曲线上的点与标签框（事件、时间、温度）",
                 "eventMarkerLine": "垂直线",

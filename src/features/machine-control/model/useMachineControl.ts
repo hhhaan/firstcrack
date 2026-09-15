@@ -37,7 +37,11 @@ export type MachineFeedback = Record<ControlRole, number | null> | null;
  * 로스터 본체 조작반에서 화력을 돌렸을 때도 화면이 같이 움직여야 하고,
  * PID가 화력을 잡고 있을 때도 실제 duty가 보여야 한다.
  */
-export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFeedback) => {
+export const useMachineControl = (
+    sidecarConnected: boolean,
+    feedback: MachineFeedback,
+    onCommitted?: (committed: ControlCommand) => void,
+) => {
     const [capability, setCapability] = useState<ControlCapability | null>(null);
     /**
      * desired: 사용자가 지시했지만 기기가 아직 따라오지 않은 값
@@ -66,6 +70,8 @@ export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFe
             }),
         [],
     );
+
+    useEffect(() => sender.setOnCommitted(onCommitted), [onCommitted, sender]);
 
     useEffect(() => () => sender.dispose(), [sender]);
 

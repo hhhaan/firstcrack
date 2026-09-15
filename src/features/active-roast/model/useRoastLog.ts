@@ -23,10 +23,25 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
     }, []);
 
     const markEvent = useCallback(
-        (event: string, note: string, buttonLabel?: string) => {
+        (event: string, note: string, buttonLabel?: string, historical?: { timeSec: number; tempC: number | null }) => {
+            const body = note.trim();
+            if (event === 'Note' && !body) return;
+            if (
+                historical &&
+                (!Number.isFinite(historical.timeSec) ||
+                    (historical.tempC !== null && !Number.isFinite(historical.tempC)) ||
+                    !Number.isFinite(elapsed) ||
+                    elapsed < 0)
+            )
+                return;
+
             const isRemoval = TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((e) => e.event === event);
-            const timeSec = elapsed;
+            const timeSec = historical
+                ? Math.min(Math.max(Math.round(historical.timeSec), 0), Math.floor(elapsed))
+                : elapsed;
+            const tempC = historical ? historical.tempC : rawBT;
             const timeStr = formatElapsed(timeSec);
+            const id = crypto.randomUUID();
 
             setLogEntries((prev) => {
                 if (TOGGLEABLE_LOG_EVENTS.has(event) && prev.some((e) => e.event === event)) {
@@ -34,13 +49,13 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
                 }
 
                 const newEntry: LogEntry = {
-                    id: crypto.randomUUID(),
+                    id,
                     time: timeStr,
                     timeSec,
                     event,
-                    temp: rawBT !== null ? formatTemp(rawBT, unit) : '',
-                    tempC: rawBT,
-                    note,
+                    temp: tempC !== null ? formatTemp(tempC, unit) : '',
+                    tempC,
+                    note: event === 'Note' ? body : note,
                 };
 
                 return [...prev, newEntry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));

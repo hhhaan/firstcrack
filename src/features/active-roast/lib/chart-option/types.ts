@@ -4,11 +4,14 @@ import type { getResolvedChartColors } from '@features/active-roast/lib/chart-co
 export type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
 
 export interface RoastEventMarker {
+    logId?: string;
     timeSec: number;
     event: string;
     color: string;
     timeStr: string;
     temp: string;
+    tempC?: number | null;
+    note?: string;
 }
 
 export interface ControlData {

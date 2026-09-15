@@ -87,7 +87,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | Token | Light | Dark | 의미 |
 |---|---|---|---|
 | `--color-sensor-bt` | `oklch(0.6 0.18 155)` | `#4be08c` | Bean Temperature |
-| `--color-sensor-bt-target` | `oklch(0.6 0.18 155 / 0.55)` | `rgba(75, 224, 140, 0.65)` | BT 목표 곡선 |
+| `--color-sensor-bt-target` | `oklch(0.55 0 0)` | `oklch(0.72 0 0)` | BT 목표 곡선 (회색 참조) |
 | `--color-sensor-et` | `oklch(0.6 0.17 225)` | `#beacf8` | Environmental Temp |
 | `--color-sensor-ror` | `oklch(0.78 0.18 88)` | `#ffff54` | Rate of Rise |
 
@@ -113,15 +113,8 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
 | Token | Light | Dark |
 |---|---|---|
-| `--color-event-charge` | `oklch(0.65 0.19 45)` | `#fb923c` |
-| `--color-event-yellow` | `oklch(0.78 0.18 88)` | `#ffff54` |
-| `--color-event-fc-start` | `oklch(0.6 0.17 225)` | `#44bffc` |
-| `--color-event-fc-rolling` | `oklch(0.58 0.16 250)` | `#5a9ef5` |
-| `--color-event-fc-end` | `oklch(0.58 0.18 280)` | `#756afc` |
-| `--color-event-end` | `oklch(0.58 0.15 275)` | `#8080f0` |
-| `--color-event-note` | `oklch(0.62 0.16 165)` | `#72ebbc` |
-| `--color-event-tp` | `oklch(0.6 0.18 155)` | `#81fba5` |
-| `--color-event-drop` | `oklch(0.64 0.14 275)` | `#a6b0ff` |
+| `--color-event-mark` | `oklch(0.55 0 0)` | `oklch(0.72 0 0)` | Charge·Yellow·FC·Drop·End·TP·Note |
+| `--color-event-control` | `oklch(0.55 0.2 25)` | `oklch(0.72 0.17 25)` | committed 제어 조작 (Heater) |
 
 ### Control chart colors
 
@@ -154,6 +147,12 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | `--color-scrollbar-thumb-hover` | `rgba(0, 0, 0, 0.16)` | `rgba(255, 255, 255, 0.2)` |
 
 차트/센서 소비: `src/features/active-roast/lib/colors.ts` — `var(--color-…)` 로 참조.
+
+#### Chart visual grammar
+
+- 선 두께(px): BT `1.2`, ET/RoR/ET RoR `0.9`, 타겟 BT `0.8` 회색 실선, 제어 시리즈 `1.0`, 마킹 세로선 `0.6`, 제어 이벤트 세로선 `1.0`.
+- 이벤트 라벨: `[mm:ss] 이름 @ 온도`; 동일 시각은 소스 순서로 `14px`씩 위로 쌓고, 현재 보기 범위의 90%를 넘으면 앵커 왼쪽으로 배치.
+- `eventMarkerStyle`: `point`(포인트+곡선 라벨), `line`(세로선+가장자리 라벨), `both`(곡선 라벨+제어 차트까지 관통하는 세로선). 기본은 `both`.
 
 ### Shadows
 

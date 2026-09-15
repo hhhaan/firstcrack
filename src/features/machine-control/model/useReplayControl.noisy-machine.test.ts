@@ -53,6 +53,7 @@ const renderRig = async () => {
     setControl.mockImplementation(async (cmd) => ({ applied: cmd }) as Awaited<ReturnType<typeof sidecar.setControl>>);
 
     const root = createRoot(document.createElement('div'));
+    const committed = vi.fn();
     let latest!: { replay: ReturnType<typeof useReplayControl>; mc: ReturnType<typeof useMachineControl> };
     interface Inputs {
         feedback: MachineFeedback;
@@ -61,7 +62,7 @@ const renderRig = async () => {
         afterTurningPoint: boolean;
     }
     const Probe = ({ inputs }: { inputs: Inputs }) => {
-        const mc = useMachineControl(true, inputs.feedback);
+        const mc = useMachineControl(true, inputs.feedback, committed);
         const { setValue, commitNow } = mc;
         const writeHeater = useCallback(
             async (value: number) => {
@@ -101,6 +102,7 @@ const renderRig = async () => {
 
     return {
         get: () => latest,
+        committed,
         toggle: () => act(async () => latest.replay.toggle()),
         /** 1폴 = 1초 진행 — 기계가 보고한 실측 한 샘플을 먹인다 */
         poll: (s: Sample) => {
@@ -179,6 +181,7 @@ describe('read≠write 기계 프로파일 특성화', () => {
         // TP 확정 + BT 도달 → 다음 이벤트(40) 정상 발화
         await rig.poll({ heater: 60, liveBt: 111, afterTurningPoint: true });
         expect(heaterWrites()).toEqual([60, 40]);
+        expect(rig.committed.mock.calls.map(([cmd]) => cmd.heater)).toEqual([60, 40]);
         expect(rig.get().replay.active).toBe(true);
         rig.unmount();
     });

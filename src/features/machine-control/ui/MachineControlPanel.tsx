@@ -1,8 +1,8 @@
 import type { PidRuntime } from '@entities/machine';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useCallback, useState } from 'react';
-import type { ControlRole } from '../lib/controlSender';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ControlCommand, ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
@@ -41,6 +41,8 @@ interface Props {
     afterTurningPoint: boolean;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
+    /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
+    onHeaterCommitted?: (value: number, unit: string) => void;
 }
 
 /**
@@ -68,10 +70,21 @@ export const MachineControlPanel = ({
     roasting,
     afterTurningPoint,
     temperatureUnit,
+    onHeaterCommitted,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
+    const heaterUnitRef = useRef('%');
+    const handleCommitted = useCallback(
+        (committed: ControlCommand) => {
+            if (committed.heater !== undefined) onHeaterCommitted?.(committed.heater, heaterUnitRef.current);
+        },
+        [onHeaterCommitted],
+    );
     const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
-        useMachineControl(sidecarConnected, liveData);
+        useMachineControl(sidecarConnected, liveData, handleCommitted);
+    useEffect(() => {
+        heaterUnitRef.current = limits.heater?.unit ?? '%';
+    }, [limits.heater?.unit]);
     // PID 수명 훅(DROP 자동 해제 포함)은 표시 조건과 무관하게 이 컴포넌트에 산다.
     // PidControlPanel 안에 두면 아래 가드가 null을 반환하는 순간 — capability 일시
     // 실패 등 — 훅이 언마운트돼 배출 후에도 버너가 켜진 채 남는다(#269).

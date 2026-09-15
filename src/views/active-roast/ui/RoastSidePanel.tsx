@@ -1,4 +1,3 @@
-import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
@@ -228,7 +227,7 @@ export const RoastSidePanel = ({
                         </span>
                         <span
                             className="font-mono text-xl font-medium leading-tight"
-                            style={{ color: 'var(--color-event-fc-rolling)' }}
+                            style={{ color: PHASE_COLORS.development }}
                         >
                             {rollingDtrPct}%
                         </span>
@@ -239,7 +238,7 @@ export const RoastSidePanel = ({
                         </span>
                         <span
                             className="font-mono text-lg font-medium leading-tight"
-                            style={{ color: 'var(--color-event-fc-rolling)' }}
+                            style={{ color: PHASE_COLORS.development }}
                         >
                             {rollingDevTimeStr}
                         </span>
@@ -375,12 +374,7 @@ export const RoastSidePanel = ({
 
             <div className="border-t border-border-subtle" />
 
-            <RoastLog
-                variant="sidebar"
-                entries={roastLogDisplayEntries}
-                eventMarkerColor={EVENT_MARKER_COLORS}
-                onRemoveEntry={onRemoveLogEntry}
-            />
+            <RoastLog variant="sidebar" entries={roastLogDisplayEntries} onRemoveEntry={onRemoveLogEntry} />
         </div>
     );
 };

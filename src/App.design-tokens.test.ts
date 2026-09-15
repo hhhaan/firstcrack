@@ -84,11 +84,14 @@ describe('DESIGN.md ↔ App.css design tokens', () => {
         const { light, dark } = inventory(loadAppCss());
 
         expect(light['--color-sensor-bt']).toBe('oklch(0.6 0.18 155)');
+        expect(light['--color-sensor-bt-target']).toBe('oklch(0.55 0 0)');
+        expect(dark['--color-sensor-bt-target']).toBe('oklch(0.72 0 0)');
         expect(light['--color-phase-danger']).toBe('#dc2626');
         expect(dark['--color-phase-danger']).toBe('#ffffff');
         expect(dark['--color-divider']).toBe('#585d61');
         expect(light['--color-palette-yellow']).toBe('oklch(0.78 0.18 88)');
-        expect(light['--color-event-charge']).toBe('oklch(0.65 0.19 45)');
+        expect(light['--color-event-mark']).toBe('oklch(0.55 0 0)');
+        expect(dark['--color-event-control']).toBe('oklch(0.72 0.17 25)');
         expect(light['--color-control-drum']).toBe('oklch(0.62 0.16 165)');
 
         // Doc must carry the same effective strings (not stale hex substitutes)
@@ -97,7 +100,8 @@ describe('DESIGN.md ↔ App.css design tokens', () => {
         expect(designMd).toMatch(/--color-phase-danger[\s\S]*?#ffffff|--color-phase-danger.*#ffffff/);
         expect(designMd).toContain(dark['--color-divider']);
         expect(designMd).toContain(light['--color-palette-yellow']);
-        expect(designMd).toContain(light['--color-event-charge']);
+        expect(designMd).toContain(light['--color-event-mark']);
+        expect(designMd).toContain(dark['--color-event-control']);
         expect(designMd).toContain(light['--color-control-drum']);
 
         // Stale wrong values must not reappear as sensor light colors
@@ -105,6 +109,20 @@ describe('DESIGN.md ↔ App.css design tokens', () => {
         expect(designMd).not.toContain('#22a85a');
         expect(designMd).not.toContain('#4a85c5');
         expect(designMd).not.toContain('#e8a828');
+        for (const obsolete of [
+            '--color-event-charge',
+            '--color-event-yellow',
+            '--color-event-fc-start',
+            '--color-event-fc-rolling',
+            '--color-event-fc-end',
+            '--color-event-end',
+            '--color-event-note',
+            '--color-event-tp',
+            '--color-event-drop',
+        ]) {
+            expect(loadAppCss()).not.toContain(obsolete);
+            expect(designMd).not.toContain(obsolete);
+        }
     });
 
     it('documents philosophy + token source paths', () => {

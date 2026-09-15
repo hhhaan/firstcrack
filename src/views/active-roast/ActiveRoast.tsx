@@ -14,8 +14,7 @@ import {
     useRoastKeyboardShortcuts,
     useRoastSettings,
 } from '@features/active-roast';
-import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
-import { applyEventMarkerDrag } from '@features/active-roast/lib/event-marker-drag';
+import { applyEventMarkerDrag, nearestLivePointAt } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -507,10 +506,25 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [lifecycle, saveFlow.confirmEndRoast]);
 
     const handleEventMarkerDrag = useCallback(
-        (event: string, newTimeSec: number) => {
-            setLogEntries((prev) => applyEventMarkerDrag(prev, event, newTimeSec, livePoints, unit));
+        (logId: string, newTimeSec: number) => {
+            setLogEntries((prev) => applyEventMarkerDrag(prev, logId, newTimeSec, livePoints, unit, elapsed));
         },
-        [setLogEntries, livePoints, unit],
+        [setLogEntries, livePoints, unit, elapsed],
+    );
+
+    const handleChartNote = useCallback(
+        (body: string, timeSec: number) => {
+            markEvent('Note', body, undefined, { timeSec, tempC: nearestLivePointAt(livePoints, timeSec)?.bt ?? null });
+        },
+        [livePoints, markEvent],
+    );
+
+    const handleHeaterCommitted = useCallback(
+        (value: number, heaterUnit: string) => {
+            if (!Number.isFinite(value) || !charged || roastEnded || bbpActive) return;
+            markEvent('Heater', `${value}${heaterUnit}`);
+        },
+        [bbpActive, charged, markEvent, roastEnded],
     );
 
     const [noteInput, setNoteInput] = useState('');
@@ -619,7 +633,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         unit={unit}
                         targetProfileName={targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}
-                        onEventMarkerDrag={handleEventMarkerDrag}
+                        onEventMarkerDrag={charged && !roastEnded && !bbpActive ? handleEventMarkerDrag : undefined}
+                        onAddNote={charged && !roastEnded && !bbpActive ? handleChartNote : undefined}
                     />
 
                     {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}
@@ -641,6 +656,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         // #314: 120초 fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다
                         afterTurningPoint={confirmedTP !== null && !confirmedTP.fallback}
                         temperatureUnit={unit}
+                        onHeaterCommitted={handleHeaterCommitted}
                     />
 
                     <RoastSidePanel
@@ -690,7 +706,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             <RoastSummaryModal
                 open={saveFlow.flow.summaryModal}
                 summaryData={saveFlow.flow.summaryData}
-                eventMarkerColor={EVENT_MARKER_COLORS}
                 isSaving={saveFlow.isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}

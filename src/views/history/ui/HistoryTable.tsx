@@ -12,6 +12,7 @@ import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
+import { useThemeStore } from '@shared/store/theme';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
@@ -161,12 +162,14 @@ type ExpandedRowProps = {
 
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { t } = useTranslation();
-    const unit = useRoastSettings().temperatureUnit;
+    const { temperatureUnit: unit, eventMarkerStyle } = useRoastSettings();
+    const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
     const { xs, btActual, etActual, rorActual, isLoading, isError } = useHistoryChart(session.tsv_path ?? null);
-    const eventMarkers = useMemo(
-        () => storedEventsToMarkers(parseStoredRoastEvents(session.events), unit),
-        [session.events, unit],
-    );
+    const eventMarkers = useMemo(() => {
+        // Canvas colors are resolved from theme CSS at construction time.
+        void resolvedTheme;
+        return storedEventsToMarkers(parseStoredRoastEvents(session.events), unit);
+    }, [session.events, unit, resolvedTheme]);
 
     // 세션의 타깃 프로파일 커브 오버레이 (실측 TSV 우선, 없으면 synthetic)
     const { data: profiles = [] } = useRoastProfiles(session.user_id);
@@ -238,6 +241,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                                 rorActual={displayRor}
                                 btTarget={[]}
                                 currentTimeSec={0}
+                                eventMarkerStyle={eventMarkerStyle}
                                 eventMarkers={eventMarkers}
                                 showTargetCurve={targetXs.length > 0}
                                 targetXs={targetXs}

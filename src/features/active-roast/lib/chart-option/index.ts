@@ -12,7 +12,7 @@ import {
     computeTempYRange,
 } from './axes';
 import { buildMarkers } from './markers';
-import { buildControlSeries, buildPhaseSeries, buildTempSeries } from './series';
+import { buildContinuousMarkerSeries, buildControlSeries, buildPhaseSeries, buildTempSeries } from './series';
 import { createAxisTooltipFormatter } from './tooltip';
 import type { ChartOptionParams } from './types';
 
@@ -88,27 +88,34 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
 
     const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan);
-    const { usePointMarkers, allMarkLines, markPointData, fcMarkArea, controlGuideMarkLines, tempBottomBorderLine } =
-        buildMarkers({
-            charged,
-            currentTimeSec,
-            xMin,
-            xMax,
-            eventMarkerStyle,
-            eventMarkers,
-            turningPoints,
-            temperatureUnit,
-            unitLabel,
-            xs,
-            btActual,
-            colors,
-            tempYMin,
-            hasControlSeries,
-            showFcBand,
-            showTargetDeltaLabel,
-            targetXs,
-            targetBt,
-        });
+    const {
+        allMarkLines,
+        markPointData,
+        fcMarkArea,
+        controlGuideMarkLines,
+        continuousMarkerLines,
+        tempBottomBorderLine,
+    } = buildMarkers({
+        charged,
+        currentTimeSec,
+        xMin,
+        xMax,
+        eventMarkerStyle,
+        eventMarkers,
+        turningPoints,
+        temperatureUnit,
+        unitLabel,
+        xs,
+        btActual,
+        colors,
+        tempYMin,
+        tempYMax,
+        hasControlSeries,
+        showFcBand,
+        showTargetDeltaLabel,
+        targetXs,
+        targetBt,
+    });
 
     const hasRightYAxis = showRoR || hasControlSeries;
     const { leftMargin, rightMargin, topMargin } = computeGridMargins(hasRightYAxis);
@@ -126,7 +133,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showRoR,
         showRoRET,
         colors,
-        usePointMarkers,
         allMarkLines,
         markPointData,
         fcMarkArea,
@@ -137,6 +143,10 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const phaseSeries = hasPhaseBar
         ? buildPhaseSeries({ phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors })
         : null;
+    const continuousMarkerSeries =
+        eventMarkerStyle === 'both'
+            ? buildContinuousMarkerSeries(continuousMarkerLines, (tempYMin + tempYMax) / 2, hasControlSeries)
+            : null;
 
     if (hasControlSeries && controlData) {
         // Grid: [0] Temp/RoR (+ phase overlay) · [1] Drum/Heat/Fan
@@ -190,7 +200,12 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 axisPointer: tooltipCrossPointer,
                 formatter: formatAxisTooltip,
             },
-            series: [...tempSeries, ...controlSeries, ...(phaseSeries ? [phaseSeries] : [])],
+            series: [
+                ...tempSeries,
+                ...controlSeries,
+                ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
+                ...(phaseSeries ? [phaseSeries] : []),
+            ],
             // Zoom/pan owned by useChartZoom — ECharts dataZoom would steal drag/wheel
             dataZoom: [],
         };
@@ -230,6 +245,10 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         dataZoom: [],
         xAxis,
         yAxis,
-        series: [...tempSeries, ...(phaseSeries ? [phaseSeries] : [])],
+        series: [
+            ...tempSeries,
+            ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
+            ...(phaseSeries ? [phaseSeries] : []),
+        ],
     };
 };

@@ -165,6 +165,8 @@
                 "showFcBandDescription": "Shade the chart background from FC Start to FC End",
                 "eventMarkers": "Event Markers",
                 "eventMarkersDescription": "How Yellow, FC, Drop, and Turning Point are drawn on the temperature chart.",
+                "eventMarkerBoth": "Label and vertical line",
+                "eventMarkerBothDescription": "Label beside the BT curve with a vertical line through the control chart",
                 "eventMarkerPoint": "Point on curve",
                 "eventMarkerPointDescription": "Dot on the BT curve with a label box (event, time, temp)",
                 "eventMarkerLine": "Vertical line",

@@ -1,15 +1,14 @@
+import { eventMarkerCssColor, isControlEvent } from '@features/active-roast/lib/chart-config';
 import { STATUS_COLORS } from '@features/active-roast/lib/colors';
 import type { LogEntry } from '@shared/types/roast';
 import { X } from 'lucide-react';
 
 export const RoastLog = ({
     entries,
-    eventMarkerColor,
     variant,
     onRemoveEntry,
 }: {
     entries: LogEntry[];
-    eventMarkerColor: Record<string, string>;
     variant: 'sidebar' | 'main';
     onRemoveEntry?: (id: string) => void;
 }) => {
@@ -32,6 +31,11 @@ export const RoastLog = ({
             )}
             {entries.map((entry, i, arr) => {
                 const canRemove = entry.event === 'Note' && !!entry.id && !entry.current && !!onRemoveEntry;
+                const categoryTextColor = entry.current
+                    ? STATUS_COLORS.active
+                    : isControlEvent(entry.event)
+                      ? 'var(--color-event-control)'
+                      : 'var(--color-primary)';
 
                 return (
                     <div
@@ -70,9 +74,7 @@ export const RoastLog = ({
                                     width: isSidebar ? 6 : 7,
                                     height: isSidebar ? 6 : 7,
                                     borderRadius: '50%',
-                                    background: entry.current
-                                        ? STATUS_COLORS.active
-                                        : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
+                                    background: entry.current ? STATUS_COLORS.active : eventMarkerCssColor(entry.event),
                                     boxShadow: entry.current
                                         ? isSidebar
                                             ? `0 0 0 2px ${STATUS_COLORS.activeGlow}`
@@ -88,7 +90,7 @@ export const RoastLog = ({
                                     style={{
                                         fontSize: isSidebar ? 12 : 13,
                                         fontWeight: 500,
-                                        color: 'var(--color-primary)',
+                                        color: categoryTextColor,
                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
                                     }}
                                 >
@@ -98,7 +100,7 @@ export const RoastLog = ({
                                     style={{
                                         fontFamily: 'var(--font-mono)',
                                         fontSize: isSidebar ? 11 : 12,
-                                        color: 'var(--color-muted)',
+                                        color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
                                     }}
                                 >
                                     {entry.temp}
@@ -108,7 +110,7 @@ export const RoastLog = ({
                                 <div
                                     style={{
                                         fontSize: isSidebar ? 11 : 12,
-                                        color: 'var(--color-muted)',
+                                        color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
                                     }}
                                 >
