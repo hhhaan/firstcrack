@@ -49,8 +49,9 @@ export const ChartZoomSurface = ({
     return (
         <div
             ref={chartAreaRef}
-            className={`${className} ${cursor}`.trim()}
-            style={style}
+            tabIndex={-1}
+            className={`outline-none ${className} ${cursor}`.trim()}
+            style={{ outline: 'none', ...style }}
             onPointerDownCapture={handleChartPointerDown}
             onPointerMoveCapture={handleChartPointerMove}
             onPointerMove={(event) => {

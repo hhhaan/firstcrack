@@ -602,7 +602,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 ref={chartRef}
                 tabIndex={-1}
                 onContextMenu={handleContextMenu}
-                style={{ width: '100%', height: '100%' }}
+                className="outline-none"
+                style={{ width: '100%', height: '100%', outline: 'none' }}
             />
             {noteForm && (
                 <form
