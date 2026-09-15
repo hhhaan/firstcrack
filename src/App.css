@@ -65,7 +65,7 @@
 /* ── Sensor & chart tokens (light) ──────────────────────────── */
 :root {
     --color-sensor-bt: oklch(0.6 0.18 155);
-    --color-sensor-bt-target: oklch(0.6 0.18 155 / 0.55);
+    --color-sensor-bt-target: oklch(0.55 0 0);
     --color-sensor-et: oklch(0.6 0.17 225);
     --color-sensor-ror: oklch(0.78 0.18 88);
     --color-chart-grid: rgba(0, 0, 0, 0.08);
@@ -104,15 +104,8 @@
     --color-palette-lavender: oklch(0.64 0.14 275);
 
     /* Event marker colors (light) */
-    --color-event-charge: oklch(0.65 0.19 45);
-    --color-event-yellow: oklch(0.78 0.18 88);
-    --color-event-fc-start: oklch(0.6 0.17 225);
-    --color-event-fc-rolling: oklch(0.58 0.16 250);
-    --color-event-fc-end: oklch(0.58 0.18 280);
-    --color-event-end: oklch(0.58 0.15 275);
-    --color-event-note: oklch(0.62 0.16 165);
-    --color-event-tp: oklch(0.6 0.18 155);
-    --color-event-drop: oklch(0.64 0.14 275);
+    --color-event-mark: oklch(0.55 0 0);
+    --color-event-control: oklch(0.55 0.2 25);
 
     /* Control chart colors (light) */
     --color-control-drum: oklch(0.62 0.16 165);
@@ -154,7 +147,7 @@ html.dark {
 
     /* Sensor & chart tokens (dark) */
     --color-sensor-bt: #4be08c;
-    --color-sensor-bt-target: rgba(75, 224, 140, 0.65);
+    --color-sensor-bt-target: oklch(0.72 0 0);
     --color-sensor-et: #beacf8;
     --color-sensor-ror: #ffff54;
     --color-chart-grid: rgba(255, 255, 255, 0.1);
@@ -193,15 +186,8 @@ html.dark {
     --color-palette-lavender: #a6b0ff;
 
     /* Event marker colors (dark) */
-    --color-event-charge: #fb923c;
-    --color-event-yellow: #ffff54;
-    --color-event-fc-start: #44bffc;
-    --color-event-fc-rolling: #5a9ef5;
-    --color-event-fc-end: #756afc;
-    --color-event-end: #8080f0;
-    --color-event-note: #72ebbc;
-    --color-event-tp: #81fba5;
-    --color-event-drop: #a6b0ff;
+    --color-event-mark: oklch(0.72 0 0);
+    --color-event-control: oklch(0.72 0.17 25);
 
     /* Control chart colors (dark) */
     --color-control-drum: #72ebbc;

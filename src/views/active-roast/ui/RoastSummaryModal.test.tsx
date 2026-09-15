@@ -52,7 +52,6 @@ const handoff: PlanBatchHandoff = {
 const baseProps = {
     open: true,
     summaryData,
-    eventMarkerColor: {},
     onClose: () => {},
     onDiscard: () => {},
     onSave: async () => {},

@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import type { LogEntry } from '@shared/types/roast';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
-import { calcDelta, calcTargetDelta } from './display-derivatives';
+import { buildEventMarkers, calcDelta, calcTargetDelta } from './display-derivatives';
 
 // 0s:200° → 60s:180° 직선 타겟
 const target = [
@@ -81,5 +82,52 @@ describe('calcTargetDelta', () => {
     it('returns null without BT or target curve', () => {
         expect(calcTargetDelta(null, target, 30, 'C')).toBeNull();
         expect(calcTargetDelta(190, [], 30, 'C')).toBeNull();
+    });
+});
+
+describe('buildEventMarkers', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('carries Note/Heater identity, body, and raw BT while excluding TP/unknown/Now', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
+        const entries: LogEntry[] = [
+            { id: 'note', time: '1:00', timeSec: 60, event: 'Note', temp: '160.0°C', tempC: 160, note: 'aroma' },
+            {
+                id: 'heater',
+                time: '2:00',
+                timeSec: 120,
+                event: 'Heater',
+                temp: '180.0°C',
+                tempC: 180,
+                note: '50%',
+            },
+            { id: 'tp', time: '0:30', timeSec: 30, event: 'TP', temp: '90.0°C', tempC: 90, note: '' },
+            { id: 'unknown', time: '3:00', timeSec: 180, event: 'Unknown', temp: '', note: '' },
+            { time: '3:01', timeSec: 181, event: 'Now', temp: '', note: '', current: true },
+        ];
+
+        expect(buildEventMarkers(entries)).toEqual([
+            {
+                logId: 'note',
+                timeSec: 60,
+                event: 'Note',
+                color: '#abc',
+                timeStr: '1:00',
+                temp: '160.0°C',
+                tempC: 160,
+                note: 'aroma',
+            },
+            {
+                logId: 'heater',
+                timeSec: 120,
+                event: 'Heater',
+                color: '#abc',
+                timeStr: '2:00',
+                temp: '180.0°C',
+                tempC: 180,
+                note: '50%',
+            },
+        ]);
     });
 });

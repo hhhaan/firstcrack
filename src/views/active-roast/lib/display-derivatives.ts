@@ -102,7 +102,16 @@ export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
         .filter((e) => isChartEventMarker(e.event))
         .map((e) => {
             const timeSec = Math.max(0, logEntryTimeSec(e));
-            return { timeSec, event: e.event, color: getResolvedEventColor(e.event), timeStr: e.time, temp: e.temp };
+            return {
+                logId: e.id,
+                timeSec,
+                event: e.event,
+                color: getResolvedEventColor(e.event),
+                timeStr: e.time,
+                temp: e.temp,
+                tempC: e.tempC,
+                note: e.note,
+            };
         });
 
 export interface RoastLogDisplayEntry extends LogEntry {

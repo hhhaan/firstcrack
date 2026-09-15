@@ -14,4 +14,11 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
     it('접힌 레일에 미반영 경고를 남긴다', () => {
         expect(panelSrc).toMatch(/collapsed && anyUnacknowledged/);
     });
+
+    it('수동·Replay 공용 commit 경로에서 0을 포함한 heater 값을 알린다', () => {
+        expect(panelSrc).toMatch(/committed\.heater !== undefined/);
+        expect(panelSrc).toMatch(/useMachineControl\(sidecarConnected, liveData, handleCommitted\)/);
+        expect(panelSrc).toMatch(/heaterUnitRef\.current = limits\.heater\?\.unit \?\? '%'/);
+        expect(panelSrc).toMatch(/onHeaterCommitted\?\.\(committed\.heater, heaterUnitRef\.current\)/);
+    });
 });

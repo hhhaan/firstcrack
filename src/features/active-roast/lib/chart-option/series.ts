@@ -1,5 +1,6 @@
 import type { PhaseSegment, TemperatureUnit } from '@features/active-roast';
 import {
+    CONTROL_GRID_BOTTOM,
     PHASE_BAR_FONT_FAMILY,
     PHASE_BAR_FONT_SIZE,
     PHASE_BAR_FONT_SIZE_NARROW,
@@ -13,6 +14,7 @@ import {
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
+import { type CurveLabelItem, layoutCurveLabelBoxes, MARKER_LABEL_MAX_WIDTH_PX } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
 // 커피 로스팅 차트에 최적화된 스무딩 설정
@@ -45,7 +47,6 @@ export interface TempSeriesParams {
     showRoR: boolean;
     showRoRET: boolean;
     colors: ResolvedChartColors;
-    usePointMarkers: boolean;
     allMarkLines: object[];
     markPointData: object[];
     fcMarkArea: object | null;
@@ -66,7 +67,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
         showRoR,
         showRoRET,
         colors,
-        usePointMarkers,
         allMarkLines,
         markPointData,
         fcMarkArea,
@@ -83,7 +83,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 yAxisIndex: 0,
                 z: 1,
                 data: targetXs.map((x, i) => [x, targetBt[i] ?? null]),
-                lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
+                lineStyle: { color: colors.btTarget, width: 0.8, type: 'solid' },
                 ...lineSeriesBase,
                 smooth: false,
             },
@@ -94,13 +94,13 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             yAxisIndex: 0,
             z: 2,
             data: xs.map((x, i) => [x, btActual[i]]),
-            lineStyle: { color: colors.btActual, width: 2 },
+            lineStyle: { color: colors.btActual, width: 1.2 },
             ...lineSeriesBase,
             ...getSmoothConfig(0.4),
             markLine:
                 allMarkLines.length > 0 || tempBottomBorderLine
                     ? {
-                          silent: usePointMarkers,
+                          silent: true,
                           symbol: ['none', 'none'],
                           symbolSize: 0,
                           data: tempBottomBorderLine ? [tempBottomBorderLine, ...allMarkLines] : allMarkLines,
@@ -123,7 +123,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             yAxisIndex: 0,
             z: 2,
             data: xs.map((x, i) => [x, etActual[i]]),
-            lineStyle: { color: colors.etActual, width: 1.6 },
+            lineStyle: { color: colors.etActual, width: 0.9 },
             ...lineSeriesBase,
             ...getSmoothConfig(0.35),
         },
@@ -133,7 +133,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             xAxisIndex: 0,
             yAxisIndex: 1,
             data: xs.map((x, i) => [x, rorActual[i]]),
-            lineStyle: { color: colors.rorActual, width: 1.3 },
+            lineStyle: { color: colors.rorActual, width: 0.9 },
             ...lineSeriesBase,
             ...getSmoothConfig(0.25),
         },
@@ -144,7 +144,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 xAxisIndex: 0,
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-                lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
+                lineStyle: { color: colors.etActual, width: 0.9, type: 'dashed' },
                 ...lineSeriesBase,
                 ...getSmoothConfig(0.25),
             },
@@ -173,18 +173,9 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: 2,
             data: cxs.map((x, i) => [x, drumTemp[i]]),
-            lineStyle: { color: colors.controlDrum, width: 1.5 },
+            lineStyle: { color: colors.controlDrum, width: 1 },
             ...lineSeriesBase,
             smooth: 0.3,
-            markLine:
-                controlGuideMarkLines.length > 0
-                    ? {
-                          silent: true,
-                          symbol: ['none', 'none'] as [string, string],
-                          symbolSize: 0,
-                          data: controlGuideMarkLines,
-                      }
-                    : undefined,
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다
@@ -210,7 +201,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: 3,
             data: cxs.map((x, i) => [x, heatPower[i]]),
-            lineStyle: { color: colors.controlHeat, width: 1.5 },
+            lineStyle: { color: colors.controlHeat, width: 1 },
             ...lineSeriesBase,
             step: 'end' as const,
             smooth: false,
@@ -224,14 +215,121 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: 3,
             data: cxs.map((x, i) => [x, fanSpeed[i]]),
-            lineStyle: { color: colors.controlFan, width: 1.5 },
+            lineStyle: { color: colors.controlFan, width: 1 },
             ...lineSeriesBase,
             step: 'end' as const,
             smooth: false,
         });
     }
+    const guideOwner = series.find((item) => ['Drum', 'Heat', 'Fan'].includes((item as { name: string }).name));
+    if (guideOwner && controlGuideMarkLines.length > 0) {
+        Object.assign(guideOwner, {
+            markLine: {
+                silent: true,
+                symbol: ['none', 'none'] as [string, string],
+                symbolSize: 0,
+                data: controlGuideMarkLines,
+            },
+        });
+    }
     return series;
 };
+
+export const buildContinuousMarkerSeries = (
+    lines: { timeSec: number; color: string; width: number }[],
+    tempYMid: number,
+    hasControlSeries: boolean,
+) => ({
+    id: 'event-marker-lines',
+    name: 'Event marker lines',
+    type: 'custom' as const,
+    xAxisIndex: 0,
+    yAxisIndex: 0,
+    clip: false,
+    silent: true,
+    z: 3,
+    // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
+    renderItem: (params: any, api: any) => {
+        const x = api.coord([api.value(0), tempYMid])[0] as number;
+        const { x: plotX, y: plotY, width: plotWidth, height: plotHeight } = params.coordSys;
+        if (!Number.isFinite(x) || x < plotX || x > plotX + plotWidth) return;
+        return {
+            type: 'line',
+            shape: {
+                x1: x,
+                y1: plotY,
+                x2: x,
+                y2: hasControlSeries ? api.getHeight() - CONTROL_GRID_BOTTOM : plotY + plotHeight,
+            },
+            style: { stroke: api.value(1), lineWidth: api.value(2) },
+            silent: true,
+        };
+    },
+    data: lines.map(({ timeSec, color, width }) => [timeSec, color, width]),
+});
+
+/** BT 축 위에 이벤트 라벨. 한 번에 배치해서 박스가 겹치면 위/아래로 밀어낸다. */
+export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
+    id: 'event-curve-labels',
+    name: 'Event curve labels',
+    type: 'custom' as const,
+    xAxisIndex: 0,
+    yAxisIndex: 0,
+    clip: false,
+    silent: true,
+    z: 10,
+    tooltip: { show: false },
+    // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
+    renderItem: (params: any, api: any) => {
+        if (params.dataIndex !== 0) return;
+        const { x: plotX, width: plotWidth } = params.coordSys;
+        const laid = layoutCurveLabelBoxes(
+            items.flatMap((item) => {
+                const point = api.coord([item.timeSec, item.y]) as number[];
+                if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) return [];
+                if (point[0] < plotX || point[0] > plotX + plotWidth) return [];
+                return [
+                    {
+                        timeSec: item.timeSec,
+                        xPx: point[0],
+                        yPx: point[1],
+                        text: item.text,
+                        below: item.below,
+                        color: item.color,
+                        showDot: item.showDot,
+                    },
+                ];
+            }),
+        );
+        // biome-ignore lint/suspicious/noExplicitAny: ECharts graphic children
+        const children: any[] = [];
+        for (const box of laid) {
+            if (box.showDot) {
+                children.push({
+                    type: 'circle',
+                    shape: { cx: box.anchorX, cy: box.anchorY, r: 2.5 },
+                    style: { fill: box.color, stroke: box.color, lineWidth: 1 },
+                });
+            }
+            children.push({
+                type: 'text',
+                x: box.x,
+                y: box.textY,
+                style: {
+                    text: box.text,
+                    fill: box.color,
+                    font: '600 10px monospace',
+                    textAlign: 'center',
+                    textVerticalAlign: box.below ? 'top' : 'bottom',
+                    width: MARKER_LABEL_MAX_WIDTH_PX,
+                    overflow: 'truncate',
+                },
+            });
+        }
+        return { type: 'group', children };
+    },
+    data: [[0]],
+});
 
 export interface PhaseSeriesParams {
     phaseSegments: PhaseSegment[];

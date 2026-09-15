@@ -21,6 +21,8 @@ export const settledRoles = (
 
 interface Options {
     send: (cmd: ControlCommand) => Promise<ControlCommand>;
+    /** 사용자가 전송을 확정한 값. 전송 성공 여부와 무관하게 commit당 한 번 호출한다. */
+    onCommitted?: (committed: ControlCommand) => void;
     /** 전송 성공 시 사이드카가 범위로 자른 실제 값 */
     onApplied?: (applied: ControlCommand) => void;
     onError?: (err: unknown) => void;
@@ -38,13 +40,14 @@ interface Options {
  * 두었다가 끝난 뒤 한 번 더 보낸다. 동시에 보내면 PLC 도착 순서가 뒤집혀 히터가
  * 사용자가 마지막으로 지시한 값이 아닌 옛 값에 머무를 수 있다.
  */
-export const createControlSender = ({ send, onApplied, onError, onSendingChange }: Options) => {
+export const createControlSender = ({ send, onCommitted, onApplied, onError, onSendingChange }: Options) => {
     // draft(드래그 중인 값)와 committed(손을 떼 전송이 확정된 값)를 분리한다.
     // 한 큐로 겸하면, A 전송 중 드래그로 쌓인 중간값을 A 응답의 finally가
     // 커밋 없이 자동 전송해 "손 뗄 때만 전송" 계약이 깨진다(#269).
     let draft: ControlCommand = {};
     let committed: ControlCommand = {};
     let inFlight = false;
+    let committedListener = onCommitted;
     // dispose 세대 — 폐기 이후에 도착한 응답의 콜백을 무시한다. 그러지 않으면
     // 연결이 끊겨 상태를 비운 뒤에 늦게 온 응답이 옛 setpoint를 되살린다.
     let generation = 0;
@@ -87,14 +90,20 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
         },
         /** 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송 */
         commitNow(): Promise<ControlCommand | null> {
-            committed = { ...committed, ...draft };
+            const snapshot = draft;
             draft = {};
+            if (Object.keys(snapshot).length === 0) return flush();
+            committedListener?.(snapshot);
+            committed = { ...committed, ...snapshot };
             return flush();
         },
         dispose(): void {
             draft = {};
             committed = {};
             generation += 1; // 진행 중인 요청의 콜백을 무효화한다
+        },
+        setOnCommitted(callback?: (command: ControlCommand) => void): void {
+            committedListener = callback;
         },
     };
 };

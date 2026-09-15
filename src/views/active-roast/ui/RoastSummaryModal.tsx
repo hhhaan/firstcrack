@@ -1,6 +1,7 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useDayBatches } from '@entities/plan';
+import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import {
     buildRoastSummarySchema,
     MAX_BATCH_WEIGHT_KG,
@@ -30,7 +31,6 @@ export type { RoastSummaryData };
 interface RoastSummaryModalProps {
     open: boolean;
     summaryData: RoastSummaryData | null;
-    eventMarkerColor: Record<string, string>;
     onClose: () => void;
     onDiscard: () => void;
     onSave: (data: RoastSummaryForm) => Promise<void>;
@@ -64,7 +64,6 @@ const sectionLabelClass = 'text-[11px] font-semibold text-muted uppercase tracki
 export const RoastSummaryModal = ({
     open,
     summaryData,
-    eventMarkerColor,
     onClose,
     onDiscard,
     onSave,
@@ -278,19 +277,14 @@ export const RoastSummaryModal = ({
                     <div className={sectionLabelClass}>{t('activeRoast.summary.log')}</div>
                     <div className="flex flex-wrap gap-y-1">
                         {summaryData.logEntries
-                            .filter(
-                                (entry) =>
-                                    eventMarkerColor[entry.event] ||
-                                    entry.event === 'Charge' ||
-                                    entry.event === 'Turning Point',
-                            )
+                            .filter((entry) => isChartEventMarker(entry.event) || entry.event === 'Turning Point')
                             .map((entry, index, entries) => (
                                 <div key={`${entry.time}-${entry.event}-${index}`} className="flex items-center gap-1">
                                     <span className="text-[11px] font-(--font-mono) text-muted">{entry.time}</span>
                                     <span
                                         className="text-[11px] font-medium"
                                         style={{
-                                            color: eventMarkerColor[entry.event] ?? 'var(--color-secondary)',
+                                            color: eventMarkerCssColor(entry.event),
                                         }}
                                     >
                                         {entry.event}

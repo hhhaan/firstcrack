@@ -28,4 +28,32 @@ describe('buildCompareChartOption display unit', () => {
         expect(bt?.data[0]?.[1]).toBe(toDisplayTemp(200, 'F'));
         expect(ror?.data[0]?.[1]).toBe(toDisplayRoR(10, 'F'));
     });
+
+    it('keeps session curve colors while resolving read-only marker categories', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({
+            getPropertyValue: (token: string) =>
+                token === '--color-event-control' ? '#red' : token === '--color-event-mark' ? '#gray' : '',
+        }));
+
+        const option = buildCompareChartOption(
+            [
+                {
+                    ...series[0],
+                    markers: [
+                        { timeSec: 0, event: 'Note' },
+                        { timeSec: 0, event: 'Heater' },
+                    ],
+                },
+            ],
+            false,
+            { start: 0, end: 60 },
+        );
+        const [bt] = option.series as {
+            lineStyle: { color: string };
+            markPoint: { data: { itemStyle: { color: string } }[] };
+        }[];
+        expect(bt.lineStyle.color).toBe('#000');
+        expect(bt.markPoint.data.map((marker) => marker.itemStyle.color)).toEqual(['#gray', '#red']);
+    });
 });

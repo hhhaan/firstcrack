@@ -9,8 +9,8 @@ const STORE_KEY = 'roast.settings';
 export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
 export type TemperatureUnit = 'C' | 'F';
-/** line = vertical markLine | point = curve markPoint + label box */
-export type EventMarkerStyle = 'line' | 'point';
+/** line = vertical line | point = curve label | both = curve label + full-height line */
+export type EventMarkerStyle = 'line' | 'point' | 'both';
 
 export type RoastSettings = {
     pollIntervalMs: PollIntervalMs;
@@ -102,7 +102,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     controlYMax: 100,
     showPhaseBar: true,
     showFcBand: true,
-    eventMarkerStyle: 'point',
+    eventMarkerStyle: 'both',
     tempMinC: 130,
     tempMaxC: 240,
     rorYMin: -5,
@@ -138,7 +138,8 @@ const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
-const isEventMarkerStyle = (value: unknown): value is EventMarkerStyle => value === 'line' || value === 'point';
+const isEventMarkerStyle = (value: unknown): value is EventMarkerStyle =>
+    value === 'line' || value === 'point' || value === 'both';
 
 const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
     if (ms === 250) return 500;

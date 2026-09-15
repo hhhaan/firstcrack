@@ -57,6 +57,81 @@ describe('serializeRoastEvents', () => {
         ];
         expect(serializeRoastEvents(entries).map((e) => e.type)).toEqual(['Charge', 'Yellow']);
     });
+
+    it('round-trips Note identity, moved time, Celsius/body, and Heater target', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
+        const entries: LogEntry[] = [
+            {
+                id: 'note-a',
+                time: '1:30',
+                timeSec: 90,
+                event: 'Note',
+                temp: '320.0°F',
+                tempC: 160,
+                note: 'check aroma',
+            },
+            {
+                id: 'heater-a',
+                time: '2:00',
+                timeSec: 120,
+                event: 'Heater',
+                temp: '329.0°F',
+                tempC: 165,
+                note: '50%',
+            },
+            { time: '2:01', event: 'Now', temp: '', note: '', current: true },
+        ];
+
+        const stored = parseStoredRoastEvents(JSON.parse(JSON.stringify(serializeRoastEvents(entries))));
+        expect(stored).toEqual([
+            { id: 'note-a', type: 'Note', time_sec: 90, temp_c: 160, note: 'check aroma' },
+            { id: 'heater-a', type: 'Heater', time_sec: 120, temp_c: 165, note: '50%' },
+        ]);
+        expect(storedEventsToLogEntries(stored, 'F')).toEqual([
+            {
+                id: 'note-a',
+                time: '1:30',
+                timeSec: 90,
+                event: 'Note',
+                temp: '320°F',
+                tempC: 160,
+                note: 'check aroma',
+            },
+            {
+                id: 'heater-a',
+                time: '2:00',
+                timeSec: 120,
+                event: 'Heater',
+                temp: '329°F',
+                tempC: 165,
+                note: '50%',
+            },
+        ]);
+        expect(storedEventsToMarkers(stored, 'F')).toEqual([
+            {
+                logId: 'note-a',
+                timeSec: 90,
+                event: 'Note',
+                color: '#abc',
+                timeStr: '1:30',
+                temp: '320',
+                tempC: 160,
+                note: 'check aroma',
+            },
+            {
+                logId: 'heater-a',
+                timeSec: 120,
+                event: 'Heater',
+                color: '#abc',
+                timeStr: '2:00',
+                temp: '329',
+                tempC: 165,
+                note: '50%',
+            },
+        ]);
+        vi.unstubAllGlobals();
+    });
 });
 
 describe('logEntryTimeSec', () => {
@@ -133,7 +208,7 @@ describe('storedEventsToLogEntries', () => {
 });
 
 describe('storedEventsToMarkers', () => {
-    it('filters TP and Note like live markers', () => {
+    it('includes Note/Heater data while filtering TP and unknown events', () => {
         // getResolvedEventColor reads CSS vars via getComputedStyle
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
@@ -143,10 +218,14 @@ describe('storedEventsToMarkers', () => {
             { id: '2', type: 'TP', time_sec: 60 },
             { id: '3', type: 'Note', time_sec: 90, note: 'hi' },
             { id: '4', type: 'Drop', time_sec: 600, temp_c: 210 },
+            { id: '5', type: 'Heater', time_sec: 610, temp_c: 211, note: '40%' },
+            { id: '6', type: 'Unknown', time_sec: 620 },
+            { id: '7', type: 'Now', time_sec: 630 },
         ]);
-        expect(markers.map((m) => m.event)).toEqual(['Charge', 'Drop']);
-        expect(markers[1].temp).toBe('210');
-        expect(markers[1].timeStr).toBe('10:00');
+        expect(markers.map((m) => m.event)).toEqual(['Charge', 'Note', 'Drop', 'Heater']);
+        expect(markers[1]).toMatchObject({ logId: '3', note: 'hi', tempC: null });
+        expect(markers[2]).toMatchObject({ temp: '210', tempC: 210, timeStr: '10:00' });
+        expect(markers[3]).toMatchObject({ logId: '5', note: '40%', tempC: 211 });
         expect(markers[0].color).toBe('#abc');
 
         const fMarkers = storedEventsToMarkers([{ id: '4', type: 'Drop', time_sec: 600, temp_c: 210 }], 'F');

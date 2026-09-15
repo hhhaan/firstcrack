@@ -18,7 +18,7 @@ export const ChartLegend = ({
         ...(showET ? [{ color: SENSOR_COLORS.et, label: 'ET' }] : []),
         ...(showRoR ? [{ color: SENSOR_COLORS.ror, label: 'RoR' }] : []),
         ...(showRoRET ? [{ color: SENSOR_COLORS.et, label: 'ET RoR', dashed: true }] : []),
-        ...(showTarget ? [{ color: SENSOR_COLORS.btTarget, label: targetLabel, dashed: true }] : []),
+        ...(showTarget ? [{ color: SENSOR_COLORS.btTarget, label: targetLabel }] : []),
     ];
 
     return (

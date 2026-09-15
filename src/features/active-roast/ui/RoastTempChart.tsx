@@ -12,10 +12,18 @@ import {
     type ControlData,
     type RoastEventMarker,
 } from '@features/active-roast/lib/chart-option';
+import {
+    eventLabelText,
+    LABEL_BELOW_EVENTS,
+    layoutCurveLabelBoxes,
+    nearestBtAt,
+} from '@features/active-roast/lib/chart-option/markers';
+import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { formatElapsed } from '@shared/lib/format';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
 import type React from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 
 export type { RoastEventMarker };
 
@@ -33,7 +41,9 @@ interface Props {
     temperatureUnit?: TemperatureUnit;
     height: number;
     onCursorIdx?: (idx: number | null) => void;
-    onEventMarkerDrag?: (event: string, newTimeSec: number) => void;
+    onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
+    onEventMarkerEdit?: (logId: string, patch: { timeSec?: number; note?: string }) => void;
+    onAddNote?: (body: string, timeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
     showTargetDeltaLabel?: boolean;
@@ -59,57 +69,97 @@ interface Props {
     xViewMax?: number;
 }
 
-export const RoastTempChart: React.FC<Props> = ({
-    xs,
-    btTarget,
-    btActual,
-    etActual,
-    rorActual,
-    currentTimeSec,
-    charged = false,
-    eventMarkerStyle = 'point',
-    eventMarkers,
-    turningPoints = [],
-    temperatureUnit = 'C',
-    height,
-    onCursorIdx,
-    onEventMarkerDrag,
-    showET = true,
-    showTargetCurve = true,
-    showTargetDeltaLabel = false,
-    targetXs,
-    targetBt,
-    showRoR = true,
-    showRoRET = false,
-    rorEtActual = [],
-    controlData,
-    showControlDrum = true,
-    showControlHeat = true,
-    showControlFan = true,
-    controlChartHeightPct = 21,
-    controlYMin = 0,
-    controlYMax = 100,
-    phaseSegments = [],
-    showFcBand = true,
-    tempMinC = TEMP_Y_MIN_C,
-    tempMaxC = TEMP_Y_MAX_C,
-    rorYMin = ROR_Y_MIN,
-    rorYMax = ROR_Y_MAX,
-    xViewMin,
-    xViewMax,
-}) => {
+export interface RoastTempChartHandle {
+    beginMarkerDrag: (event: Pick<PointerEvent, 'button' | 'clientX' | 'clientY' | 'pointerId'>) => boolean;
+    moveMarkerDrag: (event: Pick<PointerEvent, 'clientX' | 'clientY' | 'pointerId'>) => boolean;
+    endMarkerDrag: (pointerId: number) => boolean;
+    hitTestMarker: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
+    openMarkerEdit: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
+}
+
+const scalar = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+const parseEditTimeSec = (raw: string): number | null => {
+    const t = raw.trim();
+    if (!t) return null;
+    if (t.includes(':')) {
+        const [m, s] = t.split(':').map(Number);
+        if (!Number.isFinite(m) || !Number.isFinite(s)) return null;
+        return Math.max(0, Math.round(m * 60 + s));
+    }
+    const sec = Number(t);
+    return Number.isFinite(sec) ? Math.max(0, Math.round(sec)) : null;
+};
+
+const parseHeaterNote = (note: string): { value: string; unit: string } => {
+    const match = note.trim().match(/^(-?\d+(?:\.\d+)?)(.*)$/);
+    return match ? { value: match[1], unit: match[2] || '%' } : { value: '', unit: '%' };
+};
+
+export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function RoastTempChart(
+    {
+        xs,
+        btTarget,
+        btActual,
+        etActual,
+        rorActual,
+        currentTimeSec,
+        charged = false,
+        eventMarkerStyle = 'both',
+        eventMarkers,
+        turningPoints = [],
+        temperatureUnit = 'C',
+        height,
+        onCursorIdx,
+        onEventMarkerDrag,
+        onEventMarkerEdit,
+        onAddNote,
+        showET = true,
+        showTargetCurve = true,
+        showTargetDeltaLabel = false,
+        targetXs,
+        targetBt,
+        showRoR = true,
+        showRoRET = false,
+        rorEtActual = [],
+        controlData,
+        showControlDrum = true,
+        showControlHeat = true,
+        showControlFan = true,
+        controlChartHeightPct = 21,
+        controlYMin = 0,
+        controlYMax = 100,
+        phaseSegments = [],
+        showFcBand = true,
+        tempMinC = TEMP_Y_MIN_C,
+        tempMaxC = TEMP_Y_MAX_C,
+        rorYMin = ROR_Y_MIN,
+        rorYMax = ROR_Y_MAX,
+        xViewMin,
+        xViewMax,
+    },
+    ref,
+) {
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
 
-    const dragStateRef = useRef<{
-        active: boolean;
-        eventName: string;
-        startX: number;
-        startTimeSec: number;
-    } | null>(null);
+    const dragStateRef = useRef<{ pointerId: number; logId: string; timeSec: number } | null>(null);
     const PIXEL_THRESHOLD = 10;
     const lastChartSizeRef = useRef({ w: 0, h: 0 });
+    const [noteForm, setNoteForm] = useState<{ x: number; y: number; timeSec: number } | null>(null);
+    const [noteBody, setNoteBody] = useState('');
+    const noteFormRef = useRef<HTMLFormElement>(null);
+    const [editForm, setEditForm] = useState<{
+        logId: string;
+        event: string;
+        x: number;
+        y: number;
+        time: string;
+        note: string;
+        heaterUnit: string;
+    } | null>(null);
+    const editFormRef = useRef<HTMLFormElement>(null);
 
     useEffect((): (() => void) | undefined => {
         const container = chartRef.current;
@@ -220,129 +270,442 @@ export const RoastTempChart: React.FC<Props> = ({
         ],
     );
 
-    const prevHasControlData = useRef(!!controlData);
-    const prevHasHeatSet = useRef(!!controlData?.heatSet?.some((value) => value != null));
-    const prevHasPhaseBar = useRef(phaseSegments.length > 0);
-    const prevHasTargetData = useRef(!!(targetXs?.length && targetBt?.length));
-    const prevEventMarkerStyle = useRef(eventMarkerStyle);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
+    const structureKey = [
+        charged,
+        eventMarkerStyle,
+        eventMarkers.length,
+        turningPoints.length,
+        showET,
+        showTargetCurve,
+        showTargetDeltaLabel,
+        showRoR,
+        showRoRET,
+        !!controlData,
+        !!controlData?.heatSet?.some((value) => value != null),
+        showControlDrum,
+        showControlHeat,
+        showControlFan,
+        phaseSegments.length > 0,
+        showFcBand,
+        !!(targetXs?.length && targetBt?.length),
+    ].join('|');
+    const prevStructureKey = useRef(structureKey);
     useEffect(() => {
         const chart = chartInstanceRef.current;
         if (!chart) return;
-        const hasPhaseBar = phaseSegments.length > 0;
-        const hasHeatSet = !!controlData?.heatSet?.some((value) => value != null);
-        const hasTargetData = !!(targetXs?.length && targetBt?.length);
-        const structureChanged =
-            prevHasControlData.current !== !!controlData ||
-            prevHasHeatSet.current !== hasHeatSet ||
-            prevHasPhaseBar.current !== hasPhaseBar ||
-            prevHasTargetData.current !== hasTargetData ||
-            prevEventMarkerStyle.current !== eventMarkerStyle;
-        prevHasControlData.current = !!controlData;
-        prevHasHeatSet.current = hasHeatSet;
-        prevHasPhaseBar.current = hasPhaseBar;
-        prevHasTargetData.current = hasTargetData;
-        prevEventMarkerStyle.current = eventMarkerStyle;
+        const structureChanged = prevStructureKey.current !== structureKey;
+        prevStructureKey.current = structureKey;
         chart.setOption(option, { notMerge: structureChanged, lazyUpdate: !structureChanged });
-    }, [option]);
+    }, [option, structureKey]);
 
     useEffect(() => {
         const chart = chartInstanceRef.current;
         if (!chart || !onCursorIdx) return;
+        const zr = chart.getZr();
 
         // biome-ignore lint/suspicious/noExplicitAny: ECharts event payload is loosely typed
         const handleMouseMove = (e: any) => {
-            const pixel: [number, number] = [e.offsetX, e.offsetY];
-            const point = chart.convertFromPixel({ xAxisIndex: 0 }, pixel);
-            if (point && xs.length) {
-                const idx = xs.reduce(
-                    (prev, curr, i) => (Math.abs(curr - point[0]) < Math.abs(xs[prev] - point[0]) ? i : prev),
-                    0,
-                );
-                onCursorIdx(idx);
+            const x = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, e.offsetX));
+            if (x != null && xs.length && chart.containPixel({ gridIndex: 0 }, [e.offsetX, e.offsetY])) {
+                let nearestIdx = -1;
+                let nearestDistance = Infinity;
+                xs.forEach((value, index) => {
+                    const distance = Math.abs(value - x);
+                    if (Number.isFinite(distance) && distance < nearestDistance) {
+                        nearestIdx = index;
+                        nearestDistance = distance;
+                    }
+                });
+                onCursorIdx(nearestIdx >= 0 ? nearestIdx : null);
+            } else {
+                onCursorIdx(null);
             }
         };
 
-        chart.on('mousemove', handleMouseMove);
+        zr.on('mousemove', handleMouseMove);
         const handleGlobalOut = () => onCursorIdx(null);
-        chart.on('globalout', handleGlobalOut);
+        zr.on('globalout', handleGlobalOut);
         return () => {
-            chart.off('mousemove', handleMouseMove);
-            chart.off('globalout', handleGlobalOut);
+            zr.off('mousemove', handleMouseMove);
+            zr.off('globalout', handleGlobalOut);
         };
     }, [xs, onCursorIdx]);
 
-    useEffect(() => {
-        const chart = chartInstanceRef.current;
-        if (!chart || !onEventMarkerDrag) return;
+    const localPoint = useCallback((clientX: number, clientY: number) => {
+        const rect = chartRef.current?.getBoundingClientRect();
+        return rect ? { x: clientX - rect.left, y: clientY - rect.top } : null;
+    }, []);
 
-        const zr = chart.getZr();
-        if (!zr) return;
-
-        const handleZrPointerDown = (e: Record<string, unknown>) => {
-            if (!chart) return;
-            const evt = e.event as MouseEvent | undefined;
-            const mx = evt?.offsetX ?? (e.offsetX as number);
-            if (mx == null) return;
-            const yMid = chart.convertToPixel({ yAxisIndex: 0 }, 150) ?? 200;
-            for (const marker of eventMarkers) {
-                if (marker.event === 'Charge') continue;
-                const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);
-                if (pixel == null) continue;
-                const px = Array.isArray(pixel) ? pixel[0] : pixel;
-                const dist = Math.abs(mx - px);
-                if (dist <= PIXEL_THRESHOLD) {
-                    dragStateRef.current = {
-                        active: true,
-                        eventName: marker.event,
-                        startX: mx,
-                        startTimeSec: marker.timeSec,
+    const findDraggableMarker = useCallback(
+        (clientX: number, clientY: number) => {
+            if (!onEventMarkerDrag && !onEventMarkerEdit) return null;
+            const chart = chartInstanceRef.current;
+            const point = localPoint(clientX, clientY);
+            if (!chart || !point) return null;
+            const layoutInputs = [
+                ...eventMarkers.map((marker) => {
+                    const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
+                    const nearest = nearestBtAt(xs, btActual, marker.timeSec);
+                    const displayY =
+                        nearest ??
+                        (marker.tempC != null && Number.isFinite(marker.tempC)
+                            ? toDisplayTemp(marker.tempC, temperatureUnit)
+                            : toDisplayTemp(tempMaxC, temperatureUnit));
+                    const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
+                    const temp =
+                        marker.tempC != null && Number.isFinite(marker.tempC)
+                            ? formatTemp(marker.tempC, temperatureUnit)
+                            : nearest != null
+                              ? `${nearest.toFixed(1)}°${temperatureUnit}`
+                              : marker.temp || '—';
+                    return {
+                        marker,
+                        timeSec: marker.timeSec,
+                        xPx: x ?? Number.NaN,
+                        yPx: y ?? Number.NaN,
+                        text: eventLabelText(marker.event, marker.timeSec, temp, marker.note),
+                        below: LABEL_BELOW_EVENTS.has(marker.event),
+                        color: '',
+                        showDot: eventMarkerStyle === 'point',
                     };
-                    break;
-                }
+                }),
+                ...turningPoints.map((tp) => {
+                    const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, tp.timeSec));
+                    const displayY = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
+                    const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
+                    return {
+                        marker: null as RoastEventMarker | null,
+                        timeSec: tp.timeSec,
+                        xPx: x ?? Number.NaN,
+                        yPx: y ?? Number.NaN,
+                        text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+                        below: true,
+                        color: '',
+                        showDot: eventMarkerStyle === 'point',
+                    };
+                }),
+            ];
+            const boxes = layoutCurveLabelBoxes(layoutInputs);
+            const candidates = layoutInputs.flatMap((input, index) => {
+                const marker = input.marker;
+                if (!marker?.logId || marker.event === 'Charge') return [];
+                const x = input.xPx;
+                const anchorY = input.yPx;
+                if (!Number.isFinite(x)) return [];
+                const box = boxes[index];
+                const labelHit = Boolean(
+                    box &&
+                        point.x >= box.left - 4 &&
+                        point.x <= box.right + 4 &&
+                        point.y >= box.top - 4 &&
+                        point.y <= box.bottom + 4,
+                );
+                const plotHit = chart.containPixel({ gridIndex: [0, 1, 2] }, [point.x, point.y]);
+                const pointHit =
+                    eventMarkerStyle === 'point' &&
+                    plotHit &&
+                    Number.isFinite(anchorY) &&
+                    Math.hypot(point.x - x, point.y - anchorY) <= PIXEL_THRESHOLD;
+                const lineHit = eventMarkerStyle !== 'point' && plotHit && Math.abs(point.x - x) <= PIXEL_THRESHOLD;
+                const labelY = box?.textY ?? anchorY;
+                return labelHit || pointHit || lineHit
+                    ? [
+                          {
+                              marker,
+                              score: labelHit
+                                  ? Math.abs(point.y - labelY)
+                                  : 100 + Math.abs(point.y - labelY) / 100 + index / 10000,
+                          },
+                      ]
+                    : [];
+            });
+            return candidates.sort((a, b) => a.score - b.score)[0]?.marker ?? null;
+        },
+        [
+            btActual,
+            eventMarkerStyle,
+            eventMarkers,
+            localPoint,
+            onEventMarkerDrag,
+            onEventMarkerEdit,
+            tempMaxC,
+            temperatureUnit,
+            turningPoints,
+            xs,
+        ],
+    );
+
+    const beginMarkerDrag = useCallback(
+        (event: Pick<PointerEvent, 'button' | 'clientX' | 'clientY' | 'pointerId'>) => {
+            if (event.button !== 0) return false;
+            const selected = findDraggableMarker(event.clientX, event.clientY);
+            if (!selected?.logId) return false;
+            dragStateRef.current = { pointerId: event.pointerId, logId: selected.logId, timeSec: selected.timeSec };
+            return true;
+        },
+        [findDraggableMarker],
+    );
+
+    const hitTestMarker = useCallback(
+        (event: Pick<PointerEvent, 'clientX' | 'clientY'>) =>
+            Boolean(findDraggableMarker(event.clientX, event.clientY)),
+        [findDraggableMarker],
+    );
+
+    const moveMarkerDrag = useCallback(
+        (event: Pick<PointerEvent, 'clientX' | 'clientY' | 'pointerId'>) => {
+            const drag = dragStateRef.current;
+            if (!drag || drag.pointerId !== event.pointerId || !onEventMarkerDrag) return false;
+            const chart = chartInstanceRef.current;
+            const point = localPoint(event.clientX, event.clientY);
+            if (!chart || !point) return true;
+            const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
+            if (converted == null) return true;
+            const nextTimeSec = Math.max(0, Math.min(Math.floor(currentTimeSec), Math.round(converted)));
+            if (nextTimeSec !== drag.timeSec) {
+                onEventMarkerDrag(drag.logId, nextTimeSec);
+                drag.timeSec = nextTimeSec;
             }
-        };
+            return true;
+        },
+        [currentTimeSec, localPoint, onEventMarkerDrag],
+    );
 
-        const handleZrPointerMove = (e: Record<string, unknown>) => {
-            const ds = dragStateRef.current;
-            if (!ds?.active || !chart) return;
-            const evt = e.event as MouseEvent | undefined;
-            const mx = evt?.offsetX ?? (e.offsetX as number);
-            const my = evt?.offsetY ?? (e.offsetY as number);
-            if (mx == null) return;
-            const point = chart.convertFromPixel({ xAxisIndex: 0 }, [mx, my]);
-            if (!point) return;
-            const xVal = Array.isArray(point) ? point[0] : point;
-            const clamped = Math.max(0, Math.round(xVal));
-            if (clamped !== ds.startTimeSec) {
-                onEventMarkerDrag(ds.eventName, clamped);
-                dragStateRef.current = { ...ds, startTimeSec: clamped };
-            }
-        };
+    const endMarkerDrag = useCallback((pointerId: number) => {
+        if (dragStateRef.current?.pointerId !== pointerId) return false;
+        dragStateRef.current = null;
+        return true;
+    }, []);
 
-        const handleZrPointerUp = () => {
-            if (dragStateRef.current) {
-                dragStateRef.current = null;
-            }
-        };
+    const openMarkerEdit = useCallback(
+        (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => {
+            if (!onEventMarkerEdit) return false;
+            const selected = findDraggableMarker(event.clientX, event.clientY);
+            const point = localPoint(event.clientX, event.clientY);
+            const container = chartRef.current;
+            if (!selected?.logId || !point || !container) return false;
+            const heater = parseHeaterNote(selected.note ?? '');
+            setNoteForm(null);
+            setNoteBody('');
+            setEditForm({
+                logId: selected.logId,
+                event: selected.event,
+                x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
+                y: Math.max(0, Math.min(point.y, container.clientHeight - 120)),
+                time: formatElapsed(selected.timeSec),
+                note: selected.event === 'Heater' ? heater.value : (selected.note ?? ''),
+                heaterUnit: heater.unit,
+            });
+            return true;
+        },
+        [findDraggableMarker, localPoint, onEventMarkerEdit],
+    );
 
-        zr.on('mousedown', handleZrPointerDown);
-        zr.on('mousemove', handleZrPointerMove);
-        zr.on('mouseup', handleZrPointerUp);
+    useImperativeHandle(
+        ref,
+        () => ({ beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit }),
+        [beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit],
+    );
 
-        return () => {
-            zr.off('mousedown', handleZrPointerDown);
-            zr.off('mousemove', handleZrPointerMove);
-            zr.off('mouseup', handleZrPointerUp);
+    useEffect(
+        () => () => {
+            dragStateRef.current = null;
+        },
+        [],
+    );
+
+    useEffect(() => {
+        if (!onEventMarkerDrag) dragStateRef.current = null;
+    }, [onEventMarkerDrag]);
+
+    useEffect(() => {
+        if (onAddNote) return;
+        setNoteForm(null);
+        setNoteBody('');
+    }, [onAddNote]);
+
+    useEffect(() => {
+        if (onEventMarkerEdit) return;
+        setEditForm(null);
+    }, [onEventMarkerEdit]);
+
+    useEffect(() => {
+        if (!noteForm && !editForm) return;
+        const close = (event: globalThis.PointerEvent) => {
+            const target = event.target as Node;
+            if (noteFormRef.current?.contains(target) || editFormRef.current?.contains(target)) return;
+            setNoteForm(null);
+            setNoteBody('');
+            setEditForm(null);
+            chartRef.current?.focus();
         };
-    }, [eventMarkers, onEventMarkerDrag]);
+        document.addEventListener('pointerdown', close);
+        return () => document.removeEventListener('pointerdown', close);
+    }, [editForm, noteForm]);
+
+    const handleContextMenu = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            if (!onAddNote) return;
+            event.preventDefault();
+            const chart = chartInstanceRef.current;
+            const point = localPoint(event.clientX, event.clientY);
+            const container = chartRef.current;
+            if (!chart || !point || !container || !chart.containPixel({ gridIndex: 0 }, [point.x, point.y])) return;
+            const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
+            if (converted == null) return;
+            setNoteBody('');
+            setEditForm(null);
+            setNoteForm({
+                x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
+                y: Math.max(0, Math.min(point.y, container.clientHeight - 72)),
+                timeSec: Math.max(0, Math.min(Math.floor(currentTimeSec), Math.round(converted))),
+            });
+        },
+        [currentTimeSec, localPoint, onAddNote],
+    );
+
+    const submitNote = useCallback(() => {
+        if (!noteForm || !noteBody.trim() || !onAddNote) return;
+        onAddNote(noteBody.trim(), noteForm.timeSec);
+        setNoteForm(null);
+        setNoteBody('');
+        chartRef.current?.focus();
+    }, [noteBody, noteForm, onAddNote]);
+
+    const submitEdit = useCallback(() => {
+        if (!editForm || !onEventMarkerEdit) return;
+        const timeSec = parseEditTimeSec(editForm.time);
+        if (timeSec == null) return;
+        const patch: { timeSec: number; note?: string } = {
+            timeSec: Math.max(0, Math.min(Math.floor(currentTimeSec), timeSec)),
+        };
+        if (editForm.event === 'Heater') {
+            const heat = Number(editForm.note);
+            if (!Number.isFinite(heat)) return;
+            patch.note = `${Math.round(heat)}${editForm.heaterUnit}`;
+        } else if (editForm.event === 'Note') {
+            const body = editForm.note.trim();
+            if (!body) return;
+            patch.note = body;
+        }
+        onEventMarkerEdit(editForm.logId, patch);
+        setEditForm(null);
+        chartRef.current?.focus();
+    }, [currentTimeSec, editForm, onEventMarkerEdit]);
 
     return (
         <div
             data-tour="active-roast-chart"
             style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}
         >
-            <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
+            <div
+                ref={chartRef}
+                tabIndex={-1}
+                onContextMenu={handleContextMenu}
+                className="outline-none"
+                style={{ width: '100%', height: '100%', outline: 'none' }}
+            />
+            {noteForm && (
+                <form
+                    ref={noteFormRef}
+                    data-chart-note-form
+                    className="absolute z-20 flex w-[220px] gap-1 rounded border border-(--color-border) bg-(--color-surface) p-1 shadow-md"
+                    style={{ left: noteForm.x, top: noteForm.y }}
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        submitNote();
+                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onWheel={(event) => event.stopPropagation()}
+                >
+                    <label htmlFor="chart-note-input" className="sr-only">
+                        Note
+                    </label>
+                    <textarea
+                        id="chart-note-input"
+                        autoFocus
+                        rows={1}
+                        value={noteBody}
+                        onChange={(event) => setNoteBody(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Escape') {
+                                event.preventDefault();
+                                setNoteForm(null);
+                                setNoteBody('');
+                                chartRef.current?.focus();
+                            } else if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                                event.preventDefault();
+                                submitNote();
+                            }
+                        }}
+                        className="min-w-0 flex-1 resize-none rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none"
+                    />
+                    <button type="submit" className="rounded px-2 text-xs text-(--color-text-primary)">
+                        Add
+                    </button>
+                </form>
+            )}
+            {editForm && (
+                <form
+                    ref={editFormRef}
+                    data-chart-marker-edit
+                    className="absolute z-20 flex w-[220px] flex-col gap-1 rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md"
+                    style={{ left: editForm.x, top: editForm.y }}
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        submitEdit();
+                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onWheel={(event) => event.stopPropagation()}
+                >
+                    <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">{editForm.event}</div>
+                    <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
+                        Time
+                        <input
+                            id="chart-marker-time"
+                            autoFocus
+                            value={editForm.time}
+                            onChange={(event) => setEditForm({ ...editForm, time: event.target.value })}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Escape') {
+                                    event.preventDefault();
+                                    setEditForm(null);
+                                    chartRef.current?.focus();
+                                }
+                            }}
+                            className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                        />
+                    </label>
+                    {editForm.event === 'Heater' && (
+                        <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
+                            Heat
+                            <input
+                                id="chart-marker-heat"
+                                type="number"
+                                value={editForm.note}
+                                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
+                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                            />
+                            <span className="font-mono text-[11px]">{editForm.heaterUnit}</span>
+                        </label>
+                    )}
+                    {editForm.event === 'Note' && (
+                        <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
+                            Note
+                            <textarea
+                                id="chart-marker-note"
+                                rows={1}
+                                value={editForm.note}
+                                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
+                                className="min-w-0 flex-1 resize-none rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none"
+                            />
+                        </label>
+                    )}
+                    <button type="submit" className="self-end rounded px-2 text-xs text-(--color-text-primary)">
+                        Save
+                    </button>
+                </form>
+            )}
             {controlData && (showControlDrum || showControlHeat || showControlFan) && (
                 <div className="absolute flex items-center gap-4" style={{ bottom: -15, left: 25 }}>
                     {[
@@ -359,4 +722,4 @@ export const RoastTempChart: React.FC<Props> = ({
             )}
         </div>
     );
-};
+});

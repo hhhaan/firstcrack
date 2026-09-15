@@ -96,6 +96,24 @@ describe('createControlSender', () => {
         expect(send).not.toHaveBeenCalled();
     });
 
+    it('비어 있지 않은 commit snapshot을 전송 전 한 번 알린다', async () => {
+        const order: string[] = [];
+        const onCommitted = vi.fn((cmd: ControlCommand) => order.push(`commit:${cmd.heater}`));
+        const send = vi.fn(async (cmd: ControlCommand) => {
+            order.push(`send:${cmd.heater}`);
+            return cmd;
+        });
+        const sender = createControlSender({ send, onCommitted });
+
+        sender.queue('heater', 0);
+        await sender.commitNow();
+        await sender.commitNow();
+
+        expect(onCommitted).toHaveBeenCalledTimes(1);
+        expect(onCommitted).toHaveBeenCalledWith({ heater: 0 });
+        expect(order).toEqual(['commit:0', 'send:0']);
+    });
+
     it('전송 중에는 새 요청을 겹쳐 보내지 않고, 끝난 뒤 최신값만 보낸다', async () => {
         const d = deferredSend();
         const sender = createControlSender({ send: d.send });

@@ -1,7 +1,6 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { ProfileDefaultBadge, useProfileBeanHistory, useSourceSessionEvents } from '@entities/roast-profile';
 import { useRoastSettings } from '@features/active-roast';
-import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
@@ -185,7 +184,7 @@ export const ProfileDetail = ({
                     <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
                         {t('profiles.detail.roastLog')}
                     </p>
-                    <RoastLog entries={roastLogEntries} eventMarkerColor={EVENT_MARKER_COLORS} variant="main" />
+                    <RoastLog entries={roastLogEntries} variant="main" />
                 </div>
             )}
 

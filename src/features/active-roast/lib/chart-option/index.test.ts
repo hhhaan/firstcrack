@@ -28,12 +28,8 @@ const mockColors: ResolvedChartColors = {
     controlHeatArea: '#17',
     controlFan: '#18',
     controlFanArea: '#19',
-    eventYellow: '#1a',
-    eventFcStart: '#1b',
-    eventFcEnd: '#1c',
-    eventEnd: '#1d',
-    eventNote: '#1e',
-    eventDrop: '#1f',
+    eventMark: '#23',
+    eventControl: '#24',
     fcBandFill: 'rgba(105,103,225,0.1)',
     targetDeltaWithin: '#20',
     targetDeltaOver: '#21',
@@ -168,5 +164,133 @@ describe('buildRoastChartOption', () => {
         const series = option.series as { name?: string; markArea?: unknown }[];
         const bt = series.find((s) => s.name === 'BT Actual');
         expect(bt?.markArea).toBeUndefined();
+    });
+
+    it('uses the decided live, reference, RoR, and control widths', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0],
+            btActual: [100],
+            etActual: [110],
+            rorActual: [10],
+            rorEtActual: [9],
+            showRoRET: true,
+            targetXs: [0],
+            targetBt: [100],
+            controlData: { xs: [0], drumTemp: [50], heatPower: [40], fanSpeed: [30], heatSet: [45] },
+        });
+        const byName = Object.fromEntries(
+            (option.series as { name?: string; lineStyle?: { width?: number; type?: string } }[]).map((series) => [
+                series.name,
+                series.lineStyle,
+            ]),
+        );
+        expect(byName['BT Actual']?.width).toBe(1.2);
+        expect(byName['ET Actual']?.width).toBe(0.9);
+        expect(byName.RoR?.width).toBe(0.9);
+        expect(byName['ET RoR']?.width).toBe(0.9);
+        expect(byName['BT Target']).toMatchObject({ width: 0.8, type: 'solid' });
+        expect(byName.Drum?.width).toBe(1);
+        expect(byName.Heat?.width).toBe(1);
+        expect(byName.Fan?.width).toBe(1);
+        expect(byName['Heat set']?.width).toBe(1);
+    });
+
+    it.each([
+        ['Heat', { showControlDrum: false, showControlHeat: true, showControlFan: false }],
+        ['Fan', { showControlDrum: false, showControlHeat: false, showControlFan: true }],
+    ] as const)('attaches lower event guides once to a %s-only control plot', (ownerName, visibility) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            ...visibility,
+            charged: true,
+            currentTimeSec: 60,
+            eventMarkerStyle: 'line',
+            eventMarkers: [{ timeSec: 30, event: 'Yellow', color: '#old', timeStr: '', temp: '100°C' }],
+            controlData: { xs: [0, 60], drumTemp: [50, 55], heatPower: [40, 45], fanSpeed: [30, 35] },
+        });
+        const series = option.series as { name?: string; markLine?: { data: { xAxis?: number }[] } }[];
+        expect(series.find((item) => item.name === ownerName)?.markLine?.data).toEqual(
+            expect.arrayContaining([expect.objectContaining({ xAxis: 30 })]),
+        );
+        expect(series.filter((item) => item.markLine).map((item) => item.name)).toEqual(['BT Actual', ownerName]);
+    });
+
+    it('draws both-mode marker lines through the inter-grid gap and clips x manually', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 60],
+            btActual: [100, 120],
+            eventMarkerStyle: 'both',
+            eventMarkers: [{ timeSec: 30, event: 'Note', color: '#old', timeStr: '', temp: '', note: 'Test' }],
+            controlData: { xs: [0, 60], drumTemp: [50, 55], heatPower: [40, 45], fanSpeed: [30, 35] },
+        });
+        const markerSeries = (
+            option.series as {
+                name?: string;
+                renderItem?: (params: unknown, api: unknown) => { shape: { y2: number } } | undefined;
+                clip?: boolean;
+            }[]
+        ).find((series) => series.name === 'Event marker lines');
+        expect(markerSeries?.clip).toBe(false);
+        const api = { coord: () => [50, 100], value: (index: number) => [30, '#23', 0.6][index], getHeight: () => 500 };
+        expect(markerSeries?.renderItem?.({ coordSys: { x: 20, y: 10, width: 200, height: 300 } }, api)).toEqual(
+            expect.objectContaining({ shape: { x1: 50, y1: 10, x2: 50, y2: 470 } }),
+        );
+        expect(
+            markerSeries?.renderItem?.(
+                { coordSys: { x: 60, y: 10, width: 200, height: 300 } },
+                { ...api, coord: () => [50, 100] },
+            ),
+        ).toBeUndefined();
+    });
+
+    it('stops both-mode lines at the temperature grid when controls are hidden', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            eventMarkerStyle: 'both',
+            eventMarkers: [{ timeSec: 30, event: 'Yellow', color: '#old', timeStr: '', temp: '100°C' }],
+        });
+        const markerSeries = (
+            option.series as {
+                name?: string;
+                renderItem?: (params: unknown, api: unknown) => { shape: { y2: number } } | undefined;
+            }[]
+        ).find((series) => series.name === 'Event marker lines');
+        const result = markerSeries?.renderItem?.(
+            { coordSys: { x: 20, y: 10, width: 200, height: 300 } },
+            { coord: () => [50, 100], value: (index: number) => [30, '#23', 0.6][index], getHeight: () => 500 },
+        );
+        expect(result?.shape.y2).toBe(310);
+    });
+
+    it('draws event labels on the BT axis, not the grid edge', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 60],
+            btActual: [100, 185],
+            eventMarkerStyle: 'both',
+            eventMarkers: [{ timeSec: 60, event: 'FC Start', color: '#old', timeStr: '', temp: '185°C' }],
+        });
+        const labelSeries = (
+            option.series as {
+                name?: string;
+                yAxisIndex?: number;
+                data?: unknown[];
+                renderItem?: (
+                    params: unknown,
+                    api: unknown,
+                ) => { type: string; children: { type: string; x: number; y: number }[] };
+            }[]
+        ).find((series) => series.name === 'Event curve labels');
+        expect(labelSeries?.yAxisIndex).toBe(0);
+        expect(labelSeries?.data).toEqual([[0]]);
+        const result = labelSeries?.renderItem?.(
+            { dataIndex: 0, coordSys: { x: 0, y: 0, width: 400, height: 300 } },
+            { coord: (value: number[]) => [value[0] * 2, 250 - value[1]] },
+        );
+        const text = result?.children.find((child) => child.type === 'text');
+        expect(text).toMatchObject({ type: 'text', x: 120, y: 53 });
+        expect(result?.children.some((child) => child.type === 'circle')).toBe(false);
     });
 });
