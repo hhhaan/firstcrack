@@ -1,5 +1,10 @@
-# Dependabot — weekly dependency update PRs
+# Dependabot — weekly, one version-update PR per ecosystem
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+#
+# Mon 09:00 KST. open-pull-requests-limit: 1 so an unmerged PR blocks
+# the next week's run (no stacking). One catch-all group per ecosystem
+# so prod/dev/plugins don't split into extra PRs.
+# Security updates ignore this limit.
 #
 # Keep cooldown ≥ pnpm minimumReleaseAge (default 1440m / 1d in pnpm 11).
 # Otherwise Dependabot commits a lockfile CI cannot install
@@ -7,7 +12,6 @@
 
 version: 2
 updates:
-  # Frontend (pnpm via packageManager + pnpm-lock.yaml)
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -15,33 +19,23 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 5
-    # Wait until packages are old enough for pnpm install + fewer bad publishes
+    open-pull-requests-limit: 1
     cooldown:
       default-days: 3
       semver-major-days: 14
       semver-minor-days: 3
       semver-patch-days: 2
-    labels:
-      - dependencies
-      - npm
     groups:
-      frontend-prod:
-        dependency-type: production
-        update-types:
-          - minor
-          - patch
-      frontend-dev:
-        dependency-type: development
+      frontend:
+        patterns:
+          - "*"
         update-types:
           - minor
           - patch
     ignore:
-      # Majors need a deliberate upgrade (TS 7, zod 4, plugin-react 6, …)
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -49,18 +43,14 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
     cooldown:
       default-days: 3
-    labels:
-      - dependencies
-      - github-actions
     groups:
       actions:
         patterns:
           - "*"
 
-  # Sidecar Python
   - package-ecosystem: pip
     directory: /src-tauri/sidecar
     schedule:
@@ -68,13 +58,10 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
     cooldown:
       default-days: 3
       semver-major-days: 14
-    labels:
-      - dependencies
-      - python
     groups:
       sidecar-python:
         patterns:
@@ -86,7 +73,6 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
-  # Tauri / Rust
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:
@@ -94,25 +80,14 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
     cooldown:
       default-days: 3
       semver-major-days: 14
-    labels:
-      - dependencies
-      - rust
     groups:
-      tauri-plugins:
-        patterns:
-          - "tauri*"
-        update-types:
-          - minor
-          - patch
-      rust-misc:
+      rust:
         patterns:
           - "*"
-        exclude-patterns:
-          - "tauri*"
         update-types:
           - minor
           - patch
