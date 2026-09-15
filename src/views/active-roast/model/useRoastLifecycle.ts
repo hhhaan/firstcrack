@@ -8,6 +8,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
+import { waitPhaseAfterRoastReset } from '../lib/roast-phase';
 import type { RoastSummaryData } from './useRoastCompletionFlow';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
@@ -156,6 +157,12 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         if (sidecarConnected) {
             sidecar.resetRoast().catch(() => {});
             enterPreheating();
+            // BBP: skip Roast Ready. Sidecar /standby is not called — virtual would
+            // auto-drop beans in 10s and cut the wait short. Real BT drop still
+            // auto-charges once phase is standby.
+            if (waitPhaseAfterRoastReset(useBbpStore.getState().active) === 'standby') {
+                enterStandby();
+            }
         }
         setLogEntries([]);
         setLivePoints([]);
@@ -168,6 +175,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         resetStore,
         sidecarConnected,
         enterPreheating,
+        enterStandby,
         setLogEntries,
         setLivePoints,
         setZoomRange,

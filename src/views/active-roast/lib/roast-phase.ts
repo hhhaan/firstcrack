@@ -2,10 +2,21 @@ import { PHASE_COLORS } from '@features/active-roast/lib/colors';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import type { LogEntry } from '@shared/types/roast';
 
+/** First batch: Roast Ready. BBP interval: already hot — wait for Charge. */
+export const waitPhaseAfterRoastReset = (bbpActive: boolean): 'standby' | 'preheating' =>
+    bbpActive ? 'standby' : 'preheating';
+
 /**
  * 이벤트 로그 기반으로 현재 로스팅 단계 이름을 결정한다.
  */
-export const getRoastPhaseName = (charged: boolean, phase: string, elapsed: number, logEntries: LogEntry[]): string => {
+export const getRoastPhaseName = (
+    charged: boolean,
+    phase: string,
+    elapsed: number,
+    logEntries: LogEntry[],
+    bbpActive = false,
+): string => {
+    if (bbpActive) return 'CHARGE WAIT';
     if (!charged) {
         switch (phase) {
             case 'standby':
@@ -26,7 +37,7 @@ export const getRoastPhaseName = (charged: boolean, phase: string, elapsed: numb
 };
 
 export const getRoastPhaseColor = (charged: boolean, phaseName: string): string => {
-    if (!charged) return PHASE_COLORS.ready;
+    if (!charged || phaseName === 'CHARGE WAIT') return PHASE_COLORS.ready;
     switch (phaseName) {
         case 'Development':
             return PHASE_COLORS.development;

@@ -47,6 +47,7 @@ const baseProps = {
     onManualCharge: noop,
     onEndRoast: noop,
     bbpTimer: null as string | null,
+    bbpChargeWait: false,
 };
 
 describe('RoastSidePanel live readings (#358)', () => {
@@ -75,5 +76,29 @@ describe('RoastSidePanel live readings (#358)', () => {
         renderPanel({ bbpTimer: '1:05' });
         const row = container.querySelector('[data-testid="bbp-timer"]');
         expect(row?.textContent).toContain('1:05');
+    });
+
+    it('BBP wait shows Charge, not Roast Ready', () => {
+        renderPanel({
+            phase: 'preheating',
+            charged: false,
+            roastEnded: false,
+            bbpTimer: '2:10',
+            bbpChargeWait: true,
+        });
+        expect(container.querySelector('[data-testid="roast-ready"]')).toBeNull();
+        expect(container.querySelector('[data-testid="roast-charge"]')).not.toBeNull();
+    });
+
+    it('첫 배치 예열은 Roast Ready를 유지한다', () => {
+        renderPanel({
+            phase: 'preheating',
+            charged: false,
+            roastEnded: false,
+            bbpTimer: null,
+            bbpChargeWait: false,
+        });
+        expect(container.querySelector('[data-testid="roast-ready"]')).not.toBeNull();
+        expect(container.querySelector('[data-testid="roast-charge"]')).toBeNull();
     });
 });

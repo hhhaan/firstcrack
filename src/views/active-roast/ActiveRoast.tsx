@@ -74,6 +74,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const bbpTimer = bbpEnabled ? bbpElapsed : null;
     const bbpActive = useBbpStore((s) => s.active);
     const bbpPoints = useBbpStore((s) => s.points);
+    const bbpChargeWait = bbpActive;
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -430,7 +431,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [phase, rawBT, rawET, timeStr, unit]);
 
     // ── 단계 표시 및 파생값 ──────────────────────────────────────
-    const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries);
+    const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries, bbpChargeWait);
     const roastPhaseColor = getRoastPhaseColor(charged, roastPhaseName);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
@@ -704,6 +705,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onManualCharge={lifecycle.handleManualCharge}
                         onEndRoast={handleEndRoastClick}
                         bbpTimer={bbpTimer}
+                        bbpChargeWait={bbpChargeWait}
                     />
                 </div>
             </div>

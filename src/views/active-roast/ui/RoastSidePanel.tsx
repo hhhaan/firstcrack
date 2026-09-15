@@ -55,6 +55,8 @@ interface RoastSidePanelProps {
     onEndRoast: () => void;
     /** Pro BBP cooldown — null when inactive or plan-gated */
     bbpTimer: string | null;
+    /** End→Charge wait. First-batch preheat is not this. */
+    bbpChargeWait: boolean;
 }
 
 export const RoastSidePanel = ({
@@ -91,12 +93,14 @@ export const RoastSidePanel = ({
     onManualCharge,
     onEndRoast,
     bbpTimer,
+    bbpChargeWait,
 }: RoastSidePanelProps) => {
     const { t } = useTranslation();
     const showRollingDtr = rollingDtrPct != null;
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
     const canMark = isRoastEventMarkEnabled(phase);
+    const chargeWait = bbpChargeWait && !charged && !roastEnded;
 
     return (
         <div className="w-48 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -251,7 +255,7 @@ export const RoastSidePanel = ({
             {/* Control Panel */}
             <div className="flex flex-col gap-1.5">
                 <div className="flex flex-col gap-1.5">
-                    {phase === 'preheating' && (
+                    {phase === 'preheating' && !chargeWait && (
                         <button
                             data-testid="roast-ready"
                             onClick={onEnterStandby}
@@ -263,7 +267,7 @@ export const RoastSidePanel = ({
                             Roast Ready
                         </button>
                     )}
-                    {phase === 'standby' && (
+                    {(phase === 'standby' || chargeWait) && (
                         <button
                             data-testid="roast-charge"
                             onClick={onManualCharge}
