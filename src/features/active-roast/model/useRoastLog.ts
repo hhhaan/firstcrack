@@ -1,6 +1,6 @@
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
 import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
@@ -10,6 +10,7 @@ import type { TemperatureUnit } from './settings';
 export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed: number) => {
     const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
     const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
+    const [fcDualUnwind, setFcDualUnwind] = useState(false);
 
     const flashButton = useCallback((label: string) => {
         setPressedButtons((prev) => new Set(prev).add(label));
@@ -68,10 +69,17 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
         [logEntries, elapsed, rawBT, unit, flashButton],
     );
 
-    /** Dual-mark cycle: empty → FC Start → FC Rolling → drop Rolling. */
+    const fcUnwindRef = useRef(false);
+
+    /** Dual-mark: Start → Rolling → unmark Rolling → unmark Start. */
     // ponytail: 플래시 없음 — 버튼이 stage로 즉시 스타일이 바뀌어 피드백이 이미 보인다
     const cycleFc = useCallback(() => {
-        setLogEntries((prev) => cycleFcDualEntries(prev, { elapsed, rawBT, unit }));
+        setLogEntries((prev) => {
+            const { entries, unwind } = cycleFcDualEntries(prev, { elapsed, rawBT, unit }, fcUnwindRef.current);
+            fcUnwindRef.current = unwind;
+            return entries;
+        });
+        setFcDualUnwind(fcUnwindRef.current);
     }, [elapsed, rawBT, unit]);
 
     const handleDrop = useCallback(() => {
@@ -87,6 +95,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
         pressedButtons,
         markEvent,
         cycleFc,
+        fcDualUnwind,
         flashButton,
         handleDrop,
         setLogEntries, // reset할 때 필요

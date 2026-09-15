@@ -40,6 +40,7 @@ interface RoastSidePanelProps {
     rollingDtrPct: number | null;
     rollingDevTimeStr: string;
     fcDualMarkEnabled: boolean;
+    fcDualUnwind?: boolean;
     logEntries: LogEntry[];
     pressedButtons: Set<string>;
     roastLogDisplayEntries: RoastLogDisplayEntry[];
@@ -79,6 +80,7 @@ export const RoastSidePanel = ({
     rollingDtrPct,
     rollingDevTimeStr,
     fcDualMarkEnabled,
+    fcDualUnwind = false,
     logEntries,
     pressedButtons,
     roastLogDisplayEntries,
@@ -317,7 +319,7 @@ export const RoastSidePanel = ({
                             },
                         },
                         {
-                            label: fcDualStage != null ? fcDualButtonLabel(fcDualStage) : 'FC Start',
+                            label: fcDualStage != null ? fcDualButtonLabel(fcDualStage, fcDualUnwind) : 'FC Start',
                             event: 'FC Start',
                             shortcutKey: '2',
                             pressKey: 'Mark FC Start',

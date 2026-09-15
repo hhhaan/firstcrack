@@ -156,11 +156,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const rawET = liveData?.et ?? null;
     const timeStr = formatElapsed(elapsed);
 
-    const { logEntries, pressedButtons, markEvent, cycleFc, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
-        unit,
-        rawBT,
-        elapsed,
-    );
+    const { logEntries, pressedButtons, markEvent, cycleFc, fcDualUnwind, handleDrop, setLogEntries, removeLogEntry } =
+        useRoastLog(unit, rawBT, elapsed);
 
     // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
     const { livePoints, setLivePoints } = useSidecarPolling({
@@ -691,6 +688,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         rollingDtrPct={rollingDtrPct}
                         rollingDevTimeStr={rollingDevTimeStr}
                         fcDualMarkEnabled={fcDualMarkEnabled}
+                        fcDualUnwind={fcDualUnwind}
                         logEntries={logEntries}
                         pressedButtons={pressedButtons}
                         roastLogDisplayEntries={roastLogDisplayEntries}

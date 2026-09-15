@@ -37,9 +37,12 @@ const makeEntry = (event: string, note: string, ctx: CycleFcDualCtx): LogEntry =
 const sortByTime = (entries: LogEntry[]): LogEntry[] =>
     [...entries].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
 
-/** Button label: empty → Start (next action); Start/both → Rolling. */
-export const fcDualButtonLabel = (stage: FcDualStage): typeof FC_START_EVENT | typeof FC_ROLLING_EVENT =>
-    stage === 0 ? FC_START_EVENT : FC_ROLLING_EVENT;
+/** Button label: next action. Unwind at Start-only → unmark Start. */
+export const fcDualButtonLabel = (
+    stage: FcDualStage,
+    unwind = false,
+): typeof FC_START_EVENT | typeof FC_ROLLING_EVENT =>
+    stage === 0 || (stage === 1 && unwind) ? FC_START_EVENT : FC_ROLLING_EVENT;
 
 /** Dual-mark OFF / log toggle: drop `event`. Removing Start also drops orphan Rolling. */
 export const withoutLogEvent = (prev: LogEntry[], event: string): LogEntry[] => {
@@ -48,27 +51,37 @@ export const withoutLogEvent = (prev: LogEntry[], event: string): LogEntry[] => 
     return next;
 };
 
+export type FcDualCycleResult = { entries: LogEntry[]; unwind: boolean };
+
 /**
- * Dual-mark cycle: empty → FC Start → FC Rolling → drop Rolling (#453).
- * Next click from Start-only re-adds Rolling. Start itself is cleared via
- * log delete or dual-mark OFF (`withoutLogEvent`).
+ * Dual-mark: Start → Rolling → unmark Rolling → unmark Start (#453).
+ * `unwind` is the next-click mode: after dropping Rolling, the following
+ * click drops Start instead of re-adding Rolling.
  * Orphan Rolling (no Start) is cleared on cycle (stage 0 repair).
  */
-export const cycleFcDualEntries = (prev: LogEntry[], ctx: CycleFcDualCtx): LogEntry[] => {
+export const cycleFcDualEntries = (prev: LogEntry[], ctx: CycleFcDualCtx, unwind = false): FcDualCycleResult => {
     const hasStart = prev.some((e) => e.event === FC_START_EVENT);
     const hasRolling = prev.some((e) => e.event === FC_ROLLING_EVENT);
 
-    // Orphan Rolling only → clear
     if (!hasStart && hasRolling) {
-        return prev.filter((e) => e.event !== FC_ROLLING_EVENT);
+        return { entries: prev.filter((e) => e.event !== FC_ROLLING_EVENT), unwind: false };
     }
 
     const stage = getFcDualStage(prev);
     if (stage === 0) {
-        return sortByTime([...prev, makeEntry(FC_START_EVENT, 'First crack started', ctx)]);
+        return {
+            entries: sortByTime([...prev, makeEntry(FC_START_EVENT, 'First crack started', ctx)]),
+            unwind: false,
+        };
     }
     if (stage === 1) {
-        return sortByTime([...prev, makeEntry(FC_ROLLING_EVENT, 'First crack rolling', ctx)]);
+        if (unwind) {
+            return { entries: withoutLogEvent(prev, FC_START_EVENT), unwind: false };
+        }
+        return {
+            entries: sortByTime([...prev, makeEntry(FC_ROLLING_EVENT, 'First crack rolling', ctx)]),
+            unwind: false,
+        };
     }
-    return prev.filter((e) => e.event !== FC_ROLLING_EVENT);
+    return { entries: prev.filter((e) => e.event !== FC_ROLLING_EVENT), unwind: true };
 };
