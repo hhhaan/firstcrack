@@ -68,7 +68,7 @@ export const SelectContent = forwardRef<
         <SelectPrimitive.Content
             ref={ref}
             className={cn(
-                'relative z-50 max-h-56 min-w-[6rem] overflow-hidden rounded-lg bg-main-bg shadow-ring',
+                'z-1100 max-h-56 min-w-[6rem] overflow-hidden rounded-lg bg-main-bg shadow-ring',
                 'data-[state=open]:animate-in data-[state=closed]:animate-out',
                 'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
                 'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
