@@ -28,6 +28,11 @@ export function nearestLivePointAt(
     return best;
 }
 
+export type EventMarkerPatch = {
+    timeSec?: number;
+    note?: string;
+};
+
 /**
  * Apply chart event-marker drag: sync time + BT from nearest live sample, re-sort by time.
  * Pure — unit-tested without rendering the chart.
@@ -40,22 +45,51 @@ export function applyEventMarkerDrag(
     unit: TemperatureUnit,
     maxTimeSec: number,
 ): LogEntry[] {
-    if (!logId || !Number.isFinite(newTimeSec) || !Number.isFinite(maxTimeSec) || maxTimeSec < 0) return entries;
-    const movedEntry = entries.find((entry) => entry.id === logId);
-    if (!movedEntry || movedEntry.event === 'Charge' || movedEntry.event === 'Heater') return entries;
+    return applyEventMarkerEdit(entries, logId, { timeSec: newTimeSec }, livePoints, unit, maxTimeSec);
+}
 
-    const boundedTimeSec = Math.min(Math.max(Math.round(newTimeSec), 0), Math.floor(maxTimeSec));
-    const newTimeStr = formatElapsed(boundedTimeSec);
-    const nearest = nearestLivePointAt(livePoints, boundedTimeSec);
+/**
+ * Patch a log event from the chart editor. Charge stays immutable.
+ * Time changes snap BT to the nearest live sample. Note applies to Heater/Note only.
+ */
+export function applyEventMarkerEdit(
+    entries: LogEntry[],
+    logId: string | undefined,
+    patch: EventMarkerPatch,
+    livePoints: ReadonlyArray<MarkerDragLivePoint>,
+    unit: TemperatureUnit,
+    maxTimeSec: number,
+): LogEntry[] {
+    if (!logId) return entries;
+    const target = entries.find((entry) => entry.id === logId);
+    if (!target || target.event === 'Charge') return entries;
+
+    const nextTimeSec = patch.timeSec;
+    const nextNote = patch.note;
+    const hasTime = nextTimeSec != null;
+    const allowNote = (target.event === 'Heater' || target.event === 'Note') && nextNote != null;
+    if (!hasTime && !allowNote) return entries;
+    if (
+        hasTime &&
+        (nextTimeSec == null || !Number.isFinite(nextTimeSec) || !Number.isFinite(maxTimeSec) || maxTimeSec < 0)
+    )
+        return entries;
+
+    const boundedTimeSec =
+        hasTime && nextTimeSec != null
+            ? Math.min(Math.max(Math.round(nextTimeSec), 0), Math.floor(maxTimeSec))
+            : logEntryTimeSec(target);
 
     return entries
         .map((entry) => {
             if (entry.id !== logId) return entry;
-            if (!nearest) {
-                return { ...entry, time: newTimeStr, timeSec: boundedTimeSec };
-            }
+            const next = allowNote && nextNote != null ? { ...entry, note: nextNote } : { ...entry };
+            if (!hasTime) return next;
+            const newTimeStr = formatElapsed(boundedTimeSec);
+            const nearest = nearestLivePointAt(livePoints, boundedTimeSec);
+            if (!nearest) return { ...next, time: newTimeStr, timeSec: boundedTimeSec };
             return {
-                ...entry,
+                ...next,
                 time: newTimeStr,
                 timeSec: boundedTimeSec,
                 temp: formatTemp(nearest.bt, unit),

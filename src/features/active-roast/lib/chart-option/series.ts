@@ -14,6 +14,7 @@ import {
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
+import { type CurveLabelItem, layoutCurveLabelBoxes, MARKER_LABEL_MAX_WIDTH_PX } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
 // 커피 로스팅 차트에 최적화된 스무딩 설정
@@ -265,6 +266,69 @@ export const buildContinuousMarkerSeries = (
         };
     },
     data: lines.map(({ timeSec, color, width }) => [timeSec, color, width]),
+});
+
+/** BT 축 위에 이벤트 라벨. 한 번에 배치해서 박스가 겹치면 위/아래로 밀어낸다. */
+export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
+    id: 'event-curve-labels',
+    name: 'Event curve labels',
+    type: 'custom' as const,
+    xAxisIndex: 0,
+    yAxisIndex: 0,
+    clip: false,
+    silent: true,
+    z: 10,
+    tooltip: { show: false },
+    // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
+    renderItem: (params: any, api: any) => {
+        if (params.dataIndex !== 0) return;
+        const { x: plotX, width: plotWidth } = params.coordSys;
+        const laid = layoutCurveLabelBoxes(
+            items.flatMap((item) => {
+                const point = api.coord([item.timeSec, item.y]) as number[];
+                if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) return [];
+                if (point[0] < plotX || point[0] > plotX + plotWidth) return [];
+                return [
+                    {
+                        timeSec: item.timeSec,
+                        xPx: point[0],
+                        yPx: point[1],
+                        text: item.text,
+                        below: item.below,
+                        color: item.color,
+                        showDot: item.showDot,
+                    },
+                ];
+            }),
+        );
+        // biome-ignore lint/suspicious/noExplicitAny: ECharts graphic children
+        const children: any[] = [];
+        for (const box of laid) {
+            if (box.showDot) {
+                children.push({
+                    type: 'circle',
+                    shape: { cx: box.anchorX, cy: box.anchorY, r: 2.5 },
+                    style: { fill: box.color, stroke: box.color, lineWidth: 1 },
+                });
+            }
+            children.push({
+                type: 'text',
+                x: box.x,
+                y: box.textY,
+                style: {
+                    text: box.text,
+                    fill: box.color,
+                    font: '600 10px monospace',
+                    textAlign: 'center',
+                    textVerticalAlign: box.below ? 'top' : 'bottom',
+                    width: MARKER_LABEL_MAX_WIDTH_PX,
+                    overflow: 'truncate',
+                },
+            });
+        }
+        return { type: 'group', children };
+    },
+    data: [[0]],
 });
 
 export interface PhaseSeriesParams {

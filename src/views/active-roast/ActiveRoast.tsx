@@ -14,7 +14,7 @@ import {
     useRoastKeyboardShortcuts,
     useRoastSettings,
 } from '@features/active-roast';
-import { applyEventMarkerDrag, nearestLivePointAt } from '@features/active-roast/lib/event-marker-drag';
+import { applyEventMarkerEdit, nearestLivePointAt } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -507,7 +507,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
-            setLogEntries((prev) => applyEventMarkerDrag(prev, logId, newTimeSec, livePoints, unit, elapsed));
+            setLogEntries((prev) =>
+                applyEventMarkerEdit(prev, logId, { timeSec: newTimeSec }, livePoints, unit, elapsed),
+            );
+        },
+        [setLogEntries, livePoints, unit, elapsed],
+    );
+
+    const handleEventMarkerEdit = useCallback(
+        (logId: string, patch: { timeSec?: number; note?: string }) => {
+            setLogEntries((prev) => applyEventMarkerEdit(prev, logId, patch, livePoints, unit, elapsed));
         },
         [setLogEntries, livePoints, unit, elapsed],
     );
@@ -634,6 +643,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         targetProfileName={targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}
                         onEventMarkerDrag={charged && !roastEnded && !bbpActive ? handleEventMarkerDrag : undefined}
+                        onEventMarkerEdit={charged && !roastEnded && !bbpActive ? handleEventMarkerEdit : undefined}
                         onAddNote={charged && !roastEnded && !bbpActive ? handleChartNote : undefined}
                     />
 

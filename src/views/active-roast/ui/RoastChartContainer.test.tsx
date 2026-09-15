@@ -10,6 +10,8 @@ const marker = vi.hoisted(() => ({
     begin: vi.fn(() => false),
     move: vi.fn(() => false),
     end: vi.fn(() => false),
+    hitTest: vi.fn(() => false),
+    openEdit: vi.fn(() => false),
 }));
 
 vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
@@ -20,6 +22,8 @@ vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
                 beginMarkerDrag: marker.begin,
                 moveMarkerDrag: marker.move,
                 endMarkerDrag: marker.end,
+                hitTestMarker: marker.hitTest,
+                openMarkerEdit: marker.openEdit,
             }));
             return React.createElement(
                 'div',
@@ -32,8 +36,8 @@ vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
 
 vi.mock('./ChartLegend', () => ({ ChartLegend: () => null }));
 
-const pointer = (type: string, pointerId: number, button = 0) => {
-    const event = new MouseEvent(type, { bubbles: true, cancelable: true, button, clientX: 50, clientY: 20 });
+const pointer = (type: string, pointerId: number, button = 0, clientX = 50, clientY = 20) => {
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true, button, clientX, clientY });
     Object.defineProperty(event, 'pointerId', { value: pointerId });
     return event;
 };
@@ -89,6 +93,8 @@ describe('RoastChartContainer pointer ownership', () => {
         marker.begin.mockReset().mockReturnValue(false);
         marker.move.mockReset().mockReturnValue(false);
         marker.end.mockReset().mockReturnValue(false);
+        marker.hitTest.mockReset().mockReturnValue(false);
+        marker.openEdit.mockReset().mockReturnValue(false);
         panDown.mockReset();
         panMove.mockReset();
         panEnd.mockReset();
@@ -119,8 +125,8 @@ describe('RoastChartContainer pointer ownership', () => {
         const surface = container.querySelector('[role="region"]') as HTMLDivElement;
 
         act(() => surface.dispatchEvent(pointer('pointerdown', 7)));
-        act(() => surface.dispatchEvent(pointer('pointermove', 7)));
-        act(() => surface.dispatchEvent(pointer('pointerup', 7)));
+        act(() => surface.dispatchEvent(pointer('pointermove', 7, 0, 80)));
+        act(() => surface.dispatchEvent(pointer('pointerup', 7, 0, 80)));
 
         expect(marker.begin).toHaveBeenCalledOnce();
         expect(marker.move).toHaveBeenCalledOnce();
@@ -128,6 +134,22 @@ describe('RoastChartContainer pointer ownership', () => {
         expect(panDown).not.toHaveBeenCalled();
         expect(panMove).not.toHaveBeenCalled();
         expect(panEnd).not.toHaveBeenCalled();
+        expect(marker.openEdit).not.toHaveBeenCalled();
+    });
+
+    it('opens marker edit on click without drag', () => {
+        marker.begin.mockReturnValue(true);
+        marker.end.mockReturnValue(true);
+        marker.openEdit.mockReturnValue(true);
+        const surface = container.querySelector('[role="region"]') as HTMLDivElement;
+
+        act(() => surface.dispatchEvent(pointer('pointerdown', 7)));
+        act(() => surface.dispatchEvent(pointer('pointermove', 7)));
+        act(() => surface.dispatchEvent(pointer('pointerup', 7)));
+
+        expect(marker.move).not.toHaveBeenCalled();
+        expect(marker.openEdit).toHaveBeenCalledOnce();
+        expect(panDown).not.toHaveBeenCalled();
     });
 
     it('leaves blank-space pointers with the existing pan handlers', () => {
@@ -149,6 +171,36 @@ describe('RoastChartContainer pointer ownership', () => {
         act(() => surface.dispatchEvent(pointer('pointermove', 10)));
         expect(marker.end).toHaveBeenCalledWith(10);
         expect(panMove).toHaveBeenCalledOnce();
+        expect(marker.openEdit).not.toHaveBeenCalled();
+    });
+
+    it('uses pointer cursor while a marker is being dragged', () => {
+        marker.begin.mockReturnValue(true);
+        marker.move.mockReturnValue(true);
+        marker.end.mockReturnValue(true);
+        const surface = container.querySelector('[role="region"]') as HTMLDivElement;
+
+        expect(surface.className).toContain('cursor-grab');
+        act(() => surface.dispatchEvent(pointer('pointerdown', 7)));
+        expect(surface.className).toContain('cursor-pointer');
+        expect(surface.className).not.toContain('cursor-grab');
+        act(() => surface.dispatchEvent(pointer('pointerup', 7)));
+        expect(surface.className).toContain('cursor-grab');
+        expect(surface.className).not.toContain('cursor-pointer');
+    });
+
+    it('uses pointer cursor when hovering a draggable marker', () => {
+        marker.hitTest.mockReturnValue(true);
+        const surface = container.querySelector('[role="region"]') as HTMLDivElement;
+
+        act(() => surface.dispatchEvent(pointer('pointermove', 3)));
+        expect(surface.className).toContain('cursor-pointer');
+        expect(surface.className).not.toContain('cursor-grab');
+
+        marker.hitTest.mockReturnValue(false);
+        act(() => surface.dispatchEvent(pointer('pointermove', 3)));
+        expect(surface.className).toContain('cursor-grab');
+        expect(surface.className).not.toContain('cursor-pointer');
     });
 
     it('does not start chart interactions from the Note form', () => {

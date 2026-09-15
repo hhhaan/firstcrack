@@ -14,11 +14,12 @@ import {
 } from '@features/active-roast/lib/chart-option';
 import {
     eventLabelText,
-    getMarkerLabelGeometry,
     LABEL_BELOW_EVENTS,
+    layoutCurveLabelBoxes,
     nearestBtAt,
 } from '@features/active-roast/lib/chart-option/markers';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { formatElapsed } from '@shared/lib/format';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
 import type React from 'react';
@@ -41,6 +42,7 @@ interface Props {
     height: number;
     onCursorIdx?: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
+    onEventMarkerEdit?: (logId: string, patch: { timeSec?: number; note?: string }) => void;
     onAddNote?: (body: string, timeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
@@ -71,9 +73,28 @@ export interface RoastTempChartHandle {
     beginMarkerDrag: (event: Pick<PointerEvent, 'button' | 'clientX' | 'clientY' | 'pointerId'>) => boolean;
     moveMarkerDrag: (event: Pick<PointerEvent, 'clientX' | 'clientY' | 'pointerId'>) => boolean;
     endMarkerDrag: (pointerId: number) => boolean;
+    hitTestMarker: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
+    openMarkerEdit: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
 }
 
 const scalar = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+const parseEditTimeSec = (raw: string): number | null => {
+    const t = raw.trim();
+    if (!t) return null;
+    if (t.includes(':')) {
+        const [m, s] = t.split(':').map(Number);
+        if (!Number.isFinite(m) || !Number.isFinite(s)) return null;
+        return Math.max(0, Math.round(m * 60 + s));
+    }
+    const sec = Number(t);
+    return Number.isFinite(sec) ? Math.max(0, Math.round(sec)) : null;
+};
+
+const parseHeaterNote = (note: string): { value: string; unit: string } => {
+    const match = note.trim().match(/^(-?\d+(?:\.\d+)?)(.*)$/);
+    return match ? { value: match[1], unit: match[2] || '%' } : { value: '', unit: '%' };
+};
 
 export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function RoastTempChart(
     {
@@ -91,6 +112,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         height,
         onCursorIdx,
         onEventMarkerDrag,
+        onEventMarkerEdit,
         onAddNote,
         showET = true,
         showTargetCurve = true,
@@ -128,6 +150,16 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const [noteForm, setNoteForm] = useState<{ x: number; y: number; timeSec: number } | null>(null);
     const [noteBody, setNoteBody] = useState('');
     const noteFormRef = useRef<HTMLFormElement>(null);
+    const [editForm, setEditForm] = useState<{
+        logId: string;
+        event: string;
+        x: number;
+        y: number;
+        time: string;
+        note: string;
+        heaterUnit: string;
+    } | null>(null);
+    const editFormRef = useRef<HTMLFormElement>(null);
 
     useEffect((): (() => void) | undefined => {
         const container = chartRef.current;
@@ -304,93 +336,78 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         return rect ? { x: clientX - rect.left, y: clientY - rect.top } : null;
     }, []);
 
-    const beginMarkerDrag = useCallback(
-        (event: Pick<PointerEvent, 'button' | 'clientX' | 'clientY' | 'pointerId'>) => {
-            if (event.button !== 0 || !onEventMarkerDrag) return false;
+    const findDraggableMarker = useCallback(
+        (clientX: number, clientY: number) => {
+            if (!onEventMarkerDrag && !onEventMarkerEdit) return null;
             const chart = chartInstanceRef.current;
-            const point = localPoint(event.clientX, event.clientY);
-            if (!chart || !point) return false;
-            const xMin = xViewMin ?? xs[0] ?? 0;
-            const xMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
-
-            const candidates = eventMarkers.flatMap((marker, index) => {
-                if (!marker.logId || marker.event === 'Charge' || marker.event === 'Heater') return [];
-                const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
-                if (x == null) return [];
-                const rank = eventMarkers
-                    .slice(0, index)
-                    .filter((other) => Math.round(other.timeSec) === Math.round(marker.timeSec)).length;
-                const nearest = nearestBtAt(xs, btActual, marker.timeSec);
-                const displayY =
-                    nearest ??
-                    (marker.tempC != null && Number.isFinite(marker.tempC)
-                        ? toDisplayTemp(marker.tempC, temperatureUnit)
-                        : toDisplayTemp(tempMaxC, temperatureUnit));
-                const anchorY = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY)) ?? 20;
-                const temp =
-                    marker.tempC != null && Number.isFinite(marker.tempC)
-                        ? formatTemp(marker.tempC, temperatureUnit)
-                        : nearest != null
-                          ? `${nearest.toFixed(1)}°${temperatureUnit}`
-                          : marker.temp || '—';
-                const text = eventLabelText(marker.event, marker.timeSec, temp, marker.note);
-                const measuredWidth = Math.min(
-                    240,
-                    (() => {
-                        const context = document.createElement('canvas').getContext('2d');
-                        if (!context) return text.length * 6;
-                        context.font = eventMarkerStyle === 'line' ? '700 11px monospace' : '600 10px monospace';
-                        return context.measureText(text).width;
-                    })(),
-                );
-                let labelX = x;
-                let labelY = anchorY;
-                let align: 'left' | 'right' | 'center' = 'center';
-                if (eventMarkerStyle === 'both') {
-                    const geometry = getMarkerLabelGeometry({
-                        anchorX: x,
-                        anchorY,
+            const point = localPoint(clientX, clientY);
+            if (!chart || !point) return null;
+            const layoutInputs = [
+                ...eventMarkers.map((marker) => {
+                    const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
+                    const nearest = nearestBtAt(xs, btActual, marker.timeSec);
+                    const displayY =
+                        nearest ??
+                        (marker.tempC != null && Number.isFinite(marker.tempC)
+                            ? toDisplayTemp(marker.tempC, temperatureUnit)
+                            : toDisplayTemp(tempMaxC, temperatureUnit));
+                    const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
+                    const temp =
+                        marker.tempC != null && Number.isFinite(marker.tempC)
+                            ? formatTemp(marker.tempC, temperatureUnit)
+                            : nearest != null
+                              ? `${nearest.toFixed(1)}°${temperatureUnit}`
+                              : marker.temp || '—';
+                    return {
+                        marker,
                         timeSec: marker.timeSec,
-                        xMin,
-                        xMax,
-                        rank,
-                        text,
-                    });
-                    labelX = geometry.x;
-                    labelY = geometry.y;
-                    align = geometry.align;
-                } else if (eventMarkerStyle === 'point') {
-                    labelY = anchorY + (LABEL_BELOW_EVENTS.has(marker.event) ? 12 : -12) - rank * 14;
-                } else {
-                    const below = LABEL_BELOW_EVENTS.has(marker.event);
-                    labelY =
-                        (scalar(
-                            chart.convertToPixel(
-                                { yAxisIndex: 0 },
-                                toDisplayTemp(below ? tempMinC : tempMaxC, temperatureUnit),
-                            ),
-                        ) ?? (below ? (chartRef.current?.clientHeight ?? 0) : 0)) -
-                        rank * 14;
-                    const inward = xMax > xMin && (marker.timeSec - xMin) / (xMax - xMin) > 0.9;
-                    labelX = x + (inward ? -4 : 4);
-                    align = inward ? 'right' : 'left';
-                }
-                const labelLeft =
-                    align === 'right'
-                        ? labelX - measuredWidth
-                        : align === 'center'
-                          ? labelX - measuredWidth / 2
-                          : labelX;
-                const labelHit =
-                    point.x >= labelLeft - 4 &&
-                    point.x <= labelLeft + measuredWidth + 4 &&
-                    Math.abs(point.y - labelY) <= 10;
+                        xPx: x ?? Number.NaN,
+                        yPx: y ?? Number.NaN,
+                        text: eventLabelText(marker.event, marker.timeSec, temp, marker.note),
+                        below: LABEL_BELOW_EVENTS.has(marker.event),
+                        color: '',
+                        showDot: eventMarkerStyle === 'point',
+                    };
+                }),
+                ...turningPoints.map((tp) => {
+                    const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, tp.timeSec));
+                    const displayY = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
+                    const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
+                    return {
+                        marker: null as RoastEventMarker | null,
+                        timeSec: tp.timeSec,
+                        xPx: x ?? Number.NaN,
+                        yPx: y ?? Number.NaN,
+                        text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+                        below: true,
+                        color: '',
+                        showDot: eventMarkerStyle === 'point',
+                    };
+                }),
+            ];
+            const boxes = layoutCurveLabelBoxes(layoutInputs);
+            const candidates = layoutInputs.flatMap((input, index) => {
+                const marker = input.marker;
+                if (!marker?.logId || marker.event === 'Charge') return [];
+                const x = input.xPx;
+                const anchorY = input.yPx;
+                if (!Number.isFinite(x)) return [];
+                const box = boxes[index];
+                const labelHit = Boolean(
+                    box &&
+                        point.x >= box.left - 4 &&
+                        point.x <= box.right + 4 &&
+                        point.y >= box.top - 4 &&
+                        point.y <= box.bottom + 4,
+                );
                 const plotHit = chart.containPixel({ gridIndex: [0, 1, 2] }, [point.x, point.y]);
                 const pointHit =
                     eventMarkerStyle === 'point' &&
                     plotHit &&
+                    Number.isFinite(anchorY) &&
                     Math.hypot(point.x - x, point.y - anchorY) <= PIXEL_THRESHOLD;
                 const lineHit = eventMarkerStyle !== 'point' && plotHit && Math.abs(point.x - x) <= PIXEL_THRESHOLD;
+                const labelY = box?.textY ?? anchorY;
                 return labelHit || pointHit || lineHit
                     ? [
                           {
@@ -402,25 +419,37 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                       ]
                     : [];
             });
-            const selected = candidates.sort((a, b) => a.score - b.score)[0]?.marker;
-            if (!selected?.logId) return false;
-            dragStateRef.current = { pointerId: event.pointerId, logId: selected.logId, timeSec: selected.timeSec };
-            return true;
+            return candidates.sort((a, b) => a.score - b.score)[0]?.marker ?? null;
         },
         [
             btActual,
-            currentTimeSec,
             eventMarkerStyle,
             eventMarkers,
             localPoint,
             onEventMarkerDrag,
+            onEventMarkerEdit,
             tempMaxC,
-            tempMinC,
             temperatureUnit,
-            xViewMax,
-            xViewMin,
+            turningPoints,
             xs,
         ],
+    );
+
+    const beginMarkerDrag = useCallback(
+        (event: Pick<PointerEvent, 'button' | 'clientX' | 'clientY' | 'pointerId'>) => {
+            if (event.button !== 0) return false;
+            const selected = findDraggableMarker(event.clientX, event.clientY);
+            if (!selected?.logId) return false;
+            dragStateRef.current = { pointerId: event.pointerId, logId: selected.logId, timeSec: selected.timeSec };
+            return true;
+        },
+        [findDraggableMarker],
+    );
+
+    const hitTestMarker = useCallback(
+        (event: Pick<PointerEvent, 'clientX' | 'clientY'>) =>
+            Boolean(findDraggableMarker(event.clientX, event.clientY)),
+        [findDraggableMarker],
     );
 
     const moveMarkerDrag = useCallback(
@@ -448,11 +477,35 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         return true;
     }, []);
 
-    useImperativeHandle(ref, () => ({ beginMarkerDrag, moveMarkerDrag, endMarkerDrag }), [
-        beginMarkerDrag,
-        moveMarkerDrag,
-        endMarkerDrag,
-    ]);
+    const openMarkerEdit = useCallback(
+        (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => {
+            if (!onEventMarkerEdit) return false;
+            const selected = findDraggableMarker(event.clientX, event.clientY);
+            const point = localPoint(event.clientX, event.clientY);
+            const container = chartRef.current;
+            if (!selected?.logId || !point || !container) return false;
+            const heater = parseHeaterNote(selected.note ?? '');
+            setNoteForm(null);
+            setNoteBody('');
+            setEditForm({
+                logId: selected.logId,
+                event: selected.event,
+                x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
+                y: Math.max(0, Math.min(point.y, container.clientHeight - 120)),
+                time: formatElapsed(selected.timeSec),
+                note: selected.event === 'Heater' ? heater.value : (selected.note ?? ''),
+                heaterUnit: heater.unit,
+            });
+            return true;
+        },
+        [findDraggableMarker, localPoint, onEventMarkerEdit],
+    );
+
+    useImperativeHandle(
+        ref,
+        () => ({ beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit }),
+        [beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit],
+    );
 
     useEffect(
         () => () => {
@@ -472,17 +525,23 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     }, [onAddNote]);
 
     useEffect(() => {
-        if (!noteForm) return;
+        if (onEventMarkerEdit) return;
+        setEditForm(null);
+    }, [onEventMarkerEdit]);
+
+    useEffect(() => {
+        if (!noteForm && !editForm) return;
         const close = (event: globalThis.PointerEvent) => {
-            if (!noteFormRef.current?.contains(event.target as Node)) {
-                setNoteForm(null);
-                setNoteBody('');
-                chartRef.current?.focus();
-            }
+            const target = event.target as Node;
+            if (noteFormRef.current?.contains(target) || editFormRef.current?.contains(target)) return;
+            setNoteForm(null);
+            setNoteBody('');
+            setEditForm(null);
+            chartRef.current?.focus();
         };
         document.addEventListener('pointerdown', close);
         return () => document.removeEventListener('pointerdown', close);
-    }, [noteForm]);
+    }, [editForm, noteForm]);
 
     const handleContextMenu = useCallback(
         (event: React.MouseEvent<HTMLDivElement>) => {
@@ -495,6 +554,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
             if (converted == null) return;
             setNoteBody('');
+            setEditForm(null);
             setNoteForm({
                 x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
                 y: Math.max(0, Math.min(point.y, container.clientHeight - 72)),
@@ -511,6 +571,27 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         setNoteBody('');
         chartRef.current?.focus();
     }, [noteBody, noteForm, onAddNote]);
+
+    const submitEdit = useCallback(() => {
+        if (!editForm || !onEventMarkerEdit) return;
+        const timeSec = parseEditTimeSec(editForm.time);
+        if (timeSec == null) return;
+        const patch: { timeSec: number; note?: string } = {
+            timeSec: Math.max(0, Math.min(Math.floor(currentTimeSec), timeSec)),
+        };
+        if (editForm.event === 'Heater') {
+            const heat = Number(editForm.note);
+            if (!Number.isFinite(heat)) return;
+            patch.note = `${Math.round(heat)}${editForm.heaterUnit}`;
+        } else if (editForm.event === 'Note') {
+            const body = editForm.note.trim();
+            if (!body) return;
+            patch.note = body;
+        }
+        onEventMarkerEdit(editForm.logId, patch);
+        setEditForm(null);
+        chartRef.current?.focus();
+    }, [currentTimeSec, editForm, onEventMarkerEdit]);
 
     return (
         <div
@@ -560,6 +641,67 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     />
                     <button type="submit" className="rounded px-2 text-xs text-(--color-text-primary)">
                         Add
+                    </button>
+                </form>
+            )}
+            {editForm && (
+                <form
+                    ref={editFormRef}
+                    data-chart-marker-edit
+                    className="absolute z-20 flex w-[220px] flex-col gap-1 rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md"
+                    style={{ left: editForm.x, top: editForm.y }}
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        submitEdit();
+                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onWheel={(event) => event.stopPropagation()}
+                >
+                    <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">{editForm.event}</div>
+                    <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
+                        Time
+                        <input
+                            id="chart-marker-time"
+                            autoFocus
+                            value={editForm.time}
+                            onChange={(event) => setEditForm({ ...editForm, time: event.target.value })}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Escape') {
+                                    event.preventDefault();
+                                    setEditForm(null);
+                                    chartRef.current?.focus();
+                                }
+                            }}
+                            className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                        />
+                    </label>
+                    {editForm.event === 'Heater' && (
+                        <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
+                            Heat
+                            <input
+                                id="chart-marker-heat"
+                                type="number"
+                                value={editForm.note}
+                                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
+                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                            />
+                            <span className="font-mono text-[11px]">{editForm.heaterUnit}</span>
+                        </label>
+                    )}
+                    {editForm.event === 'Note' && (
+                        <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
+                            Note
+                            <textarea
+                                id="chart-marker-note"
+                                rows={1}
+                                value={editForm.note}
+                                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
+                                className="min-w-0 flex-1 resize-none rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none"
+                            />
+                        </label>
+                    )}
+                    <button type="submit" className="self-end rounded px-2 text-xs text-(--color-text-primary)">
+                        Save
                     </button>
                 </form>
             )}

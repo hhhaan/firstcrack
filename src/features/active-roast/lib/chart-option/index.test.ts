@@ -263,4 +263,34 @@ describe('buildRoastChartOption', () => {
         );
         expect(result?.shape.y2).toBe(310);
     });
+
+    it('draws event labels on the BT axis, not the grid edge', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 60],
+            btActual: [100, 185],
+            eventMarkerStyle: 'both',
+            eventMarkers: [{ timeSec: 60, event: 'FC Start', color: '#old', timeStr: '', temp: '185°C' }],
+        });
+        const labelSeries = (
+            option.series as {
+                name?: string;
+                yAxisIndex?: number;
+                data?: unknown[];
+                renderItem?: (
+                    params: unknown,
+                    api: unknown,
+                ) => { type: string; children: { type: string; x: number; y: number }[] };
+            }[]
+        ).find((series) => series.name === 'Event curve labels');
+        expect(labelSeries?.yAxisIndex).toBe(0);
+        expect(labelSeries?.data).toEqual([[0]]);
+        const result = labelSeries?.renderItem?.(
+            { dataIndex: 0, coordSys: { x: 0, y: 0, width: 400, height: 300 } },
+            { coord: (value: number[]) => [value[0] * 2, 250 - value[1]] },
+        );
+        const text = result?.children.find((child) => child.type === 'text');
+        expect(text).toMatchObject({ type: 'text', x: 120, y: 53 });
+        expect(result?.children.some((child) => child.type === 'circle')).toBe(false);
+    });
 });

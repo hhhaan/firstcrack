@@ -12,7 +12,13 @@ import {
     computeTempYRange,
 } from './axes';
 import { buildMarkers } from './markers';
-import { buildContinuousMarkerSeries, buildControlSeries, buildPhaseSeries, buildTempSeries } from './series';
+import {
+    buildContinuousMarkerSeries,
+    buildControlSeries,
+    buildCurveLabelSeries,
+    buildPhaseSeries,
+    buildTempSeries,
+} from './series';
 import { createAxisTooltipFormatter } from './tooltip';
 import type { ChartOptionParams } from './types';
 
@@ -91,6 +97,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const {
         allMarkLines,
         markPointData,
+        curveLabels,
         fcMarkArea,
         controlGuideMarkLines,
         continuousMarkerLines,
@@ -147,6 +154,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         eventMarkerStyle === 'both'
             ? buildContinuousMarkerSeries(continuousMarkerLines, (tempYMin + tempYMax) / 2, hasControlSeries)
             : null;
+    const curveLabelSeries = curveLabels.length > 0 ? buildCurveLabelSeries(curveLabels) : null;
 
     if (hasControlSeries && controlData) {
         // Grid: [0] Temp/RoR (+ phase overlay) · [1] Drum/Heat/Fan
@@ -204,6 +212,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 ...tempSeries,
                 ...controlSeries,
                 ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
+                ...(curveLabelSeries ? [curveLabelSeries] : []),
                 ...(phaseSeries ? [phaseSeries] : []),
             ],
             // Zoom/pan owned by useChartZoom — ECharts dataZoom would steal drag/wheel
@@ -248,6 +257,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         series: [
             ...tempSeries,
             ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
+            ...(curveLabelSeries ? [curveLabelSeries] : []),
             ...(phaseSeries ? [phaseSeries] : []),
         ],
     };

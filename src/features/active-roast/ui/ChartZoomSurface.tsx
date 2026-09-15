@@ -10,6 +10,9 @@ interface ChartZoomSurfaceProps {
     className?: string;
     /** cursor class when not zoomed (live chart: 'cursor-default'; compare: none) */
     idleCursorClassName?: string;
+    /** wins over grab/idle — marker hover/drag uses pointer */
+    cursorOverrideClassName?: string;
+    onPointerLeave?: () => void;
     style?: CSSProperties;
     /** set → wraps in role="region" for AT; keep accurate to the surface's actual keys */
     ariaLabel?: string;
@@ -30,12 +33,16 @@ export const ChartZoomSurface = ({
     endChartDrag,
     className = '',
     idleCursorClassName = '',
+    cursorOverrideClassName,
+    onPointerLeave,
     style,
     ariaLabel,
     children,
 }: ChartZoomSurfaceProps) => {
     let cursor = idleCursorClassName;
-    if (effectiveZoomRange) {
+    if (cursorOverrideClassName) {
+        cursor = cursorOverrideClassName;
+    } else if (effectiveZoomRange) {
         cursor = isChartDragging ? 'cursor-grabbing select-none touch-none' : 'cursor-grab touch-none';
     }
 
@@ -46,9 +53,17 @@ export const ChartZoomSurface = ({
             style={style}
             onPointerDownCapture={handleChartPointerDown}
             onPointerMoveCapture={handleChartPointerMove}
+            onPointerMove={(event) => {
+                if (!cursorOverrideClassName?.includes('cursor-pointer')) return;
+                event.currentTarget.style.cursor = 'pointer';
+                for (const canvas of event.currentTarget.querySelectorAll('canvas')) {
+                    canvas.style.cursor = 'pointer';
+                }
+            }}
             onPointerUpCapture={endChartDrag}
             onPointerCancelCapture={endChartDrag}
             onLostPointerCapture={endChartDrag}
+            onPointerLeave={onPointerLeave}
             {...(ariaLabel ? { role: 'region', 'aria-label': ariaLabel } : {})}
         >
             {children}

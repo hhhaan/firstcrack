@@ -179,6 +179,7 @@ describe('RoastTempChart interactions', () => {
 
         act(() => zrHandlers.get('mousemove')?.({ offsetX: 0, offsetY: 20 }));
         expect(onCursorIdx).toHaveBeenLastCalledWith(0);
+        expect(ref.current?.hitTestMarker({ clientX: 50, clientY: 20 })).toBe(true);
         expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 20, pointerId: 4 })).toBe(true);
         expect(ref.current?.moveMarkerDrag({ clientX: 80, clientY: 20, pointerId: 4 })).toBe(true);
         expect(onEventMarkerDrag).toHaveBeenCalledWith('note-1', 8);
@@ -238,6 +239,57 @@ describe('RoastTempChart interactions', () => {
         expect(onAddNote).not.toHaveBeenCalled();
         act(() => input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
         expect(onAddNote).toHaveBeenCalledWith('past note', 6);
+    });
+
+    it('opens a marker editor on click and saves time plus Heater heat', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerEdit = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'heater-1',
+                            event: 'Heater',
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '180°C',
+                            color: '#c00',
+                            note: '50%',
+                        },
+                    ],
+                    onEventMarkerDrag: vi.fn(),
+                    onEventMarkerEdit,
+                }),
+            );
+        });
+
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+        });
+        const time = container.querySelector('#chart-marker-time') as HTMLInputElement;
+        const heat = container.querySelector('#chart-marker-heat') as HTMLInputElement;
+        expect(time.value).toBe('0:05');
+        expect(heat.value).toBe('50');
+
+        act(() => {
+            const timeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+            timeSetter?.call(time, '0:08');
+            time.dispatchEvent(new Event('input', { bubbles: true }));
+            const heatSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+            heatSetter?.call(heat, '70');
+            heat.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() =>
+            container
+                .querySelector('[data-chart-marker-edit]')
+                ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+        );
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8, note: '70%' });
     });
 
     it('keeps the read-only chart free of Note writes', () => {

@@ -31,79 +31,146 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
 };
 
 export const MARKER_LABEL_STACK_PX = 14;
-export const MARKER_LABEL_DISTANCE_PX = 6;
+export const MARKER_LABEL_DISTANCE_PX = 12;
+export const MARKER_LABEL_MAX_WIDTH_PX = 240;
+export const MARKER_LABEL_CHAR_WIDTH_PX = 6;
+export const MARKER_LABEL_GAP_PX = 2;
+
+export const markerLabelDy = (below: boolean, rank = 0) =>
+    (below ? MARKER_LABEL_DISTANCE_PX : -MARKER_LABEL_DISTANCE_PX) - MARKER_LABEL_STACK_PX * rank;
+
+export const estimateLabelWidth = (text: string) =>
+    Math.min(MARKER_LABEL_MAX_WIDTH_PX, Math.max(8, text.length * MARKER_LABEL_CHAR_WIDTH_PX));
 
 export interface MarkerLabelGeometry {
     x: number;
     y: number;
-    align: 'left' | 'right';
+    align: 'center';
     text: string;
     rank: number;
 }
+
+export interface CurveLabelItem {
+    timeSec: number;
+    y: number;
+    text: string;
+    color: string;
+    below: boolean;
+    showDot: boolean;
+}
+
+export interface CurveLabelLayoutInput {
+    timeSec: number;
+    xPx: number;
+    yPx: number;
+    text: string;
+    below: boolean;
+    color: string;
+    showDot: boolean;
+}
+
+export interface CurveLabelBox {
+    x: number;
+    textY: number;
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+    below: boolean;
+    text: string;
+    color: string;
+    showDot: boolean;
+    anchorX: number;
+    anchorY: number;
+    timeSec: number;
+}
+
+const boxesOverlap = (a: CurveLabelBox, b: CurveLabelBox) =>
+    a.left < b.right + MARKER_LABEL_GAP_PX &&
+    a.right + MARKER_LABEL_GAP_PX > b.left &&
+    a.top < b.bottom + MARKER_LABEL_GAP_PX &&
+    a.bottom + MARKER_LABEL_GAP_PX > b.top;
+
+const makeLabelBox = (item: CurveLabelLayoutInput, textY: number): CurveLabelBox => {
+    const width = estimateLabelWidth(item.text);
+    const top = item.below ? textY : textY - MARKER_LABEL_STACK_PX;
+    const bottom = item.below ? textY + MARKER_LABEL_STACK_PX : textY;
+    return {
+        x: item.xPx,
+        textY,
+        left: item.xPx - width / 2,
+        right: item.xPx + width / 2,
+        top,
+        bottom,
+        below: item.below,
+        text: item.text,
+        color: item.color,
+        showDot: item.showDot,
+        anchorX: item.xPx,
+        anchorY: item.yPx,
+        timeSec: item.timeSec,
+    };
+};
+
+/** Time-ordered greedy packing. Prefer the curve side, then flip if still blocked. */
+export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[]): CurveLabelBox[] => {
+    const order = items
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => Number.isFinite(item.xPx) && Number.isFinite(item.yPx))
+        .sort((a, b) => a.item.timeSec - b.item.timeSec || a.index - b.index);
+    const placed: CurveLabelBox[] = [];
+    const byIndex: CurveLabelBox[] = [];
+    for (const { item, index } of order) {
+        let textY = item.yPx + markerLabelDy(item.below);
+        let box = makeLabelBox(item, textY);
+        const trySteps = (dir: number) => {
+            let step = 0;
+            let next = box;
+            while (placed.some((prior) => boxesOverlap(next, prior)) && step < 24) {
+                textY += dir * MARKER_LABEL_STACK_PX;
+                next = makeLabelBox(item, textY);
+                step += 1;
+            }
+            return next;
+        };
+        box = trySteps(item.below ? 1 : -1);
+        if (placed.some((prior) => boxesOverlap(box, prior))) {
+            textY = item.yPx + markerLabelDy(item.below);
+            box = makeLabelBox(item, textY);
+            box = trySteps(item.below ? -1 : 1);
+        }
+        placed.push(box);
+        byIndex[index] = box;
+    }
+    return items.map((_, index) => byIndex[index]).filter(Boolean);
+};
 
 /** Exact curve-label geometry shared with pointer hit-testing. Coordinates are CSS pixels. */
 export const getMarkerLabelGeometry = ({
     anchorX,
     anchorY,
-    timeSec,
-    xMin,
-    xMax,
     rank,
     text,
+    below = false,
 }: {
     anchorX: number;
     anchorY: number;
-    timeSec: number;
-    xMin: number;
-    xMax: number;
     rank: number;
     text: string;
-}): MarkerLabelGeometry => {
-    const right = xMax > xMin && (timeSec - xMin) / (xMax - xMin) > 0.9;
-    return {
-        x: anchorX + (right ? -MARKER_LABEL_DISTANCE_PX : MARKER_LABEL_DISTANCE_PX),
-        y: anchorY - MARKER_LABEL_STACK_PX * rank,
-        align: right ? 'right' : 'left',
-        text,
-        rank,
-    };
-};
+    below?: boolean;
+}): MarkerLabelGeometry => ({
+    x: anchorX,
+    y: anchorY + markerLabelDy(below, rank),
+    align: 'center',
+    text,
+    rank,
+});
 
 /**
- * 하단 라벨 — 상단 이벤트와 겹침 완화.
- * FC Start(상단) vs FC Rolling/FC End(하단): dual-mark 구간에서 시간이 가까워도 안 겹침.
+ * 커브 기준 하단 라벨 — 같은 시각 상단 이벤트와 겹침 완화.
+ * FC Start(상단) vs FC Rolling/FC End(하단). Drop은 커브 위(우측 군집 회피).
  */
-export const LABEL_BELOW_EVENTS = new Set(['FC Rolling', 'FC End', 'Drop', 'TP']);
-
-const buildPointLabel = (
-    text: string,
-    below: boolean,
-    rank: number,
-    inward: boolean,
-    color: string,
-    curveAdjacent: boolean,
-) => ({
-    show: true,
-    position: (curveAdjacent ? (inward ? 'left' : 'right') : below ? 'bottom' : 'top') as
-        | 'left'
-        | 'right'
-        | 'top'
-        | 'bottom',
-    distance: curveAdjacent ? MARKER_LABEL_DISTANCE_PX : 5,
-    offset: [0, rank === 0 ? 0 : -MARKER_LABEL_STACK_PX * rank],
-    align: curveAdjacent ? (inward ? 'right' : 'left') : 'center',
-    formatter: () => text,
-    fontSize: 10,
-    fontWeight: 600 as const,
-    fontFamily: 'monospace',
-    color,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    padding: 0,
-    width: 240,
-    overflow: 'truncate' as const,
-    ellipsis: '…',
-});
+export const LABEL_BELOW_EVENTS = new Set(['FC Rolling', 'FC End', 'TP']);
 
 export interface MarkerBuildParams {
     charged: boolean;
@@ -130,6 +197,7 @@ export interface MarkerBuildParams {
 export interface MarkerBuildResult {
     allMarkLines: object[];
     markPointData: object[];
+    curveLabels: CurveLabelItem[];
     /** FC Start–End vertical band (null if incomplete / invalid range) */
     fcMarkArea: object | null;
     controlGuideMarkLines: object[];
@@ -162,8 +230,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
 
     // Charge: eventMarkers 경유 → eventMarkerStyle(point|line)과 동일 처리
     // NOW: 세로 markLine 가이드 (항상)
-    // 이벤트 / TP: eventMarkerStyle 에 따라 line | point
-    const usePointMarkers = eventMarkerStyle !== 'line';
+    // 라벨은 항상 BT 커브 위 custom series. 점은 point 모드만.
     const useContinuousLines = eventMarkerStyle === 'both';
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];
@@ -207,12 +274,6 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         });
     }
 
-    const labelTimes = [...eventMarkers.map((marker) => marker.timeSec), ...turningPoints.map((tp) => tp.timeSec)];
-    const labelRanks = labelTimes.map(
-        (timeSec, index) =>
-            labelTimes.slice(0, index).filter((prior) => Math.round(prior) === Math.round(timeSec)).length,
-    );
-    const isInward = (timeSec: number) => xMax > xMin && (timeSec - xMin) / (xMax - xMin) > 0.9;
     const markerColor = (event: string) => (isControlEvent(event) ? colors.eventControl : colors.eventMark);
     const markerLabelColor = (event: string) => (isControlEvent(event) ? colors.eventControl : colors.markerLabelColor);
     const markerTemp = (m: RoastEventMarker, nearest: number | null) => {
@@ -221,34 +282,19 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         return m.temp?.trim() || '—';
     };
 
-    // ── retained line mode: vertical markLine + edge label ────────────────────
-    const eventMarkLines = eventMarkers.map((m, index) => {
-        const below = LABEL_BELOW_EVENTS.has(m.event);
-        const inward = isInward(m.timeSec);
-        const color = markerColor(m.event);
-        return {
-            xAxis: m.timeSec,
-            lineStyle: {
-                color,
-                width: isControlEvent(m.event) ? 1 : 0.6,
-                type: 'solid' as const,
-                opacity: 1,
-            },
-            label: {
-                show: true,
-                position: (below ? 'end' : 'start') as 'start' | 'end',
-                formatter: () =>
-                    eventLabelText(m.event, m.timeSec, markerTemp(m, nearestBtAt(xs, btActual, m.timeSec)), m.note),
-                color: markerLabelColor(m.event),
-                fontSize: 11,
-                fontWeight: 700,
-                align: inward ? 'right' : 'left',
-                offset: [inward ? -4 : 4, -MARKER_LABEL_STACK_PX * labelRanks[index]],
-            },
-        };
-    });
+    // ── line mode: unlabeled verticals (labels are drawn on BT via custom series)
+    const eventMarkLines = eventMarkers.map((m) => ({
+        xAxis: m.timeSec,
+        lineStyle: {
+            color: markerColor(m.event),
+            width: isControlEvent(m.event) ? 1 : 0.6,
+            type: 'solid' as const,
+            opacity: 1,
+        },
+        label: { show: false },
+    }));
 
-    const tpMarkLines = turningPoints.map((tp, index) => ({
+    const tpMarkLines = turningPoints.map((tp) => ({
         xAxis: tp.timeSec,
         lineStyle: {
             color: colors.eventMark,
@@ -256,76 +302,38 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             type: 'solid' as const,
             opacity: 1,
         },
-        label: {
-            show: true,
-            position: 'end' as const,
-            formatter: () => eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
-            color: colors.markerLabelColor,
-            fontSize: 11,
-            fontWeight: 700,
-            align: isInward(tp.timeSec) ? 'right' : 'left',
-            offset: [isInward(tp.timeSec) ? -4 : 4, -MARKER_LABEL_STACK_PX * labelRanks[eventMarkers.length + index]],
-        },
+        label: { show: false },
     }));
 
-    // ── point style: 작은 점 + 텍스트만 (박스/배경 없음) ────────────────
-    const markPointData: object[] = usePointMarkers
-        ? ([
-              ...eventMarkers.map((m, index) => {
-                  const nearest = nearestBtAt(xs, btActual, m.timeSec);
-                  const y =
-                      nearest ??
-                      (typeof m.tempC === 'number' && Number.isFinite(m.tempC)
-                          ? toDisplayTemp(m.tempC, temperatureUnit)
-                          : tempYMax);
-                  const tempStr = markerTemp(m, nearest);
-                  const curveAdjacent = eventMarkerStyle === 'both';
-                  return {
-                      name: m.logId ?? m.event,
-                      logId: m.logId,
-                      coord: [m.timeSec, y] as [number, number],
-                      symbol: 'circle' as const,
-                      symbolSize: curveAdjacent ? 0 : 5,
-                      itemStyle: {
-                          color: markerColor(m.event),
-                          borderColor: colors.markerLabelColor,
-                          borderWidth: 1,
-                      },
-                      label: buildPointLabel(
-                          eventLabelText(m.event, m.timeSec, tempStr, m.note),
-                          LABEL_BELOW_EVENTS.has(m.event),
-                          labelRanks[index],
-                          isInward(m.timeSec),
-                          markerLabelColor(m.event),
-                          curveAdjacent,
-                      ),
-                  };
-              }),
-              ...turningPoints.map((tp, index) => {
-                  const yDisp = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
-                  const curveAdjacent = eventMarkerStyle === 'both';
-                  return {
-                      name: 'TP',
-                      coord: [tp.timeSec, yDisp] as [number, number],
-                      symbol: 'circle' as const,
-                      symbolSize: curveAdjacent ? 0 : 5,
-                      itemStyle: {
-                          color: colors.eventMark,
-                          borderColor: colors.markerLabelColor,
-                          borderWidth: 1,
-                      },
-                      label: buildPointLabel(
-                          eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
-                          true,
-                          labelRanks[eventMarkers.length + index],
-                          isInward(tp.timeSec),
-                          colors.markerLabelColor,
-                          curveAdjacent,
-                      ),
-                  };
-              }),
-          ] as object[])
-        : [];
+    const showDot = eventMarkerStyle === 'point';
+    const curveLabels: CurveLabelItem[] = [
+        ...eventMarkers.map((m) => {
+            const nearest = nearestBtAt(xs, btActual, m.timeSec);
+            const y =
+                nearest ??
+                (typeof m.tempC === 'number' && Number.isFinite(m.tempC)
+                    ? toDisplayTemp(m.tempC, temperatureUnit)
+                    : tempYMax);
+            return {
+                timeSec: m.timeSec,
+                y,
+                text: eventLabelText(m.event, m.timeSec, markerTemp(m, nearest), m.note),
+                color: markerLabelColor(m.event),
+                below: LABEL_BELOW_EVENTS.has(m.event),
+                showDot,
+            };
+        }),
+        ...turningPoints.map((tp) => ({
+            timeSec: tp.timeSec,
+            y: nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit),
+            text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+            color: colors.markerLabelColor,
+            below: true,
+            showDot,
+        })),
+    ];
+
+    const markPointData: object[] = [];
 
     const targetDeltaPoint = buildTargetDeltaMarkPoint({
         show: showTargetDeltaLabel && currentTimeSec >= xMin && currentTimeSec <= xMax,
@@ -401,6 +409,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     return {
         allMarkLines,
         markPointData: markPointData as object[],
+        curveLabels,
         fcMarkArea,
         controlGuideMarkLines,
         continuousMarkerLines,

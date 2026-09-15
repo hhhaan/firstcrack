@@ -1,6 +1,6 @@
 import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it } from 'vitest';
-import { applyEventMarkerDrag, nearestLivePointAt } from './event-marker-drag';
+import { applyEventMarkerDrag, applyEventMarkerEdit, nearestLivePointAt } from './event-marker-drag';
 
 const entry = (id: string, event: string, timeSec: number, tempC: number, note = ''): LogEntry => ({
     id,
@@ -65,13 +65,18 @@ describe('applyEventMarkerDrag', () => {
         ]);
     });
 
-    it('rejects missing IDs and immutable Charge/Heater observations', () => {
+    it('rejects missing IDs and immutable Charge', () => {
         const entries = [entry('charge', 'Charge', 0, 200), entry('heater', 'Heater', 30, 160, '50%')];
 
         expect(applyEventMarkerDrag(entries, undefined, 20, livePoints, 'C', 100)).toBe(entries);
         expect(applyEventMarkerDrag(entries, 'missing', 20, livePoints, 'C', 100)).toBe(entries);
         expect(applyEventMarkerDrag(entries, 'charge', 20, livePoints, 'C', 100)).toBe(entries);
-        expect(applyEventMarkerDrag(entries, 'heater', 20, livePoints, 'C', 100)).toBe(entries);
+    });
+
+    it('moves Heater time and keeps the committed heat note', () => {
+        const entries = [entry('heater', 'Heater', 30, 160, '50%')];
+        const next = applyEventMarkerDrag(entries, 'heater', 60, livePoints, 'C', 90);
+        expect(next[0]).toMatchObject({ timeSec: 60, tempC: 200, note: '50%' });
     });
 
     it('rounds and clamps time to the recorded interval, including zero', () => {
@@ -108,5 +113,31 @@ describe('applyEventMarkerDrag', () => {
 
         expect(c).toMatchObject({ tempC: 160, temp: '160.0°C' });
         expect(f).toMatchObject({ tempC: 160, temp: '320.0°F' });
+    });
+});
+
+describe('applyEventMarkerEdit', () => {
+    const livePoints = [
+        { time: 0, bt: 100 },
+        { time: 30, bt: 160 },
+        { time: 60, bt: 200 },
+    ];
+
+    it('updates Heater heat without moving time', () => {
+        const entries = [entry('heater', 'Heater', 30, 160, '50%')];
+        const next = applyEventMarkerEdit(entries, 'heater', { note: '70%' }, livePoints, 'C', 90);
+        expect(next[0]).toMatchObject({ timeSec: 30, tempC: 160, note: '70%' });
+    });
+
+    it('updates Note body and time together', () => {
+        const entries = [entry('note-a', 'Note', 30, 160, 'old')];
+        const next = applyEventMarkerEdit(entries, 'note-a', { timeSec: 60, note: 'damper' }, livePoints, 'C', 90);
+        expect(next[0]).toMatchObject({ timeSec: 60, tempC: 200, note: 'damper' });
+    });
+
+    it('ignores note patches on phase events', () => {
+        const entries = [entry('drop', 'Drop', 60, 200, 'Coffee dropped')];
+        const next = applyEventMarkerEdit(entries, 'drop', { note: 'nope' }, livePoints, 'C', 90);
+        expect(next[0]).toBe(entries[0]);
     });
 });
