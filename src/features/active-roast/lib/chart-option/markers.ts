@@ -228,25 +228,13 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         targetBt,
     } = params;
 
-    // Charge: eventMarkers 경유 → eventMarkerStyle(point|line)과 동일 처리
+    // Charge: t=0 = 좌단 축 (#451). 세로선 없음, 라벨만 (curveLabels).
     // NOW: 세로 markLine 가이드 (항상)
     // 라벨은 항상 BT 커브 위 custom series. 점은 point 모드만.
     const useContinuousLines = eventMarkerStyle === 'both';
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];
-    // Control chart 전용: charge 기준 t=0 무음 가이드 (라벨 없음)
-    if (charged && xMin <= 0 && xMax >= 0) {
-        controlGuideMarkLines.push({
-            xAxis: 0,
-            lineStyle: {
-                color: colors.phaseLines,
-                width: 1.5,
-                type: 'solid' as const,
-                opacity: 1,
-            },
-            label: { show: false },
-        });
-    }
+    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge');
     if (charged && Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
         const nowLineStyle = {
             color: colors.currentTimeLine,
@@ -283,7 +271,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     };
 
     // ── line mode: unlabeled verticals (labels are drawn on BT via custom series)
-    const eventMarkLines = eventMarkers.map((m) => ({
+    const eventMarkLines = lineEvents.map((m) => ({
         xAxis: m.timeSec,
         lineStyle: {
             color: markerColor(m.event),
@@ -320,7 +308,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                 text: eventLabelText(m.event, m.timeSec, markerTemp(m, nearest), m.note),
                 color: markerLabelColor(m.event),
                 below: LABEL_BELOW_EVENTS.has(m.event),
-                showDot,
+                showDot: m.event === 'Charge' ? false : showDot,
             };
         }),
         ...turningPoints.map((tp) => ({
@@ -365,7 +353,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     }
     const continuousMarkerLines = useContinuousLines
         ? [
-              ...eventMarkers.map((m) => ({
+              ...lineEvents.map((m) => ({
                   timeSec: m.timeSec,
                   color: markerColor(m.event),
                   width: isControlEvent(m.event) ? 1 : 0.6,

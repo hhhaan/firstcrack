@@ -276,3 +276,54 @@ describe('getMarkerLabelGeometry', () => {
         ).toEqual({ x: 900, y: 160, align: 'center', text: 'label', rank: 2 });
     });
 });
+
+describe('Charge marker (#451)', () => {
+    const chargeMarker = {
+        timeSec: 0,
+        event: 'Charge',
+        color: '#fa0',
+        timeStr: '0:00',
+        temp: '210.1°C',
+    };
+
+    it('line style: no Charge vertical line, curve label only', () => {
+        const { allMarkLines, controlGuideMarkLines, curveLabels, continuousMarkerLines } = buildMarkers({
+            ...baseParams,
+            xs: [0, 60],
+            btActual: [210.1, 200],
+            currentTimeSec: 60,
+            hasControlSeries: true,
+            eventMarkerStyle: 'line',
+            eventMarkers: [chargeMarker],
+        });
+        expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
+        expect(controlGuideMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
+        expect(continuousMarkerLines.some((l) => l.timeSec === 0)).toBe(false);
+        expect(curveLabels).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    timeSec: 0,
+                    text: '[00:00] Charge @ 210.1°C',
+                    showDot: false,
+                }),
+            ]),
+        );
+    });
+
+    it('point style: Charge is label-only, other events stay as dots', () => {
+        const { curveLabels, allMarkLines } = buildMarkers({
+            ...baseParams,
+            xs: [0, 480],
+            btActual: [210.1, 196],
+            eventMarkerStyle: 'point',
+            eventMarkers: [
+                chargeMarker,
+                { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
+            ],
+        });
+        const byEvent = Object.fromEntries(curveLabels.map((l) => [l.text.includes('Charge') ? 'Charge' : 'FC Start', l]));
+        expect(byEvent.Charge.showDot).toBe(false);
+        expect(byEvent['FC Start'].showDot).toBe(true);
+        expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
+    });
+});
