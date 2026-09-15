@@ -79,7 +79,6 @@ const renderProbe = (pollIntervalMs: number) => {
             setConnected: vi.fn(),
             roastStartTimeRef,
             sessionId: 'issue-308',
-            preChargeDisplaySec: 30,
         });
         return null;
     };
@@ -122,7 +121,6 @@ it('enqueues the first sample with controls while TSV initialization is pending'
             setConnected: vi.fn(),
             roastStartTimeRef,
             sessionId: 'issue-315',
-            preChargeDisplaySec: 30,
         });
         return null;
     };
@@ -171,7 +169,6 @@ it('accepts the first sample when roast-relative time moves backwards for a new 
             setConnected: vi.fn(),
             roastStartTimeRef,
             sessionId: 'issue-315',
-            preChargeDisplaySec: 30,
         });
         return null;
     };
@@ -225,7 +222,6 @@ it('stale:true skips TSV and livePoints but still updates liveData', async () =>
             setConnected: vi.fn(),
             roastStartTimeRef,
             sessionId: 'issue-357',
-            preChargeDisplaySec: 30,
         });
         livePoints = r.livePoints;
         return null;
@@ -335,7 +331,6 @@ it('does not poll until waitUntilReady resolves', async () => {
             setConnected,
             roastStartTimeRef,
             sessionId: null,
-            preChargeDisplaySec: 30,
         });
         return null;
     };
@@ -377,7 +372,6 @@ it('does not promote poll unauthorized to disconnect', async () => {
             setConnected,
             roastStartTimeRef,
             sessionId: 'issue-380',
-            preChargeDisplaySec: 30,
         });
         return null;
     };
@@ -391,5 +385,46 @@ it('does not promote poll unauthorized to disconnect', async () => {
         await act(async () => {
             root.unmount();
         });
+    }
+});
+
+it('charge clears livePoints with no negative lookback (#433)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-13T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    stubTemps();
+    useRoastingStore.setState({ phase: 'standby', sessionId: 'bbp-433' });
+    const roastStartTimeRef = { current: 0 };
+    const root = createRoot(document.createElement('div'));
+    let livePoints: { time: number }[] = [];
+
+    const Probe = ({ phase }: { phase: string }) => {
+        const r = useSidecarPolling({
+            isActive: true,
+            phase,
+            pollIntervalMs: 500,
+            enterPreheating: vi.fn(),
+            setConnected: vi.fn(),
+            roastStartTimeRef,
+            sessionId: 'bbp-433',
+        });
+        livePoints = r.livePoints;
+        return null;
+    };
+
+    try {
+        act(() => root.render(createElement(Probe, { phase: 'standby' })));
+        await flushReady();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+        expect(livePoints.length).toBeGreaterThan(0);
+
+        roastStartTimeRef.current = Date.now();
+        useRoastingStore.setState({ phase: 'roasting', sessionId: 'bbp-433' });
+        act(() => root.render(createElement(Probe, { phase: 'roasting' })));
+        expect(livePoints.filter((p) => p.time < 0)).toEqual([]);
+    } finally {
+        act(() => root.unmount());
     }
 });

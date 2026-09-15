@@ -3,9 +3,11 @@ import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
+    BBP_DISPLAY_SECONDS,
     computePhaseSegments,
     formatTemp,
     toDisplayRoR,
+    useBbpStore,
     useBbpTimer,
     useEffectivePollIntervalMs,
     useRoastActions,
@@ -35,6 +37,7 @@ import { ask } from '@tauri-apps/plugin-dialog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useShallow } from 'zustand/react/shallow';
+import { livePointsFromBbp } from './lib/bbp-live-points';
 import {
     buildEventMarkers,
     buildRoastLogDisplayEntries,
@@ -70,6 +73,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const bbpEnabled = useFeature(FEATURE.bbp);
     const bbpElapsed = useBbpTimer();
     const bbpTimer = bbpEnabled ? bbpElapsed : null;
+    const bbpActive = useBbpStore((s) => s.active);
+    const bbpPoints = useBbpStore((s) => s.points);
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -155,7 +160,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setConnected,
         roastStartTimeRef,
         sessionId,
-        preChargeDisplaySec: roastSettings.preChargeDisplaySec,
     });
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
@@ -184,15 +188,22 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const currentKey = machineSnapshot?.machine_roaster_key ?? null;
     const replayMachineMismatch = referenceKey != null && currentKey != null && referenceKey !== currentKey;
 
-    const actualPreSec =
-        charged && livePoints.length > 0 && livePoints[0].time < 0 ? Math.ceil(Math.abs(livePoints[0].time)) : 0;
-    const effectivePreChargeDisplaySec = charged ? Math.min(roastSettings.preChargeDisplaySec, actualPreSec) : 0;
+    const chartLivePoints = useMemo(
+        () => (bbpActive ? livePointsFromBbp(bbpPoints) : livePoints),
+        [bbpActive, bbpPoints, livePoints],
+    );
+    const bbpNowSec = bbpPoints.length > 0 ? bbpPoints[bbpPoints.length - 1].t : 0;
+    const bbpTempMinC =
+        bbpActive && bbpPoints.length > 0
+            ? Math.min(roastSettings.tempMinC, Math.floor(Math.min(...bbpPoints.map((p) => p.bt)) / 10) * 10)
+            : roastSettings.tempMinC;
 
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
     const chart = useChartPipeline({
-        livePoints,
+        livePoints: chartLivePoints,
         targetCurvePoints,
-        preChargeDisplaySec: effectivePreChargeDisplaySec,
+        xMin: 0,
+        xMaxFloor: bbpActive ? BBP_DISPLAY_SECONDS : undefined,
         showRoR: roastSettings.showRoRChart,
         showControlChart: roastSettings.showControlChart,
         unit,
@@ -560,10 +571,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         targetXs={chart.visibleTargetXs}
                         targetBt={chart.visibleTargetBt}
                         showTargetCurve={
-                            roastSettings.showTargetCurve && !!targetProfileId && targetCurvePoints.length > 0
+                            !bbpActive &&
+                            roastSettings.showTargetCurve &&
+                            !!targetProfileId &&
+                            targetCurvePoints.length > 0
                         }
                         showTargetDeltaLabel={
-                            roastSettings.showTargetDeltaLabel && !!targetProfileId && targetCurvePoints.length > 0
+                            !bbpActive &&
+                            roastSettings.showTargetDeltaLabel &&
+                            !!targetProfileId &&
+                            targetCurvePoints.length > 0
                         }
                         showET={roastSettings.showET}
                         showRoR={roastSettings.showRoRChart}
@@ -588,17 +605,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         controlChartHeightPct={roastSettings.controlChartHeightPct}
                         controlYMin={roastSettings.controlYMin}
                         controlYMax={roastSettings.controlYMax}
-                        tempMinC={roastSettings.tempMinC}
+                        tempMinC={bbpTempMinC}
                         tempMaxC={roastSettings.tempMaxC}
                         rorYMin={roastSettings.rorYMin}
                         rorYMax={roastSettings.rorYMax}
-                        elapsed={elapsed}
-                        charged={charged}
+                        elapsed={bbpActive ? bbpNowSec : elapsed}
+                        charged={charged && !bbpActive}
                         eventMarkerStyle={roastSettings.eventMarkerStyle}
-                        eventMarkers={eventMarkers}
-                        turningPoints={turningPoints}
-                        phaseSegments={phaseSegments}
-                        showFcBand={roastSettings.showFcBand}
+                        eventMarkers={bbpActive ? [] : eventMarkers}
+                        turningPoints={bbpActive ? [] : turningPoints}
+                        phaseSegments={bbpActive ? [] : phaseSegments}
+                        showFcBand={roastSettings.showFcBand && !bbpActive}
                         unit={unit}
                         targetProfileName={targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}

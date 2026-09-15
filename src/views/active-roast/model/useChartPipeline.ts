@@ -10,7 +10,8 @@ import type { LiveRoastPoint } from './useSidecarPolling';
 export interface UseChartPipelineParams {
     livePoints: LiveRoastPoint[];
     targetCurvePoints: TsvPoint[];
-    preChargeDisplaySec: number;
+    xMin: number;
+    xMaxFloor?: number;
     showRoR: boolean;
     showControlChart: boolean;
     unit: TemperatureUnit;
@@ -47,18 +48,26 @@ export interface UseChartPipelineReturn {
 }
 
 export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipelineReturn => {
-    const { livePoints, targetCurvePoints, preChargeDisplaySec, showRoR, showControlChart, unit } = params;
+    const {
+        livePoints,
+        targetCurvePoints,
+        xMin,
+        xMaxFloor = CHART_TOTAL_SECS,
+        showRoR,
+        showControlChart,
+        unit,
+    } = params;
 
     const { chartData, targetSeries } = useMemo(() => {
         const profileDuration = targetCurvePoints.length > 0 ? targetCurvePoints[targetCurvePoints.length - 1].t : 0;
         return {
-            chartData: buildLiveChartData(livePoints, preChargeDisplaySec, profileDuration),
+            chartData: buildLiveChartData(livePoints, xMin, profileDuration, xMaxFloor),
             targetSeries: targetCurvePoints.map((p) => ({ time: p.t, bt: p.bt })),
         };
-    }, [livePoints, targetCurvePoints, preChargeDisplaySec]);
+    }, [livePoints, targetCurvePoints, xMin, xMaxFloor]);
 
-    const maxTime = chartData.length > 0 ? chartData[chartData.length - 1].time : CHART_TOTAL_SECS;
-    const minTime = -preChargeDisplaySec;
+    const maxTime = chartData.length > 0 ? chartData[chartData.length - 1].time : xMaxFloor;
+    const minTime = xMin;
     const chartRightGridPad = showRoR || showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
 
     const {
