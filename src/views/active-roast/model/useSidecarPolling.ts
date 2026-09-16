@@ -44,6 +44,8 @@ interface Params {
     roastStartTimeRef: MutableRefObject<number>;
     /** Charge 시 생성된 세션 UUID. null이면 미시작 */
     sessionId: string | null;
+    /** Charge 로그의 온도 — 자동 감지 시 현재 BT가 아닌 소급 onset BT. */
+    chargeBt?: number | null;
 }
 
 /** idle 중 /status 재확인 주기 — 온도 폴링보다 느슨 (부하 거의 없음). */
@@ -128,6 +130,7 @@ export const useSidecarPolling = ({
     setConnected,
     roastStartTimeRef,
     sessionId,
+    chargeBt = null,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
     const [sidecarReady, setSidecarReady] = useState(false);
@@ -163,14 +166,37 @@ export const useSidecarPolling = ({
                     });
                 });
             }
-            // #433: 대기 커브는 시야에서 사라진다. 로스트는 00:00. BBP TSV는 위에서 저장.
-            setLivePoints([]);
+            // 대기 커브는 지우되 Charge 로그와 같은 00:00 시작점은 보존한다 (#452).
+            const lastPoint = livePoints.length > 0 ? livePoints[livePoints.length - 1] : null;
+            const sample = lastPoint ?? useRoastingStore.getState().liveData;
+            const seed: LiveRoastPoint | null =
+                chargeBt != null && Number.isFinite(chargeBt)
+                    ? {
+                          time: 0,
+                          label: '0:00',
+                          bt: chargeBt,
+                          et: sample?.et ?? null,
+                          ror: null,
+                          ror_et: null,
+                          heater: sample?.heater ?? null,
+                          fan: sample?.fan ?? 0,
+                          drum: sample?.drum ?? 0,
+                          heaterSet: lastPoint?.heaterSet ?? null,
+                      }
+                    : null;
+            setLivePoints(seed ? [seed] : []);
+            if (seed && bbpSessionId) {
+                enqueueTsvRow(
+                    bbpSessionId,
+                    `0.00\t${seed.bt}\t${seed.et ?? ''}\t\t${seed.heater ?? ''}\t${seed.fan}\t${seed.drum}\t${seed.heaterSet ?? ''}\n`,
+                );
+            }
             preChargeStartRef.current = 0;
             lastPreChargeAbsRef.current = 0;
-            lastRoastPointTimeRef.current = null;
+            lastRoastPointTimeRef.current = seed ? 0 : null;
         }
         prevPhaseRef.current = phase;
-    }, [phase, roastStartTimeRef]);
+    }, [phase, roastStartTimeRef, chargeBt, livePoints]);
 
     // Rust는 인증된 200 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
     // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (Machines와 같은 규칙).
@@ -326,7 +352,7 @@ export const useSidecarPolling = ({
                     }
                     setLivePoints((prev) => [...prev, point]);
                 } else if (currentPhase === 'standby') {
-                    // 첫 배치 예열 표시. Charge 때 livePoints는 비운다 (#433). BBP 대기는 스토어 차트.
+                    // 첫 배치 예열 표시. Charge 때 00:00 시작점으로 교체한다 (#452). BBP 대기는 스토어 차트.
                     const absTime = Date.now();
                     if (lastPreChargeAbsRef.current > 0 && absTime - lastPreChargeAbsRef.current < 400) return;
                     lastPreChargeAbsRef.current = absTime;

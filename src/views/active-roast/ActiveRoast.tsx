@@ -150,6 +150,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // 0으로 남으면 폴링이 로스팅 분기를 영원히 건너뛴다 (#317)
     const roastStartTimeRef = useRef(useRoastingStore.getState().roastStartMs);
 
+    // ── 도메인 훅 ─────────────────────────────────────────────────
+    const rawBT = liveData?.bt ?? null;
+    const rawET = liveData?.et ?? null;
+    const timeStr = formatElapsed(elapsed);
+
+    const { logEntries, pressedButtons, markEvent, cycleFc, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
+        unit,
+        rawBT,
+        elapsed,
+    );
+
     // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
     const { livePoints, setLivePoints } = useSidecarPolling({
         isActive,
@@ -159,6 +170,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setConnected,
         roastStartTimeRef,
         sessionId,
+        chargeBt: logEntries.find((entry) => entry.event === 'Charge')?.tempC ?? null,
     });
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
@@ -207,17 +219,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         showControlChart: roastSettings.showControlChart,
         unit,
     });
-
-    // ── 도메인 훅 ─────────────────────────────────────────────────
-    const rawBT = liveData?.bt ?? null;
-    const rawET = liveData?.et ?? null;
-    const timeStr = formatElapsed(elapsed);
-
-    const { logEntries, pressedButtons, markEvent, cycleFc, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
-        unit,
-        rawBT,
-        elapsed,
-    );
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
