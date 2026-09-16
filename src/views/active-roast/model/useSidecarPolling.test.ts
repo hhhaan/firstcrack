@@ -388,7 +388,7 @@ it('does not promote poll unauthorized to disconnect', async () => {
     }
 });
 
-it('charge clears livePoints with no negative lookback (#433)', async () => {
+it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag %i ms, #452)', async (lagMs) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-13T12:00:00Z'));
     mocks.initSessionTsv.mockResolvedValue(undefined);
@@ -396,7 +396,7 @@ it('charge clears livePoints with no negative lookback (#433)', async () => {
     useRoastingStore.setState({ phase: 'standby', sessionId: 'bbp-433' });
     const roastStartTimeRef = { current: 0 };
     const root = createRoot(document.createElement('div'));
-    let livePoints: { time: number }[] = [];
+    let livePoints: ReturnType<typeof useSidecarPolling>['livePoints'] = [];
 
     const Probe = ({ phase }: { phase: string }) => {
         const r = useSidecarPolling({
@@ -407,6 +407,7 @@ it('charge clears livePoints with no negative lookback (#433)', async () => {
             setConnected: vi.fn(),
             roastStartTimeRef,
             sessionId: 'bbp-433',
+            chargeBt: phase === 'roasting' ? 210.1 : null,
         });
         livePoints = r.livePoints;
         return null;
@@ -420,10 +421,34 @@ it('charge clears livePoints with no negative lookback (#433)', async () => {
         });
         expect(livePoints.length).toBeGreaterThan(0);
 
-        roastStartTimeRef.current = Date.now();
+        // Hold the immediate Charge poll: the seed must exist without a new reading.
+        mocks.getTemperatures.mockReturnValueOnce(new Promise(() => {}));
+        roastStartTimeRef.current = Date.now() - lagMs;
         useRoastingStore.setState({ phase: 'roasting', sessionId: 'bbp-433' });
         act(() => root.render(createElement(Probe, { phase: 'roasting' })));
-        expect(livePoints.filter((p) => p.time < 0)).toEqual([]);
+        expect(livePoints).toEqual([
+            {
+                time: 0,
+                label: '0:00',
+                bt: 210.1,
+                et: 210,
+                ror: null,
+                ror_et: null,
+                heater: 80,
+                fan: 40,
+                drum: 60,
+                heaterSet: null,
+            },
+        ]);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledWith('bbp-433', '0.00\t210.1\t210\t\t80\t40\t60\t\n');
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+        expect(livePoints.map((point) => [point.time, point.bt])).toEqual([
+            [0, 210.1],
+            [lagMs / 1000 + 0.5, 200],
+        ]);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(2);
     } finally {
         act(() => root.unmount());
     }
