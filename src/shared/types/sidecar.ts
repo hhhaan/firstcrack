@@ -91,6 +91,8 @@ export interface SidecarStatus {
 // GET /temperatures 응답
 export interface TemperatureReading {
     bt: number | null;
+    /** Unsmoothed sensor BT for event detection; absent on older sidecars. */
+    bt_raw?: number | null;
     et: number | null;
     ror: number;
     ror_et: number;

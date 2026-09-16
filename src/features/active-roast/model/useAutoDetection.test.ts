@@ -2,7 +2,7 @@
 import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRoastingStore } from './status';
 import { useAutoDetection } from './useAutoDetection';
 
@@ -13,24 +13,34 @@ type Props = {
     markEvent: (event: string, note: string) => void;
     logEntries?: LogEntry[];
     autoYellowEnabled?: boolean;
+    onAutoCharge?: (bt: number, timeMs?: number) => void;
+    onAutoDrop?: (onset?: { timeSec: number; bt: number }) => void;
     onTurningPoint?: (tp: { timeSec: number; temp: number; fallback?: boolean }) => void;
 };
 
 const noop = () => {};
+const roots: ReturnType<typeof createRoot>[] = [];
+afterEach(() => {
+    act(() => {
+        for (const root of roots.splice(0)) root.unmount();
+        useRoastingStore.getState().reset();
+    });
+});
 
 /** Render the real hook and expose its return value + a way to push new props. */
 const renderAutoDetection = (initial: Props) => {
     const root = createRoot(document.createElement('div'));
+    roots.push(root);
     let latest: ReturnType<typeof useAutoDetection>;
 
     const Probe = (p: Props) => {
         latest = useAutoDetection({
             livePoints: p.livePoints,
-            onAutoCharge: noop,
-            onAutoDrop: noop,
+            onAutoCharge: p.onAutoCharge ?? noop,
+            onAutoDrop: p.onAutoDrop ?? noop,
             onTurningPoint: p.onTurningPoint ?? noop,
-            autoChargeDropC: 5,
-            autoDropDropC: 8,
+            autoChargeMinRateCPerSec: 0.67,
+            autoDropMinRateCPerSec: 0.34,
             yellowTempC: 150,
             unit: 'C',
             markEvent: p.markEvent,
@@ -202,5 +212,126 @@ describe('useAutoDetection — Yellow gating (no FC auto)', () => {
         tick(h, props, 208, 131);
 
         expect(markEvent).not.toHaveBeenCalled();
+    });
+});
+
+describe('useAutoDetection — raw BT slope breaks (#448)', () => {
+    const origin = 1_800_000_000_000;
+    const sample = (t: number, btRaw: number | null, stale = false) => {
+        act(() =>
+            useRoastingStore.getState().updateLiveData({
+                // Display EMA deliberately does not move: raw samples must survive dedupe.
+                bt: 200,
+                et: null,
+                ror: 0,
+                ror_et: 0,
+                heater: 0,
+                fan: 0,
+                drum: 0,
+                bt_raw: btRaw,
+                timestamp: t,
+                receivedAtMs: origin + t * 1000,
+                stale,
+            }),
+        );
+    };
+    const setup = (phase: 'standby' | 'roasting' | 'preheating' = 'standby', elapsed = 200) => {
+        act(() => useRoastingStore.setState({ phase, elapsed, roastStartMs: origin }));
+        const onAutoCharge = vi.fn();
+        const onAutoDrop = vi.fn();
+        const h = renderAutoDetection({ livePoints: [], markEvent: noop, onAutoCharge, onAutoDrop });
+        return { ...h, onAutoCharge, onAutoDrop };
+    };
+
+    it.each([0.5, 1])('detects slow charge at %ss polling with jitter and raw onset time', (interval) => {
+        for (const rate of [1, 2, 3]) {
+            const h = setup();
+            for (let i = 0; i <= 16; i++) {
+                const t = i * interval + (i % 2 ? 0.02 : 0);
+                sample(t, 200 - rate * Math.max(0, t - 4 * interval));
+            }
+            expect(h.onAutoCharge).toHaveBeenCalledTimes(1);
+            const [bt, time] = h.onAutoCharge.mock.calls[0];
+            expect(bt).toBe(200);
+            expect(time).toBeCloseTo(origin + 4 * interval * 1000, 0);
+            act(() => {
+                for (const root of roots.splice(0)) root.unmount();
+            });
+            act(() => useRoastingStore.getState().reset());
+        }
+    });
+
+    it.each([0.5, 1])('rejects steady cooling and isolated spikes at %ss polling', (interval) => {
+        const h = setup();
+        for (let i = 0; i <= 80; i++) sample(i * interval, 220 - 0.4 * i * interval);
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+        act(() => h.result.resetAutoDetection());
+        for (let i = 0; i <= 20; i++) sample(100 + i * interval, i === 10 ? 190 : 200);
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+    });
+
+    it('detects quantized 1°C readings using the wider comparison', () => {
+        const h = setup();
+        for (let i = 0; i <= 20; i++) sample(i / 2, 200 - Math.floor(Math.max(0, i / 2 - 4)));
+        expect(h.onAutoCharge).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not treat duplicate, stale, missing or invalid raw readings as samples', () => {
+        const h = setup();
+        for (let t = 0; t <= 4; t++) sample(t, 200);
+        sample(5, 198);
+        for (let i = 0; i < 5; i++) sample(5, 196); // cached sensor timestamp
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+        sample(6, 196, true);
+        sample(7, 194, true);
+        sample(8, null);
+        sample(9, Number.NaN);
+        sample(10, 0);
+        sample(11, 400);
+        sample(12, 190);
+        sample(13, 188);
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+    });
+
+    it('clears history across gaps, clock resets and phase changes', () => {
+        const h = setup();
+        for (let t = 0; t <= 4; t++) sample(t, 200);
+        for (let t = 10; t <= 16; t++) sample(t, 200 - 2 * (t - 10));
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+        for (let t = 0; t <= 5; t++) sample(t, 180 - 2 * t);
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+        act(() => useRoastingStore.setState({ phase: 'preheating' }));
+        for (let t = 6; t <= 12; t++) sample(t, 200);
+        act(() => useRoastingStore.setState({ phase: 'standby' }));
+        for (let t = 13; t <= 20; t++) sample(t, 200 - 2 * (t - 12));
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+    });
+
+    it('preserves manual charge exclusion, reset/rearm, warm-drum and READY gates', () => {
+        const h = setup('preheating');
+        for (let t = 0; t <= 10; t++) sample(t, 200 - 2 * Math.max(0, t - 4));
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+        act(() => useRoastingStore.setState({ phase: 'standby' }));
+        for (let t = 11; t <= 21; t++) sample(t, 70 - 2 * Math.max(0, t - 15));
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+        act(() => {
+            h.result.resetAutoDetection();
+            h.result.disableAutoCharge();
+        });
+        for (let t = 22; t <= 32; t++) sample(t, 200 - 2 * Math.max(0, t - 26));
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+        act(() => h.result.rearmAutoCharge());
+        for (let t = 33; t <= 43; t++) sample(t, 200 - 2 * Math.max(0, t - 37));
+        expect(h.onAutoCharge).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the same raw detector for Drop, gated to 180s and fires only once', () => {
+        const h = setup('roasting', 170);
+        for (let t = 170; t <= 180; t++) sample(t, 200 - Math.max(0, t - 174));
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+        act(() => useRoastingStore.setState({ elapsed: 181 }));
+        for (let t = 181; t <= 195; t++) sample(t, 200 - Math.max(0, t - 185));
+        expect(h.onAutoDrop).toHaveBeenCalledExactlyOnceWith({ timeSec: 185, bt: 200 });
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
     });
 });

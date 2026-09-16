@@ -138,6 +138,7 @@ export const useSidecarPolling = ({
     const prevPhaseRef = useRef(phase);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef(createBtFilter());
+    const [rawBtFilter] = useState(createBtFilter);
 
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
@@ -267,7 +268,16 @@ export const useSidecarPolling = ({
                     applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
                     return;
                 }
-                useRoastingStore.getState().updateLiveData({ ...data, bt });
+                const btRaw =
+                    !data.stale && data.bt_raw != null && Number.isFinite(data.timestamp)
+                        ? rawBtFilter(data.bt_raw, data.timestamp * 1000)
+                        : null;
+                useRoastingStore.getState().updateLiveData({
+                    ...data,
+                    bt,
+                    bt_raw: btRaw,
+                    receivedAtMs: Date.now(),
+                });
                 useRoastingStore.getState().setPid(data.pid ?? null);
                 applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
                 if (bt === null) return;
@@ -406,7 +416,7 @@ export const useSidecarPolling = ({
             cancelled = true;
             clearInterval(id);
         };
-    }, [phase, pollIntervalMs, sidecarReady]);
+    }, [phase, pollIntervalMs, sidecarReady, rawBtFilter]);
 
     return { livePoints, setLivePoints };
 };

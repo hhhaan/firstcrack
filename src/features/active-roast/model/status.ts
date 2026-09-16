@@ -5,6 +5,10 @@ export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended
 
 type LiveData = {
     bt: number | null;
+    bt_raw?: number | null;
+    timestamp?: number;
+    receivedAtMs?: number;
+    stale?: boolean;
     et: number | null;
     ror: number;
     ror_et: number;
@@ -158,6 +162,9 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         if (
             current &&
             current.bt === data.bt &&
+            current.bt_raw === data.bt_raw &&
+            current.timestamp === data.timestamp &&
+            current.stale === data.stale &&
             current.et === data.et &&
             current.ror === data.ror &&
             current.ror_et === data.ror_et &&

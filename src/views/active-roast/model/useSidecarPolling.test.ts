@@ -428,3 +428,51 @@ it('charge clears livePoints with no negative lookback (#433)', async () => {
         act(() => root.unmount());
     }
 });
+
+it('keeps raw sample timestamps separate from display BT and rejects invalid/stale raw input', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-17T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    const reading = {
+        bt: 200,
+        bt_raw: 198,
+        timestamp: 10,
+        stale: false,
+        et: 210,
+        ror: 5,
+        ror_et: 4,
+        heater: 80,
+        fan: 40,
+        drum: 60,
+    };
+    mocks.getTemperatures.mockImplementation(async () => ({ ...reading }));
+    const root = renderProbe(1000);
+    try {
+        await flushReady();
+        expect(useRoastingStore.getState().liveData).toMatchObject({
+            bt: 200,
+            bt_raw: 198,
+            timestamp: 10,
+            receivedAtMs: Date.now(),
+        });
+        reading.timestamp++;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        // Even an unchanged integer reading must reach the detector as a new sample.
+        expect(useRoastingStore.getState().liveData?.timestamp).toBe(11);
+        reading.bt_raw = 0;
+        reading.timestamp++;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().liveData).toMatchObject({ bt: 200, bt_raw: null });
+        reading.bt_raw = 196;
+        reading.timestamp++;
+        reading.stale = true;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().liveData).toMatchObject({ bt_raw: null, stale: true });
+        // An older sidecar's smoothed reading must never silently become raw BT.
+        stubTemps();
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().liveData?.bt_raw).toBeNull();
+    } finally {
+        act(() => root.unmount());
+    }
+});

@@ -48,9 +48,10 @@ export type RoastSettings = {
      * When false, classic toggle mark/unmark FC Start only.
      */
     fcDualMarkEnabled: boolean;
-    autoChargeDropC: number;
-    /** BT drop within the detection window that auto-marks Drop (after 3 min). */
-    autoDropDropC: number;
+    /** Minimum falling rate for a Charge slope break (°C/s). Legacy °C-drop values are not reused. */
+    autoChargeMinRateCPerSec: number;
+    /** Minimum falling rate for a Drop slope break after 3 min (°C/s). */
+    autoDropMinRateCPerSec: number;
     preChargeDisplaySec: number;
     /** Live threshold alarms (RoR crash / BT ceiling). */
     alertsEnabled: boolean;
@@ -110,8 +111,9 @@ const DEFAULT_SETTINGS: RoastSettings = {
     yellowTempC: 150,
     autoYellowEnabled: true,
     fcDualMarkEnabled: false,
-    autoChargeDropC: 5,
-    autoDropDropC: 8,
+    // Artisan Standard minimum falling rates at 1s sampling (°C/s).
+    autoChargeMinRateCPerSec: 0.67,
+    autoDropMinRateCPerSec: 0.34,
     preChargeDisplaySec: 60,
     alertsEnabled: true,
     alertSoundEnabled: true,
@@ -183,7 +185,18 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         controlYMin,
         controlYMax,
         yellowTempC,
-        autoDropDropC: clampNum(merged.autoDropDropC, 2, 30, DEFAULT_SETTINGS.autoDropDropC),
+        autoChargeMinRateCPerSec: clampNum(
+            merged.autoChargeMinRateCPerSec,
+            0.1,
+            15,
+            DEFAULT_SETTINGS.autoChargeMinRateCPerSec,
+        ),
+        autoDropMinRateCPerSec: clampNum(
+            merged.autoDropMinRateCPerSec,
+            0.1,
+            15,
+            DEFAULT_SETTINGS.autoDropMinRateCPerSec,
+        ),
         autoYellowEnabled,
         fcDualMarkEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),

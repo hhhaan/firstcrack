@@ -249,7 +249,7 @@ export const RoastSettingsTab = () => {
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
 
     // 절대 온도 입력은 표시 단위를 따르고 저장은 항상 °C. 경계는 °C에서 합성한 뒤 한 번만 변환한다.
-    // (델타/변화율 값 — autoChargeDropC·autoDropDropC·alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
+    // (델타/변화율 값 — autoChargeMinRateCPerSec·autoDropMinRateCPerSec·alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
     const unit = roastSettings.temperatureUnit;
     const tempSuffix = `°${unit}`;
     const dispT = (celsius: number) => Math.round(toDisplayTemp(celsius, unit));
@@ -491,11 +491,11 @@ export const RoastSettingsTab = () => {
                             <div className={settingsOptionDescCls}>{tk('dropThresholdDescription')}</div>
                         </div>
                         <NumberInput
-                            value={roastSettings.autoChargeDropC}
-                            onChange={(v) => updateRoastSettings({ autoChargeDropC: v })}
-                            min={1}
-                            max={30}
-                            suffix="°C"
+                            value={roastSettings.autoChargeMinRateCPerSec}
+                            onChange={(v) => updateRoastSettings({ autoChargeMinRateCPerSec: v })}
+                            min={0.1}
+                            max={15}
+                            suffix="°C/s"
                         />
                     </SettingsOptionRow>
                     <SettingsOptionRow justify="between">
@@ -504,11 +504,11 @@ export const RoastSettingsTab = () => {
                             <div className={settingsOptionDescCls}>{tk('autoDropSensitivityDescription')}</div>
                         </div>
                         <NumberInput
-                            value={roastSettings.autoDropDropC}
-                            onChange={(v) => updateRoastSettings({ autoDropDropC: v })}
-                            min={2}
-                            max={30}
-                            suffix="°C"
+                            value={roastSettings.autoDropMinRateCPerSec}
+                            onChange={(v) => updateRoastSettings({ autoDropMinRateCPerSec: v })}
+                            min={0.1}
+                            max={15}
+                            suffix="°C/s"
                         />
                     </SettingsOptionRow>
                 </SectionCard.Body>
