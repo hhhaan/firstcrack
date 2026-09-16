@@ -6,11 +6,7 @@ export type TemperatureSample = { t: number; bt: number };
  * so the same calibration works at 500/1000ms and with polling jitter.
  * Standard reference: artisanlib/canvas.py btbreak_params, main.py checkTop.
  */
-export const detectTemperatureBreak = (
-    samples: TemperatureSample[],
-    minRate: number,
-    offset: number,
-): TemperatureSample | null => {
+export const detectTemperatureBreak = (samples: TemperatureSample[], minRate: number): TemperatureSample | null => {
     // The wider pass handles quantized sensors (e.g. alternating 0/1°C steps).
     for (const stride of [1, 2]) {
         const end = samples.length - 1;
@@ -27,7 +23,7 @@ export const detectTemperatureBreak = (
         if (
             after1 < -minRate &&
             after2 < -minRate &&
-            (-after > offset + 2.5 * Math.abs(before) || (before > 0 && before - after > 0.78))
+            (-after > 0.5 + 2.5 * Math.abs(before) || (before > 0 && before - after > 0.78))
         ) {
             // On a flat top, use the last point before the confirmed falling legs.
             return p3.bt >= p2.bt ? p3 : p2;

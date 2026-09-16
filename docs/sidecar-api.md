@@ -75,7 +75,7 @@ interface TemperatureReading {
 | Field       | Meaning                                                                          |
 | ----------- | -------------------------------------------------------------------------------- |
 | `bt`        | Bean Temperature, 표시용 EMA 원두 온도. 섭씨.                                               |
-| `bt_raw`    | 평활화 전 원시 BT (°C). Charge/Drop 감지용. `stale` 응답은 감지에 사용하지 않는다. |
+| `bt_raw`    | 평활화 전 원시 BT (°C). Charge 감지용. `stale` 응답은 감지에 사용하지 않는다. |
 | `et`        | Environment Temperature, 환경/배기 온도. 섭씨.                                   |
 | `ror`       | BT 기준 Rate of Rise. 최근 30초 BT window의 선형 최소제곱 기울기. 단위 `°C/min`. |
 | `ror_et`    | ET 기준 Rate of Rise. 최근 30초 ET window의 선형 최소제곱 기울기. 단위 `°C/min`. |

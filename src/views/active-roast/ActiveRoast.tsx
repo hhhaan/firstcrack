@@ -297,7 +297,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onAutoDrop: handleAutoDrop,
         onTurningPoint: handleTurningPoint,
         autoChargeMinRateCPerSec: roastSettings.autoChargeMinRateCPerSec,
-        autoDropMinRateCPerSec: roastSettings.autoDropMinRateCPerSec,
+        autoDropDropC: roastSettings.autoDropDropC,
         yellowTempC: roastSettings.yellowTempC,
         unit,
         markEvent,

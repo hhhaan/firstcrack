@@ -2,12 +2,25 @@ import type { TurningPoint } from '@features/active-roast';
 import { detectTurningPoints } from '@features/active-roast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { detectChargeOnset } from '../lib/chargeOnset';
 import { toDisplayTemp } from '../lib/temperature';
 import { detectTemperatureBreak, type TemperatureSample } from '../lib/temperatureBreak';
 import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
+const AUTO_WINDOW_S = 2.5;
+const AUTO_WINDOW_MIN_SPAN_S = 2;
 const AUTO_DROP_MIN_ELAPSED_S = 180;
+
+type TimedSample = { t: number; bt: number };
+
+/** 최근 AUTO_WINDOW_S초 슬라이딩 윈도우 갱신 후, 윈도우 내 낙차가 dropC 이상이면 true */
+const slideAndCheckDrop = (ref: { current: TimedSample[] }, bt: number, dropC: number): boolean => {
+    const now = Date.now() / 1000;
+    const w = [...ref.current, { t: now, bt }].filter((p) => now - p.t <= AUTO_WINDOW_S);
+    ref.current = w;
+    return now - w[0].t >= AUTO_WINDOW_MIN_SPAN_S && w[0].bt - bt >= dropC;
+};
 
 // TP 미확정이 이 시간을 넘으면 현재 시점을 TP로 강제 확정해 Yellow/FC 게이트를 연다
 // (Artisan TP_max_roasttime 동일 — 에어로스터 등 TP 골짜기가 없는 머신 대응)
@@ -21,7 +34,7 @@ export type UseAutoDetectionOptions = {
     onAutoDrop: (onset?: AutoDropOnset) => void;
     onTurningPoint: (tp: TurningPoint) => void;
     autoChargeMinRateCPerSec: number;
-    autoDropMinRateCPerSec: number;
+    autoDropDropC: number;
     yellowTempC: number;
     unit: TemperatureUnit;
     markEvent?: (event: string, note: string) => void;
@@ -35,13 +48,14 @@ export const useAutoDetection = ({
     onAutoDrop,
     onTurningPoint,
     autoChargeMinRateCPerSec,
-    autoDropMinRateCPerSec,
+    autoDropDropC,
     yellowTempC,
     unit,
     markEvent,
     logEntries,
     autoYellowEnabled,
 }: UseAutoDetectionOptions) => {
+    const dropWindowRef = useRef<TimedSample[]>([]);
     const breakWindowRef = useRef<TemperatureSample[]>([]);
     const previousPhaseRef = useRef<string | null>(null);
     const lastSampleTimeRef = useRef<number | undefined>(undefined);
@@ -52,6 +66,12 @@ export const useAutoDetection = ({
     const yellowFiredRef = useRef(false);
     const yellowPendingRef = useRef(false);
     const prevDisplayBTRef = useRef<number | null>(null);
+    // livePoints는 effect 클로저 최신값 필요 — ref로 동기화
+    const livePointsRef = useRef(livePoints);
+    useEffect(() => {
+        livePointsRef.current = livePoints;
+    }, [livePoints]);
+
     const [confirmedTP, setConfirmedTP] = useState<TurningPoint | null>(null);
 
     const phase = useRoastingStore((s) => s.phase);
@@ -59,7 +79,7 @@ export const useAutoDetection = ({
     const liveData = useRoastingStore((s) => s.liveData);
     const bt = liveData?.bt ?? null;
 
-    // Charge/Drop share the raw stream; UI ticks and cached/stale payloads are not samples.
+    // Auto Charge uses raw sensor time; UI ticks and cached/stale payloads are not samples.
     useEffect(() => {
         const sampleTime = liveData?.timestamp;
         if (previousPhaseRef.current !== phase) {
@@ -68,11 +88,9 @@ export const useAutoDetection = ({
             lastSampleTimeRef.current = sampleTime;
             return;
         }
-        const isCharge = phase === 'standby';
-        const eligible = isCharge || (phase === 'roasting' && elapsed >= AUTO_DROP_MIN_ELAPSED_S);
         const rawBt = liveData?.bt_raw;
         if (
-            !eligible ||
+            phase !== 'standby' ||
             liveData?.stale ||
             rawBt == null ||
             !Number.isFinite(rawBt) ||
@@ -88,7 +106,7 @@ export const useAutoDetection = ({
         }
         if (sampleTime === lastSampleTimeRef.current) return;
         lastSampleTimeRef.current = sampleTime;
-        if ((isCharge && autoChargedRef.current) || (!isCharge && autoDroppedRef.current)) return;
+        if (autoChargedRef.current) return;
 
         const samples = breakWindowRef.current;
         const last = samples.length > 0 ? samples[samples.length - 1] : undefined;
@@ -97,23 +115,34 @@ export const useAutoDetection = ({
         samples.push({ t: sampleTime, bt: rawBt });
         if (samples.length > 11) samples.shift();
         // Artisan's warm-drum guard; cold sensor warmup is not a charge.
-        if (isCharge && rawBt <= 77) return;
-        const onset = detectTemperatureBreak(
-            samples,
-            isCharge ? autoChargeMinRateCPerSec : autoDropMinRateCPerSec,
-            isCharge ? 0.5 : 0.2,
-        );
+        if (rawBt <= 77) return;
+        const onset = detectTemperatureBreak(samples, autoChargeMinRateCPerSec);
         if (!onset) return;
         const onsetMs = liveData.receivedAtMs - (sampleTime - onset.t) * 1000;
-        if (isCharge) {
-            autoChargedRef.current = true;
-            onAutoCharge(onset.bt, onsetMs);
-        } else {
+        autoChargedRef.current = true;
+        onAutoCharge(onset.bt, onsetMs);
+    }, [phase, liveData, onAutoCharge, autoChargeMinRateCPerSec]);
+
+    // Auto Drop retains the display-BT window and lookback pending Artisan-based review (#459).
+    useEffect(() => {
+        if (phase !== 'roasting' || bt == null || autoDroppedRef.current) return;
+        if (elapsed < AUTO_DROP_MIN_ELAPSED_S) return;
+
+        if (slideAndCheckDrop(dropWindowRef, bt, autoDropDropC)) {
             autoDroppedRef.current = true;
-            const origin = useRoastingStore.getState().roastStartMs;
-            onAutoDrop({ timeSec: Math.max(0, (onsetMs - origin) / 1000), bt: onset.bt });
+            const series = livePointsRef.current.filter((p) => p.time >= 0).map((p) => ({ timeSec: p.time, bt: p.bt }));
+            if (series.length === 0 || series[series.length - 1].bt !== bt) {
+                const t = series.length > 0 ? series[series.length - 1].timeSec + 0.5 : elapsed;
+                series.push({ timeSec: t, bt });
+            }
+            const onset = detectChargeOnset(series, {
+                minDropC: Math.max(2, autoDropDropC * 0.4),
+            });
+            onAutoDrop(
+                onset != null ? { timeSec: Math.max(0, onset.timeSec), bt: onset.bt } : { timeSec: elapsed, bt },
+            );
         }
-    }, [phase, liveData, elapsed, onAutoCharge, onAutoDrop, autoChargeMinRateCPerSec, autoDropMinRateCPerSec]);
+    }, [phase, bt, elapsed, onAutoDrop, autoDropDropC]);
 
     // Auto Yellow by temperature — only fire after turning point (FC is manual / dual-mark only)
     useEffect(() => {
@@ -193,6 +222,7 @@ export const useAutoDetection = ({
 
     const resetAutoDetection = useCallback(() => {
         breakWindowRef.current = [];
+        dropWindowRef.current = [];
         lastSampleTimeRef.current = undefined;
         autoChargedRef.current = false;
         autoDroppedRef.current = false;

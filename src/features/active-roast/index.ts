@@ -1,6 +1,8 @@
 // model
 
 export { ALERT_SOUND_KINDS, type AlertSoundKind, isAlertSoundKind, playAlertSound } from './lib/alertSound';
+export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
+export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';

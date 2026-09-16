@@ -21,6 +21,7 @@ type Props = {
 const noop = () => {};
 const roots: ReturnType<typeof createRoot>[] = [];
 afterEach(() => {
+    vi.useRealTimers();
     act(() => {
         for (const root of roots.splice(0)) root.unmount();
         useRoastingStore.getState().reset();
@@ -40,7 +41,7 @@ const renderAutoDetection = (initial: Props) => {
             onAutoDrop: p.onAutoDrop ?? noop,
             onTurningPoint: p.onTurningPoint ?? noop,
             autoChargeMinRateCPerSec: 0.67,
-            autoDropMinRateCPerSec: 0.34,
+            autoDropDropC: 8,
             yellowTempC: 150,
             unit: 'C',
             markEvent: p.markEvent,
@@ -325,13 +326,37 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         expect(h.onAutoCharge).toHaveBeenCalledTimes(1);
     });
 
-    it('uses the same raw detector for Drop, gated to 180s and fires only once', () => {
+    it('preserves the legacy display-BT Drop threshold and 180s gate', () => {
+        vi.useFakeTimers();
         const h = setup('roasting', 170);
-        for (let t = 170; t <= 180; t++) sample(t, 200 - Math.max(0, t - 174));
+        const displaySample = (t: number, bt: number) => {
+            vi.setSystemTime(origin + t * 1000);
+            act(() =>
+                useRoastingStore.getState().updateLiveData({
+                    bt,
+                    bt_raw: 100,
+                    timestamp: t,
+                    receivedAtMs: Date.now(),
+                    et: null,
+                    ror: 0,
+                    ror_et: 0,
+                    heater: 0,
+                    fan: 0,
+                    drum: 0,
+                }),
+            );
+        };
+        for (let i = 0; i < 5; i++) displaySample(170 + i, 200 - i * 6);
         expect(h.onAutoDrop).not.toHaveBeenCalled();
-        act(() => useRoastingStore.setState({ elapsed: 181 }));
-        for (let t = 181; t <= 195; t++) sample(t, 200 - Math.max(0, t - 185));
-        expect(h.onAutoDrop).toHaveBeenCalledExactlyOnceWith({ timeSec: 185, bt: 200 });
+        act(() => useRoastingStore.setState({ elapsed: 200 }));
+        act(() => h.result.resetAutoDetection());
+        // Raw/display divergence must not make Drop use the Charge detector.
+        for (let i = 0; i < 5; i++) displaySample(200 + i, 200 - i * 0.5);
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+        displaySample(205, 192);
+        displaySample(206, 186);
+        displaySample(207, 180);
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
         expect(h.onAutoCharge).not.toHaveBeenCalled();
     });
 });

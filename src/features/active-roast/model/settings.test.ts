@@ -103,21 +103,14 @@ describe('FEATURE.fastPolling plan matrix', () => {
     });
 });
 
-it('migrates legacy drop amounts to independent rate defaults and clamps calibration', () => {
-    const legacy = { yellowTempC: 150, autoChargeDropC: 7, autoDropDropC: 8 };
+it('migrates Charge calibration while preserving the existing Drop threshold', () => {
+    const legacy = { yellowTempC: 150, autoChargeDropC: 7, autoDropDropC: 12 };
     expect(normalizeRoastSettings(legacy)).toMatchObject({
         autoChargeMinRateCPerSec: 0.67,
-        autoDropMinRateCPerSec: 0.34,
+        autoDropDropC: 12,
     });
-    expect(
-        normalizeRoastSettings({ autoChargeMinRateCPerSec: Number.NaN, autoDropMinRateCPerSec: Infinity }),
-    ).toMatchObject({ autoChargeMinRateCPerSec: 0.67, autoDropMinRateCPerSec: 0.34 });
-    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: -1, autoDropMinRateCPerSec: 100 })).toMatchObject({
-        autoChargeMinRateCPerSec: 0.1,
-        autoDropMinRateCPerSec: 15,
-    });
-    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: 0.8, autoDropMinRateCPerSec: 0.6 })).toMatchObject({
-        autoChargeMinRateCPerSec: 0.8,
-        autoDropMinRateCPerSec: 0.6,
-    });
+    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: Number.NaN }).autoChargeMinRateCPerSec).toBe(0.67);
+    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: -1 }).autoChargeMinRateCPerSec).toBe(0.1);
+    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: 100 }).autoChargeMinRateCPerSec).toBe(15);
+    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: 0.8 }).autoChargeMinRateCPerSec).toBe(0.8);
 });
