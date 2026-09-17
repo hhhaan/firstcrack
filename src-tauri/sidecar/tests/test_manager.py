@@ -598,6 +598,25 @@ class TestBtValidation:
         assert manager._reconnect_task is not None
         manager._reconnect_task.cancel()
 
+    async def test_zero_bt_disconnect_captures_once(self, manager):
+        """FC-1P: BT 0.0 연속 실패는 분류된 disconnect 이슈 한 건이어야 한다."""
+        import config
+
+        readings = [make_reading(bt=180.0)] + [
+            make_reading(bt=0.0) for _ in range(config.STALE_TOLERANCE_READS + 1)
+        ]
+        adapter = FakeAdapter(readings=readings)
+        await self._connect_with(manager, adapter)
+        with patch("manager.sentry_sdk.capture_exception") as capture:
+            await manager.read_temperatures()
+            for _ in range(config.STALE_TOLERANCE_READS):
+                await manager.read_temperatures()
+            await manager.read_temperatures()
+        assert capture.call_count == 1
+        assert manager._connected is False
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
+
     async def test_et_sentinel_does_not_fail_read(self, manager):
         """ET는 선택 채널 — -1.0이어도 세션을 죽이지 않는다."""
         adapter = FakeAdapter(readings=[make_reading(bt=180.0, et=-1.0)])

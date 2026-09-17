@@ -21,12 +21,17 @@ const OPAQUE_NETWORK_SNIPPETS = [
     'offline',
 ];
 
+/** Message-only transport check — TypeError bugs are not opaque just because they are TypeErrors. */
+export const isOpaqueNetworkMessage = (msg: string): boolean => {
+    const n = msg.trim().toLowerCase();
+    if (!n) return false;
+    return OPAQUE_NETWORK_SNIPPETS.some((snippet) => n.includes(snippet));
+};
+
 /** Fetch/transport failures whose raw text should not leak into UI copy. */
 export const isOpaqueNetworkError = (err: unknown): boolean => {
     if (err instanceof TypeError) return true;
-    const msg = errorMessage(err).trim().toLowerCase();
-    if (!msg) return false;
-    return OPAQUE_NETWORK_SNIPPETS.some((snippet) => msg.includes(snippet));
+    return isOpaqueNetworkMessage(errorMessage(err));
 };
 
 /** Sidecar not listening yet, or 401 from a just-bound process racing the token header. */

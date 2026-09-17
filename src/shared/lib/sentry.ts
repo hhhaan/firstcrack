@@ -9,6 +9,7 @@
  * - 앱 내 ErrorBoundary는 캡처하지 않는다. React 19 root 핸들러(reactRootOptions)가 유일한 경로다.
  */
 import * as Sentry from '@sentry/react';
+import { isOpaqueNetworkMessage } from './errorMessage';
 import { mapServerBatchGateError } from './features/plan-matrix';
 import { httpStatusOf } from './httpStatus';
 
@@ -67,19 +68,47 @@ export const isClientRefusal = (error: unknown): boolean => {
     return status !== undefined && status >= 400 && status < 500;
 };
 
+const errorText = (error: unknown): string => {
+    if (typeof error === 'string') return error;
+    if (error instanceof Error) return `${error.name}: ${error.message}`;
+    if (error && typeof error === 'object') {
+        const o = error as { name?: unknown; message?: unknown; details?: unknown };
+        return [o.name, o.message, o.details].filter((v): v is string => typeof v === 'string').join(' ');
+    }
+    return '';
+};
+
+/** Updater/reqwest 전송 실패. UI 스니펫 목록과 별개 — 토스트 문구를 바꾸지 않는다. */
+const UPDATER_NETWORK = /error sending request for url/i;
+/** 제거된 plugin:dialog|confirm 호출. ACL 수정이 아니라 클라이언트 노이즈다. */
+const TAURI_ACL_NOISE = /not allowed by acl/i;
+
+const isExpectedNoise = (error: unknown): boolean => {
+    const text = errorText(error);
+    if (!text.trim()) return false;
+    return isOpaqueNetworkMessage(text) || UPDATER_NETWORK.test(text) || TAURI_ACL_NOISE.test(text);
+};
+
 /**
- * 조치 가능한 오류만 이슈로 남긴다. 기본은 capture이고, 사용자가 취소한 요청(AbortError)과
- * 클라이언트 4xx(인증/권한/검증 — 서버 로그로 다룬다)만 제외한다.
- * 429는 예외: 레이트 리밋은 우리가 손봐야 하는 운영 문제다.
+ * 조치 가능한 오류만 이슈로 남긴다. 기본은 capture이고, 사용자가 취소한 요청(AbortError),
+ * 클라이언트 4xx(인증/권한/검증 — 서버 로그로 다룬다), 일시적 전송 실패, 예상된 Tauri ACL
+ * 거절은 제외한다. 429는 예외: 레이트 리밋은 우리가 손봐야 하는 운영 문제다.
  */
 export const isActionableError = (error: unknown): boolean => {
     if ((error as { name?: unknown } | null | undefined)?.name === 'AbortError') return false;
     if (isClientRefusal(error)) return httpStatusOf(error) === 429;
+    if (isExpectedNoise(error)) return false;
     return true;
 };
 
 const beforeSend = (event: Sentry.ErrorEvent, hint: Sentry.EventHint): Sentry.ErrorEvent | null => {
-    if (!isActionableError(hint.originalException)) return null;
+    const original = hint.originalException;
+    if (original !== undefined && original !== null) {
+        if (!isActionableError(original)) return null;
+    } else {
+        const fallback = event.exception?.values?.[0]?.value ?? event.message;
+        if (fallback != null && fallback !== '' && !isActionableError(fallback)) return null;
+    }
     if (event.message) event.message = scrubText(event.message);
     for (const exception of event.exception?.values ?? []) {
         if (exception.value) exception.value = scrubText(exception.value);

@@ -103,6 +103,10 @@ class TestActionability:
     def test_unhandled_exception_kept(self):
         assert sentry_config.is_actionable(OSError("PLC unreachable")) is True
 
+    def test_classified_hardware_exception_kept(self):
+        """Manager capture_exception of a dead PLC still has to be diagnosable."""
+        assert sentry_config.is_actionable(RuntimeError("BT out of range (0.0)")) is True
+
 
 class _HttpError(Exception):
     def __init__(self, status: int):
@@ -114,6 +118,18 @@ class TestBeforeSend:
     def test_drops_non_actionable(self):
         event = {"message": "unauthorized"}
         assert sentry_config.before_send(event, {"exc_info": (type(_HttpError(401)), _HttpError(401), None)}) is None
+
+    def test_drops_snap7_library_timeout_logs(self):
+        """FC-1N: snap7.common ERROR logs are PLC recv timeouts, not a separate bug."""
+        event = {
+            "logger": "snap7.common",
+            "message": "b' ISO : An error occurred during recv TCP : Connection timed out'",
+        }
+        assert sentry_config.before_send(event, {}) is None
+
+    def test_keeps_manager_classified_disconnect(self):
+        event = {"logger": "manager", "message": "읽기 실패: BT out of range (0.0)"}
+        assert sentry_config.before_send(event, {}) is not None
 
     def test_scrubs_surviving_event(self):
         event = {
