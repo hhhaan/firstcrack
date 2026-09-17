@@ -1,6 +1,11 @@
 import { BatchLimitError } from '@shared/lib/features';
 import { describe, expect, it } from 'vitest';
-import { isPermanentSaveError, pgErrorCode } from './saveErrorClassification';
+import {
+    formatRoastSaveError,
+    isFixablePlanBatchIdError,
+    isPermanentSaveError,
+    pgErrorCode,
+} from './saveErrorClassification';
 
 describe('pgErrorCode', () => {
     it('reads a string code off a PostgREST error', () => {
@@ -34,5 +39,24 @@ describe('isPermanentSaveError', () => {
     it('keeps plan-gate refusals retryable — they clear on upgrade or next month', () => {
         expect(isPermanentSaveError(new BatchLimitError(0, 0, 'read_only_plan'))).toBe(false);
         expect(isPermanentSaveError(new BatchLimitError(50, 50, 'trial_batch_cap'))).toBe(false);
+    });
+
+    it('does not treat 22P02 as permanent — snapshot must stay for a later resolve', () => {
+        expect(isPermanentSaveError({ code: '22P02', message: 'invalid input syntax for type uuid' })).toBe(false);
+        expect(isFixablePlanBatchIdError({ code: '22P02', message: 'invalid input syntax for type uuid' })).toBe(true);
+        expect(isFixablePlanBatchIdError({ message: 'invalid plan_batch_id' })).toBe(true);
+        expect(isFixablePlanBatchIdError({ code: 'unresolvable_plan_batch_id' })).toBe(true);
+    });
+});
+
+describe('formatRoastSaveError', () => {
+    it('uses errorMessage so PostgREST objects are not [object Object]', () => {
+        expect(formatRoastSaveError({ code: '22P02', message: 'invalid input syntax for type uuid' })).toBe(
+            'invalid input syntax for type uuid',
+        );
+        expect(formatRoastSaveError({ code: '22P02', message: 'invalid input syntax for type uuid' })).not.toBe(
+            '[object Object]',
+        );
+        expect(String({ code: '22P02', message: 'invalid input syntax for type uuid' })).toBe('[object Object]');
     });
 });

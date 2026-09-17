@@ -58,6 +58,21 @@ describe('runCompleteBatchFlow', () => {
         expect(deductOrder).toBeLessThan(commitOrder);
     });
 
+    it('deducts using the canonical row, not the stale selection', async () => {
+        const latest = baseBatch({ bean_id: 'new-bean', completed_sessions: 0, batch_size_kg: 2 });
+        const deps = makeDeps({
+            ensureMaterialized: vi.fn().mockResolvedValue({ targetId: 'real', targetPlanId: 'plan', batch: latest }),
+        });
+        await runCompleteBatchFlow(deps, baseBatch(), true);
+        expect(deps.deduct).toHaveBeenCalledWith({
+            deductionGrams: 4000,
+            singleBeanId: 'new-bean',
+            blendId: null,
+            referenceId: 'real',
+        });
+        expect(deps.commitStatus).toHaveBeenCalledWith(latest, expect.anything(), 'done');
+    });
+
     it('deduct 실패 → 에러 전파 + done 커밋 안 함 (재시도 가능)', async () => {
         const deps = makeDeps({
             deduct: vi.fn().mockRejectedValue(new Error('Workspace is still loading')),

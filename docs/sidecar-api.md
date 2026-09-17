@@ -55,7 +55,8 @@ interface SidecarStatus {
 
 ```ts
 interface TemperatureReading {
-    bt: number | null;
+    bt: number | null; // display EMA
+    bt_raw?: number | null; // validated, unsmoothed sensor BT; absent on older sidecars
     et: number | null;
     ror: number;
     ror_et: number;
@@ -73,7 +74,8 @@ interface TemperatureReading {
 
 | Field       | Meaning                                                                          |
 | ----------- | -------------------------------------------------------------------------------- |
-| `bt`        | Bean Temperature, 원두 온도. 섭씨.                                               |
+| `bt`        | Bean Temperature, 표시용 EMA 원두 온도. 섭씨.                                               |
+| `bt_raw`    | 평활화 전 원시 BT (°C). Charge 감지용. `stale` 또는 연결 해제 응답에서는 null이다. 이전 사이드카의 필드 누락 시 자동 Charge를 중단하고 수동 투입을 안내한다. |
 | `et`        | Environment Temperature, 환경/배기 온도. 섭씨.                                   |
 | `ror`       | BT 기준 Rate of Rise. 최근 30초 BT window의 선형 최소제곱 기울기. 단위 `°C/min`. |
 | `ror_et`    | ET 기준 Rate of Rise. 최근 30초 ET window의 선형 최소제곱 기울기. 단위 `°C/min`. |
@@ -221,6 +223,7 @@ Notes:
 - `uptime`은 현재 연결이 유지된 시간이며 초 단위다.
 - 연결이 없으면 `connected=false`, `uptime=0`, `roaster=""`가 된다.
 - 마지막 연결/읽기 오류가 있으면 `error`에 사용자 친화 메시지가 들어간다.
+- `control.limits.<role>`는 write_map의 스케일(`min`/`max`/`unit`). `giesen_wxa_coarse` heater는 `max=10`, `unit=step`. 수렴·이탈 허용치는 이 `max`에서 같이 유도한다(이탈 ≥ 수렴).
 
 ### POST /connect
 

@@ -1,12 +1,16 @@
 import type { PidRuntime } from '@entities/machine';
+import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ControlCommand, ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
+import { isPercentUnit } from '../lib/snapPercent';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
 import { useReplayControl } from '../model/useReplayControl';
+import { ChannelChip } from './ChannelChip';
+import { HeaterScale } from './HeaterScale';
 import { PidControlPanel } from './PidControlPanel';
 import { ReplayControlPanel } from './ReplayControlPanel';
 import { SetpointControl } from './SetpointControl';
@@ -137,6 +141,7 @@ export const MachineControlPanel = ({
         heaterPending: desired.heater != null,
         reconnecting,
         writeHeater,
+        heaterMax: limits.heater?.max,
     });
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
@@ -210,34 +215,78 @@ export const MachineControlPanel = ({
 
             {/* 접혀도 트리 유지 — PID/DROP 훅 언마운트 방지 */}
             <div className={collapsed ? 'hidden' : 'flex min-h-0 flex-1 flex-col gap-3'} aria-hidden={collapsed}>
-                {sending && <span className="text-[11px] text-muted">sending…</span>}
-                {/* fader가 남는 높이를 먹는다. 창이 짧아지면 min-h까지 줄고 그 아래로는 패널이 스크롤된다 */}
-                <div className="flex min-h-24 flex-1 justify-around gap-1">
-                    {ROLE_ORDER.map((role) => {
-                        const supported = limits[role] != null;
-                        const lockedByPid = role === 'heater' && pidHoldsHeater;
-                        // Replay 재생 중 화력 소유권은 Replay에 있다 — 수동 조절은 체크 해제 후.
-                        // (fan/drum은 Replay가 안 만지므로 열어둔다)
-                        const lockedByReplay = role === 'heater' && replay.active;
-                        return (
-                            <SetpointControl
-                                key={role}
-                                role={role}
-                                limit={limits[role] ?? {}}
-                                value={supported ? desired[role] : undefined}
-                                feedback={supported && liveData ? liveData[role] : null}
-                                unacknowledged={supported && unacknowledged.has(role)}
-                                disabled={!writable || !supported || lockedByPid || lockedByReplay}
-                                unsupported={!supported}
-                                lockedNote={
-                                    !supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined
-                                }
-                                onChange={handleManualChange}
-                                onCommit={commitNow}
-                            />
-                        );
-                    })}
-                </div>
+                {/* % 히터는 A′ 세로 눈금, Fan/Drum은 칩. step(0–10) 기센은 기존 fader (#436) */}
+                {isPercentUnit(limits.heater?.unit) ? (
+                    <>
+                        <HeaterScale
+                            limit={limits.heater ?? {}}
+                            value={limits.heater != null ? desired.heater : undefined}
+                            feedback={limits.heater != null && liveData ? liveData.heater : null}
+                            unacknowledged={limits.heater != null && unacknowledged.has('heater')}
+                            disabled={!writable || limits.heater == null || pidHoldsHeater || replay.active}
+                            unsupported={limits.heater == null}
+                            sending={sending}
+                            lockedNote={
+                                limits.heater == null
+                                    ? 'N/A'
+                                    : pidHoldsHeater
+                                      ? 'PID'
+                                      : replay.active
+                                        ? 'Replay'
+                                        : undefined
+                            }
+                            onChange={handleManualChange}
+                            onCommit={commitNow}
+                        />
+                        <div className="flex shrink-0 flex-col gap-1.5">
+                            {(['fan', 'drum'] as const).map((role) => {
+                                const supported = limits[role] != null;
+                                return (
+                                    <ChannelChip
+                                        key={role}
+                                        role={role}
+                                        limit={limits[role] ?? {}}
+                                        value={supported ? desired[role] : undefined}
+                                        feedback={supported && liveData ? liveData[role] : null}
+                                        unacknowledged={supported && unacknowledged.has(role)}
+                                        disabled={!writable || !supported}
+                                        unsupported={!supported}
+                                        lockedNote={!supported ? 'N/A' : undefined}
+                                        onChange={handleManualChange}
+                                        onCommit={commitNow}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </>
+                ) : (
+                    <div className={cn('flex min-h-24 flex-1 justify-around gap-1', sending && 'opacity-40')}>
+                        {ROLE_ORDER.map((role) => {
+                            const supported = limits[role] != null;
+                            const lockedByPid = role === 'heater' && pidHoldsHeater;
+                            // Replay 재생 중 화력 소유권은 Replay에 있다 — 수동 조절은 체크 해제 후.
+                            // (fan/drum은 Replay가 안 만지므로 열어둔다)
+                            const lockedByReplay = role === 'heater' && replay.active;
+                            return (
+                                <SetpointControl
+                                    key={role}
+                                    role={role}
+                                    limit={limits[role] ?? {}}
+                                    value={supported ? desired[role] : undefined}
+                                    feedback={supported && liveData ? liveData[role] : null}
+                                    unacknowledged={supported && unacknowledged.has(role)}
+                                    disabled={!writable || !supported || lockedByPid || lockedByReplay}
+                                    unsupported={!supported}
+                                    lockedNote={
+                                        !supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined
+                                    }
+                                    onChange={handleManualChange}
+                                    onCommit={commitNow}
+                                />
+                            );
+                        })}
+                    </div>
+                )}
                 {/* fader 열은 좁아 문장이 안 들어간다 — 경고는 패널 폭 전체를 쓴다 */}
                 {anyUnacknowledged && (
                     <p className="text-[11px] leading-snug text-red-500">

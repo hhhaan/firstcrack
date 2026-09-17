@@ -318,6 +318,7 @@ export const useDeleteCuppingEvent = (userId: string) => {
             qc.removeQueries({ queryKey: cuppingKeys.event(eventId) });
             qc.removeQueries({ queryKey: cuppingKeys.samples(eventId) });
             qc.removeQueries({ queryKey: cuppingKeys.invite(eventId) });
+            void qc.invalidateQueries({ queryKey: cuppingKeys.events(userId) });
         },
     });
 };

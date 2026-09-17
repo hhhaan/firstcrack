@@ -26,6 +26,8 @@ interface SessionQueue {
     initScheduled: boolean;
     /** Last header error — surfaced by init/flush while the queue stays reusable */
     initError: Error | null;
+    /** Sticky: partial appends cannot safely be retried. */
+    appendError: Error | null;
     /** Rows enqueued before header is ready */
     pending: string[];
 }
@@ -37,7 +39,14 @@ let removeImpl: TsvRemoveFn = defaultRemove;
 const getQueue = (sessionId: string): SessionQueue => {
     let q = sessions.get(sessionId);
     if (!q) {
-        q = { chain: Promise.resolve(), ready: false, initScheduled: false, initError: null, pending: [] };
+        q = {
+            chain: Promise.resolve(),
+            ready: false,
+            initScheduled: false,
+            initError: null,
+            appendError: null,
+            pending: [],
+        };
         sessions.set(sessionId, q);
     }
     return q;
@@ -53,6 +62,7 @@ const captureIo = (err: unknown, context: string, sessionId: string) => {
 const enqueue = (sessionId: string, task: () => Promise<void>): void => {
     const q = getQueue(sessionId);
     q.chain = q.chain.then(task).catch((err) => {
+        q.appendError ??= err instanceof Error ? err : new Error(String(err ?? 'TSV append failed'));
         captureIo(err, 'tsv-writer', sessionId);
     });
 };
@@ -66,6 +76,7 @@ export const _resetTsvWriterForTests = (opts?: { write?: TsvWriteFn; remove?: Ts
 
 export const initSessionTsv = async (sessionId: string): Promise<void> => {
     const q = getQueue(sessionId);
+    if (q.appendError) throw q.appendError;
     if (q.ready) return;
 
     if (!q.initScheduled) {
@@ -76,22 +87,30 @@ export const initSessionTsv = async (sessionId: string): Promise<void> => {
                 await writeImpl(path, TSV_HEADER, { append: false });
                 q.ready = true;
                 q.initError = null;
-                for (const line of q.pending) {
-                    await writeImpl(path, line, { append: true });
-                }
-                q.pending.length = 0;
             } catch (err) {
                 const error = err instanceof Error ? err : new Error(String(err ?? 'TSV initialization failed'));
                 q.initScheduled = false;
                 q.ready = false;
                 if (q.initError === null) captureIo(error, 'tsv-writer init', sessionId);
                 q.initError = error;
+                return;
+            }
+            // Remove rows from the retry buffer before append: failure may have partially written them.
+            for (const line of q.pending.splice(0)) {
+                try {
+                    await writeImpl(path, line, { append: true });
+                } catch (err) {
+                    q.appendError ??= err instanceof Error ? err : new Error(String(err ?? 'TSV append failed'));
+                    captureIo(err, 'tsv-writer', sessionId);
+                }
             }
         });
     }
 
     await q.chain;
-    if (!q.ready) throw q.initError ?? new Error(`TSV initialization failed: ${sessionId}`);
+    const settled = getQueue(sessionId);
+    if (settled.appendError) throw settled.appendError;
+    if (!settled.ready) throw settled.initError ?? new Error(`TSV initialization failed: ${sessionId}`);
 };
 
 export const enqueueTsvRow = (sessionId: string, row: string): void => {
@@ -119,10 +138,11 @@ export const flushTsv = async (sessionId?: string): Promise<void> => {
             await q.chain;
             if (!q.ready && q.initError !== null) await initSessionTsv(sessionId);
             await q.chain;
+            if (q.appendError) throw q.appendError;
         }
         return;
     }
-    await Promise.all([...sessions.values()].map((q) => q.chain));
+    await Promise.all([...sessions.keys()].map((id) => flushTsv(id)));
 };
 
 // ── BBP (between-batch) TSV — 세션 큐 불필요한 단발 기록 ──────────────

@@ -11,8 +11,12 @@ import { format } from 'date-fns';
 import { listForDateRange } from './list-for-date-range';
 import { materializePlanBatch } from './materialize';
 import { mergeRecurrenceRuleMaster, type RecurrenceRuleMasterPatch, recurrenceRuleApi } from './recurrence-rule';
+import { resolveForRoast, startForRoast, syncRoastProgress, updateRoastStatus } from './resolve-for-roast';
 
 export const planBatchApi = {
+    updateRoastStatus,
+    startForRoast,
+    syncRoastProgress,
     list: async (planId: string): Promise<PlanBatchWithProgress[]> => {
         const batchesResult = await supabase
             .from('roast_plan_batches')
@@ -270,4 +274,5 @@ export const planBatchApi = {
 
     listForDateRange,
     materialize: materializePlanBatch,
+    resolveForRoast,
 };

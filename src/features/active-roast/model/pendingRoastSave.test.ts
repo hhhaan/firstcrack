@@ -1,77 +1,71 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     clearPendingRoastSave,
+    createPendingRoastSave,
+    listPendingRoastSaves,
     type PendingRoastParams,
-    type PendingRoastSave,
     readPendingRoastSave,
-    toSaveRoastParams,
     writePendingRoastSave,
 } from './pendingRoastSave';
 
-const KEY = 'fc_pending_roast_save';
-const store = new Map<string, string>();
-
-beforeEach(() => {
-    store.clear();
-    globalThis.localStorage = {
-        getItem: (k: string) => store.get(k) ?? null,
-        setItem: (k: string, v: string) => void store.set(k, v),
-        removeItem: (k: string) => void store.delete(k),
-    } as unknown as Storage;
-});
-
 const params: PendingRoastParams = {
-    formData: {
-        notes: 'n',
-        weightGrams: 1.5,
-        roastLevel: null,
-        beanId: null,
-        beanLabel: null,
-        linkedBatch: null,
-        deductStock: false,
-    },
-    userId: 'u1',
+    formData: { notes: '', weightGrams: 1, roastLevel: null, beanId: null },
+    userId: 'owner',
     elapsed: 600,
     roastStartTime: 1234,
     rawBT: 205,
-    ambientTemperature: null,
-    ambientHumidity: null,
     selectedBeanId: null,
     targetProfileId: null,
     planBatchHandoff: null,
-    sessionId: 's1',
+    sessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     handoffBeanName: null,
     logEntries: [],
 };
-
-const pending: PendingRoastSave = { version: 1, submitted: true, params };
-
-describe('pendingRoastSave', () => {
-    it('write → read 라운드트립', () => {
-        writePendingRoastSave(pending);
-        expect(readPendingRoastSave()).toEqual(pending);
+beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+});
+describe('durable per-session recovery', () => {
+    it('clearing A preserves B and foreign-owner A', () => {
+        const a = createPendingRoastSave(params, true);
+        const b = createPendingRoastSave({ ...params, sessionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, true);
+        const foreign = createPendingRoastSave({ ...params, userId: 'other' }, true);
+        for (const p of [a, b, foreign]) writePendingRoastSave(p);
+        clearPendingRoastSave(params.userId, params.sessionId);
+        expect(listPendingRoastSaves()).toEqual([b, foreign]);
     });
-
-    it('손상된 JSON → null (throw 없음)', () => {
-        store.set(KEY, '{broken');
-        expect(readPendingRoastSave()).toBeNull();
+    it('allocates one durable UUID for an unrecorded roast and records no required profile', () => {
+        const p = createPendingRoastSave({ ...params, sessionId: null }, true);
+        writePendingRoastSave(p);
+        expect(p.params.sessionId).toMatch(/^[a-f0-9-]{36}$/);
+        expect(readPendingRoastSave('owner', p.params.sessionId)).toEqual(p);
+        expect(p.profile).toBe('not_required');
     });
-
-    it('버전 불일치 → null', () => {
-        store.set(KEY, JSON.stringify({ ...pending, version: 99 }));
-        expect(readPendingRoastSave()).toBeNull();
+    it('migrates legacy only after a verified durable write', () => {
+        const legacy = JSON.stringify({ version: 1, submitted: true, params });
+        localStorage.setItem('fc_pending_roast_save', legacy);
+        const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new Error('quota');
+        });
+        expect(listPendingRoastSaves).toThrow('quota');
+        expect(localStorage.getItem('fc_pending_roast_save')).toBe(legacy);
+        set.mockRestore();
+        expect(listPendingRoastSaves()[0].params.sessionId).toBe(params.sessionId);
+        expect(localStorage.getItem('fc_pending_roast_save')).toBeNull();
     });
-
-    it('clear 후 null', () => {
-        writePendingRoastSave(pending);
-        clearPendingRoastSave();
-        expect(readPendingRoastSave()).toBeNull();
+    it('preserves corrupt and unknown legacy data for recovery', () => {
+        localStorage.setItem('fc_pending_roast_save', '{broken');
+        expect(listPendingRoastSaves).toThrow();
+        expect(localStorage.getItem('fc_pending_roast_save')).toBe('{broken');
     });
-
-    it('toSaveRoastParams: roastStartTime → ref 복원', () => {
-        const live = toSaveRoastParams(params);
-        expect(live.roastStartTimeRef.current).toBe(1234);
-        expect('roastStartTime' in live).toBe(false);
-        expect(live.sessionId).toBe('s1');
+    it('never invents a new identity for an ambiguous legacy null ID', () => {
+        localStorage.setItem(
+            'fc_pending_roast_save',
+            JSON.stringify({ version: 1, submitted: true, params: { ...params, sessionId: null } }),
+        );
+        const p = listPendingRoastSaves()[0];
+        expect(p.params.sessionId).toBeNull();
+        expect(p.needsAttention).toBe(true);
     });
 });

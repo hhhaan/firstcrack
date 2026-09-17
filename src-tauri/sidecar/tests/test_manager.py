@@ -189,6 +189,7 @@ class TestReadTemperatures:
     async def test_returns_none_when_not_connected(self, manager):
         result = await manager.read_temperatures()
         assert result["bt"] is None
+        assert result["bt_raw"] is None
         assert result["et"] is None
         assert result["ror"] == 0.0
 
@@ -201,6 +202,21 @@ class TestReadTemperatures:
         assert result["bt"] is not None
         assert result["et"] is not None
         assert isinstance(result["ror"], float)
+
+    async def test_raw_bt_is_unsmoothed_and_stale_is_flagged(self, manager):
+        manager._adapter = FakeAdapter(readings=[
+            make_reading(bt=200.0, ts=10.0),
+            make_reading(bt=197.25, ts=11.0),
+        ])
+        manager._connected = True
+        await manager.read_temperatures()
+        reading = await manager.read_temperatures()
+        assert reading["bt_raw"] == 197.25
+        assert 197.25 < reading["bt"] < 200
+        assert reading["timestamp"] == 11.0
+        stale = await manager.read_temperatures()
+        assert stale["stale"] is True
+        assert stale["bt_raw"] is None
 
     async def test_heater_none_is_not_reported_as_zero(self, manager):
         """화력 피드백 채널이 없는 머신은 None으로 나가야 한다.

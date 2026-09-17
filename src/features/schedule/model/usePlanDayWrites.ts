@@ -1,5 +1,6 @@
 import {
     dayPlanApi,
+    invalidatePlanScope,
     planBatchApi,
     planKeys,
     useCreatePlanBatch,
@@ -59,87 +60,40 @@ export const usePlanDayWrites = ({
     const updateFromThis = useUpdateFromThis();
     const updateAllBatches = useUpdateAllBatches();
 
-    // Virtual recurring instance → materialize as exception row with its CURRENT
-    // status (no transition here — commitStatus does that after side-effects succeed).
     const ensureMaterialized = useCallback(
         async (batch: PlanBatchWithProgress): Promise<BatchTarget> => {
-            if (batch.recurrence_rule_id && batch.id.includes(':') && batch.scheduled_date) {
-                const realBatch = await planBatchApi.materialize(
-                    userId,
-                    batch.recurrence_rule_id,
-                    batch.scheduled_date,
-                    batch.original_date ?? batch.scheduled_date,
-                    {
-                        bean_name: batch.bean_name,
-                        batch_size_kg: Number(batch.batch_size_kg),
-                        target_roasted_kg: Number(batch.target_roasted_kg),
-                        machine_id: batch.machine_id,
-                        bean_id: batch.bean_id,
-                        blend_id: batch.blend_id ?? null,
-                        roast_profile_id: batch.roast_profile_id,
-                        notes: batch.notes,
-                        green_lot: batch.green_lot,
-                        batch_type: batch.batch_type,
-                        yield_pct: batch.yield_pct,
-                        status: batch.status ?? 'pending',
-                    },
-                );
-                return { targetId: realBatch.id, targetPlanId: realBatch.plan_id };
-            }
-            return { targetId: batch.id, targetPlanId: batch.plan_id };
+            const latest = await planBatchApi.resolveForRoast(userId, batch);
+            return { targetId: latest.id, targetPlanId: latest.plan_id, batch: latest };
         },
         [userId],
     );
 
-    // Status UPDATE only — target must already be a real row (ensureMaterialized).
-    // Never pass meta here: updateSingle(meta) inserts a new exception and
-    // fails/duplicates when the row already exists.
     const commitStatus = useCallback(
-        async (batch: PlanBatchWithProgress, target: BatchTarget, status: 'in-progress' | 'done') => {
-            await updateSingleBatch.mutateAsync({
-                id: target.targetId,
-                patch: {
-                    id: target.targetId,
-                    plan_id: target.targetPlanId,
-                    status,
-                    ...(batch.recurrence_rule_id
-                        ? {
-                              bean_id: batch.bean_id,
-                              blend_id: batch.blend_id ?? null,
-                              bean_name: batch.bean_name,
-                              roast_profile_id: batch.roast_profile_id,
-                              batch_size_kg: batch.batch_size_kg,
-                              target_roasted_kg: batch.target_roasted_kg,
-                              yield_pct: batch.yield_pct,
-                              notes: batch.notes,
-                              green_lot: batch.green_lot,
-                              batch_type: batch.batch_type,
-                          }
-                        : {}),
-                },
-            });
+        async (_batch: PlanBatchWithProgress, target: BatchTarget, status: 'in-progress' | 'done') => {
+            if (!target.batch) throw new Error('resolved plan batch required');
+            await planBatchApi.updateRoastStatus(target.batch, status);
+            invalidatePlanScope(qc, userId);
         },
-        [updateSingleBatch],
+        [qc, userId],
     );
 
-    /** Materialize + in-progress, then hand the real ids to Active Roast. */
     const startBatch = useCallback(
         async (batch: PlanBatchWithProgress): Promise<PlanBatchHandoff> => {
-            const target = await ensureMaterialized(batch);
-            await commitStatus(batch, target, 'in-progress');
+            const latest = await planBatchApi.startForRoast(userId, batch);
+            invalidatePlanScope(qc, userId);
             return {
-                planBatchId: target.targetId,
-                planId: target.targetPlanId,
-                beanId: batch.bean_id,
-                blendId: batch.blend_id ?? null,
-                beanName: batch.bean_name,
-                batchSizeKg: Number(batch.batch_size_kg),
-                profileId: batch.roast_profile_id,
-                batchCount: batch.batch_count,
-                completedSessions: batch.completed_sessions,
+                planBatchId: latest.id,
+                planId: latest.plan_id,
+                beanId: latest.bean_id,
+                blendId: latest.blend_id ?? null,
+                beanName: latest.bean_name,
+                batchSizeKg: Number(latest.batch_size_kg),
+                profileId: latest.roast_profile_id,
+                batchCount: latest.batch_count,
+                completedSessions: latest.completed_sessions,
             };
         },
-        [ensureMaterialized, commitStatus],
+        [userId, qc],
     );
 
     const completeBatch = useCallback(
