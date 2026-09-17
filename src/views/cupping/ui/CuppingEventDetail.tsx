@@ -37,7 +37,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
     const deleteEvent = useDeleteCuppingEvent(userId);
     const endEvent = useEndCuppingEvent(userId);
     const [sampleForm, setSampleForm] = useState<'add' | CuppingSampleWithMeta | null>(null);
-    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [deletingTitle, setDeletingTitle] = useState<string | null>(null);
 
     const title = event?.title ?? t('cupping.title');
     const participants = event?.participants ?? [];
@@ -104,7 +104,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                             type="button"
                             onClick={() => {
                                 deleteEvent.reset();
-                                setConfirmDelete(true);
+                                setDeletingTitle(event?.title ?? t('cupping.title'));
                             }}
                             className="rounded-full border border-border-subtle px-3 py-2 text-xs text-muted dark:border-[#585d61] cursor-pointer"
                         >
@@ -179,18 +179,18 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
             ) : null}
 
             <DeleteCuppingEventModal
-                open={confirmDelete}
-                sessionTitle={title}
+                open={deletingTitle != null}
+                sessionTitle={deletingTitle ?? ''}
                 isLoading={deleteEvent.isPending}
                 error={deleteEvent.error ? t('cupping.deleteEventFailed') : null}
                 onClose={() => {
-                    setConfirmDelete(false);
+                    setDeletingTitle(null);
                     deleteEvent.reset();
                 }}
                 onConfirm={() => {
                     deleteEvent.mutate(eventId, {
                         onSuccess: () => {
-                            setConfirmDelete(false);
+                            setDeletingTitle(null);
                             onDeleted();
                         },
                     });

@@ -4,6 +4,7 @@ import type { CuppingEventSummary } from '@entities/cupping';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { CuppingEventDetail } from './CuppingEventDetail';
 import { CuppingEventList } from './CuppingEventList';
 import { DeleteCuppingEventModal } from './DeleteCuppingEventModal';
 
@@ -17,6 +18,9 @@ vi.mock('@entities/cupping', async (importOriginal) => {
         ...actual,
         useCreateCuppingEvent: () => ({ mutateAsync: vi.fn(), isPending: false }),
         useDeleteCuppingEvent: () => ({ mutate, mutateAsync, isPending: false, error: null, reset }),
+        useCuppingSamples: () => ({ data: [], isLoading: false }),
+        useCuppingEvent: () => ({ data: null }),
+        useEndCuppingEvent: () => ({ mutateAsync: vi.fn(), isPending: false }),
     };
 });
 
@@ -29,6 +33,11 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
         throw new Error('plugin-dialog confirm must not be used for cupping delete');
     }),
 }));
+
+vi.mock('./CuppingAddSamplesForm', () => ({ CuppingAddSamplesForm: () => null }));
+vi.mock('./CuppingResultsShare', () => ({ CuppingResultsShare: () => null }));
+vi.mock('./CuppingSampleSummary', () => ({ CuppingSampleSummary: () => null }));
+vi.mock('./CuppingSessionInvite', () => ({ CuppingSessionInvite: () => null }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -144,4 +153,46 @@ it('deletes the session when the in-app confirm is accepted', () => {
     });
 
     expect(mutate).toHaveBeenCalledWith('ev-1', expect.objectContaining({ onSuccess: expect.any(Function) }));
+});
+
+it('calls onDeleted only after a successful detail delete', () => {
+    const onDeleted = vi.fn();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() =>
+        root.render(
+            createElement(CuppingEventDetail, {
+                eventId: 'ev-1',
+                event,
+                userId: 'user-1',
+                onBack: () => {},
+                onDeleted,
+            }),
+        ),
+    );
+
+    const deleteBtn = Array.from(host.querySelectorAll('button')).find((b) => b.textContent === 'cupping.deleteEvent');
+    expect(deleteBtn).toBeTruthy();
+    act(() => {
+        deleteBtn?.click();
+    });
+
+    const confirmBtn = host.querySelector('[data-testid="cupping-delete-confirm"]') as HTMLButtonElement;
+    expect(confirmBtn).toBeTruthy();
+    act(() => {
+        confirmBtn.click();
+    });
+
+    expect(mutate).toHaveBeenCalledWith('ev-1', expect.objectContaining({ onSuccess: expect.any(Function) }));
+    expect(onDeleted).not.toHaveBeenCalled();
+
+    const opts = mutate.mock.calls[0]?.[1] as { onSuccess: () => void };
+    act(() => {
+        opts.onSuccess();
+    });
+    expect(onDeleted).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+    host.remove();
 });
