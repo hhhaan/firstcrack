@@ -3,7 +3,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReplayPoint } from '../lib/replay';
-import { type ReplayControlInputs, useReplayControl } from './useReplayControl';
+import { divergeTolerance, type ReplayControlInputs, useReplayControl } from './useReplayControl';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -66,6 +66,19 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     await render(initial);
     return { get: () => latest, rerender, jump, writeHeater, unmount: () => act(() => root.unmount()) };
 };
+
+describe('divergeTolerance (#428)', () => {
+    it('0~100 스케일은 기존 ±2', () => {
+        expect(divergeTolerance(100)).toBe(2);
+        expect(divergeTolerance(undefined)).toBe(2);
+        expect(divergeTolerance(null)).toBe(2);
+    });
+
+    it('0~10 스텝은 1 — 잔차 1은 추종, 2스텝(5→7)은 이탈', () => {
+        expect(divergeTolerance(10)).toBe(1);
+        expect(divergeTolerance(10)).toBeLessThan(2);
+    });
+});
 
 describe('useReplayControl', () => {
     it('토글 ON 직후 시간 트리거 이벤트(t=0 초기 화력)가 발화한다', async () => {
@@ -598,6 +611,62 @@ describe('useReplayControl', () => {
             });
             expect(h.get().active).toBe(true);
             expect(h.get().stopReason).toBeNull();
+            h.unmount();
+        });
+
+        it('max=10: 수렴 잔차 1스텝(6→5)은 추종으로 보고 중지하지 않는다', async () => {
+            const pts: ReplayPoint[] = [
+                { t: 0, bt: 180, heater: 6 },
+                { t: 60, bt: 95, heater: 6 },
+                { t: 120, bt: 110, heater: 4 },
+                { t: 600, bt: 205, heater: 4 },
+            ];
+            const h = await renderReplay({ referencePoints: pts, heaterFeedback: 6, heaterMax: 10 });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(6);
+            h.writeHeater.mockClear();
+            await h.rerender({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10, elapsed: 10 });
+            await h.rerender({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10, elapsed: 11 });
+            await h.rerender({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10, elapsed: 12 });
+            await h.rerender({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10, elapsed: 13 });
+            expect(h.get().active).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('max=10: 사용자 5→7(2스텝)은 controlDiverged로 멈춘다 (#428)', async () => {
+            const pts: ReplayPoint[] = [
+                { t: 0, bt: 180, heater: 5 },
+                { t: 60, bt: 95, heater: 5 },
+                { t: 120, bt: 110, heater: 3 },
+                { t: 600, bt: 205, heater: 3 },
+            ];
+            const h = await renderReplay({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10 });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(5);
+            h.writeHeater.mockClear();
+            await h.rerender({ referencePoints: pts, heaterFeedback: 7, heaterMax: 10, elapsed: 10 });
+            await h.rerender({ referencePoints: pts, heaterFeedback: 7, heaterMax: 10, elapsed: 11 });
+            expect(h.get().active).toBe(true);
+            await h.rerender({ referencePoints: pts, heaterFeedback: 7, heaterMax: 10, elapsed: 12 });
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('controlDiverged');
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('max=100: ±2는 흡수하고, 그 초과만 멈춘다 (#428)', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 78, heaterMax: 100, elapsed: 10 });
+            await h.rerender({ heaterFeedback: 78, heaterMax: 100, elapsed: 11 });
+            await h.rerender({ heaterFeedback: 78, heaterMax: 100, elapsed: 12 });
+            expect(h.get().active).toBe(true);
+            await h.rerender({ heaterFeedback: 77, heaterMax: 100, elapsed: 13 });
+            await h.rerender({ heaterFeedback: 77, heaterMax: 100, elapsed: 14 });
+            await h.rerender({ heaterFeedback: 77, heaterMax: 100, elapsed: 15 });
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('controlDiverged');
             h.unmount();
         });
 
