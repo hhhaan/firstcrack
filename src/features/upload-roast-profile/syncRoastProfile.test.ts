@@ -1,5 +1,10 @@
+// @vitest-environment jsdom
+import { roastProfileKeys } from '@entities/roast-profile/queries';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { syncRoastProfile } from './useUploadRoastProfile';
+import { syncRoastProfile, useUploadRoastProfile } from './useUploadRoastProfile';
 
 const mocks = vi.hoisted(() => ({
     find: vi.fn(),
@@ -134,4 +139,26 @@ describe('artifact recovery', () => {
         await expect(syncRoastProfile(input)).rejects.toThrow('partial append');
         expect(mocks.upload).not.toHaveBeenCalled();
     });
+});
+
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+it('refreshes only the owning workspace target joins after BBP recovery', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    qc.setQueryData(roastProfileKeys.all('owner'), [{ source_session: { bbp_tsv_path: null } }]);
+    qc.setQueryData(roastProfileKeys.all('other'), []);
+    const root = createRoot(document.createElement('div'));
+    let upload!: ReturnType<typeof useUploadRoastProfile>;
+    function Probe() {
+        upload = useUploadRoastProfile();
+        return null;
+    }
+    await act(async () => root.render(createElement(QueryClientProvider, { client: qc }, createElement(Probe))));
+    await act(async () => {
+        await upload.mutateAsync(input);
+    });
+    expect(qc.getQueryState(roastProfileKeys.all('owner'))?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(roastProfileKeys.all('other'))?.isInvalidated).toBe(false);
+    await act(async () => root.unmount());
+    qc.clear();
 });

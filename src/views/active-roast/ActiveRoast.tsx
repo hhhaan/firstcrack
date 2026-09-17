@@ -1,6 +1,7 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
+import { useBbpCurve } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
     BBP_DISPLAY_SECONDS,
@@ -177,10 +178,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
     const targetProfile = useMemo(
-        () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
-        [dbProfiles, targetProfileId],
+        () => dbProfiles.find((p) => p.id === targetProfileId && p.user_id === workspaceOwnerId) ?? null,
+        [dbProfiles, targetProfileId, workspaceOwnerId],
     );
     const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
+    const bbpTarget = useBbpCurve(
+        workspaceOwnerId,
+        targetProfile?.source_session_id ?? null,
+        resolveSourceSession(targetProfile?.source_session)?.bbp_tsv_path,
+        bbpActive,
+    );
+    const chartTargetPoints = bbpActive ? (bbpTarget.isError ? [] : (bbpTarget.data ?? [])) : targetCurvePoints;
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
     // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
     const sourceEvents = useMemo(
@@ -206,21 +214,28 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [bbpActive, bbpPoints, livePoints],
     );
     const bbpNowSec = bbpPoints.length > 0 ? bbpPoints[bbpPoints.length - 1].t : 0;
-    const bbpTempMinC =
-        bbpActive && bbpPoints.length > 0
-            ? Math.min(roastSettings.tempMinC, Math.floor(Math.min(...bbpPoints.map((p) => p.bt)) / 10) * 10)
-            : roastSettings.tempMinC;
+    const bbpTemperatures = bbpActive ? [...bbpPoints, ...chartTargetPoints].flatMap((p) => [p.bt, p.et ?? p.bt]) : [];
+    const bbpTempMinC = Math.floor(Math.min(roastSettings.tempMinC, ...bbpTemperatures) / 10) * 10;
+    const bbpTempMaxC = Math.ceil(Math.max(roastSettings.tempMaxC, ...bbpTemperatures) / 10) * 10;
 
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
     const chart = useChartPipeline({
         livePoints: chartLivePoints,
-        targetCurvePoints,
+        targetCurvePoints: chartTargetPoints,
         xMin: 0,
         xMaxFloor: bbpActive ? BBP_DISPLAY_SECONDS : undefined,
         showRoR: roastSettings.showRoRChart,
         showControlChart: roastSettings.showControlChart,
         unit,
     });
+
+    const { setZoomRange, setHoveredChartIndex } = chart;
+    useEffect(() => {
+        // End and Charge start different timelines; a BBP pan must not hide roast 00:00.
+        void bbpActive;
+        setZoomRange(null);
+        setHoveredChartIndex(null);
+    }, [bbpActive, setZoomRange, setHoveredChartIndex]);
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
@@ -582,12 +597,25 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             )}
 
             <div
-                className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
+                className={`${bbpActive ? 'bg-surface-elevated' : 'bg-(--color-roast-bg)'} flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
                         ? 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-2.5'
                         : 'rounded relative z-1 pl-2.5 pr-2.5 py-[30px] flex-1 dark:border dark:border-[#585d61]'
                 }`}
             >
+                {bbpActive && (
+                    <p role="status" className="mb-6 text-xs text-secondary" data-testid="bbp-target-status">
+                        {t('bbp.live')} · {t('bbp.timeOrigin')} · {targetProfile?.name ?? t('bbp.noTarget')}
+                        {targetProfile &&
+                            (bbpTarget.isLoading
+                                ? ` · ${t('bbp.loading')}`
+                                : bbpTarget.isError
+                                  ? ` · ${t('bbp.failed')}`
+                                  : !bbpTarget.data?.length
+                                    ? ` · ${t('bbp.empty')}`
+                                    : '')}
+                    </p>
+                )}
                 <div className="flex gap-0 flex-1 min-h-0 flex-row">
                     <RoastChartContainer
                         chartAreaRef={chart.chartAreaRef}
@@ -605,10 +633,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         targetXs={chart.visibleTargetXs}
                         targetBt={chart.visibleTargetBt}
                         showTargetCurve={
-                            !bbpActive &&
-                            roastSettings.showTargetCurve &&
-                            !!targetProfileId &&
-                            targetCurvePoints.length > 0
+                            roastSettings.showTargetCurve && !!targetProfileId && chartTargetPoints.length > 0
                         }
                         showTargetDeltaLabel={
                             !bbpActive &&
@@ -639,8 +664,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         controlChartHeightPct={roastSettings.controlChartHeightPct}
                         controlYMin={roastSettings.controlYMin}
                         controlYMax={roastSettings.controlYMax}
-                        tempMinC={bbpTempMinC}
-                        tempMaxC={roastSettings.tempMaxC}
+                        tempMinC={bbpActive ? bbpTempMinC : roastSettings.tempMinC}
+                        tempMaxC={bbpActive ? bbpTempMaxC : roastSettings.tempMaxC}
                         rorYMin={roastSettings.rorYMin}
                         rorYMax={roastSettings.rorYMax}
                         elapsed={bbpActive ? bbpNowSec : elapsed}
@@ -651,7 +676,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         phaseSegments={bbpActive ? [] : phaseSegments}
                         showFcBand={roastSettings.showFcBand && !bbpActive}
                         unit={unit}
-                        targetProfileName={targetProfile?.name}
+                        targetProfileName={
+                            bbpActive ? `${t('bbp.target')} · ${targetProfile?.name ?? ''}` : targetProfile?.name
+                        }
                         onCursorIdx={handleChartCursorIdx}
                         onEventMarkerDrag={charged && !roastEnded && !bbpActive ? handleEventMarkerDrag : undefined}
                         onEventMarkerEdit={charged && !roastEnded && !bbpActive ? handleEventMarkerEdit : undefined}

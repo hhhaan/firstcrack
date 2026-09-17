@@ -20,6 +20,7 @@ import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChar
 import { BookmarkPlus, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { BbpHistoryChart } from './BbpHistoryChart';
 import { OutputWeightEditor } from './OutputWeightEditor';
 import { SessionScorecard } from './SessionScorecard';
 
@@ -222,6 +223,8 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                 </div>
 
                 <SessionScorecard session={session} />
+
+                <BbpHistoryChart session={session} />
 
                 {session.tsv_path && (
                     <div className="mt-4">

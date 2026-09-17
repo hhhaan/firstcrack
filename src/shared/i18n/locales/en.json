@@ -1,4 +1,16 @@
 {
+    "bbp": {
+        "history": "BBP before this Charge",
+        "live": "Live BBP",
+        "target": "BBP target",
+        "timeOrigin": "Time from previous End",
+        "duration": "BBP duration",
+        "chargeTemp": "Charge temperature",
+        "loading": "Loading BBP…",
+        "empty": "No saved BBP data",
+        "failed": "Could not load BBP",
+        "noTarget": "No target selected"
+    },
     "common": {
         "cancel": "Cancel",
         "close": "Close",

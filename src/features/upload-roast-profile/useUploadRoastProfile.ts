@@ -1,4 +1,5 @@
 import { patchRoastSessionTsvPaths, roastSessionApi } from '@entities/roast';
+import { roastProfileKeys } from '@entities/roast-profile/queries';
 import { deleteBbpTsv, deleteSessionTsv, flushTsv } from '@shared/lib/tsv-writer';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadBbpProfile, uploadRoastProfile } from './uploadRoastProfile';
@@ -64,6 +65,8 @@ export const useUploadRoastProfile = () => {
         retryDelay: (attemptIndex) => 1000 * (attemptIndex + 1),
         onSuccess: ({ key, bbpKey }, { roastSessionId, ownerId }) => {
             patchRoastSessionTsvPaths(qc, ownerId, roastSessionId, key, bbpKey);
+            // Target profiles join source-session paths, including recovered BBP uploads.
+            void qc.invalidateQueries({ queryKey: roastProfileKeys.all(ownerId) });
         },
     });
 };
