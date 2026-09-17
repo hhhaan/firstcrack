@@ -137,6 +137,7 @@ export const MachineControlPanel = ({
         heaterPending: desired.heater != null,
         reconnecting,
         writeHeater,
+        heaterMax: limits.heater?.max,
     });
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중

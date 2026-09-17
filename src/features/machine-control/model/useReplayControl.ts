@@ -43,6 +43,11 @@ export interface ReplayControlInputs {
     reconnecting: boolean;
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
     writeHeater: (value: number) => Promise<number | null>;
+    /**
+     * heater write_map.max — `/status.control.limits.heater.max`. 이탈 허용치를
+     * 스케일 비율로 유도한다. 없으면 0~100% 전제(기존 ±2).
+     */
+    heaterMax?: number | null;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -60,14 +65,22 @@ export type ReplayStopReason =
 
 /**
  * 마지막 확정 명령에서 실측이 이만큼 **초과** 이탈하면 외부 개입 후보로 센다.
- * CONVERGE_TOLERANCE + 1로 유도된 값: 수렴 잔차(1) + 리드백 노이즈 ±1이 겹친 최악
- * 정상치가 정확히 2라 초과(>) 판정이어야 오탐이 없다. 수렴 허용치를 머신별로
- * 바꾸게 되면 이 값도 독립 상수가 아니라 거기서 유도해야 경계 불변식이 유지된다.
- * ponytail: 고정 deadband — 아날로그 duty 리드백이 더 시끄러운 기종이 나오면 머신별 설정으로.
- * 0~100% 스케일 전제. 0~10 스텝 기종(giesen_wxa_coarse)은 ±2가 범위의 20%라 5→7 손 조작을
- * 못 잡는다(위음성). write_map.heater.max 비율로 유도해야 함 — #428.
+ * 스케일의 2% — 0~100 → 2(기존), 0~10 스텝 → 0.2라 5→7이 잡힌다 (#428).
+ * 비교는 초과(>) — 정확히 2%는 노이즈로 본다.
+ * 하한 0.2: max가 더 작아도 0으로 내려가 모든 잔차를 이탈로 보지 않게.
+ * 미지/비정상 max는 100으로 본다(기존 ±2).
+ * ponytail: CONVERGE_TOLERANCE는 아직 절대값 1. 스텝 기종이 잔차 1로 수렴하면
+ * 이탈이 바로 열린다 — CONVERGE를 같은 비율로 내리면 해소.
  */
-const DIVERGE_TOLERANCE = 2;
+const DIVERGE_RATIO = 0.02;
+const DEFAULT_HEATER_MAX = 100;
+const DIVERGE_TOLERANCE_MIN = 0.2;
+
+export function divergeTolerance(heaterMax?: number | null): number {
+    const max = heaterMax != null && Number.isFinite(heaterMax) && heaterMax > 0 ? heaterMax : DEFAULT_HEATER_MAX;
+    return Math.max(DIVERGE_TOLERANCE_MIN, max * DIVERGE_RATIO);
+}
+
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
 /**
@@ -106,6 +119,7 @@ export const useReplayControl = ({
     heaterPending,
     reconnecting,
     writeHeater,
+    heaterMax,
 }: ReplayControlInputs) => {
     const plan = useMemo(
         () =>
@@ -200,7 +214,7 @@ export const useReplayControl = ({
             !heaterPending &&
             lastWritten != null &&
             heaterFeedback != null &&
-            Math.abs(heaterFeedback - lastWritten) > DIVERGE_TOLERANCE;
+            Math.abs(heaterFeedback - lastWritten) > divergeTolerance(heaterMax);
         const ticks = deviated ? diverge.ticks + 1 : 0;
         // 카운터가 0→0이면 setState 생략 — 유휴 중 매초 여분 렌더를 만들지 않는다.
         // tick이 stale해져도 무해하다: 다음 이탈의 첫 렌더에서 1부터 정상 카운트된다.

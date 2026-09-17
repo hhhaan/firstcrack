@@ -90,6 +90,7 @@ const renderRig = async () => {
             reconnecting: false,
             referenceMachineMismatch: false,
             writeHeater,
+            heaterMax: mc.limits.heater?.max,
         });
         latest = { replay, mc };
         return null;
