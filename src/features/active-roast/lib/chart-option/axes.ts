@@ -51,6 +51,7 @@ export const buildCrossLineStyle = (colors: ResolvedChartColors) => ({
 
 export const buildTooltipCrossPointer = (crossLineStyle: ReturnType<typeof buildCrossLineStyle>) => ({
     type: 'cross' as const,
+    snap: false,
     animation: false,
     label: { show: true },
     lineStyle: crossLineStyle,

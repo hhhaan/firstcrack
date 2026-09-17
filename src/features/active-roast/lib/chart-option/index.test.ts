@@ -115,6 +115,61 @@ describe('buildRoastChartOption', () => {
         expect(option.dataZoom).toEqual([]);
     });
 
+    it('hides axis tooltip past the last drawn sample when target continues', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 71, 900],
+            btActual: [195, 210, null],
+            etActual: [200, 215, null],
+            rorActual: [null, 4, null],
+            targetXs: [0, 71, 120],
+            targetBt: [195, 210.1, 210],
+            charged: false,
+            currentTimeSec: 71,
+            controlData: {
+                xs: [0, 71],
+                drumTemp: [50, 50],
+                heatPower: [20, 20],
+                fanSpeed: [15, 15],
+                heatSet: [20, 20],
+            },
+        });
+        const tooltip = option.tooltip as {
+            formatter: (params: unknown) => string;
+            axisPointer?: { snap?: boolean };
+        };
+        expect(tooltip.axisPointer?.snap).toBe(false);
+        expect(tooltip.formatter([{ axisValue: 71, seriesName: 'BT Target', value: [71, 210.1] }])).toBe('');
+        expect(
+            tooltip.formatter([
+                { axisValue: 120, seriesName: 'BT Target', value: [120, 210.1] },
+                { axisValue: 120, seriesName: 'Heat', value: [120, 20] },
+            ]),
+        ).toBe('');
+        expect(
+            tooltip.formatter([
+                { axisValue: 71, seriesName: 'BT Actual', value: [71, 210] },
+                { axisValue: 71, seriesName: 'BT Target', value: [71, 210.1] },
+            ]),
+        ).toContain('Bean Temp');
+    });
+
+    it('still shows history tooltip when currentTimeSec is 0', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 300, 600],
+            btActual: [100, 150, 200],
+            etActual: [110, 160, 210],
+            rorActual: [10, 12, 8],
+            currentTimeSec: 0,
+            targetXs: [0, 300, 600, 780],
+            targetBt: [100, 150, 200, 210],
+        });
+        const formatter = (option.tooltip as { formatter: (params: unknown) => string }).formatter;
+        expect(formatter([{ axisValue: 300, seriesName: 'BT Actual', value: [300, 150] }])).toContain('Bean Temp');
+        expect(formatter([{ axisValue: 700, seriesName: 'BT Target', value: [700, 205] }])).toBe('');
+    });
+
     it('draws a dashed Heat set series only when heatSet has values', () => {
         const controlData = { xs: [0, 60], drumTemp: [50, 55], heatPower: [40, 45], fanSpeed: [30, 35] };
         const heatSetSeries = (p: ChartOptionParams) =>

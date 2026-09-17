@@ -2,6 +2,8 @@ import { CHART_COLORS } from '@features/active-roast/lib/chart-config';
 import { fmtSec } from './axes';
 import type { ControlData, ResolvedChartColors } from './types';
 
+const DRAWN_TOOLTIP_SERIES = new Set(['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Drum', 'Heat', 'Heat set', 'Fan']);
+
 export interface TooltipFormatterParams {
     showET: boolean;
     showRoR: boolean;
@@ -10,18 +12,54 @@ export interface TooltipFormatterParams {
     unitLabel: string;
     rorUnit: string;
     colors: ResolvedChartColors;
+    /** Last x with a drawn actual/control sample. Hover past this hides the tooltip. */
+    dataEndSec: number;
 }
 
+const lastNonNullTime = (xs: number[], series: readonly (readonly (number | null)[])[]): number => {
+    for (let i = xs.length - 1; i >= 0; i--) {
+        for (const s of series) {
+            if (s[i] != null) return xs[i];
+        }
+    }
+    return Number.NEGATIVE_INFINITY;
+};
+
+/** Last time with a real temp or control value — skips trailing empty axis sentinels. */
+export const lastDrawnSampleSec = (
+    xs: number[],
+    valueSeries: readonly (readonly (number | null)[])[],
+    controlData?: ControlData,
+): number => {
+    const fromTemp = lastNonNullTime(xs, valueSeries);
+    if (!controlData) return fromTemp;
+    const fromControl = lastNonNullTime(controlData.xs, [
+        controlData.drumTemp,
+        controlData.heatPower,
+        controlData.fanSpeed,
+        controlData.heatSet ?? [],
+    ]);
+    return Math.max(fromTemp, fromControl);
+};
+
 export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
-    const { showET, showRoR, showRoRET, controlData, unitLabel, rorUnit, colors } = opts;
+    const { showET, showRoR, showRoRET, controlData, unitLabel, rorUnit, colors, dataEndSec } = opts;
 
     // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
     return (params: any) => {
-        const timeSec = params[0]?.axisValue ?? 0;
+        const items = Array.isArray(params) ? params : [params];
+        const timeSec = Number(items[0]?.axisValue ?? items[0]?.value?.[0] ?? 0);
+        if (!Number.isFinite(timeSec) || timeSec > dataEndSec) return '';
+        const hasDrawn = items.some(
+            (p: { seriesName?: string; value?: [number, number | null] }) =>
+                !!p.seriesName && DRAWN_TOOLTIP_SERIES.has(p.seriesName) && p.value?.[1] != null,
+        );
+        if (!hasDrawn) return '';
+
         let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
 
         // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
-        for (const p of params as any[]) {
+        for (const p of items as any[]) {
             const y = p.value?.[1];
             if (p.seriesName === 'BT Target' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;

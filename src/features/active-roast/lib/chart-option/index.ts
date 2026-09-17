@@ -19,7 +19,7 @@ import {
     buildPhaseSeries,
     buildTempSeries,
 } from './series';
-import { createAxisTooltipFormatter } from './tooltip';
+import { createAxisTooltipFormatter, lastDrawnSampleSec } from './tooltip';
 import type { ChartOptionParams } from './types';
 
 export { fmtSec } from './axes';
@@ -73,6 +73,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const unitLabel = tempUnitLabel(temperatureUnit);
     const rorUnit = rorUnitLabel(temperatureUnit);
 
+    const dataEndSec = lastDrawnSampleSec(xs, [btActual, etActual, rorActual, rorEtActual], controlData);
     const formatAxisTooltip = createAxisTooltipFormatter({
         showET,
         showRoR,
@@ -81,6 +82,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         unitLabel,
         rorUnit,
         colors,
+        dataEndSec,
     });
 
     // cross: base(x) → lineStyle (세로선), other(y) → crossStyle (가로선)
