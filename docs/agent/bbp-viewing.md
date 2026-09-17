@@ -8,8 +8,11 @@ has a gray background. There is no separate BBP chart.
 
 Stored BBP keeps seconds since the previous End. Display subtracts each source's
 own BBP duration without stretching samples. The roast's 00:00 sample owns the
-Charge boundary, and RoR stays absent during BBP. Live waiting BBP compares actual
-and target on the existing End-relative timeline until Charge.
+Charge boundary, and RoR stays absent during BBP. Live waiting BBP aligns Charge
+at 00:00: target BBP (dashed) plus current temperature sit before Charge, the
+roast target dashed line continues after, and only that BBP interval is a
+translucent band so the grid stays visible. After Charge the live chart drops
+BBP (no negative lookback) and starts at 00:00; History keeps the combined overlay.
 
 The existing Target selector chooses a roast profile. Its `source_session_id`
 links the actual BBP through the source-session join. Profiles without saved BBP
@@ -24,12 +27,11 @@ Loading, absent/empty data and download errors have different messages; errors
 stay local to the curve UI. Upload recovery invalidates the owner's profile
 joins so a newly confirmed BBP path can be read without reloading the app.
 
-Entering/leaving live BBP clears chart zoom and cursor state. Charge preserves
-session-scoped finalized BBP samples for display alongside the ordinary roast
-and target. Only the matching session/workspace can consume those samples.
-The existing BBP finalize, local TSV, upload/recovery and machine-control flows
-remain responsible for recording and persistence. Replay and PID still consume
-the ordinary roast reference only.
+Entering/leaving live BBP, and Charge, clear chart zoom and cursor state. Live
+display does not keep finalized BBP samples after Charge (#433). History still
+joins saved BBP at negative time. The existing BBP finalize, local TSV,
+upload/recovery and machine-control flows remain responsible for recording and
+persistence. Replay and PID still consume the ordinary roast reference only.
 
 ## Regression coverage
 
@@ -38,6 +40,7 @@ the ordinary roast reference only.
 - `HistorySessionChart.test.tsx`: one combined chart, exact session/path,
   Charge-relative alignment, Fahrenheit, controls, and roast availability while
   BBP is absent/loading/failed (and BBP availability if roast loading fails).
+- `live-chart-view.test.ts`: live chart is 00:00 roast-only after Charge; before Charge it shows target BBP plus current temperature.
 - `roast-curve.test.ts` and chart-option tests: each source's own duration,
   unchanged stored timestamps, Charge sample ownership and gray bands on both
   grids, including zoom clipping.

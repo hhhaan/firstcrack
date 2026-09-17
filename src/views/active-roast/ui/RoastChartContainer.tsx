@@ -58,6 +58,7 @@ interface RoastChartContainerProps {
     onCursorIdx: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
     onEventMarkerEdit?: (logId: string, patch: { timeSec?: number; note?: string }) => void;
+    onEventMarkerDelete?: (logId: string) => void;
     onAddNote?: (body: string, timeSec: number) => void;
 }
 
@@ -105,6 +106,7 @@ export const RoastChartContainer = ({
     onCursorIdx,
     onEventMarkerDrag,
     onEventMarkerEdit,
+    onEventMarkerDelete,
     onAddNote,
 }: RoastChartContainerProps) => {
     const chartRef = useRef<RoastTempChartHandle>(null);
@@ -233,6 +235,7 @@ export const RoastChartContainer = ({
                 onCursorIdx={onCursorIdx}
                 onEventMarkerDrag={onEventMarkerDrag}
                 onEventMarkerEdit={onEventMarkerEdit}
+                onEventMarkerDelete={onEventMarkerDelete}
                 onAddNote={onAddNote}
                 showET={showET}
                 showTargetCurve={showTargetCurve}

@@ -100,7 +100,7 @@ export const getResolvedChartColors = () => {
         eventControl: gv('--color-event-control', '#c33'),
         // FC Start–End band fill on temp chart (lighter than phase bar)
         fcBandFill: gv('--color-fc-band-fill', 'rgba(105,103,225,0.1)'),
-        bbpFill: gv('--color-surface-elevated', '#efeff0'),
+        bbpFill: gv('--color-bbp-fill', 'oklch(0.55 0 0 / 0.07)'),
 
         // BT−target delta label (canvas)
         targetDeltaWithin: gv('--color-phase-ready', '#81fba5'),

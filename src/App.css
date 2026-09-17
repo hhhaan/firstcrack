@@ -90,6 +90,7 @@
     --color-phase-development: oklch(0.58 0.18 280);
     --color-phase-development-fill: oklch(0.58 0.18 280 / 0.26);
     --color-fc-band-fill: oklch(0.58 0.18 280 / 0.1);
+    --color-bbp-fill: oklch(0.55 0 0 / 0.07);
     --color-phase-danger: #dc2626;
     --color-phase-danger-bg: rgba(220, 38, 38, 0.1);
 
@@ -172,6 +173,7 @@ html.dark {
     --color-phase-development: #756afc;
     --color-phase-development-fill: rgba(117, 106, 252, 0.18);
     --color-fc-band-fill: rgba(117, 106, 252, 0.08);
+    --color-bbp-fill: oklch(1 0 0 / 0.07);
     --color-phase-danger: #ffffff;
     --color-phase-danger-bg: rgba(255, 255, 255, 0.12);
 

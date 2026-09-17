@@ -18,6 +18,7 @@ import {
     layoutCurveLabelBoxes,
     nearestBtAt,
 } from '@features/active-roast/lib/chart-option/markers';
+import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import { useThemeStore } from '@shared/store/theme';
@@ -43,6 +44,7 @@ interface Props {
     onCursorIdx?: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
     onEventMarkerEdit?: (logId: string, patch: { timeSec?: number; note?: string }) => void;
+    onEventMarkerDelete?: (logId: string) => void;
     onAddNote?: (body: string, timeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
@@ -114,6 +116,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onCursorIdx,
         onEventMarkerDrag,
         onEventMarkerEdit,
+        onEventMarkerDelete,
         onAddNote,
         showET = true,
         showTargetCurve = true,
@@ -598,6 +601,13 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         chartRef.current?.focus();
     }, [currentTimeSec, editForm, onEventMarkerEdit]);
 
+    const deleteEdit = useCallback(() => {
+        if (!editForm || !onEventMarkerDelete || !REMOVABLE_LOG_EVENTS.has(editForm.event)) return;
+        onEventMarkerDelete(editForm.logId);
+        setEditForm(null);
+        chartRef.current?.focus();
+    }, [editForm, onEventMarkerDelete]);
+
     return (
         <div
             data-tour="active-roast-chart"
@@ -706,9 +716,21 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             />
                         </label>
                     )}
-                    <button type="submit" className="self-end rounded px-2 text-xs text-(--color-text-primary)">
-                        Save
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                        {onEventMarkerDelete && REMOVABLE_LOG_EVENTS.has(editForm.event) && (
+                            <button
+                                type="button"
+                                data-chart-marker-delete
+                                onClick={deleteEdit}
+                                className="rounded px-2 text-xs text-muted"
+                            >
+                                Delete
+                            </button>
+                        )}
+                        <button type="submit" className="rounded px-2 text-xs text-(--color-text-primary)">
+                            Save
+                        </button>
+                    </div>
                 </form>
             )}
             {controlData && (showControlDrum || showControlHeat || showControlFan) && (

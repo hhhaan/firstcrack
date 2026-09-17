@@ -1,5 +1,6 @@
 import { eventMarkerCssColor, isControlEvent } from '@features/active-roast/lib/chart-config';
 import { STATUS_COLORS } from '@features/active-roast/lib/colors';
+import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import type { LogEntry } from '@shared/types/roast';
 import { X } from 'lucide-react';
 
@@ -30,7 +31,8 @@ export const RoastLog = ({
                 </h3>
             )}
             {entries.map((entry, i, arr) => {
-                const canRemove = entry.event === 'Note' && !!entry.id && !entry.current && !!onRemoveEntry;
+                const canRemove =
+                    REMOVABLE_LOG_EVENTS.has(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
                 const categoryTextColor = entry.current
                     ? STATUS_COLORS.active
                     : isControlEvent(entry.event)
@@ -123,7 +125,7 @@ export const RoastLog = ({
                                 type="button"
                                 // biome-ignore lint/style/noNonNullAssertion: error already checked above
                                 onClick={() => onRemoveEntry(entry.id!)}
-                                aria-label="Delete note"
+                                aria-label={`Delete ${entry.event.toLowerCase()}`}
                                 className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
                             >
                                 <X size={12} />

@@ -22,7 +22,7 @@ const emptyRow = (t: number): LiveChartRow => ({
 /**
  * Map live poll points into chart rows (dedupe + axis sentinels).
  * Target profile BT is NOT interpolated here — chart draws target via its own series.
- * xMin is the left axis (0 after #433 — no pre-charge lookback).
+ * xMin is the left axis (0 after Charge — no pre-charge lookback, #433).
  */
 export const buildLiveChartData = (
     livePoints: LiveRoastPoint[],

@@ -292,6 +292,77 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8, note: '70%' });
     });
 
+    it('deletes a Heater marker from the editor', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDelete = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'heater-1',
+                            event: 'Heater',
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '180°C',
+                            color: '#c00',
+                            note: '50%',
+                        },
+                    ],
+                    onEventMarkerDrag: vi.fn(),
+                    onEventMarkerEdit: vi.fn(),
+                    onEventMarkerDelete,
+                }),
+            );
+        });
+
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+        });
+        act(() => {
+            (container.querySelector('[data-chart-marker-delete]') as HTMLButtonElement).click();
+        });
+        expect(onEventMarkerDelete).toHaveBeenCalledWith('heater-1');
+        expect(container.querySelector('[data-chart-marker-edit]')).toBeNull();
+    });
+
+    it('keeps Delete off non-removable marker editors', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'yellow-1',
+                            event: 'Yellow',
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '180°C',
+                            color: '#888',
+                        },
+                    ],
+                    onEventMarkerDrag: vi.fn(),
+                    onEventMarkerEdit: vi.fn(),
+                    onEventMarkerDelete: vi.fn(),
+                }),
+            );
+        });
+
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+        });
+        expect(container.querySelector('[data-chart-marker-edit]')).not.toBeNull();
+        expect(container.querySelector('[data-chart-marker-delete]')).toBeNull();
+    });
+
     it('keeps the read-only chart free of Note writes', () => {
         act(() => root.render(createElement(RoastTempChart, baseProps)));
         const chartElement = container.querySelector('[tabindex="-1"]') as HTMLDivElement;
