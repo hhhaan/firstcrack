@@ -19,6 +19,7 @@ import { CuppingAddSamplesForm } from './CuppingAddSamplesForm';
 import { CuppingResultsShare } from './CuppingResultsShare';
 import { CuppingSampleSummary } from './CuppingSampleSummary';
 import { CuppingSessionInvite } from './CuppingSessionInvite';
+import { DeleteCuppingEventModal } from './DeleteCuppingEventModal';
 
 type CuppingEventDetailProps = {
     eventId: string;
@@ -36,6 +37,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
     const deleteEvent = useDeleteCuppingEvent(userId);
     const endEvent = useEndCuppingEvent(userId);
     const [sampleForm, setSampleForm] = useState<'add' | CuppingSampleWithMeta | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     const title = event?.title ?? t('cupping.title');
     const participants = event?.participants ?? [];
@@ -100,10 +102,9 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                         ) : null}
                         <button
                             type="button"
-                            onClick={async () => {
-                                if (await confirm(t('cupping.deleteEventConfirm'))) {
-                                    void deleteEvent.mutateAsync(eventId).then(onDeleted);
-                                }
+                            onClick={() => {
+                                deleteEvent.reset();
+                                setConfirmDelete(true);
                             }}
                             className="rounded-full border border-border-subtle px-3 py-2 text-xs text-muted dark:border-[#585d61] cursor-pointer"
                         >
@@ -176,6 +177,25 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                     onClose={() => setSampleForm(null)}
                 />
             ) : null}
+
+            <DeleteCuppingEventModal
+                open={confirmDelete}
+                sessionTitle={title}
+                isLoading={deleteEvent.isPending}
+                error={deleteEvent.error ? t('cupping.deleteEventFailed') : null}
+                onClose={() => {
+                    setConfirmDelete(false);
+                    deleteEvent.reset();
+                }}
+                onConfirm={() => {
+                    deleteEvent.mutate(eventId, {
+                        onSuccess: () => {
+                            setConfirmDelete(false);
+                            onDeleted();
+                        },
+                    });
+                }}
+            />
         </PageLayout>
     );
 };
