@@ -123,7 +123,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                                                 '[appearance:textfield]',
                                                 '[&::-webkit-inner-spin-button]:appearance-none',
                                                 '[&::-webkit-outer-spin-button]:appearance-none',
-                                                qtyInvalid && 'border-red-500',
+                                                qtyInvalid && 'border-red-500 dark:border-red-500',
                                             )}
                                             aria-invalid={qtyInvalid}
                                             aria-describedby={qtyInvalid ? qtyErrorId : undefined}

@@ -38,8 +38,26 @@ describe('canSubmitOrderLines', () => {
         ).toBe(false);
     });
 
+    it('rejects when any line has non-positive quantity even without a product', () => {
+        expect(
+            canSubmitOrderLines([
+                { productId: 'p1', quantity: '1' },
+                { productId: '', quantity: '0' },
+            ]),
+        ).toBe(false);
+    });
+
     it('accepts a selected product with quantity >= 1', () => {
         expect(canSubmitOrderLines([{ productId: 'p1', quantity: '1' }])).toBe(true);
+    });
+
+    it('allows an extra empty product row when its quantity is valid', () => {
+        expect(
+            canSubmitOrderLines([
+                { productId: 'p1', quantity: '1' },
+                { productId: '', quantity: '1' },
+            ]),
+        ).toBe(true);
     });
 
     it('rejects when no product is selected', () => {

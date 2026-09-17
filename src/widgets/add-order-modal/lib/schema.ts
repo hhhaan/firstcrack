@@ -10,9 +10,8 @@ export function parseOrderLineQuantity(raw: string): number | null {
     return result.success ? result.data : null;
 }
 
-/** Submit only when at least one product is picked and every picked line has qty ≥ 1. */
+/** Submit only when every line has qty ≥ 1 and at least one product is picked. */
 export function canSubmitOrderLines(lines: OrderLineDraft[]): boolean {
-    const selected = lines.filter((l) => l.productId);
-    if (selected.length === 0) return false;
-    return selected.every((l) => parseOrderLineQuantity(l.quantity) !== null);
+    if (lines.some((l) => parseOrderLineQuantity(l.quantity) === null)) return false;
+    return lines.some((l) => l.productId);
 }
