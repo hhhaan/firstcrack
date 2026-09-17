@@ -13,10 +13,10 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { beanFormSchema, EMPTY_BEAN_FORM } from '../lib/schema';
+import { buildBeanFormSchema, EMPTY_BEAN_FORM } from '../lib/schema';
 import { BEAN_LIST_LIMIT, type BeanModalTab } from '../lib/types';
 import { BeanAdjustTab } from './BeanAdjustTab';
 import { BeanFormFields } from './BeanFormFields';
@@ -46,6 +46,7 @@ export const AddBeanModal = ({
     onSuccess,
 }: AddBeanModalProps) => {
     const { t } = useTranslation();
+    const beanFormSchema = useMemo(() => buildBeanFormSchema(t), [t]);
     const [tab, setTab] = useState<BeanModalTab>(initialTab);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
