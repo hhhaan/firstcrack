@@ -14,7 +14,7 @@ export type PendingRoastSave = {
     bbp: SyncState;
     params: PendingRoastParams;
 };
-const LEGACY_KEY = 'fc_pending_roast_save';
+const LEGACY_KEY = 'fc_pending_roast_save'; // gitleaks:allow -- public localStorage key
 const KEY = 'fc_pending_roast_saves_v2';
 const entryKey = (ownerId: string, sessionId: string | null) => `${ownerId}:${sessionId ?? 'legacy-null'}`;
 const persist = (entries: Record<string, PendingRoastSave>) => {
