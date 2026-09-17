@@ -21,4 +21,11 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/heaterUnitRef\.current = limits\.heater\?\.unit \?\? '%'/);
         expect(panelSrc).toMatch(/onHeaterCommitted\?\.\(committed\.heater, heaterUnitRef\.current\)/);
     });
+
+    it('A′ % 히터는 세로 눈금과 Fan/Drum 칩을 쓰고 sending… 문구는 없다', () => {
+        expect(panelSrc).toMatch(/HeaterScale/);
+        expect(panelSrc).toMatch(/ChannelChip/);
+        expect(panelSrc).toMatch(/isPercentUnit\(limits\.heater\?\.unit\)/);
+        expect(panelSrc).not.toMatch(/sending…/);
+    });
 });
