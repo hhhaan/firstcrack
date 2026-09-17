@@ -1,6 +1,7 @@
 import { inputCls } from '@shared/ui/form-styles';
 import { Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export const SearchableSelect = ({
     placeholder,
@@ -17,6 +18,7 @@ export const SearchableSelect = ({
     renderLabel: (item: { id: string }) => string;
     renderOption?: (item: { id: string }) => React.ReactNode;
 }) => {
+    const { t } = useTranslation();
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
 
@@ -69,14 +71,16 @@ export const SearchableSelect = ({
                         <input
                             autoFocus
                             className="w-full px-3 py-2 rounded-xl border border-black/8 dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-sm text-primary outline-none"
-                            placeholder="검색..."
+                            placeholder={t('addBatchModal.searchPlaceholder')}
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                         />
                     </div>
                     <div className="max-h-[200px] overflow-y-auto py-1">
                         {filtered.length === 0 ? (
-                            <div className="px-4 py-3 text-[13px] text-muted text-center">결과 없음</div>
+                            <div className="px-4 py-3 text-[13px] text-muted text-center">
+                                {t('addBatchModal.noResults')}
+                            </div>
                         ) : (
                             filtered.map((item) => (
                                 <button
@@ -110,7 +114,7 @@ export const SearchableSelect = ({
                                 }}
                                 className="w-full px-3 py-2 text-[12px] text-muted text-center rounded-xl border-none hover:bg-surface cursor-pointer transition-colors"
                             >
-                                선택 해제
+                                {t('addBatchModal.clearSelection')}
                             </button>
                         </div>
                     )}
