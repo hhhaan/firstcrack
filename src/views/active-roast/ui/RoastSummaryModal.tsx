@@ -286,7 +286,7 @@ export const RoastSummaryModal = ({
                     <div className={sectionLabelClass}>{t('activeRoast.summary.log')}</div>
                     <div className="flex flex-wrap gap-y-1">
                         {summaryData.logEntries
-                            .filter((entry) => isChartEventMarker(entry.event) || entry.event === 'Turning Point')
+                            .filter((entry) => isChartEventMarker(entry.event) || entry.event === 'TP')
                             .map((entry, index, entries) => (
                                 <div key={`${entry.time}-${entry.event}-${index}`} className="flex items-center gap-1">
                                     <span className="text-[11px] font-(--font-mono) text-muted">{entry.time}</span>

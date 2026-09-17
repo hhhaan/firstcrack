@@ -75,6 +75,21 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
     };
 };
 
+it('shows stored TP in the summary log', () => {
+    const { host, unmount } = renderModal({
+        summaryData: {
+            ...summaryData,
+            logEntries: [
+                { id: '1', time: '0:00', timeSec: 0, event: 'Charge', temp: '200°C', tempC: 200, note: '' },
+                { id: '2', time: '1:00', timeSec: 60, event: 'TP', temp: '90°C', tempC: 90, note: '' },
+            ],
+        },
+    });
+    expect(host.textContent).toContain('Charge');
+    expect(host.textContent).toContain('TP');
+    unmount();
+});
+
 it('checks deductStock when schedule handoff is present', () => {
     const { host, unmount } = renderModal({ planBatchHandoff: handoff });
     const checkbox = host.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
