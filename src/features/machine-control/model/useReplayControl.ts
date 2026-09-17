@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { divergeTolerance } from '../lib/controlScale';
 import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+
+export { divergeTolerance };
 
 export interface ReplayControlInputs {
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
@@ -44,8 +47,8 @@ export interface ReplayControlInputs {
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
     writeHeater: (value: number) => Promise<number | null>;
     /**
-     * heater write_map.max — `/status.control.limits.heater.max`. 이탈 허용치를
-     * 스케일 비율로 유도한다. 없으면 0~100% 전제(기존 ±2).
+     * heater write_map.max — `/status.control.limits.heater.max`. 수렴·이탈
+     * 허용치를 같이 유도한다. 없으면 0~100% 전제(기존 수렴 1 / 이탈 2).
      */
     heaterMax?: number | null;
 }
@@ -62,24 +65,6 @@ export type ReplayStopReason =
     | 'controlDiverged'
     | 'timingGap'
     | 'writeFailed';
-
-/**
- * 마지막 확정 명령에서 실측이 이만큼 **초과** 이탈하면 외부 개입 후보로 센다.
- * 스케일의 2% — 0~100 → 2(기존), 0~10 스텝 → 0.2라 5→7이 잡힌다 (#428).
- * 비교는 초과(>) — 정확히 2%는 노이즈로 본다.
- * 하한 0.2: max가 더 작아도 0으로 내려가 모든 잔차를 이탈로 보지 않게.
- * 미지/비정상 max는 100으로 본다(기존 ±2).
- * ponytail: CONVERGE_TOLERANCE는 아직 절대값 1. 스텝 기종이 잔차 1로 수렴하면
- * 이탈이 바로 열린다 — CONVERGE를 같은 비율로 내리면 해소.
- */
-const DIVERGE_RATIO = 0.02;
-const DEFAULT_HEATER_MAX = 100;
-const DIVERGE_TOLERANCE_MIN = 0.2;
-
-export function divergeTolerance(heaterMax?: number | null): number {
-    const max = heaterMax != null && Number.isFinite(heaterMax) && heaterMax > 0 ? heaterMax : DEFAULT_HEATER_MAX;
-    return Math.max(DIVERGE_TOLERANCE_MIN, max * DIVERGE_RATIO);
-}
 
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;

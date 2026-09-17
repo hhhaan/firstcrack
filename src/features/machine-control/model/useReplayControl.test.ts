@@ -74,8 +74,8 @@ describe('divergeTolerance (#428)', () => {
         expect(divergeTolerance(null)).toBe(2);
     });
 
-    it('0~10 스텝은 0.2 — 1스텝 손 조작이 노이즈로 삼켜지지 않는다', () => {
-        expect(divergeTolerance(10)).toBe(0.2);
+    it('0~10 스텝은 1 — 잔차 1은 추종, 2스텝(5→7)은 이탈', () => {
+        expect(divergeTolerance(10)).toBe(1);
         expect(divergeTolerance(10)).toBeLessThan(2);
     });
 });
@@ -611,6 +611,27 @@ describe('useReplayControl', () => {
             });
             expect(h.get().active).toBe(true);
             expect(h.get().stopReason).toBeNull();
+            h.unmount();
+        });
+
+        it('max=10: 수렴 잔차 1스텝(6→5)은 추종으로 보고 중지하지 않는다', async () => {
+            const pts: ReplayPoint[] = [
+                { t: 0, bt: 180, heater: 6 },
+                { t: 60, bt: 95, heater: 6 },
+                { t: 120, bt: 110, heater: 4 },
+                { t: 600, bt: 205, heater: 4 },
+            ];
+            const h = await renderReplay({ referencePoints: pts, heaterFeedback: 6, heaterMax: 10 });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(6);
+            h.writeHeater.mockClear();
+            await h.rerender({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10, elapsed: 10 });
+            await h.rerender({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10, elapsed: 11 });
+            await h.rerender({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10, elapsed: 12 });
+            await h.rerender({ referencePoints: pts, heaterFeedback: 5, heaterMax: 10, elapsed: 13 });
+            expect(h.get().active).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            expect(h.writeHeater).not.toHaveBeenCalled();
             h.unmount();
         });
 

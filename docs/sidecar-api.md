@@ -221,7 +221,7 @@ Notes:
 - `uptime`은 현재 연결이 유지된 시간이며 초 단위다.
 - 연결이 없으면 `connected=false`, `uptime=0`, `roaster=""`가 된다.
 - 마지막 연결/읽기 오류가 있으면 `error`에 사용자 친화 메시지가 들어간다.
-- `control.limits.<role>`는 write_map의 스케일(`min`/`max`/`unit`). `giesen_wxa_coarse` heater는 `max=10`, `unit=step`. Replay 이탈 허용치는 이 `max`의 2%로 유도한다.
+- `control.limits.<role>`는 write_map의 스케일(`min`/`max`/`unit`). `giesen_wxa_coarse` heater는 `max=10`, `unit=step`. 수렴·이탈 허용치는 이 `max`에서 같이 유도한다(이탈 ≥ 수렴).
 
 ### POST /connect
 
