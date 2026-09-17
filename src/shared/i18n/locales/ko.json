@@ -1394,6 +1394,8 @@
             "lines": "품목",
             "selectProduct": "상품 선택",
             "addLine": "+ 품목 추가",
+            "quantity": "수량",
+            "quantityMin": "수량은 1 이상이어야 합니다",
             "fulfill": "출고",
             "fulfilled": "출고 완료",
             "col": {

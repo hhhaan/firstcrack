@@ -1394,6 +1394,8 @@
             "lines": "商品明细",
             "selectProduct": "选择商品",
             "addLine": "+ 添加商品",
+            "quantity": "数量",
+            "quantityMin": "数量必须至少为 1",
             "fulfill": "完成",
             "fulfilled": "已完成",
             "col": {
