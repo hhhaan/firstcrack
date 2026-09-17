@@ -51,6 +51,24 @@ describe('ChannelChip (#436)', () => {
         unmount();
     });
 
+    it.each(['fan', 'drum'] as const)('%s commits once per full pointer click and ignores right-clicks', (role) => {
+        const { container, onChange, onCommit, unmount } = renderChip({ role });
+        const plus = container.querySelector('[data-step="5"]') as HTMLButtonElement;
+        act(() => {
+            plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 2 }));
+            plus.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 2 }));
+        });
+        expect(onCommit).not.toHaveBeenCalled();
+        act(() => {
+            plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+            plus.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+            plus.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+        });
+        expect(onChange).toHaveBeenCalledExactlyOnceWith(role, 85);
+        expect(onCommit).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
     it('disabled면 나가지 않는다', () => {
         const { container, onChange, onCommit, unmount } = renderChip({ disabled: true });
         act(() => (container.querySelector('[data-step="5"]') as HTMLButtonElement).click());

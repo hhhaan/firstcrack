@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { type MouseEvent, type PointerEvent, useCallback, useEffect, useRef } from 'react';
 
 export const HOLD_DELAY_MS = 400;
 export const HOLD_INTERVAL_MS = 100;
@@ -12,7 +12,6 @@ export const useHoldRepeat = (action: () => void, disabled: boolean, onStart?: (
     const actionRef = useRef(action);
     const startRef = useRef(onStart);
     const timers = useRef<{ delay?: ReturnType<typeof setTimeout>; interval?: ReturnType<typeof setInterval> }>({});
-    const fromPointer = useRef(false);
 
     useEffect(() => {
         actionRef.current = action;
@@ -23,30 +22,35 @@ export const useHoldRepeat = (action: () => void, disabled: boolean, onStart?: (
         if (timers.current.delay != null) clearTimeout(timers.current.delay);
         if (timers.current.interval != null) clearInterval(timers.current.interval);
         timers.current = {};
-        fromPointer.current = false;
     }, []);
 
-    useEffect(() => clear, [clear]);
+    useEffect(() => {
+        if (disabled) clear();
+        return clear;
+    }, [clear, disabled]);
 
-    const onPointerDown = useCallback(() => {
-        if (disabled) return;
-        fromPointer.current = true;
-        startRef.current?.();
-        actionRef.current();
-        timers.current.delay = setTimeout(() => {
-            timers.current.interval = setInterval(() => actionRef.current(), HOLD_INTERVAL_MS);
-        }, HOLD_DELAY_MS);
-    }, [disabled]);
+    const onPointerDown = useCallback(
+        (event: PointerEvent) => {
+            if (disabled || event.button !== 0) return;
+            clear();
+            startRef.current?.();
+            actionRef.current();
+            timers.current.delay = setTimeout(() => {
+                timers.current.interval = setInterval(() => actionRef.current(), HOLD_INTERVAL_MS);
+            }, HOLD_DELAY_MS);
+        },
+        [clear, disabled],
+    );
 
-    const onClick = useCallback(() => {
-        if (disabled) return;
-        if (fromPointer.current) {
-            fromPointer.current = false;
-            return;
-        }
-        startRef.current?.();
-        actionRef.current();
-    }, [disabled]);
+    const onClick = useCallback(
+        (event: MouseEvent) => {
+            // Pointer clicks were handled on pointerdown; keyboard/assistive clicks have detail 0.
+            if (disabled || event.detail > 0) return;
+            startRef.current?.();
+            actionRef.current();
+        },
+        [disabled],
+    );
 
     return { onPointerDown, onPointerUp: clear, onPointerLeave: clear, onPointerCancel: clear, onClick };
 };

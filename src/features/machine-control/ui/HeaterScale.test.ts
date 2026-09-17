@@ -148,7 +148,7 @@ describe('HeaterScale A′ (#436)', () => {
         unmount();
     });
 
-    it('pointerup 뒤 click은 다시 커밋한다', () => {
+    it('pointerup 뒤 키보드 click은 다시 커밋한다', () => {
         const { container, onChange, unmount } = renderScale({ value: 70, feedback: 70 });
         const plus = container.querySelector('[data-step="5"]') as HTMLButtonElement;
         act(() => plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
@@ -157,6 +157,67 @@ describe('HeaterScale A′ (#436)', () => {
         act(() => plus.click());
         expect(onChange).toHaveBeenCalledWith('heater', 75);
         unmount();
+    });
+
+    it('a complete pointer click commits once even after the parent updates', () => {
+        const scale = renderScale();
+        const plus = scale.container.querySelector('[data-step="5"]') as HTMLButtonElement;
+        act(() => plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 })));
+        scale.render({ ...scale.props, value: 75 });
+        act(() => {
+            plus.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+            plus.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+        });
+        expect(scale.onChange).toHaveBeenCalledExactlyOnceWith('heater', 75);
+        expect(scale.onCommit).toHaveBeenCalledTimes(1);
+        // Native keyboard and assistive activation must still work after pointer input.
+        act(() => plus.click());
+        expect(scale.onChange).toHaveBeenLastCalledWith('heater', 80);
+        expect(scale.onCommit).toHaveBeenCalledTimes(2);
+        scale.unmount();
+    });
+
+    it.each(['pointerup', 'pointerout', 'pointercancel'])(
+        '%s stops repetition without swallowing keyboard activation',
+        (event) => {
+            vi.useFakeTimers();
+            const scale = renderScale();
+            const plus = scale.container.querySelector('[data-step="5"]') as HTMLButtonElement;
+            act(() => plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+            act(() => {
+                vi.advanceTimersByTime(HOLD_DELAY_MS + HOLD_INTERVAL_MS);
+                plus.dispatchEvent(new PointerEvent(event, { bubbles: true }));
+            });
+            const commits = scale.onCommit.mock.calls.length;
+            act(() => vi.advanceTimersByTime(1000));
+            expect(scale.onCommit).toHaveBeenCalledTimes(commits);
+            act(() => plus.click());
+            expect(scale.onCommit).toHaveBeenCalledTimes(commits + 1);
+            scale.unmount();
+            vi.useRealTimers();
+        },
+    );
+
+    it('disabling during a hold clears its timers', () => {
+        vi.useFakeTimers();
+        const scale = renderScale();
+        const plus = scale.container.querySelector('[data-step="5"]') as HTMLButtonElement;
+        act(() => plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+        scale.render({ ...scale.props, disabled: true });
+        expect(vi.getTimerCount()).toBe(0);
+        act(() => vi.advanceTimersByTime(1000));
+        expect(scale.onCommit).toHaveBeenCalledTimes(1);
+        scale.unmount();
+        vi.useRealTimers();
+    });
+
+    it.each([undefined, 80])('keyboard uses updated feedback/desired (desired=%s)', (value) => {
+        const scale = renderScale({ value: undefined });
+        scale.render({ ...scale.props, value, feedback: 80 });
+        const slider = scale.container.querySelector('[role="slider"]') as HTMLElement;
+        act(() => slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
+        expect(scale.onChange).toHaveBeenCalledExactlyOnceWith('heater', 75);
+        scale.unmount();
     });
 
     it('disabled면 탭·±5가 나가지 않는다', () => {

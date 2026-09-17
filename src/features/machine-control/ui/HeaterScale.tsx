@@ -1,6 +1,6 @@
 import type { ControlLimit } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { CONVERGE_TOLERANCE, type ControlRole } from '../lib/controlSender';
 import { percentTicks, showLiveFollow, snapPercent, stepPercent } from '../lib/snapPercent';
 import { useHoldRepeat } from '../lib/useHoldRepeat';
@@ -49,6 +49,9 @@ export const HeaterScale = ({
     const livePct = feedback != null ? Math.min(100, Math.max(0, ((feedback - min) / span) * 100)) : null;
     const selected = snapPercent(current, min, max);
     const valueRef = useRef(current);
+    useEffect(() => {
+        valueRef.current = current;
+    }, [current]);
 
     const commit = (next: number) => {
         if (blocked) return;
