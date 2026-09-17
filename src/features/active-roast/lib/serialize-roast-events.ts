@@ -83,10 +83,10 @@ export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: Tempe
             note: e.note ?? '',
         }));
 
-/** Stored events → chart markers (same filter as live buildEventMarkers). */
+/** Stored events → chart markers. Live TP is a `turningPoints` overlay, not an eventMarker — include it here so history can draw it. */
 export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: TemperatureUnit = 'C'): HistoryEventMarker[] =>
     events
-        .filter((e) => isChartEventMarker(e.type))
+        .filter((e) => isChartEventMarker(e.type) || e.type === 'TP')
         .map((e) => ({
             logId: e.id,
             timeSec: Math.max(0, e.time_sec),
