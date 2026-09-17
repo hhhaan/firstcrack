@@ -872,7 +872,10 @@
         "addBatch": "Add Batch",
         "editBatch": "Edit Batch",
         "saveFailed": "Save failed:",
-        "unknown": "Unknown"
+        "unknown": "Unknown",
+        "searchPlaceholder": "Search...",
+        "noResults": "No results",
+        "clearSelection": "Clear selection"
     },
     "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     "history": {
@@ -1144,6 +1147,7 @@
         },
         "form": {
             "lotName": "Lot Name",
+            "lotNameRequired": "Enter a lot name",
             "lotNamePlaceholder": "Auto-filled when origin is selected",
             "origin": "Origin Country",
             "originPlaceholder": "e.g. Ethiopia",

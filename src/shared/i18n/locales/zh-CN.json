@@ -872,7 +872,10 @@
         "addBatch": "添加批次",
         "editBatch": "编辑批次",
         "saveFailed": "保存失败:",
-        "unknown": "未知"
+        "unknown": "未知",
+        "searchPlaceholder": "搜索...",
+        "noResults": "无结果",
+        "clearSelection": "清除选择"
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
@@ -1144,6 +1147,7 @@
         },
         "form": {
             "lotName": "批次名称",
+            "lotNameRequired": "请输入批次名称",
             "lotNamePlaceholder": "选择产地后自动填写",
             "origin": "产地国",
             "originPlaceholder": "例如：埃塞俄比亚",

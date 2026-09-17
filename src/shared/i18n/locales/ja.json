@@ -872,7 +872,10 @@
         "addBatch": "バッチ追加",
         "editBatch": "バッチ編集",
         "saveFailed": "保存失敗:",
-        "unknown": "不明"
+        "unknown": "不明",
+        "searchPlaceholder": "検索...",
+        "noResults": "結果なし",
+        "clearSelection": "選択を解除"
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
@@ -1144,6 +1147,7 @@
         },
         "form": {
             "lotName": "ロット名",
+            "lotNameRequired": "ロット名を入力してください",
             "lotNamePlaceholder": "産地を選択すると自動入力されます",
             "origin": "産地",
             "originPlaceholder": "例: エチオピア",
