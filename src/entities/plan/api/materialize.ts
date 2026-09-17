@@ -35,6 +35,16 @@ export async function materializePlanBatch(
     patch: MaterializePatch,
     options?: { conflict?: MaterializeConflict },
 ): Promise<PlanBatch> {
+    if (options?.conflict === 'read') {
+        const { data: existing, error } = await supabase
+            .from('roast_plan_batches')
+            .select()
+            .eq('recurrence_rule_id', ruleId)
+            .eq('original_date', originalDate)
+            .maybeSingle();
+        if (error) throw error;
+        if (existing) return existing;
+    }
     const plan = await dayPlanApi.getOrCreate(userId, scheduledDate);
 
     const { data, error } = await supabase

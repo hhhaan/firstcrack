@@ -1,15 +1,14 @@
-import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
-import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
+import { invalidateScheduledBatchQueries, planBatchApi, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
-import { resumePendingRoastSave } from '@features/active-roast/lib/resumePendingRoastSave';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
-import { formatRoastSaveError, pgErrorCode } from '@features/active-roast/lib/saveErrorClassification';
+import { formatRoastSaveError } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import {
     clearPendingRoastSave,
+    createPendingRoastSave,
     type PendingRoastParams,
-    type PendingRoastSave,
     readPendingRoastSave,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
@@ -17,8 +16,6 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
-import { ensureSession } from '@shared/lib/ensureSession';
-import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
 import { logger } from '@shared/lib/logger';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useToastStore } from '@shared/store/toast';
@@ -27,7 +24,7 @@ import type { LogEntry } from '@shared/types/roast';
 import { useQueryClient } from '@tanstack/react-query';
 import { message } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { type RoastSummaryData, useRoastCompletionFlow } from './useRoastCompletionFlow';
 
 export interface UseRoastSaveFlowParams {
@@ -75,13 +72,16 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
 
     const flow = useRoastCompletionFlow();
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
-    const { saveRoast, isSaving } = useSaveRoast(planBatchHandoff, syncRoastCurve);
+    const { resumeSave, isSaving } = useSaveRoast(planBatchHandoff, syncRoastCurve);
+    const submitting = useRef(false);
+    const [preparing, setPreparing] = useState(false);
+    const unrecordedId = useRef<string | null>(null);
 
     // Everything but the form and log entries is identical between the two snapshots.
     const snapshotParams = useCallback(
         (formData: SaveRoastFormData, logEntries: LogEntry[]): PendingRoastParams => ({
             formData,
-            userId: workspaceOwnerId,
+            userId: useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
             elapsed,
             roastStartTime: roastStartTimeRef.current,
             rawBT,
@@ -94,6 +94,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             handoffBeanName,
             logEntries,
             machineSnapshot: useRoastingStore.getState().machineSnapshot,
+            bbpSummary:
+                useBbpStore.getState().finalized?.sessionId === sessionId ? useBbpStore.getState().finalized : null,
         }),
         [
             workspaceOwnerId,
@@ -114,48 +116,21 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         async (formData: RoastSummaryForm) => {
             // isSaving turns true only inside saveRoast — the async F3 guard below
             // leaves the button enabled, so block re-entry here too.
-            if (isSaving) return;
+            if (submitting.current || isSaving) return;
+            submitting.current = true;
+            setPreparing(true);
             try {
                 let linkedBatch: PlanBatchHandoff | null = null;
                 if (!planBatchHandoff && formData.linkMode === 'schedule' && formData.planBatchId) {
                     const row = dayBatches.find((b) => b.id === formData.planBatchId);
-                    if (!row || row.completed_sessions >= row.batch_count) {
-                        throw new Error(i18n.t('activeRoast.summary.batchUnavailable'));
-                    }
-                    linkedBatch = toPlanBatchHandoff(row);
-                }
-
-                // F3 UX: warn if schedule already deducted this batch; server also skips (C2).
-                let deductStock = formData.deductStock;
-                const guardBatchId = planBatchHandoff?.planBatchId ?? linkedBatch?.planBatchId ?? null;
-                if (deductStock && guardBatchId) {
-                    try {
-                        const batchClaimed = await beanStockEventApi.hasRoastDeductionForReference(guardBatchId);
-                        if (
-                            isGreenRoastAlreadyClaimed(
-                                batchClaimed ? [guardBatchId] : [],
-                                sessionId ?? '',
-                                guardBatchId,
-                            )
-                        ) {
-                            deductStock = false;
-                            await message(i18n.t('activeRoast.summary.deductSkippedAlreadyDeducted'), {
-                                title: '재고 차감',
-                                kind: 'warning',
-                            });
-                        }
-                    } catch (err) {
-                        logger.capture(err, { context: 'stockDeduct guard' });
-                    }
+                    if (row) linkedBatch = toPlanBatchHandoff(row);
                 }
 
                 // Durable intent: written BEFORE any auth gate so the roast survives
                 // an auth kick to the login screen, a crash, or a force quit.
                 // Recovered (auto-saved) by PendingRoastRecovery on next launch.
-                const pending: PendingRoastSave = {
-                    version: 1,
-                    submitted: true,
-                    params: snapshotParams(
+                const pending = createPendingRoastSave(
+                    snapshotParams(
                         {
                             notes: formData.notes,
                             weightGrams: formData.weightGrams,
@@ -167,29 +142,20 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                             // ponytail: no beanId gate here — saveRoastCore's canTouchStock
                             // (resolvedBeanId || blendId) already blocks label-only sessions,
                             // and gating on beanId silently killed blend/handoff deduction.
-                            deductStock,
+                            deductStock: formData.deductStock,
+                            linkedBatchId:
+                                !planBatchHandoff && formData.linkMode === 'schedule' ? formData.planBatchId : null,
                         },
                         flow.summaryData?.logEntries ?? [],
                     ),
-                };
+                    true,
+                );
+                if (!sessionId) pending.params.sessionId = unrecordedId.current ??= pending.params.sessionId;
                 writePendingRoastSave(pending);
 
-                // Second chance before failing: revive a session whose auto-refresh
-                // was missed (sleep / long background) without forcing a re-login.
-                if (!(await ensureSession())) {
-                    throw new Error(i18n.t('activeRoast.summary.sessionExpired'));
-                }
-
-                const saveResult = await resumePendingRoastSave({
-                    pending,
-                    ownerId: workspaceOwnerId,
-                    resolveForRoast: planBatchApi.resolveForRoast,
-                    saveRoast,
-                });
-                clearPendingRoastSave();
-
-                if (saveResult.batchStatusUpdateFailed) {
-                    useToastStore.getState().show(i18n.t('activeRoast.summary.batchStatusUpdateFailed'));
+                const saveResult = await resumeSave(pending);
+                if (saveResult.syncPending) {
+                    useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'));
                 }
 
                 const preferBatchId =
@@ -199,7 +165,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     null;
 
                 let continueCandidates: PlanBatchWithProgress[] = [];
-                if (isWorkspaceReady && workspaceOwnerId) {
+                if (!saveResult.syncPending && isWorkspaceReady && workspaceOwnerId) {
                     try {
                         continueCandidates = await resolveContinueCandidates({
                             preferBatchId,
@@ -229,40 +195,18 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     shouldOpenContinue: continueCandidates.length > 0,
                     continueCandidates,
                 });
+                unrecordedId.current = null;
                 onResetActiveRoast();
             } catch (err) {
                 logger.capture(err, { context: 'roastSummary save' });
-                // FK on deleted bean — surface a clear action instead of raw PostgREST text (#176)
-                const pgCode = pgErrorCode(err);
-                if (pgCode === '23503') {
-                    // Same reasoning as 23514 below — the snapshot would only be replayed
-                    // (and then discarded) by PendingRoastRecovery, so the open modal is
-                    // the single recovery route.
-                    clearPendingRoastSave();
-                    await message(i18n.t('activeRoast.dialogs.beanDeletedMsg'), {
-                        title: i18n.t('activeRoast.dialogs.beanDeletedTitle'),
-                        kind: 'error',
-                    });
-                    return;
-                }
-                // Check violation — in practice output_weight_grams <= weight_grams (#181).
-                // The same payload fails forever, so drop the pending snapshot instead of
-                // letting PendingRoastRecovery replay it on every launch. Safe: the summary
-                // modal stays open (nothing here resets the flow), and a corrected re-save
-                // rewrites the snapshot before hitting the server.
-                if (pgCode === '23514') {
-                    clearPendingRoastSave();
-                    await message(i18n.t('activeRoast.dialogs.invalidWeightMsg'), {
-                        title: i18n.t('activeRoast.dialogs.invalidWeightTitle'),
-                        kind: 'error',
-                    });
-                    return;
-                }
                 const detail = formatRoastSaveError(err);
                 await message(i18n.t('activeRoast.dialogs.saveFailedMsg', { error: detail }), {
                     title: i18n.t('activeRoast.dialogs.saveFailedTitle'),
                     kind: 'error',
                 });
+            } finally {
+                submitting.current = false;
+                setPreparing(false);
             }
         },
         [
@@ -271,7 +215,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             isWorkspaceReady,
             today,
             qc,
-            saveRoast,
+            resumeSave,
             snapshotParams,
             planBatchHandoff,
             sessionId,
@@ -286,17 +230,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     // opens, with modal-default form values. Overwritten with the real form on Save.
     const confirmEndRoast = useCallback(
         (summaryData: RoastSummaryData) => {
-            // 이전 로스트의 저장 실패 스냅샷(submitted:true)을 덮어쓰지 않는다 (#317).
-            // 이 경우 슬롯은 이전 로스트 소유 — discardSummary도 건드리지 않는다.
-            const pending = readPendingRoastSave();
-            if (pending?.submitted && pending.params.sessionId !== sessionId) {
-                flow.confirmEndRoast(summaryData);
-                return;
-            }
-            writePendingRoastSave({
-                version: 1,
-                submitted: false,
-                params: snapshotParams(
+            const pending = createPendingRoastSave(
+                snapshotParams(
                     {
                         notes: '',
                         weightGrams: planBatchHandoff?.batchSizeKg ?? 0,
@@ -308,23 +243,64 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     },
                     summaryData.logEntries,
                 ),
-            });
+                false,
+            );
+            if (!sessionId) pending.params.sessionId = unrecordedId.current ??= pending.params.sessionId;
+            try {
+                const existing = readPendingRoastSave(pending.params.userId, pending.params.sessionId);
+                if (!existing?.submitted) writePendingRoastSave(pending);
+            } catch (err) {
+                useToastStore.getState().show(formatRoastSaveError(err));
+            }
             flow.confirmEndRoast(summaryData);
         },
         [snapshotParams, planBatchHandoff, selectedBeanId, sessionId, flow.confirmEndRoast],
     );
 
     const discardSummary = useCallback(() => {
-        // 다른 세션의 submitted:true 슬롯은 이전 로스트의 복구 데이터 — 폐기 대상이 아니다 (#317)
-        const pending = readPendingRoastSave();
-        if (!pending?.submitted || pending.params.sessionId === sessionId) clearPendingRoastSave();
+        const id = sessionId ?? unrecordedId.current;
+        if (id) clearPendingRoastSave(useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId, id);
+        unrecordedId.current = null;
         flow.discardSummary();
-    }, [flow.discardSummary, sessionId]);
+    }, [flow.discardSummary, sessionId, workspaceOwnerId]);
+
+    const nextStarting = useRef(false);
+    const nextEpoch = useRef(0);
+    const nextOwner = useRef(workspaceOwnerId);
+    useEffect(() => {
+        nextOwner.current = workspaceOwnerId;
+        return () => {
+            nextEpoch.current += 1;
+        };
+    }, [workspaceOwnerId]);
+    const handleStartNext = useCallback(
+        async (row: PlanBatchWithProgress) => {
+            if (nextStarting.current) return;
+            nextStarting.current = true;
+            const epoch = nextEpoch.current;
+            try {
+                if (!isWorkspaceReady || !workspaceOwnerId)
+                    throw new Error(i18n.t('activeRoast.summary.workspaceLoading'));
+                const real = await planBatchApi.startForRoast(workspaceOwnerId, row);
+                invalidateScheduledBatchQueries(qc);
+                if (epoch !== nextEpoch.current || nextOwner.current !== workspaceOwnerId) return;
+                useRoastSessionStore.getState().startBatch(toPlanBatchHandoff(real));
+                flow.dismissContinue();
+            } catch (err) {
+                invalidateScheduledBatchQueries(qc);
+                throw err;
+            } finally {
+                nextStarting.current = false;
+            }
+        },
+        [workspaceOwnerId, isWorkspaceReady, qc, flow.dismissContinue],
+    );
 
     return {
         flow,
-        isSaving,
+        isSaving: isSaving || preparing,
         handleSave,
+        handleStartNext,
         confirmEndRoast,
         discardSummary,
     };

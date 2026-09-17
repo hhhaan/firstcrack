@@ -2,6 +2,8 @@ export type { DayPlanBatchItem, DayPlanSummary, RecurrenceRuleMasterPatch } from
 export { dayPlanApi, dayPlanRangeApi, planBatchApi, recurrenceRuleApi, UnresolvablePlanBatchIdError } from './api';
 export { isUuid, parseVirtualPlanBatchId } from './lib/virtual-plan-batch-id';
 export {
+    invalidatePlanScope,
+    invalidateScheduledBatchQueries,
     planKeys,
     useCreatePlanBatch,
     useCreateRecurringBatches,

@@ -1,3 +1,4 @@
+import { expandRRuleInRange, formatDateLocal } from '@shared/lib/rrule';
 import type { PlanBatch, PlanBatchHandoff, PlanBatchWithProgress, RecurrenceRule } from '@shared/types/database.types';
 import { describe, expect, it, vi } from 'vitest';
 import { type ResolveForRoastDeps, resolveForRoast } from './resolve-for-roast';
@@ -61,6 +62,9 @@ const rule = (over: Partial<RecurrenceRule> = {}): RecurrenceRule =>
         id: RULE,
         user_id: OWNER,
         status: 'active',
+        dtstart: '2026-09-01',
+        until: null,
+        rrule: 'FREQ=DAILY',
         bean_name: 'Kenya',
         bean_id: 'bean-1',
         blend_id: null,
@@ -92,6 +96,7 @@ function deps(over: Partial<ResolveForRoastDeps> = {}): ResolveForRoastDeps {
     return {
         materialize: vi.fn(async () => realBatch()),
         getRule: vi.fn(async () => rule()),
+        getException: vi.fn(async () => null),
         getBatch: vi.fn(async () => realBatch()),
         getDayPlanOwner: vi.fn(async () => OWNER),
         countSessions: vi.fn(async () => 0),
@@ -171,5 +176,73 @@ describe('resolveForRoast', () => {
         const stolen = deps({ getRule: vi.fn(async () => rule({ user_id: 'other' })) });
         await expect(resolveForRoast(OWNER, virtualRow(), stolen)).rejects.toThrow(/owner/i);
         expect(stolen.materialize).not.toHaveBeenCalled();
+    });
+    it('uses current master fields and ignores stale virtual fields', async () => {
+        const d = deps({ getRule: vi.fn(async () => rule({ bean_name: 'New bean', bean_id: 'new' })) });
+        await resolveForRoast(OWNER, virtualRow(), d);
+        expect(d.materialize).toHaveBeenCalledWith(
+            OWNER,
+            RULE,
+            '2026-09-01',
+            '2026-09-01',
+            expect.objectContaining({ bean_name: 'New bean', bean_id: 'new' }),
+            { conflict: 'read' },
+        );
+    });
+
+    it('reuses moved exceptions even after RRULE changes, without materializing', async () => {
+        const d = deps({
+            getRule: vi.fn(async () => rule({ rrule: 'FREQ=WEEKLY;BYDAY=FR' })),
+            getException: vi.fn(async () => realBatch({ scheduled_date: '2026-10-01', notes: 'edited' })),
+        });
+        expect((await resolveForRoast(OWNER, handoff(), d)).scheduled_date).toBe('2026-10-01');
+        expect(d.materialize).not.toHaveBeenCalled();
+        expect(d.getException).toHaveBeenCalledWith(RULE, '2026-09-01');
+    });
+
+    it('rejects original-date mismatch, excluded occurrence and ended series before writes', async () => {
+        for (const [source, d] of [
+            [virtualRow({ original_date: '2026-09-02' }), deps()],
+            [virtualRow(), deps({ getRule: vi.fn(async () => rule({ rrule: 'FREQ=WEEKLY;BYDAY=FR' })) })],
+            [handoff(), deps({ getRule: vi.fn(async () => rule({ until: '2026-08-31' })) })],
+        ] as const) {
+            await expect(resolveForRoast(OWNER, source, d)).rejects.toThrow();
+            expect(d.materialize).not.toHaveBeenCalled();
+        }
+    });
+
+    it('does not return a materialized batch when its master changed concurrently', async () => {
+        const d = deps({
+            getRule: vi
+                .fn()
+                .mockResolvedValueOnce(rule())
+                .mockResolvedValue(rule({ status: 'cancelled' })),
+        });
+        await expect(resolveForRoast(OWNER, handoff(), d)).rejects.toThrow(/changed/);
+    });
+
+    it('accepts real batches after their rule FK has been cleared', async () => {
+        const d = deps({ getBatch: vi.fn(async () => realBatch({ recurrence_rule_id: null })) });
+        expect((await resolveForRoast(OWNER, handoff({ planBatchId: REAL }), d)).id).toBe(REAL);
+        expect(d.getRule).not.toHaveBeenCalled();
+    });
+    it('accepts every weekly date displayed by the existing calendar expansion', async () => {
+        for (const rrule of ['FREQ=WEEKLY', 'FREQ=WEEKLY;INTERVAL=2', 'FREQ=WEEKLY;BYDAY=MO']) {
+            const dates = expandRRuleInRange(
+                rrule,
+                new Date('2026-09-01T00:00:00'),
+                new Date('2026-09-01T00:00:00'),
+                new Date('2026-09-30T23:59:59'),
+            );
+            expect(dates.length).toBeGreaterThan(0);
+            for (const date of dates) {
+                const originalDate = formatDateLocal(date);
+                const d = deps({ getRule: vi.fn(async () => rule({ rrule })) });
+                await resolveForRoast(OWNER, handoff({ planBatchId: `${RULE}:${originalDate}` }), d);
+                expect(d.materialize).toHaveBeenCalledWith(OWNER, RULE, originalDate, originalDate, expect.anything(), {
+                    conflict: 'read',
+                });
+            }
+        }
     });
 });

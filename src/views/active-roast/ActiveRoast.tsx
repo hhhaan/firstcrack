@@ -1,6 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
-import { planBatchApi } from '@entities/plan';
 import { useProfile } from '@entities/profile';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
@@ -16,9 +15,7 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { applyEventMarkerEdit, nearestLivePointAt } from '@features/active-roast/lib/event-marker-drag';
-import { formatRoastSaveError } from '@features/active-roast/lib/saveErrorClassification';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
-import { startNextFromContinue } from '@features/active-roast/lib/startNextFromContinue';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -26,7 +23,6 @@ import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel } from '@features/machine-control';
 import { useWeather } from '@shared/api/weather';
-import { i18n } from '@shared/i18n';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
@@ -36,7 +32,7 @@ import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useThemeStore } from '@shared/store/theme';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ask, message } from '@tauri-apps/plugin-dialog';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useShallow } from 'zustand/react/shallow';
@@ -124,7 +120,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
-    const startBatch = useRoastSessionStore((s) => s.startBatch);
     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
 
     // ── 프로파일/원두 선택 ─────────────────────────────────────────
@@ -738,28 +733,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             <PlanBatchContinueModal
                 show={saveFlow.flow.continueModal}
                 candidates={saveFlow.flow.continueCandidates}
-                onStartNext={(row) => {
-                    void (async () => {
-                        try {
-                            const handoff = await startNextFromContinue(
-                                workspaceOwnerId,
-                                row,
-                                planBatchApi.resolveForRoast,
-                            );
-                            startBatch(handoff);
-                            saveFlow.flow.dismissContinue();
-                        } catch (err) {
-                            logger.capture(err, { context: 'continue startNext' });
-                            await message(
-                                i18n.t('activeRoast.dialogs.saveFailedMsg', { error: formatRoastSaveError(err) }),
-                                {
-                                    title: i18n.t('activeRoast.dialogs.saveFailedTitle'),
-                                    kind: 'error',
-                                },
-                            );
-                        }
-                    })();
-                }}
+                onStartNext={saveFlow.handleStartNext}
                 onDismiss={() => {
                     completeBatch();
                     saveFlow.flow.dismissContinue();

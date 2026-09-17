@@ -2,15 +2,14 @@ import { beanKeys } from '@entities/bean/queries';
 import { stockEventKeys } from '@entities/bean-stock-event';
 import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT, type MachineSnapshot } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
-import { useUpdateSingleBatch } from '@entities/plan';
+import { invalidateScheduledBatchQueries, planBatchApi } from '@entities/plan';
 import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
 import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
-import { useBbpStore } from '@features/active-roast/model/bbp';
-import { useRoastingStore } from '@features/active-roast/model/status';
 import { i18n } from '@shared/i18n';
+import { ensureSession } from '@shared/lib/ensureSession';
 import {
     BatchLimitError,
     canCompleteBatch,
@@ -24,14 +23,22 @@ import { logger } from '@shared/lib/logger';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
-import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean, PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
+import { resumePendingRoastSave } from '../lib/resumePendingRoastSave';
+import type { FinalizedBbp } from './bbp';
+import type { PendingRoastSave } from './pendingRoastSave';
 
 /** Injected from upload feature (composed in views) — avoids feature→feature import. */
-export type SyncRoastCurve = (input: { sessionId: string; roastSessionId: string }) => Promise<unknown>;
+export type SyncRoastCurve = (input: {
+    sessionId: string;
+    roastSessionId: string;
+    ownerId: string;
+    profileRequired: boolean;
+    bbpRequired: boolean;
+}) => Promise<unknown>;
 
 /** Prefer Drop event temp, then End, then live BT (#173). */
 export function resolveDropTempCelsius(logEntries: LogEntry[], rawBT: number | null | undefined): number | null {
@@ -59,6 +66,7 @@ export type SaveRoastFormData = {
     beanLabel?: string | null;
     /** resolved handoff for ad-hoc schedule link (from day batches) */
     linkedBatch?: PlanBatchHandoff | null;
+    linkedBatchId?: string | null;
     /** When true, server deducts green in the same TX as session save (C1). */
     deductStock?: boolean;
 };
@@ -78,6 +86,7 @@ export interface SaveRoastParams {
     planBatchHandoff: PlanBatchHandoff | null;
     logEntries: LogEntry[];
     machineSnapshot?: MachineSnapshot | null;
+    bbpSummary?: FinalizedBbp | null;
 }
 
 export interface SaveRoastResult {
@@ -85,22 +94,16 @@ export interface SaveRoastResult {
     shouldOpenContinue: boolean;
     /** Session saved but plan_batch status=done update failed — user should complete it in Schedule. */
     batchStatusUpdateFailed?: boolean;
+    syncPending?: boolean;
 }
 
 export type SaveRoastDeps = {
     plan: Parameters<typeof planMaxBatchesPerMonth>[0];
-    userId: string;
     qc: QueryClient;
-    planBatchHandoff: PlanBatchHandoff | null;
     countCompletedThisMonth: (userId: string) => Promise<number>;
     countCompletedTotal: (userId: string) => Promise<number>;
     saveOp: typeof roastSessionApi.saveOp;
     flushCurve: (sessionId: string) => Promise<void>;
-    syncRoastCurve: SyncRoastCurve;
-    updatePlanBatch: ReturnType<typeof useUpdateSingleBatch>['mutateAsync'];
-    startBatch: (b: PlanBatchHandoff) => void;
-    recordAdhocSave: (p: { beanId: string | null; weightKg: number; roastLevel: string | null }) => void;
-    getFinalizedBbp: () => ReturnType<typeof useBbpStore.getState>['finalized'];
 };
 
 /** Handoff wins; otherwise ad-hoc linked batch from the save form. */
@@ -111,21 +114,15 @@ export const resolveEffectiveBatch = (
 
 /** Core save path — testable without React hooks. */
 export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams): Promise<SaveRoastResult> {
-    const {
-        plan,
-        userId,
-        qc,
-        planBatchHandoff,
-        countCompletedThisMonth,
-        countCompletedTotal,
-        saveOp,
-        flushCurve,
-        syncRoastCurve,
-        updatePlanBatch,
-        startBatch,
-        recordAdhocSave,
-        getFinalizedBbp,
-    } = deps;
+    const { plan, qc, countCompletedThisMonth, countCompletedTotal, saveOp, flushCurve } = deps;
+
+    const { userId, sessionId } = params;
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const linked = params.planBatchHandoff ?? params.formData.linkedBatch;
+    const linkedId = linked?.planBatchId;
+    if (!userId || !sessionId || !uuid.test(sessionId) || (linked != null && (!linkedId || !uuid.test(linkedId)))) {
+        throw Object.assign(new Error('Unprepared roast save identity'), { code: '22P02' });
+    }
 
     // UX pre-checks only — the DB trigger (enforce_batch_gate) is the authority.
     // Count failures (network etc.) fail open: skip the pre-check and let the
@@ -158,8 +155,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         }
     }
 
-    const { formData, handoffBeanName, sessionId, planBatchHandoff: paramsHandoff, ...payloadParams } = params;
-    const effectiveBatch = resolveEffectiveBatch(paramsHandoff ?? planBatchHandoff, formData.linkedBatch);
+    const { formData, handoffBeanName, planBatchHandoff: paramsHandoff, ...payloadParams } = params;
+    const effectiveBatch = resolveEffectiveBatch(paramsHandoff, formData.linkedBatch);
 
     const weightGrams = Math.round(formData.weightGrams * 1000);
     const outputKg = formData.outputWeightKg;
@@ -187,13 +184,13 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 
     // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/만료/무료 플랜).
     // 이 세션 것이 맞을 때만 사용 — 다른 배치 요약이 붙는 것을 막는다.
-    const pendingBbp = getFinalizedBbp();
+    const pendingBbp = params.bbpSummary;
     const bbpSummary = pendingBbp?.sessionId === sessionId ? pendingBbp : null;
 
     const payload: RoastSessionInsert = {
         // Client session uuid as PK — save_roast_op converges retries on one row.
-        // Null sessionId (never charged) falls back to server-generated id.
-        id: sessionId ?? undefined,
+        // The pending coordinator durably allocates IDs even for unrecorded roasts.
+        id: sessionId,
         user_id: userId,
         weight_grams: weightGrams,
         output_weight_grams: outputWeightGrams,
@@ -258,6 +255,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         deductionGrams,
         inboundGrams: inbound?.grams ?? 0,
         inboundIsEstimate: inbound?.isEstimate ?? false,
+        ...(effectiveBatch
+            ? { expectedBatch: { beanId: effectiveBatch.beanId, blendId: effectiveBatch.blendId ?? null } }
+            : {}),
     }).catch((e: unknown) => {
         throw mapServerBatchGateError(e) ?? e;
     });
@@ -281,109 +281,71 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId), refetchType: 'all' });
     }
 
-    // Meta returns immediately; curve sync background. Local TSV kept if sync fails.
-    if (sessionId) {
-        void syncRoastCurve({ sessionId, roastSessionId: savedSession.id }).catch((err) => {
-            logger.capture(err, { context: 'saveRoast tsv' });
-        });
-    }
-
-    let batchStatusUpdateFailed = false;
-    if (effectiveBatch) {
-        const newCompletedCount = effectiveBatch.completedSessions + 1;
-        // Keep store in sync for Continue modal (covers ad-hoc link too)
-        startBatch({ ...effectiveBatch, completedSessions: newCompletedCount });
-
-        if (newCompletedCount >= effectiveBatch.batchCount) {
-            // useUpdateSingleBatch invalidates plan + schedule roots (not tied to handoff planId)
-            try {
-                await updatePlanBatch({
-                    id: effectiveBatch.planBatchId,
-                    patch: { id: effectiveBatch.planBatchId, status: 'done' },
-                });
-            } catch (err) {
-                // Session save stays successful — surface for a toast; user reconciles
-                // via the Schedule complete flow (deduct is idempotent there).
-                logger.capture(err, { context: 'saveRoast batch status' });
-                batchStatusUpdateFailed = true;
-            }
-        }
-    } else {
-        // 애드혹 연속 배치: 다음 저장 폼 프리필용으로 이번 값을 기록
-        recordAdhocSave({
-            beanId: resolvedBeanId,
-            weightKg: formData.weightGrams,
-            roastLevel: formData.roastLevel,
-        });
-    }
-
-    return {
-        savedSession,
-        shouldOpenContinue: effectiveBatch != null,
-        batchStatusUpdateFailed,
-    };
+    return { savedSession, shouldOpenContinue: effectiveBatch != null };
 }
 
-export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
-    // Counts below are owner-scoped, and so is the server's plan lookup — pairing them
-    // with the personal plan would block an org member on the host's workspace.
-    const sessionOwnerId = useRoastingStore((s) => s.sessionOwnerId);
+export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const userId = sessionOwnerId ?? workspaceOwnerId;
-    const plan = useEffectivePlan(undefined, userId);
+    const plan = useEffectivePlan(undefined, workspaceOwnerId);
     const qc = useQueryClient();
     const [isSaving, setIsSaving] = useState(false);
-
-    // Single-batch update: invalidates schedule roots regardless of which planId (ad-hoc link safe)
-    const { mutateAsync: updatePlanBatch } = useUpdateSingleBatch();
-    const startBatch = useRoastSessionStore((s) => s.startBatch);
-
     const saveRoast = useCallback(
-        async (params: SaveRoastParams): Promise<SaveRoastResult> => {
-            // Call-time read: the store user may have been revived by ensureSession()
-            // after this callback's closure was created — a subscription would be stale.
-            if (!useAuthStore.getState().user) {
-                throw new Error(i18n.t('activeRoast.summary.sessionExpired'));
-            }
-            if (!isWorkspaceReady || !userId) {
+        async (params: SaveRoastParams) => {
+            if (
+                !isWorkspaceReady ||
+                !workspaceOwnerId ||
+                params.userId !== workspaceOwnerId ||
+                !useAuthStore.getState().user
+            ) {
                 throw new Error(i18n.t('activeRoast.summary.workspaceLoading'));
             }
-
+            return saveRoastCore(
+                {
+                    plan,
+                    qc,
+                    countCompletedThisMonth: roastSessionApi.countCompletedThisMonth,
+                    countCompletedTotal: roastSessionApi.countCompletedTotal,
+                    saveOp: roastSessionApi.saveOp,
+                    flushCurve: flushTsv,
+                },
+                params,
+            );
+        },
+        [isWorkspaceReady, workspaceOwnerId, plan, qc],
+    );
+    const resumeSave = useCallback(
+        async (pending: PendingRoastSave) => {
             setIsSaving(true);
             try {
-                return await saveRoastCore(
-                    {
-                        plan,
-                        userId,
-                        qc,
-                        planBatchHandoff,
-                        countCompletedThisMonth: roastSessionApi.countCompletedThisMonth,
-                        countCompletedTotal: roastSessionApi.countCompletedTotal,
-                        saveOp: roastSessionApi.saveOp,
-                        flushCurve: flushTsv,
-                        syncRoastCurve,
-                        updatePlanBatch,
-                        startBatch,
-                        recordAdhocSave: (p) => useRoastSessionStore.getState().recordAdhocSave(p),
-                        getFinalizedBbp: () => useBbpStore.getState().finalized,
+                return await resumePendingRoastSave({
+                    pending,
+                    ownerId: workspaceOwnerId,
+                    saveRoast,
+                    findSession: roastSessionApi.find,
+                    ensureAccess: async () => {
+                        if (
+                            !isWorkspaceReady ||
+                            !workspaceOwnerId ||
+                            pending.params.userId !== workspaceOwnerId ||
+                            !(await ensureSession())
+                        ) {
+                            throw new Error(i18n.t('activeRoast.summary.sessionExpired'));
+                        }
                     },
-                    {
-                        ...params,
-                        machineSnapshot: params.machineSnapshot ?? useRoastingStore.getState().machineSnapshot,
+                    resolveForRoast: planBatchApi.resolveForRoast,
+                    syncBatch: async (saved) => {
+                        if (saved.plan_batch_id)
+                            await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
+                        invalidateScheduledBatchQueries(qc);
+                        await invalidateRoastSessionQueries(qc, saved.user_id);
                     },
-                );
+                    syncRoastCurve,
+                });
             } finally {
                 setIsSaving(false);
             }
         },
-        [userId, isWorkspaceReady, plan, qc, syncRoastCurve, planBatchHandoff, startBatch, updatePlanBatch],
+        [workspaceOwnerId, isWorkspaceReady, saveRoast, syncRoastCurve, qc],
     );
-
-    return useMemo(
-        () => ({
-            saveRoast,
-            isSaving,
-        }),
-        [saveRoast, isSaving],
-    );
+    return useMemo(() => ({ saveRoast, resumeSave, isSaving }), [saveRoast, resumeSave, isSaving]);
 };

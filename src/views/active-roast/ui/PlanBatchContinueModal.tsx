@@ -1,13 +1,14 @@
+import { formatRoastSaveError } from '@features/active-roast/lib/saveErrorClassification';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { type FC, useEffect, useState } from 'react';
+import { type FC, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface PlanBatchContinueModalProps {
     show: boolean;
     candidates: PlanBatchWithProgress[];
-    onStartNext: (row: PlanBatchWithProgress) => void;
+    onStartNext: (row: PlanBatchWithProgress) => Promise<void>;
     onDismiss: () => void;
     onGoToSchedule?: () => void;
 }
@@ -20,6 +21,23 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
     onGoToSchedule,
 }) => {
     const { t } = useTranslation();
+    const [busy, setBusy] = useState(false);
+    const inFlight = useRef(false);
+    const [error, setError] = useState<string | null>(null);
+    const start = async (row: PlanBatchWithProgress) => {
+        if (inFlight.current) return;
+        inFlight.current = true;
+        setBusy(true);
+        setError(null);
+        try {
+            await onStartNext(row);
+        } catch (err) {
+            setError(formatRoastSaveError(err));
+        } finally {
+            inFlight.current = false;
+            setBusy(false);
+        }
+    };
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -37,12 +55,19 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
 
     return (
         <ModalShell
-            onClose={onDismiss}
+            onClose={() => {
+                if (!inFlight.current) onDismiss();
+            }}
             labelledBy="plan-batch-continue-title"
             overlayClassName="z-[10000]"
             contentClassName={modalPanel.sm}
             data-testid="plan-batch-continue-modal"
         >
+            {error && (
+                <p role="alert" className="mb-2 text-sm text-red-500">
+                    {error}
+                </p>
+            )}
             <h2
                 id="plan-batch-continue-title"
                 className="text-[18px] font-semibold leading-tight text-primary tracking-[-0.3px] mb-1.5"
@@ -65,6 +90,7 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
                         <button
                             key={batch.id}
                             type="button"
+                            disabled={busy}
                             data-testid={`plan-batch-candidate-${batch.id}`}
                             onClick={() => setSelectedId(batch.id)}
                             className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left border transition-colors cursor-pointer ${
@@ -108,14 +134,16 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
             <div className="flex flex-col gap-2">
                 <button
                     type="button"
+                    disabled={busy}
                     data-testid="plan-batch-continue"
-                    onClick={() => onStartNext(selected)}
+                    onClick={() => void start(selected)}
                     className="w-full py-3 rounded-full border-none bg-primary text-white text-[13px] font-semibold cursor-pointer tracking-[0.1px] hover:opacity-90 transition-opacity"
                 >
                     {isSingleSameBatch ? t('activeRoast.planBatch.nextSession') : t('activeRoast.planBatch.nextBatch')}
                 </button>
                 <button
                     type="button"
+                    disabled={busy}
                     data-testid="plan-batch-done"
                     onClick={onDismiss}
                     className="w-full py-2.5 rounded-full border-none bg-surface text-secondary text-[13px] font-medium cursor-pointer shadow-(--shadow-inset) hover:bg-surface-raised transition-colors"
@@ -125,6 +153,7 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
                 {onGoToSchedule && (
                     <button
                         type="button"
+                        disabled={busy}
                         data-testid="plan-batch-schedule"
                         onClick={onGoToSchedule}
                         className="w-full py-2 text-[12px] font-medium text-muted cursor-pointer bg-transparent border-none hover:text-secondary transition-colors"

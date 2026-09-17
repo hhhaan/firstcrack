@@ -715,7 +715,20 @@
             "askMsg": "发现未保存的烘焙记录。现在保存吗？详细信息可稍后在历史记录中编辑。",
             "saved": "已恢复并保存之前未保存的烘焙记录。",
             "failed": "恢复的烘焙记录保存失败。下次启动时将重试。",
-            "discarded": "恢复的烘焙记录数值无效、无法保存，已将其丢弃。"
+            "discarded": "恢复的烘焙记录数值无效、无法保存，已将其丢弃。",
+            "pending": "待恢复烘焙 ({{count}})",
+            "syncPending": "烘焙已保存，等待同步。",
+            "bean": "生豆",
+            "noBean": "无库存豆",
+            "inputWeight": "投豆量 (kg)",
+            "outputWeight": "出豆量 (kg)",
+            "scheduleDate": "计划日期",
+            "batch": "关联批次",
+            "unlink": "取消此烘焙的关联",
+            "retry": "保存 / 重试",
+            "discardConfirm": "确定丢弃此恢复记录？此操作无法撤销。",
+            "discard": "丢弃恢复记录",
+            "noBbp": "我确认此烘焙未记录批次间曲线。"
         }
     },
     "schedule": {

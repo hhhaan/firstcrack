@@ -213,7 +213,7 @@ describe('tsv-writer', () => {
         expect(removed).toEqual(['session_s1.tsv']);
     });
 
-    it('isolates write errors without rejecting flush', async () => {
+    it('retains append errors across flushes without replaying failed rows', async () => {
         let n = 0;
         _resetTsvWriterForTests({
             write: async (path, contents, options) => {
@@ -229,8 +229,26 @@ describe('tsv-writer', () => {
         await initSessionTsv('s1');
         enqueueTsvRow('s1', 'a\n');
         enqueueTsvRow('s1', 'b\n');
-        await expect(flushTsv('s1')).resolves.toBeUndefined();
+        await expect(flushTsv('s1')).rejects.toThrow('disk full');
+        await expect(flushTsv()).rejects.toThrow('disk full');
+        await expect(initSessionTsv('s1')).rejects.toThrow('disk full');
+        await expect(deleteSessionTsv('s1')).rejects.toThrow('disk full');
+        expect(removed).toEqual([]);
         expect(writes.filter((w) => w.append).map((w) => w.contents)).toEqual(['b\n']);
+    });
+
+    it('does not rewrite the header or replay partial buffered appends', async () => {
+        const write = vi.fn(async (_path: string, contents: string) => {
+            if (contents === 'partial\n') throw new Error('partial append');
+        });
+        _resetTsvWriterForTests({ write });
+        enqueueTsvRow('s1', 'partial');
+        enqueueTsvRow('s1', 'following');
+        await flushTsv('s1');
+        await expect(initSessionTsv('s1')).rejects.toThrow('partial append');
+        await expect(initSessionTsv('s1')).rejects.toThrow('partial append');
+        await expect(flushTsv('s1')).rejects.toThrow('partial append');
+        expect(write.mock.calls.map(([, contents]) => contents)).toEqual([TSV_HEADER, 'partial\n', 'following\n']);
     });
 
     it('appends newline if missing', async () => {

@@ -79,11 +79,13 @@ export const patchRoastSessionTsvPaths = (
     qc: QueryClient,
     userId: string,
     roastSessionId: string,
-    key: string,
+    key: string | null,
     bbpKey: string | null,
 ) => {
     const patch = (row: RoastSessionWithRelations) =>
-        row.id === roastSessionId ? { ...row, tsv_path: key, bbp_tsv_path: bbpKey ?? row.bbp_tsv_path } : row;
+        row.id === roastSessionId
+            ? { ...row, tsv_path: key ?? row.tsv_path, bbp_tsv_path: bbpKey ?? row.bbp_tsv_path }
+            : row;
 
     qc.setQueriesData({ queryKey: roastSessionKeys.all(userId) }, (old: unknown) => {
         if (Array.isArray(old)) {

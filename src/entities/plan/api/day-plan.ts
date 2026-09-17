@@ -22,6 +22,10 @@ export const dayPlanApi = {
             .insert({ user_id: userId, date, notes: '' })
             .select()
             .single();
+        if (error?.code === '23505') {
+            const winner = await dayPlanApi.get(userId, date);
+            if (winner) return winner;
+        }
         if (error) throw error;
         return data;
     },
