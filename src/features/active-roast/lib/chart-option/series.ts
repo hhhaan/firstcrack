@@ -83,7 +83,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 yAxisIndex: 0,
                 z: 1,
                 data: targetXs.map((x, i) => [x, targetBt[i] ?? null]),
-                lineStyle: { color: colors.btTarget, width: 0.8, type: 'solid' },
+                lineStyle: { color: colors.btTarget, width: 0.8, type: 'dashed' },
                 ...lineSeriesBase,
                 smooth: false,
             },

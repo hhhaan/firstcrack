@@ -15,6 +15,8 @@ type Props = {
     autoYellowEnabled?: boolean;
     autoChargeEnabled?: boolean;
     autoChargeMode?: 'standard' | 'sensitive';
+    autoDropEnabled?: boolean;
+    autoDropMode?: 'standard' | 'sensitive';
     pollIntervalMs?: 500 | 1000;
     onAutoCharge?: (bt: number, timeMs?: number) => void;
     onAutoDrop?: (onset?: { timeSec: number; bt: number }) => void;
@@ -46,7 +48,8 @@ const renderAutoDetection = (initial: Props) => {
             autoChargeEnabled: p.autoChargeEnabled ?? true,
             autoChargeMode: p.autoChargeMode ?? 'standard',
             pollIntervalMs: p.pollIntervalMs ?? 500,
-            autoDropDropC: 8,
+            autoDropEnabled: p.autoDropEnabled ?? true,
+            autoDropMode: p.autoDropMode ?? 'standard',
             yellowTempC: 150,
             unit: 'C',
             markEvent: p.markEvent,
@@ -392,37 +395,58 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         },
     );
 
-    it('preserves the legacy display-BT Drop threshold and 180s gate', () => {
-        vi.useFakeTimers();
-        const h = setup('roasting', 170);
-        const displaySample = (t: number, bt: number) => {
-            vi.setSystemTime(origin + t * 1000);
-            act(() =>
-                useRoastingStore.getState().updateLiveData({
-                    bt,
-                    bt_raw: 100,
-                    timestamp: t,
-                    receivedAtMs: Date.now(),
-                    et: null,
-                    ror: 0,
-                    ror_et: 0,
-                    heater: 0,
-                    fan: 0,
-                    drum: 0,
-                }),
-            );
-        };
-        for (let i = 0; i < 5; i++) displaySample(170 + i, 200 - i * 6);
-        expect(h.onAutoDrop).not.toHaveBeenCalled();
-        act(() => useRoastingStore.setState({ elapsed: 200 }));
-        act(() => h.result.resetAutoDetection());
-        // Raw/display divergence must not make Drop use the Charge detector.
-        for (let i = 0; i < 5; i++) displaySample(200 + i, 200 - i * 0.5);
-        expect(h.onAutoDrop).not.toHaveBeenCalled();
-        displaySample(205, 192);
-        displaySample(206, 186);
-        displaySample(207, 180);
+    it('detects raw BT drop after 7 min and marks the bend, not display EMA', () => {
+        const h = setup('roasting', 430);
+        for (let i = 0; i <= 16; i++) sample(i, 200 - Math.max(0, i - 10));
         expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
+        expect(h.onAutoDrop.mock.calls[0][0]).toEqual({ timeSec: 10, bt: 200 });
         expect(h.onAutoCharge).not.toHaveBeenCalled();
+    });
+
+    it('does not drop before 7 min, below 160 C, or from display-only BT', () => {
+        const early = setup('roasting', 170);
+        for (let i = 0; i <= 16; i++) sample(i, 200 - Math.max(0, i - 10));
+        expect(early.onAutoDrop).not.toHaveBeenCalled();
+        act(() => {
+            for (const root of roots.splice(0)) root.unmount();
+        });
+        act(() => useRoastingStore.getState().reset());
+        const cool = setup('roasting', 430);
+        for (let i = 0; i <= 16; i++) sample(i, 90 - Math.max(0, i - 10));
+        expect(cool.onAutoDrop).not.toHaveBeenCalled();
+        act(() => {
+            for (const root of roots.splice(0)) root.unmount();
+        });
+        act(() => useRoastingStore.getState().reset());
+        const display = setup('roasting', 430);
+        act(() =>
+            useRoastingStore.getState().updateLiveData({
+                bt: 180,
+                bt_raw: 100,
+                timestamp: 12,
+                receivedAtMs: origin + 12_000,
+                et: null,
+                ror: 0,
+                ror_et: 0,
+                heater: 0,
+                fan: 0,
+                drum: 0,
+            }),
+        );
+        expect(display.onAutoDrop).not.toHaveBeenCalled();
+    });
+
+    it('rejects steady cooling and does not charge during roasting', () => {
+        const h = setup('roasting', 430);
+        for (let i = 0; i <= 80; i++) sample(i, 220 - 0.4 * i);
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+    });
+
+    it('blocks auto Drop after a manual mark', () => {
+        const h = setup('roasting', 430);
+        act(() => h.result.disableAutoDrop());
+        for (let i = 0; i <= 16; i++) sample(i, 200 - Math.max(0, i - 10));
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
     });
 });

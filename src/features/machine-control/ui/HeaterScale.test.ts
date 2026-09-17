@@ -230,10 +230,16 @@ describe('HeaterScale A′ (#436)', () => {
         unmount();
     });
 
-    it('10의 배수만 숫자 라벨로 보여 주고 5는 눈금만 둔다', () => {
+    it('10은 왼쪽, 5·15·25는 오른쪽에 숫자를 둔다', () => {
         const { container, unmount } = renderScale();
-        expect(container.querySelector('[data-tick="90"]')?.textContent).toContain('90');
-        expect(container.querySelector('[data-tick="95"]')?.textContent?.trim()).toBe('');
+        const ten = container.querySelector('[data-tick="90"]');
+        const five = container.querySelector('[data-tick="15"]');
+        expect(ten?.querySelector('[data-tick-label="ten"]')?.textContent).toBe('90');
+        expect(ten?.querySelector('[data-tick-label="five"]')?.textContent).toBe('');
+        expect(five?.querySelector('[data-tick-label="ten"]')?.textContent).toBe('');
+        expect(five?.querySelector('[data-tick-label="five"]')?.textContent).toBe('15');
+        expect(container.querySelector('[data-tick="5"] [data-tick-label="five"]')?.textContent).toBe('5');
+        expect(container.querySelector('[data-tick="25"] [data-tick-label="five"]')?.textContent).toBe('25');
         unmount();
     });
 

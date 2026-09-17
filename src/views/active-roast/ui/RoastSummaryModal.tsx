@@ -20,7 +20,7 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
-import { Check, Coffee } from 'lucide-react';
+import { Check, Coffee, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -242,8 +242,17 @@ export const RoastSummaryModal = ({
             dismissable={false}
             labelledBy="roast-summary-modal-title"
             overlayClassName="z-[10000]"
-            contentClassName={`${modalPanel.sm} max-h-[min(720px,calc(100vh-64px))] !p-0 flex flex-col overflow-hidden`}
+            contentClassName={`${modalPanel.sm} max-h-[min(720px,calc(100vh-64px))] !p-0 flex flex-col overflow-hidden relative`}
         >
+            <button
+                type="button"
+                data-testid="roast-summary-close"
+                onClick={onClose}
+                aria-label={t('common.close')}
+                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated"
+            >
+                <X size={18} strokeWidth={2.3} />
+            </button>
             <ModalScrollBody contentClassName="px-7 pt-7 pb-4">
                 <div className="w-9 h-9 rounded-md bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] flex items-center justify-center mb-3">
                     <Check size={16} strokeWidth={2.5} />

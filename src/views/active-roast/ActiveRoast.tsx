@@ -340,21 +340,28 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         roastStartTimeRef,
     });
 
-    const { turningPoints, confirmedTP, resetAutoDetection, disableAutoCharge, rearmAutoCharge } = useAutoDetection({
-        livePoints,
-        onAutoCharge: triggerCharge,
-        onAutoDrop: handleAutoDrop,
-        onTurningPoint: handleTurningPoint,
-        autoChargeEnabled: roastSettings.autoChargeEnabled,
-        autoChargeMode: roastSettings.autoChargeMode,
-        pollIntervalMs,
-        autoDropDropC: roastSettings.autoDropDropC,
-        yellowTempC: roastSettings.yellowTempC,
-        unit,
-        markEvent,
-        logEntries,
-        autoYellowEnabled: roastSettings.autoYellowEnabled,
-    });
+    const { turningPoints, confirmedTP, resetAutoDetection, disableAutoCharge, rearmAutoCharge, disableAutoDrop } =
+        useAutoDetection({
+            livePoints,
+            onAutoCharge: triggerCharge,
+            onAutoDrop: handleAutoDrop,
+            onTurningPoint: handleTurningPoint,
+            autoChargeEnabled: roastSettings.autoChargeEnabled,
+            autoChargeMode: roastSettings.autoChargeMode,
+            pollIntervalMs,
+            autoDropEnabled: roastSettings.autoDropEnabled,
+            autoDropMode: roastSettings.autoDropMode,
+            yellowTempC: roastSettings.yellowTempC,
+            unit,
+            markEvent,
+            logEntries,
+            autoYellowEnabled: roastSettings.autoYellowEnabled,
+        });
+
+    const markDrop = useCallback(() => {
+        disableAutoDrop();
+        handleDrop();
+    }, [disableAutoDrop, handleDrop]);
 
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
@@ -508,7 +515,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         },
         onMarkEvent: markEvent,
         onCycleFc: fcDualMarkEnabled ? cycleFc : undefined,
-        onMarkDrop: handleDrop,
+        onMarkDrop: markDrop,
     });
 
     useChartKeyboard({
@@ -624,6 +631,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             {phase === 'standby' && roastSettings.autoChargeEnabled && !hasRawTemperature && (
                 <p role="status" className="text-sm text-muted-foreground">
                     {t('settings.tabs.roast.autoChargeUnavailable')}
+                </p>
+            )}
+            {phase === 'roasting' && roastSettings.autoDropEnabled && !hasRawTemperature && (
+                <p role="status" className="text-sm text-muted-foreground">
+                    {t('settings.tabs.roast.autoDropUnavailable')}
                 </p>
             )}
 
@@ -774,7 +786,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onNoteSubmit={handleNoteSubmit}
                         onMarkEvent={markEvent}
                         onCycleFc={cycleFc}
-                        onHandleDrop={handleDrop}
+                        onHandleDrop={markDrop}
                         onRemoveLogEntry={removeLogEntry}
                         onEnterStandby={lifecycle.handleEnterStandby}
                         onManualCharge={lifecycle.handleManualCharge}

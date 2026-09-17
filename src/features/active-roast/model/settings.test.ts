@@ -103,19 +103,29 @@ describe('FEATURE.fastPolling plan matrix', () => {
     });
 });
 
-it('defaults legacy Charge settings and preserves explicit modes and Drop threshold', () => {
+it('defaults legacy Charge/Drop thresholds to Standard and ignores stored °C values', () => {
     const legacy = { yellowTempC: 150, autoChargeDropC: 7, autoDropDropC: 12 };
     expect(normalizeRoastSettings(legacy)).toMatchObject({
         autoChargeEnabled: true,
         autoChargeMode: 'standard',
-        autoDropDropC: 12,
+        autoDropEnabled: true,
+        autoDropMode: 'standard',
     });
+    expect((normalizeRoastSettings(legacy) as { autoDropDropC?: unknown }).autoDropDropC).toBeUndefined();
     expect(normalizeRoastSettings({ autoChargeEnabled: false, autoChargeMode: 'sensitive' })).toMatchObject({
         autoChargeEnabled: false,
         autoChargeMode: 'sensitive',
     });
+    expect(normalizeRoastSettings({ autoDropEnabled: false, autoDropMode: 'sensitive' })).toMatchObject({
+        autoDropEnabled: false,
+        autoDropMode: 'sensitive',
+    });
     expect(normalizeRoastSettings({ autoChargeEnabled: 'false', autoChargeMode: 'invalid' } as never)).toMatchObject({
         autoChargeEnabled: true,
         autoChargeMode: 'standard',
+    });
+    expect(normalizeRoastSettings({ autoDropEnabled: 'false', autoDropMode: 'invalid' } as never)).toMatchObject({
+        autoDropEnabled: true,
+        autoDropMode: 'standard',
     });
 });

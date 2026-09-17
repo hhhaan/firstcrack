@@ -65,7 +65,7 @@
 /* ── Sensor & chart tokens (light) ──────────────────────────── */
 :root {
     --color-sensor-bt: oklch(0.6 0.18 155);
-    --color-sensor-bt-target: oklch(0.55 0 0);
+    --color-sensor-bt-target: oklch(0.6 0.18 155 / 0.55);
     --color-sensor-et: oklch(0.6 0.17 225);
     --color-sensor-ror: oklch(0.78 0.18 88);
     --color-chart-grid: rgba(0, 0, 0, 0.08);
@@ -147,7 +147,7 @@ html.dark {
 
     /* Sensor & chart tokens (dark) */
     --color-sensor-bt: #4be08c;
-    --color-sensor-bt-target: oklch(0.72 0 0);
+    --color-sensor-bt-target: rgba(75, 224, 140, 0.65);
     --color-sensor-et: #beacf8;
     --color-sensor-ror: #ffff54;
     --color-chart-grid: rgba(255, 255, 255, 0.1);

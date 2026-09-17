@@ -22,7 +22,7 @@ interface UseRoastActionsParams {
 interface UseRoastActionsReturn {
     /** chargeTimeMs: auto-charge 후처리 onset 시각. 없으면 Date.now() (manual). */
     triggerCharge: (btAtCharge?: number | null, chargeTimeMs?: number) => void;
-    /** onset: auto-drop lookback 결과. 없으면 현재 elapsed/BT. */
+    /** onset: BTbreak 꺾임 점. 없으면 현재 elapsed/BT. */
     handleAutoDrop: (onset?: { timeSec: number; bt: number }) => void;
     handleTurningPoint: (tp: TurningPoint) => void;
 }
@@ -66,23 +66,23 @@ export const useRoastActions = ({
 
     const handleAutoDrop = useCallback(
         (onset?: { timeSec: number; bt: number }) => {
+            const timeSec = Math.max(0, onset?.timeSec ?? useRoastingStore.getState().elapsed);
+            const btVal = onset?.bt ?? rawBT;
+            const entry: LogEntry = {
+                id: crypto.randomUUID(),
+                time: formatElapsed(timeSec),
+                timeSec,
+                event: 'Drop',
+                temp: formatTemp(btVal, unit),
+                tempC: btVal,
+                note: 'Bean drop detected',
+            };
             setLogEntries((prev) => {
                 if (prev.some((e) => e.event === 'Drop')) return prev;
-                const timeSec = Math.max(0, onset?.timeSec ?? useRoastingStore.getState().elapsed);
-                const btVal = onset?.bt ?? rawBT;
-                return [
-                    ...prev,
-                    {
-                        id: crypto.randomUUID(),
-                        time: formatElapsed(timeSec),
-                        timeSec,
-                        event: 'Drop',
-                        temp: formatTemp(btVal, unit),
-                        tempC: btVal,
-                        note: 'Bean drop detected',
-                    },
-                ].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+                return [...prev, entry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
             });
+            // Do not gate this on the updater. React may run the updater later in the same
+            // batch; PID/Replay already stop when the Drop log appears.
             setShowEndRoastModal();
         },
         [rawBT, unit, setLogEntries, setShowEndRoastModal],

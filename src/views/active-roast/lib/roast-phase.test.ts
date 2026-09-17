@@ -9,10 +9,11 @@ describe('waitPhaseAfterRoastReset', () => {
 });
 
 describe('getRoastPhaseName', () => {
-    it('End 이후 BBP 중에는 CHARGE WAIT', () => {
+    it('BBP 대기(reset 후)는 CHARGE WAIT, ended는 ENDED (#484)', () => {
         expect(getRoastPhaseName(false, 'preheating', 0, [], true)).toBe('CHARGE WAIT');
         expect(getRoastPhaseName(false, 'standby', 0, [], true)).toBe('CHARGE WAIT');
-        expect(getRoastPhaseName(true, 'ended', 480, [], true)).toBe('CHARGE WAIT');
+        expect(getRoastPhaseName(true, 'ended', 480, [], true)).toBe('ENDED');
+        expect(getRoastPhaseName(true, 'ended', 480, [])).toBe('ENDED');
     });
 
     it('첫 배치 예열은 PREHEATING/READY를 유지한다', () => {
@@ -24,5 +25,10 @@ describe('getRoastPhaseName', () => {
 describe('getRoastPhaseColor', () => {
     it('CHARGE WAIT uses the ready (wait) color, not drying', () => {
         expect(getRoastPhaseColor(true, 'CHARGE WAIT')).toBe(getRoastPhaseColor(false, 'READY'));
+    });
+
+    it('ENDED uses development color, not CHARGE WAIT ready', () => {
+        expect(getRoastPhaseColor(true, 'ENDED')).toBe(getRoastPhaseColor(true, 'Development'));
+        expect(getRoastPhaseColor(true, 'ENDED')).not.toBe(getRoastPhaseColor(true, 'CHARGE WAIT'));
     });
 });

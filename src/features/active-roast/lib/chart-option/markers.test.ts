@@ -97,14 +97,14 @@ describe('buildMarkers label position', () => {
             expect.objectContaining({
                 timeSec: 480,
                 y: 196,
-                text: '[08:00] FC Start @ 196.0°C',
+                text: 'FC Start | 08:00 | 196.0°C',
                 below: false,
                 showDot: eventMarkerStyle === 'point',
             }),
             expect.objectContaining({
                 timeSec: 520,
                 y: 200,
-                text: '[08:40] FC Rolling @ 200.0°C',
+                text: 'FC Rolling | 08:40 | 200.0°C',
                 below: true,
                 showDot: eventMarkerStyle === 'point',
             }),
@@ -147,13 +147,13 @@ describe('event marker visual grammar', () => {
 
         expect(result.markPointData).toEqual([]);
         expect(result.curveLabels[0]).toMatchObject({
-            text: '[09:00] Open damper @ 200.0°C',
+            text: 'Open damper | 09:00 | 200.0°C',
             color: '#eee',
             y: 202,
             showDot: false,
         });
         expect(result.curveLabels[1]).toMatchObject({
-            text: '[09:00] Heater → 50% @ 200.0°C',
+            text: 'Heater → 50% | 09:00 | 200.0°C',
             color: '#c00',
             y: 202,
             showDot: false,
@@ -179,7 +179,7 @@ describe('event marker visual grammar', () => {
         expect(result.curveLabels[0]).toMatchObject({
             timeSec: 591,
             y: 250,
-            text: '[09:51] No sample @ —',
+            text: 'No sample | 09:51 | —',
             showDot: false,
         });
     });
@@ -190,7 +190,7 @@ describe('event marker visual grammar', () => {
             eventMarkerStyle: 'point',
             eventMarkers: [{ timeSec: 540, event: 'Note', color: '#old', timeStr: '', temp: '', note: '{b}' }],
         });
-        expect(result.curveLabels[0]?.text).toBe('[09:00] {b} @ 202.0°C');
+        expect(result.curveLabels[0]?.text).toBe('{b} | 09:00 | 202.0°C');
         expect(result.curveLabels[0]?.showDot).toBe(true);
     });
 
@@ -208,7 +208,7 @@ describe('event marker visual grammar', () => {
         };
         expect(eventLine.lineStyle).toMatchObject({ color: '#888', width: 0.6 });
         expect(eventLine.label).toEqual({ show: false });
-        expect(result.curveLabels[0]?.text).toBe('[08:00] Yellow @ 196.0°C');
+        expect(result.curveLabels[0]?.text).toBe('Yellow | 08:00 | 196.0°C');
         expect(result.controlGuideMarkLines).toEqual(
             expect.arrayContaining([expect.objectContaining({ xAxis: 480, label: { show: false } })]),
         );
@@ -220,7 +220,7 @@ describe('layoutCurveLabelBoxes', () => {
         timeSec: 0,
         xPx: 100,
         yPx: 200,
-        text: '[08:10] FC Start @ 185.8°C',
+        text: 'FC Start | 08:10 | 185.8°C',
         below: false,
         color: '#111',
         showDot: false,
@@ -236,8 +236,8 @@ describe('layoutCurveLabelBoxes', () => {
 
     it('stacks same-spot labels so their boxes do not overlap', () => {
         const [first, second] = layoutCurveLabelBoxes([
-            item({ timeSec: 490, text: '[08:10] FC Start @ 185.8°C' }),
-            item({ timeSec: 490, text: '[08:10] Heater → 35% @ 185.8°C' }),
+            item({ timeSec: 490, text: 'FC Start | 08:10 | 185.8°C' }),
+            item({ timeSec: 490, text: 'Heater → 35% | 08:10 | 185.8°C' }),
         ]);
         expect(second.bottom).toBeLessThanOrEqual(first.top - 2);
         expect(second.textY).toBeLessThan(first.textY);
@@ -245,10 +245,10 @@ describe('layoutCurveLabelBoxes', () => {
 
     it('nudges a later Drop above the FC cluster instead of overlapping', () => {
         const boxes = layoutCurveLabelBoxes([
-            item({ timeSec: 490, xPx: 800, yPx: 120, text: '[08:10] FC Start @ 185.8°C' }),
-            item({ timeSec: 490, xPx: 800, yPx: 120, text: '[08:10] Heater → 35% @ 185.8°C' }),
-            item({ timeSec: 520, xPx: 820, yPx: 110, text: '[08:40] FC Rolling @ 191.5°C', below: true }),
-            item({ timeSec: 630, xPx: 900, yPx: 90, text: '[10:30] Drop @ 207.0°C' }),
+            item({ timeSec: 490, xPx: 800, yPx: 120, text: 'FC Start | 08:10 | 185.8°C' }),
+            item({ timeSec: 490, xPx: 800, yPx: 120, text: 'Heater → 35% | 08:10 | 185.8°C' }),
+            item({ timeSec: 520, xPx: 820, yPx: 110, text: 'FC Rolling | 08:40 | 191.5°C', below: true }),
+            item({ timeSec: 630, xPx: 900, yPx: 90, text: 'Drop | 10:30 | 207.0°C' }),
         ]);
         const drop = boxes[3];
         const others = boxes.slice(0, 3);
@@ -303,7 +303,7 @@ describe('Charge marker (#451)', () => {
             expect.arrayContaining([
                 expect.objectContaining({
                     timeSec: 0,
-                    text: '[00:00] Charge @ 210.1°C',
+                    text: 'Charge | 00:00 | 210.1°C',
                     showDot: false,
                 }),
             ]),

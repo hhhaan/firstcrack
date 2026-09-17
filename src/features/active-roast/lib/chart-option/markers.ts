@@ -27,7 +27,7 @@ const formatMarkerTime = (timeSec: number) => {
 
 export const eventLabelText = (event: string, timeSec: number, temp: string, note?: string) => {
     const name = event === 'Note' ? note?.trim() || event : event === 'Heater' && note ? `${event} → ${note}` : event;
-    return `[${formatMarkerTime(timeSec)}] ${name} @ ${temp || '—'}`;
+    return `${name} | ${formatMarkerTime(timeSec)} | ${temp || '—'}`;
 };
 
 export const MARKER_LABEL_STACK_PX = 14;

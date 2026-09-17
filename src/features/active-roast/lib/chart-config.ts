@@ -65,8 +65,8 @@ export const getResolvedChartColors = () => {
     };
 
     return {
-        btTarget: gv('--color-sensor-bt-target', '#777'),
-        btTargetTooltip: gv('--color-sensor-bt-target', '#777'),
+        btTarget: gv('--color-sensor-bt-target', 'rgba(0,157,76,0.55)'),
+        btTargetTooltip: gv('--color-sensor-bt-target', 'rgba(0,157,76,0.55)'),
         btActual: gv('--color-sensor-bt', '#009d4c'),
         etActual: gv('--color-sensor-et', '#0091cb'),
         rorActual: gv('--color-sensor-ror', '#e7ae00'),

@@ -30,7 +30,7 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | `git commit` (2) | migration staged w/o `database.types.ts` → block (bypass `SKIP_TYPES_GEN=1`) | no |
 | `git push` | `pnpm verify:all` | no |
 | main push `supabase/functions/**` | EF deploy → POST probe each deployed fn (503/BOOT_ERROR = fail) | no |
-| CI | `check` (typecheck+biome+i18n+registry+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), ios-check (`src-tauri/**` only), edge-check (`deno check`) | no |
+| CI | `check` (typecheck+biome+i18n+registry+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), ios-check (off until iPad: repo var `IOS_CHECK=true` enables; `src-tauri/**` only), edge-check (`deno check`) | no |
 | schedule (Mon 09:00 KST) | gitleaks (HEAD tree + last 7d history) | no |
 | `pnpm release` / `v*` tag | 3-platform build (+ sidecar `/status` smoke) → `supabase db push` → R2 publish | no |
 

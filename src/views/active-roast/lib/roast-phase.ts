@@ -16,6 +16,8 @@ export const getRoastPhaseName = (
     logEntries: LogEntry[],
     bbpActive = false,
 ): string => {
+    // Unsaved ended is not the next-batch wait (#484). CHARGE WAIT is post-reset standby.
+    if (phase === 'ended') return 'ENDED';
     if (bbpActive) return 'CHARGE WAIT';
     if (!charged) {
         switch (phase) {
@@ -39,6 +41,7 @@ export const getRoastPhaseName = (
 export const getRoastPhaseColor = (charged: boolean, phaseName: string): string => {
     if (!charged || phaseName === 'CHARGE WAIT') return PHASE_COLORS.ready;
     switch (phaseName) {
+        case 'ENDED':
         case 'Development':
             return PHASE_COLORS.development;
         case 'Maillard':

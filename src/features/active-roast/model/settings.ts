@@ -2,7 +2,7 @@ import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
-import type { AutoChargeMode } from '../lib/autoCharge';
+import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
@@ -51,8 +51,8 @@ export type RoastSettings = {
     fcDualMarkEnabled: boolean;
     autoChargeEnabled: boolean;
     autoChargeMode: AutoChargeMode;
-    /** BT drop within the detection window that auto-marks Drop (after 3 min). */
-    autoDropDropC: number;
+    autoDropEnabled: boolean;
+    autoDropMode: AutoDropMode;
     preChargeDisplaySec: number;
     /** Live threshold alarms (RoR crash / BT ceiling). */
     alertsEnabled: boolean;
@@ -114,7 +114,8 @@ const DEFAULT_SETTINGS: RoastSettings = {
     fcDualMarkEnabled: false,
     autoChargeEnabled: true,
     autoChargeMode: 'standard',
-    autoDropDropC: 8,
+    autoDropEnabled: true,
+    autoDropMode: 'standard',
     preChargeDisplaySec: 60,
     alertsEnabled: true,
     alertSoundEnabled: true,
@@ -159,7 +160,10 @@ export const coercePollIntervalForPlan = (ms: PollIntervalMs, canFastPoll: boole
     ms === 500 && !canFastPoll ? 1000 : ms;
 
 export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
-    const merged = { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
+    const { autoDropDropC: _legacyDropC, ...rest } = { ...(raw ?? {}) } as Partial<RoastSettings> & {
+        autoDropDropC?: unknown;
+    };
+    const merged = { ...DEFAULT_SETTINGS, ...rest };
     let controlYMin = clampNum(merged.controlYMin, -50, 500, DEFAULT_SETTINGS.controlYMin);
     let controlYMax = clampNum(merged.controlYMax, -50, 500, DEFAULT_SETTINGS.controlYMax);
     if (controlYMax <= controlYMin) {
@@ -188,7 +192,8 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         yellowTempC,
         autoChargeEnabled: asBool(merged.autoChargeEnabled, DEFAULT_SETTINGS.autoChargeEnabled),
         autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',
-        autoDropDropC: clampNum(merged.autoDropDropC, 2, 30, DEFAULT_SETTINGS.autoDropDropC),
+        autoDropEnabled: asBool(merged.autoDropEnabled, DEFAULT_SETTINGS.autoDropEnabled),
+        autoDropMode: merged.autoDropMode === 'sensitive' ? 'sensitive' : 'standard',
         autoYellowEnabled,
         fcDualMarkEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),

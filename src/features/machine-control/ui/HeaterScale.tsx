@@ -22,8 +22,8 @@ const stepBtnCls =
     'flex h-6 min-w-7 items-center justify-center rounded-md border border-black/10 bg-transparent px-1.5 font-mono text-[11px] font-medium text-secondary disabled:cursor-not-allowed dark:border-[#585d61]';
 
 /**
- * % 히터 A′ — 세로 5% 눈금. 노란 채움·큰 숫자·선택 눈금은 desired,
- * 가로선·기기 n은 live (따라오면 muted, 미반영이면 red).
+ * % 히터 A′ — 세로 5% 눈금. 10은 왼쪽, 5·15·25는 오른쪽.
+ * 노란 채움·큰 숫자·선택 눈금은 desired, 가로선·기기 n은 live.
  */
 export const HeaterScale = ({
     limit,
@@ -160,8 +160,19 @@ export const HeaterScale = ({
                 )}
                 <div className="relative flex min-h-0 flex-1 flex-col-reverse justify-between">
                     {ticks.map((tick) => {
-                        const labeled = tick % 10 === 0;
+                        const isTen = tick % 10 === 0;
                         const isSelected = tick === selected;
+                        const labelCls = (on: boolean) =>
+                            cn(
+                                'w-6 shrink-0 font-mono text-[10px] leading-none',
+                                on
+                                    ? isSelected
+                                        ? 'font-semibold text-(--color-control-heat)'
+                                        : isTen
+                                          ? 'text-secondary'
+                                          : 'text-muted'
+                                    : 'invisible',
+                            );
                         return (
                             <button
                                 key={tick}
@@ -173,28 +184,22 @@ export const HeaterScale = ({
                                 onClick={() => commit(tick)}
                                 className="flex h-0 min-h-0 flex-1 cursor-pointer items-center gap-1 border-none bg-transparent px-0 disabled:cursor-not-allowed"
                             >
-                                <span
-                                    className={cn(
-                                        'w-6 shrink-0 text-right font-mono text-[10px] leading-none',
-                                        labeled
-                                            ? isSelected
-                                                ? 'font-semibold text-(--color-control-heat)'
-                                                : 'text-secondary'
-                                            : 'text-transparent',
-                                    )}
-                                >
-                                    {labeled ? tick : ''}
+                                <span data-tick-label="ten" className={cn(labelCls(isTen), 'text-right')}>
+                                    {isTen ? tick : ''}
                                 </span>
                                 <span
                                     className={cn(
                                         'rounded-full',
                                         isSelected
                                             ? 'h-0.5 flex-1 bg-(--color-control-heat)'
-                                            : labeled
+                                            : isTen
                                               ? 'h-px flex-1 bg-border'
-                                              : 'h-px w-3 bg-border-subtle',
+                                              : 'ml-auto h-px w-3 bg-border-subtle',
                                     )}
                                 />
+                                <span data-tick-label="five" className={cn(labelCls(!isTen), 'text-left')}>
+                                    {isTen ? '' : tick}
+                                </span>
                             </button>
                         );
                     })}

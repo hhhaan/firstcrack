@@ -224,7 +224,7 @@ describe('buildRoastChartOption', () => {
         expect(byName['ET Actual']?.width).toBe(0.9);
         expect(byName.RoR?.width).toBe(0.9);
         expect(byName['ET RoR']?.width).toBe(0.9);
-        expect(byName['BT Target']).toMatchObject({ width: 0.8, type: 'solid' });
+        expect(byName['BT Target']).toMatchObject({ width: 0.8, type: 'dashed' });
         expect(byName.Drum?.width).toBe(1);
         expect(byName.Heat?.width).toBe(1);
         expect(byName.Fan?.width).toBe(1);

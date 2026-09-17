@@ -3,25 +3,56 @@ import { inventoryStore } from '@shared/lib/inventoryStore';
 import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
 import { type Theme, useThemeStore } from '@shared/store/theme';
 import { SectionCard } from '@shared/ui/SectionCard';
-import { Languages, Moon, Package, Sun } from 'lucide-react';
+import { Languages, Package } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsCheckRow } from './SettingsOptionRow';
 
-const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string; descKey: string }[] = [
+const themeOptions: { value: Theme; labelKey: string; descKey: string }[] = [
     {
         value: 'light',
-        icon: Sun,
         labelKey: 'settings.tabs.general.themeLight',
         descKey: 'settings.tabs.general.themeLightDescription',
     },
     {
         value: 'dark',
-        icon: Moon,
         labelKey: 'settings.tabs.general.themeDark',
         descKey: 'settings.tabs.general.themeDarkDescription',
     },
+    {
+        value: 'system',
+        labelKey: 'settings.tabs.general.themeSystem',
+        descKey: 'settings.tabs.general.themeSystemDescription',
+    },
 ];
+
+const MiniWindow = ({ dark }: { dark: boolean }) => (
+    <div className={`flex h-full flex-col ${dark ? 'bg-[#1b1b1f]' : 'bg-[#f8fafc]'}`}>
+        <div className={`flex h-5 shrink-0 items-center gap-1 px-2 ${dark ? 'bg-[#3b3a42]' : 'bg-[#d7dce6]'}`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-[#ff6257]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#ffbd2e]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#28c840]" />
+        </div>
+        <div className="flex flex-1 flex-col gap-2 p-3">
+            <span className={`h-1.5 w-[38%] rounded-full ${dark ? 'bg-[#5f5bff]' : 'bg-[#3f82f5]'}`} />
+            <span className={`h-1.5 w-[68%] rounded-full ${dark ? 'bg-[#46464e]' : 'bg-[#c7ced9]'}`} />
+            <span className={`h-1.5 w-[52%] rounded-full ${dark ? 'bg-[#46464e]' : 'bg-[#c7ced9]'}`} />
+        </div>
+    </div>
+);
+
+const ThemePreview = ({ value }: { value: Theme }) => {
+    if (value === 'system') {
+        return (
+            <div className="grid h-full grid-cols-2">
+                <MiniWindow dark={false} />
+                <MiniWindow dark />
+            </div>
+        );
+    }
+
+    return <MiniWindow dark={value === 'dark'} />;
+};
 
 export const GeneralSettingsTab = () => {
     const { t, i18n } = useTranslation();
@@ -44,12 +75,11 @@ export const GeneralSettingsTab = () => {
         <div className="grid gap-4">
             <SectionCard>
                 <SectionCard.Header
-                    icon={<Sun size={16} strokeWidth={1.8} />}
                     title={t('settings.tabs.general.theme')}
                     description={t('settings.tabs.general.themeDescription')}
                 />
-                <SectionCard.Body className="grid grid-cols-2 gap-3">
-                    {themeOptions.map(({ value, icon: Icon, labelKey, descKey }) => {
+                <SectionCard.Body className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {themeOptions.map(({ value, labelKey, descKey }) => {
                         const active = activeTheme === value;
 
                         return (
@@ -57,34 +87,36 @@ export const GeneralSettingsTab = () => {
                                 key={value}
                                 type="button"
                                 onClick={() => setTheme(value)}
-                                className={`flex flex-col items-center gap-2.5 px-4 py-4 rounded-xl border-2 cursor-pointer transition-all text-center ${
-                                    active
-                                        ? 'border-[#E5E7EB] dark:border-[#585D61] bg-[#F9FAFB] dark:bg-[#262B31]'
-                                        : 'border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] hover:border-[#9CA3AF] dark:hover:border-[#666]'
-                                }`}
+                                aria-pressed={active}
+                                aria-label={`${t(labelKey)}: ${t(descKey)}`}
+                                data-theme-option={value}
+                                className="group flex min-w-0 cursor-pointer flex-col gap-2 border-none bg-transparent p-0 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-palette-blue/50"
                             >
-                                <Icon
-                                    size={22}
-                                    strokeWidth={1.8}
-                                    className={
+                                <div
+                                    className={`aspect-[1.68] w-full overflow-hidden rounded-[11px] border-2 bg-surface shadow-(--shadow-edge) transition-all ${
                                         active
-                                            ? 'text-[#111827] dark:text-[#e5e5e5]'
-                                            : 'text-[#6B7280] dark:text-[#999]'
-                                    }
-                                />
-                                <div>
-                                    <div
-                                        className={`text-[13px] ${
-                                            active
-                                                ? 'font-semibold text-[#111827] dark:text-[#e5e5e5]'
-                                                : 'font-medium text-[#374151] dark:text-[#ccc]'
+                                            ? 'border-palette-blue shadow-[0_0_0_1px_var(--color-palette-blue)]'
+                                            : 'border-border group-hover:border-secondary'
+                                    }`}
+                                >
+                                    <ThemePreview value={value} />
+                                </div>
+                                <div className="flex items-center gap-2 px-0.5">
+                                    <span
+                                        aria-hidden="true"
+                                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                                            active ? 'border-palette-blue' : 'border-muted'
+                                        }`}
+                                    >
+                                        {active && <span className="h-2 w-2 rounded-full bg-palette-blue" />}
+                                    </span>
+                                    <span
+                                        className={`text-[14px] tracking-[0.14px] ${
+                                            active ? 'font-semibold text-primary' : 'font-medium text-secondary'
                                         }`}
                                     >
                                         {t(labelKey)}
-                                    </div>
-                                    <div className="text-[11px] text-[#6B7280] dark:text-[#999] mt-0.5">
-                                        {t(descKey)}
-                                    </div>
+                                    </span>
                                 </div>
                             </button>
                         );

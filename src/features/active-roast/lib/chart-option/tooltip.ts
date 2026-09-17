@@ -24,7 +24,7 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
         for (const p of params as any[]) {
             const y = p.value?.[1];
             if (p.seriesName === 'BT Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'BT Actual' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'ET Actual' && showET && y != null)

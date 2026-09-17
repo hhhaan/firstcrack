@@ -87,7 +87,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | Token | Light | Dark | 의미 |
 |---|---|---|---|
 | `--color-sensor-bt` | `oklch(0.6 0.18 155)` | `#4be08c` | Bean Temperature |
-| `--color-sensor-bt-target` | `oklch(0.55 0 0)` | `oklch(0.72 0 0)` | BT 목표 곡선 (회색 참조) |
+| `--color-sensor-bt-target` | `oklch(0.6 0.18 155 / 0.55)` | `rgba(75, 224, 140, 0.65)` | BT 목표 곡선 (초록 점선) |
 | `--color-sensor-et` | `oklch(0.6 0.17 225)` | `#beacf8` | Environmental Temp |
 | `--color-sensor-ror` | `oklch(0.78 0.18 88)` | `#ffff54` | Rate of Rise |
 
@@ -151,7 +151,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 #### Chart visual grammar
 
 - 선 두께(px): BT `1.2`, ET/RoR/ET RoR `0.9`, 타겟 BT `0.8` 회색 실선, 제어 시리즈 `1.0`, 마킹 세로선 `0.6`, 제어 이벤트 세로선 `1.0`.
-- 이벤트 라벨: `[mm:ss] 이름 @ 온도`; 동일 시각은 소스 순서로 `14px`씩 위로 쌓고, 현재 보기 범위의 90%를 넘으면 앵커 왼쪽으로 배치.
+- 이벤트 라벨: `이름 | mm:ss | 온도`; 동일 시각은 소스 순서로 `14px`씩 위로 쌓고, 현재 보기 범위의 90%를 넘으면 앵커 왼쪽으로 배치.
 - `eventMarkerStyle`: `point`(포인트+곡선 라벨), `line`(세로선+가장자리 라벨), `both`(곡선 라벨+제어 차트까지 관통하는 세로선). 기본은 `both`.
 
 ### Shadows

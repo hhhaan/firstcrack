@@ -90,6 +90,18 @@ it('checks deductStock when selectedBeanId is set without handoff', () => {
     unmount();
 });
 
+it('calls onClose from the header X without discarding', () => {
+    const onClose = vi.fn();
+    const onDiscard = vi.fn();
+    const { host, unmount } = renderModal({ onClose, onDiscard });
+    const close = host.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
+    expect(close).not.toBeNull();
+    act(() => close.click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onDiscard).not.toHaveBeenCalled();
+    unmount();
+});
+
 it('unchecks deductStock when a custom bean name is typed', () => {
     useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
     const { host, unmount } = renderModal({ selectedBeanId: 'bean-1' });

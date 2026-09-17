@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createAutoChargeDetector, type RawTemperatureSample } from './autoCharge';
+import { createAutoChargeDetector, createAutoDropDetector, type RawTemperatureSample } from './autoCharge';
 
 const sample = (timestamp: number, bt: number): RawTemperatureSample => ({
     timestamp,
@@ -95,5 +95,75 @@ describe('automatic Charge', () => {
         detector.reset();
         const hits = [200, 200, 200, 200, 199, 198].map((bt, i) => detector.push(sample(i / 2, bt)));
         expect(hits[5]).toEqual(sample(1.5, 200));
+    });
+});
+
+describe('automatic Drop', () => {
+    it.each([500, 1000] as const)('detects 1 C/s onset at %ims, marking p3', (ms) => {
+        const detector = createAutoDropDetector('standard', ms);
+        const period = ms / 1000;
+        let hit = null;
+        let detected = 0;
+        for (let i = 0; i < 60; i++) {
+            const t = i * period;
+            hit = detector.push(sample(t, 200 - Math.max(0, t - 10)));
+            if (hit) {
+                detected = t;
+                break;
+            }
+        }
+        expect(hit).toEqual(sample(10, 200));
+        expect(detected).toBeGreaterThan(10 + 2 * period);
+    });
+    it.each([500, 1000] as const)('rejects steady drift, noise and single spikes at %ims', (ms) => {
+        for (const temperature of [
+            (i: number) => 200 - i * 0.4,
+            (i: number) => 200 + (i % 2) * 0.3,
+            (i: number) => (i === 10 ? 170 : 200),
+        ]) {
+            const detector = createAutoDropDetector('standard', ms);
+            for (let i = 0; i < 60; i++) expect(detector.push(sample((i * ms) / 1000, temperature(i)))).toBeNull();
+        }
+    });
+    it('uses p3 rather than the higher p2 and confirms on the next sample', () => {
+        const detector = createAutoDropDetector('standard', 1000);
+        for (const [i, bt] of [200, 200, 200, 199, 198, 197].entries()) expect(detector.push(sample(i, bt))).toBeNull();
+        expect(detector.push(sample(6, 196))).toEqual(sample(3, 199));
+    });
+    it('uses eleven samples and confirms the wide-only mark on the next reading', () => {
+        const detector = createAutoDropDetector('standard', 500);
+        const values = [200, 200, 200, 200, 200, 200, 200, 200, 199, 199, 198, 198];
+        for (const [i, bt] of values.entries()) {
+            expect(detector.push(sample(i / 2, bt))).toEqual(i === 11 ? sample(3, 200) : null);
+        }
+    });
+    it('allows weak declines only in sensitive mode', () => {
+        for (const mode of ['standard', 'sensitive'] as const) {
+            const detector = createAutoDropDetector(mode, 500);
+            const hits = Array.from({ length: 20 }, (_, i) =>
+                detector.push(sample(i / 2, 200 - 0.1 * Math.max(0, i - 10))),
+            );
+            expect(hits.some(Boolean)).toBe(mode === 'sensitive');
+        }
+    });
+    it.each([0, 77, 160])('does not drop at or below %i C', (base) => {
+        const detector = createAutoDropDetector('sensitive', 500);
+        for (let i = 0; i < 20; i++) expect(detector.push(sample(i / 2, base - Math.max(0, i - 10)))).toBeNull();
+    });
+    it('does not treat a Charge-temperature dump as Drop', () => {
+        const detector = createAutoDropDetector('standard', 1000);
+        for (let i = 0; i < 20; i++) expect(detector.push(sample(i, 90 - Math.max(0, i - 10)))).toBeNull();
+    });
+    it('does not drop on a 1 C transient dip that recovers (#459)', () => {
+        const detector = createAutoDropDetector('standard', 1000);
+        for (const [i, bt] of [200, 200, 200, 200, 199.5, 199, 200, 200].entries()) {
+            expect(detector.push(sample(i, bt))).toBeNull();
+        }
+    });
+    it('drops on a 200 to 170 step that then holds (#459)', () => {
+        const detector = createAutoDropDetector('standard', 1000);
+        for (let i = 0; i < 5; i++) expect(detector.push(sample(i, 200))).toBeNull();
+        expect(detector.push(sample(5, 170))).toBeNull();
+        expect(detector.push(sample(6, 170))).toEqual(sample(4, 200));
     });
 });

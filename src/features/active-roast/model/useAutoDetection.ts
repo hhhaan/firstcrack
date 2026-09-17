@@ -2,25 +2,18 @@ import type { TurningPoint } from '@features/active-roast';
 import { detectTurningPoints } from '@features/active-roast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type AutoChargeMode, createAutoChargeDetector } from '../lib/autoCharge';
-import { detectChargeOnset } from '../lib/chargeOnset';
+import {
+    type AutoChargeMode,
+    type AutoDropMode,
+    createAutoChargeDetector,
+    createAutoDropDetector,
+} from '../lib/autoCharge';
 import { toDisplayTemp } from '../lib/temperature';
 import type { PollIntervalMs, TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
-const AUTO_WINDOW_S = 2.5;
-const AUTO_WINDOW_MIN_SPAN_S = 2;
-const AUTO_DROP_MIN_ELAPSED_S = 180;
-
-type TimedSample = { t: number; bt: number };
-
-/** 최근 AUTO_WINDOW_S초 슬라이딩 윈도우 갱신 후, 윈도우 내 낙차가 dropC 이상이면 true */
-const slideAndCheckDrop = (ref: { current: TimedSample[] }, bt: number, dropC: number): boolean => {
-    const now = Date.now() / 1000;
-    const w = [...ref.current, { t: now, bt }].filter((p) => now - p.t <= AUTO_WINDOW_S);
-    ref.current = w;
-    return now - w[0].t >= AUTO_WINDOW_MIN_SPAN_S && w[0].bt - bt >= dropC;
-};
+/** Artisan autoDROP: CHARGE 후 7분 초과일 때만 BTbreak 발화 */
+export const AUTO_DROP_MIN_ELAPSED_S = 7 * 60;
 
 // TP 미확정이 이 시간을 넘으면 현재 시점을 TP로 강제 확정해 Yellow/FC 게이트를 연다
 // (Artisan TP_max_roasttime 동일 — 에어로스터 등 TP 골짜기가 없는 머신 대응)
@@ -36,7 +29,8 @@ export type UseAutoDetectionOptions = {
     autoChargeEnabled: boolean;
     autoChargeMode: AutoChargeMode;
     pollIntervalMs: PollIntervalMs;
-    autoDropDropC: number;
+    autoDropEnabled: boolean;
+    autoDropMode: AutoDropMode;
     yellowTempC: number;
     unit: TemperatureUnit;
     markEvent?: (event: string, note: string) => void;
@@ -52,19 +46,24 @@ export const useAutoDetection = ({
     autoChargeEnabled,
     autoChargeMode,
     pollIntervalMs,
-    autoDropDropC,
+    autoDropEnabled,
+    autoDropMode,
     yellowTempC,
     unit,
     markEvent,
     logEntries,
     autoYellowEnabled,
 }: UseAutoDetectionOptions) => {
-    const dropWindowRef = useRef<TimedSample[]>([]);
     const chargeDetectorRef = useRef<ReturnType<typeof createAutoChargeDetector> | null>(null);
+    const dropDetectorRef = useRef<ReturnType<typeof createAutoDropDetector> | null>(null);
     const onAutoChargeRef = useRef(onAutoCharge);
+    const onAutoDropRef = useRef(onAutoDrop);
     useEffect(() => {
         onAutoChargeRef.current = onAutoCharge;
     }, [onAutoCharge]);
+    useEffect(() => {
+        onAutoDropRef.current = onAutoDrop;
+    }, [onAutoDrop]);
     const autoChargedRef = useRef(false);
     const autoDroppedRef = useRef(false);
     // 발화 완료 TP를 그대로 보관 — 폴백→실감지 승격 시 재발화 판정에 identity 비교
@@ -72,12 +71,6 @@ export const useAutoDetection = ({
     const yellowFiredRef = useRef(false);
     const yellowPendingRef = useRef(false);
     const prevDisplayBTRef = useRef<number | null>(null);
-    // livePoints는 effect 클로저 최신값 필요 — ref로 동기화
-    const livePointsRef = useRef(livePoints);
-    useEffect(() => {
-        livePointsRef.current = livePoints;
-    }, [livePoints]);
-
     const [confirmedTP, setConfirmedTP] = useState<TurningPoint | null>(null);
 
     const phase = useRoastingStore((s) => s.phase);
@@ -122,26 +115,50 @@ export const useAutoDetection = ({
         };
     }, [autoChargeEnabled, autoChargeMode, pollIntervalMs]);
 
-    // Auto Drop retains the display-BT window and lookback pending Artisan-based review (#459).
     useEffect(() => {
-        if (phase !== 'roasting' || bt == null || autoDroppedRef.current) return;
-        if (elapsed < AUTO_DROP_MIN_ELAPSED_S) return;
+        if (logEntries.some((e) => e.event === 'Drop')) autoDroppedRef.current = true;
+    }, [logEntries]);
 
-        if (slideAndCheckDrop(dropWindowRef, bt, autoDropDropC)) {
-            autoDroppedRef.current = true;
-            const series = livePointsRef.current.filter((p) => p.time >= 0).map((p) => ({ timeSec: p.time, bt: p.bt }));
-            if (series.length === 0 || series[series.length - 1].bt !== bt) {
-                const t = series.length > 0 ? series[series.length - 1].timeSec + 0.5 : elapsed;
-                series.push({ timeSec: t, bt });
+    useEffect(() => {
+        const detector = createAutoDropDetector(autoDropMode, pollIntervalMs);
+        dropDetectorRef.current = detector;
+        const unsubscribe = useRoastingStore.subscribe((state, previous) => {
+            if (
+                state.phase !== previous.phase ||
+                state.sidecarConnected !== previous.sidecarConnected ||
+                state.reconnecting !== previous.reconnecting ||
+                state.machineSnapshot !== previous.machineSnapshot
+            ) {
+                detector.reset();
             }
-            const onset = detectChargeOnset(series, {
-                minDropC: Math.max(2, autoDropDropC * 0.4),
+            if (
+                !autoDropEnabled ||
+                state.phase !== 'roasting' ||
+                !state.sidecarConnected ||
+                state.reconnecting ||
+                autoDroppedRef.current
+            ) {
+                detector.reset();
+                return;
+            }
+            if (state.rawTemperature === previous.rawTemperature) return;
+            const sample = state.rawTemperature;
+            const onset = detector.push(sample);
+            if (!sample || !onset || state.elapsed <= AUTO_DROP_MIN_ELAPSED_S) return;
+            autoDroppedRef.current = true;
+            const lagSec = sample.timestamp - onset.timestamp;
+            const onsetWall = sample.receivedAtMs - lagSec * 1000;
+            const start = state.roastStartMs;
+            onAutoDropRef.current({
+                timeSec: start > 0 ? Math.max(0, (onsetWall - start) / 1000) : Math.max(0, state.elapsed - lagSec),
+                bt: onset.bt,
             });
-            onAutoDrop(
-                onset != null ? { timeSec: Math.max(0, onset.timeSec), bt: onset.bt } : { timeSec: elapsed, bt },
-            );
-        }
-    }, [phase, bt, elapsed, onAutoDrop, autoDropDropC]);
+        });
+        return () => {
+            unsubscribe();
+            detector.reset();
+        };
+    }, [autoDropEnabled, autoDropMode, pollIntervalMs]);
 
     // Auto Yellow by temperature — only fire after turning point (FC is manual / dual-mark only)
     useEffect(() => {
@@ -221,9 +238,14 @@ export const useAutoDetection = ({
         chargeDetectorRef.current?.reset();
     }, []);
 
+    const disableAutoDrop = useCallback(() => {
+        autoDroppedRef.current = true;
+        dropDetectorRef.current?.reset();
+    }, []);
+
     const resetAutoDetection = useCallback(() => {
         chargeDetectorRef.current?.reset();
-        dropWindowRef.current = [];
+        dropDetectorRef.current?.reset();
         autoChargedRef.current = false;
         autoDroppedRef.current = false;
         tpFiredRef.current = null;
@@ -237,6 +259,7 @@ export const useAutoDetection = ({
         resetAutoDetection,
         disableAutoCharge,
         rearmAutoCharge,
+        disableAutoDrop,
         turningPoints,
         confirmedTP,
     };

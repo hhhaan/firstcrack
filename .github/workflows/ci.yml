@@ -45,7 +45,10 @@ concurrency:
 
 jobs:
   # Cheap SHA diff so macos ios-check is not queued on frontend-only PRs.
+  # ponytail: iPad 미지원 동안 꺼둠 — paths가 skip되면 ios-check도 skip(needs), ci-gate·release.mjs는 skipped=pass.
+  # 지원 재개 시 repo variable IOS_CHECK=true 로 켜거나 아래 if 한 줄 삭제.
   paths:
+    if: vars.IOS_CHECK == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:

@@ -26,6 +26,8 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/HeaterScale/);
         expect(panelSrc).toMatch(/ChannelChip/);
         expect(panelSrc).toMatch(/isPercentUnit\(limits\.heater\?\.unit\)/);
+        expect(panelSrc).toMatch(/chipRoles\.length > 0/);
+        expect(panelSrc).toMatch(/filter\(\(role\) => limits\[role\] != null\)/);
         expect(panelSrc).not.toMatch(/sending…/);
         expect(panelSrc).toMatch(/SetpointControl/);
         expect(panelSrc).toMatch(/sending && 'opacity-40'/);

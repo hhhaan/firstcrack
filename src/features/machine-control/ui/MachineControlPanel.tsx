@@ -56,8 +56,8 @@ interface Props {
  * 접으면 얇은 레일만 남기고 차트 폭을 확보한다. 접힌 동안에도 본 트리는 유지해
  * PID/DROP 훅이 언마운트되지 않는다.
  *
- * heater/fan/drum 슬롯은 항상 3칸. 사이드카 `/status.control.limits`에 없는 채널은
- * 숨기지 않고 disabled로 둔다 — 모델마다 칸 수가 바뀌면 레이아웃이 흔들린다.
+ * % 히터 A′: Fan/Drum 칩은 limits에 있는 채널만. 없으면 숨기고 HeaterScale이 flex-1로 채운다.
+ * 0–10 기센 fader는 기존 3칸(미지원은 disabled).
  */
 export const MachineControlPanel = ({
     sidecarConnected,
@@ -102,6 +102,7 @@ export const MachineControlPanel = ({
     const [collapsed, setCollapsed] = useState(false);
 
     const anyWritableChannel = ROLE_ORDER.some((role) => limits[role] != null);
+    const chipRoles = (['fan', 'drum'] as const).filter((role) => limits[role] != null);
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에
     // PID가 덮어써서 "슬라이더가 말을 안 듣는" 상태가 된다. 소유권을 명확히 한다.
     const pidHoldsHeater = pidRuntime?.state === 'running' || pidRuntime?.state === 'holding';
@@ -238,26 +239,23 @@ export const MachineControlPanel = ({
                             onChange={handleManualChange}
                             onCommit={commitNow}
                         />
-                        <div className="flex shrink-0 flex-col gap-1.5">
-                            {(['fan', 'drum'] as const).map((role) => {
-                                const supported = limits[role] != null;
-                                return (
+                        {chipRoles.length > 0 && (
+                            <div className="flex shrink-0 flex-col gap-1.5">
+                                {chipRoles.map((role) => (
                                     <ChannelChip
                                         key={role}
                                         role={role}
                                         limit={limits[role] ?? {}}
-                                        value={supported ? desired[role] : undefined}
-                                        feedback={supported && liveData ? liveData[role] : null}
-                                        unacknowledged={supported && unacknowledged.has(role)}
-                                        disabled={!writable || !supported}
-                                        unsupported={!supported}
-                                        lockedNote={!supported ? 'N/A' : undefined}
+                                        value={desired[role]}
+                                        feedback={liveData ? liveData[role] : null}
+                                        unacknowledged={unacknowledged.has(role)}
+                                        disabled={!writable}
                                         onChange={handleManualChange}
                                         onCommit={commitNow}
                                     />
-                                );
-                            })}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </>
                 ) : (
                     <div className={cn('flex min-h-24 flex-1 justify-around gap-1', sending && 'opacity-40')}>

@@ -1,27 +1,63 @@
 import { createBtFilter } from './btFilter';
 
-export type AutoChargeMode = 'standard' | 'sensitive';
+export type AutoDetectMode = 'standard' | 'sensitive';
+export type AutoChargeMode = AutoDetectMode;
+export type AutoDropMode = AutoDetectMode;
 export type RawTemperatureSample = {
     timestamp: number; // sidecar monotonic seconds; never Unix time
     receivedAtMs: number; // frontend Date.now(), captured on response
     bt: number;
 };
 
-export const createAutoChargeDetector = (mode: AutoChargeMode, pollIntervalMs: 500 | 1000) => {
+type BtBreakKind = 'charge' | 'drop';
+type PollMs = 500 | 1000;
+
+/** Artisan canvas.py btbreak_params — Standard/Sensitive × delay>=1000 / 500<=delay<1000 */
+const MINIMUM: Record<BtBreakKind, Record<AutoDetectMode, Record<PollMs, number>>> = {
+    charge: { standard: { 1000: -0.67, 500: -0.34 }, sensitive: { 1000: 0, 500: 0 } },
+    drop: { standard: { 1000: -0.34, 500: -0.2 }, sensitive: { 1000: 0, 500: 0 } },
+};
+const OFFSET: Record<BtBreakKind, Record<AutoDetectMode, Record<PollMs, number>>> = {
+    charge: { standard: { 1000: 0.5, 500: 0.2 }, sensitive: { 1000: 0.5, 500: 0.1 } },
+    drop: { standard: { 1000: 0.2, 500: 0.1 }, sensitive: { 1000: 0.2, 500: 0.05 } },
+};
+const MIN_BT: Record<BtBreakKind, number> = { charge: 77, drop: 160 };
+/** Standard Drop: next sample must stay this far below the bend, else treat as noise (#459). */
+const DROP_CONFIRM_C = 2;
+const DROP_RECOVERY_C = 0.5;
+/** Single-sample dump that then holds — BTbreak needs two falling legs and misses this. */
+const DROP_STEP_C = 8;
+
+const checkStepHold = (points: RawTemperatureSample[]): RawTemperatureSample | null => {
+    if (points.length < 4) return null;
+    const a = points[points.length - 2];
+    const b = points[points.length - 1];
+    let plateau = points[0];
+    for (let i = 1; i < points.length - 2; i++) {
+        if (points[i].bt >= plateau.bt) plateau = points[i];
+    }
+    if (plateau.bt - a.bt < DROP_STEP_C || plateau.bt - b.bt < DROP_STEP_C) return null;
+    return plateau;
+};
+
+const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollIntervalMs: PollMs) => {
     const period = pollIntervalMs / 1000;
-    const fast = pollIntervalMs === 500;
-    const sensitive = mode === 'sensitive';
-    const minimum = sensitive ? 0 : fast ? -0.34 : -0.67;
-    const offset = fast ? (sensitive ? 0.1 : 0.2) : 0.5;
-    const reversal = sensitive ? 20 : 0.78;
+    const minimum = MINIMUM[kind][mode][pollIntervalMs];
+    const offset = OFFSET[kind][mode][pollIntervalMs];
+    const reversal = mode === 'sensitive' ? 20 : 0.78;
+    const minBt = MIN_BT[kind];
     let history: RawTemperatureSample[] = [];
     let lastTimestamp: number | null = null;
     let filter = createBtFilter();
+    let candidate: { onset: RawTemperatureSample; dipBt: number } | null = null;
+    let held: RawTemperatureSample | null = null;
 
     const reset = () => {
         history = [];
         lastTimestamp = null;
         filter = createBtFilter();
+        candidate = null;
+        held = null;
     };
 
     const check = (stride: 1 | 2): RawTemperatureSample | null => {
@@ -71,13 +107,49 @@ export const createAutoChargeDetector = (mode: AutoChargeMode, pollIntervalMs: 5
             }
             lastTimestamp = sample.timestamp;
             if (filter(sample.bt, sample.timestamp * 1000) === null) {
-                history = []; // preserve the existing filter's two-reading step recovery
+                if (kind === 'drop') held = sample;
+                else history = []; // Charge: two-reading step recovery starts a new window
                 return null;
+            }
+            if (kind === 'drop' && held) {
+                const last = history[history.length - 1];
+                const confirmedStep =
+                    last != null && held.bt <= last.bt - DROP_STEP_C && Math.abs(sample.bt - held.bt) <= 2;
+                if (confirmedStep) {
+                    history.push(held);
+                    if (history.length > 11) history.shift();
+                }
+                held = null;
             }
             history.push(sample);
             if (history.length > 11) history.shift();
-            if (sample.bt <= 77) return null;
-            return check(1) ?? check(2);
+            if (sample.bt <= minBt) {
+                candidate = null;
+                return null;
+            }
+            if (kind === 'drop' && candidate) {
+                if (sample.bt > candidate.dipBt + DROP_RECOVERY_C) candidate = null;
+                else if (mode === 'sensitive' || candidate.onset.bt - sample.bt >= DROP_CONFIRM_C) {
+                    const onset = candidate.onset;
+                    candidate = null;
+                    return onset;
+                } else candidate = null;
+            }
+            const hit = check(1) ?? check(2);
+            if (hit) {
+                if (kind === 'drop') {
+                    candidate = { onset: hit, dipBt: sample.bt };
+                    return null;
+                }
+                return hit;
+            }
+            return kind === 'drop' ? checkStepHold(history) : null;
         },
     };
 };
+
+export const createAutoChargeDetector = (mode: AutoChargeMode, pollIntervalMs: PollMs) =>
+    createBtBreakDetector('charge', mode, pollIntervalMs);
+
+export const createAutoDropDetector = (mode: AutoDropMode, pollIntervalMs: PollMs) =>
+    createBtBreakDetector('drop', mode, pollIntervalMs);

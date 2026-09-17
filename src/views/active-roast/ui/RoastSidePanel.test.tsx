@@ -101,4 +101,22 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(container.querySelector('[data-testid="roast-ready"]')).not.toBeNull();
         expect(container.querySelector('[data-testid="roast-charge"]')).toBeNull();
     });
+
+    it('#484 ended+BBP: End Roast 활성, Charge 없음, Time 숨김', () => {
+        renderPanel({
+            phase: 'ended',
+            charged: true,
+            roastEnded: true,
+            roastPhaseName: 'ENDED',
+            bbpTimer: '1:05',
+            bbpChargeWait: true,
+            timeStr: '8:42',
+        });
+        const end = container.querySelector('[data-testid="roast-end"]');
+        expect(end).not.toBeNull();
+        expect((end as HTMLButtonElement).disabled).toBe(false);
+        expect(container.querySelector('[data-testid="roast-charge"]')).toBeNull();
+        expect(container.querySelector('[data-testid="roast-time"]')).toBeNull();
+        expect(container.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('1:05');
+    });
 });

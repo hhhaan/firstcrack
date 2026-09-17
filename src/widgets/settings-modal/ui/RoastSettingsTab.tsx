@@ -249,7 +249,7 @@ export const RoastSettingsTab = () => {
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
 
     // 절대 온도 입력은 표시 단위를 따르고 저장은 항상 °C. 경계는 °C에서 합성한 뒤 한 번만 변환한다.
-    // (델타/변화율 값 — autoDropDropC·alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
+    // (델타/변화율 값 — alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
     const unit = roastSettings.temperatureUnit;
     const tempSuffix = `°${unit}`;
     const dispT = (celsius: number) => Math.round(toDisplayTemp(celsius, unit));
@@ -514,18 +514,40 @@ export const RoastSettingsTab = () => {
                             </SelectContent>
                         </Select>
                     </SettingsOptionRow>
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('autoDrop')} description={tk('autoDropDescription')} />
+                <SectionCard.Body className="grid gap-3">
+                    <SettingsCheckRow
+                        checked={roastSettings.autoDropEnabled}
+                        label={tk('autoDropEnabled')}
+                        description={tk('autoDropDescription')}
+                        onChange={() => updateRoastSettings({ autoDropEnabled: !roastSettings.autoDropEnabled })}
+                    />
                     <SettingsOptionRow justify="between">
                         <div>
                             <div className={settingsOptionLabelCls}>{tk('autoDropSensitivity')}</div>
                             <div className={settingsOptionDescCls}>{tk('autoDropSensitivityDescription')}</div>
                         </div>
-                        <NumberInput
-                            value={roastSettings.autoDropDropC}
-                            onChange={(v) => updateRoastSettings({ autoDropDropC: v })}
-                            min={2}
-                            max={30}
-                            suffix="°C"
-                        />
+                        <Select
+                            value={roastSettings.autoDropMode}
+                            disabled={!roastSettings.autoDropEnabled}
+                            onValueChange={(value) =>
+                                updateRoastSettings({
+                                    autoDropMode: value === 'sensitive' ? 'sensitive' : 'standard',
+                                })
+                            }
+                        >
+                            <SelectTrigger className="w-36" aria-label={tk('autoDropSensitivity')}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="standard">{tk('autoChargeStandard')}</SelectItem>
+                                <SelectItem value="sensitive">{tk('autoChargeSensitive')}</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </SettingsOptionRow>
                 </SectionCard.Body>
             </SectionCard>

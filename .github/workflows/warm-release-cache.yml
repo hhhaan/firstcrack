@@ -5,15 +5,11 @@ name: Warm release cache
 # stored separately on v1.1.17 and v1.1.19, zero cross-tag hits ever).
 # This workflow builds on main so release.yml gets warm rust/sidecar/pnpm/pip
 # caches. No signing, no bundling, no uploads.
+# Weekly only (no push trigger): a main push warm cost ~12 macOS min ×10 billing
+# per run, 21 runs/month — more than the release builds it was speeding up.
+# A cold cache costs one release a few extra minutes; a warm run costs money every time.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src-tauri/Cargo.lock'
-      - 'src-tauri/Cargo.toml'
-      - 'src-tauri/tauri.conf.json'
-      - 'src-tauri/sidecar/**'
   schedule:
     - cron: '0 18 * * 0' # Sunday 18:00 UTC = Monday 03:00 KST, before Dependabot Mondays
   workflow_dispatch:
@@ -27,12 +23,6 @@ concurrency:
 
 jobs:
   warm:
-    # Skip the version-bump commit: it touches Cargo.toml/Cargo.lock/tauri.conf.json,
-    # so it would start a 3-runner compile alongside the release build it precedes
-    # (double macOS minutes, and the release queues behind it for runners).
-    if: >-
-      github.event_name != 'push' ||
-      !startsWith(github.event.head_commit.message, 'chore(release): bump version')
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:

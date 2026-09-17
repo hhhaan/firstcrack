@@ -103,6 +103,8 @@ export const RoastSidePanel = ({
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
     const canMark = isRoastEventMarkEnabled(phase);
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
+    const hideRoastClock = roastEnded && bbpTimer != null;
+    const endDisabled = !charged && !roastEnded;
 
     return (
         <div className="w-48 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -178,16 +180,18 @@ export const RoastSidePanel = ({
                     {displayRoR}
                 </div>
             </div>
-            {/* Time */}
-            <div className="text-right border-t border-border-subtle pt-3">
-                <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
-                <div
-                    className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                    style={{ color: 'var(--color-primary)' }}
-                >
-                    {timeStr}
+            {/* Time — hide frozen roast clock while unsaved ended + BBP (#484) */}
+            {!hideRoastClock && (
+                <div className="text-right border-t border-border-subtle pt-3" data-testid="roast-time">
+                    <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
+                    <div
+                        className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                        style={{ color: 'var(--color-primary)' }}
+                    >
+                        {timeStr}
+                    </div>
                 </div>
-            </div>
+            )}
             {/* Phase */}
             <div className="flex items-center justify-between border-t border-border-subtle pt-3">
                 <span className="text-xs text-muted font-semibold uppercase">Phase</span>
@@ -284,18 +288,16 @@ export const RoastSidePanel = ({
                     <button
                         data-testid="roast-end"
                         onClick={onEndRoast}
-                        disabled={roastEnded || !charged}
+                        disabled={endDisabled}
                         aria-label="End roast"
                         type="button"
                         className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
-                            roastEnded || !charged
+                            endDisabled
                                 ? 'bg-surface dark:bg-surface-elevated text-muted cursor-default'
                                 : 'cursor-pointer'
                         }`}
                         style={
-                            roastEnded || !charged
-                                ? undefined
-                                : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
+                            endDisabled ? undefined : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
                         }
                     >
                         <Square size={12} />
