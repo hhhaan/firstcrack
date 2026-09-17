@@ -59,27 +59,34 @@ export const HeaterScale = ({
     };
 
     const valueRef = useRef(current);
-    const bump = (delta: number) => {
-        if (locked) return;
-        const next = stepPercent(valueRef.current, delta, min, max);
-        if (next === valueRef.current) return;
-        valueRef.current = next;
-        onChange('heater', next);
-        onCommit();
-    };
-    const plusHold = useHoldRepeat(() => bump(5), locked);
-    const minusHold = useHoldRepeat(() => bump(-5), locked);
-    const wrapHold = (hold: ReturnType<typeof useHoldRepeat>) => ({
-        ...hold,
-        onPointerDown: () => {
-            valueRef.current = current;
-            hold.onPointerDown();
+    const plusHold = useHoldRepeat(
+        () => {
+            if (locked) return;
+            const next = stepPercent(valueRef.current, 5, min, max);
+            if (next === valueRef.current) return;
+            valueRef.current = next;
+            onChange('heater', next);
+            onCommit();
         },
-        onClick: () => {
+        locked,
+        () => {
             valueRef.current = current;
-            hold.onClick();
         },
-    });
+    );
+    const minusHold = useHoldRepeat(
+        () => {
+            if (locked) return;
+            const next = stepPercent(valueRef.current, -5, min, max);
+            if (next === valueRef.current) return;
+            valueRef.current = next;
+            onChange('heater', next);
+            onCommit();
+        },
+        locked,
+        () => {
+            valueRef.current = current;
+        },
+    );
 
     return (
         <div className={cn('flex min-h-24 min-w-0 flex-1 flex-col gap-1.5', (disabled || sending) && 'opacity-40')}>
@@ -90,7 +97,7 @@ export const HeaterScale = ({
                     disabled={locked}
                     aria-label="Heater minus 5"
                     className={stepBtnCls}
-                    {...wrapHold(minusHold)}
+                    {...minusHold}
                 >
                     −5
                 </button>
@@ -110,7 +117,7 @@ export const HeaterScale = ({
                     disabled={locked}
                     aria-label="Heater plus 5"
                     className={stepBtnCls}
-                    {...wrapHold(plusHold)}
+                    {...plusHold}
                 >
                     +5
                 </button>

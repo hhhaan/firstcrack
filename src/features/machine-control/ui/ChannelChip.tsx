@@ -42,7 +42,7 @@ export const ChannelChip = ({
     const locked = disabled || unsupported;
 
     const valueRef = useRef(current);
-    const bump = (delta: number) => {
+    const stepBy = (delta: number) => {
         if (locked) return;
         const next = isPercentUnit(limit.unit)
             ? stepPercent(valueRef.current, delta, min, max)
@@ -52,19 +52,20 @@ export const ChannelChip = ({
         onChange(role, next);
         onCommit();
     };
-    const plusHold = useHoldRepeat(() => bump(step), locked);
-    const minusHold = useHoldRepeat(() => bump(-step), locked);
-    const wrapHold = (hold: ReturnType<typeof useHoldRepeat>) => ({
-        ...hold,
-        onPointerDown: () => {
+    const plusHold = useHoldRepeat(
+        () => stepBy(step),
+        locked,
+        () => {
             valueRef.current = current;
-            hold.onPointerDown();
         },
-        onClick: () => {
+    );
+    const minusHold = useHoldRepeat(
+        () => stepBy(-step),
+        locked,
+        () => {
             valueRef.current = current;
-            hold.onClick();
         },
-    });
+    );
 
     return (
         <div
@@ -81,7 +82,7 @@ export const ChannelChip = ({
                     disabled={locked}
                     aria-label={`${ROLE_LABEL[role]} minus`}
                     className={stepBtnCls}
-                    {...wrapHold(minusHold)}
+                    {...minusHold}
                 >
                     −
                 </button>
@@ -99,7 +100,7 @@ export const ChannelChip = ({
                     disabled={locked}
                     aria-label={`${ROLE_LABEL[role]} plus`}
                     className={stepBtnCls}
-                    {...wrapHold(plusHold)}
+                    {...plusHold}
                 >
                     +
                 </button>

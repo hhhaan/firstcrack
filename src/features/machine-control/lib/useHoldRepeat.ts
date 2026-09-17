@@ -8,11 +8,16 @@ export const HOLD_INTERVAL_MS = 100;
  * click()만 오는 테스트/키보드 활성화는 onClick이 받고,
  * 실제 포인터는 pointerdown이 이미 실행했으므로 click을 건너뛴다.
  */
-export const useHoldRepeat = (action: () => void, disabled: boolean) => {
+export const useHoldRepeat = (action: () => void, disabled: boolean, onStart?: () => void) => {
     const actionRef = useRef(action);
-    actionRef.current = action;
+    const startRef = useRef(onStart);
     const timers = useRef<{ delay?: ReturnType<typeof setTimeout>; interval?: ReturnType<typeof setInterval> }>({});
     const fromPointer = useRef(false);
+
+    useEffect(() => {
+        actionRef.current = action;
+        startRef.current = onStart;
+    });
 
     const clear = useCallback(() => {
         if (timers.current.delay != null) clearTimeout(timers.current.delay);
@@ -25,6 +30,7 @@ export const useHoldRepeat = (action: () => void, disabled: boolean) => {
     const onPointerDown = useCallback(() => {
         if (disabled) return;
         fromPointer.current = true;
+        startRef.current?.();
         actionRef.current();
         timers.current.delay = setTimeout(() => {
             timers.current.interval = setInterval(() => actionRef.current(), HOLD_INTERVAL_MS);
@@ -37,6 +43,7 @@ export const useHoldRepeat = (action: () => void, disabled: boolean) => {
             fromPointer.current = false;
             return;
         }
+        startRef.current?.();
         actionRef.current();
     }, [disabled]);
 
