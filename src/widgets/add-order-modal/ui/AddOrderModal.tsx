@@ -4,7 +4,7 @@ import { useProducts } from '@entities/product';
 import { cn } from '@shared/lib/cn';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { FormSelect } from '@shared/ui/FormSelect';
-import { inputCls, labelCls, modalHeaderChrome } from '@shared/ui/form-styles';
+import { formErrorCls, inputCls, labelCls, modalHeaderChrome } from '@shared/ui/form-styles';
 import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
@@ -13,10 +13,13 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { canSubmitOrderLines, type OrderLineDraft, parseOrderLineQuantity } from '../lib/schema';
 
 type Props = { open: boolean; onClose: () => void };
 
-type LineDraft = { productId: string; quantity: string };
+type LineDraft = OrderLineDraft & { key: string };
+
+const emptyLine = (): LineDraft => ({ key: crypto.randomUUID(), productId: '', quantity: '1' });
 
 export const AddOrderModal = ({ open, onClose }: Props) => {
     const { t } = useTranslation();
@@ -25,24 +28,36 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
     const createOrder = useCreateOrder(userId);
 
     const [buyer, setBuyer] = useState('');
-    const [lines, setLines] = useState<LineDraft[]>([{ productId: '', quantity: '1' }]);
+    const [lines, setLines] = useState<LineDraft[]>(() => [emptyLine()]);
 
     useFormEscape(open, onClose);
 
     useEffect(() => {
         if (!open) return;
         setBuyer('');
-        setLines([{ productId: '', quantity: '1' }]);
+        setLines([emptyLine()]);
     }, [open]);
 
     if (!open) return null;
 
-    const validLines = lines.filter((l) => l.productId && Number(l.quantity) > 0);
-    const valid = validLines.length > 0;
+    const valid = canSubmitOrderLines(lines);
 
     const onSubmit = async () => {
         if (!valid) return;
         const now = new Date().toISOString();
+        const parsedLines = lines.flatMap((l, i) => {
+            const quantity = parseOrderLineQuantity(l.quantity);
+            if (!l.productId || quantity === null) return [];
+            const p = products.find((x) => x.id === l.productId);
+            return [
+                {
+                    platform_line_id: `line-${i}`,
+                    product_id: l.productId,
+                    title: p?.name ?? '',
+                    quantity,
+                },
+            ];
+        });
         await createOrder.mutateAsync({
             order: {
                 user_id: userId,
@@ -52,20 +67,12 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                 ordered_at: now,
                 buyer_name: buyer.trim() || null,
             },
-            lines: validLines.map((l, i) => {
-                const p = products.find((x) => x.id === l.productId);
-                return {
-                    platform_line_id: `line-${i}`,
-                    product_id: l.productId,
-                    title: p?.name ?? '',
-                    quantity: Number(l.quantity),
-                };
-            }),
+            lines: parsedLines,
         });
         onClose();
     };
 
-    const setLine = (idx: number, patch: Partial<LineDraft>) =>
+    const setLine = (idx: number, patch: Partial<OrderLineDraft>) =>
         setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
 
     return (
@@ -89,51 +96,68 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                 <div>
                     <label className={labelCls}>{t('orders.order.lines')}</label>
                     <div className="space-y-2">
-                        {lines.map((l, idx) => (
-                            <div key={idx} className="flex w-full items-center gap-2">
-                                <FormSelect
-                                    value={l.productId}
-                                    onChange={(e) => setLine(idx, { productId: e.target.value })}
-                                    wrapperClassName="min-w-0 flex-1 basis-0"
-                                >
-                                    <option value="">{t('orders.order.selectProduct')}</option>
-                                    {products.map((p) => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.name}
-                                        </option>
-                                    ))}
-                                </FormSelect>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    inputMode="numeric"
-                                    value={l.quantity}
-                                    onChange={(e) => setLine(idx, { quantity: e.target.value })}
-                                    className={cn(
-                                        inputCls,
-                                        'w-20 shrink-0 text-center tabular-nums',
-                                        '[appearance:textfield]',
-                                        '[&::-webkit-inner-spin-button]:appearance-none',
-                                        '[&::-webkit-outer-spin-button]:appearance-none',
+                        {lines.map((l, idx) => {
+                            const qtyInvalid = parseOrderLineQuantity(l.quantity) === null;
+                            const qtyErrorId = `add-order-qty-error-${l.key}`;
+                            return (
+                                <div key={l.key} className="space-y-1">
+                                    <div className="flex w-full items-center gap-2">
+                                        <FormSelect
+                                            value={l.productId}
+                                            onChange={(e) => setLine(idx, { productId: e.target.value })}
+                                            wrapperClassName="min-w-0 flex-1 basis-0"
+                                        >
+                                            <option value="">{t('orders.order.selectProduct')}</option>
+                                            {products.map((p) => (
+                                                <option key={p.id} value={p.id}>
+                                                    {p.name}
+                                                </option>
+                                            ))}
+                                        </FormSelect>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            step={1}
+                                            inputMode="numeric"
+                                            value={l.quantity}
+                                            onChange={(e) => setLine(idx, { quantity: e.target.value })}
+                                            className={cn(
+                                                inputCls,
+                                                'w-20 shrink-0 text-center tabular-nums',
+                                                '[appearance:textfield]',
+                                                '[&::-webkit-inner-spin-button]:appearance-none',
+                                                '[&::-webkit-outer-spin-button]:appearance-none',
+                                                qtyInvalid && 'border-red-500 dark:border-red-500',
+                                            )}
+                                            aria-invalid={qtyInvalid}
+                                            aria-describedby={qtyInvalid ? qtyErrorId : undefined}
+                                            aria-label={t('orders.order.quantity')}
+                                        />
+                                        {lines.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setLines((prev) => prev.filter((row) => row.key !== l.key))
+                                                }
+                                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-none bg-surface text-muted transition-colors hover:text-red-500 dark:bg-surface-elevated cursor-pointer"
+                                                aria-label={t('common.delete')}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    {qtyInvalid && (
+                                        <p id={qtyErrorId} className={formErrorCls}>
+                                            {t('orders.order.quantityMin')}
+                                        </p>
                                     )}
-                                    aria-label={t('orders.order.quantity', { defaultValue: 'Quantity' })}
-                                />
-                                {lines.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
-                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-none bg-surface text-muted transition-colors hover:text-red-500 dark:bg-surface-elevated cursor-pointer"
-                                        aria-label={t('common.delete')}
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                )}
-                            </div>
-                        ))}
+                                </div>
+                            );
+                        })}
                     </div>
                     <button
                         type="button"
-                        onClick={() => setLines((prev) => [...prev, { productId: '', quantity: '1' }])}
+                        onClick={() => setLines((prev) => [...prev, emptyLine()])}
                         className="mt-3 cursor-pointer text-sm font-medium text-primary underline"
                     >
                         {t('orders.order.addLine')}

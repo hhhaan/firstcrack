@@ -1394,6 +1394,8 @@
             "lines": "Items",
             "selectProduct": "Select product",
             "addLine": "+ Add item",
+            "quantity": "Quantity",
+            "quantityMin": "Quantity must be at least 1",
             "fulfill": "Fulfill",
             "fulfilled": "Fulfilled",
             "col": {
