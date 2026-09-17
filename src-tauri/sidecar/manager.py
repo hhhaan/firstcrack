@@ -539,6 +539,7 @@ class RoasterManager:
         """연결 없음/읽기 실패 시의 빈 응답. bt=None은 프론트의 연결 끊김 신호다."""
         return {
             "bt": None,
+            "bt_raw": None,
             "et": None,
             "ror": 0.0,
             "ror_et": 0.0,
@@ -602,6 +603,7 @@ class RoasterManager:
                 return {
                     **self._last_good,
                     "stale": True,
+                    "bt_raw": None,
                     "reconnecting": reconnecting,
                     "timestamp": time.monotonic(),
                 }
@@ -650,6 +652,7 @@ class RoasterManager:
             ror_et = round(self._compute_et_ror(), 2)
 
         payload = {
+            "bt_raw": reading.bt,
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
             "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
             "ror": ror,

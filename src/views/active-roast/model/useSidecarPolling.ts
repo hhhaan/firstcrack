@@ -1,4 +1,5 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
+import type { RawTemperatureSample } from '@features/active-roast';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -141,6 +142,8 @@ export const useSidecarPolling = ({
     const prevPhaseRef = useRef(phase);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef(createBtFilter());
+    const pollInFlightRef = useRef(false);
+    const sidecarGenerationRef = useRef(0);
 
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
@@ -211,6 +214,8 @@ export const useSidecarPolling = ({
         };
 
         void listen<null>('sidecar-ready', () => {
+            sidecarGenerationRef.current += 1;
+            useRoastingStore.getState().updateRawTemperature(null);
             void sidecar.waitUntilReady().then(markReady, () => null);
         })
             .then((fn) => {
@@ -270,9 +275,24 @@ export const useSidecarPolling = ({
         };
 
         const poll = async () => {
+            if (pollInFlightRef.current) return;
+            pollInFlightRef.current = true;
+            const generation = sidecarGenerationRef.current;
+            const machine = useRoastingStore.getState().machineSnapshot;
+            let rawSample: RawTemperatureSample | null = null;
             try {
                 const data = await sidecar.getTemperatures();
-                if (cancelled) return;
+                const receivedAtMs = Date.now();
+                if (
+                    cancelled ||
+                    phase !== useRoastingStore.getState().phase ||
+                    generation !== sidecarGenerationRef.current ||
+                    machine !== useRoastingStore.getState().machineSnapshot
+                )
+                    return;
+                if (!data.stale && !data.reconnecting && data.bt != null && data.bt_raw != null) {
+                    rawSample = { timestamp: data.timestamp, receivedAtMs, bt: data.bt_raw };
+                }
                 // bt가 null이면 연결 끊김 가능성 → /status로 이중 확인
                 if (data.bt === null || data.bt === undefined) {
                     const status = await sidecar.getStatus().catch(() => null);
@@ -381,6 +401,7 @@ export const useSidecarPolling = ({
                     ]);
                 }
             } catch (e) {
+                rawSample = null;
                 logger.debug(e, 'sidecar polling error');
                 if (isUnauthorizedSidecar(e)) return;
                 // Transient HTTP/timeout must not wipe reconnecting or force hard disconnect
@@ -396,6 +417,16 @@ export const useSidecarPolling = ({
                         status,
                     }),
                 );
+            } finally {
+                pollInFlightRef.current = false;
+                if (
+                    !cancelled &&
+                    phase === useRoastingStore.getState().phase &&
+                    generation === sidecarGenerationRef.current &&
+                    machine === useRoastingStore.getState().machineSnapshot
+                ) {
+                    useRoastingStore.getState().updateRawTemperature(rawSample);
+                }
             }
         };
 
