@@ -60,5 +60,7 @@ export interface ChartOptionParams {
     rorYMax: number;
     xViewMin?: number;
     xViewMax?: number;
+    /** Gray interval on the shared temperature/control timeline. */
+    bbpRange?: { start: number; end: number };
     colors: ResolvedChartColors;
 }

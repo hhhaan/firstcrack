@@ -27,6 +27,7 @@ import { useWeather } from '@shared/api/weather';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
+import { combineBbpCurve } from '@shared/lib/roast-curve';
 import { sidecar } from '@shared/lib/sidecar';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
@@ -78,6 +79,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const bbpTimer = bbpEnabled ? bbpElapsed : null;
     const bbpActive = useBbpStore((s) => s.active);
     const bbpPoints = useBbpStore((s) => s.points);
+    const finalizedBbp = useBbpStore((s) => s.finalized);
+    const finalizedBbpPoints = useBbpStore((s) => s.finalizedPoints);
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -87,6 +90,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         pid: pidRuntime,
         tick,
         sessionId,
+        sessionOwnerId,
         sidecarConnected,
         reconnecting,
         machineSnapshot,
@@ -98,6 +102,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             pid: s.pid,
             tick: s.tick,
             sessionId: s.sessionId,
+            sessionOwnerId: s.sessionOwnerId,
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
             machineSnapshot: s.machineSnapshot,
@@ -182,13 +187,29 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [dbProfiles, targetProfileId, workspaceOwnerId],
     );
     const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
+    const sourceSession = resolveSourceSession(targetProfile?.source_session);
     const bbpTarget = useBbpCurve(
         workspaceOwnerId,
         targetProfile?.source_session_id ?? null,
-        resolveSourceSession(targetProfile?.source_session)?.bbp_tsv_path,
-        bbpActive,
+        sourceSession?.bbp_tsv_path,
+        bbpActive || charged,
     );
-    const chartTargetPoints = bbpActive ? (bbpTarget.isError ? [] : (bbpTarget.data ?? [])) : targetCurvePoints;
+    const targetTimeline = useMemo(
+        () =>
+            combineBbpCurve(
+                targetCurvePoints,
+                bbpTarget.isError ? [] : (bbpTarget.data ?? []),
+                sourceSession?.bbp_seconds,
+            ),
+        [targetCurvePoints, bbpTarget.data, bbpTarget.isError, sourceSession?.bbp_seconds],
+    );
+    const chartTargetPoints = bbpActive
+        ? bbpTarget.isError
+            ? []
+            : (bbpTarget.data ?? [])
+        : charged
+          ? targetTimeline.points
+          : targetCurvePoints;
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
     // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
     const sourceEvents = useMemo(
@@ -209,12 +230,24 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const currentKey = machineSnapshot?.machine_roaster_key ?? null;
     const replayMachineMismatch = referenceKey != null && currentKey != null && referenceKey !== currentKey;
 
-    const chartLivePoints = useMemo(
-        () => (bbpActive ? livePointsFromBbp(bbpPoints) : livePoints),
-        [bbpActive, bbpPoints, livePoints],
-    );
+    const currentBbp =
+        charged && sessionOwnerId === workspaceOwnerId && finalizedBbp?.sessionId === sessionId ? finalizedBbp : null;
+    const currentBbpDuration = currentBbp ? Math.max(currentBbp.seconds, ...finalizedBbpPoints.map((p) => p.t)) : 0;
+    const chartLivePoints = useMemo(() => {
+        if (bbpActive) return livePointsFromBbp(bbpPoints);
+        if (!currentBbp) return livePoints;
+        const beforeCharge = livePointsFromBbp(finalizedBbpPoints, currentBbpDuration).filter((p) => p.time < 0);
+        return [...beforeCharge, ...livePoints];
+    }, [bbpActive, bbpPoints, currentBbp, currentBbpDuration, finalizedBbpPoints, livePoints]);
+    const chartMin = bbpActive ? 0 : Math.min(-currentBbpDuration, charged ? (targetTimeline.bbpRange?.start ?? 0) : 0);
     const bbpNowSec = bbpPoints.length > 0 ? bbpPoints[bbpPoints.length - 1].t : 0;
-    const bbpTemperatures = bbpActive ? [...bbpPoints, ...chartTargetPoints].flatMap((p) => [p.bt, p.et ?? p.bt]) : [];
+    const bbpTemperatures =
+        chartMin < 0 || bbpActive
+            ? [...(bbpActive ? bbpPoints : currentBbp ? finalizedBbpPoints : []), ...chartTargetPoints].flatMap((p) => [
+                  p.bt,
+                  p.et ?? p.bt,
+              ])
+            : [];
     const bbpTempMinC = Math.floor(Math.min(roastSettings.tempMinC, ...bbpTemperatures) / 10) * 10;
     const bbpTempMaxC = Math.ceil(Math.max(roastSettings.tempMaxC, ...bbpTemperatures) / 10) * 10;
 
@@ -222,7 +255,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const chart = useChartPipeline({
         livePoints: chartLivePoints,
         targetCurvePoints: chartTargetPoints,
-        xMin: 0,
+        xMin: chartMin,
         xMaxFloor: bbpActive ? BBP_DISPLAY_SECONDS : undefined,
         showRoR: roastSettings.showRoRChart,
         showControlChart: roastSettings.showControlChart,
@@ -597,7 +630,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             )}
 
             <div
-                className={`${bbpActive ? 'bg-surface-elevated' : 'bg-(--color-roast-bg)'} flex flex-col min-h-0 overflow-hidden ${
+                className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
                         ? 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-2.5'
                         : 'rounded relative z-1 pl-2.5 pr-2.5 py-[30px] flex-1 dark:border dark:border-[#585d61]'
@@ -618,6 +651,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 )}
                 <div className="flex gap-0 flex-1 min-h-0 flex-row">
                     <RoastChartContainer
+                        bbpRange={
+                            bbpActive
+                                ? { start: 0, end: chart.maxTime }
+                                : chartMin < 0
+                                  ? { start: chartMin, end: 0 }
+                                  : undefined
+                        }
                         chartAreaRef={chart.chartAreaRef}
                         mainChartHeight={chart.mainChartHeight}
                         effectiveZoomRange={chart.effectiveZoomRange}
@@ -664,8 +704,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         controlChartHeightPct={roastSettings.controlChartHeightPct}
                         controlYMin={roastSettings.controlYMin}
                         controlYMax={roastSettings.controlYMax}
-                        tempMinC={bbpActive ? bbpTempMinC : roastSettings.tempMinC}
-                        tempMaxC={bbpActive ? bbpTempMaxC : roastSettings.tempMaxC}
+                        tempMinC={bbpTempMinC}
+                        tempMaxC={bbpTempMaxC}
                         rorYMin={roastSettings.rorYMin}
                         rorYMax={roastSettings.rorYMax}
                         elapsed={bbpActive ? bbpNowSec : elapsed}

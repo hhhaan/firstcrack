@@ -61,6 +61,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         rorYMax,
         xViewMin,
         xViewMax,
+        bbpRange,
         colors,
     } = params;
 
@@ -92,6 +93,31 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const xMin = xViewMin ?? xs[0] ?? 0;
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
+
+    const bbpBackground = (control: boolean) => ({
+        id: control ? 'bbp-control-background' : 'bbp-background',
+        type: 'line' as const,
+        xAxisIndex: control ? 1 : 0,
+        yAxisIndex: control ? 2 : 0,
+        data: [],
+        silent: true,
+        z: 0,
+        tooltip: { show: false },
+        markArea: {
+            silent: true,
+            itemStyle: { color: colors.bbpFill },
+            label: { show: !control, position: 'insideTopLeft' as const, color: colors.axisLabel },
+            data: showBbp
+                ? [
+                      [
+                          { name: 'BBP', xAxis: Math.max(xMin, bbpRange?.start ?? 0) },
+                          { xAxis: Math.min(xMax, bbpRange?.end ?? 0) },
+                      ],
+                  ]
+                : [],
+        },
+    });
+    const showBbp = bbpRange && bbpRange.start < xMax && bbpRange.end > xMin;
 
     const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan);
     const {
@@ -209,6 +235,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 formatter: formatAxisTooltip,
             },
             series: [
+                ...(bbpRange ? [bbpBackground(false), bbpBackground(true)] : []),
                 ...tempSeries,
                 ...controlSeries,
                 ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
@@ -255,6 +282,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xAxis,
         yAxis,
         series: [
+            ...(bbpRange ? [bbpBackground(false)] : []),
             ...tempSeries,
             ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
             ...(curveLabelSeries ? [curveLabelSeries] : []),

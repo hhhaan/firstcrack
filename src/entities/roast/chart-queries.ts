@@ -10,7 +10,7 @@ export const useHistoryChart = (tsvPath: string | null) => {
     const etActual = useMemo(() => points.map((p) => p.et), [points]);
     const rorActual = useMemo(() => points.map((p) => p.ror), [points]);
 
-    return { xs, btActual, etActual, rorActual, isLoading, isError };
+    return { points, xs, btActual, etActual, rorActual, isLoading, isError };
 };
 
 /** 비교 모드용 — paths 순서대로 결과 배열 반환. 단건 expand 캐시와 공유. */

@@ -42,6 +42,8 @@ interface BbpState {
      * 다음 finalize()가 교체하고, sessionId 대조로 오염을 막는다.
      */
     finalized: FinalizedBbp | null;
+    /** Session-scoped display samples; never persisted as live session state. */
+    finalizedPoints: BbpPoint[];
 
     begin: (startMs: number) => void;
     append: (sample: BbpSample, nowMs: number) => void;
@@ -60,6 +62,7 @@ export const useBbpStore = create<BbpState>((set, get) => ({
     startMs: 0,
     points: [],
     finalized: null,
+    finalizedPoints: [],
 
     // finalized는 건드리지 않는다 — 직전 세션이 아직 저장 전일 수 있다
     begin: (startMs) => set({ active: true, startMs, points: [] }),
@@ -82,12 +85,18 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const seconds = Math.round(cutoff);
         const valid = active && points.length >= 2 && seconds > 0 && seconds <= BBP_MAX_SECONDS;
         if (!valid) {
-            set({ active: false, startMs: 0, points: [], finalized: null });
+            set({ active: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
             return null;
         }
         const chargeTemp = points[points.length - 1].bt;
         const result: BbpResult = { seconds, chargeTemp, tsv: toTsv(points) };
-        set({ active: false, startMs: 0, points: [], finalized: { sessionId, seconds, chargeTemp } });
+        set({
+            active: false,
+            startMs: 0,
+            points: [],
+            finalized: { sessionId, seconds, chargeTemp },
+            finalizedPoints: points,
+        });
         return result;
     },
 }));

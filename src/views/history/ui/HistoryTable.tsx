@@ -1,26 +1,17 @@
-import { sessionBeanName, useHistoryChart } from '@entities/roast';
-import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
-import {
-    formatTemp,
-    type TemperatureUnit,
-    toDisplayRoR,
-    toDisplayTemp,
-    useRoastSettings,
-} from '@features/active-roast';
-import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
-import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
+import { sessionBeanName } from '@entities/roast';
+import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
+import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
-import { useThemeStore } from '@shared/store/theme';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
 import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { BookmarkPlus, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
-import { Fragment, type ReactNode, useMemo } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BbpHistoryChart } from './BbpHistoryChart';
+import { HistorySessionChart } from './HistorySessionChart';
 import { OutputWeightEditor } from './OutputWeightEditor';
 import { SessionScorecard } from './SessionScorecard';
 
@@ -163,32 +154,7 @@ type ExpandedRowProps = {
 
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { t } = useTranslation();
-    const { temperatureUnit: unit, eventMarkerStyle } = useRoastSettings();
-    const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
-    const { xs, btActual, etActual, rorActual, isLoading, isError } = useHistoryChart(session.tsv_path ?? null);
-    const eventMarkers = useMemo(() => {
-        // Canvas colors are resolved from theme CSS at construction time.
-        void resolvedTheme;
-        return storedEventsToMarkers(parseStoredRoastEvents(session.events), unit);
-    }, [session.events, unit, resolvedTheme]);
-
-    // 세션의 타깃 프로파일 커브 오버레이 (실측 TSV 우선, 없으면 synthetic)
-    const { data: profiles = [] } = useRoastProfiles(session.user_id);
-    const profile = session.profile_id ? (profiles.find((p) => p.id === session.profile_id) ?? null) : null;
-    const { points: targetPoints } = useResolvedProfileCurve(profile);
-    const { targetXs, targetBt } = useMemo(
-        () => ({
-            targetXs: targetPoints.map((p) => p.t),
-            targetBt: targetPoints.map((p) => toDisplayTemp(p.bt, unit)),
-        }),
-        [targetPoints, unit],
-    );
-    const displayBt = useMemo(() => btActual.map((v) => toDisplayTemp(v, unit)), [btActual, unit]);
-    const displayEt = useMemo(() => etActual.map((v) => (v != null ? toDisplayTemp(v, unit) : null)), [etActual, unit]);
-    const displayRor = useMemo(
-        () => rorActual.map((v) => (v != null ? toDisplayRoR(v, unit) : null)),
-        [rorActual, unit],
-    );
+    const { temperatureUnit: unit } = useRoastSettings();
 
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)] dark:bg-[rgba(38,43,48,0.3)]">
@@ -224,38 +190,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
 
                 <SessionScorecard session={session} />
 
-                <BbpHistoryChart session={session} />
-
-                {session.tsv_path && (
-                    <div className="mt-4">
-                        {isLoading ? (
-                            <div className="flex h-[220px] items-center justify-center text-xs text-muted">
-                                {t('history.expanded.chartLoading')}
-                            </div>
-                        ) : isError ? (
-                            <div className="flex h-[550px] items-center justify-center text-xs text-muted">
-                                {t('history.expanded.chartUnavailable')}
-                            </div>
-                        ) : (
-                            <RoastTempChart
-                                xs={xs}
-                                btActual={displayBt}
-                                etActual={displayEt}
-                                rorActual={displayRor}
-                                btTarget={[]}
-                                currentTimeSec={0}
-                                eventMarkerStyle={eventMarkerStyle}
-                                eventMarkers={eventMarkers}
-                                showTargetCurve={targetXs.length > 0}
-                                targetXs={targetXs}
-                                targetBt={targetBt}
-                                showRoRET={false}
-                                temperatureUnit={unit}
-                                height={550}
-                            />
-                        )}
-                    </div>
-                )}
+                <HistorySessionChart session={session} />
             </td>
         </tr>
     );
