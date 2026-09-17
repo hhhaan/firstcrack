@@ -338,6 +338,14 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
                             await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
                         invalidateScheduledBatchQueries(qc);
                         await invalidateRoastSessionQueries(qc, saved.user_id);
+                        for (const queryKey of [
+                            inventoryQueryRoots.beanStockSummaries,
+                            inventoryQueryRoots.beanStockSummary,
+                            inventoryQueryRoots.beanStockEvents,
+                            roastedStockKeys.byUser(saved.user_id),
+                        ]) {
+                            void qc.invalidateQueries({ queryKey, refetchType: 'all' });
+                        }
                     },
                     syncRoastCurve,
                 });

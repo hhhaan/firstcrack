@@ -112,6 +112,16 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         ],
     );
 
+    const nextStarting = useRef(false);
+    const flowEpoch = useRef(0);
+    const flowOwner = useRef(workspaceOwnerId);
+    useEffect(() => {
+        flowOwner.current = workspaceOwnerId;
+        return () => {
+            flowEpoch.current += 1;
+        };
+    }, [workspaceOwnerId]);
+
     const handleSave = useCallback(
         async (formData: RoastSummaryForm) => {
             // isSaving turns true only inside saveRoast — the async F3 guard below
@@ -119,6 +129,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             if (submitting.current || isSaving) return;
             submitting.current = true;
             setPreparing(true);
+            const epoch = flowEpoch.current;
             try {
                 let linkedBatch: PlanBatchHandoff | null = null;
                 if (!planBatchHandoff && formData.linkMode === 'schedule' && formData.planBatchId) {
@@ -154,6 +165,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 writePendingRoastSave(pending);
 
                 const saveResult = await resumeSave(pending);
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 if (saveResult.syncPending) {
                     useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'));
                 }
@@ -184,6 +196,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                         continueCandidates = [];
                     }
                 }
+
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
 
                 // 남은 배치가 없으면 Continue 모달이 안 열려 핸드오프 해제 기회가 없다 —
                 // 여기서 떼지 않으면 다음 애드혹 로스트가 끝난 배치에 붙는다 (#317)
@@ -264,26 +278,17 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         flow.discardSummary();
     }, [flow.discardSummary, sessionId, workspaceOwnerId]);
 
-    const nextStarting = useRef(false);
-    const nextEpoch = useRef(0);
-    const nextOwner = useRef(workspaceOwnerId);
-    useEffect(() => {
-        nextOwner.current = workspaceOwnerId;
-        return () => {
-            nextEpoch.current += 1;
-        };
-    }, [workspaceOwnerId]);
     const handleStartNext = useCallback(
         async (row: PlanBatchWithProgress) => {
             if (nextStarting.current) return;
             nextStarting.current = true;
-            const epoch = nextEpoch.current;
+            const epoch = flowEpoch.current;
             try {
                 if (!isWorkspaceReady || !workspaceOwnerId)
                     throw new Error(i18n.t('activeRoast.summary.workspaceLoading'));
                 const real = await planBatchApi.startForRoast(workspaceOwnerId, row);
                 invalidateScheduledBatchQueries(qc);
-                if (epoch !== nextEpoch.current || nextOwner.current !== workspaceOwnerId) return;
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 useRoastSessionStore.getState().startBatch(toPlanBatchHandoff(real));
                 flow.dismissContinue();
             } catch (err) {

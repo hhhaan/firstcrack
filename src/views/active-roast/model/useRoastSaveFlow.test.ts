@@ -181,6 +181,35 @@ describe('roast save identity and Continue lifecycle', () => {
         },
     );
 
+    it.each(['workspace', 'unmount'] as const)(
+        'does not reset the live roast after %s changes during save',
+        async (change) => {
+            let finish = () => {};
+            mocks.resumeSave.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finish = () => resolve({ savedSession: { id: 'saved', plan_batch_id: null }, syncPending: false });
+                }),
+            );
+            const h = renderFlow();
+            const completeBatch = vi.spyOn(useRoastSessionStore.getState(), 'completeBatch');
+            let pending = Promise.resolve();
+            act(() => {
+                pending = h.api.handleSave(form);
+            });
+            if (change === 'workspace') {
+                mocks.ownerId = 'workspace-b';
+                h.rerender();
+            } else h.unmount();
+            await act(async () => {
+                finish();
+                await pending;
+            });
+            expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+            expect(completeBatch).not.toHaveBeenCalled();
+            expect(mocks.fetchQuery).not.toHaveBeenCalled();
+        },
+    );
+
     it('allows only one in-flight Continue start and accepts the next start after completion', async () => {
         let finish = (_row: PlanBatchWithProgress) => {};
         mocks.startForRoast

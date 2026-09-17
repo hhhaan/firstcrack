@@ -88,6 +88,14 @@ describe('shared durable save coordinator', () => {
         expect(d.saveRoast).not.toHaveBeenCalled();
         expect(d.syncBatch).toHaveBeenCalledWith(saved);
     });
+    it('reconciles committed unlinked sessions without replaying the save', async () => {
+        const unlinked = { ...saved, plan_batch_id: null };
+        const d = deps({ findSession: vi.fn(async () => unlinked) });
+        await resumePendingRoastSave(d);
+        expect(d.saveRoast).not.toHaveBeenCalled();
+        expect(d.syncBatch).toHaveBeenCalledWith(unlinked);
+        expect(readPendingRoastSave('owner', ID)).toBeNull();
+    });
     it('lost RPC response is recovered with the identical session ID', async () => {
         const find = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(saved);
         const d = deps({
