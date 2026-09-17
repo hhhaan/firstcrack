@@ -14,6 +14,7 @@ vi.mock('./day-plan', () => ({
     },
 }));
 
+import { dayPlanApi } from './day-plan';
 import { materializePlanBatch } from './materialize';
 
 type Result = { data: unknown; error: unknown };
@@ -24,6 +25,7 @@ function chainable(result: Result) {
     for (const m of ['insert', 'update', 'select', 'eq']) {
         q[m] = vi.fn(() => q);
     }
+    q.maybeSingle = vi.fn(() => Promise.resolve(result));
     q.single = vi.fn(() => Promise.resolve(result));
     return q;
 }
@@ -33,6 +35,7 @@ const args = ['user-1', 'rule-1', '2026-07-13', '2026-07-06'] as const;
 describe('materializePlanBatch', () => {
     beforeEach(() => {
         from.mockReset();
+        vi.mocked(dayPlanApi.getOrCreate).mockClear();
     });
 
     it('returns inserted row when no conflict', async () => {
@@ -90,5 +93,29 @@ describe('materializePlanBatch', () => {
         ).mockReturnValueOnce(chainable({ data: null, error: updateErr }));
 
         await expect(materializePlanBatch(...args, {})).rejects.toEqual(updateErr);
+    });
+
+    it('conflict read selects the existing row on 23505 without updating', async () => {
+        const existing = { id: 'batch-1', bean_name: 'Kenya', notes: 'keep me' };
+        const insertQ = chainable({ data: null, error: { code: '23505', message: 'duplicate key' } });
+        const selectQ = chainable({ data: existing, error: null });
+        from.mockReturnValueOnce(chainable({ data: null, error: null }))
+            .mockReturnValueOnce(insertQ)
+            .mockReturnValueOnce(selectQ);
+
+        await expect(
+            materializePlanBatch(...args, { bean_name: 'Kenya', notes: 'stale overwrite' }, { conflict: 'read' }),
+        ).resolves.toEqual(existing);
+
+        expect(selectQ.update).not.toHaveBeenCalled();
+        expect(selectQ.eq).toHaveBeenCalledWith('recurrence_rule_id', 'rule-1');
+        expect(selectQ.eq).toHaveBeenCalledWith('original_date', '2026-07-06');
+    });
+    it('read mode returns a moved or cancelled exception before creating any day plan', async () => {
+        const row = { id: 'existing', scheduled_date: '2026-08-01', exception_type: 'cancelled' };
+        from.mockReturnValueOnce(chainable({ data: row, error: null }));
+        expect(await materializePlanBatch(...args, { notes: 'stale' }, { conflict: 'read' })).toEqual(row);
+        expect(dayPlanApi.getOrCreate).not.toHaveBeenCalled();
+        expect(from).toHaveBeenCalledTimes(1);
     });
 });

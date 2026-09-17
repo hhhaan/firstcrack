@@ -123,7 +123,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
-    const startBatch = useRoastSessionStore((s) => s.startBatch);
     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
 
     // ── 프로파일/원두 선택 ─────────────────────────────────────────
@@ -745,10 +744,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             <PlanBatchContinueModal
                 show={saveFlow.flow.continueModal}
                 candidates={saveFlow.flow.continueCandidates}
-                onStartNext={(handoff) => {
-                    startBatch(handoff);
-                    saveFlow.flow.dismissContinue();
-                }}
+                onStartNext={saveFlow.handleStartNext}
                 onDismiss={() => {
                     completeBatch();
                     saveFlow.flow.dismissContinue();

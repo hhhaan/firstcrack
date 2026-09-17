@@ -2,7 +2,7 @@ import { batchGreenNeededGramsFromBatch } from '@shared/lib/batch-stock';
 import { errorMessage } from '@shared/lib/errorMessage';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 
-export type BatchTarget = { targetId: string; targetPlanId: string };
+export type BatchTarget = { targetId: string; targetPlanId: string; batch?: PlanBatchWithProgress };
 
 export type DeductRoastStockInput = {
     deductionGrams: number;
@@ -34,6 +34,7 @@ export async function runCompleteBatchFlow(
     deductStock: boolean,
 ): Promise<void> {
     const target = await deps.ensureMaterialized(batch);
+    batch = target.batch ?? batch;
 
     if (deductStock) {
         const deductionGrams = batchGreenNeededGramsFromBatch(batch);

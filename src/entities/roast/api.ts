@@ -74,6 +74,12 @@ export const roastSessionApi = {
         return data;
     },
 
+    find: async (id: string): Promise<RoastSession | null> => {
+        const { data, error } = await supabase.from('roast_sessions').select('*').eq('id', id).maybeSingle();
+        if (error) throw error;
+        return data;
+    },
+
     create: async (session: RoastSessionInsert): Promise<RoastSession> => {
         const { data, error } = await supabase.from('roast_sessions').insert(session).select().single();
         if (error) throw error;
@@ -90,9 +96,18 @@ export const roastSessionApi = {
         deductionGrams: number;
         inboundGrams: number;
         inboundIsEstimate: boolean;
+        expectedBatch?: { beanId: string | null; blendId: string | null };
     }): Promise<RoastSession> => {
         const { data, error } = await supabase.rpc('save_roast_op', {
-            p_session: params.session,
+            p_session: {
+                ...params.session,
+                ...(params.expectedBatch
+                    ? {
+                          expected_plan_bean_id: params.expectedBatch.beanId,
+                          expected_plan_blend_id: params.expectedBatch.blendId,
+                      }
+                    : {}),
+            },
             p_deduct: params.deduct,
             p_deduction_grams: params.deductionGrams,
             p_inbound_grams: params.inboundGrams,

@@ -1,37 +1,38 @@
-import type { PlanBatchHandoff } from '@shared/types/database.types';
+import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
 import { flowReducer } from './useRoastCompletionFlow';
 
-const handoff = (id: string): PlanBatchHandoff => ({
-    planBatchId: id,
-    planId: 'plan-1',
-    beanId: 'bean-1',
-    blendId: null,
-    beanName: 'Ethiopia',
-    batchSizeKg: 5,
-    profileId: null,
-    batchCount: 2,
-    completedSessions: 1,
-});
+const row = (id: string): PlanBatchWithProgress =>
+    ({
+        id,
+        plan_id: 'plan-1',
+        bean_id: 'bean-1',
+        blend_id: null,
+        bean_name: 'Ethiopia',
+        batch_size_kg: 5,
+        roast_profile_id: null,
+        batch_count: 2,
+        completed_sessions: 1,
+    }) as PlanBatchWithProgress;
 
 const base = {
     endRoastModal: false,
     summaryModal: true,
     summaryData: { totalTime: '10:00', development: '2:00', finalBt: '200', logEntries: [] },
     continueModal: false,
-    continueCandidates: [] as PlanBatchHandoff[],
+    continueCandidates: [] as PlanBatchWithProgress[],
 };
 
 describe('flowReducer SAVE_SUCCESS', () => {
     it('opens continue with candidates', () => {
         const next = flowReducer(base, {
             type: 'SAVE_SUCCESS',
-            payload: { shouldOpenContinue: true, continueCandidates: [handoff('a')] },
+            payload: { shouldOpenContinue: true, continueCandidates: [row('a')] },
         });
         expect(next.continueModal).toBe(true);
         expect(next.summaryModal).toBe(false);
         expect(next.continueCandidates).toHaveLength(1);
-        expect(next.continueCandidates[0].planBatchId).toBe('a');
+        expect(next.continueCandidates[0].id).toBe('a');
     });
 
     it('closes summary without continue when no remaining', () => {
@@ -47,7 +48,7 @@ describe('flowReducer SAVE_SUCCESS', () => {
     it('DISMISS_CONTINUE clears candidates', () => {
         const open = flowReducer(base, {
             type: 'SAVE_SUCCESS',
-            payload: { shouldOpenContinue: true, continueCandidates: [handoff('a')] },
+            payload: { shouldOpenContinue: true, continueCandidates: [row('a')] },
         });
         const closed = flowReducer(open, { type: 'DISMISS_CONTINUE' });
         expect(closed.continueModal).toBe(false);
@@ -85,7 +86,7 @@ describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
                 ...base,
                 endRoastModal: true,
                 continueModal: true,
-                continueCandidates: [handoff('a')],
+                continueCandidates: [row('a')],
             },
             { type: 'DISCARD_SUMMARY' },
         );

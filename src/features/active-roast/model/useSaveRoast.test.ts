@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useBbpStore } from './bbp';
 import { useRoastingStore } from './status';
 import { type SaveRoastDeps, saveRoastCore, useSaveRoast } from './useSaveRoast';
 
@@ -25,11 +26,6 @@ vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => hookMocks.useActiveWorkspace(),
 }));
 
-vi.mock('@entities/plan', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@entities/plan')>();
-    return { ...actual, useUpdateSingleBatch: () => ({ mutateAsync: vi.fn() }) };
-});
-
 vi.mock('@entities/roast', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@entities/roast')>();
     return {
@@ -46,10 +42,11 @@ vi.mock('@entities/roast', async (importOriginal) => {
 });
 
 vi.mock('@shared/lib/tsv-writer', () => ({
+    TSV_HEADER: 'time\tbt\n',
     flushTsv: (...args: unknown[]) => hookMocks.flushTsv(...args),
 }));
 
-const baseParams = {
+const baseParams: Parameters<typeof saveRoastCore>[1] = {
     formData: {
         notes: '',
         weightGrams: 5,
@@ -59,7 +56,7 @@ const baseParams = {
         deductStock: true,
     },
     handoffBeanName: null,
-    sessionId: 'local-sess',
+    sessionId: '11111111-1111-4111-8111-111111111111',
     userId: 'user-1',
     elapsed: 600,
     roastStartTimeRef: { current: 1750000000000 },
@@ -72,10 +69,10 @@ const baseParams = {
         { id: '1', time: '0:00', timeSec: 0, event: 'Charge', temp: '', note: '' },
         { id: '3', time: '10:00', timeSec: 600, event: 'Drop', temp: '', note: '' },
     ],
-} as unknown as Parameters<typeof saveRoastCore>[1];
+};
 
 const handoff: PlanBatchHandoff = {
-    planBatchId: 'batch-1',
+    planBatchId: '22222222-2222-4222-8222-222222222222',
     planId: 'plan-1',
     beanId: 'bean-1',
     blendId: null,
@@ -89,20 +86,13 @@ const handoff: PlanBatchHandoff = {
 function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
     return {
         plan: 'pro',
-        userId: 'user-1',
         qc: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
-        planBatchHandoff: null,
         countCompletedThisMonth: vi.fn().mockResolvedValue(0),
         countCompletedTotal: vi.fn().mockResolvedValue(0),
         saveOp: vi.fn().mockResolvedValue({ id: 'sess-db-1' }),
         flushCurve: vi.fn().mockResolvedValue(undefined),
-        syncRoastCurve: vi.fn().mockResolvedValue(undefined),
-        updatePlanBatch: vi.fn().mockResolvedValue(undefined),
-        startBatch: vi.fn(),
-        recordAdhocSave: vi.fn(),
-        getFinalizedBbp: () => null,
         ...overrides,
-    } as SaveRoastDeps;
+    };
 }
 
 describe('saveRoastCore', () => {
@@ -165,7 +155,7 @@ describe('saveRoastCore', () => {
         const deps = makeDeps({ flushCurve });
 
         await expect(saveRoastCore(deps, baseParams)).rejects.toThrow('TSV initialization failed');
-        expect(flushCurve).toHaveBeenCalledWith('local-sess');
+        expect(flushCurve).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
         expect(deps.saveOp).not.toHaveBeenCalled();
     });
 
@@ -201,13 +191,14 @@ describe('saveRoastCore', () => {
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'trial_expired' });
     });
 
-    it('해피패스: save_roast_op 단일 호출 + plan_batch_id + 마지막 배치 → done', async () => {
-        const deps = makeDeps({ planBatchHandoff: handoff });
+    it('saves the normalized batch and stock payload without mutating live progress', async () => {
+        const deps = makeDeps();
+        const liveBefore = useRoastingStore.getState();
         const result = await saveRoastCore(deps, { ...baseParams, planBatchHandoff: handoff });
 
         expect(deps.saveOp).toHaveBeenCalledTimes(1);
         const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
-        expect(arg.session.plan_batch_id).toBe('batch-1');
+        expect(arg.session.plan_batch_id).toBe('22222222-2222-4222-8222-222222222222');
         expect(arg.session.weight_grams).toBe(5000);
         expect(arg.session.output_weight_grams).toBe(4200);
         expect(arg.deduct).toBe(true);
@@ -217,35 +208,68 @@ describe('saveRoastCore', () => {
         const times = (arg.session.events as Array<{ time_sec: number }>).map((e) => e.time_sec);
         expect(times).toEqual([...times].sort((a, b) => a - b));
 
-        expect(deps.updatePlanBatch).toHaveBeenCalledTimes(1);
-        expect(deps.updatePlanBatch).toHaveBeenCalledWith({
-            id: 'batch-1',
-            patch: { id: 'batch-1', status: 'done' },
-        });
+        expect(useRoastingStore.getState()).toBe(liveBefore);
         expect(result.shouldOpenContinue).toBe(true);
     });
 
-    it('마지막 배치 status 업데이트 실패 → 저장 성공 유지 + batchStatusUpdateFailed', async () => {
-        const deps = makeDeps({
-            planBatchHandoff: handoff,
-            updatePlanBatch: vi.fn().mockRejectedValue(new Error('network down')),
+    it('uses the submitted owner and manual link as the save authority', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            userId: 'snapshot-owner',
+            formData: { ...baseParams.formData, linkedBatch: handoff },
         });
-        const result = await saveRoastCore(deps, { ...baseParams, planBatchHandoff: handoff });
-        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
-        expect(result.batchStatusUpdateFailed).toBe(true);
+        expect(deps.countCompletedThisMonth).toHaveBeenCalledWith('snapshot-owner');
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({
+                session: expect.objectContaining({ user_id: 'snapshot-owner', plan_batch_id: handoff.planBatchId }),
+            }),
+        );
     });
 
-    it('status 업데이트 성공 → batchStatusUpdateFailed false', async () => {
-        const deps = makeDeps({ planBatchHandoff: handoff });
-        const result = await saveRoastCore(deps, { ...baseParams, planBatchHandoff: handoff });
-        expect(result.batchStatusUpdateFailed).toBe(false);
-    });
+    it.each(['', 'rule:2026-09-17', '__optimistic__batch'])(
+        'rejects unprepared linked batch ID %s before flushing or saving',
+        async (planBatchId) => {
+            const deps = makeDeps();
+            await expect(
+                saveRoastCore(deps, { ...baseParams, planBatchHandoff: { ...handoff, planBatchId } }),
+            ).rejects.toMatchObject({ code: '22P02' });
+            expect(deps.flushCurve).not.toHaveBeenCalled();
+            expect(deps.saveOp).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([true, false])(
+        'uses the frozen BBP only when it belongs to the submitted session (%s)',
+        async (sameSession) => {
+            const deps = makeDeps();
+            const liveBbp = { sessionId: 'another-live-session', seconds: 999, chargeTemp: 999 };
+            useBbpStore.setState({ finalized: liveBbp });
+            await saveRoastCore(deps, {
+                ...baseParams,
+                bbpSummary: {
+                    sessionId: sameSession ? '11111111-1111-4111-8111-111111111111' : 'other-session',
+                    seconds: 120,
+                    chargeTemp: 201.6,
+                },
+            });
+            expect(deps.saveOp).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    session: expect.objectContaining({
+                        bbp_seconds: sameSession ? 120 : null,
+                        charge_temp_celsius: sameSession ? 202 : null,
+                    }),
+                }),
+            );
+            expect(useBbpStore.getState().finalized).toBe(liveBbp);
+        },
+    );
 
     it('멱등키: 로컬 sessionId를 session.id로 전달', async () => {
         const deps = makeDeps();
         await saveRoastCore(deps, baseParams);
         const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
-        expect(arg.session.id).toBe('local-sess');
+        expect(arg.session.id).toBe('11111111-1111-4111-8111-111111111111');
     });
 
     it('drop_temp: Drop 로그 tempC 우선 (라이브 rawBT 무시) (#173)', async () => {
@@ -288,12 +312,15 @@ describe('saveRoastCore', () => {
         expect(arg.session.drop_temp_celsius).toBe(200);
     });
 
-    it('sessionId 없음 → session.id undefined (서버 발급 폴백)', async () => {
-        const deps = makeDeps();
-        await saveRoastCore(deps, { ...baseParams, sessionId: null });
-        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
-        expect(arg.session.id).toBeUndefined();
-    });
+    it.each([null, '', 'legacy-session'])(
+        'rejects an unprepared session ID %s instead of generating another session',
+        async (sessionId) => {
+            const deps = makeDeps();
+            await expect(saveRoastCore(deps, { ...baseParams, sessionId })).rejects.toMatchObject({ code: '22P02' });
+            expect(deps.saveOp).not.toHaveBeenCalled();
+            expect(deps.flushCurve).not.toHaveBeenCalled();
+        },
+    );
 
     it('deductStock false → deduct 플래그 false', async () => {
         const deps = makeDeps();
@@ -430,7 +457,7 @@ describe('saveRoastCore', () => {
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-describe('useSaveRoast sessionOwnerId', () => {
+describe('useSaveRoast workspace owner boundary', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         hookMocks.useEffectivePlan.mockReturnValue('pro');
@@ -440,7 +467,7 @@ describe('useSaveRoast sessionOwnerId', () => {
         useAuthStore.setState({ user: { id: 'auth-1' } as never });
     });
 
-    it('passes sessionOwnerId to saveRoastCore when workspaceOwnerId differs', async () => {
+    it('keeps the explicit workspace owner when the live session belongs elsewhere', async () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const host = document.createElement('div');
         const root = createRoot(host);
@@ -451,10 +478,13 @@ describe('useSaveRoast sessionOwnerId', () => {
         };
         act(() => root.render(createElement(QueryClientProvider, { client: qc }, createElement(Probe))));
 
-        expect(useEffectivePlan).toHaveBeenCalledWith(undefined, 'A');
+        expect(useEffectivePlan).toHaveBeenCalledWith(undefined, 'B');
+        if (!api) throw new Error('Hook did not render');
+        const saveApi = api;
+        expect(saveApi.resumeSave).toBeTypeOf('function');
 
         await act(async () => {
-            await api!.saveRoast({
+            await saveApi.saveRoast({
                 formData: {
                     notes: '',
                     weightGrams: 5,
@@ -464,7 +494,7 @@ describe('useSaveRoast sessionOwnerId', () => {
                     deductStock: false,
                 },
                 handoffBeanName: null,
-                sessionId: 'local-sess',
+                sessionId: '11111111-1111-4111-8111-111111111111',
                 userId: 'B',
                 elapsed: 600,
                 roastStartTimeRef: { current: 1750000000000 },
@@ -477,7 +507,10 @@ describe('useSaveRoast sessionOwnerId', () => {
         });
 
         expect(hookMocks.saveOp).toHaveBeenCalledTimes(1);
-        expect(hookMocks.saveOp.mock.calls[0][0].session.user_id).toBe('A');
+        expect(hookMocks.saveOp.mock.calls[0][0].session.user_id).toBe('B');
+        expect(useRoastingStore.getState().sessionOwnerId).toBe('A');
+        await expect(saveApi.saveRoast({ ...baseParams, userId: 'A' })).rejects.toThrow();
+        expect(hookMocks.saveOp).toHaveBeenCalledTimes(1);
         act(() => root.unmount());
     });
 });
