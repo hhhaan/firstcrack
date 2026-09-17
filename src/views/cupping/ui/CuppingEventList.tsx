@@ -6,11 +6,11 @@ import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { confirm } from '@tauri-apps/plugin-dialog';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CuppingEventListSkeleton } from './CuppingSkeleton';
+import { DeleteCuppingEventModal } from './DeleteCuppingEventModal';
 
 type CuppingEventListProps = {
     userId: string;
@@ -38,6 +38,7 @@ export const CuppingEventList = ({
     const [showCreate, setShowCreate] = useState(false);
     const [title, setTitle] = useState('');
     const [createError, setCreateError] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState<CuppingEventSummary | null>(null);
 
     const handleCreate = async () => {
         setCreateError(null);
@@ -163,12 +164,11 @@ export const CuppingEventList = ({
                                         <div className="flex justify-end">
                                             <button
                                                 type="button"
-                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted hover:bg-red-50 hover:text-red-600"
-                                                onClick={async (e) => {
+                                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-red-50 hover:text-red-600"
+                                                onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (await confirm(t('cupping.deleteEventConfirm'))) {
-                                                        void deleteEvent.mutateAsync(ev.id);
-                                                    }
+                                                    deleteEvent.reset();
+                                                    setDeleting(ev);
                                                 }}
                                                 aria-label={t('cupping.deleteEvent')}
                                             >
@@ -219,6 +219,23 @@ export const CuppingEventList = ({
                     </div>
                 </ModalShell>
             ) : null}
+
+            <DeleteCuppingEventModal
+                open={deleting != null}
+                sessionTitle={deleting?.title ?? ''}
+                isLoading={deleteEvent.isPending}
+                error={deleteEvent.error ? t('cupping.deleteEventFailed') : null}
+                onClose={() => {
+                    setDeleting(null);
+                    deleteEvent.reset();
+                }}
+                onConfirm={() => {
+                    if (!deleting) return;
+                    deleteEvent.mutate(deleting.id, {
+                        onSuccess: () => setDeleting(null),
+                    });
+                }}
+            />
         </PageLayout>
     );
 };
