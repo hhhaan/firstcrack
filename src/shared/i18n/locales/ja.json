@@ -872,7 +872,10 @@
         "addBatch": "バッチ追加",
         "editBatch": "バッチ編集",
         "saveFailed": "保存失敗:",
-        "unknown": "不明"
+        "unknown": "不明",
+        "searchPlaceholder": "検索...",
+        "noResults": "結果なし",
+        "clearSelection": "選択を解除"
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
@@ -1144,6 +1147,7 @@
         },
         "form": {
             "lotName": "ロット名",
+            "lotNameRequired": "ロット名を入力してください",
             "lotNamePlaceholder": "産地を選択すると自動入力されます",
             "origin": "産地",
             "originPlaceholder": "例: エチオピア",
@@ -1322,7 +1326,9 @@
         "adding": "追加中…",
         "saving": "保存中…",
         "deleteEvent": "セッション削除",
-        "deleteEventConfirm": "このセッションとサンプルをすべて削除しますか？",
+        "deleteEventConfirm": "{{name}} とそのサンプルをすべて削除しますか？",
+        "deleteEventFailed": "セッションを削除できませんでした。もう一度お試しください。",
+        "deletingEvent": "削除中…",
         "endEvent": "セッション終了",
         "endingEvent": "終了中…",
         "endEventConfirm": "セッションを終了しますか？招待リンクは無効になり、サンプル追加・スコア提出ができなくなります。記録は閲覧のみ可能です。",
@@ -1394,6 +1400,8 @@
             "lines": "商品",
             "selectProduct": "商品を選択",
             "addLine": "+ 商品を追加",
+            "quantity": "数量",
+            "quantityMin": "数量は1以上にしてください",
             "fulfill": "出荷処理",
             "fulfilled": "出荷済み",
             "col": {

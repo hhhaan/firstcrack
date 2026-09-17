@@ -30,4 +30,8 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/SetpointControl/);
         expect(panelSrc).toMatch(/sending && 'opacity-40'/);
     });
+
+    it('Replay 이탈 허용치를 /status.control.limits.heater.max에서 받는다 (#428)', () => {
+        expect(panelSrc).toMatch(/heaterMax:\s*limits\.heater\?\.max/);
+    });
 });

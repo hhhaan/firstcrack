@@ -3,13 +3,8 @@ import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    CONVERGE_TOLERANCE,
-    type ControlCommand,
-    type ControlRole,
-    createControlSender,
-    settledRoles,
-} from '../lib/controlSender';
+import { convergeTolerance } from '../lib/controlScale';
+import { type ControlCommand, type ControlRole, createControlSender, settledRoles } from '../lib/controlSender';
 
 export type { ControlRole } from '../lib/controlSender';
 
@@ -112,10 +107,11 @@ export const useMachineControl = (
     // 기기가 지시값을 따라오면 그 지시를 버린다 → 이후 슬라이더는 기기 실측을 따라간다.
     // 이걸 안 하면 한 번 만진 슬라이더가 영원히 내 값에 고정돼, 본체 조작반에서
     // 화력을 바꿔도 화면이 그대로다.
+    const heaterMax = capability?.limits.heater?.max;
     useEffect(() => {
         if (!feedback) return;
         setTracking(({ desired: prev, unackPolls: prevPolls }) => {
-            const settled = settledRoles(prev, feedback, CONVERGE_TOLERANCE);
+            const settled = settledRoles(prev, feedback, convergeTolerance(heaterMax));
             const settledSet = new Set(settled);
             const nextPolls: Partial<Record<ControlRole, number>> = {};
             for (const role of ROLES) {
@@ -127,7 +123,7 @@ export const useMachineControl = (
             for (const role of settled) delete nextDesired[role];
             return { desired: nextDesired, unackPolls: nextPolls };
         });
-    }, [feedback]);
+    }, [feedback, heaterMax]);
 
     const setValue = useCallback(
         (role: ControlRole, value: number) => {

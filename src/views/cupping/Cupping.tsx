@@ -51,10 +51,7 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
                 event={selected}
                 userId={userId}
                 onBack={() => setSelectedEventId(null)}
-                onDeleted={() => {
-                    setSelectedEventId(null);
-                    void refetch();
-                }}
+                onDeleted={() => setSelectedEventId(null)}
             />
         );
     }

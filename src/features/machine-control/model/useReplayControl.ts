@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { divergeTolerance } from '../lib/controlScale';
 import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+
+export { divergeTolerance };
 
 export interface ReplayControlInputs {
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
@@ -43,6 +46,11 @@ export interface ReplayControlInputs {
     reconnecting: boolean;
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
     writeHeater: (value: number) => Promise<number | null>;
+    /**
+     * heater write_map.max — `/status.control.limits.heater.max`. 수렴·이탈
+     * 허용치를 같이 유도한다. 없으면 0~100% 전제(기존 수렴 1 / 이탈 2).
+     */
+    heaterMax?: number | null;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -58,16 +66,6 @@ export type ReplayStopReason =
     | 'timingGap'
     | 'writeFailed';
 
-/**
- * 마지막 확정 명령에서 실측이 이만큼 **초과** 이탈하면 외부 개입 후보로 센다.
- * CONVERGE_TOLERANCE + 1로 유도된 값: 수렴 잔차(1) + 리드백 노이즈 ±1이 겹친 최악
- * 정상치가 정확히 2라 초과(>) 판정이어야 오탐이 없다. 수렴 허용치를 머신별로
- * 바꾸게 되면 이 값도 독립 상수가 아니라 거기서 유도해야 경계 불변식이 유지된다.
- * ponytail: 고정 deadband — 아날로그 duty 리드백이 더 시끄러운 기종이 나오면 머신별 설정으로.
- * 0~100% 스케일 전제. 0~10 스텝 기종(giesen_wxa_coarse)은 ±2가 범위의 20%라 5→7 손 조작을
- * 못 잡는다(위음성). write_map.heater.max 비율로 유도해야 함 — #428.
- */
-const DIVERGE_TOLERANCE = 2;
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
 /**
@@ -106,6 +104,7 @@ export const useReplayControl = ({
     heaterPending,
     reconnecting,
     writeHeater,
+    heaterMax,
 }: ReplayControlInputs) => {
     const plan = useMemo(
         () =>
@@ -200,7 +199,7 @@ export const useReplayControl = ({
             !heaterPending &&
             lastWritten != null &&
             heaterFeedback != null &&
-            Math.abs(heaterFeedback - lastWritten) > DIVERGE_TOLERANCE;
+            Math.abs(heaterFeedback - lastWritten) > divergeTolerance(heaterMax);
         const ticks = deviated ? diverge.ticks + 1 : 0;
         // 카운터가 0→0이면 setState 생략 — 유휴 중 매초 여분 렌더를 만들지 않는다.
         // tick이 stale해져도 무해하다: 다음 이탈의 첫 렌더에서 1부터 정상 카운트된다.
