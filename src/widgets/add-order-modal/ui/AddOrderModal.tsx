@@ -17,6 +17,10 @@ import { canSubmitOrderLines, type OrderLineDraft, parseOrderLineQuantity } from
 
 type Props = { open: boolean; onClose: () => void };
 
+type LineDraft = OrderLineDraft & { key: string };
+
+const emptyLine = (): LineDraft => ({ key: crypto.randomUUID(), productId: '', quantity: '1' });
+
 export const AddOrderModal = ({ open, onClose }: Props) => {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
@@ -24,14 +28,14 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
     const createOrder = useCreateOrder(userId);
 
     const [buyer, setBuyer] = useState('');
-    const [lines, setLines] = useState<OrderLineDraft[]>([{ productId: '', quantity: '1' }]);
+    const [lines, setLines] = useState<LineDraft[]>(() => [emptyLine()]);
 
     useFormEscape(open, onClose);
 
     useEffect(() => {
         if (!open) return;
         setBuyer('');
-        setLines([{ productId: '', quantity: '1' }]);
+        setLines([emptyLine()]);
     }, [open]);
 
     if (!open) return null;
@@ -94,9 +98,9 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                     <div className="space-y-2">
                         {lines.map((l, idx) => {
                             const qtyInvalid = parseOrderLineQuantity(l.quantity) === null;
-                            const qtyErrorId = `add-order-qty-error-${idx}`;
+                            const qtyErrorId = `add-order-qty-error-${l.key}`;
                             return (
-                                <div key={idx} className="space-y-1">
+                                <div key={l.key} className="space-y-1">
                                     <div className="flex w-full items-center gap-2">
                                         <FormSelect
                                             value={l.productId}
@@ -132,7 +136,9 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                                         {lines.length > 1 && (
                                             <button
                                                 type="button"
-                                                onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
+                                                onClick={() =>
+                                                    setLines((prev) => prev.filter((row) => row.key !== l.key))
+                                                }
                                                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-none bg-surface text-muted transition-colors hover:text-red-500 dark:bg-surface-elevated cursor-pointer"
                                                 aria-label={t('common.delete')}
                                             >
@@ -151,7 +157,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                     </div>
                     <button
                         type="button"
-                        onClick={() => setLines((prev) => [...prev, { productId: '', quantity: '1' }])}
+                        onClick={() => setLines((prev) => [...prev, emptyLine()])}
                         className="mt-3 cursor-pointer text-sm font-medium text-primary underline"
                     >
                         {t('orders.order.addLine')}
