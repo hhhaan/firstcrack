@@ -44,6 +44,8 @@ describe('isPermanentSaveError', () => {
     it('does not treat 22P02 as permanent — snapshot must stay for a later resolve', () => {
         expect(isPermanentSaveError({ code: '22P02', message: 'invalid input syntax for type uuid' })).toBe(false);
         expect(isFixablePlanBatchIdError({ code: '22P02', message: 'invalid input syntax for type uuid' })).toBe(true);
+        expect(isFixablePlanBatchIdError({ message: 'invalid plan_batch_id' })).toBe(true);
+        expect(isFixablePlanBatchIdError({ code: 'unresolvable_plan_batch_id' })).toBe(true);
     });
 });
 

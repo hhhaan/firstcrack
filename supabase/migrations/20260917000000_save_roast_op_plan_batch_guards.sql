@@ -49,7 +49,7 @@ BEGIN
   v_plan_batch_text := NULLIF(p_session->>'plan_batch_id', '');
   IF v_plan_batch_text IS NOT NULL THEN
     IF v_plan_batch_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
-      RAISE EXCEPTION 'invalid plan_batch_id';
+      RAISE EXCEPTION 'invalid plan_batch_id' USING ERRCODE = '22P02';
     END IF;
 
     SELECT b.exception_type, b.status, p.user_id

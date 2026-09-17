@@ -23,8 +23,11 @@ export const isPermanentSaveError = (err: unknown): boolean => {
 };
 
 /** Virtual/bad plan_batch_id — keep the pending snapshot so a later resolve can retry. */
-export const isFixablePlanBatchIdError = (err: unknown): boolean =>
-    pgErrorCode(err) === '22P02' || pgErrorCode(err) === 'unresolvable_plan_batch_id';
+export const isFixablePlanBatchIdError = (err: unknown): boolean => {
+    const code = pgErrorCode(err);
+    if (code === '22P02' || code === 'unresolvable_plan_batch_id') return true;
+    return errorMessage(err).toLowerCase().includes('invalid plan_batch_id');
+};
 
 /** Human-readable save failure — PostgREST errors are plain objects, not Error. */
 export const formatRoastSaveError = (err: unknown): string => {
