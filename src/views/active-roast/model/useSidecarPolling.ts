@@ -285,6 +285,7 @@ export const useSidecarPolling = ({
                 const receivedAtMs = Date.now();
                 if (
                     cancelled ||
+                    phase !== useRoastingStore.getState().phase ||
                     generation !== sidecarGenerationRef.current ||
                     machine !== useRoastingStore.getState().machineSnapshot
                 )
@@ -420,6 +421,7 @@ export const useSidecarPolling = ({
                 pollInFlightRef.current = false;
                 if (
                     !cancelled &&
+                    phase === useRoastingStore.getState().phase &&
                     generation === sidecarGenerationRef.current &&
                     machine === useRoastingStore.getState().machineSnapshot
                 ) {

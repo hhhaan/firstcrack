@@ -637,3 +637,23 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
         act(() => root.unmount());
     }
 });
+
+it('ignores the old phase response even before React runs polling cleanup', async () => {
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    let resolveRead = (_reading: unknown) => {};
+    mocks.getTemperatures.mockReturnValueOnce(
+        new Promise((resolve) => {
+            resolveRead = resolve;
+        }),
+    );
+    const root = renderProbe(500);
+    try {
+        await flushReady();
+        useRoastingStore.setState({ phase: 'standby' });
+        await act(async () => resolveRead({ bt: 200, bt_raw: 200, timestamp: 1 }));
+        expect(useRoastingStore.getState().rawTemperature).toBeNull();
+        expect(mocks.enqueueTsvRow).not.toHaveBeenCalled();
+    } finally {
+        act(() => root.unmount());
+    }
+});
