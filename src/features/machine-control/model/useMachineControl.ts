@@ -3,7 +3,13 @@ import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { type ControlCommand, type ControlRole, createControlSender, settledRoles } from '../lib/controlSender';
+import {
+    CONVERGE_TOLERANCE,
+    type ControlCommand,
+    type ControlRole,
+    createControlSender,
+    settledRoles,
+} from '../lib/controlSender';
 
 export type { ControlRole } from '../lib/controlSender';
 
@@ -11,8 +17,6 @@ const EMPTY_LIMITS: ControlCapability['limits'] = {};
 
 const ROLES: ControlRole[] = ['heater', 'fan', 'drum'];
 
-/** 기기 실측이 지시값에 이만큼 근접하면 "따라왔다"고 본다 (채널 단위) */
-const CONVERGE_TOLERANCE = 1;
 /**
  * 이만큼의 폴링 동안 기기가 안 따라오면 명령이 먹지 않은 것으로 보고 경고한다.
  * 경과 시간 대신 폴링 횟수로 세는 이유: 시계를 읽지 않아도 되고(렌더 순수성),

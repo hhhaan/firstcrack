@@ -1,4 +1,5 @@
 import type { PidRuntime } from '@entities/machine';
+import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -258,7 +259,7 @@ export const MachineControlPanel = ({
                         </div>
                     </>
                 ) : (
-                    <div className="flex min-h-24 flex-1 justify-around gap-1">
+                    <div className={cn('flex min-h-24 flex-1 justify-around gap-1', sending && 'opacity-40')}>
                         {ROLE_ORDER.map((role) => {
                             const supported = limits[role] != null;
                             const lockedByPid = role === 'heater' && pidHoldsHeater;

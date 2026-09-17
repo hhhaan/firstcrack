@@ -23,6 +23,7 @@ export const useHoldRepeat = (action: () => void, disabled: boolean, onStart?: (
         if (timers.current.delay != null) clearTimeout(timers.current.delay);
         if (timers.current.interval != null) clearInterval(timers.current.interval);
         timers.current = {};
+        fromPointer.current = false;
     }, []);
 
     useEffect(() => clear, [clear]);

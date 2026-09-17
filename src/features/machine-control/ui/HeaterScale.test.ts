@@ -89,7 +89,7 @@ describe('HeaterScale A′ (#436)', () => {
         act(() => {
             slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
         });
-        expect(onChange).toHaveBeenLastCalledWith('heater', 65);
+        expect(onChange).toHaveBeenLastCalledWith('heater', 70);
         unmount();
     });
 
@@ -104,6 +104,13 @@ describe('HeaterScale A′ (#436)', () => {
     it('수렴하면 라이브 라인과 기기 n을 숨긴다', () => {
         const { container, unmount } = renderScale({ value: undefined, feedback: 80 });
         expect(container.textContent).toContain('80');
+        expect(container.textContent).not.toMatch(/기기/);
+        expect(container.querySelector('[data-live-line]')).toBeNull();
+        unmount();
+    });
+
+    it('desired가 남아도 |Δ|≤1이면 라이브 라인과 기기 n을 숨긴다', () => {
+        const { container, unmount } = renderScale({ value: 80, feedback: 79 });
         expect(container.textContent).not.toMatch(/기기/);
         expect(container.querySelector('[data-live-line]')).toBeNull();
         unmount();
@@ -126,6 +133,29 @@ describe('HeaterScale A′ (#436)', () => {
         const { container, unmount } = renderScale({ sending: true });
         expect(container.textContent).not.toMatch(/sending/);
         expect(container.firstElementChild?.className).toMatch(/opacity-40/);
+        unmount();
+    });
+
+    it('sending이어도 탭은 커밋한다', () => {
+        const { container, onChange, onCommit, unmount } = renderScale({
+            sending: true,
+            value: 70,
+            feedback: 70,
+        });
+        act(() => (container.querySelector('[data-tick="85"]') as HTMLButtonElement).click());
+        expect(onChange).toHaveBeenCalledWith('heater', 85);
+        expect(onCommit).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
+    it('pointerup 뒤 click은 다시 커밋한다', () => {
+        const { container, onChange, unmount } = renderScale({ value: 70, feedback: 70 });
+        const plus = container.querySelector('[data-step="5"]') as HTMLButtonElement;
+        act(() => plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+        act(() => plus.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })));
+        onChange.mockClear();
+        act(() => plus.click());
+        expect(onChange).toHaveBeenCalledWith('heater', 75);
         unmount();
     });
 

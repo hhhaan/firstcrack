@@ -1,12 +1,9 @@
 import type { ControlLimit } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
 import { useRef } from 'react';
-import type { ControlRole } from '../lib/controlSender';
+import { CONVERGE_TOLERANCE, type ControlRole } from '../lib/controlSender';
 import { percentTicks, showLiveFollow, snapPercent, stepPercent } from '../lib/snapPercent';
 import { useHoldRepeat } from '../lib/useHoldRepeat';
-
-/** 훅의 CONVERGE_TOLERANCE와 같음 — 라이브 라인 표시만 여기서 본다 */
-const CONVERGE_TOLERANCE = 1;
 
 interface Props {
     limit: ControlLimit;
@@ -46,43 +43,45 @@ export const HeaterScale = ({
     const current = unsupported ? min : (value ?? feedback ?? min);
     const live = !unsupported && showLiveFollow(value, feedback, CONVERGE_TOLERANCE);
     const ticks = percentTicks(min, max);
-    const locked = disabled || unsupported || sending;
+    const blocked = disabled || unsupported;
     const span = max - min || 1;
     const fillPct = Math.min(100, Math.max(0, ((current - min) / span) * 100));
     const livePct = feedback != null ? Math.min(100, Math.max(0, ((feedback - min) / span) * 100)) : null;
     const selected = snapPercent(current, min, max);
+    const valueRef = useRef(current);
 
     const commit = (next: number) => {
-        if (locked) return;
-        onChange('heater', snapPercent(next, min, max));
+        if (blocked) return;
+        const snapped = snapPercent(next, min, max);
+        valueRef.current = snapped;
+        onChange('heater', snapped);
         onCommit();
     };
 
-    const valueRef = useRef(current);
     const plusHold = useHoldRepeat(
         () => {
-            if (locked) return;
+            if (blocked) return;
             const next = stepPercent(valueRef.current, 5, min, max);
             if (next === valueRef.current) return;
             valueRef.current = next;
             onChange('heater', next);
             onCommit();
         },
-        locked,
+        blocked,
         () => {
             valueRef.current = current;
         },
     );
     const minusHold = useHoldRepeat(
         () => {
-            if (locked) return;
+            if (blocked) return;
             const next = stepPercent(valueRef.current, -5, min, max);
             if (next === valueRef.current) return;
             valueRef.current = next;
             onChange('heater', next);
             onCommit();
         },
-        locked,
+        blocked,
         () => {
             valueRef.current = current;
         },
@@ -94,7 +93,7 @@ export const HeaterScale = ({
                 <button
                     type="button"
                     data-step="-5"
-                    disabled={locked}
+                    disabled={blocked}
                     aria-label="Heater minus 5"
                     className={stepBtnCls}
                     {...minusHold}
@@ -114,7 +113,7 @@ export const HeaterScale = ({
                 <button
                     type="button"
                     data-step="5"
-                    disabled={locked}
+                    disabled={blocked}
                     aria-label="Heater plus 5"
                     className={stepBtnCls}
                     {...plusHold}
@@ -125,19 +124,19 @@ export const HeaterScale = ({
 
             <div
                 role="slider"
-                tabIndex={locked ? -1 : 0}
+                tabIndex={blocked ? -1 : 0}
                 aria-label={unsupported ? 'Heater not supported' : 'Heater setpoint'}
                 aria-valuemin={min}
                 aria-valuemax={max}
                 aria-valuenow={Math.round(current)}
-                aria-disabled={locked}
+                aria-disabled={blocked}
                 onKeyDown={(e) => {
                     if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
                         e.preventDefault();
-                        commit(stepPercent(current, 5, min, max));
+                        commit(stepPercent(valueRef.current, 5, min, max));
                     } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
                         e.preventDefault();
-                        commit(stepPercent(current, -5, min, max));
+                        commit(stepPercent(valueRef.current, -5, min, max));
                     }
                 }}
                 className="relative flex min-h-0 flex-1 flex-col outline-none"
@@ -165,7 +164,7 @@ export const HeaterScale = ({
                                 key={tick}
                                 type="button"
                                 data-tick={tick}
-                                disabled={locked}
+                                disabled={blocked}
                                 aria-label={`Heater ${tick}${unit}`}
                                 aria-pressed={isSelected}
                                 onClick={() => commit(tick)}
