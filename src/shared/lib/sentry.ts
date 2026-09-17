@@ -102,12 +102,8 @@ export const isActionableError = (error: unknown): boolean => {
 };
 
 const beforeSend = (event: Sentry.ErrorEvent, hint: Sentry.EventHint): Sentry.ErrorEvent | null => {
-    const original = hint.originalException;
-    if (original !== undefined && original !== null) {
-        if (!isActionableError(original)) return null;
-    } else {
-        const fallback = event.exception?.values?.[0]?.value ?? event.message;
-        if (fallback != null && fallback !== '' && !isActionableError(fallback)) return null;
+    if (!isActionableError(hint.originalException ?? event.exception?.values?.[0]?.value ?? event.message)) {
+        return null;
     }
     if (event.message) event.message = scrubText(event.message);
     for (const exception of event.exception?.values ?? []) {
