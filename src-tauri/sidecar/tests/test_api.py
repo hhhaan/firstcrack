@@ -229,6 +229,17 @@ class TestControlEndpoint:
         control = (await resp.json())["control"]
         assert control["writable"] is True
         assert control["limits"]["heater"]["max"] == 100
+        assert control["limits"]["heater"]["unit"] == "%"
+
+    async def test_status_reports_coarse_heater_scale(self, client):
+        """giesen_wxa_coarse write_map(0~10 step)이 /status.control.limits로 나간다 (#428)."""
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "giesen_wxa_coarse"})
+            resp = await client.get("/status")
+        heater = (await resp.json())["control"]["limits"]["heater"]
+        assert heater["max"] == 10
+        assert heater["unit"] == "step"
 
     async def test_status_reports_not_writable_before_connect(self, client):
         control = (await (await client.get("/status")).json())["control"]

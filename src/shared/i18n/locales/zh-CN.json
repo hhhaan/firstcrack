@@ -885,7 +885,10 @@
         "addBatch": "添加批次",
         "editBatch": "编辑批次",
         "saveFailed": "保存失败:",
-        "unknown": "未知"
+        "unknown": "未知",
+        "searchPlaceholder": "搜索...",
+        "noResults": "无结果",
+        "clearSelection": "清除选择"
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
@@ -1157,6 +1160,7 @@
         },
         "form": {
             "lotName": "批次名称",
+            "lotNameRequired": "请输入批次名称",
             "lotNamePlaceholder": "选择产地后自动填写",
             "origin": "产地国",
             "originPlaceholder": "例如：埃塞俄比亚",
@@ -1335,7 +1339,9 @@
         "adding": "添加中…",
         "saving": "保存中…",
         "deleteEvent": "删除场次",
-        "deleteEventConfirm": "删除本场次及其全部样品？",
+        "deleteEventConfirm": "删除 {{name}} 及其全部样品？",
+        "deleteEventFailed": "无法删除该场次，请重试。",
+        "deletingEvent": "正在删除…",
         "endEvent": "结束场次",
         "endingEvent": "结束中…",
         "endEventConfirm": "结束本场？邀请链接将作废，无法再添加样品或提交评分。已有记录仅可查看。",
@@ -1407,6 +1413,8 @@
             "lines": "商品明细",
             "selectProduct": "选择商品",
             "addLine": "+ 添加商品",
+            "quantity": "数量",
+            "quantityMin": "数量必须至少为 1",
             "fulfill": "完成",
             "fulfilled": "已完成",
             "col": {

@@ -238,6 +238,7 @@ def test_giesen_variant_hosts_match_artisan_asets() -> None:
         assert ROASTER_REGISTRY[key]["default_params"]["host"] == host, key
     # coarse는 버너 0~10 스텝(aset sliderfactors 0.1) — % 맵을 공유하면 범위 초과
     assert ROASTER_REGISTRY["giesen_wxa_coarse"]["default_params"]["write_map"]["heater"]["max"] == 10
+    assert ROASTER_REGISTRY["giesen_wxa_coarse"]["default_params"]["write_map"]["heater"]["unit"] == "step"
     assert ROASTER_REGISTRY["giesen_wxa"]["default_params"]["write_map"]["heater"]["max"] == 100
 
 

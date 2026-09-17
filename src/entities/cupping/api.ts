@@ -222,8 +222,10 @@ export const cuppingApi = {
     },
 
     deleteEvent: async (eventId: string): Promise<void> => {
-        const { error } = await supabase.from('cupping_events').delete().eq('id', eventId);
+        // .select() so a RLS/filter miss (0 rows, no error) is not treated as success.
+        const { data, error } = await supabase.from('cupping_events').delete().eq('id', eventId).select('id');
         if (error) throw error;
+        if (data.length === 0) throw new Error('CUPPING_EVENT_NOT_DELETED');
     },
 
     /** Ensure results_token exists (ended sessions only). Idempotent. */

@@ -43,12 +43,21 @@ interface Sample {
     afterTurningPoint?: boolean;
 }
 
+const COARSE_POINTS: ReplayPoint[] = [
+    { t: 0, bt: 180, heater: 6 },
+    { t: 60, bt: 95, heater: 6 },
+    { t: 120, bt: 110, heater: 4 },
+    { t: 600, bt: 205, heater: 4 },
+];
+
 /** 두 훅을 MachineControlPanel과 동일하게 배선한 합성 하네스 */
-const renderRig = async () => {
+const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = {}) => {
+    const heaterMax = opts.heaterMax ?? 100;
+    const points = opts.points ?? POINTS;
     getStatus.mockReset();
     setControl.mockReset();
     getStatus.mockResolvedValue({
-        control: { writable: true, limits: { heater: { min: 0, max: 100 } } },
+        control: { writable: true, limits: { heater: { min: 0, max: heaterMax } } },
     } as Awaited<ReturnType<typeof sidecar.getStatus>>);
     setControl.mockImplementation(async (cmd) => ({ applied: cmd }) as Awaited<ReturnType<typeof sidecar.setControl>>);
 
@@ -73,7 +82,7 @@ const renderRig = async () => {
             [setValue, commitNow],
         );
         const replay = useReplayControl({
-            referencePoints: POINTS,
+            referencePoints: points,
             referenceDropTime: null,
             liveBt: inputs.liveBt,
             elapsed: inputs.elapsed,
@@ -90,6 +99,7 @@ const renderRig = async () => {
             reconnecting: false,
             referenceMachineMismatch: false,
             writeHeater,
+            heaterMax: mc.limits.heater?.max,
         });
         latest = { replay, mc };
         return null;
@@ -183,6 +193,36 @@ describe('read≠write 기계 프로파일 특성화', () => {
         expect(heaterWrites()).toEqual([60, 40]);
         expect(rig.committed.mock.calls.map(([cmd]) => cmd.heater)).toEqual([60, 40]);
         expect(rig.get().replay.active).toBe(true);
+        rig.unmount();
+    });
+
+    it('max=10: 수렴 잔차 1스텝(6→5)은 추종 — controlDiverged로 멈추지 않는다', async () => {
+        const rig = await renderRig({ heaterMax: 10, points: COARSE_POINTS });
+        await rig.toggle();
+        expect(heaterWrites()).toEqual([6]);
+
+        await rig.poll({ heater: 5 }); // |5-6|=1 → 수렴, pending 해제
+        await rig.poll({ heater: 5 });
+        await rig.poll({ heater: 5 });
+        await rig.poll({ heater: 5 });
+
+        expect(rig.get().replay.active).toBe(true);
+        expect(rig.get().replay.stopReason).toBeNull();
+        expect(heaterWrites()).toEqual([6]);
+        rig.unmount();
+    });
+
+    it('max=10: 수렴 후 2스텝 손 조작은 controlDiverged (#428)', async () => {
+        const rig = await renderRig({ heaterMax: 10, points: COARSE_POINTS });
+        await rig.toggle();
+        await rig.poll({ heater: 6 });
+        await rig.poll({ heater: 8 });
+        await rig.poll({ heater: 8 });
+        expect(rig.get().replay.active).toBe(true);
+        await rig.poll({ heater: 8 });
+        expect(rig.get().replay.active).toBe(false);
+        expect(rig.get().replay.stopReason).toBe('controlDiverged');
+        expect(heaterWrites()).toEqual([6]);
         rig.unmount();
     });
 });
