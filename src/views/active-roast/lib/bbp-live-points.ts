@@ -1,12 +1,11 @@
 import type { BbpPoint } from '@features/active-roast/model/bbp';
-import { formatElapsed } from '@shared/lib/format';
-import type { LiveRoastPoint } from '../model/useSidecarPolling';
+import { formatLookbackLabel, type LiveRoastPoint } from '../model/useSidecarPolling';
 
 /** BBP 스토어 포인트를 라이브 차트 시계열로. t는 End 확정 기준 초. */
-export const livePointsFromBbp = (points: BbpPoint[]): LiveRoastPoint[] =>
+export const livePointsFromBbp = (points: BbpPoint[], chargeOffset = 0): LiveRoastPoint[] =>
     points.map((p) => ({
-        time: p.t,
-        label: formatElapsed(p.t),
+        time: p.t - chargeOffset,
+        label: formatLookbackLabel(p.t - chargeOffset),
         bt: p.bt,
         et: p.et,
         ror: null,

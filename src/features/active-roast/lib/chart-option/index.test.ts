@@ -31,6 +31,7 @@ const mockColors: ResolvedChartColors = {
     eventMark: '#23',
     eventControl: '#24',
     fcBandFill: 'rgba(105,103,225,0.1)',
+    bbpFill: '#efeff0',
     targetDeltaWithin: '#20',
     targetDeltaOver: '#21',
     targetDeltaUnder: '#22',
@@ -68,6 +69,40 @@ const baseParams = (): ChartOptionParams => ({
 });
 
 describe('buildRoastChartOption', () => {
+    it('shades only the visible BBP interval on both grids without shifting Charge', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [-92, -2, 0, 60],
+            btActual: [210, 195, 195, 155],
+            etActual: [220, 215, 215, 210],
+            rorActual: [null, null, 0, 5],
+            bbpRange: { start: -92, end: 0 },
+            xViewMin: -60,
+            xViewMax: 60,
+            controlData: { xs: [-92, 0, 60], drumTemp: [50, 50, 50], heatPower: [20, 50, 45], fanSpeed: [30, 30, 30] },
+        });
+        const series = option.series as {
+            id?: string;
+            name?: string;
+            xAxisIndex: number;
+            data: unknown;
+            markArea?: { data: unknown; itemStyle: unknown };
+        }[];
+        const backgrounds = series.filter((s) => s.id?.startsWith('bbp-'));
+        expect(backgrounds.map((s) => s.xAxisIndex)).toEqual([0, 1]);
+        for (const s of backgrounds) {
+            expect(s.markArea?.data).toEqual([[{ name: 'BBP', xAxis: -60 }, { xAxis: 0 }]]);
+            expect(s.markArea?.itemStyle).toEqual({ color: mockColors.bbpFill });
+        }
+        expect(series.find((s) => s.name === 'BT Actual')?.data).toEqual([
+            [-92, 210],
+            [-2, 195],
+            [0, 195],
+            [60, 155],
+        ]);
+        const roastOnly = buildRoastChartOption({ ...baseParams(), bbpRange: { start: -92, end: 0 }, xViewMin: 0 });
+        expect((roastOnly.series as typeof series).find((s) => s.id === 'bbp-background')?.markArea?.data).toEqual([]);
+    });
     it('builds single-grid option for empty data', () => {
         const option = buildRoastChartOption(baseParams());
         const series = option.series as unknown[];

@@ -5,7 +5,7 @@ const sample = (bt: number) => ({ bt, et: 200, heater: 50, fan: 40, drum: 60 });
 
 describe('bbp store', () => {
     beforeEach(() => {
-        useBbpStore.setState({ active: false, startMs: 0, points: [], finalized: null });
+        useBbpStore.setState({ active: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
     });
 
     it('begin은 기록을 시작한다', () => {
@@ -14,6 +14,7 @@ describe('bbp store', () => {
         expect(s.active).toBe(true);
         expect(s.startMs).toBe(1_000);
         expect(s.points).toEqual([]);
+        expect(s.finalizedPoints).toEqual([]);
     });
 
     it('append는 1초 미만 간격 샘플을 무시한다', () => {
@@ -53,6 +54,10 @@ describe('bbp store', () => {
         expect(s.finalized).toEqual({ sessionId: 's1', seconds: 180, chargeTemp: 195.4 });
         expect(s.active).toBe(false);
         expect(s.points).toEqual([]);
+        expect(s.finalizedPoints.map((p) => [p.t, p.bt])).toEqual([
+            [1, 210],
+            [2, 195.4],
+        ]);
     });
 
     // 회귀: 드롭(begin) → 요약 모달 → 저장(finalized 읽기) 순서라서,
@@ -68,6 +73,7 @@ describe('bbp store', () => {
         useBbpStore.getState().begin(500_000);
         expect(useBbpStore.getState().finalized).toEqual({ sessionId: 's1', seconds: 180, chargeTemp: 195.4 });
         expect(useBbpStore.getState().active).toBe(true);
+        expect(useBbpStore.getState().finalizedPoints).toHaveLength(2);
     });
 
     it('finalize는 charge 시각 이후 샘플(auto-charge lookback)을 잘라낸다', () => {
@@ -81,6 +87,7 @@ describe('bbp store', () => {
         const result = useBbpStore.getState().finalize(25_000, 's1');
         expect(result?.chargeTemp).toBe(205); // 150(투입 후)이 아니라 205
         expect(result?.tsv).not.toContain('150');
+        expect(useBbpStore.getState().finalizedPoints.map((p) => p.bt)).toEqual([210, 205]);
     });
 
     it('finalize는 만료·포인트 부족이면 null을 반환하고 finalized를 클리어한다', () => {
@@ -90,6 +97,7 @@ describe('bbp store', () => {
         // 포인트 1개 → 무효
         expect(useBbpStore.getState().finalize(60_000, 's1')).toBeNull();
         expect(useBbpStore.getState().finalized).toBeNull();
+        expect(useBbpStore.getState().finalizedPoints).toEqual([]);
 
         // 만료: charge가 BBP_MAX_SECONDS 넘어 도착
         useBbpStore.getState().begin(0);

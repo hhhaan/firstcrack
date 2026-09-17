@@ -321,7 +321,9 @@ describe('Charge marker (#451)', () => {
                 { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
             ],
         });
-        const byEvent = Object.fromEntries(curveLabels.map((l) => [l.text.includes('Charge') ? 'Charge' : 'FC Start', l]));
+        const byEvent = Object.fromEntries(
+            curveLabels.map((l) => [l.text.includes('Charge') ? 'Charge' : 'FC Start', l]),
+        );
         expect(byEvent.Charge.showDot).toBe(false);
         expect(byEvent['FC Start'].showDot).toBe(true);
         expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);

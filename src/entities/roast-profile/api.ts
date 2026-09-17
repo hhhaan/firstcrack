@@ -5,7 +5,12 @@ type RoastProfileInsert = Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'>
 type RoastProfileUpdate = { id: string } & Partial<Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
 
 /** events: 소스 세션 로그 — Replay 컷오프(Drop 마크)에 쓴다 */
-type SourceSessionRow = { tsv_path: string | null; events: Json | null };
+type SourceSessionRow = {
+    tsv_path: string | null;
+    bbp_tsv_path?: string | null;
+    bbp_seconds?: number | null;
+    events: Json | null;
+};
 
 export type RoastProfileWithSource = RoastProfile & {
     source_session: SourceSessionRow | SourceSessionRow[] | null;
@@ -14,7 +19,7 @@ export type RoastProfileWithSource = RoastProfile & {
 };
 
 const SELECT_WITH_SOURCE =
-    '*, source_session:roast_sessions!source_session_id(tsv_path,events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+    '*, source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 
 export const roastProfileApi = {
     list: async (userId: string): Promise<RoastProfileWithSource[]> => {

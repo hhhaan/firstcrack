@@ -1,4 +1,16 @@
 {
+    "bbp": {
+        "history": "本次投豆前的BBP",
+        "live": "实时BBP",
+        "target": "BBP目标",
+        "timeOrigin": "距上次End的时间",
+        "duration": "BBP时长",
+        "chargeTemp": "投豆温度",
+        "loading": "正在加载BBP…",
+        "empty": "无已保存的BBP数据",
+        "failed": "无法加载BBP",
+        "noTarget": "未选择目标"
+    },
     "common": {
         "cancel": "取消",
         "close": "关闭",

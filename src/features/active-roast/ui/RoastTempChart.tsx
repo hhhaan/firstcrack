@@ -67,6 +67,7 @@ interface Props {
     rorYMax?: number;
     xViewMin?: number;
     xViewMax?: number;
+    bbpRange?: { start: number; end: number };
 }
 
 export interface RoastTempChartHandle {
@@ -137,6 +138,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         rorYMax = ROR_Y_MAX,
         xViewMin,
         xViewMax,
+        bbpRange,
     },
     ref,
 ) {
@@ -229,6 +231,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 rorYMax,
                 xViewMin,
                 xViewMax,
+                bbpRange,
                 colors: getResolvedChartColors(),
             }),
         [
@@ -267,6 +270,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             rorYMax,
             xViewMin,
             xViewMax,
+            bbpRange,
         ],
     );
 
@@ -288,6 +292,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         phaseSegments.length > 0,
         showFcBand,
         !!(targetXs?.length && targetBt?.length),
+        !!bbpRange,
     ].join('|');
     const prevStructureKey = useRef(structureKey);
     useEffect(() => {
