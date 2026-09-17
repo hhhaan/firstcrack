@@ -35,6 +35,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { livePointsFromBbp } from './lib/bbp-live-points';
 import {
@@ -65,6 +66,8 @@ interface ActiveRoastProps {
 }
 
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
+    const { t } = useTranslation();
+    const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
@@ -150,6 +153,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // 0으로 남으면 폴링이 로스팅 분기를 영원히 건너뛴다 (#317)
     const roastStartTimeRef = useRef(useRoastingStore.getState().roastStartMs);
 
+    // ── 도메인 훅 ─────────────────────────────────────────────────
+    const rawBT = liveData?.bt ?? null;
+    const rawET = liveData?.et ?? null;
+    const timeStr = formatElapsed(elapsed);
+
+    const { logEntries, pressedButtons, markEvent, cycleFc, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
+        unit,
+        rawBT,
+        elapsed,
+    );
+
     // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
     const { livePoints, setLivePoints } = useSidecarPolling({
         isActive,
@@ -159,6 +173,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setConnected,
         roastStartTimeRef,
         sessionId,
+        chargeBt: logEntries.find((entry) => entry.event === 'Charge')?.tempC ?? null,
     });
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
@@ -207,17 +222,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         showControlChart: roastSettings.showControlChart,
         unit,
     });
-
-    // ── 도메인 훅 ─────────────────────────────────────────────────
-    const rawBT = liveData?.bt ?? null;
-    const rawET = liveData?.et ?? null;
-    const timeStr = formatElapsed(elapsed);
-
-    const { logEntries, pressedButtons, markEvent, cycleFc, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
-        unit,
-        rawBT,
-        elapsed,
-    );
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
@@ -296,7 +300,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onAutoCharge: triggerCharge,
         onAutoDrop: handleAutoDrop,
         onTurningPoint: handleTurningPoint,
-        autoChargeMinRateCPerSec: roastSettings.autoChargeMinRateCPerSec,
+        autoChargeEnabled: roastSettings.autoChargeEnabled,
+        autoChargeMode: roastSettings.autoChargeMode,
+        pollIntervalMs,
         autoDropDropC: roastSettings.autoDropDropC,
         yellowTempC: roastSettings.yellowTempC,
         unit,
@@ -569,6 +575,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}
             />
+
+            {phase === 'standby' && roastSettings.autoChargeEnabled && !hasRawTemperature && (
+                <p role="status" className="text-sm text-muted-foreground">
+                    {t('settings.tabs.roast.autoChargeUnavailable')}
+                </p>
+            )}
 
             <div
                 className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${

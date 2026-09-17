@@ -103,14 +103,19 @@ describe('FEATURE.fastPolling plan matrix', () => {
     });
 });
 
-it('migrates Charge calibration while preserving the existing Drop threshold', () => {
+it('defaults legacy Charge settings and preserves explicit modes and Drop threshold', () => {
     const legacy = { yellowTempC: 150, autoChargeDropC: 7, autoDropDropC: 12 };
     expect(normalizeRoastSettings(legacy)).toMatchObject({
-        autoChargeMinRateCPerSec: 0.67,
+        autoChargeEnabled: true,
+        autoChargeMode: 'standard',
         autoDropDropC: 12,
     });
-    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: Number.NaN }).autoChargeMinRateCPerSec).toBe(0.67);
-    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: -1 }).autoChargeMinRateCPerSec).toBe(0.1);
-    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: 100 }).autoChargeMinRateCPerSec).toBe(15);
-    expect(normalizeRoastSettings({ autoChargeMinRateCPerSec: 0.8 }).autoChargeMinRateCPerSec).toBe(0.8);
+    expect(normalizeRoastSettings({ autoChargeEnabled: false, autoChargeMode: 'sensitive' })).toMatchObject({
+        autoChargeEnabled: false,
+        autoChargeMode: 'sensitive',
+    });
+    expect(normalizeRoastSettings({ autoChargeEnabled: 'false', autoChargeMode: 'invalid' } as never)).toMatchObject({
+        autoChargeEnabled: true,
+        autoChargeMode: 'standard',
+    });
 });

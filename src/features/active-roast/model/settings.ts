@@ -2,6 +2,7 @@ import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
+import type { AutoChargeMode } from '../lib/autoCharge';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
@@ -48,8 +49,8 @@ export type RoastSettings = {
      * When false, classic toggle mark/unmark FC Start only.
      */
     fcDualMarkEnabled: boolean;
-    /** Minimum falling rate for a Charge slope break (°C/s). Legacy °C-drop values are not reused. */
-    autoChargeMinRateCPerSec: number;
+    autoChargeEnabled: boolean;
+    autoChargeMode: AutoChargeMode;
     /** BT drop within the detection window that auto-marks Drop (after 3 min). */
     autoDropDropC: number;
     preChargeDisplaySec: number;
@@ -111,8 +112,8 @@ const DEFAULT_SETTINGS: RoastSettings = {
     yellowTempC: 150,
     autoYellowEnabled: true,
     fcDualMarkEnabled: false,
-    // Artisan Standard minimum falling rates at 1s sampling (°C/s).
-    autoChargeMinRateCPerSec: 0.67,
+    autoChargeEnabled: true,
+    autoChargeMode: 'standard',
     autoDropDropC: 8,
     preChargeDisplaySec: 60,
     alertsEnabled: true,
@@ -185,12 +186,8 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         controlYMin,
         controlYMax,
         yellowTempC,
-        autoChargeMinRateCPerSec: clampNum(
-            merged.autoChargeMinRateCPerSec,
-            0.1,
-            15,
-            DEFAULT_SETTINGS.autoChargeMinRateCPerSec,
-        ),
+        autoChargeEnabled: asBool(merged.autoChargeEnabled, DEFAULT_SETTINGS.autoChargeEnabled),
+        autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',
         autoDropDropC: clampNum(merged.autoDropDropC, 2, 30, DEFAULT_SETTINGS.autoDropDropC),
         autoYellowEnabled,
         fcDualMarkEnabled,

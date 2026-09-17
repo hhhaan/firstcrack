@@ -2,10 +2,10 @@ import type { TurningPoint } from '@features/active-roast';
 import { detectTurningPoints } from '@features/active-roast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type AutoChargeMode, createAutoChargeDetector } from '../lib/autoCharge';
 import { detectChargeOnset } from '../lib/chargeOnset';
 import { toDisplayTemp } from '../lib/temperature';
-import { detectTemperatureBreak, type TemperatureSample } from '../lib/temperatureBreak';
-import type { TemperatureUnit } from './settings';
+import type { PollIntervalMs, TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
 const AUTO_WINDOW_S = 2.5;
@@ -33,7 +33,9 @@ export type UseAutoDetectionOptions = {
     onAutoCharge: (bt: number, chargeTimeMs?: number) => void;
     onAutoDrop: (onset?: AutoDropOnset) => void;
     onTurningPoint: (tp: TurningPoint) => void;
-    autoChargeMinRateCPerSec: number;
+    autoChargeEnabled: boolean;
+    autoChargeMode: AutoChargeMode;
+    pollIntervalMs: PollIntervalMs;
     autoDropDropC: number;
     yellowTempC: number;
     unit: TemperatureUnit;
@@ -47,7 +49,9 @@ export const useAutoDetection = ({
     onAutoCharge,
     onAutoDrop,
     onTurningPoint,
-    autoChargeMinRateCPerSec,
+    autoChargeEnabled,
+    autoChargeMode,
+    pollIntervalMs,
     autoDropDropC,
     yellowTempC,
     unit,
@@ -56,9 +60,11 @@ export const useAutoDetection = ({
     autoYellowEnabled,
 }: UseAutoDetectionOptions) => {
     const dropWindowRef = useRef<TimedSample[]>([]);
-    const breakWindowRef = useRef<TemperatureSample[]>([]);
-    const previousPhaseRef = useRef<string | null>(null);
-    const lastSampleTimeRef = useRef<number | undefined>(undefined);
+    const chargeDetectorRef = useRef<ReturnType<typeof createAutoChargeDetector> | null>(null);
+    const onAutoChargeRef = useRef(onAutoCharge);
+    useEffect(() => {
+        onAutoChargeRef.current = onAutoCharge;
+    }, [onAutoCharge]);
     const autoChargedRef = useRef(false);
     const autoDroppedRef = useRef(false);
     // 발화 완료 TP를 그대로 보관 — 폴백→실감지 승격 시 재발화 판정에 identity 비교
@@ -79,49 +85,42 @@ export const useAutoDetection = ({
     const liveData = useRoastingStore((s) => s.liveData);
     const bt = liveData?.bt ?? null;
 
-    // Auto Charge uses raw sensor time; UI ticks and cached/stale payloads are not samples.
+    // Consume each raw response synchronously, independently of React rendering and display dedupe.
     useEffect(() => {
-        const sampleTime = liveData?.timestamp;
-        if (previousPhaseRef.current !== phase) {
-            previousPhaseRef.current = phase;
-            breakWindowRef.current = [];
-            lastSampleTimeRef.current = sampleTime;
-            return;
-        }
-        const rawBt = liveData?.bt_raw;
-        if (
-            phase !== 'standby' ||
-            liveData?.stale ||
-            rawBt == null ||
-            !Number.isFinite(rawBt) ||
-            rawBt <= 0 ||
-            rawBt >= 400 ||
-            sampleTime == null ||
-            !Number.isFinite(sampleTime) ||
-            liveData?.receivedAtMs == null
-        ) {
-            breakWindowRef.current = [];
-            lastSampleTimeRef.current = sampleTime;
-            return;
-        }
-        if (sampleTime === lastSampleTimeRef.current) return;
-        lastSampleTimeRef.current = sampleTime;
-        if (autoChargedRef.current) return;
-
-        const samples = breakWindowRef.current;
-        const last = samples.length > 0 ? samples[samples.length - 1] : undefined;
-        // A reconnect, backwards sensor clock or missing reads cannot form a bend.
-        if (last && (sampleTime <= last.t || sampleTime - last.t > 2.5)) samples.length = 0;
-        samples.push({ t: sampleTime, bt: rawBt });
-        if (samples.length > 11) samples.shift();
-        // Artisan's warm-drum guard; cold sensor warmup is not a charge.
-        if (rawBt <= 77) return;
-        const onset = detectTemperatureBreak(samples, autoChargeMinRateCPerSec);
-        if (!onset) return;
-        const onsetMs = liveData.receivedAtMs - (sampleTime - onset.t) * 1000;
-        autoChargedRef.current = true;
-        onAutoCharge(onset.bt, onsetMs);
-    }, [phase, liveData, onAutoCharge, autoChargeMinRateCPerSec]);
+        const detector = createAutoChargeDetector(autoChargeMode, pollIntervalMs);
+        chargeDetectorRef.current = detector;
+        const unsubscribe = useRoastingStore.subscribe((state, previous) => {
+            if (
+                state.phase !== previous.phase ||
+                state.sidecarConnected !== previous.sidecarConnected ||
+                state.reconnecting !== previous.reconnecting ||
+                state.machineSnapshot !== previous.machineSnapshot
+            ) {
+                detector.reset();
+            }
+            if (
+                !autoChargeEnabled ||
+                state.phase !== 'standby' ||
+                !state.sidecarConnected ||
+                state.reconnecting ||
+                state.charged ||
+                autoChargedRef.current
+            ) {
+                detector.reset();
+                return;
+            }
+            if (state.rawTemperature === previous.rawTemperature) return;
+            const sample = state.rawTemperature;
+            const onset = detector.push(sample);
+            if (!sample || !onset) return;
+            autoChargedRef.current = true;
+            onAutoChargeRef.current(onset.bt, sample.receivedAtMs - (sample.timestamp - onset.timestamp) * 1000);
+        });
+        return () => {
+            unsubscribe();
+            detector.reset();
+        };
+    }, [autoChargeEnabled, autoChargeMode, pollIntervalMs]);
 
     // Auto Drop retains the display-BT window and lookback pending Artisan-based review (#459).
     useEffect(() => {
@@ -213,17 +212,18 @@ export const useAutoDetection = ({
     // Manual charge를 누를 때 호출해 auto-charge race 방지
     const disableAutoCharge = useCallback(() => {
         autoChargedRef.current = true;
+        chargeDetectorRef.current?.reset();
     }, []);
 
     /** Connection check 실패 등으로 charge를 안 했을 때 auto-charge 재무장 (#174) */
     const rearmAutoCharge = useCallback(() => {
         autoChargedRef.current = false;
+        chargeDetectorRef.current?.reset();
     }, []);
 
     const resetAutoDetection = useCallback(() => {
-        breakWindowRef.current = [];
+        chargeDetectorRef.current?.reset();
         dropWindowRef.current = [];
-        lastSampleTimeRef.current = undefined;
         autoChargedRef.current = false;
         autoDroppedRef.current = false;
         tpFiredRef.current = null;

@@ -1,4 +1,5 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
+import type { RawTemperatureSample } from '@features/active-roast';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -44,6 +45,8 @@ interface Params {
     roastStartTimeRef: MutableRefObject<number>;
     /** Charge 시 생성된 세션 UUID. null이면 미시작 */
     sessionId: string | null;
+    /** Charge 로그의 온도 — 자동 감지 시 현재 BT가 아닌 소급 onset BT. */
+    chargeBt?: number | null;
 }
 
 /** idle 중 /status 재확인 주기 — 온도 폴링보다 느슨 (부하 거의 없음). */
@@ -128,6 +131,7 @@ export const useSidecarPolling = ({
     setConnected,
     roastStartTimeRef,
     sessionId,
+    chargeBt = null,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
     const [sidecarReady, setSidecarReady] = useState(false);
@@ -138,7 +142,8 @@ export const useSidecarPolling = ({
     const prevPhaseRef = useRef(phase);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef(createBtFilter());
-    const [rawBtFilter] = useState(createBtFilter);
+    const pollInFlightRef = useRef(false);
+    const sidecarGenerationRef = useRef(0);
 
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
@@ -164,14 +169,37 @@ export const useSidecarPolling = ({
                     });
                 });
             }
-            // #433: 대기 커브는 시야에서 사라진다. 로스트는 00:00. BBP TSV는 위에서 저장.
-            setLivePoints([]);
+            // 대기 커브는 지우되 Charge 로그와 같은 00:00 시작점은 보존한다 (#452).
+            const lastPoint = livePoints.length > 0 ? livePoints[livePoints.length - 1] : null;
+            const sample = lastPoint ?? useRoastingStore.getState().liveData;
+            const seed: LiveRoastPoint | null =
+                chargeBt != null && Number.isFinite(chargeBt)
+                    ? {
+                          time: 0,
+                          label: '0:00',
+                          bt: chargeBt,
+                          et: sample?.et ?? null,
+                          ror: null,
+                          ror_et: null,
+                          heater: sample?.heater ?? null,
+                          fan: sample?.fan ?? 0,
+                          drum: sample?.drum ?? 0,
+                          heaterSet: lastPoint?.heaterSet ?? null,
+                      }
+                    : null;
+            setLivePoints(seed ? [seed] : []);
+            if (seed && bbpSessionId) {
+                enqueueTsvRow(
+                    bbpSessionId,
+                    `0.00\t${seed.bt}\t${seed.et ?? ''}\t\t${seed.heater ?? ''}\t${seed.fan}\t${seed.drum}\t${seed.heaterSet ?? ''}\n`,
+                );
+            }
             preChargeStartRef.current = 0;
             lastPreChargeAbsRef.current = 0;
-            lastRoastPointTimeRef.current = null;
+            lastRoastPointTimeRef.current = seed ? 0 : null;
         }
         prevPhaseRef.current = phase;
-    }, [phase, roastStartTimeRef]);
+    }, [phase, roastStartTimeRef, chargeBt, livePoints]);
 
     // Rust는 인증된 200 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
     // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (Machines와 같은 규칙).
@@ -186,6 +214,8 @@ export const useSidecarPolling = ({
         };
 
         void listen<null>('sidecar-ready', () => {
+            sidecarGenerationRef.current += 1;
+            useRoastingStore.getState().updateRawTemperature(null);
             void sidecar.waitUntilReady().then(markReady, () => null);
         })
             .then((fn) => {
@@ -245,9 +275,23 @@ export const useSidecarPolling = ({
         };
 
         const poll = async () => {
+            if (pollInFlightRef.current) return;
+            pollInFlightRef.current = true;
+            const generation = sidecarGenerationRef.current;
+            const machine = useRoastingStore.getState().machineSnapshot;
+            let rawSample: RawTemperatureSample | null = null;
             try {
                 const data = await sidecar.getTemperatures();
-                if (cancelled) return;
+                const receivedAtMs = Date.now();
+                if (
+                    cancelled ||
+                    generation !== sidecarGenerationRef.current ||
+                    machine !== useRoastingStore.getState().machineSnapshot
+                )
+                    return;
+                if (!data.stale && !data.reconnecting && data.bt != null && data.bt_raw != null) {
+                    rawSample = { timestamp: data.timestamp, receivedAtMs, bt: data.bt_raw };
+                }
                 // bt가 null이면 연결 끊김 가능성 → /status로 이중 확인
                 if (data.bt === null || data.bt === undefined) {
                     const status = await sidecar.getStatus().catch(() => null);
@@ -268,16 +312,7 @@ export const useSidecarPolling = ({
                     applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
                     return;
                 }
-                const btRaw =
-                    !data.stale && data.bt_raw != null && Number.isFinite(data.timestamp)
-                        ? rawBtFilter(data.bt_raw, data.timestamp * 1000)
-                        : null;
-                useRoastingStore.getState().updateLiveData({
-                    ...data,
-                    bt,
-                    bt_raw: btRaw,
-                    receivedAtMs: Date.now(),
-                });
+                useRoastingStore.getState().updateLiveData({ ...data, bt });
                 useRoastingStore.getState().setPid(data.pid ?? null);
                 applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
                 if (bt === null) return;
@@ -336,7 +371,7 @@ export const useSidecarPolling = ({
                     }
                     setLivePoints((prev) => [...prev, point]);
                 } else if (currentPhase === 'standby') {
-                    // 첫 배치 예열 표시. Charge 때 livePoints는 비운다 (#433). BBP 대기는 스토어 차트.
+                    // 첫 배치 예열 표시. Charge 때 00:00 시작점으로 교체한다 (#452). BBP 대기는 스토어 차트.
                     const absTime = Date.now();
                     if (lastPreChargeAbsRef.current > 0 && absTime - lastPreChargeAbsRef.current < 400) return;
                     lastPreChargeAbsRef.current = absTime;
@@ -365,6 +400,7 @@ export const useSidecarPolling = ({
                     ]);
                 }
             } catch (e) {
+                rawSample = null;
                 logger.debug(e, 'sidecar polling error');
                 if (isUnauthorizedSidecar(e)) return;
                 // Transient HTTP/timeout must not wipe reconnecting or force hard disconnect
@@ -380,6 +416,15 @@ export const useSidecarPolling = ({
                         status,
                     }),
                 );
+            } finally {
+                pollInFlightRef.current = false;
+                if (
+                    !cancelled &&
+                    generation === sidecarGenerationRef.current &&
+                    machine === useRoastingStore.getState().machineSnapshot
+                ) {
+                    useRoastingStore.getState().updateRawTemperature(rawSample);
+                }
             }
         };
 
@@ -416,7 +461,7 @@ export const useSidecarPolling = ({
             cancelled = true;
             clearInterval(id);
         };
-    }, [phase, pollIntervalMs, sidecarReady, rawBtFilter]);
+    }, [phase, pollIntervalMs, sidecarReady]);
 
     return { livePoints, setLivePoints };
 };

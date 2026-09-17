@@ -603,6 +603,7 @@ class RoasterManager:
                 return {
                     **self._last_good,
                     "stale": True,
+                    "bt_raw": None,
                     "reconnecting": reconnecting,
                     "timestamp": time.monotonic(),
                 }

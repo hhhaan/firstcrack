@@ -1,5 +1,6 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
 import { create } from 'zustand';
+import type { RawTemperatureSample } from '../lib/autoCharge';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
 
@@ -28,6 +29,8 @@ export interface RoastingState {
     sidecarError: string | null;
     machineCapabilities: string[];
     liveData: LiveData | null;
+    rawTemperature: RawTemperatureSample | null;
+    updateRawTemperature: (sample: RawTemperatureSample | null) => void;
     /** 사이드카 PID 런타임 상태 (/temperatures에 실려 온다). PID 미사용이면 null. */
     pid: PidRuntime | null;
     /** Inventory/other entry → active roast bean handoff (consumed once when roast view activates). */
@@ -71,6 +74,7 @@ const initialState = {
     sidecarError: null as string | null,
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
+    rawTemperature: null as RawTemperatureSample | null,
     pid: null as PidRuntime | null,
     pendingBeanId: null as string | null,
     pendingBeanName: null as string | null,
@@ -154,17 +158,16 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current?.machine_protocol === snapshot.machine_protocol
         )
             return;
-        set({ machineSnapshot: snapshot });
+        set({ machineSnapshot: snapshot, rawTemperature: null });
     },
+
+    updateRawTemperature: (rawTemperature) => set({ rawTemperature }),
 
     updateLiveData: (data) => {
         const current = get().liveData;
         if (
             current &&
             current.bt === data.bt &&
-            current.bt_raw === data.bt_raw &&
-            current.timestamp === data.timestamp &&
-            current.stale === data.stale &&
             current.et === data.et &&
             current.ror === data.ror &&
             current.ror_et === data.ror_et &&

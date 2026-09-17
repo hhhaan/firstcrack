@@ -216,7 +216,7 @@ class TestReadTemperatures:
         assert reading["timestamp"] == 11.0
         stale = await manager.read_temperatures()
         assert stale["stale"] is True
-        assert stale["bt_raw"] == 197.25
+        assert stale["bt_raw"] is None
 
     async def test_heater_none_is_not_reported_as_zero(self, manager):
         """화력 피드백 채널이 없는 머신은 None으로 나가야 한다.
