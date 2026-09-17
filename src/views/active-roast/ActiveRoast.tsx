@@ -35,6 +35,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { livePointsFromBbp } from './lib/bbp-live-points';
 import {
@@ -65,6 +66,8 @@ interface ActiveRoastProps {
 }
 
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
+    const { t } = useTranslation();
+    const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
@@ -297,7 +300,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onAutoCharge: triggerCharge,
         onAutoDrop: handleAutoDrop,
         onTurningPoint: handleTurningPoint,
-        autoChargeDropC: roastSettings.autoChargeDropC,
+        autoChargeEnabled: roastSettings.autoChargeEnabled,
+        autoChargeMode: roastSettings.autoChargeMode,
+        pollIntervalMs,
         autoDropDropC: roastSettings.autoDropDropC,
         yellowTempC: roastSettings.yellowTempC,
         unit,
@@ -570,6 +575,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}
             />
+
+            {phase === 'standby' && roastSettings.autoChargeEnabled && !hasRawTemperature && (
+                <p role="status" className="text-sm text-muted-foreground">
+                    {t('settings.tabs.roast.autoChargeUnavailable')}
+                </p>
+            )}
 
             <div
                 className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -422,7 +423,13 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
         expect(livePoints.length).toBeGreaterThan(0);
 
         // Hold the immediate Charge poll: the seed must exist without a new reading.
-        mocks.getTemperatures.mockReturnValueOnce(new Promise(() => {}));
+        const nextReading = await mocks.getTemperatures();
+        let resolveReading = (_reading: unknown) => {};
+        mocks.getTemperatures.mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveReading = resolve;
+            }),
+        );
         roastStartTimeRef.current = Date.now() - lagMs;
         useRoastingStore.setState({ phase: 'roasting', sessionId: 'bbp-433' });
         act(() => root.render(createElement(Probe, { phase: 'roasting' })));
@@ -443,12 +450,209 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
         expect(mocks.enqueueTsvRow).toHaveBeenCalledWith('bbp-433', '0.00\t210.1\t210\t\t80\t40\t60\t\n');
         await act(async () => {
             await vi.advanceTimersByTimeAsync(500);
+            resolveReading(nextReading);
         });
         expect(livePoints.map((point) => [point.time, point.bt])).toEqual([
             [0, 210.1],
             [lagMs / 1000 + 0.5, 200],
         ]);
         expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(2);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('publishes raw sample timestamps separately and clears stale or missing input', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-17T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    const reading = {
+        bt: 200,
+        bt_raw: 198,
+        timestamp: 10,
+        stale: false,
+        et: 210,
+        ror: 5,
+        ror_et: 4,
+        heater: 80,
+        fan: 40,
+        drum: 60,
+    };
+    mocks.getTemperatures.mockImplementation(async () => ({ ...reading }));
+    const root = renderProbe(1000);
+    try {
+        await flushReady();
+        expect(useRoastingStore.getState().rawTemperature).toMatchObject({
+            bt: 198,
+            timestamp: 10,
+            receivedAtMs: Date.now(),
+        });
+        reading.timestamp++;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        // Even an unchanged integer reading must reach the detector as a new sample.
+        expect(useRoastingStore.getState().rawTemperature?.timestamp).toBe(11);
+        reading.bt_raw = 0;
+        reading.timestamp++;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().rawTemperature?.bt).toBe(0); // detector validates range
+        reading.bt_raw = 196;
+        reading.timestamp++;
+        reading.stale = true;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().rawTemperature).toBeNull();
+        // An older sidecar's smoothed reading must never silently become raw BT.
+        stubTemps();
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().rawTemperature).toBeNull();
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('serializes polls and clears raw input on HTTP failure, releasing the lock', async () => {
+    vi.useFakeTimers();
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    let rejectRead = (_error: Error) => {};
+    mocks.getTemperatures.mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+            rejectRead = reject;
+        }),
+    );
+    const root = renderProbe(500);
+    try {
+        await flushReady();
+        await act(async () => vi.advanceTimersByTimeAsync(1500));
+        expect(mocks.getTemperatures).toHaveBeenCalledTimes(1);
+        useRoastingStore.getState().updateRawTemperature({ timestamp: 1, receivedAtMs: Date.now(), bt: 200 });
+        await act(async () => rejectRead(new Error('timeout')));
+        expect(useRoastingStore.getState().rawTemperature).toBeNull();
+        stubTemps();
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(mocks.getTemperatures).toHaveBeenCalledTimes(2);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('drops an in-flight response from before sidecar-ready and resumes with fresh raw data', async () => {
+    vi.useFakeTimers();
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    let ready = () => {};
+    mocks.listen.mockImplementation(async (event: string, callback: () => void) => {
+        if (event === 'sidecar-ready') ready = callback;
+        return () => {};
+    });
+    let resolveRead = (_reading: unknown) => {};
+    mocks.getTemperatures.mockReturnValueOnce(
+        new Promise((resolve) => {
+            resolveRead = resolve;
+        }),
+    );
+    const root = renderProbe(500);
+    const reading = { bt: 200, bt_raw: 199, timestamp: 1, et: null, ror: 0, ror_et: 0, heater: 0, fan: 0, drum: 0 };
+    try {
+        await flushReady();
+        act(() => ready());
+        await act(async () => resolveRead(reading));
+        expect(useRoastingStore.getState().rawTemperature).toBeNull();
+        mocks.getTemperatures.mockResolvedValue(reading);
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(useRoastingStore.getState().rawTemperature?.bt).toBe(199);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('publishes automatic Charge after standby work, initializes TSV then seeds exactly once', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-17T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    let count = 0;
+    mocks.getTemperatures.mockImplementation(async () => {
+        const i = count++;
+        return {
+            bt: 200,
+            bt_raw: 200 - Math.max(0, i - 4),
+            timestamp: i / 2,
+            et: null,
+            ror: 0,
+            ror_et: 0,
+            heater: 0,
+            fan: 0,
+            drum: 0,
+        };
+    });
+    useRoastingStore.setState({ phase: 'standby', sidecarConnected: true });
+    const roastStartTimeRef = { current: 0 };
+    const root = createRoot(document.createElement('div'));
+    let chargeBt: number | null = null;
+    let points: ReturnType<typeof useSidecarPolling>['livePoints'] = [];
+    const Probe = () => {
+        const phase = useRoastingStore((state) => state.phase);
+        const sessionId = useRoastingStore((state) => state.sessionId);
+        const polling = useSidecarPolling({
+            isActive: true,
+            phase,
+            pollIntervalMs: 500,
+            enterPreheating: () => {},
+            setConnected: useRoastingStore.getState().setConnected,
+            roastStartTimeRef,
+            sessionId,
+            chargeBt,
+        });
+        points = polling.livePoints;
+        useAutoDetection({
+            livePoints: points,
+            onAutoCharge: (bt, time) => {
+                chargeBt = bt;
+                roastStartTimeRef.current = time ?? Date.now();
+                useRoastingStore.getState().startCharge(time);
+            },
+            onAutoDrop: () => {},
+            onTurningPoint: () => {},
+            autoChargeEnabled: true,
+            autoChargeMode: 'standard',
+            pollIntervalMs: 500,
+            autoDropDropC: 8,
+            yellowTempC: 150,
+            unit: 'C',
+            logEntries: [],
+            autoYellowEnabled: true,
+        });
+        return null;
+    };
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        for (let i = 0; i < 6; i++) await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(useRoastingStore.getState().charged).toBe(true);
+        expect(points[0]).toMatchObject({ time: 0, bt: 200 });
+        expect(points.filter((point) => point.time === 0)).toHaveLength(1);
+        const rows = mocks.enqueueTsvRow.mock.calls;
+        expect(rows.filter(([, row]) => row.startsWith('0.00\t200\t'))).toHaveLength(1);
+        expect(mocks.initSessionTsv.mock.invocationCallOrder[0]).toBeLessThan(
+            mocks.enqueueTsvRow.mock.invocationCallOrder[0],
+        );
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('ignores the old phase response even before React runs polling cleanup', async () => {
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    let resolveRead = (_reading: unknown) => {};
+    mocks.getTemperatures.mockReturnValueOnce(
+        new Promise((resolve) => {
+            resolveRead = resolve;
+        }),
+    );
+    const root = renderProbe(500);
+    try {
+        await flushReady();
+        useRoastingStore.setState({ phase: 'standby' });
+        await act(async () => resolveRead({ bt: 200, bt_raw: 200, timestamp: 1 }));
+        expect(useRoastingStore.getState().rawTemperature).toBeNull();
+        expect(mocks.enqueueTsvRow).not.toHaveBeenCalled();
     } finally {
         act(() => root.unmount());
     }

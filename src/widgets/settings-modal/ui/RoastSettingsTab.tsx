@@ -249,7 +249,7 @@ export const RoastSettingsTab = () => {
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
 
     // 절대 온도 입력은 표시 단위를 따르고 저장은 항상 °C. 경계는 °C에서 합성한 뒤 한 번만 변환한다.
-    // (델타/변화율 값 — autoChargeDropC·autoDropDropC·alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
+    // (델타/변화율 값 — autoDropDropC·alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
     const unit = roastSettings.temperatureUnit;
     const tempSuffix = `°${unit}`;
     const dispT = (celsius: number) => Math.round(toDisplayTemp(celsius, unit));
@@ -485,18 +485,34 @@ export const RoastSettingsTab = () => {
             <SectionCard>
                 <SectionCard.Header title={tk('autoCharge')} description={tk('autoChargeDescription')} />
                 <SectionCard.Body className="grid gap-3">
+                    <SettingsCheckRow
+                        checked={roastSettings.autoChargeEnabled}
+                        label={tk('autoChargeEnabled')}
+                        description={tk('autoChargeDescription')}
+                        onChange={() => updateRoastSettings({ autoChargeEnabled: !roastSettings.autoChargeEnabled })}
+                    />
                     <SettingsOptionRow justify="between">
                         <div>
-                            <div className={settingsOptionLabelCls}>{tk('dropThreshold')}</div>
-                            <div className={settingsOptionDescCls}>{tk('dropThresholdDescription')}</div>
+                            <div className={settingsOptionLabelCls}>{tk('autoChargeSensitivity')}</div>
+                            <div className={settingsOptionDescCls}>{tk('autoChargeSensitiveDescription')}</div>
                         </div>
-                        <NumberInput
-                            value={roastSettings.autoChargeDropC}
-                            onChange={(v) => updateRoastSettings({ autoChargeDropC: v })}
-                            min={1}
-                            max={30}
-                            suffix="°C"
-                        />
+                        <Select
+                            value={roastSettings.autoChargeMode}
+                            disabled={!roastSettings.autoChargeEnabled}
+                            onValueChange={(value) =>
+                                updateRoastSettings({
+                                    autoChargeMode: value === 'sensitive' ? 'sensitive' : 'standard',
+                                })
+                            }
+                        >
+                            <SelectTrigger className="w-36" aria-label={tk('autoChargeSensitivity')}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="standard">{tk('autoChargeStandard')}</SelectItem>
+                                <SelectItem value="sensitive">{tk('autoChargeSensitive')}</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </SettingsOptionRow>
                     <SettingsOptionRow justify="between">
                         <div>
