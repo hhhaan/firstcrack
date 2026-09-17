@@ -1,4 +1,4 @@
-import type { PlanBatchHandoff } from '@shared/types/database.types';
+import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useReducer } from 'react';
 
@@ -11,7 +11,7 @@ export interface RoastSummaryData {
 
 export interface SaveFlowResult {
     shouldOpenContinue: boolean;
-    continueCandidates?: PlanBatchHandoff[];
+    continueCandidates?: PlanBatchWithProgress[];
 }
 
 interface FlowState {
@@ -19,7 +19,7 @@ interface FlowState {
     summaryModal: boolean;
     summaryData: RoastSummaryData | null;
     continueModal: boolean;
-    continueCandidates: PlanBatchHandoff[];
+    continueCandidates: PlanBatchWithProgress[];
 }
 
 const INITIAL_FLOW_STATE: FlowState = {

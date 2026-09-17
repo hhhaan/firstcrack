@@ -1,10 +1,8 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { planBatchApi } from '@entities/plan';
+import { resumePendingRoastSave } from '@features/active-roast/lib/resumePendingRoastSave';
 import { isPermanentSaveError } from '@features/active-roast/lib/saveErrorClassification';
-import {
-    clearPendingRoastSave,
-    readPendingRoastSave,
-    toSaveRoastParams,
-} from '@features/active-roast/model/pendingRoastSave';
+import { clearPendingRoastSave, readPendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
@@ -43,7 +41,12 @@ export const PendingRoastRecovery = () => {
                         return;
                     }
                 }
-                await saveRoast(toSaveRoastParams(pending.params));
+                await resumePendingRoastSave({
+                    pending,
+                    ownerId: workspaceOwnerId,
+                    resolveForRoast: planBatchApi.resolveForRoast,
+                    saveRoast,
+                });
                 clearPendingRoastSave();
                 useToastStore.getState().show(i18n.t('activeRoast.recovery.saved'));
             } catch (err) {
@@ -52,6 +55,8 @@ export const PendingRoastRecovery = () => {
                 // violation (bad weights, deleted bean) reproduces identically forever and
                 // there is no screen here to fix the values, so keeping the snapshot would
                 // fail on every launch — discard it instead (#181).
+                // 22P02 / bad plan ids are fixable — resumePendingRoastSave marks
+                // needs_attention and keeps the same session UUID.
                 if (isPermanentSaveError(err)) {
                     clearPendingRoastSave();
                     useToastStore.getState().show(i18n.t('activeRoast.recovery.discarded'));

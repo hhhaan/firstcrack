@@ -1,3 +1,7 @@
+import { i18n } from '@shared/i18n';
+import { errorMessage } from '@shared/lib/errorMessage';
+import { BatchLimitError } from '@shared/lib/features';
+
 /** PostgREST/PostgREST-wrapped Postgres error code, or null when the error carries none. */
 export const pgErrorCode = (err: unknown): string | null => {
     if (!err || typeof err !== 'object' || !('code' in err)) return null;
@@ -16,4 +20,16 @@ export const pgErrorCode = (err: unknown): string | null => {
 export const isPermanentSaveError = (err: unknown): boolean => {
     const code = pgErrorCode(err);
     return code !== null && /^23\d{3}$/.test(code);
+};
+
+/** Virtual/bad plan_batch_id — keep the pending snapshot so a later resolve can retry. */
+export const isFixablePlanBatchIdError = (err: unknown): boolean =>
+    pgErrorCode(err) === '22P02' || pgErrorCode(err) === 'unresolvable_plan_batch_id';
+
+/** Human-readable save failure — PostgREST errors are plain objects, not Error. */
+export const formatRoastSaveError = (err: unknown): string => {
+    if (err instanceof BatchLimitError) {
+        return i18n.t(`planGate.${err.code}`, { used: err.used, max: err.max });
+    }
+    return errorMessage(err);
 };

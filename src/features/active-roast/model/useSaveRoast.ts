@@ -158,8 +158,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         }
     }
 
-    const { formData, handoffBeanName, sessionId, ...payloadParams } = params;
-    const effectiveBatch = resolveEffectiveBatch(planBatchHandoff, formData.linkedBatch);
+    const { formData, handoffBeanName, sessionId, planBatchHandoff: paramsHandoff, ...payloadParams } = params;
+    const effectiveBatch = resolveEffectiveBatch(paramsHandoff ?? planBatchHandoff, formData.linkedBatch);
 
     const weightGrams = Math.round(formData.weightGrams * 1000);
     const outputKg = formData.outputWeightKg;

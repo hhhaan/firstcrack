@@ -1,4 +1,4 @@
-import type { PlanBatchHandoff } from '@shared/types/database.types';
+import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { type FC, useEffect, useState } from 'react';
@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 
 interface PlanBatchContinueModalProps {
     show: boolean;
-    candidates: PlanBatchHandoff[];
-    onStartNext: (handoff: PlanBatchHandoff) => void;
+    candidates: PlanBatchWithProgress[];
+    onStartNext: (row: PlanBatchWithProgress) => void;
     onDismiss: () => void;
     onGoToSchedule?: () => void;
 }
@@ -24,16 +24,16 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
 
     useEffect(() => {
         if (show && candidates.length > 0) {
-            setSelectedId(candidates[0].planBatchId);
+            setSelectedId(candidates[0].id);
         }
         if (!show) setSelectedId(null);
     }, [show, candidates]);
 
     if (!show || candidates.length === 0) return null;
 
-    const selected = candidates.find((c) => c.planBatchId === selectedId) ?? candidates[0];
+    const selected = candidates.find((c) => c.id === selectedId) ?? candidates[0];
     const isSingleSameBatch = candidates.length === 1;
-    const sessionsLeft = selected.completedSessions < selected.batchCount;
+    const sessionsLeft = selected.completed_sessions < selected.batch_count;
 
     return (
         <ModalShell
@@ -52,21 +52,21 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
             <p className="text-[13px] text-secondary leading-[1.5] mb-4">
                 {isSingleSameBatch && sessionsLeft
                     ? t('activeRoast.planBatch.sessionsComplete', {
-                          done: selected.completedSessions,
-                          total: selected.batchCount,
+                          done: selected.completed_sessions,
+                          total: selected.batch_count,
                       })
                     : t('activeRoast.planBatch.remainingBatches', { count: candidates.length })}
             </p>
 
             <div className="flex flex-col gap-2 mb-5 max-h-[240px] overflow-y-auto">
                 {candidates.map((batch, index) => {
-                    const active = batch.planBatchId === selected.planBatchId;
+                    const active = batch.id === selected.id;
                     return (
                         <button
-                            key={batch.planBatchId}
+                            key={batch.id}
                             type="button"
-                            data-testid={`plan-batch-candidate-${batch.planBatchId}`}
-                            onClick={() => setSelectedId(batch.planBatchId)}
+                            data-testid={`plan-batch-candidate-${batch.id}`}
+                            onClick={() => setSelectedId(batch.id)}
                             className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left border transition-colors cursor-pointer ${
                                 active
                                     ? 'bg-palette-purple/8 border-palette-purple/15'
@@ -83,15 +83,15 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
                                 {index + 1}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-medium text-primary truncate">{batch.beanName}</p>
+                                <p className="text-[13px] font-medium text-primary truncate">{batch.bean_name}</p>
                                 <p className="text-[11px] text-muted">
-                                    {batch.batchSizeKg != null
-                                        ? t('activeRoast.planBatch.kgPerBatch', { kg: batch.batchSizeKg })
+                                    {batch.batch_size_kg != null
+                                        ? t('activeRoast.planBatch.kgPerBatch', { kg: batch.batch_size_kg })
                                         : null}
                                     {' · '}
                                     {t('activeRoast.summary.sessionProgress', {
-                                        current: batch.completedSessions,
-                                        total: batch.batchCount,
+                                        current: batch.completed_sessions,
+                                        total: batch.batch_count,
                                     })}
                                 </p>
                             </div>

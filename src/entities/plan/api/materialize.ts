@@ -25,12 +25,15 @@ type MaterializePatch = {
  * PostgREST upsert cannot use a partial unique index as arbiter — so on 23505
  * (double-click / concurrent tab / retry) we converge by updating the existing row.
  */
+export type MaterializeConflict = 'update' | 'read';
+
 export async function materializePlanBatch(
     userId: string,
     ruleId: string,
     scheduledDate: string,
     originalDate: string,
     patch: MaterializePatch,
+    options?: { conflict?: MaterializeConflict },
 ): Promise<PlanBatch> {
     const plan = await dayPlanApi.getOrCreate(userId, scheduledDate);
 
@@ -60,6 +63,19 @@ export async function materializePlanBatch(
         .single();
     if (!error) return data;
     if (error.code !== '23505') throw error;
+
+    // Start/Continue/save/recovery pass conflict:'read' so a concurrent materialize
+    // does not overwrite the existing exception with a stale snapshot.
+    if ((options?.conflict ?? 'update') === 'read') {
+        const { data: existing, error: readError } = await supabase
+            .from('roast_plan_batches')
+            .select()
+            .eq('recurrence_rule_id', ruleId)
+            .eq('original_date', originalDate)
+            .single();
+        if (readError) throw readError;
+        return existing;
+    }
 
     // The exception row already exists — apply only the caller's explicit fields
     // (plus scheduling context) so a partial patch does not reset the row to defaults.

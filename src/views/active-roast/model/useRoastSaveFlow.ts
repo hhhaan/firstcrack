@@ -2,15 +2,15 @@ import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
+import { resumePendingRoastSave } from '@features/active-roast/lib/resumePendingRoastSave';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
-import { pgErrorCode } from '@features/active-roast/lib/saveErrorClassification';
+import { formatRoastSaveError, pgErrorCode } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import {
     clearPendingRoastSave,
     type PendingRoastParams,
     type PendingRoastSave,
     readPendingRoastSave,
-    toSaveRoastParams,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -19,7 +19,6 @@ import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
 import { ensureSession } from '@shared/lib/ensureSession';
 import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
-import { BatchLimitError } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useToastStore } from '@shared/store/toast';
@@ -45,14 +44,13 @@ export interface UseRoastSaveFlowParams {
     onResetActiveRoast: () => void;
 }
 
-/** After save, load fresh day batches and map remaining → handoffs. */
+/** After save, load fresh day batches and keep remaining as rows (materialize on select). */
 export async function resolveContinueCandidates(params: {
     preferBatchId: string | null;
     fetchDayBatches: () => Promise<PlanBatchWithProgress[]>;
-}): Promise<PlanBatchHandoff[]> {
+}): Promise<PlanBatchWithProgress[]> {
     const fresh = await params.fetchDayBatches();
-    const remaining = getRemainingDayBatches(fresh, { preferBatchId: params.preferBatchId });
-    return remaining.map(toPlanBatchHandoff);
+    return getRemainingDayBatches(fresh, { preferBatchId: params.preferBatchId });
 }
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
@@ -182,16 +180,25 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     throw new Error(i18n.t('activeRoast.summary.sessionExpired'));
                 }
 
-                const saveResult = await saveRoast(toSaveRoastParams(pending.params));
+                const saveResult = await resumePendingRoastSave({
+                    pending,
+                    ownerId: workspaceOwnerId,
+                    resolveForRoast: planBatchApi.resolveForRoast,
+                    saveRoast,
+                });
                 clearPendingRoastSave();
 
                 if (saveResult.batchStatusUpdateFailed) {
                     useToastStore.getState().show(i18n.t('activeRoast.summary.batchStatusUpdateFailed'));
                 }
 
-                const preferBatchId = planBatchHandoff?.planBatchId ?? linkedBatch?.planBatchId ?? null;
+                const preferBatchId =
+                    saveResult.savedSession.plan_batch_id ??
+                    planBatchHandoff?.planBatchId ??
+                    linkedBatch?.planBatchId ??
+                    null;
 
-                let continueCandidates: PlanBatchHandoff[] = [];
+                let continueCandidates: PlanBatchWithProgress[] = [];
                 if (isWorkspaceReady && workspaceOwnerId) {
                     try {
                         continueCandidates = await resolveContinueCandidates({
@@ -251,12 +258,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     });
                     return;
                 }
-                const detail =
-                    err instanceof BatchLimitError
-                        ? i18n.t(`planGate.${err.code}`, { used: err.used, max: err.max })
-                        : err instanceof Error
-                          ? err.message
-                          : String(err);
+                const detail = formatRoastSaveError(err);
                 await message(i18n.t('activeRoast.dialogs.saveFailedMsg', { error: detail }), {
                     title: i18n.t('activeRoast.dialogs.saveFailedTitle'),
                     kind: 'error',

@@ -13,6 +13,8 @@ export type PendingRoastSave = {
     version: 1;
     /** true = Save was clicked (retry silently); false = summary opened but never submitted (ask first). */
     submitted: boolean;
+    /** 22P02 / unresolvable plan id — keep the snapshot; do not auto-clear. */
+    needsAttention?: boolean;
     params: PendingRoastParams;
 };
 

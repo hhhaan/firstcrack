@@ -91,4 +91,19 @@ describe('materializePlanBatch', () => {
 
         await expect(materializePlanBatch(...args, {})).rejects.toEqual(updateErr);
     });
+
+    it('conflict read selects the existing row on 23505 without updating', async () => {
+        const existing = { id: 'batch-1', bean_name: 'Kenya', notes: 'keep me' };
+        const insertQ = chainable({ data: null, error: { code: '23505', message: 'duplicate key' } });
+        const selectQ = chainable({ data: existing, error: null });
+        from.mockReturnValueOnce(insertQ).mockReturnValueOnce(selectQ);
+
+        await expect(
+            materializePlanBatch(...args, { bean_name: 'Kenya', notes: 'stale overwrite' }, { conflict: 'read' }),
+        ).resolves.toEqual(existing);
+
+        expect(selectQ.update).not.toHaveBeenCalled();
+        expect(selectQ.eq).toHaveBeenCalledWith('recurrence_rule_id', 'rule-1');
+        expect(selectQ.eq).toHaveBeenCalledWith('original_date', '2026-07-06');
+    });
 });

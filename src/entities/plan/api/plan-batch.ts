@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { listForDateRange } from './list-for-date-range';
 import { materializePlanBatch } from './materialize';
 import { mergeRecurrenceRuleMaster, type RecurrenceRuleMasterPatch, recurrenceRuleApi } from './recurrence-rule';
+import { resolveForRoast } from './resolve-for-roast';
 
 export const planBatchApi = {
     list: async (planId: string): Promise<PlanBatchWithProgress[]> => {
@@ -270,4 +271,5 @@ export const planBatchApi = {
 
     listForDateRange,
     materialize: materializePlanBatch,
+    resolveForRoast,
 };
