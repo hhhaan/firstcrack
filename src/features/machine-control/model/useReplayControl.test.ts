@@ -1526,4 +1526,33 @@ describe('useReplayControl', () => {
             staleOnly.unmount();
         });
     });
+
+    it('프로파일 heater_events가 TSV 추출보다 우선한다', async () => {
+        const h = await renderReplay({
+            profileHeaterEvents: [{ t: 0, bt: 180, heater: 90, trigger: 'time' }],
+        });
+        expect(h.get().source).toBe('profile');
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(90);
+        h.unmount();
+    });
+
+    it('배치 편집은 재생을 끄지 않고 다음 이벤트부터 이어간다', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        h.writeHeater.mockClear();
+        await act(async () =>
+            h.get().applyBatchEvents([
+                { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                { t: 120, bt: 110, heater: 45, trigger: 'bt' },
+            ]),
+        );
+        expect(h.get().active).toBe(true);
+        expect(h.get().source).toBe('batch');
+        expect(h.get().stopReason).toBeNull();
+        await h.rerender({ liveBt: 111, elapsed: 130, confirmedTurningPoint: { fallback: false } });
+        expect(h.writeHeater).toHaveBeenCalledWith(45);
+        h.unmount();
+    });
 });

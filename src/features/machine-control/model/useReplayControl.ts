@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
 import type { ControlOrigin } from '../lib/controlSender';
+import { resolveReplayPlan } from '../lib/heater-events';
 import {
     eventTrigger,
     extractReplayEvents,
@@ -26,6 +27,8 @@ export interface ReplayControlInputs {
     referenceMachineMismatch: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록(쿨다운 조작)을 재생에서 제외한다 */
     referenceDropTime: number | null;
+    /** 프로파일 heater_events jsonb — null이면 TSV 추출 (#435) */
+    profileHeaterEvents?: unknown;
     liveBt: number | null;
     elapsed: number;
     /** phase === 'roasting' — 이 밖에서는 판정도 쓰기도 하지 않는다 */
@@ -129,6 +132,7 @@ export const useReplayControl = ({
     referencePoints,
     referenceMachineMismatch,
     referenceDropTime,
+    profileHeaterEvents,
     liveBt,
     elapsed,
     roasting,
@@ -157,12 +161,32 @@ export const useReplayControl = ({
     const minHeater = heaterMin ?? 0;
     const maxHeater = heaterMax ?? 100;
     // null points = 로딩. 이전 프로파일 계획을 새 프로파일에 쓰지 않는다.
-    const plan = useMemo(() => {
-        const extracted = referencePoints ? extractReplayEvents(referencePoints, referenceDropTime) : null;
-        return extracted?.events.every((event) => event.heater >= minHeater && event.heater <= maxHeater)
-            ? extracted
-            : null;
-    }, [referencePoints, referenceDropTime, minHeater, maxHeater]);
+    const extracted = useMemo(
+        () => (referencePoints ? extractReplayEvents(referencePoints, referenceDropTime) : null),
+        [referencePoints, referenceDropTime],
+    );
+    const [batchEvents, setBatchEvents] = useState<ReplayEvent[] | null>(null);
+    const [prevExtracted, setPrevExtracted] = useState(extracted);
+    const [prevProfileEvents, setPrevProfileEvents] = useState(profileHeaterEvents);
+    const sourceChanged = extracted !== prevExtracted || profileHeaterEvents !== prevProfileEvents;
+    if (sourceChanged) {
+        setPrevExtracted(extracted);
+        setPrevProfileEvents(profileHeaterEvents);
+        if (batchEvents != null) setBatchEvents(null);
+    }
+    const { plan: resolvedPlan, source: planSource, overrideInvalid } = useMemo(
+        () =>
+            resolveReplayPlan({
+                points: referencePoints,
+                dropTime: referenceDropTime,
+                profileEvents: profileHeaterEvents,
+                batchEvents: sourceChanged ? null : batchEvents,
+                heaterMin: minHeater,
+                heaterMax: maxHeater,
+            }),
+        [referencePoints, referenceDropTime, profileHeaterEvents, batchEvents, sourceChanged, minHeater, maxHeater],
+    );
+    const plan = overrideInvalid ? null : resolvedPlan;
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
     const stopCause: ReplayStopReason | null = !sidecarConnected
@@ -237,12 +261,9 @@ export const useReplayControl = ({
         if (writing) setWriting(false);
     }
 
-    // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
-    // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
-    // effect가 stale active + 옛 index + 새 plan으로 한 번 실행돼 엉뚱한 쓰기를 쏠 수 있다.
-    const [prevPlan, setPrevPlan] = useState(plan);
-    if (plan !== prevPlan) {
-        setPrevPlan(plan);
+    // 레퍼런스/프로파일 오버라이드가 바뀌면 진행 중인 재생은 무효.
+    // 배치 편집(#435)은 같은 레퍼런스라 인덱스를 유지하고 다음 이벤트부터 이어간다.
+    if (sourceChanged) {
         setIndex(0);
         setWriting(false);
         // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
@@ -251,6 +272,9 @@ export const useReplayControl = ({
             setActive(false);
             setStopReason('profileChanged');
         }
+    } else {
+        const len = plan?.events.length ?? 0;
+        if (index > len) setIndex(len);
     }
 
     // 배치 경계(roasting 양쪽 에지)에서 인덱스를 되돌린다 — 남은 인덱스는 이전 배치
@@ -271,6 +295,8 @@ export const useReplayControl = ({
         setWriting(false);
         // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
         bumpWriteGenOnRenderStop();
+        // 이번 배치 편집본은 배치가 끝나면 버린다. Charge(false→true)에서는 유지.
+        if (prevRoasting && !roasting) setBatchEvents(null);
     }
 
     // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋의
@@ -488,13 +514,26 @@ export const useReplayControl = ({
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
     const nextEventTrigger = nextEvent && plan ? eventTrigger(nextEvent, plan.tpTime) : null;
 
+    const applyBatchEvents = useCallback((events: ReplayEvent[] | null) => {
+        setBatchEvents(events && events.length > 0 ? events : null);
+    }, []);
+
     return {
+        plan,
+        source: planSource,
+        applyBatchEvents,
+        overrideInvalid,
         /** 레퍼런스에 Heat set 지시가 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
         available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
         /** 타겟 곡선 로딩 중 — 이전 계획/기록 없음 문구를 쓰지 않는다 */
         referenceLoading: referencePoints == null,
         /** 로드된 레퍼런스에 Heat set 조작 기록이 없다. 실측만 있는 구 TSV 포함 */
-        missingHeatSet: referencePoints != null && !hasHeatSet,
+        missingHeatSet:
+            referencePoints != null &&
+            !hasHeatSet &&
+            planSource !== 'profile' &&
+            planSource !== 'batch' &&
+            !overrideInvalid,
         /** 다른 기종 기록 — UI 힌트 분리용 */
         machineMismatch: referenceMachineMismatch,
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */

@@ -22,17 +22,15 @@ export interface ReplayPoint {
     heaterSet?: number | null;
 }
 
-/** 행별 발화 기준. TSV 추출은 TP 이전·동일 시각=time, 이후=bt. */
+/** 행별 발화 기준. 없으면 TSV 추출과 같이 TP 이전·동일 시각=time, 이후=bt (#435). */
 export type ReplayTrigger = 'time' | 'bt';
 
 export interface ReplayEvent {
     t: number;
     bt: number;
     heater: number;
+    trigger?: ReplayTrigger;
 }
-
-/** judgeReplay와 표시가 같은 분류를 쓴다. UI에서 TP 판정을 복제하지 않는다. */
-export const eventTrigger = (event: ReplayEvent, tpTime: number): ReplayTrigger => (event.t <= tpTime ? 'time' : 'bt');
 
 export interface ReplayPlan {
     events: ReplayEvent[];
@@ -65,7 +63,7 @@ export const hasHeatSetRecord = (points: ReplayPoint[] | null | undefined, dropT
  * 실기록 기준: 20분+ 배치에서 1%씩 내리는 조작이 35회까지 관측됨(초기값 포함 36이벤트).
  * PID 기록은 폴링마다 흔들려 수백 이벤트라 60으로도 충분히 갈린다.
  */
-const MAX_EVENTS = 60;
+export const MAX_EVENTS = 60;
 
 /**
  * running min 대비 이만큼 BT가 회복해야 TP로 확정한다 — 센서 흔들림이
@@ -151,8 +149,21 @@ export interface ReplaySample {
 }
 
 /**
- * 이번 샘플에서 발화할 heater 값 판정. 순방향 인덱스라 재발화가 없고,
- * 한 샘플에 여러 이벤트를 넘으면 마지막 값 하나만 쓴다 (중간값 순차 쓰기는 무의미).
+ * judgeReplay와 표시가 같은 분류. 행 trigger가 있으면 그걸 쓰고, 없으면
+ * TSV 추출 규칙(t <= tpTime → time).
+ */
+export const eventTrigger = (event: ReplayEvent, tpTime: number): ReplayTrigger =>
+    event.trigger ?? (event.t <= tpTime ? 'time' : 'bt');
+
+/**
+ * 이번 샘플에서 발화할 heater 값 판정.
+ *
+ * 순방향 인덱스: 앞 이벤트가 미충족이면 뒤 이벤트는 시각이 돼도 발화하지 않는다.
+ * #435/#437 행별 trigger도 이 순서다. 미실행 BT를 건너뛰어 TIME을 먼저 쏘지 않는다 (#529).
+ * 한 샘플에 여러 이벤트가 충족되면 마지막 heater만 쓴다.
+ *
+ * TP 이후 BT는 레벨 비교(`bt >= threshold`). #435 「상승 교차」와 다르다.
+ * 하강 중 오발은 `afterTurningPoint`가 막는다. 상승 교차로 바꾸지 않는다.
  */
 export const judgeReplay = (
     plan: ReplayPlan,

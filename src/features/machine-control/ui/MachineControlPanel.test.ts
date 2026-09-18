@@ -67,4 +67,11 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/isReplayTpHold\(replayChrome\)[\s\S]*?bg-amber-500/);
         expect(panelSrc).not.toMatch(/collapsed && replay\.active &&/);
     });
+
+    it('Replay 패널에서 화력 편집 모달을 연다 (#435)', () => {
+        expect(panelSrc).toMatch(/HeaterEventsEditor/);
+        expect(panelSrc).toMatch(/onEditHeat/);
+        expect(panelSrc).toMatch(/applyBatchEvents/);
+        expect(panelSrc).toMatch(/profileHeaterEvents:\s*replayHeaterEvents/);
+    });
 });

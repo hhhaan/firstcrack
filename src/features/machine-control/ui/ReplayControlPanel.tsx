@@ -10,6 +10,7 @@ interface Props {
     unit: 'C' | 'F';
     /** 기기 native 화력 단위. 없으면 % */
     heaterUnit?: string;
+    onEditHeat?: () => void;
 }
 
 export const REPLAY_OBSERVATION_HOLD_TEXT = '온도 데이터 확인 대기';
@@ -40,7 +41,7 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * 항상 렌더한다 — 타겟 미선택·합성 프로파일 등으로 재생 불가면 체크박스만
  * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
-export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
+export const ReplayControlPanel = ({ replay, unit, heaterUnit, onEditHeat }: Props) => {
     const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
     const tpWait = resolveReplayTpWait({
@@ -101,6 +102,16 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
             {!replay.active && !stopText && replay.missingHeatSet && (
                 <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.missingHeatSet')}</p>
+            )}
+
+            {onEditHeat && (
+                <button
+                    type="button"
+                    onClick={onEditHeat}
+                    className="w-full cursor-pointer rounded-lg border-none bg-surface py-1.5 text-[12px] font-medium text-primary dark:bg-surface-elevated"
+                >
+                    {t('heaterEventsEditor.editHeat')}
+                </button>
             )}
 
             {replay.active && observationHold && (

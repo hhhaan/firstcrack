@@ -286,4 +286,24 @@ describe('judgeReplay', () => {
         const again = judgeReplay(plan, first.nextIndex, { bt: 100, elapsed: 50, afterTurningPoint: false });
         expect(again.heater).toBeNull();
     });
+
+    it('행별 trigger=bt는 TP 이후에도 시간 무시하고 BT로 발화한다', () => {
+        const custom = {
+            ...plan,
+            events: plan.events.map((e, i) => (i === 0 ? { ...e, trigger: 'bt' as const } : e)),
+        };
+        const early = judgeReplay(custom, 0, { bt: 179, elapsed: 90, afterTurningPoint: true });
+        expect(early.heater).toBeNull();
+        const hit = judgeReplay(custom, 0, { bt: 180, elapsed: 0, afterTurningPoint: true });
+        expect(hit.heater).toBe(80);
+    });
+
+    it('행별 trigger=time은 TP 이후에도 시각으로 발화한다', () => {
+        const last = plan.events[3];
+        const custom = { ...plan, events: [{ ...last, trigger: 'time' as const }] };
+        const miss = judgeReplay(custom, 0, { bt: 200, elapsed: last.t - 1, afterTurningPoint: true });
+        expect(miss.heater).toBeNull();
+        const hit = judgeReplay(custom, 0, { bt: 90, elapsed: last.t, afterTurningPoint: true });
+        expect(hit.heater).toBe(last.heater);
+    });
 });
