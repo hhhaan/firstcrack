@@ -1493,6 +1493,7 @@ export type Database = {
                     dev_time_sec: number | null;
                     drop_temp_celsius: number | null;
                     duration_sec: number | null;
+                    heater_events: Json | null;
                     id: string;
                     machine_brand: string | null;
                     machine_id: string | null;
@@ -1515,6 +1516,7 @@ export type Database = {
                     dev_time_sec?: number | null;
                     drop_temp_celsius?: number | null;
                     duration_sec?: number | null;
+                    heater_events?: Json | null;
                     id?: string;
                     machine_brand?: string | null;
                     machine_id?: string | null;
@@ -1537,6 +1539,7 @@ export type Database = {
                     dev_time_sec?: number | null;
                     drop_temp_celsius?: number | null;
                     duration_sec?: number | null;
+                    heater_events?: Json | null;
                     id?: string;
                     machine_brand?: string | null;
                     machine_id?: string | null;

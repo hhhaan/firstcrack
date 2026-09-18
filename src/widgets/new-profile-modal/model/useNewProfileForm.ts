@@ -165,6 +165,7 @@ export const useNewProfileForm = ({
                 target_level: form.target_level,
                 ...columns,
                 source_session_id: selectedSession.id,
+                heater_events: null,
                 default_bean_id: defaultType === 'bean' ? defaultBeanId : null,
                 default_blend_id: defaultType === 'blend' ? defaultBlendId : null,
                 ...copyMachineSnapshot(selectedSession),

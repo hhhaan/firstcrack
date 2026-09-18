@@ -735,6 +735,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         replayPoints={targetCurvePoints}
                         replayMachineMismatch={replayMachineMismatch}
                         replayDropTime={replayDropTime}
+                        replayHeaterEvents={targetProfile?.heater_events ?? null}
                         liveBt={rawBT}
                         elapsed={elapsed}
                         roasting={phase === 'roasting'}

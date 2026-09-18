@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
+import { resolveReplayPlan } from '../lib/heater-events';
 import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 
 export { divergeTolerance };
@@ -15,6 +16,8 @@ export interface ReplayControlInputs {
     referenceMachineMismatch: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록(쿨다운 조작)을 재생에서 제외한다 */
     referenceDropTime: number | null;
+    /** 프로파일 heater_events jsonb — null이면 TSV 추출 (#435) */
+    profileHeaterEvents?: unknown;
     liveBt: number | null;
     elapsed: number;
     /** phase === 'roasting' — 이 밖에서는 판정도 쓰기도 하지 않는다 */
@@ -90,6 +93,7 @@ export const useReplayControl = ({
     referencePoints,
     referenceMachineMismatch,
     referenceDropTime,
+    profileHeaterEvents,
     liveBt,
     elapsed,
     roasting,
@@ -106,12 +110,31 @@ export const useReplayControl = ({
     writeHeater,
     heaterMax,
 }: ReplayControlInputs) => {
-    const plan = useMemo(
+    const extracted = useMemo(
         () =>
             referencePoints && referencePoints.length > 0
                 ? extractReplayEvents(referencePoints, referenceDropTime)
                 : null,
         [referencePoints, referenceDropTime],
+    );
+    const [batchEvents, setBatchEvents] = useState<ReplayEvent[] | null>(null);
+    const [prevExtracted, setPrevExtracted] = useState(extracted);
+    const [prevProfileEvents, setPrevProfileEvents] = useState(profileHeaterEvents);
+    const sourceChanged = extracted !== prevExtracted || profileHeaterEvents !== prevProfileEvents;
+    if (sourceChanged) {
+        setPrevExtracted(extracted);
+        setPrevProfileEvents(profileHeaterEvents);
+        if (batchEvents != null) setBatchEvents(null);
+    }
+    const { plan, source: planSource } = useMemo(
+        () =>
+            resolveReplayPlan({
+                points: referencePoints,
+                dropTime: referenceDropTime,
+                profileEvents: profileHeaterEvents,
+                batchEvents: sourceChanged ? null : batchEvents,
+            }),
+        [referencePoints, referenceDropTime, profileHeaterEvents, batchEvents, sourceChanged],
     );
 
     const [active, setActive] = useState(false);
@@ -137,17 +160,17 @@ export const useReplayControl = ({
     const [writing, setWriting] = useState(false);
     const writeGenRef = useRef(0);
 
-    // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
-    // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
-    // effect가 stale active + 옛 index + 새 plan으로 한 번 실행돼 엉뚱한 쓰기를 쏠 수 있다.
-    const [prevPlan, setPrevPlan] = useState(plan);
-    if (plan !== prevPlan) {
-        setPrevPlan(plan);
+    // 레퍼런스/프로파일 오버라이드가 바뀌면 진행 중인 재생은 무효.
+    // 배치 편집(#435)은 같은 레퍼런스라 인덱스를 유지하고 다음 이벤트부터 이어간다.
+    if (sourceChanged) {
         setIndex(0);
         if (active) {
             setActive(false);
             setStopReason('profileChanged');
         }
+    } else {
+        const len = plan?.events.length ?? 0;
+        if (index > len) setIndex(len);
     }
 
     // 배치 경계(roasting 양쪽 에지)에서 인덱스를 되돌린다 — 남은 인덱스는 이전 배치
@@ -165,6 +188,8 @@ export const useReplayControl = ({
         // lookback 자동 차지는 origin을 과거로 잡아 elapsed가 0보다 크게 시작한다 —
         // 이전 배치 기준으로 재면 차지 직후 오중지된다.
         setPrevElapsed(elapsed);
+        // 이번 배치 편집본은 배치가 끝나면 버린다. Charge(false→true)에서는 유지.
+        if (prevRoasting && !roasting) setBatchEvents(null);
     }
 
     // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋에 실행되므로
@@ -329,7 +354,14 @@ export const useReplayControl = ({
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
 
+    const applyBatchEvents = useCallback((events: ReplayEvent[] | null) => {
+        setBatchEvents(events && events.length > 0 ? events : null);
+    }, []);
+
     return {
+        plan,
+        source: planSource,
+        applyBatchEvents,
         /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
         available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
         /** 다른 기종 기록 — UI 힌트 분리용 */

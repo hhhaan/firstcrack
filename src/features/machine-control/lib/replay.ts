@@ -17,10 +17,14 @@ export interface ReplayPoint {
     heater: number | null;
 }
 
+/** 행별 발화 기준. 없으면 TP 이전=시간, 이후=BT (#435). */
+export type ReplayTrigger = 'time' | 'bt';
+
 export interface ReplayEvent {
     t: number;
     bt: number;
     heater: number;
+    trigger?: ReplayTrigger;
 }
 
 export interface ReplayPlan {
@@ -43,7 +47,7 @@ const MIN_HEATER_DELTA = 1;
  * 실기록 기준: 20분+ 배치에서 1%씩 내리는 조작이 35회까지 관측됨(초기값 포함 36이벤트).
  * PID 기록은 폴링마다 흔들려 수백 이벤트라 60으로도 충분히 갈린다.
  */
-const MAX_EVENTS = 60;
+export const MAX_EVENTS = 60;
 
 /**
  * running min 대비 이만큼 BT가 회복해야 TP로 확정한다 — 센서 흔들림이
@@ -124,6 +128,9 @@ export interface ReplaySample {
  * 이번 샘플에서 발화할 heater 값 판정. 순방향 인덱스라 재발화가 없고,
  * 한 샘플에 여러 이벤트를 넘으면 마지막 값 하나만 쓴다 (중간값 순차 쓰기는 무의미).
  */
+export const eventTrigger = (event: ReplayEvent, tpTime: number): ReplayTrigger =>
+    event.trigger ?? (event.t <= tpTime ? 'time' : 'bt');
+
 export const judgeReplay = (
     plan: ReplayPlan,
     nextIndex: number,
@@ -134,7 +141,10 @@ export const judgeReplay = (
     while (i < plan.events.length) {
         const e = plan.events[i];
         // TP 시각과 같은 이벤트는 시간 쪽 — BT 골짜기 부근은 값이 평평해 BT 트리거가 불안정하다
-        const fires = e.t <= plan.tpTime ? sample.elapsed >= e.t : sample.afterTurningPoint && sample.bt >= e.bt;
+        const fires =
+            eventTrigger(e, plan.tpTime) === 'time'
+                ? sample.elapsed >= e.t
+                : sample.afterTurningPoint && sample.bt >= e.bt;
         if (!fires) break;
         heater = e.heater;
         i += 1;

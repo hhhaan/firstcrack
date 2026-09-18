@@ -10,6 +10,7 @@ import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
 import { useReplayControl } from '../model/useReplayControl';
 import { ChannelChip } from './ChannelChip';
+import { HeaterEventsEditor } from './HeaterEventsEditor';
 import { HeaterScale } from './HeaterScale';
 import { PidControlPanel } from './PidControlPanel';
 import { ReplayControlPanel } from './ReplayControlPanel';
@@ -38,6 +39,8 @@ interface Props {
     replayMachineMismatch: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록 제외용 */
     replayDropTime: number | null;
+    /** 프로파일 heater_events jsonb (#435) */
+    replayHeaterEvents?: unknown;
     liveBt: number | null;
     elapsed: number;
     roasting: boolean;
@@ -69,6 +72,7 @@ export const MachineControlPanel = ({
     replayPoints,
     replayMachineMismatch,
     replayDropTime,
+    replayHeaterEvents,
     liveBt,
     elapsed,
     roasting,
@@ -100,6 +104,7 @@ export const MachineControlPanel = ({
         dropBehavior: pidDropBehavior,
     });
     const [collapsed, setCollapsed] = useState(false);
+    const [heatEditorOpen, setHeatEditorOpen] = useState(false);
 
     const anyWritableChannel = ROLE_ORDER.some((role) => limits[role] != null);
     const chipRoles = (['fan', 'drum'] as const).filter((role) => limits[role] != null);
@@ -125,6 +130,7 @@ export const MachineControlPanel = ({
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,
         referenceDropTime: replayDropTime,
+        profileHeaterEvents: replayHeaterEvents,
         liveBt,
         elapsed,
         roasting,
@@ -291,7 +297,22 @@ export const MachineControlPanel = ({
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <ReplayControlPanel replay={replay} unit={temperatureUnit} />
+                <ReplayControlPanel replay={replay} unit={temperatureUnit} onEditHeat={() => setHeatEditorOpen(true)} />
+                {heatEditorOpen && (
+                    <HeaterEventsEditor
+                        mode="batch"
+                        events={replay.plan?.events ?? []}
+                        tpTime={replay.plan?.tpTime ?? Number.POSITIVE_INFINITY}
+                        btPoints={replayPoints ?? []}
+                        source={replay.source}
+                        unit={temperatureUnit}
+                        onClose={() => setHeatEditorOpen(false)}
+                        onApply={(events) => {
+                            replay.applyBatchEvents(events);
+                            setHeatEditorOpen(false);
+                        }}
+                    />
+                )}
                 <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
             </div>
         </div>

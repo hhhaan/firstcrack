@@ -1,10 +1,12 @@
 import { Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
     replay: ReturnType<typeof useReplayControl>;
     /** 표시 단위 — 내부 판정은 °C, 표시만 변환한다 */
     unit: 'C' | 'F';
+    onEditHeat?: () => void;
 }
 
 // 'finished'는 배치 종료라 안내하지 않는다 — 맵에 없으면 렌더 생략
@@ -26,7 +28,8 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * 항상 렌더한다 — 타겟 미선택·합성 프로파일 등으로 재생 불가면 체크박스만
  * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
-export const ReplayControlPanel = ({ replay, unit }: Props) => {
+export const ReplayControlPanel = ({ replay, unit, onEditHeat }: Props) => {
+    const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
@@ -66,6 +69,16 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
             </label>
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
+
+            {onEditHeat && (
+                <button
+                    type="button"
+                    onClick={onEditHeat}
+                    className="w-full cursor-pointer rounded-lg border-none bg-surface py-1.5 text-[12px] font-medium text-primary dark:bg-surface-elevated"
+                >
+                    {t('heaterEventsEditor.editHeat')}
+                </button>
+            )}
 
             {replay.active &&
                 (replay.nextEvent ? (
