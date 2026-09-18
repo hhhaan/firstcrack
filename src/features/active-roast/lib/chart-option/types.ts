@@ -62,5 +62,7 @@ export interface ChartOptionParams {
     xViewMax?: number;
     /** Gray interval on the shared temperature/control timeline. */
     bbpRange?: { start: number; end: number };
+    /** Live chart: omit Charge curve label (t=0 clips it). History keeps it. */
+    hideChargeLabel?: boolean;
     colors: ResolvedChartColors;
 }

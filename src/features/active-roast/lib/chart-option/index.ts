@@ -62,6 +62,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xViewMin,
         xViewMax,
         bbpRange,
+        hideChargeLabel = false,
         colors,
     } = params;
 
@@ -150,6 +151,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showTargetDeltaLabel,
         targetXs,
         targetBt,
+        hideChargeLabel,
     });
 
     const hasRightYAxis = showRoR || hasControlSeries;

@@ -192,6 +192,7 @@ export interface MarkerBuildParams {
     showTargetDeltaLabel?: boolean;
     targetXs?: number[];
     targetBt?: (number | null)[];
+    hideChargeLabel?: boolean;
 }
 
 export interface MarkerBuildResult {
@@ -226,9 +227,10 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         showTargetDeltaLabel = false,
         targetXs,
         targetBt,
+        hideChargeLabel = false,
     } = params;
 
-    // Charge: t=0 = 좌단 축 (#451). 세로선 없음, 라벨만 (curveLabels).
+    // Charge: t=0 = 좌단 축 (#451). 세로선 없음. 라이브는 라벨도 숨김.
     // NOW: 세로 markLine 가이드 (항상)
     // 라벨은 항상 BT 커브 위 custom series. 점은 point 모드만.
     const useContinuousLines = eventMarkerStyle === 'both';
@@ -294,8 +296,9 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     }));
 
     const showDot = eventMarkerStyle === 'point';
+    const labeledEvents = hideChargeLabel ? eventMarkers.filter((m) => m.event !== 'Charge') : eventMarkers;
     const curveLabels: CurveLabelItem[] = [
-        ...eventMarkers.map((m) => {
+        ...labeledEvents.map((m) => {
             const nearest = nearestBtAt(xs, btActual, m.timeSec);
             const y =
                 nearest ??

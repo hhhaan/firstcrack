@@ -70,6 +70,7 @@ interface Props {
     xViewMin?: number;
     xViewMax?: number;
     bbpRange?: { start: number; end: number };
+    hideChargeLabel?: boolean;
 }
 
 export interface RoastTempChartHandle {
@@ -82,16 +83,14 @@ export interface RoastTempChartHandle {
 
 const scalar = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
+/** Typing: digits + optional `:ss`. Seconds 0–60. */
+const EDIT_TIME_INPUT_RE = /^\d{0,3}(?::(?:[0-5]?\d?|60)?)?$/;
+const EDIT_TIME_PARSE_RE = /^(\d{1,3}):([0-5]?\d|60)$/;
+
 const parseEditTimeSec = (raw: string): number | null => {
-    const t = raw.trim();
-    if (!t) return null;
-    if (t.includes(':')) {
-        const [m, s] = t.split(':').map(Number);
-        if (!Number.isFinite(m) || !Number.isFinite(s)) return null;
-        return Math.max(0, Math.round(m * 60 + s));
-    }
-    const sec = Number(t);
-    return Number.isFinite(sec) ? Math.max(0, Math.round(sec)) : null;
+    const match = raw.trim().match(EDIT_TIME_PARSE_RE);
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
 };
 
 const parseHeaterNote = (note: string): { value: string; unit: string } => {
@@ -118,6 +117,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onEventMarkerEdit,
         onEventMarkerDelete,
         onAddNote,
+        hideChargeLabel = false,
         showET = true,
         showTargetCurve = true,
         showTargetDeltaLabel = false,
@@ -235,6 +235,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 xViewMin,
                 xViewMax,
                 bbpRange,
+                hideChargeLabel,
                 colors: getResolvedChartColors(),
             }),
         [
@@ -274,6 +275,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             xViewMin,
             xViewMax,
             bbpRange,
+            hideChargeLabel,
         ],
     );
 
@@ -296,6 +298,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showFcBand,
         !!(targetXs?.length && targetBt?.length),
         !!bbpRange,
+        hideChargeLabel,
     ].join('|');
     const prevStructureKey = useRef(structureKey);
     useEffect(() => {
@@ -351,7 +354,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const point = localPoint(clientX, clientY);
             if (!chart || !point) return null;
             const layoutInputs = [
-                ...eventMarkers.map((marker) => {
+                ...eventMarkers.flatMap((marker) => {
+                    if (hideChargeLabel && marker.event === 'Charge') return [];
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
                     const nearest = nearestBtAt(xs, btActual, marker.timeSec);
                     const displayY =
@@ -366,16 +370,18 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             : nearest != null
                               ? `${nearest.toFixed(1)}°${temperatureUnit}`
                               : marker.temp || '—';
-                    return {
-                        marker,
-                        timeSec: marker.timeSec,
-                        xPx: x ?? Number.NaN,
-                        yPx: y ?? Number.NaN,
-                        text: eventLabelText(marker.event, marker.timeSec, temp, marker.note),
-                        below: LABEL_BELOW_EVENTS.has(marker.event),
-                        color: '',
-                        showDot: eventMarkerStyle === 'point',
-                    };
+                    return [
+                        {
+                            marker,
+                            timeSec: marker.timeSec,
+                            xPx: x ?? Number.NaN,
+                            yPx: y ?? Number.NaN,
+                            text: eventLabelText(marker.event, marker.timeSec, temp, marker.note),
+                            below: LABEL_BELOW_EVENTS.has(marker.event),
+                            color: '',
+                            showDot: eventMarkerStyle === 'point',
+                        },
+                    ];
                 }),
                 ...turningPoints.map((tp) => {
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, tp.timeSec));
@@ -433,6 +439,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             btActual,
             eventMarkerStyle,
             eventMarkers,
+            hideChargeLabel,
             localPoint,
             onEventMarkerDrag,
             onEventMarkerEdit,
@@ -679,8 +686,18 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         <input
                             id="chart-marker-time"
                             autoFocus
+                            inputMode="numeric"
+                            pattern="\d{1,3}:([0-5]?\d|60)"
+                            maxLength={6}
                             value={editForm.time}
-                            onChange={(event) => setEditForm({ ...editForm, time: event.target.value })}
+                            onChange={(event) => {
+                                const next = event.target.value;
+                                if (!EDIT_TIME_INPUT_RE.test(next)) {
+                                    event.target.value = editForm.time;
+                                    return;
+                                }
+                                setEditForm({ ...editForm, time: next });
+                            }}
                             onKeyDown={(event) => {
                                 if (event.key === 'Escape') {
                                     event.preventDefault();

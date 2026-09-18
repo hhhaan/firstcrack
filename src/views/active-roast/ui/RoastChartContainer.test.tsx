@@ -12,12 +12,14 @@ const marker = vi.hoisted(() => ({
     end: vi.fn(() => false),
     hitTest: vi.fn(() => false),
     openEdit: vi.fn(() => false),
+    props: null as { hideChargeLabel?: boolean } | null,
 }));
 
 vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
     const React = await import('react');
     return {
-        RoastTempChart: React.forwardRef((_props, ref) => {
+        RoastTempChart: React.forwardRef((props: { hideChargeLabel?: boolean }, ref) => {
+            marker.props = props;
             React.useImperativeHandle(ref, () => ({
                 beginMarkerDrag: marker.begin,
                 moveMarkerDrag: marker.move,
@@ -116,6 +118,10 @@ describe('RoastChartContainer pointer ownership', () => {
         Reflect.deleteProperty(HTMLElement.prototype, 'releasePointerCapture');
         Reflect.deleteProperty(HTMLElement.prototype, 'hasPointerCapture');
         vi.restoreAllMocks();
+    });
+
+    it('hides Charge labels on the live chart', () => {
+        expect(marker.props?.hideChargeLabel).toBe(true);
     });
 
     it('routes a claimed marker pointer without starting pan and clears on release', () => {

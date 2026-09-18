@@ -292,6 +292,56 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8, note: '70%' });
     });
 
+    it('keeps marker time to digits and seconds 0–60', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerEdit = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 5, 60],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'yellow-1',
+                            event: 'Yellow',
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '180°C',
+                            color: '#888',
+                        },
+                    ],
+                    onEventMarkerDrag: vi.fn(),
+                    onEventMarkerEdit,
+                }),
+            );
+        });
+
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+        });
+        const time = container.querySelector('#chart-marker-time') as HTMLInputElement;
+        const setTime = (value: string) => {
+            const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+            setter?.call(time, value);
+            time.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+
+        act(() => setTime('0:05a'));
+        expect(time.value).toBe('0:05');
+        act(() => setTime('0:61'));
+        expect(time.value).toBe('0:05');
+        act(() => setTime('0:60'));
+        expect(time.value).toBe('0:60');
+        act(() =>
+            container
+                .querySelector('[data-chart-marker-edit]')
+                ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+        );
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('yellow-1', { timeSec: 60 });
+    });
+
     it('deletes a Heater marker from the editor', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerDelete = vi.fn();

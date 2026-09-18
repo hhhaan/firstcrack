@@ -230,6 +230,7 @@ export const RoastChartContainer = ({
                 charged={charged}
                 eventMarkerStyle={eventMarkerStyle}
                 eventMarkers={eventMarkers}
+                hideChargeLabel
                 turningPoints={turningPoints}
                 height={mainChartHeight}
                 onCursorIdx={onCursorIdx}

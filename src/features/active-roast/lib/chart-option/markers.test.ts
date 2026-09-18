@@ -328,4 +328,21 @@ describe('Charge marker (#451)', () => {
         expect(byEvent['FC Start'].showDot).toBe(true);
         expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
     });
+
+    it('hides Charge curve label when hideChargeLabel, keeps other events', () => {
+        const { curveLabels, allMarkLines } = buildMarkers({
+            ...baseParams,
+            xs: [0, 480],
+            btActual: [210.1, 196],
+            hideChargeLabel: true,
+            eventMarkerStyle: 'line',
+            eventMarkers: [
+                chargeMarker,
+                { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
+            ],
+        });
+        expect(curveLabels.some((l) => l.text.includes('Charge'))).toBe(false);
+        expect(curveLabels).toEqual([expect.objectContaining({ text: 'FC Start | 08:00 | 196.0°C', timeSec: 480 })]);
+        expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
+    });
 });
