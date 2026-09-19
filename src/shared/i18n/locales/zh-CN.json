@@ -1200,7 +1200,11 @@
         "ruleWhen": "当 BT 达到",
         "ruleThen": "将火力设为",
         "ruleAdd": "添加",
-        "editHeat": "编辑火力"
+        "editHeat": "编辑火力",
+        "saveFailed": "保存失败，请重试。",
+        "saving": "正在保存…",
+        "empty": "添加步骤或恢复原始计划。",
+        "chartHint": "时间预览 · BT条件在回温点后执行"
     },
     "addBeanModal": {
         "newTitle": "新批次",

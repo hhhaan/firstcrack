@@ -1188,7 +1188,11 @@
         "ruleWhen": "When BT reaches",
         "ruleThen": "set heat to",
         "ruleAdd": "Add",
-        "editHeat": "Edit heat"
+        "editHeat": "Edit heat",
+        "saveFailed": "Could not save. Please try again.",
+        "saving": "Saving…",
+        "empty": "Add a step or restore the original plan.",
+        "chartHint": "Time preview · BT conditions run after TP"
     },
     "beanList": {
         "searchPlaceholder": "Search beans...",

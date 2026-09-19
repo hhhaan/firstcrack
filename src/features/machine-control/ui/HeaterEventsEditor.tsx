@@ -6,7 +6,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatEditTime, normalizeHeaterPlan, parseEditTime, type ReplayPlanSource } from '../lib/heater-events';
-import { eventTrigger, type ReplayEvent, type ReplayPoint, type ReplayTrigger } from '../lib/replay';
+import { eventTrigger, MAX_EVENTS, type ReplayEvent, type ReplayPoint, type ReplayTrigger } from '../lib/replay';
 
 type DraftRow = {
     key: string;
@@ -47,7 +47,15 @@ const parseRows = (rows: DraftRow[], unit: 'C' | 'F'): ReplayEvent[] | null => {
         const t = parseEditTime(row.t);
         const bt = fromDisplayBt(Number(row.bt), unit);
         const heater = Number(row.heater);
-        if (t == null || !Number.isFinite(bt) || !Number.isFinite(heater)) return null;
+        if (
+            t == null ||
+            !row.bt.trim() ||
+            !row.heater.trim() ||
+            !Number.isFinite(bt) ||
+            !Number.isFinite(heater) ||
+            heater < 0
+        )
+            return null;
         events.push({ t, bt, heater, trigger: row.trigger });
     }
     return events;
@@ -57,7 +65,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
     const { t } = useTranslation();
     const [rows, setRows] = useState<DraftRow[]>(() => toDraft(events, tpTime, unit));
     const [error, setError] = useState<string | null>(null);
-    const [ruleBt, setRuleBt] = useState('192');
+    const [ruleBt, setRuleBt] = useState(() => String(toDisplayBt(192, unit)));
     const [ruleHeater, setRuleHeater] = useState('50');
     const [selected, setSelected] = useState(0);
     const [busy, setBusy] = useState(false);
@@ -66,11 +74,11 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') return;
             e.stopImmediatePropagation();
-            onClose();
+            if (!busy) onClose();
         };
         window.addEventListener('keydown', onKey, true);
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [onClose]);
+    }, [onClose, busy]);
 
     const parsed = useMemo(() => parseRows(rows, unit) ?? [], [rows, unit]);
 
@@ -80,6 +88,8 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
     };
 
     const addStep = () => {
+        setSelected(rows.length);
+        setError(null);
         const last = parsed[parsed.length - 1];
         setRows((prev) => [
             ...prev,
@@ -96,7 +106,11 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
     const addBtRule = () => {
         const bt = Number(ruleBt);
         const heater = Number(ruleHeater);
-        if (!Number.isFinite(bt) || !Number.isFinite(heater)) return;
+        if (!ruleBt.trim() || !ruleHeater.trim() || !Number.isFinite(bt) || !Number.isFinite(heater) || heater < 0) {
+            setError(t('heaterEventsEditor.invalid'));
+            return;
+        }
+        setSelected(rows.length);
         setRows((prev) => [
             ...prev,
             {
@@ -112,12 +126,16 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
 
     const handleApply = async (next: ReplayEvent[] | null) => {
         if (next && next.length > 0 && !normalizeHeaterPlan(next, tpTime)) {
-            setError(t('heaterEventsEditor.tooMany'));
+            setError(t(next.length > MAX_EVENTS ? 'heaterEventsEditor.tooMany' : 'heaterEventsEditor.invalid'));
             return;
         }
+        if (busy) return;
+        setError(null);
         setBusy(true);
         try {
             await onApply(next && next.length > 0 ? next : null);
+        } catch {
+            setError(t('heaterEventsEditor.saveFailed'));
         } finally {
             setBusy(false);
         }
@@ -141,9 +159,12 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
 
     return (
         <ModalShell
-            onClose={onClose}
+            onClose={() => {
+                if (!busy) onClose();
+            }}
+            dismissable={false}
             labelledBy="heater-events-editor-title"
-            contentClassName={`${modalPanel.compare} h-[min(620px,calc(100vh-80px))]`}
+            contentClassName={`${modalPanel.compare} !h-[min(760px,calc(100dvh-48px))]`}
             overlayClassName="!z-[1100]"
             data-testid="heater-events-editor"
         >
@@ -157,7 +178,9 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                                 ? t('heaterEventsEditor.subtitleBatch')
                                 : t('heaterEventsEditor.subtitleProfile')
                         }
-                        onClose={onClose}
+                        onClose={() => {
+                            if (!busy) onClose();
+                        }}
                         closeLabel={t('common.close')}
                         className="px-0 pt-0 pb-0"
                     />
@@ -166,24 +189,34 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                     <span className="inline-flex h-[22px] items-center rounded-full bg-surface px-2 font-semibold text-secondary">
                         {sourceLabel}
                     </span>
-                    {source !== 'tsv' && (
+                    {source && source !== 'tsv' && (
                         <button
                             type="button"
                             className="ml-auto cursor-pointer border-none bg-transparent text-xs font-medium text-red-600"
+                            disabled={busy}
                             onClick={() => void handleApply(null)}
                         >
                             {t('heaterEventsEditor.revert')}
                         </button>
                     )}
                 </div>
-                <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
-                    <div className="min-h-0 border-b border-black/5 p-3 md:border-r md:border-b-0 dark:border-[#585d61]">
-                        <HeatStepChart events={parsed} btPoints={btPoints} selected={selected} onSelect={setSelected} />
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                    <div className="h-52 shrink-0 border-b border-border-subtle px-6 py-3">
+                        <HeatStepChart
+                            events={parsed}
+                            btPoints={btPoints}
+                            unit={unit}
+                            selected={selected}
+                            onSelect={setSelected}
+                        />
                     </div>
-                    <div className="flex min-h-0 flex-col p-3">
-                        <div className="mb-2 flex flex-wrap items-end gap-1.5">
+                    <fieldset
+                        disabled={busy}
+                        className="m-0 flex min-h-[240px] min-w-0 flex-1 flex-col border-0 px-6 py-4"
+                    >
+                        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl bg-surface/60 p-3">
                             <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                                {t('heaterEventsEditor.ruleWhen')}
+                                {t('heaterEventsEditor.ruleWhen')} (°{unit})
                                 <input
                                     value={ruleBt}
                                     onChange={(e) => setRuleBt(e.target.value)}
@@ -193,7 +226,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                                 />
                             </label>
                             <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                                {t('heaterEventsEditor.ruleThen')}
+                                {t('heaterEventsEditor.ruleThen')} (%)
                                 <input
                                     value={ruleHeater}
                                     onChange={(e) => setRuleHeater(e.target.value)}
@@ -204,6 +237,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                             </label>
                             <button
                                 type="button"
+                                disabled={busy || rows.length >= MAX_EVENTS}
                                 onClick={addBtRule}
                                 className="mb-0.5 cursor-pointer rounded-xl border-none bg-surface px-2.5 py-2 text-xs font-medium text-primary"
                             >
@@ -211,22 +245,22 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                             </button>
                         </div>
                         <div className="min-h-0 flex-1 overflow-auto">
-                            <table className="w-full border-collapse text-xs">
+                            <table className="w-full min-w-[480px] table-fixed border-collapse text-xs">
                                 <thead>
                                     <tr className="text-[11px] font-semibold tracking-wide text-muted uppercase">
-                                        <th className="sticky top-0 bg-white pb-2 text-left dark:bg-[#181d21]">
-                                            {t('heaterEventsEditor.time')}
+                                        <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                                            {t('heaterEventsEditor.time')} (m:ss)
                                         </th>
-                                        <th className="sticky top-0 bg-white pb-2 text-left dark:bg-[#181d21]">
-                                            {t('heaterEventsEditor.bt')}
+                                        <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                                            {t('heaterEventsEditor.bt')} (°{unit})
                                         </th>
-                                        <th className="sticky top-0 bg-white pb-2 text-left dark:bg-[#181d21]">
-                                            {t('heaterEventsEditor.heat')}
+                                        <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                                            {t('heaterEventsEditor.heat')} (%)
                                         </th>
-                                        <th className="sticky top-0 bg-white pb-2 text-left dark:bg-[#181d21]">
+                                        <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
                                             {t('heaterEventsEditor.trigger')}
                                         </th>
-                                        <th className="sticky top-0 bg-white w-8 pb-2 dark:bg-[#181d21]" />
+                                        <th className="sticky top-0 z-10 w-10 bg-main-bg pb-2" />
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -235,6 +269,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                                             key={row.key}
                                             className={i === selected ? 'bg-surface' : undefined}
                                             onClick={() => setSelected(i)}
+                                            onFocus={() => setSelected(i)}
                                         >
                                             <td className="py-1 pr-1">
                                                 <input
@@ -268,7 +303,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                                                     onChange={(e) =>
                                                         update(row.key, { trigger: e.target.value as ReplayTrigger })
                                                     }
-                                                    className={`${inputCls} appearance-none py-1.5 pr-6 text-xs`}
+                                                    className={`${inputCls} py-1.5 pr-6 text-xs`}
                                                     aria-label={t('heaterEventsEditor.trigger')}
                                                 >
                                                     <option value="time">{t('heaterEventsEditor.triggerTime')}</option>
@@ -291,24 +326,36 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                                     ))}
                                 </tbody>
                             </table>
+                            {rows.length === 0 && (
+                                <p className="py-6 text-center text-sm text-muted">{t('heaterEventsEditor.empty')}</p>
+                            )}
                         </div>
                         <button
                             type="button"
+                            disabled={busy || rows.length >= MAX_EVENTS}
                             onClick={addStep}
                             className="mt-2 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent text-xs font-medium text-secondary"
                         >
                             <Plus size={14} strokeWidth={2} />
                             {t('heaterEventsEditor.addStep')}
                         </button>
-                        {error && <p className={formErrorCls}>{error}</p>}
-                    </div>
+                        {error && (
+                            <p role="alert" className={formErrorCls}>
+                                {error}
+                            </p>
+                        )}
+                    </fieldset>
                 </div>
                 <div className="flex shrink-0 gap-3 border-t border-black/4 px-6 pt-4 pb-5 dark:border-[#585d61]">
-                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
+                    <button type="button" onClick={onClose} disabled={busy} className={modalCancelBtnCls}>
                         {t('heaterEventsEditor.cancel')}
                     </button>
                     <button type="button" onClick={submit} disabled={busy} className={modalPrimaryBtnCls}>
-                        {mode === 'batch' ? t('heaterEventsEditor.applyBatch') : t('heaterEventsEditor.save')}
+                        {busy
+                            ? t('heaterEventsEditor.saving')
+                            : mode === 'batch'
+                              ? t('heaterEventsEditor.applyBatch')
+                              : t('heaterEventsEditor.save')}
                     </button>
                 </div>
             </div>
@@ -319,18 +366,20 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
 const HeatStepChart = ({
     events,
     btPoints,
+    unit,
     selected,
     onSelect,
 }: {
     events: ReplayEvent[];
     btPoints: ReplayPoint[];
+    unit: 'C' | 'F';
     selected: number;
     onSelect: (index: number) => void;
 }) => {
     const { t } = useTranslation();
-    const width = 640;
-    const height = 260;
-    const pad = { l: 36, r: 36, t: 16, b: 28 };
+    const width = 1040;
+    const height = 180;
+    const pad = { l: 48, r: 52, t: 16, b: 28 };
     const maxT = Math.max(60, ...btPoints.map((p) => p.t), ...events.map((e) => e.t), 1);
     const bts = btPoints.map((p) => p.bt).filter((n) => Number.isFinite(n));
     const minBt = (bts.length ? Math.min(...bts) : 80) - 10;
@@ -351,17 +400,61 @@ const HeatStepChart = ({
                   .join('')} H${x(maxT)}`;
 
     return (
-        <div className="flex h-full min-h-[220px] flex-col">
-            <div className="mb-2 flex gap-3 text-[11px] font-semibold text-muted">
-                <span>{t('heaterEventsEditor.chartHeat')}</span>
-                <span>{t('heaterEventsEditor.chartBt')}</span>
+        <div className="flex h-full min-h-0 flex-col">
+            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold text-muted">
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="h-0.5 w-4 bg-(--color-control-heat)" />
+                    {t('heaterEventsEditor.chartHeat')} (%)
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="h-0.5 w-4 bg-(--color-sensor-bt)" />
+                    {t('heaterEventsEditor.chartBt')} (°{unit})
+                </span>
+                <span className="ml-auto font-normal">{t('heaterEventsEditor.chartHint')}</span>
             </div>
             <svg
                 viewBox={`0 0 ${width} ${height}`}
-                className="h-full w-full"
-                role="img"
+                className="min-h-0 flex-1 w-full"
+                role="group"
                 aria-label={t('heaterEventsEditor.chartHeat')}
             >
+                {[0, 0.5, 1].map((ratio) => (
+                    <g key={ratio}>
+                        <line
+                            x1={pad.l}
+                            x2={width - pad.r}
+                            y1={yHeat(ratio * heatMax)}
+                            y2={yHeat(ratio * heatMax)}
+                            stroke="var(--color-chart-grid)"
+                        />
+                        <text
+                            x={pad.l - 6}
+                            y={yHeat(ratio * heatMax) + 4}
+                            textAnchor="end"
+                            fill="var(--color-chart-axis-label)"
+                            fontSize="11"
+                        >
+                            {Math.round(ratio * heatMax)}%
+                        </text>
+                        <text
+                            x={width - pad.r + 6}
+                            y={yHeat(ratio * heatMax) + 4}
+                            fill="var(--color-chart-axis-label)"
+                            fontSize="11"
+                        >
+                            {Math.round(toDisplayBt(minBt + ratio * (maxBt - minBt), unit))}°
+                        </text>
+                        <text
+                            x={x(ratio * maxT)}
+                            y={height - 6}
+                            textAnchor="middle"
+                            fill="var(--color-chart-axis-label)"
+                            fontSize="11"
+                        >
+                            {formatEditTime(ratio * maxT)}
+                        </text>
+                    </g>
+                ))}
                 {btPath && <path d={btPath} fill="none" stroke="var(--color-sensor-bt)" strokeWidth="1.6" />}
                 {events.length > 0 && (
                     <path
@@ -378,10 +471,19 @@ const HeatStepChart = ({
                         cx={x(e.t)}
                         cy={yHeat(e.heater)}
                         r={i === selected ? 5 : 3.5}
-                        fill={i === selected ? 'var(--color-control-heat)' : '#fff'}
+                        fill={i === selected ? 'var(--color-control-heat)' : 'var(--color-main-bg)'}
                         stroke="var(--color-control-heat)"
                         strokeWidth="1.5"
                         className="cursor-pointer"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${formatEditTime(e.t)}, ${e.heater}%`}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                onSelect(i);
+                            }
+                        }}
                         onClick={() => onSelect(i)}
                     />
                 ))}

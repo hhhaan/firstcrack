@@ -1188,7 +1188,11 @@
         "ruleWhen": "BT가 도달하면",
         "ruleThen": "화력을",
         "ruleAdd": "추가",
-        "editHeat": "화력 편집"
+        "editHeat": "화력 편집",
+        "saveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
+        "saving": "저장 중…",
+        "empty": "스텝을 추가하거나 원본으로 되돌려 주세요.",
+        "chartHint": "시간 기준 미리보기 · BT 조건은 TP 이후 실행"
     },
     "beanList": {
         "searchPlaceholder": "생두 검색...",

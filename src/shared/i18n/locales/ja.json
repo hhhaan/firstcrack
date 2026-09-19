@@ -1188,7 +1188,11 @@
         "ruleWhen": "BTが達したら",
         "ruleThen": "火力を",
         "ruleAdd": "追加",
-        "editHeat": "火力を編集"
+        "editHeat": "火力を編集",
+        "saveFailed": "保存できませんでした。もう一度お試しください。",
+        "saving": "保存中…",
+        "empty": "ステップを追加するか、元に戻してください。",
+        "chartHint": "時間基準のプレビュー · BT条件はTP後に実行"
     },
     "beanList": {
         "searchPlaceholder": "豆を検索...",
