@@ -319,7 +319,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
                     text: box.text,
                     fill: box.color,
                     font: '600 10px monospace',
-                    textAlign: 'center',
+                    textAlign: 'left',
                     textVerticalAlign: box.below ? 'top' : 'bottom',
                     width: MARKER_LABEL_MAX_WIDTH_PX,
                     overflow: 'truncate',
