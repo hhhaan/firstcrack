@@ -58,24 +58,16 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
           extra_remote() {
-            awk -F'│' 'NF>=2 {
-              l=$1; r=$2
-              gsub(/[[:space:]]/,"",l)
-              gsub(/[[:space:]]/,"",r)
-              if (r ~ /^[0-9]+$/ && l=="") print r
-            }'
+            grep -E '^[[:space:]]+\|[[:space:]]*[0-9]{14}[[:space:]]*\|' "$1" \
+              | awk -F'|' '{gsub(/[[:space:]]/,"",$2); print $2}'
           }
           pending_local() {
-            awk -F'│' 'NF>=2 {
-              l=$1; r=$2
-              gsub(/[[:space:]]/,"",l)
-              gsub(/[[:space:]]/,"",r)
-              if (l ~ /^[0-9]+$/ && r=="") print l
-            }'
+            grep -E '^[[:space:]]*[0-9]{14}[[:space:]]+\|[[:space:]]+\|' "$1" \
+              | awk -F'|' '{gsub(/[[:space:]]/,"",$1); print $1}'
           }
 
-          extra=$(extra_remote < /tmp/mig-before.txt || true)
-          pending=$(pending_local < /tmp/mig-before.txt || true)
+          extra=$(extra_remote /tmp/mig-before.txt || true)
+          pending=$(pending_local /tmp/mig-before.txt || true)
           echo "extra_remote=$extra"
           echo "pending_local=$pending"
 
@@ -191,7 +183,7 @@ jobs:
 
           # History: file is not on v1.2.3 (lives on open PR #522). SQL already
           # applied or ghost version — either way drop it from schema_migrations.
-          if echo "$extra" | grep -qx '20260920120000'; then
+          if grep -qE '^[[:space:]]+\|[[:space:]]*20260920120000[[:space:]]*\|' /tmp/mig-before.txt; then
             echo "Repairing 20260920120000 as reverted"
             supabase migration repair --status reverted 20260920120000
           else
@@ -206,10 +198,14 @@ jobs:
           tail -20 /tmp/mig-after.txt >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-          extra_after=$(extra_remote < /tmp/mig-after.txt || true)
-          pending_after=$(pending_local < /tmp/mig-after.txt || true)
+          extra_after=$(extra_remote /tmp/mig-after.txt || true)
+          pending_after=$(pending_local /tmp/mig-after.txt || true)
           if [ -n "$extra_after" ] || [ -n "$pending_after" ]; then
             echo "::error::local/remote still mismatch extra='$extra_after' pending='$pending_after'"
+            exit 1
+          fi
+          if grep -qE '^[[:space:]]+\|[[:space:]]*20260920120000[[:space:]]*\|' /tmp/mig-after.txt; then
+            echo "::error::20260920120000 still present as remote-only after repair"
             exit 1
           fi
           echo "Local and remote migration lists match."
