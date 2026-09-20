@@ -20,6 +20,7 @@ vi.mock('@shared/lib/sidecar', () => ({
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
 
 import { sidecar } from '@shared/lib/sidecar';
+import type { ControlOrigin } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { useReplayControl } from './useReplayControl';
@@ -51,7 +52,7 @@ const COARSE_POINTS: ReplayPoint[] = [
 ];
 
 /** 두 훅을 MachineControlPanel과 동일하게 배선한 합성 하네스 */
-const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = {}) => {
+const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[]; dropBehavior?: 'hold' | 'zero' } = {}) => {
     const heaterMax = opts.heaterMax ?? 100;
     const points = opts.points ?? POINTS;
     getStatus.mockReset();
@@ -69,36 +70,42 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = 
         elapsed: number;
         liveBt: number;
         afterTurningPoint: boolean;
+        pidEngaged: boolean;
+        roastFinished: boolean;
+        dropBehavior: 'hold' | 'zero';
+        roasting: boolean;
+        points: ReplayPoint[];
     }
     const Probe = ({ inputs }: { inputs: Inputs }) => {
         const mc = useMachineControl(true, inputs.feedback, committed);
-        const { setValue, commitNow } = mc;
+        const { setValue, commitNow, cancelUnsentReplayHeater } = mc;
         const writeHeater = useCallback(
-            async (value: number) => {
+            async (value: number, origin: ControlOrigin = 'replay') => {
                 setValue('heater', value);
-                const applied = await commitNow();
+                const applied = await commitNow(origin);
                 return applied?.heater ?? null;
             },
             [setValue, commitNow],
         );
         const replay = useReplayControl({
-            referencePoints: points,
+            referencePoints: inputs.points,
             referenceDropTime: null,
             liveBt: inputs.liveBt,
             elapsed: inputs.elapsed,
-            roasting: true,
+            roasting: inputs.roasting,
             afterTurningPoint: inputs.afterTurningPoint,
             heaterWritable: mc.writable && mc.limits.heater != null,
-            pidEngaged: false,
-            roastFinished: false,
+            pidEngaged: inputs.pidEngaged,
+            roastFinished: inputs.roastFinished,
             sidecarConnected: true,
             heaterUnacknowledged: mc.unacknowledged.has('heater'),
-            dropBehavior: 'hold',
+            dropBehavior: inputs.dropBehavior,
             heaterFeedback: inputs.feedback?.heater ?? null,
             heaterPending: mc.desired.heater != null,
             reconnecting: false,
             referenceMachineMismatch: false,
             writeHeater,
+            cancelUnsentHeater: cancelUnsentReplayHeater,
             heaterMax: mc.limits.heater?.max,
         });
         latest = { replay, mc };
@@ -106,24 +113,39 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = 
     };
 
     let elapsed = 0;
-    const render = (inputs: Inputs) => act(async () => root.render(createElement(Probe, { inputs })));
+    let current: Inputs = {
+        feedback: { heater: 30, fan: 0, drum: 0 },
+        elapsed,
+        liveBt: 180,
+        afterTurningPoint: false,
+        pidEngaged: false,
+        roastFinished: false,
+        dropBehavior: opts.dropBehavior ?? 'hold',
+        roasting: true,
+        points,
+    };
+    const render = (inputs: Inputs) => {
+        current = inputs;
+        elapsed = inputs.elapsed;
+        return act(async () => root.render(createElement(Probe, { inputs })));
+    };
     // 초기 렌더 + capability 로드 대기 (실측은 아직 idle 값)
-    await render({ feedback: { heater: 30, fan: 0, drum: 0 }, elapsed, liveBt: 180, afterTurningPoint: false });
+    await render(current);
 
     return {
         get: () => latest,
         committed,
         toggle: () => act(async () => latest.replay.toggle()),
         /** 1폴 = 1초 진행 — 기계가 보고한 실측 한 샘플을 먹인다 */
-        poll: (s: Sample) => {
-            elapsed += 1;
-            return render({
+        poll: (s: Sample) =>
+            render({
+                ...current,
                 feedback: { heater: s.heater, fan: 0, drum: 0 },
-                elapsed,
+                elapsed: elapsed + 1,
                 liveBt: s.liveBt ?? 180,
                 afterTurningPoint: s.afterTurningPoint ?? false,
-            });
-        },
+            }),
+        update: (partial: Partial<Inputs>) => render({ ...current, ...partial }),
         unmount: () => act(() => root.unmount()),
     };
 };
@@ -277,6 +299,222 @@ describe('겹친 commit 실제 전송 결과 (#368 R01)', () => {
         });
         expect(rig.get().replay.active).toBe(true);
         expect(rig.get().replay.nextEvent?.heater).toBe(40);
+        rig.unmount();
+    });
+});
+
+const deferControl = () => {
+    const pending: Array<{
+        cmd: Parameters<typeof sidecar.setControl>[0];
+        resolve: (value: Awaited<ReturnType<typeof sidecar.setControl>>) => void;
+        reject: (err: unknown) => void;
+    }> = [];
+    setControl.mockImplementation(
+        (cmd) =>
+            new Promise((resolve, reject) => {
+                pending.push({ cmd, resolve, reject });
+            }),
+    );
+    return pending;
+};
+
+describe('중단 시 미전송 Replay heater 취소 (#368 R03)', () => {
+    it('fan 전송 중 Replay heater 대기 → OFF → fan 완료: heater는 보내지 않는다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            void rig.get().mc.commitNow();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+
+        await rig.toggle();
+        expect(rig.get().replay.active).toBe(true);
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+
+        await rig.toggle();
+        expect(rig.get().replay.active).toBe(false);
+
+        pending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+        expect(setControl.mock.calls.map(([cmd]) => cmd)).toEqual([{ fan: 80 }]);
+        rig.unmount();
+    });
+
+    it('같은 상황에서 수동 heater commit은 보존되어 전송된다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            void rig.get().mc.commitNow();
+        });
+        await rig.toggle();
+        await rig.toggle();
+        expect(rig.get().replay.active).toBe(false);
+
+        await act(async () => {
+            rig.get().mc.setValue('heater', 70);
+            void rig.get().mc.commitNow();
+        });
+
+        pending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }, { heater: 70 }]);
+
+        pending[1].resolve({ ok: true, applied: { heater: 70 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(setControl.mock.calls.map(([cmd]) => cmd)).toEqual([{ fan: 80 }, { heater: 70 }]);
+        rig.unmount();
+    });
+
+    it('fan/drum과 DROP zero는 Replay 취소에 휩쓸리지 않는다', async () => {
+        const rig = await renderRig({ dropBehavior: 'zero' });
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            void rig.get().mc.commitNow();
+        });
+        await act(async () => {
+            rig.get().mc.setValue('drum', 40);
+            void rig.get().mc.commitNow();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+
+        await rig.toggle();
+        await rig.update({ roastFinished: true, dropBehavior: 'zero' });
+        expect(rig.get().replay.active).toBe(false);
+
+        pending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }, { drum: 40, heater: 0 }]);
+        expect(pending.some((p) => p.cmd.heater === 60)).toBe(false);
+
+        pending[1].resolve({ ok: true, applied: { drum: 40, heater: 0 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        rig.unmount();
+    });
+
+    it('취소 결과가 manual/PID 사유를 writeFailed로 바꾸지 않는다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            void rig.get().mc.commitNow();
+        });
+        await rig.toggle();
+        await act(async () => rig.get().replay.stop());
+        expect(rig.get().replay.stopReason).toBe('manual');
+
+        pending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(rig.get().replay.stopReason).toBe('manual');
+        expect(pending.some((p) => p.cmd.heater === 60)).toBe(false);
+
+        const pidRig = await renderRig();
+        const pidPending = deferControl();
+        await act(async () => {
+            pidRig.get().mc.setValue('fan', 80);
+            void pidRig.get().mc.commitNow();
+        });
+        await pidRig.toggle();
+        await pidRig.update({ pidEngaged: true });
+        expect(pidRig.get().replay.stopReason).toBe('pid');
+
+        pidPending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pidRig.get().replay.stopReason).toBe('pid');
+        expect(pidPending.some((p) => p.cmd.heater === 60)).toBe(false);
+        pidRig.unmount();
+        rig.unmount();
+    });
+
+    it('이미 전송된 Replay heater는 취소됐다고 표시하지 않는다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await rig.toggle();
+        expect(pending.map((p) => p.cmd)).toEqual([{ heater: 60 }]);
+        expect(rig.get().replay.nextEvent?.heater).toBe(60);
+
+        await rig.toggle();
+        expect(rig.get().replay.active).toBe(false);
+        expect(pending).toHaveLength(1);
+
+        pending[0].resolve({ ok: true, applied: { heater: 60 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(rig.get().replay.active).toBe(false);
+        expect(rig.get().replay.stopReason).not.toBe('writeFailed');
+        expect(rig.get().replay.nextEvent?.heater).not.toBe(40);
+        rig.unmount();
+    });
+
+    it('프로파일 교체 경계에서 미전송 Replay heater는 보내지 않는다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            void rig.get().mc.commitNow();
+        });
+        await rig.toggle();
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+
+        await rig.update({
+            points: [
+                { t: 0, bt: 180, heater: 40 },
+                { t: 60, bt: 95, heater: 40 },
+                { t: 300, bt: 155, heater: 20 },
+            ],
+        });
+        expect(rig.get().replay.active).toBe(false);
+        expect(rig.get().replay.stopReason).toBe('profileChanged');
+
+        pending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+        rig.unmount();
+    });
+
+    it('배치 경계에서 미전송 Replay heater는 보내지 않는다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            void rig.get().mc.commitNow();
+        });
+        await rig.toggle();
+
+        await rig.update({ roasting: false });
+        pending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+        expect(pending.some((p) => p.cmd.heater === 60)).toBe(false);
         rig.unmount();
     });
 });

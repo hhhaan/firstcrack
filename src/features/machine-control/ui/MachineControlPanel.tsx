@@ -3,7 +3,7 @@ import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ControlCommand, ControlRole } from '../lib/controlSender';
+import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
 import { isPercentUnit } from '../lib/snapPercent';
 import { useMachineControl } from '../model/useMachineControl';
@@ -84,8 +84,17 @@ export const MachineControlPanel = ({
         },
         [onHeaterCommitted],
     );
-    const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
-        useMachineControl(sidecarConnected, liveData, handleCommitted);
+    const {
+        writable,
+        limits,
+        pidCapability,
+        desired,
+        unacknowledged,
+        sending,
+        setValue,
+        commitNow,
+        cancelUnsentReplayHeater,
+    } = useMachineControl(sidecarConnected, liveData, handleCommitted);
     useEffect(() => {
         heaterUnitRef.current = limits.heater?.unit ?? '%';
     }, [limits.heater?.unit]);
@@ -114,9 +123,9 @@ export const MachineControlPanel = ({
 
     // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
     const writeHeater = useCallback(
-        async (value: number) => {
+        async (value: number, origin: ControlOrigin = 'replay') => {
             setValue('heater', value);
-            const applied = await commitNow();
+            const applied = await commitNow(origin);
             return applied?.heater ?? null;
         },
         [setValue, commitNow],
@@ -142,6 +151,7 @@ export const MachineControlPanel = ({
         heaterPending: desired.heater != null,
         reconnecting,
         writeHeater,
+        cancelUnsentHeater: cancelUnsentReplayHeater,
         heaterMax: limits.heater?.max,
     });
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.

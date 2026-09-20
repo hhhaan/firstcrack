@@ -305,7 +305,7 @@ describe('useReplayControl', () => {
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
             expect(h.get().active).toBe(false);
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, liveBt: 200 });
             expect(h.writeHeater).toHaveBeenCalledTimes(1);
             h.unmount();
@@ -327,7 +327,7 @@ describe('useReplayControl', () => {
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, heaterUnacknowledged: true });
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
 
@@ -340,7 +340,7 @@ describe('useReplayControl', () => {
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, roasting: false });
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, roasting: false, heaterUnacknowledged: true });
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
 
@@ -389,7 +389,7 @@ describe('useReplayControl', () => {
             await act(async () => h.get().toggle());
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, sidecarConnected: false });
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
 
@@ -398,7 +398,7 @@ describe('useReplayControl', () => {
             await act(async () => h.get().toggle());
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             expect(h.writeHeater).toHaveBeenCalledTimes(1);
 
             // un-drop. unack는 아직 false — 같은 커밋에서 retry effect가 stale safeOffIssued로
@@ -431,6 +431,7 @@ describe('useReplayControl', () => {
             await act(async () => h.get().toggle());
             expect(h.writeHeater).toHaveBeenCalled();
             expect(h.writeHeater).not.toHaveBeenCalledWith(0);
+            expect(h.writeHeater).not.toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
     });

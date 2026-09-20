@@ -1,5 +1,12 @@
 export type ControlRole = 'heater' | 'fan' | 'drum';
 export type ControlCommand = Partial<Record<ControlRole, number>>;
+/** commit 출처 — Replay 자동화 중단 시 미전송 heater만 고른다. safety는 DROP zero. */
+export type ControlOrigin = 'manual' | 'replay' | 'safety';
+
+export interface CancelUnsentMatch {
+    origin: ControlOrigin;
+    role: ControlRole;
+}
 
 /** 기기 실측이 지시값에 이만큼 근접하면 "따라왔다"고 본다 (채널 단위) */
 export const CONVERGE_TOLERANCE = 1;
@@ -34,6 +41,7 @@ interface Options {
 
 interface Waiter {
     requested: ControlCommand;
+    origin: ControlOrigin;
     resolve: (result: ControlCommand | null) => void;
     settled: boolean;
 }
@@ -131,10 +139,10 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
         },
         /**
          * 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송.
-         * 성공 시 이 요청이 포함된 실제 applied(요청 role만), 실패·같은 role 대체·dispose 시 null.
+         * 성공 시 이 요청이 포함된 실제 applied(요청 role만), 실패·같은 role 대체·dispose·미전송 취소 시 null.
          * 빈 commit은 즉시 `{}` — 대기 중인 다른 요청의 성공을 만들지 않는다.
          */
-        commitNow(): Promise<ControlCommand | null> {
+        commitNow(origin: ControlOrigin = 'manual'): Promise<ControlCommand | null> {
             const snapshot = draft;
             draft = {};
             if (Object.keys(snapshot).length === 0) {
@@ -149,9 +157,26 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
             });
             committed = { ...committed, ...snapshot };
             return new Promise((resolve) => {
-                queuedWaiters.push({ requested: snapshot, resolve, settled: false });
+                queuedWaiters.push({ requested: snapshot, origin, resolve, settled: false });
                 void flush();
             });
+        },
+        /**
+         * 아직 안 보낸 대기만 고른다. in-flight(이미 PLC로 나간 것)는 건드리지 않는다.
+         * 매칭 waiter를 즉시 settle하고 committed에서 해당 role을 뺀다.
+         */
+        cancelUnsent({ origin, role }: CancelUnsentMatch): void {
+            const remaining: Waiter[] = [];
+            for (const waiter of queuedWaiters) {
+                if (waiter.origin === origin && role in waiter.requested) {
+                    settle(waiter, null);
+                    continue;
+                }
+                remaining.push(waiter);
+            }
+            queuedWaiters = remaining;
+            committed = {};
+            for (const waiter of remaining) committed = { ...committed, ...waiter.requested };
         },
         dispose(): void {
             draft = {};
