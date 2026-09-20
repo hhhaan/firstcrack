@@ -1,6 +1,7 @@
 import { Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatReplayCondition, formatReplayHeater } from '../lib/replayDisplay';
+import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
@@ -41,7 +42,20 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
 export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
     const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
-    const status = replayStatus(replay.active, replay.observationHold);
+    const tpWait = resolveReplayTpWait({
+        active: replay.active,
+        nextEvent: replay.nextEvent,
+        tpTime: replay.tpTime,
+        confirmedTurningPoint: replay.confirmedTurningPoint,
+    });
+    const chrome = collapsedReplayTpChrome(replay.active, tpWait);
+    const observationHold = replay.observationHold;
+    const holding = isReplayTpHold(chrome) || observationHold;
+    let statusClass = 'text-muted';
+    if (holding) statusClass = 'text-amber-600 dark:text-amber-500';
+    else if (chrome === 'running') statusClass = 'text-emerald-500';
+    const statusLabel = observationHold ? replayStatus(true, true).label : replay.active ? 'On' : 'Off';
+    const statusAttr = observationHold ? 'observation-hold' : (chrome ?? 'off');
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
         ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
@@ -55,7 +69,9 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
         <div className="flex shrink-0 flex-col gap-2">
             <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">Replay</span>
-                <span className={`text-[11px] font-medium ${status.className}`}>{status.label}</span>
+                <span data-replay-status={statusAttr} className={`text-[11px] font-medium ${statusClass}`}>
+                    {statusLabel}
+                </span>
             </div>
 
             <label className="group relative flex cursor-pointer items-center gap-2">
@@ -79,14 +95,18 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
 
-            {replay.active && replay.observationHold && (
+            {replay.active && observationHold && (
                 <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
                     {REPLAY_OBSERVATION_HOLD_TEXT}
                 </p>
             )}
-
-            {replay.active &&
-                !replay.observationHold &&
+            {replay.active && !observationHold && isReplayTpHold(chrome) && (
+                <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
+                    {t(`activeRoast.replay.tp.${chrome}`)}
+                </p>
+            )}
+            {chrome === 'running' &&
+                !observationHold &&
                 (replay.nextEvent && replay.nextEventTrigger ? (
                     <p className="font-mono text-[11px] text-muted">
                         {t('activeRoast.replay.next', {

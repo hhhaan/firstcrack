@@ -752,7 +752,13 @@
         },
         "replay": {
             "next": "Next: {{condition}} → {{heater}}",
-            "done": "All events replayed"
+            "done": "All events replayed",
+            "tp": {
+                "waiting": "Waiting for a real turning point",
+                "fallback": "TP fallback — not a detected rise",
+                "collapsedWaiting": "Replay waiting for a real turning point",
+                "collapsedFallback": "Replay TP fallback — not a detected rise"
+            }
         }
     },
     "schedule": {

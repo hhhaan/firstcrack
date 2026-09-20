@@ -752,7 +752,13 @@
         },
         "replay": {
             "next": "下一个：{{condition}} → {{heater}}",
-            "done": "所有事件已回放"
+            "done": "所有事件已回放",
+            "tp": {
+                "waiting": "等待实际转折点确认",
+                "fallback": "TP 回退 — 不是实测上升",
+                "collapsedWaiting": "Replay 等待实际转折点",
+                "collapsedFallback": "Replay TP 回退 — 不是实测上升"
+            }
         }
     },
     "schedule": {

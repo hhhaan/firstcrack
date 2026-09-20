@@ -40,7 +40,7 @@ const POINTS: ReplayPoint[] = [
 interface Sample {
     heater: number;
     liveBt?: number;
-    afterTurningPoint?: boolean;
+    confirmedTurningPoint?: { fallback?: boolean } | null;
 }
 
 const COARSE_POINTS: ReplayPoint[] = [
@@ -68,7 +68,7 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = 
         feedback: MachineFeedback;
         elapsed: number;
         liveBt: number;
-        afterTurningPoint: boolean;
+        confirmedTurningPoint: { fallback?: boolean } | null;
     }
     const Probe = ({ inputs }: { inputs: Inputs }) => {
         const mc = useMachineControl(true, inputs.feedback, committed);
@@ -87,7 +87,7 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = 
             liveBt: inputs.liveBt,
             elapsed: inputs.elapsed,
             roasting: true,
-            afterTurningPoint: inputs.afterTurningPoint,
+            confirmedTurningPoint: inputs.confirmedTurningPoint,
             heaterWritable: mc.writable && mc.limits.heater != null,
             pidEngaged: false,
             roastFinished: false,
@@ -109,7 +109,7 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = 
     let elapsed = 0;
     const render = (inputs: Inputs) => act(async () => root.render(createElement(Probe, { inputs })));
     // 초기 렌더 + capability 로드 대기 (실측은 아직 idle 값)
-    await render({ feedback: { heater: 30, fan: 0, drum: 0 }, elapsed, liveBt: 180, afterTurningPoint: false });
+    await render({ feedback: { heater: 30, fan: 0, drum: 0 }, elapsed, liveBt: 180, confirmedTurningPoint: null });
 
     return {
         get: () => latest,
@@ -122,7 +122,7 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = 
                 feedback: { heater: s.heater, fan: 0, drum: 0 },
                 elapsed,
                 liveBt: s.liveBt ?? 180,
-                afterTurningPoint: s.afterTurningPoint ?? false,
+                confirmedTurningPoint: s.confirmedTurningPoint ?? null,
             });
         },
         unmount: () => act(() => root.unmount()),
@@ -190,7 +190,7 @@ describe('read≠write 기계 프로파일 특성화', () => {
         expect(rig.get().replay.active).toBe(true);
 
         // TP 확정 + BT 도달 → 다음 이벤트(40) 정상 발화
-        await rig.poll({ heater: 60, liveBt: 111, afterTurningPoint: true });
+        await rig.poll({ heater: 60, liveBt: 111, confirmedTurningPoint: { fallback: false } });
         expect(heaterWrites()).toEqual([60, 40]);
         expect(rig.committed.mock.calls.map(([cmd]) => cmd.heater)).toEqual([60, 40]);
         expect(rig.get().replay.active).toBe(true);

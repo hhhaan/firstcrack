@@ -22,6 +22,8 @@ const replayStub = (over: Partial<Replay> = {}): Replay =>
         nextEvent: null,
         nextEventTrigger: null,
         observationHold: false,
+        tpTime: 60,
+        confirmedTurningPoint: { fallback: false },
         toggle: vi.fn(),
         stop: vi.fn(),
         ...over,
@@ -32,13 +34,7 @@ const renderPanel = (replay: Replay) => {
     document.body.appendChild(container);
     const root = createRoot(container);
     act(() =>
-        root.render(
-            createElement(
-                I18nextProvider,
-                { i18n },
-                createElement(ReplayControlPanel, { replay, unit: 'C' }),
-            ),
-        ),
+        root.render(createElement(I18nextProvider, { i18n }, createElement(ReplayControlPanel, { replay, unit: 'C' }))),
     );
     return {
         container,

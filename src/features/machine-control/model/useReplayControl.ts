@@ -22,8 +22,11 @@ export interface ReplayControlInputs {
     elapsed: number;
     /** phase === 'roasting' — 이 밖에서는 판정도 쓰기도 하지 않는다 */
     roasting: boolean;
-    /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 게이트 */
-    afterTurningPoint: boolean;
+    /**
+     * 실기 TP 사실 — 게이트와 대기 UI를 여기서 파생한다. fallback은 BT를 열지 않는다 (#314).
+     * 뷰에 tpWaiting boolean을 두지 않는다.
+     */
+    confirmedTurningPoint: { fallback?: boolean } | null;
     heaterWritable: boolean;
     /** PID가 off가 아니면 Replay 불가 — 히터 소유권은 하나 */
     pidEngaged: boolean;
@@ -102,7 +105,7 @@ export const useReplayControl = ({
     liveBt,
     elapsed,
     roasting,
-    afterTurningPoint,
+    confirmedTurningPoint,
     heaterWritable,
     pidEngaged,
     roastFinished,
@@ -160,6 +163,8 @@ export const useReplayControl = ({
      */
     const [writing, setWriting] = useState(false);
     const writeGenRef = useRef(0);
+    // #314: fallback TP는 곡선에서 관측된 상승이 아니라 BT 게이트를 열 수 없다
+    const afterTurningPoint = confirmedTurningPoint != null && !confirmedTurningPoint.fallback;
 
     const invalidateInFlightWrite = useCallback(() => {
         writeGenRef.current += 1;
@@ -404,6 +409,10 @@ export const useReplayControl = ({
         observationHold,
         /** nextEvent의 실제 발화축 — judgeReplay와 같은 eventTrigger. Off/소진이면 null */
         nextEventTrigger,
+        /** 계획 TP 시각 — 다음 이벤트가 TIME(t ≤ tpTime)인지 BT인지 파생 */
+        tpTime: plan?.tpTime ?? null,
+        /** 실기 TP 사실 — 패널이 대기/폴백/실감지를 파생한다 */
+        confirmedTurningPoint,
         toggle,
         /** 수동 개입 시 부모가 부른다 — 슬라이더 onChange에서, Replay 자신의 쓰기 경로에서는 부르지 않는다 */
         stop,
