@@ -29,6 +29,34 @@ describe('sessionsToCsv', () => {
         expect(csv).toContain('10:00'); // duration 600s
     });
 
+    it('exports Drop-first roast duration, not End-elapsed duration_seconds', () => {
+        const csv = sessionsToCsv([
+            session({
+                duration_seconds: 660,
+                events: [
+                    { id: 'fc', type: 'FC Start', time_sec: 480 },
+                    { id: 'drop', type: 'Drop', time_sec: 600 },
+                    { id: 'end', type: 'End', time_sec: 660 },
+                ],
+            }),
+        ]);
+        expect(csv).toContain('10:00');
+        expect(csv).not.toContain('11:00');
+    });
+
+    it('exports End-based duration when Drop is missing', () => {
+        const csv = sessionsToCsv([
+            session({
+                duration_seconds: 660,
+                events: [
+                    { id: 'fc', type: 'FC Start', time_sec: 480 },
+                    { id: 'end', type: 'End', time_sec: 660 },
+                ],
+            }),
+        ]);
+        expect(csv).toContain('11:00');
+    });
+
     it('marks loss rate as measured only when output weight was captured', () => {
         const estimated = sessionsToCsv([session({ weight_grams: 10000 })])
             .trim()

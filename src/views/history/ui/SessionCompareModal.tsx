@@ -2,7 +2,7 @@ import { sessionBeanName, useHistoryCharts } from '@entities/roast';
 import { computePhaseSegments, formatTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
-import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
+import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -80,17 +80,14 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
             sessions.map((s, i) => {
                 const events = eventsBySession[i];
                 const logs = storedEventsToLogEntries(events, unit);
-                const totalSec =
-                    s.duration_seconds ??
-                    events.find((e) => e.type === 'Drop')?.time_sec ??
-                    events.find((e) => e.type === 'End')?.time_sec ??
-                    0;
+                const roastDuration =
+                    deriveRoastMetrics(events, { durationFallback: s.duration_seconds }).roastDurationSec ?? 0;
                 return {
                     id: s.id,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     label: sessionBeanName(s) ?? '—',
-                    segments: computePhaseSegments(logs, totalSec, totalSec > 0),
-                    totalSec,
+                    segments: computePhaseSegments(logs, roastDuration, roastDuration > 0),
+                    totalSec: roastDuration,
                     visible: !hiddenIds.has(s.id),
                 };
             }),
@@ -225,7 +222,11 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                             key: 'duration',
                                             label: t('history.compare.duration'),
                                             get: (it: CompareSidebarItem) =>
-                                                formatDuration(it.session.duration_seconds),
+                                                formatDuration(
+                                                    deriveRoastMetrics(it.events, {
+                                                        durationFallback: it.session.duration_seconds,
+                                                    }).roastDurationSec,
+                                                ),
                                         },
                                         {
                                             key: 'drop',
@@ -236,15 +237,16 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                             key: 'dtr',
                                             label: t('history.compare.dtr'),
                                             get: (it: CompareSidebarItem) => {
-                                                const d = deriveSessionDevMetrics(
-                                                    it.events,
-                                                    it.session.duration_seconds,
-                                                );
-                                                return d.devPct != null ? `${d.devPct.toFixed(1)}%` : '—';
+                                                const d = deriveRoastMetrics(it.events, {
+                                                    durationFallback: it.session.duration_seconds,
+                                                });
+                                                return d.dtrPct != null ? `${d.dtrPct.toFixed(1)}%` : '—';
                                             },
                                         },
                                         ...(items.some((it) => {
-                                            const d = deriveSessionDevMetrics(it.events, it.session.duration_seconds);
+                                            const d = deriveRoastMetrics(it.events, {
+                                                durationFallback: it.session.duration_seconds,
+                                            });
                                             return d.rollingDevPct != null;
                                         })
                                             ? [
@@ -252,10 +254,9 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                                       key: 'dtrRolling',
                                                       label: t('history.compare.dtrRolling'),
                                                       get: (it: CompareSidebarItem) => {
-                                                          const d = deriveSessionDevMetrics(
-                                                              it.events,
-                                                              it.session.duration_seconds,
-                                                          );
+                                                          const d = deriveRoastMetrics(it.events, {
+                                                              durationFallback: it.session.duration_seconds,
+                                                          });
                                                           return d.rollingDevPct != null
                                                               ? `${d.rollingDevPct.toFixed(1)}%`
                                                               : '—';

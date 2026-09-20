@@ -115,6 +115,28 @@ describe('sortSessions', () => {
         ];
         expect(sortSessions(sessions, 'bean', true).map((s) => s.id)).toEqual(['b', 'a']);
     });
+
+    it('sorts duration by Drop-first roast duration, not record End', () => {
+        const sessions = [
+            session({
+                id: 'late-drop',
+                duration_seconds: 500,
+                events: [
+                    { id: 'd', type: 'Drop', time_sec: 700 },
+                    { id: 'e', type: 'End', time_sec: 500 },
+                ],
+            }),
+            session({
+                id: 'early-drop',
+                duration_seconds: 900,
+                events: [
+                    { id: 'd', type: 'Drop', time_sec: 400 },
+                    { id: 'e', type: 'End', time_sec: 900 },
+                ],
+            }),
+        ];
+        expect(sortSessions(sessions, 'duration', true).map((s) => s.id)).toEqual(['early-drop', 'late-drop']);
+    });
 });
 
 describe('paginateSessions', () => {

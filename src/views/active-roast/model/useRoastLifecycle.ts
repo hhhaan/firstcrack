@@ -1,9 +1,12 @@
+import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
+import { formatElapsed } from '@shared/lib/format';
+import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
@@ -19,7 +22,6 @@ export interface UseRoastLifecycleParams {
     unit: TemperatureUnit;
     logEntries: LogEntry[];
     timeStr: string;
-    devTimeStr: string;
     enterStandby: () => void;
     enterPreheating: (capabilities?: string[]) => void;
     storeEndRoast: () => void;
@@ -54,7 +56,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         unit,
         logEntries,
         timeStr,
-        devTimeStr,
         enterStandby,
         enterPreheating,
         storeEndRoast,
@@ -196,9 +197,18 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 note: 'Roast complete',
             },
         ];
+        const metrics = deriveRoastMetrics(
+            completedLogEntries.map((e) => ({ type: e.event, time_sec: logEntryTimeSec(e) })),
+            { liveElapsed: endTimeSec },
+        );
+        const roastTimeStr = metrics.roastDurationSec != null ? formatElapsed(metrics.roastDurationSec) : timeStr;
+        const development =
+            metrics.devTimeSec != null && metrics.dtrPct != null && metrics.devTimeSec > 0
+                ? `${formatElapsed(metrics.devTimeSec)} (${Number(metrics.dtrPct.toFixed(1))}%)`
+                : '—';
         const summaryData: RoastSummaryData = {
-            totalTime: timeStr,
-            development: devTimeStr,
+            totalTime: roastTimeStr,
+            development,
             finalBt: formatTemp(rawBT, unit),
             logEntries: completedLogEntries,
         };
@@ -209,7 +219,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         if (bbpEnabled) useBbpStore.getState().begin(Date.now());
         setIsRunning(false);
         return summaryData;
-    }, [logEntries, timeStr, devTimeStr, rawBT, unit, storeEndRoast, setIsRunning, bbpEnabled]);
+    }, [logEntries, timeStr, rawBT, unit, storeEndRoast, setIsRunning, bbpEnabled]);
 
     return {
         handleEnterStandby,
