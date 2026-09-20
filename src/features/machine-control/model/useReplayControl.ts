@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
 import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 
+/** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
+export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
+
 export { divergeTolerance };
 
 export interface ReplayControlInputs {
@@ -44,6 +47,11 @@ export interface ReplayControlInputs {
      * 계속 흘러, 같은 샘플 하나로 "지속 이탈"을 확정할 수 있다. 카운트를 멈춘다.
      */
     reconnecting: boolean;
+    /**
+     * R04 collection-boundary quality. Ordinary TIME/BT writes hold unless `valid`.
+     * Missing/null is not an explicit invalid observation — callers that omit it keep prior behavior.
+     */
+    observationQuality?: ObservationQuality | null;
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
     writeHeater: (value: number) => Promise<number | null>;
     /**
@@ -103,6 +111,7 @@ export const useReplayControl = ({
     heaterFeedback,
     heaterPending,
     reconnecting,
+    observationQuality,
     writeHeater,
     heaterMax,
 }: ReplayControlInputs) => {
@@ -317,6 +326,10 @@ export const useReplayControl = ({
         setActive(true);
     }, [active, plan, referenceMachineMismatch, stopCause, invalidateInFlightWrite]);
 
+    // 명시적 무효 관측(stale/null/spike/…) 동안 일반 TIME/BT write만 보류한다 (R05).
+    // active·index는 유지 — 중단은 R06. DROP zero는 위의 stopCause 경로라 이 게이트 밖이다.
+    const observationHold = active && observationQuality != null && observationQuality !== 'valid';
+
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
     // 위 중지 effect의 setActive(false)는 다음 렌더에나 반영되므로, 같은 커밋의 이
@@ -324,8 +337,12 @@ export const useReplayControl = ({
     // reconnecting 가드: 링크 복구 대기 중에도 sidecarConnected는 true로 유지되고(세션 보존)
     // elapsed는 호스트 시계라 계속 흘러, 시간축 이벤트가 409로 실패하면서 인덱스만 소비된다.
     // 여기서 멈추면 복구 후 judgeReplay가 밀린 이벤트를 한 번에 따라잡는다.
+    // observationHold 가드: 품질이 이벤트 threshold와 같은 커밋에 무효로 바뀌거나,
+    // 무효인 채 elapsed만 흘러도 낡은 last-good으로 쓰지 않는다. 정상 복귀 후 이
+    // effect가 다시 돌면 기존 Level/순서/catch-up이 최신 정상 샘플로 재평가한다.
     useEffect(() => {
         if (!active || stopCause != null || !roasting || reconnecting || liveBt == null || plan == null) return;
+        if (observationQuality != null && observationQuality !== 'valid') return;
         // 이탈 후보 확정 대기 중(1~2틱)에는 이벤트를 쓰지 않는다 — 여기서 쓰면 실기
         // 개입을 덮는 동시에 lastWritten 갱신·pending으로 판정까지 리셋돼, #307이
         // 막으려던 경로가 확정 창 안에서 재현된다. 노이즈로 판명되면(카운터 0 복귀)
@@ -362,6 +379,7 @@ export const useReplayControl = ({
         index,
         diverge.ticks,
         writing,
+        observationQuality,
         writeHeater,
     ]);
 
@@ -379,6 +397,8 @@ export const useReplayControl = ({
         stopReason,
         /** 다음에 발화할 이벤트 — UI 미리보기용. 다 소진했으면 null */
         nextEvent,
+        /** 무효 관측으로 일반 이벤트만 보류 중 — 중지 아님. 패널이 정상 재생처럼 보이면 안 된다 */
+        observationHold,
         toggle,
         /** 수동 개입 시 부모가 부른다 — 슬라이더 onChange에서, Replay 자신의 쓰기 경로에서는 부르지 않는다 */
         stop,

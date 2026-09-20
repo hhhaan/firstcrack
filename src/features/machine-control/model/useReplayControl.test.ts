@@ -33,6 +33,7 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
     heaterFeedback: null,
     heaterPending: false,
     reconnecting: false,
+    observationQuality: 'valid',
 };
 
 /** repo 표준 패턴 — 실제 훅을 렌더해 반환값을 노출한다 */
@@ -744,6 +745,136 @@ describe('useReplayControl', () => {
         expect(h.writeHeater).toHaveBeenLastCalledWith(60);
         expect(h.get().nextEvent?.heater).toBe(40);
         h.unmount();
+    });
+
+    describe('무효 관측 중 일반 이벤트 보류 (R05)', () => {
+        const timePts: ReplayPoint[] = [
+            { t: 0, bt: 180, heater: 80 },
+            { t: 30, bt: 140, heater: 70 },
+            { t: 60, bt: 95, heater: 70 },
+            { t: 300, bt: 155, heater: 40 },
+        ];
+
+        it.each(['stale', 'null', 'spike', 'poll_error'] as const)(
+            '%s + TIME 충족이어도 write 없고 index·active를 유지한다',
+            async (quality) => {
+                const h = await renderReplay({ referencePoints: timePts });
+                await act(async () => h.get().toggle());
+                expect(h.writeHeater).toHaveBeenCalledWith(80);
+                await h.rerender({ referencePoints: timePts, elapsed: 26, liveBt: 150 });
+                h.writeHeater.mockClear();
+                await h.jump({
+                    referencePoints: timePts,
+                    elapsed: 31,
+                    liveBt: 140,
+                    observationQuality: quality,
+                });
+                expect(h.writeHeater).not.toHaveBeenCalled();
+                expect(h.get().active).toBe(true);
+                expect(h.get().observationHold).toBe(true);
+                expect(h.get().nextEvent?.heater).toBe(70);
+                h.unmount();
+            },
+        );
+
+        it('null 관측 + BT 충족이어도 write 없다', async () => {
+            const h = await renderReplay();
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({ liveBt: 100, elapsed: 125, afterTurningPoint: true });
+            await h.jump({
+                liveBt: 111,
+                elapsed: 130,
+                afterTurningPoint: true,
+                observationQuality: 'null',
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(60);
+            h.unmount();
+        });
+
+        it('무효 관측 중 elapsed 틱만으로 TIME을 쓰지 않는다', async () => {
+            const h = await renderReplay({ referencePoints: timePts });
+            await act(async () => h.get().toggle());
+            await h.rerender({ referencePoints: timePts, elapsed: 25, liveBt: 150 });
+            await h.rerender({
+                referencePoints: timePts,
+                elapsed: 25,
+                liveBt: 150,
+                observationQuality: 'stale',
+            });
+            h.writeHeater.mockClear();
+            await h.rerender({
+                referencePoints: timePts,
+                elapsed: 31,
+                liveBt: 150,
+                observationQuality: 'stale',
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().observationHold).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(70);
+            h.unmount();
+        });
+
+        it('invalid 전환과 threshold가 같은 커밋이면 낡은 정상 상태로 쓰지 않는다', async () => {
+            const h = await renderReplay({ referencePoints: timePts });
+            await act(async () => h.get().toggle());
+            await h.rerender({ referencePoints: timePts, elapsed: 26, liveBt: 150 });
+            h.writeHeater.mockClear();
+            await h.jump({
+                referencePoints: timePts,
+                elapsed: 30,
+                liveBt: 140,
+                observationQuality: 'stale',
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(70);
+            h.unmount();
+        });
+
+        it('정상 관측 복귀 후 밀린 이벤트를 catch-up하고 순서를 유지한다', async () => {
+            const h = await renderReplay({ referencePoints: timePts });
+            await act(async () => h.get().toggle());
+            await h.rerender({ referencePoints: timePts, elapsed: 26, liveBt: 150 });
+            await h.jump({
+                referencePoints: timePts,
+                elapsed: 31,
+                liveBt: 140,
+                observationQuality: 'stale',
+            });
+            expect(h.get().nextEvent?.heater).toBe(70);
+            h.writeHeater.mockClear();
+            await h.rerender({
+                referencePoints: timePts,
+                elapsed: 32,
+                liveBt: 138,
+                observationQuality: 'valid',
+            });
+            expect(h.writeHeater).toHaveBeenCalledWith(70);
+            expect(h.get().observationHold).toBe(false);
+            expect(h.get().active).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(40);
+            h.unmount();
+        });
+
+        it('DROP zero는 무효 관측 gate에 막히지 않는다', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({
+                dropBehavior: 'zero',
+                liveBt: 205,
+                elapsed: 650,
+                afterTurningPoint: true,
+                roastFinished: true,
+                observationQuality: 'stale',
+            });
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            h.unmount();
+        });
     });
 
     it('write 응답 대기 중 새 샘플은 같은 이벤트를 다시 쓰지 않는다', async () => {
