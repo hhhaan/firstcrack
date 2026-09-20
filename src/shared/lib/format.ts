@@ -21,10 +21,15 @@ export const formatDate = (iso: string | null): string => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-/** Format ISO → "YY-MM-DD" (or '—' on null). */
+/** Format ISO → "YY-MM-DD" in the local calendar day (or '—' on null). */
 export const formatDateShort = (iso: string | null): string => {
     if (!iso) return '—';
-    return iso.slice(2, 10);
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
 };
 
 export const pctChange = (current: number, previous: number): string => {
