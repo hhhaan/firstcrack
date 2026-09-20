@@ -104,8 +104,8 @@ describe('ReplayControlPanel TP wait (#368 R08)', () => {
         expect(container.textContent).not.toContain('Waiting for a real turning point');
         expect(container.textContent).not.toContain('not a detected rise');
         expect(container.querySelector('[data-replay-status]')?.getAttribute('data-replay-status')).toBe('running');
-        // 다음 이벤트 줄은 유지 — 트리거 라벨(TIME/BT)은 R07. 히터 값은 보여야 한다.
-        expect(container.textContent).toContain(String(timeEvent.heater));
+        // 다음 이벤트 줄은 유지 — 트리거 라벨(TIME/BT)은 R07. BT(180) 부분문자열로 히터(80)를 통과시키지 않는다.
+        expect(container.textContent).toContain(`→ ${timeEvent.heater}%`);
         unmount();
     });
 
