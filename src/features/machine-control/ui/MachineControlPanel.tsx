@@ -43,8 +43,8 @@ interface Props {
     roasting: boolean;
     /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 */
     afterTurningPoint: boolean;
-    /** R04 제어용 관측 품질 — Replay 일반 이벤트 보류 사실 (R05) */
-    observationQuality?: ObservationQuality | null;
+    /** R04 제어용 관측 품질 — Replay 일반 이벤트 보류 사실 (R05). null = 현재 generation 관측 없음 */
+    observationQuality: ObservationQuality | null;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
     /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */

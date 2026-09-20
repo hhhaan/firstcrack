@@ -38,7 +38,7 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
     });
 
     it('R04 관측 품질을 Replay에 사실로 넘긴다 (R05)', () => {
-        expect(panelSrc).toMatch(/observationQuality\?: ObservationQuality/);
+        expect(panelSrc).toMatch(/observationQuality: ObservationQuality/);
         expect(panelSrc).toMatch(/observationQuality,/);
     });
 
