@@ -1,6 +1,7 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
 import { create } from 'zustand';
 import type { RawTemperatureSample } from '../lib/autoCharge';
+import type { SensorObservation } from '../lib/sensorObservation';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
 
@@ -31,6 +32,9 @@ export interface RoastingState {
     liveData: LiveData | null;
     rawTemperature: RawTemperatureSample | null;
     updateRawTemperature: (sample: RawTemperatureSample | null) => void;
+    /** Control-path quality/freshness. Display consumers should keep selecting `liveData`. */
+    observation: SensorObservation | null;
+    updateSensorObservation: (observation: SensorObservation | null) => void;
     /** 사이드카 PID 런타임 상태 (/temperatures에 실려 온다). PID 미사용이면 null. */
     pid: PidRuntime | null;
     /** Inventory/other entry → active roast bean handoff (consumed once when roast view activates). */
@@ -75,6 +79,7 @@ const initialState = {
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
     rawTemperature: null as RawTemperatureSample | null,
+    observation: null as SensorObservation | null,
     pid: null as PidRuntime | null,
     pendingBeanId: null as string | null,
     pendingBeanName: null as string | null,
@@ -158,10 +163,25 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current?.machine_protocol === snapshot.machine_protocol
         )
             return;
-        set({ machineSnapshot: snapshot, rawTemperature: null });
+        set({ machineSnapshot: snapshot, rawTemperature: null, observation: null });
     },
 
     updateRawTemperature: (rawTemperature) => set({ rawTemperature }),
+
+    updateSensorObservation: (observation) => {
+        const current = get().observation;
+        if (current === observation) return;
+        if (
+            current &&
+            observation &&
+            current.quality === observation.quality &&
+            current.isNew === observation.isNew &&
+            current.lastValidReceivedAtMs === observation.lastValidReceivedAtMs &&
+            current.lastValidDeviceTimestamp === observation.lastValidDeviceTimestamp
+        )
+            return;
+        set({ observation });
+    },
 
     updateLiveData: (data) => {
         const current = get().liveData;

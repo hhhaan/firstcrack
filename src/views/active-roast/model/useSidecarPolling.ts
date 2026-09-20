@@ -1,6 +1,7 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import type { RawTemperatureSample } from '@features/active-roast';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
+import { reduceSensorObservation, type SensorObservationTick } from '@features/active-roast/lib/sensorObservation';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { errorMessage } from '@shared/lib/errorMessage';
@@ -144,6 +145,7 @@ export const useSidecarPolling = ({
     const btFilterRef = useRef(createBtFilter());
     const pollInFlightRef = useRef(false);
     const sidecarGenerationRef = useRef(0);
+    const lastMachineRef = useRef(useRoastingStore.getState().machineSnapshot);
 
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
@@ -215,7 +217,10 @@ export const useSidecarPolling = ({
 
         void listen<null>('sidecar-ready', () => {
             sidecarGenerationRef.current += 1;
-            useRoastingStore.getState().updateRawTemperature(null);
+            btFilterRef.current = createBtFilter();
+            const store = useRoastingStore.getState();
+            store.updateRawTemperature(null);
+            store.updateSensorObservation(null);
             void sidecar.waitUntilReady().then(markReady, () => null);
         })
             .then((fn) => {
@@ -279,7 +284,12 @@ export const useSidecarPolling = ({
             pollInFlightRef.current = true;
             const generation = sidecarGenerationRef.current;
             const machine = useRoastingStore.getState().machineSnapshot;
+            if (machine !== lastMachineRef.current) {
+                lastMachineRef.current = machine;
+                btFilterRef.current = createBtFilter();
+            }
             let rawSample: RawTemperatureSample | null = null;
+            let observationTick: SensorObservationTick | null = null;
             try {
                 const data = await sidecar.getTemperatures();
                 const receivedAtMs = Date.now();
@@ -290,6 +300,17 @@ export const useSidecarPolling = ({
                     machine !== useRoastingStore.getState().machineSnapshot
                 )
                     return;
+                const deviceTimestamp = Number.isFinite(data.timestamp) ? data.timestamp : null;
+                const tick = (over: Partial<SensorObservationTick> = {}): SensorObservationTick => ({
+                    receivedAtMs,
+                    deviceTimestamp,
+                    bt: data.bt ?? null,
+                    stale: Boolean(data.stale),
+                    reconnecting: Boolean(data.reconnecting),
+                    spikeRejected: false,
+                    pollError: false,
+                    ...over,
+                });
                 if (!data.stale && !data.reconnecting && data.bt != null && data.bt_raw != null) {
                     rawSample = { timestamp: data.timestamp, receivedAtMs, bt: data.bt_raw };
                 }
@@ -303,19 +324,22 @@ export const useSidecarPolling = ({
                         status,
                     });
                     applyConnection(decision);
+                    observationTick = tick({ bt: null });
                     // hard disconnect or reconnecting hold — no live point this tick
                     if (!status?.connected) return;
                 }
                 // 글리치(스파이크·0값·단선) 샘플은 이 폴링 tick 전체를 스킵 — 자동감지 오발화 방지
                 const bt = data.bt == null ? null : btFilterRef.current(data.bt, Date.now());
                 if (data.bt != null && bt === null) {
-                    // 거부된 글리치: 표시값 깜빡임 방지 위해 store 갱신도 스킵
+                    // 거부된 글리치: 표시값은 유지하고 품질만 invalid
                     applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
+                    observationTick = tick({ spikeRejected: true, bt: data.bt });
                     return;
                 }
                 useRoastingStore.getState().updateLiveData({ ...data, bt });
                 useRoastingStore.getState().setPid(data.pid ?? null);
                 applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
+                observationTick = tick({ bt });
                 if (bt === null) return;
 
                 const currentPhase = useRoastingStore.getState().phase;
@@ -417,6 +441,15 @@ export const useSidecarPolling = ({
                         status,
                     }),
                 );
+                observationTick = {
+                    receivedAtMs: Date.now(),
+                    deviceTimestamp: null,
+                    bt: null,
+                    stale: false,
+                    reconnecting: false,
+                    spikeRejected: false,
+                    pollError: true,
+                };
             } finally {
                 pollInFlightRef.current = false;
                 if (
@@ -425,7 +458,11 @@ export const useSidecarPolling = ({
                     generation === sidecarGenerationRef.current &&
                     machine === useRoastingStore.getState().machineSnapshot
                 ) {
-                    useRoastingStore.getState().updateRawTemperature(rawSample);
+                    const store = useRoastingStore.getState();
+                    store.updateRawTemperature(rawSample);
+                    if (observationTick) {
+                        store.updateSensorObservation(reduceSensorObservation(store.observation, observationTick));
+                    }
                 }
             }
         };
