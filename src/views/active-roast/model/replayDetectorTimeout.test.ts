@@ -82,49 +82,44 @@ type WireProps = {
 };
 
 /** Same tree as ActiveRoast: detector parent, Replay child. Sibling hooks would let a discarded first pass still commit Replay's timeout setState. */
-const ReplayChild = ({
-    confirmedTP,
-    elapsed,
-    liveBt,
-    writeHeater,
-    onReplay,
-}: {
-    confirmedTP: Latest['confirmedTP'];
-    elapsed: number;
-    liveBt: number;
-    writeHeater: WireProps['writeHeater'];
-    onReplay: (replay: Latest['replay']) => void;
-}) => {
-    const replay = useReplayControl({
-        referencePoints: POINTS,
-        referenceMachineMismatch: false,
-        referenceDropTime: null,
-        liveBt,
-        elapsed,
-        roasting: true,
-        confirmedTurningPoint: confirmedTP,
-        heaterWritable: true,
-        pidEngaged: false,
-        roastFinished: false,
-        sidecarConnected: true,
-        heaterUnacknowledged: false,
-        dropBehavior: 'hold',
-        heaterFeedback: null,
-        heaterPending: false,
-        reconnecting: false,
-        writeHeater,
-    });
-    onReplay(replay);
-    return null;
-};
-
 const renderWired = () => {
     const writeHeater = vi.fn(async (value: number): Promise<number | null> => value);
     const root = createRoot(document.createElement('div'));
     roots.push(root);
-    let latest!: Latest;
+    let latestDet!: ReturnType<typeof useAutoDetection>;
+    let latestReplay!: Latest['replay'];
+    const ReplayChild = ({
+        confirmedTP,
+        elapsed,
+        liveBt,
+    }: {
+        confirmedTP: Latest['confirmedTP'];
+        elapsed: number;
+        liveBt: number;
+    }) => {
+        latestReplay = useReplayControl({
+            referencePoints: POINTS,
+            referenceMachineMismatch: false,
+            referenceDropTime: null,
+            liveBt,
+            elapsed,
+            roasting: true,
+            confirmedTurningPoint: confirmedTP,
+            heaterWritable: true,
+            pidEngaged: false,
+            roastFinished: false,
+            sidecarConnected: true,
+            heaterUnacknowledged: false,
+            dropBehavior: 'hold',
+            heaterFeedback: null,
+            heaterPending: false,
+            reconnecting: false,
+            writeHeater,
+        });
+        return null;
+    };
     const Parent = ({ livePoints, elapsed, liveBt }: Omit<WireProps, 'writeHeater'>) => {
-        const det = useAutoDetection({
+        latestDet = useAutoDetection({
             livePoints,
             onAutoCharge: () => {},
             onAutoDrop: () => {},
@@ -139,16 +134,7 @@ const renderWired = () => {
             logEntries: [],
             autoYellowEnabled: false,
         });
-        latest = { ...latest, confirmedTP: det.confirmedTP };
-        return createElement(ReplayChild, {
-            confirmedTP: det.confirmedTP,
-            elapsed,
-            liveBt,
-            writeHeater,
-            onReplay: (replay) => {
-                latest = { ...latest, replay };
-            },
-        });
+        return createElement(ReplayChild, { confirmedTP: latestDet.confirmedTP, elapsed, liveBt });
     };
     const paint = (elapsed: number, series: Point[]) => {
         const liveBt = at(series, elapsed);
@@ -162,7 +148,11 @@ const renderWired = () => {
         act(() => root.render(createElement(Parent, { livePoints: until(series, elapsed), elapsed, liveBt })));
     };
     paint(0, DETECT_AT_LIMIT);
-    return { get: () => latest, paint, writeHeater };
+    return {
+        get: () => ({ replay: latestReplay, confirmedTP: latestDet.confirmedTP }),
+        paint,
+        writeHeater,
+    };
 };
 
 /** SAMPLE_GAP is 5s — step by 5 until near the limit, then 1s. */
