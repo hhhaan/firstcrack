@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { reduceSensorObservation, type SensorObservationTick } from '../lib/sensorObservation';
+import { reduceSensorObservation, sensorObservationTick } from '../lib/sensorObservation';
 import { useRoastingStore } from './status';
 
 const live = {
@@ -12,16 +12,8 @@ const live = {
     drum: 60,
 };
 
-const tick = (receivedAtMs: number, over: Partial<SensorObservationTick> = {}): SensorObservationTick => ({
-    receivedAtMs,
-    deviceTimestamp: 10,
-    bt: 200,
-    stale: false,
-    reconnecting: false,
-    spikeRejected: false,
-    pollError: false,
-    ...over,
-});
+const sample = (receivedAtMs: number, over: Parameters<typeof sensorObservationTick>[1] = {}) =>
+    sensorObservationTick(receivedAtMs, { deviceTimestamp: 10, bt: 200, ...over });
 
 afterEach(() => {
     useRoastingStore.getState().reset();
@@ -41,25 +33,25 @@ describe('useRoastingStore observation vs display', () => {
     });
 
     it('stores quality independently so display dedupe does not drop it', () => {
-        const observation = reduceSensorObservation(null, tick(1_000));
+        const observation = reduceSensorObservation(null, sample(1_000));
         useRoastingStore.getState().updateLiveData(live);
         const display = useRoastingStore.getState().liveData;
         useRoastingStore.getState().updateSensorObservation(observation);
         expect(useRoastingStore.getState().liveData).toBe(display);
         expect(useRoastingStore.getState().observation).toEqual(observation);
 
-        const stale = reduceSensorObservation(observation, tick(1_400, { deviceTimestamp: 11, stale: true }));
+        const stale = reduceSensorObservation(observation, sample(1_400, { deviceTimestamp: 11, stale: true }));
         useRoastingStore.getState().updateSensorObservation(stale);
         expect(useRoastingStore.getState().liveData).toBe(display);
         expect(useRoastingStore.getState().observation?.quality).toBe('stale');
     });
 
     it('preserves the latest classify time across same-quality ticks', () => {
-        const first = reduceSensorObservation(null, tick(1_000));
+        const first = reduceSensorObservation(null, sample(1_000));
         useRoastingStore.getState().updateSensorObservation(first);
-        const second = reduceSensorObservation(first, tick(1_400));
+        const second = reduceSensorObservation(first, sample(1_400));
         useRoastingStore.getState().updateSensorObservation(second);
-        const third = reduceSensorObservation(second, tick(1_800));
+        const third = reduceSensorObservation(second, sample(1_800));
         useRoastingStore.getState().updateSensorObservation(third);
         expect(useRoastingStore.getState().observation?.quality).toBe('retransmit');
         expect(useRoastingStore.getState().observation?.receivedAtMs).toBe(1_800);
@@ -67,7 +59,7 @@ describe('useRoastingStore observation vs display', () => {
     });
 
     it('clears observation on machine change and reset, not on charge', () => {
-        const observation = reduceSensorObservation(null, tick(1_000));
+        const observation = reduceSensorObservation(null, sample(1_000));
         useRoastingStore.getState().updateSensorObservation(observation);
         useRoastingStore.getState().enterPreheating();
         useRoastingStore.getState().enterStandby();

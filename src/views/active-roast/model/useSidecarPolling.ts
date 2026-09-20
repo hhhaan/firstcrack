@@ -1,7 +1,7 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import type { RawTemperatureSample } from '@features/active-roast';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
-import { reduceSensorObservation, type SensorObservationTick } from '@features/active-roast/lib/sensorObservation';
+import { reduceSensorObservation, sensorObservationTick } from '@features/active-roast/lib/sensorObservation';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { errorMessage } from '@shared/lib/errorMessage';
@@ -290,7 +290,7 @@ export const useSidecarPolling = ({
                 btFilterRef.current = createBtFilter();
             }
             let rawSample: RawTemperatureSample | null = null;
-            let observationTick: SensorObservationTick | null = null;
+            let observationTick: ReturnType<typeof sensorObservationTick> | null = null;
             try {
                 const data = await sidecar.getTemperatures();
                 const receivedAtMs = Date.now();
@@ -302,16 +302,14 @@ export const useSidecarPolling = ({
                 )
                     return;
                 const deviceTimestamp = Number.isFinite(data.timestamp) ? data.timestamp : null;
-                const tick = (over: Partial<SensorObservationTick> = {}): SensorObservationTick => ({
-                    receivedAtMs,
-                    deviceTimestamp,
-                    bt: data.bt ?? null,
-                    stale: Boolean(data.stale),
-                    reconnecting: Boolean(data.reconnecting),
-                    spikeRejected: false,
-                    pollError: false,
-                    ...over,
-                });
+                const tick = (over: Parameters<typeof sensorObservationTick>[1] = {}) =>
+                    sensorObservationTick(receivedAtMs, {
+                        deviceTimestamp,
+                        bt: data.bt ?? null,
+                        stale: data.stale,
+                        reconnecting: data.reconnecting,
+                        ...over,
+                    });
                 if (!data.stale && !data.reconnecting && data.bt != null && data.bt_raw != null) {
                     rawSample = { timestamp: data.timestamp, receivedAtMs, bt: data.bt_raw };
                 }
@@ -442,15 +440,7 @@ export const useSidecarPolling = ({
                         status,
                     }),
                 );
-                observationTick = {
-                    receivedAtMs: Date.now(),
-                    deviceTimestamp: null,
-                    bt: null,
-                    stale: false,
-                    reconnecting: false,
-                    spikeRejected: false,
-                    pollError: true,
-                };
+                observationTick = sensorObservationTick(Date.now(), { pollError: true });
             } finally {
                 pollInFlightRef.current = false;
                 if (

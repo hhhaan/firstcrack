@@ -665,6 +665,25 @@ const startMutablePoll = async () => {
     return { root, payload };
 };
 
+const withMutablePoll = async (
+    run: (ctx: {
+        payload: ReturnType<typeof reading>;
+        display: ReturnType<typeof useRoastingStore.getState>['liveData'];
+        lastValid: number | null | undefined;
+    }) => Promise<void>,
+) => {
+    const { root, payload } = await startMutablePoll();
+    try {
+        await run({
+            payload,
+            display: useRoastingStore.getState().liveData,
+            lastValid: useRoastingStore.getState().observation?.lastValidReceivedAtMs,
+        });
+    } finally {
+        act(() => root.unmount());
+    }
+};
+
 const captureSidecarReady = () => {
     let ready = () => {};
     mocks.listen.mockImplementation(async (event: string, callback: () => void) => {
@@ -674,33 +693,38 @@ const captureSidecarReady = () => {
     return () => ready();
 };
 
-it('refreshes last-valid time for a flat BT with a new device timestamp', async () => {
-    const { root, payload } = await startMutablePoll();
+const withSidecarReadyPoll = async (setup: () => void, run: (ready: () => void) => Promise<void>) => {
+    vi.useFakeTimers();
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    const ready = captureSidecarReady();
+    setup();
+    const root = renderProbe(500);
     try {
-        const first = useRoastingStore.getState();
-        expect(first.observation).toMatchObject({
+        await flushReady();
+        await run(ready);
+    } finally {
+        act(() => root.unmount());
+    }
+};
+
+it('refreshes last-valid time for a flat BT with a new device timestamp', async () => {
+    await withMutablePoll(async ({ payload, display, lastValid }) => {
+        expect(useRoastingStore.getState().observation).toMatchObject({
             quality: 'valid',
             isNew: true,
             lastValidDeviceTimestamp: 10,
         });
-        const display = first.liveData;
-        const lastValid = first.observation?.lastValidReceivedAtMs;
         payload.timestamp = 11;
         await act(async () => vi.advanceTimersByTimeAsync(1000));
         const second = useRoastingStore.getState();
         expect(second.liveData).toBe(display);
         expect(second.observation).toMatchObject({ quality: 'valid', isNew: true, lastValidDeviceTimestamp: 11 });
         expect(second.observation?.lastValidReceivedAtMs).toBeGreaterThan(lastValid ?? 0);
-    } finally {
-        act(() => root.unmount());
-    }
+    });
 });
 
 it('updates quality when only stale changes and keeps the same display object', async () => {
-    const { root, payload } = await startMutablePoll();
-    try {
-        const display = useRoastingStore.getState().liveData;
-        const lastValid = useRoastingStore.getState().observation?.lastValidReceivedAtMs;
+    await withMutablePoll(async ({ payload, display, lastValid }) => {
         payload.stale = true;
         payload.timestamp = 11;
         await act(async () => vi.advanceTimersByTimeAsync(1000));
@@ -709,16 +733,11 @@ it('updates quality when only stale changes and keeps the same display object', 
         expect(next.observation?.quality).toBe('stale');
         expect(next.observation?.isNew).toBe(false);
         expect(next.observation?.lastValidReceivedAtMs).toBe(lastValid);
-    } finally {
-        act(() => root.unmount());
-    }
+    });
 });
 
 it('keeps the last display value and marks spike rejects invalid', async () => {
-    const { root, payload } = await startMutablePoll();
-    try {
-        const display = useRoastingStore.getState().liveData;
-        const lastValid = useRoastingStore.getState().observation?.lastValidReceivedAtMs;
+    await withMutablePoll(async ({ payload, display, lastValid }) => {
         payload.bt = 1372;
         payload.bt_raw = 1372;
         payload.timestamp = 11;
@@ -728,83 +747,64 @@ it('keeps the last display value and marks spike rejects invalid', async () => {
         expect(next.liveData?.bt).toBe(200);
         expect(next.observation?.quality).toBe('spike');
         expect(next.observation?.lastValidReceivedAtMs).toBe(lastValid);
-    } finally {
-        act(() => root.unmount());
-    }
+    });
 });
 
 it('does not treat a repeated device timestamp as a new observation', async () => {
-    const { root } = await startMutablePoll();
-    try {
-        const lastValid = useRoastingStore.getState().observation?.lastValidReceivedAtMs;
+    await withMutablePoll(async ({ lastValid }) => {
         await act(async () => vi.advanceTimersByTimeAsync(1000));
         const next = useRoastingStore.getState();
         expect(next.observation?.quality).toBe('retransmit');
         expect(next.observation?.isNew).toBe(false);
         expect(next.observation?.lastValidReceivedAtMs).toBe(lastValid);
-    } finally {
-        act(() => root.unmount());
-    }
+    });
 });
 
 it('does not apply an in-flight observation from a previous sidecar generation', async () => {
-    vi.useFakeTimers();
-    mocks.initSessionTsv.mockResolvedValue(undefined);
-    const ready = captureSidecarReady();
     let resolveRead = (_reading: unknown) => {};
-    mocks.getTemperatures.mockReturnValueOnce(
-        new Promise((resolve) => {
-            resolveRead = resolve;
-        }),
+    await withSidecarReadyPoll(
+        () => {
+            mocks.getTemperatures.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveRead = resolve;
+                }),
+            );
+        },
+        async (ready) => {
+            act(() => ready());
+            await act(async () => resolveRead(reading({ timestamp: 1, bt: 199, bt_raw: 199 })));
+            expect(useRoastingStore.getState().observation).toBeNull();
+            mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 2, bt: 198, bt_raw: 198 }));
+            await act(async () => vi.advanceTimersByTimeAsync(500));
+            expect(useRoastingStore.getState().observation).toMatchObject({
+                quality: 'valid',
+                lastValidDeviceTimestamp: 2,
+            });
+        },
     );
-    const root = renderProbe(500);
-    try {
-        await flushReady();
-        act(() => ready());
-        await act(async () => resolveRead(reading({ timestamp: 1, bt: 199, bt_raw: 199 })));
-        expect(useRoastingStore.getState().observation).toBeNull();
-        mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 2, bt: 198, bt_raw: 198 }));
-        await act(async () => vi.advanceTimersByTimeAsync(500));
-        expect(useRoastingStore.getState().observation).toMatchObject({
-            quality: 'valid',
-            lastValidDeviceTimestamp: 2,
-        });
-    } finally {
-        act(() => root.unmount());
-    }
 });
 
 it('resets the BT filter on sidecar-ready so prior device samples are not inherited', async () => {
-    vi.useFakeTimers();
-    mocks.initSessionTsv.mockResolvedValue(undefined);
-    const ready = captureSidecarReady();
-    mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 1, bt: 200, bt_raw: 200 }));
-    const root = renderProbe(500);
-    try {
-        await flushReady();
-        expect(useRoastingStore.getState().liveData?.bt).toBe(200);
-        act(() => ready());
-        mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 2, bt: 50, bt_raw: 50 }));
-        await act(async () => vi.advanceTimersByTimeAsync(500));
-        expect(useRoastingStore.getState().liveData?.bt).toBe(50);
-        expect(useRoastingStore.getState().observation).toMatchObject({
-            quality: 'valid',
-            lastValidDeviceTimestamp: 2,
-        });
-    } finally {
-        act(() => root.unmount());
-    }
+    await withSidecarReadyPoll(
+        () => {
+            mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 1, bt: 200, bt_raw: 200 }));
+        },
+        async (ready) => {
+            expect(useRoastingStore.getState().liveData?.bt).toBe(200);
+            act(() => ready());
+            mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 2, bt: 50, bt_raw: 50 }));
+            await act(async () => vi.advanceTimersByTimeAsync(500));
+            expect(useRoastingStore.getState().liveData?.bt).toBe(50);
+            expect(useRoastingStore.getState().observation).toMatchObject({
+                quality: 'valid',
+                lastValidDeviceTimestamp: 2,
+            });
+        },
+    );
 });
 
 it('does not refresh last-valid time on poll error or null BT', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
-    mocks.initSessionTsv.mockResolvedValue(undefined);
-    mocks.getTemperatures.mockResolvedValue(reading());
-    const root = renderProbe(1000);
-    try {
-        await flushReady();
-        const lastValid = useRoastingStore.getState().observation?.lastValidReceivedAtMs;
+    await withMutablePoll(async ({ lastValid }) => {
         mocks.getTemperatures.mockRejectedValueOnce(new Error('timeout'));
         mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: true });
         await act(async () => vi.advanceTimersByTimeAsync(1000));
@@ -814,9 +814,7 @@ it('does not refresh last-valid time on poll error or null BT', async () => {
         await act(async () => vi.advanceTimersByTimeAsync(1000));
         expect(useRoastingStore.getState().observation?.quality).toBe('null');
         expect(useRoastingStore.getState().observation?.lastValidReceivedAtMs).toBe(lastValid);
-    } finally {
-        act(() => root.unmount());
-    }
+    });
 });
 
 it('ignores the old phase response even before React runs polling cleanup', async () => {

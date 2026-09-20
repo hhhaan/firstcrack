@@ -1,20 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { reduceSensorObservation, type SensorObservation, type SensorObservationTick } from './sensorObservation';
+import {
+    reduceSensorObservation,
+    type SensorObservation,
+    type SensorObservationTick,
+    sensorObservationTick,
+} from './sensorObservation';
 
-const TICK = (
-    over: Partial<SensorObservationTick> & Pick<SensorObservationTick, 'receivedAtMs'>,
-): SensorObservationTick => ({
-    bt: 200,
-    deviceTimestamp: 10,
-    stale: false,
-    reconnecting: false,
-    spikeRejected: false,
-    pollError: false,
-    ...over,
-});
+const sample = (receivedAtMs: number, over: Partial<SensorObservationTick> = {}) =>
+    sensorObservationTick(receivedAtMs, { deviceTimestamp: 10, bt: 200, ...over });
 
 const valid = (prev: SensorObservation | null, receivedAtMs: number, deviceTimestamp: number, bt = 200) =>
-    reduceSensorObservation(prev, TICK({ receivedAtMs, deviceTimestamp, bt }));
+    reduceSensorObservation(prev, sample(receivedAtMs, { deviceTimestamp, bt }));
 
 describe('reduceSensorObservation', () => {
     it('treats a flat BT with a newer device timestamp as a new valid observation', () => {
@@ -36,7 +32,7 @@ describe('reduceSensorObservation', () => {
 
     it('does not use receive wall-clock or roast elapsed as device observation identity', () => {
         const first = valid(null, 1_000, 10);
-        const retransmit = reduceSensorObservation(first, TICK({ receivedAtMs: 9_000, deviceTimestamp: 10, bt: 200 }));
+        const retransmit = reduceSensorObservation(first, sample(9_000));
 
         expect(retransmit.quality).toBe('retransmit');
         expect(retransmit.isNew).toBe(false);
@@ -46,10 +42,7 @@ describe('reduceSensorObservation', () => {
 
     it('keeps last-valid time when only stale changes', () => {
         const first = valid(null, 1_000, 10, 200);
-        const stale = reduceSensorObservation(
-            first,
-            TICK({ receivedAtMs: 1_400, deviceTimestamp: 11, bt: 200, stale: true }),
-        );
+        const stale = reduceSensorObservation(first, sample(1_400, { deviceTimestamp: 11, stale: true }));
 
         expect(stale.quality).toBe('stale');
         expect(stale.isNew).toBe(false);
@@ -65,7 +58,7 @@ describe('reduceSensorObservation', () => {
         ['retransmit', { deviceTimestamp: 10 }],
     ] as const)('%s does not refresh last-valid time', (quality, over) => {
         const first = valid(null, 1_000, 10);
-        const next = reduceSensorObservation(first, TICK({ receivedAtMs: 2_000, ...over }));
+        const next = reduceSensorObservation(first, sample(2_000, over));
 
         expect(next.quality).toBe(quality);
         expect(next.isNew).toBe(false);

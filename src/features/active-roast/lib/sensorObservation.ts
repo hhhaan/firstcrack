@@ -31,6 +31,21 @@ export type SensorObservationTick = {
     pollError: boolean;
 };
 
+export function sensorObservationTick(
+    receivedAtMs: number,
+    over: Partial<Omit<SensorObservationTick, 'receivedAtMs'>> = {},
+): SensorObservationTick {
+    return {
+        receivedAtMs,
+        deviceTimestamp: over.deviceTimestamp ?? null,
+        bt: over.bt ?? null,
+        stale: Boolean(over.stale),
+        reconnecting: Boolean(over.reconnecting),
+        spikeRejected: Boolean(over.spikeRejected),
+        pollError: Boolean(over.pollError),
+    };
+}
+
 const keepLastValid = (prev: SensorObservation | null) => ({
     lastValidReceivedAtMs: prev?.lastValidReceivedAtMs ?? null,
     lastValidDeviceTimestamp: prev?.lastValidDeviceTimestamp ?? null,
