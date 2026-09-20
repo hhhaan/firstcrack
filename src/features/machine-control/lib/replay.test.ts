@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseTsv } from '@shared/lib/tsv';
 import { describe, expect, it } from 'vitest';
-import { extractReplayEvents, judgeReplay, type ReplayPoint } from './replay';
+import {
+    extractReplayEvents,
+    judgeReplay,
+    PROPOSED_TP_UNCONFIRMED_LIMIT_S,
+    planHasPendingBtEvent,
+    type ReplayPoint,
+    shouldStopUnconfirmedTp,
+} from './replay';
 
 /** charge 180° → TP 95°(t=60) → 상승 → drop 205° 형태의 레퍼런스 */
 const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
@@ -205,5 +212,39 @@ describe('judgeReplay', () => {
         expect(first).toEqual({ nextIndex: 2, heater: 70 });
         const again = judgeReplay(plan, first.nextIndex, { bt: 100, elapsed: 50, afterTurningPoint: false });
         expect(again.heater).toBeNull();
+    });
+});
+
+describe('proposed TP-unconfirmed stop (#368 R09)', () => {
+    // 120s is a proposed policy (same number as today's Yellow fallback), not equipment-validated.
+    const plan = extractReplayEvents(curve({ 0: 80, 120: 60, 300: 40 }));
+    if (!plan) throw new Error('fixture broken');
+
+    it('경계: 한계 직전은 유지, 정확/직후는 중단 후보', () => {
+        expect(PROPOSED_TP_UNCONFIRMED_LIMIT_S).toBe(120);
+        const justBefore = PROPOSED_TP_UNCONFIRMED_LIMIT_S - 1;
+        const justAfter = PROPOSED_TP_UNCONFIRMED_LIMIT_S + 1;
+        expect(shouldStopUnconfirmedTp(justBefore, false, true)).toBe(false);
+        expect(shouldStopUnconfirmedTp(PROPOSED_TP_UNCONFIRMED_LIMIT_S, false, true)).toBe(true);
+        expect(shouldStopUnconfirmedTp(justAfter, false, true)).toBe(true);
+    });
+
+    it('같은 평가에서 실감지가 있으면 timeout보다 실감지가 이긴다', () => {
+        expect(shouldStopUnconfirmedTp(PROPOSED_TP_UNCONFIRMED_LIMIT_S, true, true)).toBe(false);
+        expect(shouldStopUnconfirmedTp(PROPOSED_TP_UNCONFIRMED_LIMIT_S + 30, true, true)).toBe(false);
+    });
+
+    it('미실행 BT가 남아 있을 때만 후보 — TIME-only(전 이벤트 시간축)는 적용하지 않는다', () => {
+        expect(planHasPendingBtEvent(plan, 1)).toBe(true);
+        expect(planHasPendingBtEvent(plan, plan.events.length)).toBe(false);
+
+        const timeOnly: ReplayPoint[] = [];
+        for (let t = 0; t <= 180; t += 10) {
+            timeOnly.push({ t, bt: 200 - t, heater: t === 0 ? 80 : t === 150 ? 60 : null });
+        }
+        const timePlan = extractReplayEvents(timeOnly);
+        expect(timePlan?.tpTime).toBe(Number.POSITIVE_INFINITY);
+        expect(timePlan && planHasPendingBtEvent(timePlan, 0)).toBe(false);
+        expect(shouldStopUnconfirmedTp(PROPOSED_TP_UNCONFIRMED_LIMIT_S, false, false)).toBe(false);
     });
 });

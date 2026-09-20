@@ -120,3 +120,43 @@ describe('ReplayControlPanel TP wait (#368 R08)', () => {
         unmount();
     });
 });
+
+describe('ReplayControlPanel TP unconfirmed handoff (#368 R09)', () => {
+    beforeAll(async () => {
+        if (!i18n.isInitialized) {
+            await i18n.init({
+                lng: 'en',
+                fallbackLng: 'en',
+                resources: { en: { translation: en } },
+                interpolation: { escapeValue: false },
+            });
+        }
+    });
+
+    it('중단 경고는 Replay OFF ≠ 버너 OFF를 설명하고, 실감지 전에는 재토글이 막힌다', async () => {
+        const { container, rerender, unmount } = await mount(
+            baseReplay({
+                active: false,
+                stopReason: 'tpUnconfirmed',
+                nextEvent: btEvent,
+                confirmedTurningPoint: null,
+            }),
+        );
+        expect(container.textContent).toMatch(/not burner off/i);
+        expect(container.textContent).toMatch(/check current heat/i);
+        expect(container.querySelector('[data-replay-status]')?.getAttribute('data-replay-status')).toBe('off');
+        expect((container.querySelector('input[type="checkbox"]') as HTMLInputElement).disabled).toBe(true);
+
+        await rerender(
+            baseReplay({
+                active: false,
+                stopReason: 'tpUnconfirmed',
+                nextEvent: btEvent,
+                confirmedTurningPoint: { fallback: false },
+            }),
+        );
+        expect(container.textContent).toMatch(/not burner off/i);
+        expect((container.querySelector('input[type="checkbox"]') as HTMLInputElement).disabled).toBe(false);
+        unmount();
+    });
+});

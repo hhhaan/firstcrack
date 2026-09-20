@@ -756,6 +756,10 @@
                 "fallback": "TP fallback — not a detected rise",
                 "collapsedWaiting": "Replay waiting for a real turning point",
                 "collapsedFallback": "Replay TP fallback — not a detected rise"
+            },
+            "tpUnconfirmed": {
+                "stop": "Replay stopped — no real turning point. This is not burner off; check current heat.",
+                "lock": "Cannot resume until a real turning point is detected"
             }
         }
     },

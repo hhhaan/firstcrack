@@ -113,6 +113,21 @@ export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | n
     return { events, tpTime };
 };
 
+/**
+ * Proposed Replay stop when a real TP never confirms (#368 R09).
+ * Same number as today's Yellow fallback (`useAutoDetection` TP_FALLBACK_S) — NOT a
+ * user-validated equipment-safe limit. Do not treat merge as shipping approval.
+ */
+export const PROPOSED_TP_UNCONFIRMED_LIMIT_S = 120;
+
+/** Remaining events that judgeReplay would treat as BT (t > plan TP), not TIME. */
+export const planHasPendingBtEvent = (plan: ReplayPlan, index: number): boolean =>
+    plan.events.some((e, i) => i >= index && e.t > plan.tpTime);
+
+/** Real detect wins; TIME-only plans (no pending BT) never match. */
+export const shouldStopUnconfirmedTp = (elapsed: number, realTp: boolean, pendingBt: boolean): boolean =>
+    pendingBt && !realTp && elapsed >= PROPOSED_TP_UNCONFIRMED_LIMIT_S;
+
 export interface ReplaySample {
     bt: number;
     elapsed: number;

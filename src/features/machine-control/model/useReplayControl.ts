@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
-import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import {
+    extractReplayEvents,
+    judgeReplay,
+    planHasPendingBtEvent,
+    type ReplayEvent,
+    type ReplayPoint,
+    shouldStopUnconfirmedTp,
+} from '../lib/replay';
 
 export { divergeTolerance };
 
@@ -67,7 +74,8 @@ export type ReplayStopReason =
     | 'profileChanged'
     | 'controlDiverged'
     | 'timingGap'
-    | 'writeFailed';
+    | 'writeFailed'
+    | 'tpUnconfirmed';
 
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
@@ -240,6 +248,21 @@ export const useReplayControl = ({
               : roastFinished
                 ? 'finished'
                 : null;
+
+    // Proposed 120s TP-unconfirmed handoff (#368 R09) — render-time so the write
+    // effect cannot fire first. Real detect in this same evaluation wins (predicate).
+    // stopCause (DROP/PID/…) keeps priority; TIME-only plans have no pending BT.
+    if (
+        active &&
+        roasting &&
+        stopCause == null &&
+        plan != null &&
+        shouldStopUnconfirmedTp(elapsed, afterTurningPoint, planHasPendingBtEvent(plan, index))
+    ) {
+        setActive(false);
+        setStopReason('tpUnconfirmed');
+    }
+
     useEffect(() => {
         if (!active || stopCause == null) return;
         setActive(false);
@@ -278,12 +301,14 @@ export const useReplayControl = ({
             return;
         }
         if (plan == null || referenceMachineMismatch || stopCause != null) return;
+        // Timeout lock: explicit resume only after a real TP. New batch clears stopReason.
+        if (stopReason === 'tpUnconfirmed' && !afterTurningPoint) return;
         setStopReason(null);
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
         setActive(true);
-    }, [active, plan, referenceMachineMismatch, stopCause]);
+    }, [active, plan, referenceMachineMismatch, stopCause, stopReason, afterTurningPoint]);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
