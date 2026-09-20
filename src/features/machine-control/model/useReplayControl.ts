@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
+import type { ControlOrigin } from '../lib/controlSender';
 import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 
 /** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
@@ -57,7 +58,11 @@ export interface ReplayControlInputs {
      */
     observationQuality: ObservationQuality | null;
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
-    writeHeater: (value: number) => Promise<number | null>;
+    writeHeater: (value: number, origin?: ControlOrigin) => Promise<number | null>;
+    /**
+     * 미전송 Replay heater만 선택 취소. fan/drum·수동 commit·DROP zero(safety)는 남긴다.
+     */
+    cancelUnsentHeater: () => void;
     /**
      * heater write_map.max — `/status.control.limits.heater.max`. 수렴·이탈
      * 허용치를 같이 유도한다. 없으면 0~100% 전제(기존 수렴 1 / 이탈 2).
@@ -117,6 +122,7 @@ export const useReplayControl = ({
     reconnecting,
     observationQuality,
     writeHeater,
+    cancelUnsentHeater,
     heaterMax,
 }: ReplayControlInputs) => {
     const plan = useMemo(
@@ -168,12 +174,16 @@ export const useReplayControl = ({
 
     const invalidateInFlightWrite = useCallback(() => {
         writeGenRef.current += 1;
+        // 세대만 올리면 늦은 응답은 무시되지만, sender에 남은 Replay heater는 그대로 나간다 (#368 R03).
+        cancelUnsentHeater();
         setWriting(false);
-    }, []);
+    }, [cancelUnsentHeater]);
 
-    /** 렌더 중 확정된 중단 — 단조 증가만, StrictMode 이중 호출은 fail-closed. */
+    /** 렌더 중 확정된 중단 — 단조 증가만, StrictMode 이중 호출은 fail-closed.
+     * 큐 취소도 여기서: effect까지 미루면 in-flight 슬롯이 비며 Replay heater가 먼저 나간다. */
     const bumpWriteGenOnRenderStop = () => {
         writeGenRef.current += 1;
+        cancelUnsentHeater();
     };
 
     // PID 등은 렌더에서 stopCause가 먼저 보인다. effect가 세대를 올리기 전에 도착한
@@ -295,7 +305,7 @@ export const useReplayControl = ({
         // 실패가 토스트/Sentry로 관측된다. hold면 아무것도 안 쓴다 — 설정으로 선택된
         // 잔류라 PID hold와 같은 등급의 문서화된 동작이다.
         if (roastFinished && dropBehavior === 'zero') {
-            void writeHeater(0);
+            void writeHeater(0, 'safety');
             setSafeOffIssued(true);
         }
     }, [active, stopCause, roastFinished, dropBehavior, writeHeater, invalidateInFlightWrite]);
@@ -306,7 +316,7 @@ export const useReplayControl = ({
     // 매 write가 미반영 카운트를 되돌리므로 tight loop이 될 수 없다.
     useEffect(() => {
         if (!safeOffIssued || !heaterUnacknowledged || !sidecarConnected) return;
-        void writeHeater(0);
+        void writeHeater(0, 'safety');
     }, [safeOffIssued, heaterUnacknowledged, sidecarConnected, writeHeater]);
 
     // Drop 언토글 = 배출 취소. safe-off 재시도가 살아 있으면 재개된 재생을 0으로 덮는다.

@@ -1,5 +1,12 @@
 export type ControlRole = 'heater' | 'fan' | 'drum';
 export type ControlCommand = Partial<Record<ControlRole, number>>;
+/** commit 출처 — Replay 자동화 중단 시 미전송 heater만 고른다. safety는 DROP zero. */
+export type ControlOrigin = 'manual' | 'replay' | 'safety';
+
+export interface CancelUnsentMatch {
+    origin: ControlOrigin;
+    role: ControlRole;
+}
 
 /** 기기 실측이 지시값에 이만큼 근접하면 "따라왔다"고 본다 (채널 단위) */
 export const CONVERGE_TOLERANCE = 1;
@@ -34,11 +41,37 @@ interface Options {
 
 interface Waiter {
     requested: ControlCommand;
+    origin: ControlOrigin;
     resolve: (result: ControlCommand | null) => void;
     settled: boolean;
 }
 
 const rolesOf = (cmd: ControlCommand): ControlRole[] => Object.keys(cmd) as ControlRole[];
+
+const omitRoles = (cmd: ControlCommand, drop: ReadonlySet<ControlRole>): ControlCommand => {
+    const out: ControlCommand = {};
+    for (const role of rolesOf(cmd)) {
+        if (!drop.has(role)) out[role] = cmd[role];
+    }
+    return out;
+};
+
+const mergeQueued = (waiters: Waiter[]): ControlCommand => {
+    let next: ControlCommand = {};
+    for (const waiter of waiters) next = { ...next, ...waiter.requested };
+    return next;
+};
+
+/** 겹친 role만 떼고 나머지는 같은 origin으로 남긴다. committed에 waiter 없는 값이 생기면 취소가 못 고른다. */
+const keepLeftover = (waiter: Waiter, leftover: ControlCommand, into: Waiter[]) => {
+    if (rolesOf(leftover).length === 0) return;
+    into.push({
+        requested: leftover,
+        origin: waiter.origin,
+        resolve: () => {},
+        settled: true,
+    });
+};
 
 /** 이 commit이 요청한 role만 applied에서 골라 귀속한다. 없으면 성공이 아니다. */
 const pickApplied = (requested: ControlCommand, applied: ControlCommand): ControlCommand | null => {
@@ -131,11 +164,11 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
         },
         /**
          * 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송.
-         * 성공 시 이 요청이 포함된 실제 applied(요청 role만), 실패·같은 role 전부 대체·dispose 시 null.
+         * 성공 시 이 요청이 포함된 실제 applied(요청 role만), 실패·같은 role 대체·dispose·미전송 취소 시 null.
          * 같은 role 일부만 대체되면 겹친 role은 성공이 아니고, 남은 role은 실제 전송 결과에 귀속한다.
          * 빈 commit은 즉시 `{}` — 대기 중인 다른 요청의 성공을 만들지 않는다.
          */
-        commitNow(): Promise<ControlCommand | null> {
+        commitNow(origin: ControlOrigin = 'manual'): Promise<ControlCommand | null> {
             const snapshot = draft;
             draft = {};
             if (Object.keys(snapshot).length === 0) {
@@ -143,26 +176,48 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
                 return Promise.resolve({});
             }
             committedListener?.(snapshot);
-            queuedWaiters = queuedWaiters.filter((waiter) => {
-                const remaining: ControlCommand = {};
-                let overlapped = false;
-                for (const role of rolesOf(waiter.requested)) {
-                    if (role in snapshot) overlapped = true;
-                    else remaining[role] = waiter.requested[role];
+            const replaced = new Set(rolesOf(snapshot));
+            const remaining: Waiter[] = [];
+            for (const waiter of queuedWaiters) {
+                if (!rolesOf(waiter.requested).some((role) => replaced.has(role))) {
+                    remaining.push(waiter);
+                    continue;
                 }
-                if (!overlapped) return true;
-                if (rolesOf(remaining).length === 0) {
+                const leftover = omitRoles(waiter.requested, replaced);
+                if (rolesOf(leftover).length === 0) {
                     settle(waiter, null);
-                    return false;
+                    continue;
                 }
-                waiter.requested = remaining;
-                return true;
-            });
-            committed = { ...committed, ...snapshot };
+                waiter.requested = leftover;
+                remaining.push(waiter);
+            }
             return new Promise((resolve) => {
-                queuedWaiters.push({ requested: snapshot, resolve, settled: false });
+                remaining.push({ requested: snapshot, origin, resolve, settled: false });
+                queuedWaiters = remaining;
+                committed = mergeQueued(queuedWaiters);
                 void flush();
             });
+        },
+        /**
+         * 아직 안 보낸 대기만 고른다. in-flight(이미 PLC로 나간 것)는 건드리지 않는다.
+         * 매칭 role만 취소하고 같은 waiter의 fan/drum은 origin을 유지한 채 남긴다.
+         */
+        cancelUnsent({ origin, role }: CancelUnsentMatch): ControlCommand[] {
+            const cancelled: ControlCommand[] = [];
+            const remaining: Waiter[] = [];
+            for (const waiter of queuedWaiters) {
+                const value = waiter.origin === origin ? waiter.requested[role] : undefined;
+                if (value == null) {
+                    remaining.push(waiter);
+                    continue;
+                }
+                settle(waiter, null);
+                cancelled.push({ [role]: value });
+                keepLeftover(waiter, omitRoles(waiter.requested, new Set([role])), remaining);
+            }
+            queuedWaiters = remaining;
+            committed = mergeQueued(queuedWaiters);
+            return cancelled;
         },
         dispose(): void {
             draft = {};
