@@ -25,6 +25,8 @@ const baseReplay = (over: Partial<Replay> = {}): Replay =>
     ({
         available: true,
         machineMismatch: false,
+        referenceLoading: false,
+        missingHeatSet: false,
         blocked: false,
         active: true,
         stopReason: null,

@@ -93,6 +93,68 @@ describe('useRoastProfileSelection pending profile handoff', () => {
     });
 });
 
+describe('useRoastProfileSelection Replay profile confirm (#529 D)', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        roastingState.pendingProfileId = null;
+    });
+
+    it('같은 프로파일 재선택은 no-op 이고 확인을 열지 않는다', async () => {
+        const confirm = vi.fn(async () => true);
+        const h = mountHook({
+            isActive: true,
+            charged: false,
+            userProfile: { default_roast_profile_id: 'prof-1' },
+            beans: [],
+            beansReady: true,
+            confirmTargetChange: confirm,
+        });
+        expect(h.api.targetProfileId).toBe('prof-1');
+        await act(async () => {
+            h.api.setUserSelectedTarget('prof-1');
+        });
+        expect(h.api.targetProfileId).toBe('prof-1');
+        expect(confirm).not.toHaveBeenCalled();
+        h.unmount();
+    });
+
+    it('확인 거절이면 타겟을 유지한다', async () => {
+        const confirm = vi.fn(async () => false);
+        const h = mountHook({
+            isActive: true,
+            charged: false,
+            userProfile: { default_roast_profile_id: 'prof-1' },
+            beans: [],
+            beansReady: true,
+            confirmTargetChange: confirm,
+        });
+        await act(async () => {
+            h.api.setUserSelectedTarget('prof-2');
+        });
+        expect(confirm).toHaveBeenCalledWith('prof-2');
+        expect(h.api.targetProfileId).toBe('prof-1');
+        h.unmount();
+    });
+
+    it('확인하면 타겟을 바꾸고, 해제(null)도 계획 변경으로 취급한다', async () => {
+        const confirm = vi.fn(async () => true);
+        const h = mountHook({
+            isActive: true,
+            charged: false,
+            userProfile: { default_roast_profile_id: 'prof-1' },
+            beans: [],
+            beansReady: true,
+            confirmTargetChange: confirm,
+        });
+        await act(async () => {
+            h.api.setUserSelectedTarget(null);
+        });
+        expect(confirm).toHaveBeenCalledWith(null);
+        expect(h.api.targetProfileId).toBeNull();
+        h.unmount();
+    });
+});
+
 describe('useRoastProfileSelection stale bean clear (#176)', () => {
     beforeEach(() => {
         localStorage.clear();

@@ -16,6 +16,8 @@ const replayStub = (over: Partial<Replay> = {}): Replay =>
     ({
         available: true,
         machineMismatch: false,
+        referenceLoading: false,
+        missingHeatSet: false,
         blocked: false,
         active: false,
         stopReason: null,
@@ -84,6 +86,30 @@ describe('ReplayControlPanel 무효 관측 대기 (R05)', () => {
         expect(container.textContent).toContain('On');
         expect(container.textContent).toContain('BT 140');
         expect(container.textContent).not.toContain('온도 데이터 확인 대기');
+        unmount();
+    });
+
+    it('Heat set 기록이 없으면 사유를 보여 주고 체크박스를 막는다', () => {
+        const { container, unmount } = renderPanel(
+            replayStub({
+                available: false,
+                missingHeatSet: true,
+            }),
+        );
+        expect(container.textContent).toContain('Replay needs a recorded heat-set history.');
+        expect((container.querySelector('input[type="checkbox"]') as HTMLInputElement).disabled).toBe(true);
+        unmount();
+    });
+
+    it('로딩 중에는 기록 없음 문구를 쓰지 않는다', () => {
+        const { container, unmount } = renderPanel(
+            replayStub({
+                available: false,
+                referenceLoading: true,
+                missingHeatSet: false,
+            }),
+        );
+        expect(container.textContent).not.toContain('Replay needs a recorded heat-set history.');
         unmount();
     });
 });

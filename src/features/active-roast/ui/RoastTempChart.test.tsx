@@ -241,7 +241,7 @@ describe('RoastTempChart interactions', () => {
         expect(onAddNote).toHaveBeenCalledWith('past note', 6);
     });
 
-    it('opens a marker editor on click and saves time plus Heater heat', () => {
+    it('opens a marker editor on click and saves Heater time but not heat value', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();
         act(() => {
@@ -275,21 +275,21 @@ describe('RoastTempChart interactions', () => {
         const heat = container.querySelector('#chart-marker-heat') as HTMLInputElement;
         expect(time.value).toBe('0:05');
         expect(heat.value).toBe('50');
+        expect(heat.disabled).toBe(true);
+        expect(heat.readOnly).toBe(true);
 
         act(() => {
             const timeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
             timeSetter?.call(time, '0:08');
             time.dispatchEvent(new Event('input', { bubbles: true }));
-            const heatSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-            heatSetter?.call(heat, '70');
-            heat.dispatchEvent(new Event('input', { bubbles: true }));
         });
         act(() =>
             container
                 .querySelector('[data-chart-marker-edit]')
                 ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
         );
-        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8, note: '70%' });
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8 });
+        expect(onEventMarkerEdit.mock.calls[0][1].note).toBeUndefined();
     });
 
     it('keeps marker time to digits and seconds 0–60', () => {

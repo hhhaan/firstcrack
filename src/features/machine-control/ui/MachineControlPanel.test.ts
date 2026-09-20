@@ -42,6 +42,16 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/observationQuality,/);
     });
 
+    it('R06 last-valid 나이와 nowMs를 Replay에 넘긴다', () => {
+        expect(panelSrc).toMatch(/lastValidReceivedAtMs/);
+        expect(panelSrc).toMatch(/nowMs/);
+    });
+
+    it('Replay active/stop을 상위에 노출하고 훅을 두 번 만들지 않는다', () => {
+        expect(panelSrc).toMatch(/onReplayControl/);
+        expect(panelSrc.match(/useReplayControl\(/g)?.length).toBe(1);
+    });
+
     it('접힌 레일은 무효 관측 보류를 정상 재생과 구분한다 (R05)', () => {
         expect(panelSrc).toMatch(/replay\.observationHold/);
         expect(panelSrc).toMatch(/REPLAY_OBSERVATION_HOLD_TEXT/);

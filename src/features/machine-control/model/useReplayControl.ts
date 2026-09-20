@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
 import type { ControlOrigin } from '../lib/controlSender';
-import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import {
+    eventTrigger,
+    extractReplayEvents,
+    hasHeatSetRecord,
+    judgeReplay,
+    type ReplayEvent,
+    type ReplayPoint,
+} from '../lib/replay';
 
 /** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
 export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
@@ -57,6 +64,13 @@ export interface ReplayControlInputs {
      * Do not omit the field for test convenience — pass `'valid'` when a write is expected.
      */
     observationQuality: ObservationQuality | null;
+    /**
+     * Last-valid observation wall-clock. Explicit `null` = this generation has no last-valid (hold).
+     * Omit to skip the proposed long-gap stop in tests.
+     */
+    lastValidReceivedAtMs?: number | null;
+    /** Wall-clock for last-valid age. Omit with lastValid to skip long-gap stop in tests. */
+    nowMs?: number | null;
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
     writeHeater: (value: number, origin?: ControlOrigin) => Promise<number | null>;
     /**
@@ -68,6 +82,7 @@ export interface ReplayControlInputs {
      * 허용치를 같이 유도한다. 없으면 0~100% 전제(기존 수렴 1 / 이탈 2).
      */
     heaterMax?: number | null;
+    heaterMin?: number | null;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -81,7 +96,9 @@ export type ReplayStopReason =
     | 'profileChanged'
     | 'controlDiverged'
     | 'timingGap'
-    | 'writeFailed';
+    | 'writeFailed'
+    /** Last-valid observation older than the proposed R06 limit. Not a shipping-approved safety rating. */
+    | 'observationStale';
 
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
@@ -94,6 +111,11 @@ const DIVERGE_TICKS = 3;
  * ponytail: sidecar heartbeat로 판정을 옮기면(#308) 이 감지는 그쪽 책임이 된다.
  */
 const SAMPLE_GAP_LIMIT_S = 5;
+/**
+ * Proposed long-gap policy: last-valid observation age above this stops Replay.
+ * Not equipment-validated and not a shipping-approved safety limit — under review (#529).
+ */
+export const PROPOSED_OBSERVATION_STALE_LIMIT_MS = 5_000;
 
 /**
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
@@ -121,17 +143,26 @@ export const useReplayControl = ({
     heaterPending,
     reconnecting,
     observationQuality,
+    lastValidReceivedAtMs,
+    nowMs,
     writeHeater,
     cancelUnsentHeater,
     heaterMax,
+    heaterMin,
 }: ReplayControlInputs) => {
-    const plan = useMemo(
-        () =>
-            referencePoints && referencePoints.length > 0
-                ? extractReplayEvents(referencePoints, referenceDropTime)
-                : null,
+    const hasHeatSet = useMemo(
+        () => hasHeatSetRecord(referencePoints, referenceDropTime),
         [referencePoints, referenceDropTime],
     );
+    const minHeater = heaterMin ?? 0;
+    const maxHeater = heaterMax ?? 100;
+    // null points = 로딩. 이전 프로파일 계획을 새 프로파일에 쓰지 않는다.
+    const plan = useMemo(() => {
+        const extracted = referencePoints ? extractReplayEvents(referencePoints, referenceDropTime) : null;
+        return extracted?.events.every((event) => event.heater >= minHeater && event.heater <= maxHeater)
+            ? extracted
+            : null;
+    }, [referencePoints, referenceDropTime, minHeater, maxHeater]);
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
     const stopCause: ReplayStopReason | null = !sidecarConnected
@@ -162,6 +193,11 @@ export const useReplayControl = ({
     /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
     const [prevElapsed, setPrevElapsed] = useState(elapsed);
     /**
+     * Previously accepted last-valid wall-clock for R06 age. A recovery sample that
+     * refreshes last-valid first is still a gap against this, not against the new stamp.
+     */
+    const [trustedLastValidMs, setTrustedLastValidMs] = useState<number | null>(null);
+    /**
      * 이벤트 write가 /control 응답 대기 중 — 그동안 판정을 멈춰 같은 이벤트를 두 번 쓰지
      * 않는다 (#312). 응답 세대: 배치·프로파일 경계뿐 아니라 사용자 OFF·수동/PID 중단·재시작
      * 뒤에 도착한 늦은 성공/실패는 무시한다. 옛 응답이 index·lastWritten·stop reason을
@@ -185,6 +221,13 @@ export const useReplayControl = ({
         writeGenRef.current += 1;
         cancelUnsentHeater();
     };
+
+    // Hold cancels queued Replay writes too; an already-sent response cannot consume the held event.
+    if (active && writing && (observationQuality !== 'valid' || reconnecting)) {
+        // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+        bumpWriteGenOnRenderStop();
+        setWriting(false);
+    }
 
     // PID 등은 렌더에서 stopCause가 먼저 보인다. effect가 세대를 올리기 전에 도착한
     // 응답이 index·사유를 덮지 않게 이 커밋에서 무효화한다.
@@ -241,14 +284,49 @@ export const useReplayControl = ({
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
     // 복귀 후 catch-up write는 하지 않는다 — 그동안의 실기 상태를 모른다.
+    let replayRunning = active;
     if (elapsed !== prevElapsed) {
         setPrevElapsed(elapsed);
-        if (active && roasting && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+        if (replayRunning && roasting && stopCause == null && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
             // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
             bumpWriteGenOnRenderStop();
             setWriting(false);
+            replayRunning = false;
             setActive(false);
             setStopReason('timingGap');
+        }
+    }
+
+    // R06 last-valid age — proposed >5s, not equipment-validated.
+    // Elapsed ticks must check even with no new sample. A recovery sample that
+    // refreshes last-valid first is still a gap against trustedLastValidMs.
+    // stopCause가 있으면 렌더 중 중지하지 않는다 — DROP zero effect가 active를 봐야 한다.
+    // Explicit null last-valid is this generation's unknown: hold, do not age against
+    // a prior generation, do not invent trust from nowMs.
+    if (!roasting && trustedLastValidMs !== (lastValidReceivedAtMs ?? null)) {
+        setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
+    }
+    if (replayRunning && roasting && stopCause == null && lastValidReceivedAtMs !== undefined && nowMs != null) {
+        if (lastValidReceivedAtMs === null) {
+            if (trustedLastValidMs != null) setTrustedLastValidMs(null);
+        } else {
+            let trusted = trustedLastValidMs;
+            if (trusted == null) {
+                trusted = lastValidReceivedAtMs;
+                setTrustedLastValidMs(trusted);
+            }
+            const recoveryGap = lastValidReceivedAtMs > trusted ? lastValidReceivedAtMs - trusted : 0;
+            const clockGap = nowMs - trusted;
+            if (Math.max(recoveryGap, clockGap) > PROPOSED_OBSERVATION_STALE_LIMIT_MS) {
+                // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+                bumpWriteGenOnRenderStop();
+                setWriting(false);
+                replayRunning = false;
+                setActive(false);
+                setStopReason('observationStale');
+            } else if (lastValidReceivedAtMs !== trustedLastValidMs) {
+                setTrustedLastValidMs(lastValidReceivedAtMs);
+            }
         }
     }
 
@@ -261,7 +339,7 @@ export const useReplayControl = ({
     // 여러 번 세면 1샘플로 확정된다. 복구 후 새 샘플부터 이어 센다.
     if (elapsed !== diverge.tick && !reconnecting) {
         const deviated =
-            active &&
+            replayRunning &&
             roasting &&
             !heaterPending &&
             lastWritten != null &&
@@ -284,15 +362,20 @@ export const useReplayControl = ({
         }
     }
 
-    const stop = useCallback(() => {
-        // 수동 개입은 active 여부와 무관하게 safe-off 재시도를 취소한다 —
-        // 배출 후 사람이 만진 화력을 재시도가 덮으면 안 된다 (#316)
-        setSafeOffIssued(false);
-        invalidateInFlightWrite();
-        if (!active) return;
-        setActive(false);
-        setStopReason('manual');
-    }, [active, invalidateInFlightWrite]);
+    const stop = useCallback(
+        (reason: ReplayStopReason = 'manual') => {
+            // A confirmation opened before Drop must not cancel the existing safe-off retry.
+            if (reason === 'profileChanged' && !active) return;
+            // 수동 개입은 active 여부와 무관하게 safe-off 재시도를 취소한다 —
+            // 배출 후 사람이 만진 화력을 재시도가 덮으면 안 된다 (#316)
+            setSafeOffIssued(false);
+            invalidateInFlightWrite();
+            if (!active) return;
+            setActive(false);
+            setStopReason(reason);
+        },
+        [active, invalidateInFlightWrite],
+    );
 
     useEffect(() => {
         if (!active || stopCause == null) return;
@@ -339,8 +422,10 @@ export const useReplayControl = ({
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
+        // Explicit resume ages from the current last-valid only — never invent one from nowMs.
+        setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
         setActive(true);
-    }, [active, plan, referenceMachineMismatch, stopCause, invalidateInFlightWrite]);
+    }, [active, plan, referenceMachineMismatch, stopCause, invalidateInFlightWrite, lastValidReceivedAtMs]);
 
     // 현재 generation의 유효 관측이 있을 때만 일반 TIME/BT write. production의 null/unknown
     // (observation 미수신·generation 초기화)은 hold다 — 표시용 last-good BT로 발화하지 않는다.
@@ -404,8 +489,12 @@ export const useReplayControl = ({
     const nextEventTrigger = nextEvent && plan ? eventTrigger(nextEvent, plan.tpTime) : null;
 
     return {
-        /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
+        /** 레퍼런스에 Heat set 지시가 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
         available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
+        /** 타겟 곡선 로딩 중 — 이전 계획/기록 없음 문구를 쓰지 않는다 */
+        referenceLoading: referencePoints == null,
+        /** 로드된 레퍼런스에 Heat set 조작 기록이 없다. 실측만 있는 구 TSV 포함 */
+        missingHeatSet: referencePoints != null && !hasHeatSet,
         /** 다른 기종 기록 — UI 힌트 분리용 */
         machineMismatch: referenceMachineMismatch,
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */

@@ -32,10 +32,10 @@ const setControl = vi.mocked(sidecar.setControl);
 
 // TP: t=60/bt=95. 이벤트: t=0 h=60(초기), t=120 bt=110 h=40(BT 트리거)
 const POINTS: ReplayPoint[] = [
-    { t: 0, bt: 180, heater: 60 },
-    { t: 60, bt: 95, heater: 60 },
-    { t: 120, bt: 110, heater: 40 },
-    { t: 600, bt: 205, heater: 40 },
+    { t: 0, bt: 180, heaterSet: 60 },
+    { t: 60, bt: 95, heaterSet: 60 },
+    { t: 120, bt: 110, heaterSet: 40 },
+    { t: 600, bt: 205, heaterSet: 40 },
 ];
 
 interface Sample {
@@ -45,10 +45,10 @@ interface Sample {
 }
 
 const COARSE_POINTS: ReplayPoint[] = [
-    { t: 0, bt: 180, heater: 6 },
-    { t: 60, bt: 95, heater: 6 },
-    { t: 120, bt: 110, heater: 4 },
-    { t: 600, bt: 205, heater: 4 },
+    { t: 0, bt: 180, heaterSet: 6 },
+    { t: 60, bt: 95, heaterSet: 6 },
+    { t: 120, bt: 110, heaterSet: 4 },
+    { t: 600, bt: 205, heaterSet: 4 },
 ];
 
 /** 두 훅을 MachineControlPanel과 동일하게 배선한 합성 하네스 */
@@ -591,9 +591,9 @@ describe('중단 시 미전송 Replay heater 취소 (#368 R03)', () => {
 
         await rig.update({
             points: [
-                { t: 0, bt: 180, heater: 40 },
-                { t: 60, bt: 95, heater: 40 },
-                { t: 300, bt: 155, heater: 20 },
+                { t: 0, bt: 180, heaterSet: 40 },
+                { t: 60, bt: 95, heaterSet: 40 },
+                { t: 300, bt: 155, heaterSet: 20 },
             ],
         });
         expect(rig.get().replay.active).toBe(false);

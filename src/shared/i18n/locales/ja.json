@@ -754,6 +754,14 @@
         "replay": {
             "next": "次: {{condition}} → {{heater}}",
             "done": "すべてのイベントを再生済み",
+            "missingHeatSet": "火力操作の記録がないため Replay を使えません。",
+            "invalidPlan": "火力操作記録が不完全か、この機器の再生条件に適合していません。",
+            "profileChange": {
+                "title": "Replay 実行中",
+                "message": "Replay 実行中です。プロファイルを変えると Replay が停止します。現在の火力はそのままです。",
+                "confirm": "Replay を停止して変更",
+                "cancel": "キャンセル"
+            },
             "tp": {
                 "waiting": "実測 TP の確認待ち",
                 "fallback": "TP フォールバック — 実測の上昇ではない",

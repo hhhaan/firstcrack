@@ -1,5 +1,7 @@
 /**
- * Replay Assist (#300) — 레퍼런스 배치의 heater 조작 기록을 이번 배치에서 재생한다.
+ * Replay Assist (#300) — 레퍼런스 배치의 **Heat set 지시**를 이번 배치에서 재생한다.
+ *
+ * Replay = 앱에 기록된 화력 지시 재현. 실측 Heat(`heater`)로 대체하지 않는다 (#529).
  *
  * Cropster Replay와 같은 원리: 시간축 재생이 아니라 **레퍼런스 BT 도달 트리거**의
  * 오픈루프다. 이번 배치가 레퍼런스보다 느리면 가스 변경도 그만큼 늦게 들어간다.
@@ -14,7 +16,10 @@ export interface ReplayPoint {
     /** charge 기준 상대 시간(초). 음수 = pre-charge */
     t: number;
     bt: number;
-    heater: number | null;
+    /** 기기 실측. Replay 추출에 쓰지 않는다. TsvPoint 호환용 */
+    heater?: number | null;
+    /** 앱이 쓴 화력 지시(TSV 8열). Replay 원본 */
+    heaterSet?: number | null;
 }
 
 /** 행별 발화 기준. TSV 추출은 TP 이전·동일 시각=time, 이후=bt. */
@@ -35,11 +40,22 @@ export interface ReplayPlan {
     tpTime: number;
 }
 
+/** 추출에 쓰는 지시값. 실측 `heater`는 보지 않는다. 0은 결측이 아니다. */
+export const replayCommand = (p: ReplayPoint): number | null => {
+    const v = p.heaterSet;
+    if (v == null || !Number.isFinite(v) || v < 0) return null;
+    return v;
+};
+
 /**
- * 이 폭 미만의 변화는 이벤트로 치지 않는다 — 사람 조작은 보통 5% 단위,
- * 미세한 흔들림은 센서/PID 노이즈다.
+ * Charge 이후·Drop 이전에 지시 샘플이 하나라도 있는가.
+ * 재생 계획 유효성(양수 이벤트·PID 폭증)과 별개 — 기록 없음 UI에 쓴다.
  */
-const MIN_HEATER_DELTA = 1;
+export const hasHeatSetRecord = (points: ReplayPoint[] | null | undefined, dropTime?: number | null): boolean => {
+    if (points == null || points.length === 0) return false;
+    const cutoff = dropTime ?? Number.POSITIVE_INFINITY;
+    return points.some((p) => p.t >= 0 && p.t < cutoff && replayCommand(p) != null);
+};
 
 /**
  * 이벤트가 이보다 많으면 PID가 기록한 배치로 판정하고 재생을 거부한다.
@@ -65,15 +81,17 @@ const TP_RISE_MARGIN = 2;
 const TP_MIN_ELAPSED_S = 20;
 
 /**
- * 레퍼런스 커브에서 재생 계획을 뽑는다. heater 기록이 없거나(합성 프로파일),
+ * 레퍼런스 커브에서 재생 계획을 뽑는다. Heat set 지시가 없거나(구 TSV·합성 프로파일),
  * 이벤트가 비정상적으로 많으면(PID 기록) null — Replay 부적합.
  *
- * 이벤트는 heater 값이 직전 이벤트 대비 MIN_HEATER_DELTA 이상 바뀐 지점만.
- * 첫 non-null heater는 초기 화력으로 항상 포함한다 (t=0이면 charge 직후 발화).
+ * 이벤트는 heaterSet이 직전 이벤트와 달라진 지점만.
+ * 첫 유효 지시는 초기 화력으로 항상 포함한다 (t=0이면 charge 직후 발화).
+ * 첫 지시 전 null은 허용하지만 이후 null은 기록 손실이므로 계획 전체를 거부한다.
+ * 실측으로 채우거나 보간하지 않는다.
  *
- * 음수 heater는 null로 본다 — Giesen은 unlock 코드 없이 -1을 읽는다. 양수가 한 번도 없는
- * 기록(읽기 전용 기종은 heater 0으로 기록된다)도 null — 그대로 재생하면 charge에서
- * 버너를 꺼 버린다. 로스팅 중 0으로 내리는 조작은 양수 이벤트가 앞에 있으므로 살아남는다.
+ * 음수 heaterSet은 결측으로 본다. 0은 유효 지시(가스 컷). 양수가 한 번도 없는
+ * 기록은 null — 그대로 재생하면 charge에서 버너를 꺼 버린다. 로스팅 중 0으로
+ * 내리는 조작은 양수 이벤트가 앞에 있으므로 살아남는다.
  *
  * dropTime(레퍼런스의 charge→drop 초) 이후 포인트는 버린다 — 레코더는 배출 후에도
  * 기록을 계속하므로 쿨다운 중 슬라이더 조작이 TSV에 남고, 그 BT 구간(하강 꼬리)은
@@ -81,17 +99,23 @@ const TP_MIN_ELAPSED_S = 20;
  * (Artisan도 DROP 이후 이벤트는 재생하지 않는다).
  */
 export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | null): ReplayPlan | null => {
+    if (dropTime != null && !Number.isFinite(dropTime)) return null;
     const cutoff = dropTime ?? Number.POSITIVE_INFINITY;
+    if (points.some((p) => !Number.isFinite(p.t) || !Number.isFinite(p.bt))) return null;
     const post = points.filter((p) => p.t >= 0 && p.t < cutoff);
     if (post.length === 0) return null;
 
     const events: ReplayEvent[] = [];
     let lastHeater: number | null = null;
     for (const p of post) {
-        if (p.heater == null || p.heater < 0) continue;
-        if (lastHeater == null || Math.abs(p.heater - lastHeater) >= MIN_HEATER_DELTA) {
-            events.push({ t: p.t, bt: p.bt, heater: p.heater });
-            lastHeater = p.heater;
+        const cmd = replayCommand(p);
+        if (cmd == null) {
+            if (lastHeater != null) return null;
+            continue;
+        }
+        if (lastHeater == null || cmd !== lastHeater) {
+            events.push({ t: p.t, bt: p.bt, heater: cmd });
+            lastHeater = cmd;
             if (events.length > MAX_EVENTS) return null;
         }
     }

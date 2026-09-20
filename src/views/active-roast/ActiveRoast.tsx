@@ -22,6 +22,7 @@ import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel } from '@features/machine-control';
+import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
@@ -54,6 +55,7 @@ import { useRoastSaveFlow } from './model/useRoastSaveFlow';
 import { useSidecarPolling } from './model/useSidecarPolling';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
+import { ReplayProfileChangeModal } from './ui/ReplayProfileChangeModal';
 import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
 import { RoastSidePanel } from './ui/RoastSidePanel';
@@ -91,6 +93,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         reconnecting,
         machineSnapshot,
         observationQuality,
+        lastValidReceivedAtMs,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -103,6 +106,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             reconnecting: s.reconnecting,
             machineSnapshot: s.machineSnapshot,
             observationQuality: s.observation?.quality ?? null,
+            lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -130,8 +134,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 프로파일/원두 선택 ─────────────────────────────────────────
     const { data: beans = [], isSuccess: beansReady } = useBeans(workspaceOwnerId);
+    const replayActiveRef = useRef(false);
+    const replayStopRef = useRef<(reason?: ReplayStopReason) => void>(() => {});
+    const profileChangeGenRef = useRef(0);
+    const pendingProfileChangeRef = useRef<{ resolve: (ok: boolean) => void; gen: number } | null>(null);
+    const [profileChangeOpen, setProfileChangeOpen] = useState(false);
+    const confirmTargetChange = useCallback((_nextId: string | null) => {
+        if (!replayActiveRef.current) return Promise.resolve(true);
+        pendingProfileChangeRef.current?.resolve(false);
+        return new Promise<boolean>((resolve) => {
+            pendingProfileChangeRef.current = { resolve, gen: profileChangeGenRef.current };
+            setProfileChangeOpen(true);
+        });
+    }, []);
     const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
-        useRoastProfileSelection({ isActive, charged, userProfile, beans, beansReady });
+        useRoastProfileSelection({ isActive, charged, userProfile, beans, beansReady, confirmTargetChange });
 
     // ── UI 상태 ───────────────────────────────────────────────────
     const [isRunning, setIsRunning] = useState(false);
@@ -180,7 +197,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => dbProfiles.find((p) => p.id === targetProfileId && p.user_id === workspaceOwnerId) ?? null,
         [dbProfiles, targetProfileId, workspaceOwnerId],
     );
-    const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
+    const { points: targetCurvePoints, isLoading: curveLoading } = useResolvedProfileCurve(targetProfile);
+    const replayPoints = !targetProfileId ? [] : curveLoading ? null : targetCurvePoints;
     const sourceSession = resolveSourceSession(targetProfile?.source_session);
     const waitingForCharge = bbpActive || !charged;
     const bbpTarget = useBbpCurve(
@@ -208,6 +226,39 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const referenceKey = targetProfile?.machine_roaster_key ?? null;
     const currentKey = machineSnapshot?.machine_roaster_key ?? null;
     const replayMachineMismatch = referenceKey != null && currentKey != null && referenceKey !== currentKey;
+    // biome-ignore lint/correctness/useExhaustiveDependencies: identity for in-flight Replay profile confirm
+    useEffect(() => {
+        profileChangeGenRef.current += 1;
+        const pending = pendingProfileChangeRef.current;
+        if (!pending) return;
+        pending.resolve(false);
+        pendingProfileChangeRef.current = null;
+        setProfileChangeOpen(false);
+    }, [sessionId, workspaceOwnerId, targetProfileId]);
+    const handleReplayControl = useCallback(
+        (control: { active: boolean; stop: (reason?: ReplayStopReason) => void } | null) => {
+            replayActiveRef.current = control?.active ?? false;
+            replayStopRef.current = control?.stop ?? (() => {});
+        },
+        [],
+    );
+    const cancelReplayProfileChange = useCallback(() => {
+        pendingProfileChangeRef.current?.resolve(false);
+        pendingProfileChangeRef.current = null;
+        setProfileChangeOpen(false);
+    }, []);
+    const confirmReplayProfileChange = useCallback(() => {
+        const pending = pendingProfileChangeRef.current;
+        pendingProfileChangeRef.current = null;
+        setProfileChangeOpen(false);
+        if (!pending) return;
+        if (pending.gen !== profileChangeGenRef.current) {
+            pending.resolve(false);
+            return;
+        }
+        replayStopRef.current('profileChanged');
+        pending.resolve(true);
+    }, []);
 
     const chartView = useMemo(
         () =>
@@ -725,7 +776,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         roastFinished={roastEnded || logEntries.some((e) => e.event === 'Drop')}
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
-                        replayPoints={targetCurvePoints}
+                        replayPoints={replayPoints}
                         replayMachineMismatch={replayMachineMismatch}
                         replayDropTime={replayDropTime}
                         liveBt={rawBT}
@@ -733,6 +784,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         roasting={phase === 'roasting'}
                         confirmedTurningPoint={confirmedTP}
                         observationQuality={observationQuality}
+                        lastValidReceivedAtMs={lastValidReceivedAtMs}
+                        // eslint-disable-next-line react-hooks/purity -- fresh wall-clock must stop stale Replay before this commit's write effects
+                        nowMs={Date.now()}
+                        onReplayControl={handleReplayControl}
                         temperatureUnit={unit}
                         onHeaterCommitted={handleHeaterCommitted}
                     />
@@ -777,6 +832,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 </div>
             </div>
 
+            <ReplayProfileChangeModal
+                open={profileChangeOpen}
+                onCancel={cancelReplayProfileChange}
+                onConfirm={confirmReplayProfileChange}
+            />
             <EndRoastModal
                 open={saveFlow.flow.endRoastModal}
                 timeStr={timeStr}
