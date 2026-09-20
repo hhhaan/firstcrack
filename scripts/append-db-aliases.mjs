@@ -20,6 +20,7 @@ export type RoastSessionWithRelations = RoastSession & {
 export type Cupping = Database['public']['Tables']['cuppings']['Row']
 export type CuppingInvite = Database['public']['Tables']['cupping_invites']['Row']
 export type CuppingEvent = Database['public']['Tables']['cupping_events']['Row']
+export type CuppingParticipant = Database['public']['Tables']['cupping_participants']['Row']
 export type CuppingSample = Database['public']['Tables']['cupping_samples']['Row']
 
 

@@ -329,6 +329,51 @@ export type Database = {
                     },
                 ];
             };
+            cupping_participants: {
+                Row: {
+                    claimed_at: string;
+                    created_at: string;
+                    cupped_by: string;
+                    id: string;
+                    invite_id: string;
+                    published_at: string | null;
+                    user_id: string;
+                };
+                Insert: {
+                    claimed_at?: string;
+                    created_at?: string;
+                    cupped_by: string;
+                    id?: string;
+                    invite_id: string;
+                    published_at?: string | null;
+                    user_id: string;
+                };
+                Update: {
+                    claimed_at?: string;
+                    created_at?: string;
+                    cupped_by?: string;
+                    id?: string;
+                    invite_id?: string;
+                    published_at?: string | null;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'cupping_participants_invite_id_fkey';
+                        columns: ['invite_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'cupping_invites';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cupping_participants_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             cupping_samples: {
                 Row: {
                     created_at: string;
@@ -2342,6 +2387,7 @@ export type RoastSessionWithRelations = RoastSession & {
 export type Cupping = Database['public']['Tables']['cuppings']['Row'];
 export type CuppingInvite = Database['public']['Tables']['cupping_invites']['Row'];
 export type CuppingEvent = Database['public']['Tables']['cupping_events']['Row'];
+export type CuppingParticipant = Database['public']['Tables']['cupping_participants']['Row'];
 export type CuppingSample = Database['public']['Tables']['cupping_samples']['Row'];
 
 export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row'];
