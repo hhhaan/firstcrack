@@ -292,7 +292,8 @@ export const MachineControlPanel = ({
                     </p>
                 )}
                 <ReplayControlPanel replay={replay} unit={temperatureUnit} />
-                <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
+                {/* PID 진입 UI는 임시 숨김. 이미 작동 중이면 해제·오류 확인은 유지한다. */}
+                {pidActive && <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />}
             </div>
         </div>
     );
