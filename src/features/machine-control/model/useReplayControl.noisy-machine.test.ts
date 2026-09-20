@@ -366,6 +366,8 @@ describe('중단 시 미전송 Replay heater 취소 (#368 R03)', () => {
             rig.get().mc.setValue('fan', 90);
             void rig.get().mc.commitNow();
         });
+        expect(rig.get().replay.active).toBe(true);
+        expect(rig.get().replay.stopReason).not.toBe('writeFailed');
 
         await rig.toggle();
         expect(rig.get().replay.active).toBe(false);
