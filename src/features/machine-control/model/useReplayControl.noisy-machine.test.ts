@@ -226,3 +226,57 @@ describe('read≠write 기계 프로파일 특성화', () => {
         rig.unmount();
     });
 });
+
+describe('겹친 commit 실제 전송 결과 (#368 R01)', () => {
+    it('fan 전송 중 Replay heater 실패는 실제 응답 전에 index를 소비하지 않는다', async () => {
+        const rig = await renderRig();
+        const pending: Array<{
+            cmd: Parameters<typeof sidecar.setControl>[0];
+            resolve: (value: Awaited<ReturnType<typeof sidecar.setControl>>) => void;
+            reject: (err: unknown) => void;
+        }> = [];
+        setControl.mockImplementation(
+            (cmd) =>
+                new Promise((resolve, reject) => {
+                    pending.push({ cmd, resolve, reject });
+                }),
+        );
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            void rig.get().mc.commitNow();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+
+        await rig.toggle();
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }]);
+        expect(rig.get().replay.active).toBe(true);
+        expect(rig.get().replay.nextEvent?.heater).toBe(60);
+
+        pending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }, { heater: 60 }]);
+        expect(rig.get().replay.active).toBe(true);
+        expect(rig.get().replay.nextEvent?.heater).toBe(60);
+
+        pending[1].reject(new Error('heater write failed'));
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(rig.get().replay.active).toBe(false);
+        expect(rig.get().replay.stopReason).toBe('writeFailed');
+        expect(setControl.mock.calls.map(([cmd]) => cmd)).toEqual([{ fan: 80 }, { heater: 60 }]);
+
+        await rig.toggle();
+        expect(pending.map((p) => p.cmd)).toEqual([{ fan: 80 }, { heater: 60 }, { heater: 60 }]);
+        pending[2].resolve({ ok: true, applied: { heater: 60 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(rig.get().replay.active).toBe(true);
+        expect(rig.get().replay.nextEvent?.heater).toBe(40);
+        rig.unmount();
+    });
+});
