@@ -49,10 +49,10 @@ export interface ReplayControlInputs {
     reconnecting: boolean;
     /**
      * R04 collection-boundary quality. Ordinary TIME/BT writes run only on `'valid'`.
-     * Production passes `null` when this generation has no observation yet — that is a hold,
-     * not “omit the fact”. Tests that need to fire must pass `'valid'` explicitly.
+     * Required: `null` means this generation has no observation yet (hold).
+     * Do not omit the field for test convenience — pass `'valid'` when a write is expected.
      */
-    observationQuality?: ObservationQuality | null;
+    observationQuality: ObservationQuality | null;
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
     writeHeater: (value: number) => Promise<number | null>;
     /**
