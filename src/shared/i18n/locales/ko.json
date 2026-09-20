@@ -1045,6 +1045,10 @@
             "discardConfirm": "이 복구 기록을 폐기할까요? 되돌릴 수 없습니다.",
             "discard": "복구 기록 폐기",
             "noBbp": "이 로스트는 배치 사이 곡선을 기록하지 않았습니다."
+        },
+        "replay": {
+            "next": "다음: {{condition}} → {{heater}}",
+            "done": "모든 이벤트 재생 완료"
         }
     },
     "profiles": {

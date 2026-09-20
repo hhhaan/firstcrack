@@ -750,6 +750,10 @@
             "discardConfirm": "Discard this pending recovery? This cannot be undone.",
             "discard": "Discard recovery",
             "noBbp": "I confirm no between-batch curve was recorded for this roast."
+        },
+        "replay": {
+            "next": "Next: {{condition}} → {{heater}}",
+            "done": "All events replayed"
         }
     },
     "schedule": {

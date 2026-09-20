@@ -750,6 +750,10 @@
             "discardConfirm": "この復旧記録を破棄しますか？元に戻せません。",
             "discard": "復旧記録を破棄",
             "noBbp": "この焙煎ではバッチ間の曲線を記録していません。"
+        },
+        "replay": {
+            "next": "次: {{condition}} → {{heater}}",
+            "done": "すべてのイベントを再生済み"
         }
     },
     "schedule": {

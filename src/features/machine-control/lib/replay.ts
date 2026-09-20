@@ -17,11 +17,17 @@ export interface ReplayPoint {
     heater: number | null;
 }
 
+/** 행별 발화 기준. TSV 추출은 TP 이전·동일 시각=time, 이후=bt. */
+export type ReplayTrigger = 'time' | 'bt';
+
 export interface ReplayEvent {
     t: number;
     bt: number;
     heater: number;
 }
+
+/** judgeReplay와 표시가 같은 분류를 쓴다. UI에서 TP 판정을 복제하지 않는다. */
+export const eventTrigger = (event: ReplayEvent, tpTime: number): ReplayTrigger => (event.t <= tpTime ? 'time' : 'bt');
 
 export interface ReplayPlan {
     events: ReplayEvent[];
@@ -134,7 +140,10 @@ export const judgeReplay = (
     while (i < plan.events.length) {
         const e = plan.events[i];
         // TP 시각과 같은 이벤트는 시간 쪽 — BT 골짜기 부근은 값이 평평해 BT 트리거가 불안정하다
-        const fires = e.t <= plan.tpTime ? sample.elapsed >= e.t : sample.afterTurningPoint && sample.bt >= e.bt;
+        const fires =
+            eventTrigger(e, plan.tpTime) === 'time'
+                ? sample.elapsed >= e.t
+                : sample.afterTurningPoint && sample.bt >= e.bt;
         if (!fires) break;
         heater = e.heater;
         i += 1;

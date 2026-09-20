@@ -46,4 +46,8 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/replay\.observationHold/);
         expect(panelSrc).toMatch(/REPLAY_OBSERVATION_HOLD_TEXT/);
     });
+
+    it('Replay 다음 이벤트에 기기 heater 단위를 넘긴다', () => {
+        expect(panelSrc).toMatch(/heaterUnit=\{limits\.heater\?\.unit/);
+    });
 });
