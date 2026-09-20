@@ -293,7 +293,6 @@ export const useReplayControl = ({
         // 지속되면(인터락·타 소프트웨어) 다음 이벤트 write 후 ~3틱 안에 다시 걸린다.
         // 앱 슬라이더 개입(manual)과 처벌을 다르게 둘 이유가 없다.
         if (ticks >= DIVERGE_TICKS && stopCause == null) {
-            replayRunning = false;
             setActive(false);
             setStopReason('controlDiverged');
         }
