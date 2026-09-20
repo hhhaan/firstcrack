@@ -36,4 +36,11 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
     it('Replay 이탈 허용치를 /status.control.limits.heater.max에서 받는다 (#428)', () => {
         expect(panelSrc).toMatch(/heaterMax:\s*limits\.heater\?\.max/);
     });
+
+    it('접힌 Replay 점은 TP 대기/폴백을 정상 재생과 구분한다', () => {
+        expect(panelSrc).toMatch(/collapsedReplayTpChrome/);
+        expect(panelSrc).toMatch(/replayChrome === 'waiting'/);
+        expect(panelSrc).toMatch(/replayChrome === 'fallback'/);
+        expect(panelSrc).not.toMatch(/collapsed && replay\.active &&/);
+    });
 });

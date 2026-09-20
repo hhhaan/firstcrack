@@ -749,6 +749,14 @@
             "discardConfirm": "この復旧記録を破棄しますか？元に戻せません。",
             "discard": "復旧記録を破棄",
             "noBbp": "この焙煎ではバッチ間の曲線を記録していません。"
+        },
+        "replay": {
+            "tp": {
+                "waiting": "実測 TP の確認待ち",
+                "fallback": "TP フォールバック — 実測の上昇ではない",
+                "collapsedWaiting": "Replay 実測 TP 待ち",
+                "collapsedFallback": "Replay TP フォールバック — 実測の上昇ではない"
+            }
         }
     },
     "schedule": {

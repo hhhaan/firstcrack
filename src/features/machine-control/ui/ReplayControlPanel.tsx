@@ -1,4 +1,6 @@
 import { Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { resolveReplayTpWait } from '../lib/replayStatus';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
@@ -27,7 +29,15 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
 export const ReplayControlPanel = ({ replay, unit }: Props) => {
+    const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
+    const tpWait = resolveReplayTpWait({
+        active: replay.active,
+        nextEvent: replay.nextEvent,
+        tpTime: replay.tpTime,
+        confirmedTurningPoint: replay.confirmedTurningPoint,
+    });
+    const waiting = tpWait === 'waiting' || tpWait === 'fallback';
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
         ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
@@ -41,7 +51,16 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
         <div className="flex shrink-0 flex-col gap-2">
             <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">Replay</span>
-                <span className={`text-[11px] font-medium ${replay.active ? 'text-emerald-500' : 'text-muted'}`}>
+                <span
+                    data-replay-status={replay.active ? (waiting ? tpWait : 'running') : 'off'}
+                    className={`text-[11px] font-medium ${
+                        replay.active
+                            ? waiting
+                                ? 'text-amber-600 dark:text-amber-500'
+                                : 'text-emerald-500'
+                            : 'text-muted'
+                    }`}
+                >
                     {replay.active ? 'On' : 'Off'}
                 </span>
             </div>
@@ -67,7 +86,13 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
 
+            {replay.active && (tpWait === 'waiting' || tpWait === 'fallback') && (
+                <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
+                    {t(`activeRoast.replay.tp.${tpWait}`)}
+                </p>
+            )}
             {replay.active &&
+                !waiting &&
                 (replay.nextEvent ? (
                     <p className="font-mono text-[11px] text-muted">
                         다음: BT {Math.round(unit === 'F' ? (replay.nextEvent.bt * 9) / 5 + 32 : replay.nextEvent.bt)}°
