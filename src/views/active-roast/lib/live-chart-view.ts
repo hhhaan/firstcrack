@@ -33,17 +33,22 @@ export const resolveLiveChartView = (input: {
     }
 
     const combined = combineBbpCurve(input.roastTarget, input.bbpTargetError ? [] : input.bbpTarget, input.bbpSeconds);
-    const duration = combined.bbpRange ? -combined.bbpRange.start : 0;
+    const elapsed = input.bbpActive ? (input.bbpPoints[input.bbpPoints.length - 1]?.t ?? 0) : 0;
+    const duration = combined.bbpRange ? -combined.bbpRange.start : elapsed;
     const livePoints = input.bbpActive
         ? livePointsFromBbp(input.bbpPoints, duration)
         : shiftLivePoints(input.livePoints, duration);
     const liveMin = livePoints[0]?.time ?? 0;
-    const bbpRange = combined.bbpRange ? { start: Math.min(combined.bbpRange.start, liveMin, 0), end: 0 } : undefined;
+    const bbpRange = input.bbpActive
+        ? elapsed > 0
+            ? { start: -duration, end: elapsed - duration }
+            : undefined
+        : combined.bbpRange;
 
     return {
         livePoints,
         targetPoints: combined.points,
-        xMin: bbpRange?.start ?? 0,
+        xMin: Math.min(-duration, liveMin, 0),
         xMaxFloor: undefined,
         bbpRange,
     };

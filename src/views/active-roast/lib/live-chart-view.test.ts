@@ -45,7 +45,7 @@ describe('resolveLiveChartView', () => {
 
     it('BBP 대기 중에는 Charge=0으로 타깃 점선(BBP+로스팅)과 현재 온도를 보여 준다', () => {
         const view = resolveLiveChartView({ ...base, bbpActive: true, charged: false });
-        expect(view.bbpRange).toEqual({ start: -90, end: 0 });
+        expect(view.bbpRange).toEqual({ start: -90, end: -30 });
         expect(view.xMin).toBe(-90);
         expect(view.xMaxFloor).toBeUndefined();
         expect(view.targetPoints.map((p) => p.t)).toEqual([-90, 0, 60]);
@@ -70,9 +70,39 @@ describe('resolveLiveChartView', () => {
             charged: false,
             bbpTargetError: true,
         });
-        expect(view.bbpRange).toBeUndefined();
-        expect(view.xMin).toBe(0);
+        expect(view.bbpRange).toEqual({ start: -60, end: 0 });
+        expect(view.xMin).toBe(-60);
         expect(view.targetPoints).toEqual(base.roastTarget);
-        expect(view.livePoints.map((p) => p.time)).toEqual([1, 60]);
+        expect(view.livePoints.map((p) => p.time)).toEqual([-59, 0]);
+    });
+
+    it.each([false, true])('실측 BBP 길이만큼 배경이 늘어난다 (타깃 없음: %s)', (withoutTarget) => {
+        for (const elapsed of [1, 60, 90, 120, 180]) {
+            const view = resolveLiveChartView({
+                ...base,
+                bbpActive: true,
+                charged: false,
+                bbpTarget: withoutTarget ? [] : base.bbpTarget,
+                bbpPoints: [bbpPt(1, 210), bbpPt(elapsed, 200)],
+            });
+            expect(view.bbpRange).toEqual({
+                start: withoutTarget ? -elapsed : -90,
+                end: withoutTarget ? 0 : elapsed - 90,
+            });
+            expect((view.bbpRange?.end ?? 0) - (view.bbpRange?.start ?? 0)).toBe(elapsed);
+            expect(view.livePoints[view.livePoints.length - 1]?.time).toBe(view.bbpRange?.end);
+            expect(view.xMin).toBe(view.bbpRange?.start);
+            expect(view.targetPoints.filter((p) => p.t >= 0)).toEqual(base.roastTarget);
+            if (!withoutTarget) {
+                expect(view.livePoints[0]?.time).toBe(-89);
+                expect(view.targetPoints.map((p) => p.t)).toEqual([-90, 0, 60]);
+            }
+        }
+    });
+
+    it('BBP 기록 시작 전에는 실측 배경을 미리 채우지 않는다', () => {
+        const view = resolveLiveChartView({ ...base, bbpActive: true, charged: false, bbpPoints: [] });
+        expect(view.bbpRange).toBeUndefined();
+        expect(view.xMin).toBe(-90);
     });
 });
