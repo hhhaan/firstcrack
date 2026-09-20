@@ -984,6 +984,49 @@ describe('useReplayControl', () => {
             expect(h.get().observationHold).toBe(false);
             h.unmount();
         });
+
+        it('장비/sidecar generation 초기화 후 이전 BT로 발화하지 않는다', async () => {
+            const pts: ReplayPoint[] = [
+                { t: 0, bt: 180, heater: 80 },
+                { t: 30, bt: 140, heater: 70 },
+                { t: 60, bt: 95, heater: 70 },
+                { t: 300, bt: 155, heater: 40 },
+            ];
+            const h = await renderReplay({
+                referencePoints: pts,
+                elapsed: 26,
+                liveBt: 150,
+                observationQuality: 'valid',
+                lastValidReceivedAtMs: 27_000,
+                nowMs: 27_000,
+            });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            h.writeHeater.mockClear();
+            await h.rerender({
+                referencePoints: pts,
+                elapsed: 31,
+                liveBt: 140,
+                observationQuality: null,
+                lastValidReceivedAtMs: null,
+                nowMs: 40_000,
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true);
+            expect(h.get().observationHold).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            await h.rerender({
+                referencePoints: pts,
+                elapsed: 32,
+                liveBt: 138,
+                observationQuality: 'valid',
+                lastValidReceivedAtMs: 40_000,
+                nowMs: 40_000,
+            });
+            expect(h.writeHeater).toHaveBeenCalledWith(70);
+            expect(h.get().observationHold).toBe(false);
+            h.unmount();
+        });
     });
 
     describe('장기 센서 공백 중단 (R06, 제안 정책 last-valid >5s)', () => {

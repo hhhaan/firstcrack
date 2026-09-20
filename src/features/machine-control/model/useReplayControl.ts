@@ -54,7 +54,9 @@ export interface ReplayControlInputs {
      */
     observationQuality: ObservationQuality | null;
     /**
-     * R04 last-valid wall-clock (ms). Age source for R06. Missing/null skips the age gate.
+     * R04 last-valid wall-clock (ms). Age source for R06.
+     * Explicit `null` = no last-valid this generation (hold; do not invent from nowMs).
+     * Omitted (`undefined`) skips the age gate.
      */
     lastValidReceivedAtMs?: number | null;
     /**
@@ -241,22 +243,28 @@ export const useReplayControl = ({
     // Elapsed ticks must check even with no new sample. A recovery sample that
     // refreshes last-valid first is still a gap against trustedLastValidMs.
     // stopCause가 있으면 렌더 중 중지하지 않는다 — DROP zero effect가 active를 봐야 한다.
+    // Explicit null last-valid is this generation's unknown: hold, do not age against
+    // a prior generation, do not invent trust from nowMs.
     if (replayRunning && roasting && stopCause == null) {
-        let trusted = trustedLastValidMs;
-        if (trusted == null) {
-            trusted = lastValidReceivedAtMs ?? null;
-            if (trusted != null) setTrustedLastValidMs(trusted);
-        }
-        if (nowMs != null && trusted != null) {
-            const lastValid = lastValidReceivedAtMs ?? null;
-            const recoveryGap = lastValid != null && lastValid > trusted ? lastValid - trusted : 0;
-            const clockGap = nowMs - trusted;
-            if (Math.max(recoveryGap, clockGap) > PROPOSED_OBSERVATION_STALE_LIMIT_MS) {
-                replayRunning = false;
-                setActive(false);
-                setStopReason('observationStale');
-            } else if (lastValid != null && lastValid !== trustedLastValidMs) {
-                setTrustedLastValidMs(lastValid);
+        if (lastValidReceivedAtMs === null) {
+            if (trustedLastValidMs != null) setTrustedLastValidMs(null);
+        } else {
+            let trusted = trustedLastValidMs;
+            if (trusted == null) {
+                trusted = lastValidReceivedAtMs ?? null;
+                if (trusted != null) setTrustedLastValidMs(trusted);
+            }
+            if (nowMs != null && trusted != null) {
+                const lastValid = lastValidReceivedAtMs ?? null;
+                const recoveryGap = lastValid != null && lastValid > trusted ? lastValid - trusted : 0;
+                const clockGap = nowMs - trusted;
+                if (Math.max(recoveryGap, clockGap) > PROPOSED_OBSERVATION_STALE_LIMIT_MS) {
+                    replayRunning = false;
+                    setActive(false);
+                    setStopReason('observationStale');
+                } else if (lastValid != null && lastValid !== trustedLastValidMs) {
+                    setTrustedLastValidMs(lastValid);
+                }
             }
         }
     }
