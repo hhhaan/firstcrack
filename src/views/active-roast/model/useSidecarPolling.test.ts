@@ -654,15 +654,29 @@ const reading = (over: Record<string, unknown> = {}) => ({
     ...over,
 });
 
-it('refreshes last-valid time for a flat BT with a new device timestamp', async () => {
+const startMutablePoll = async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
     mocks.initSessionTsv.mockResolvedValue(undefined);
     const payload = reading();
     mocks.getTemperatures.mockImplementation(async () => ({ ...payload }));
     const root = renderProbe(1000);
+    await flushReady();
+    return { root, payload };
+};
+
+const captureSidecarReady = () => {
+    let ready = () => {};
+    mocks.listen.mockImplementation(async (event: string, callback: () => void) => {
+        if (event === 'sidecar-ready') ready = callback;
+        return () => {};
+    });
+    return () => ready();
+};
+
+it('refreshes last-valid time for a flat BT with a new device timestamp', async () => {
+    const { root, payload } = await startMutablePoll();
     try {
-        await flushReady();
         const first = useRoastingStore.getState();
         expect(first.observation).toMatchObject({
             quality: 'valid',
@@ -683,14 +697,8 @@ it('refreshes last-valid time for a flat BT with a new device timestamp', async 
 });
 
 it('updates quality when only stale changes and keeps the same display object', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
-    mocks.initSessionTsv.mockResolvedValue(undefined);
-    const payload = reading();
-    mocks.getTemperatures.mockImplementation(async () => ({ ...payload }));
-    const root = renderProbe(1000);
+    const { root, payload } = await startMutablePoll();
     try {
-        await flushReady();
         const display = useRoastingStore.getState().liveData;
         const lastValid = useRoastingStore.getState().observation?.lastValidReceivedAtMs;
         payload.stale = true;
@@ -707,14 +715,8 @@ it('updates quality when only stale changes and keeps the same display object', 
 });
 
 it('keeps the last display value and marks spike rejects invalid', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
-    mocks.initSessionTsv.mockResolvedValue(undefined);
-    const payload = reading();
-    mocks.getTemperatures.mockImplementation(async () => ({ ...payload }));
-    const root = renderProbe(1000);
+    const { root, payload } = await startMutablePoll();
     try {
-        await flushReady();
         const display = useRoastingStore.getState().liveData;
         const lastValid = useRoastingStore.getState().observation?.lastValidReceivedAtMs;
         payload.bt = 1372;
@@ -732,13 +734,8 @@ it('keeps the last display value and marks spike rejects invalid', async () => {
 });
 
 it('does not treat a repeated device timestamp as a new observation', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
-    mocks.initSessionTsv.mockResolvedValue(undefined);
-    mocks.getTemperatures.mockImplementation(async () => reading({ timestamp: 10 }));
-    const root = renderProbe(1000);
+    const { root } = await startMutablePoll();
     try {
-        await flushReady();
         const lastValid = useRoastingStore.getState().observation?.lastValidReceivedAtMs;
         await act(async () => vi.advanceTimersByTimeAsync(1000));
         const next = useRoastingStore.getState();
@@ -753,11 +750,7 @@ it('does not treat a repeated device timestamp as a new observation', async () =
 it('does not apply an in-flight observation from a previous sidecar generation', async () => {
     vi.useFakeTimers();
     mocks.initSessionTsv.mockResolvedValue(undefined);
-    let ready = () => {};
-    mocks.listen.mockImplementation(async (event: string, callback: () => void) => {
-        if (event === 'sidecar-ready') ready = callback;
-        return () => {};
-    });
+    const ready = captureSidecarReady();
     let resolveRead = (_reading: unknown) => {};
     mocks.getTemperatures.mockReturnValueOnce(
         new Promise((resolve) => {
@@ -784,11 +777,7 @@ it('does not apply an in-flight observation from a previous sidecar generation',
 it('resets the BT filter on sidecar-ready so prior device samples are not inherited', async () => {
     vi.useFakeTimers();
     mocks.initSessionTsv.mockResolvedValue(undefined);
-    let ready = () => {};
-    mocks.listen.mockImplementation(async (event: string, callback: () => void) => {
-        if (event === 'sidecar-ready') ready = callback;
-        return () => {};
-    });
+    const ready = captureSidecarReady();
     mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 1, bt: 200, bt_raw: 200 }));
     const root = renderProbe(500);
     try {
