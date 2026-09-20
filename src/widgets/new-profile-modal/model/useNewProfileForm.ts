@@ -57,9 +57,9 @@ export const resolveNewProfileFormState = (
     return {
         mode: 'from-session',
         form: {
-            name: editingProfile.name ?? '',
+            name: editingProfile.name,
             description: editingProfile.description ?? '',
-            target_level: editingProfile.target_level ?? 'Medium',
+            target_level: editingProfile.target_level,
         },
         selectedSessionId: editingProfile.source_session_id,
         defaultType: editingProfile.default_bean_id ? 'bean' : editingProfile.default_blend_id ? 'blend' : 'none',

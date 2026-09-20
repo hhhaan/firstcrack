@@ -36,21 +36,18 @@ const toListRow = (created: RoastProfile): RoastProfileWithSource => ({
 });
 
 export const applyCreatedRoastProfileCache = (qc: QueryClient, userId: string, created: RoastProfile) => {
-    const ownerId = created.user_id || userId;
-    qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(ownerId), (old = []) => [
-        toListRow(created),
-        ...old.filter((p) => p.id !== created.id),
-    ]);
-    void qc.invalidateQueries({ queryKey: roastProfileKeys.all(ownerId) });
+    qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(userId), (old) =>
+        old ? [toListRow(created), ...old.filter((p) => p.id !== created.id)] : old,
+    );
+    void qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
 };
 
 export const applyUpdatedRoastProfileCache = (qc: QueryClient, userId: string, updated: RoastProfile) => {
-    const ownerId = updated.user_id || userId;
-    qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(ownerId), (old) =>
+    qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(userId), (old) =>
         old?.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)),
     );
     qc.setQueryData<RoastProfile>(roastProfileKeys.detail(updated.id), updated);
-    void qc.invalidateQueries({ queryKey: roastProfileKeys.all(ownerId) });
+    void qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
 };
 
 export const useCreateRoastProfile = (userId: string) => {
