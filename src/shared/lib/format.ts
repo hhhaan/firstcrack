@@ -15,21 +15,27 @@ export const formatDuration = (seconds: number | null): string => {
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-export const formatDate = (iso: string | null): string => {
+export const formatDate = (iso: string | null, timeZone?: string): string => {
     if (!iso) return '—';
     const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone });
 };
 
 /** Format ISO → "YY-MM-DD" in the local calendar day (or '—' on null). */
-export const formatDateShort = (iso: string | null): string => {
+export const formatDateShort = (iso: string | null, timeZone?: string): string => {
     if (!iso) return '—';
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '—';
-    const yy = String(d.getFullYear()).slice(-2);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yy}-${mm}-${dd}`;
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(d);
+    const year = parts.find((p) => p.type === 'year')?.value ?? '';
+    const month = parts.find((p) => p.type === 'month')?.value ?? '';
+    const day = parts.find((p) => p.type === 'day')?.value ?? '';
+    return `${year.slice(-2)}-${month}-${day}`;
 };
 
 export const pctChange = (current: number, previous: number): string => {

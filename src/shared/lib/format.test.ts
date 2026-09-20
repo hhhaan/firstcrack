@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
     durationDiff,
     formatDate,
@@ -47,28 +47,15 @@ describe('formatDate', () => {
 describe('formatDateShort', () => {
     it('formats noon-UTC ISO to YY-MM-DD or em dash', () => {
         expect(formatDateShort(null)).toBe('—');
-        expect(formatDateShort('2024-03-15T12:00:00.000Z')).toBe('24-03-15');
+        expect(formatDateShort('2024-03-15T12:00:00.000Z', 'UTC')).toBe('24-03-15');
     });
 
     // #496: history used UTC ISO prefix (26-09-18) while dashboard used local KST (Sep 19).
-    describe('local calendar day (Asia/Seoul midnight crossing)', () => {
-        const prevTz = process.env.TZ;
-
-        beforeAll(() => {
-            process.env.TZ = 'Asia/Seoul';
-        });
-
-        afterAll(() => {
-            if (prevTz === undefined) delete process.env.TZ;
-            else process.env.TZ = prevTz;
-        });
-
-        it('matches dashboard locale date on a late-evening UTC timestamp', () => {
-            // 2026-09-19 02:02 KST — same session as the dashboard/history mismatch.
-            const iso = '2026-09-18T17:02:00.000Z';
-            expect(formatDateShort(iso)).toBe('26-09-19');
-            expect(formatDate(iso)).toBe('Sep 19');
-        });
+    it('matches dashboard locale date on a late-evening UTC timestamp in Asia/Seoul', () => {
+        // 2026-09-19 02:02 KST — same session as the dashboard/history mismatch.
+        const iso = '2026-09-18T17:02:00.000Z';
+        expect(formatDateShort(iso, 'Asia/Seoul')).toBe('26-09-19');
+        expect(formatDate(iso, 'Asia/Seoul')).toBe('Sep 19');
     });
 });
 
