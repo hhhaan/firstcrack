@@ -30,6 +30,44 @@ interface UseNewProfileFormArgs {
     initialSessionId?: string | null;
 }
 
+export type NewProfileFormFields = {
+    mode: ProfileFormMode;
+    form: ProfileFormState;
+    selectedSessionId: string | null;
+    defaultType: ProfileDefaultType;
+    defaultBeanId: string | null;
+    defaultBlendId: string | null;
+};
+
+/** Close/unmount must return the session picker — leftover create values caused #471. */
+export const resolveNewProfileFormState = (
+    open: boolean,
+    editingProfile?: RoastProfileWithSource | null,
+): NewProfileFormFields => {
+    if (!open || !editingProfile) {
+        return {
+            mode: 'session-list',
+            form: INITIAL_PROFILE_FORM,
+            selectedSessionId: null,
+            defaultType: 'none',
+            defaultBeanId: null,
+            defaultBlendId: null,
+        };
+    }
+    return {
+        mode: 'from-session',
+        form: {
+            name: editingProfile.name ?? '',
+            description: editingProfile.description ?? '',
+            target_level: editingProfile.target_level ?? 'Medium',
+        },
+        selectedSessionId: editingProfile.source_session_id,
+        defaultType: editingProfile.default_bean_id ? 'bean' : editingProfile.default_blend_id ? 'blend' : 'none',
+        defaultBeanId: editingProfile.default_bean_id ?? null,
+        defaultBlendId: editingProfile.default_blend_id ?? null,
+    };
+};
+
 export const useNewProfileForm = ({
     open,
     onClose,
@@ -54,30 +92,16 @@ export const useNewProfileForm = ({
     // Derive initial state from props during render to avoid stale UI commits
     const [prevOpen, setPrevOpen] = useState(open);
     const [prevEditingProfile, setPrevEditingProfile] = useState(editingProfile);
-    if (open && (open !== prevOpen || editingProfile !== prevEditingProfile)) {
+    if (open !== prevOpen || editingProfile !== prevEditingProfile) {
         setPrevOpen(open);
         setPrevEditingProfile(editingProfile);
-        if (editingProfile) {
-            setMode('from-session');
-            setForm({
-                name: editingProfile.name ?? '',
-                description: editingProfile.description ?? '',
-                target_level: editingProfile.target_level ?? 'Medium',
-            });
-            setSelectedSessionId(editingProfile.source_session_id);
-            setDefaultType(
-                editingProfile.default_bean_id ? 'bean' : editingProfile.default_blend_id ? 'blend' : 'none',
-            );
-            setDefaultBeanId(editingProfile.default_bean_id ?? null);
-            setDefaultBlendId(editingProfile.default_blend_id ?? null);
-        } else {
-            setMode('session-list');
-            setForm(INITIAL_PROFILE_FORM);
-            setSelectedSessionId(null);
-            setDefaultType('none');
-            setDefaultBeanId(null);
-            setDefaultBlendId(null);
-        }
+        const next = resolveNewProfileFormState(open, editingProfile);
+        setMode(next.mode);
+        setForm(next.form);
+        setSelectedSessionId(next.selectedSessionId);
+        setDefaultType(next.defaultType);
+        setDefaultBeanId(next.defaultBeanId);
+        setDefaultBlendId(next.defaultBlendId);
     }
 
     useEffect(() => {
