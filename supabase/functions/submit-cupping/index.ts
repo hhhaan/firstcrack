@@ -217,7 +217,7 @@ async function handleInvite(supabase: Sb, body: Body): Promise<Response> {
     return jsonResponse({ id: row.id, totalScore: row.totalScore, cuppedAt: row.cuppedAt }, row.created ? 201 : 200);
 }
 
-function inviteClosed(invite: InviteRow): Response | null {
+function inviteClosed(invite: Pick<InviteRow, 'revoked_at' | 'expires_at'>): Response | null {
     if (invite.revoked_at) return jsonResponse({ error: 'revoked' }, 410);
     if (new Date(invite.expires_at) <= new Date()) return jsonResponse({ error: 'expired' }, 410);
     return null;
