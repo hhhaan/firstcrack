@@ -157,9 +157,9 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { temperatureUnit: unit } = useRoastSettings();
 
     return (
-        <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)] dark:bg-[rgba(38,43,48,0.3)]">
+        <tr className="border-b border-border bg-surface-warm/30">
             <td colSpan={10} className="px-4 py-4 md:px-6">
-                <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
+                <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,1.5fr)] items-start gap-6 border-b border-border-subtle pb-2">
                     {[
                         { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
                         {
@@ -168,29 +168,30 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         },
                         { label: t('history.expanded.duration'), value: formatDuration(session.duration_seconds) },
                     ].map(({ label, value }) => (
-                        <div key={label} className="mb-2">
+                        <div key={label} className="min-w-0">
                             <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                 {label}
                             </div>
-                            <div className="font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
+                            <div className="break-words font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
                                 {value}
                             </div>
                         </div>
                     ))}
                     <OutputWeightEditor session={session} />
-                    <div className="mb-2 md:col-span-3 lg:col-auto">
-                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                            {t('history.expanded.notes')}
-                        </div>
-                        <div className="text-[13px] leading-normal tracking-[0.14px] text-secondary">
-                            {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
-                        </div>
-                    </div>
                 </div>
 
                 <SessionScorecard session={session} />
 
                 <HistorySessionChart session={session} />
+
+                <div className="mt-3 flex items-baseline gap-4 border-t border-border-subtle pt-3">
+                    <div className="shrink-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                        {t('history.expanded.notes')}
+                    </div>
+                    <div className="min-w-0 whitespace-pre-wrap break-words text-[13px] leading-relaxed tracking-[0.14px] text-secondary">
+                        {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
+                    </div>
+                </div>
             </td>
         </tr>
     );
