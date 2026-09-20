@@ -154,13 +154,9 @@ export const MachineControlPanel = ({
         confirmedTurningPoint: replay.confirmedTurningPoint,
     });
     const replayChrome = collapsedReplayTpChrome(replay.active, replayTpWait);
-    const holdLabel = isReplayTpHold(replayChrome)
-        ? t(
-              replayChrome === 'waiting'
-                  ? 'activeRoast.replay.tp.collapsedWaiting'
-                  : 'activeRoast.replay.tp.collapsedFallback',
-          )
-        : undefined;
+    let holdLabel: string | undefined;
+    if (replayChrome === 'waiting') holdLabel = t('activeRoast.replay.tp.collapsedWaiting');
+    else if (replayChrome === 'fallback') holdLabel = t('activeRoast.replay.tp.collapsedFallback');
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
     // 재생이 켜지는 경계에서 이벤트가 새면 여기가 마지막 방어선이다.
