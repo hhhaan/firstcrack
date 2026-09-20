@@ -264,6 +264,7 @@
                 "profile": "个人资料",
                 "displayName": "显示名称",
                 "displayNamePlaceholder": "您的姓名",
+                "displayNameRequired": "请输入显示名称",
                 "businessName": "商户名称",
                 "businessNamePlaceholder": "您的商户名称",
                 "businessRegNumber": "营业执照号",
