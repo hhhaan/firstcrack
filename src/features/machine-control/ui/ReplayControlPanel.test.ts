@@ -22,6 +22,8 @@ const replayStub = (over: Partial<Replay> = {}): Replay =>
         nextEvent: null,
         nextEventTrigger: null,
         observationHold: false,
+        tpTime: 60,
+        confirmedTurningPoint: { fallback: false },
         toggle: vi.fn(),
         stop: vi.fn(),
         ...over,

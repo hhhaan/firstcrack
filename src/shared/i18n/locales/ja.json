@@ -753,7 +753,13 @@
         },
         "replay": {
             "next": "次: {{condition}} → {{heater}}",
-            "done": "すべてのイベントを再生済み"
+            "done": "すべてのイベントを再生済み",
+            "tp": {
+                "waiting": "実測 TP の確認待ち",
+                "fallback": "TP フォールバック — 実測の上昇ではない",
+                "collapsedWaiting": "Replay 実測 TP 待ち",
+                "collapsedFallback": "Replay TP フォールバック — 実測の上昇ではない"
+            }
         }
     },
     "schedule": {

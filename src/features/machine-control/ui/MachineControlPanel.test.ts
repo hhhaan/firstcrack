@@ -50,4 +50,11 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
     it('Replay 다음 이벤트에 기기 heater 단위를 넘긴다', () => {
         expect(panelSrc).toMatch(/heaterUnit=\{limits\.heater\?\.unit/);
     });
+
+    it('접힌 Replay 점은 TP 대기/폴백을 정상 재생과 구분한다', () => {
+        expect(panelSrc).toMatch(/collapsedReplayTpChrome/);
+        expect(panelSrc).toMatch(/replayChrome === 'running'[\s\S]*?bg-emerald-500/);
+        expect(panelSrc).toMatch(/isReplayTpHold\(replayChrome\)[\s\S]*?bg-amber-500/);
+        expect(panelSrc).not.toMatch(/collapsed && replay\.active &&/);
+    });
 });

@@ -18,6 +18,9 @@ import panelSrc from './ReplayControlPanel.tsx?raw';
 
 type Replay = ReturnType<typeof useReplayControl>;
 
+const btEvent = { t: 120, bt: 110, heater: 60 };
+const timeEvent = { t: 0, bt: 180, heater: 80 };
+
 const baseReplay = (over: Partial<Replay> = {}): Replay =>
     ({
         available: true,
@@ -28,6 +31,8 @@ const baseReplay = (over: Partial<Replay> = {}): Replay =>
         nextEvent: null,
         nextEventTrigger: null,
         observationHold: false,
+        tpTime: 60,
+        confirmedTurningPoint: { fallback: false },
         toggle: () => {},
         stop: () => {},
         ...over,
@@ -36,20 +41,26 @@ const baseReplay = (over: Partial<Replay> = {}): Replay =>
 const mount = async (props: { replay?: Replay; unit?: 'C' | 'F'; heaterUnit?: string }) => {
     const container = document.createElement('div');
     const root = createRoot(container);
-    await act(async () => {
-        root.render(
-            createElement(
-                I18nextProvider,
-                { i18n },
-                createElement(ReplayControlPanel, {
-                    replay: props.replay ?? baseReplay(),
-                    unit: props.unit ?? 'C',
-                    heaterUnit: props.heaterUnit,
-                }),
-            ),
-        );
-    });
-    return { container, unmount: () => act(() => root.unmount()) };
+    const render = (next: { replay?: Replay; unit?: 'C' | 'F'; heaterUnit?: string }) =>
+        act(() => {
+            root.render(
+                createElement(
+                    I18nextProvider,
+                    { i18n },
+                    createElement(ReplayControlPanel, {
+                        replay: next.replay ?? baseReplay(),
+                        unit: next.unit ?? 'C',
+                        heaterUnit: next.heaterUnit,
+                    }),
+                ),
+            );
+        });
+    await render(props);
+    return {
+        container,
+        rerender: (replay: Replay) => render({ ...props, replay }),
+        unmount: () => act(() => root.unmount()),
+    };
 };
 
 const event = (over: Partial<ReplayEvent>): ReplayEvent => ({ t: 0, bt: 180, heater: 80, ...over });
@@ -147,10 +158,9 @@ describe('ReplayControlPanel next-event display (R07)', () => {
         step.unmount();
     });
 
-    it('표시는 판정 helper에서 파생하고 패널에서 TP를 다시 분류하지 않는다', () => {
+    it('표시는 판정 helper에서 파생하고 TIME/BT를 패널에서 다시 분류하지 않는다', () => {
         expect(panelSrc).toMatch(/formatReplayCondition/);
         expect(panelSrc).toMatch(/nextEventTrigger/);
-        expect(panelSrc).not.toMatch(/tpTime/);
         expect(panelSrc).not.toMatch(/event\.t\s*<=/);
     });
 
@@ -165,5 +175,106 @@ describe('ReplayControlPanel next-event display (R07)', () => {
             expect(next, lng).toContain('{{heater}}');
             expect(next, lng).not.toContain('{{temp}}');
         }
+    });
+});
+
+describe('ReplayControlPanel TP wait (#368 R08)', () => {
+    beforeAll(async () => {
+        if (!i18n.isInitialized) {
+            await i18n.init({
+                lng: 'en',
+                fallbackLng: 'en',
+                resources: { en: { translation: en } },
+                interpolation: { escapeValue: false },
+            });
+        }
+    });
+
+    it('다음이 BT이고 TP가 없으면 실제 TP 대기를 보여 주고 정상 재생처럼 보이지 않는다', async () => {
+        const { container, unmount } = await mount({
+            replay: baseReplay({
+                nextEvent: btEvent,
+                nextEventTrigger: 'bt',
+                confirmedTurningPoint: null,
+            }),
+        });
+        expect(container.textContent).toContain('Waiting for a real turning point');
+        expect(container.textContent).not.toContain('BT 110');
+        const status = container.querySelector('[data-replay-status]');
+        expect(status?.getAttribute('data-replay-status')).toBe('waiting');
+        expect(status?.className).toContain('text-amber');
+        expect(status?.className).not.toContain('text-emerald');
+        unmount();
+    });
+
+    it('fallback을 실감지 상승 증거로 표시하지 않는다', async () => {
+        const { container, unmount } = await mount({
+            replay: baseReplay({
+                nextEvent: btEvent,
+                nextEventTrigger: 'bt',
+                confirmedTurningPoint: { fallback: true },
+            }),
+        });
+        expect(container.textContent).toContain('not a detected rise');
+        expect(container.textContent).not.toContain('Waiting for a real turning point');
+        expect(container.textContent).not.toContain('BT 110');
+        const status = container.querySelector('[data-replay-status]');
+        expect(status?.getAttribute('data-replay-status')).toBe('fallback');
+        expect(status?.className).toContain('text-amber');
+        unmount();
+    });
+
+    it('실감지면 다음 BT 이벤트를 정상 표시한다', async () => {
+        const { container, unmount } = await mount({
+            replay: baseReplay({
+                nextEvent: btEvent,
+                nextEventTrigger: 'bt',
+                confirmedTurningPoint: { fallback: false },
+            }),
+        });
+        expect(container.textContent).toContain('BT 110');
+        expect(container.textContent).not.toContain('Waiting for a real turning point');
+        expect(container.textContent).not.toContain('not a detected rise');
+        const status = container.querySelector('[data-replay-status]');
+        expect(status?.getAttribute('data-replay-status')).toBe('running');
+        expect(status?.className).toContain('text-emerald');
+        unmount();
+    });
+
+    it('다음이 TIME이면 TP 대기 문구를 붙이지 않는다', async () => {
+        const { container, unmount } = await mount({
+            replay: baseReplay({
+                nextEvent: timeEvent,
+                nextEventTrigger: 'time',
+                confirmedTurningPoint: null,
+            }),
+        });
+        expect(container.textContent).not.toContain('Waiting for a real turning point');
+        expect(container.textContent).not.toContain('not a detected rise');
+        expect(container.querySelector('[data-replay-status]')?.getAttribute('data-replay-status')).toBe('running');
+        expect(container.textContent).toContain(`→ ${timeEvent.heater}%`);
+        unmount();
+    });
+
+    it('fallback → 실감지 승격 시 표시가 바뀐다', async () => {
+        const fallback = baseReplay({
+            nextEvent: btEvent,
+            nextEventTrigger: 'bt',
+            confirmedTurningPoint: { fallback: true },
+        });
+        const { container, rerender, unmount } = await mount({ replay: fallback });
+        expect(container.textContent).toContain('not a detected rise');
+        expect(container.querySelector('[data-replay-status]')?.getAttribute('data-replay-status')).toBe('fallback');
+        await rerender(
+            baseReplay({
+                nextEvent: btEvent,
+                nextEventTrigger: 'bt',
+                confirmedTurningPoint: { fallback: false },
+            }),
+        );
+        expect(container.textContent).not.toContain('not a detected rise');
+        expect(container.textContent).toContain('BT 110');
+        expect(container.querySelector('[data-replay-status]')?.getAttribute('data-replay-status')).toBe('running');
+        unmount();
     });
 });
