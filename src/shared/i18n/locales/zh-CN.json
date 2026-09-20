@@ -749,6 +749,10 @@
             "discardConfirm": "确定丢弃此恢复记录？此操作无法撤销。",
             "discard": "丢弃恢复记录",
             "noBbp": "我确认此烘焙未记录批次间曲线。"
+        },
+        "replay": {
+            "next": "下一个：{{condition}} → {{heater}}",
+            "done": "所有事件已回放"
         }
     },
     "schedule": {

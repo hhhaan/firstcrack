@@ -90,6 +90,39 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
+    it('다음 이벤트 trigger는 판정 경로와 같다 — TP 이전/동일은 time, 이후는 bt', async () => {
+        const pre = await renderReplay({
+            referencePoints: [
+                { t: 0, bt: 180, heater: 80 },
+                { t: 30, bt: 140, heater: 70 },
+                { t: 60, bt: 95, heater: 70 },
+                { t: 120, bt: 110, heater: 60 },
+            ],
+        });
+        await act(async () => pre.get().toggle());
+        expect(pre.get().nextEvent?.heater).toBe(70);
+        expect(pre.get().nextEventTrigger).toBe('time');
+        pre.unmount();
+
+        const atTp = await renderReplay({
+            referencePoints: [
+                { t: 0, bt: 180, heater: 80 },
+                { t: 60, bt: 95, heater: 70 },
+                { t: 120, bt: 110, heater: 60 },
+            ],
+        });
+        await act(async () => atTp.get().toggle());
+        expect(atTp.get().nextEvent?.t).toBe(60);
+        expect(atTp.get().nextEventTrigger).toBe('time');
+        atTp.unmount();
+
+        const post = await renderReplay();
+        await act(async () => post.get().toggle());
+        expect(post.get().nextEvent?.heater).toBe(60);
+        expect(post.get().nextEventTrigger).toBe('bt');
+        post.unmount();
+    });
+
     it('TP 확정 후 레퍼런스 이벤트 BT 도달 시 발화하고, 하강 중에는 안 한다', async () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle());
