@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import csvFileExport from './features/export-csv/useCsvFileExport.ts?raw';
 import cuppingEventDetail from './views/cupping/ui/CuppingEventDetail.tsx?raw';
 import cuppingEventList from './views/cupping/ui/CuppingEventList.tsx?raw';
 import cuppingSampleSummary from './views/cupping/ui/CuppingSampleSummary.tsx?raw';
@@ -19,6 +20,7 @@ describe('Tauri confirmation dialogs', () => {
             ordersTab,
             scheduleDayView,
             productsTable,
+            csvFileExport,
         ];
 
         expect(sources.filter((source) => source.includes(forbidden))).toEqual([]);
