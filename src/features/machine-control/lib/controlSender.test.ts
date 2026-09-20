@@ -650,7 +650,7 @@ describe('createControlSender 미전송 Replay heater 취소 (#368 R03)', () => 
         sender.queue('drum', 50);
         const pDrum = sender.commitNow();
         const pReplay = queueReplay(sender);
-        await expect(pFanDrum).resolves.toBeNull();
+        expect((await peek(pFanDrum)).done).toBe(false);
         await vi.advanceTimersByTimeAsync(0);
 
         cancelReplay(sender);
@@ -663,6 +663,7 @@ describe('createControlSender 미전송 Replay heater 취소 (#368 R03)', () => 
 
         d.resolve({ fan: 80, drum: 50 });
         await vi.advanceTimersByTimeAsync(0);
+        await expect(pFanDrum).resolves.toEqual({ fan: 80 });
         await expect(pDrum).resolves.toEqual({ drum: 50 });
     });
 
@@ -680,5 +681,53 @@ describe('createControlSender 미전송 Replay heater 취소 (#368 R03)', () => 
         d.resolve({ heater: 60 });
         await vi.advanceTimersByTimeAsync(0);
         await expect(pSent).resolves.toEqual({ heater: 60 });
+    });
+
+    it('혼합 snapshot에서 fan만 교체한 뒤 Replay 취소는 heater를 안 보내고 manual fan은 보낸다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+        sender.queue('drum', 10);
+        const pDrum = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('fan', 80);
+        sender.queue('heater', 50);
+        const pReplay = sender.commitNow('replay');
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('fan', 90);
+        const pFan = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        expect((await peek(pReplay)).done).toBe(false);
+
+        expect(cancelReplay(sender)).toEqual([{ heater: 50 }]);
+        await expect(pReplay).resolves.toBeNull();
+
+        d.resolve({ drum: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pDrum).resolves.toEqual({ drum: 10 });
+        expect(d.calls).toEqual([{ drum: 10 }, { fan: 90 }]);
+
+        d.resolve({ fan: 90 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pFan).resolves.toEqual({ fan: 90 });
+    });
+
+    it('혼합 Replay snapshot을 직접 취소해도 fan/drum은 남긴다', async () => {
+        const { d, sender, pHeater } = await heaterInFlight();
+        sender.queue('fan', 80);
+        sender.queue('drum', 40);
+        sender.queue('heater', 50);
+        const pReplay = sender.commitNow('replay');
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(cancelReplay(sender)).toEqual([{ heater: 50 }]);
+        await expect(pReplay).resolves.toBeNull();
+
+        d.resolve({ heater: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pHeater).resolves.toEqual({ heater: 10 });
+        expect(d.calls).toEqual([{ heater: 10 }, { fan: 80, drum: 40 }]);
+        expect(d.calls.some((cmd) => cmd.heater === 50)).toBe(false);
     });
 });

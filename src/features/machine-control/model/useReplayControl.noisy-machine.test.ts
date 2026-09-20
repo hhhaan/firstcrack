@@ -345,6 +345,86 @@ describe('중단 시 미전송 Replay heater 취소 (#368 R03)', () => {
         rig.unmount();
     });
 
+    it('혼합 snapshot에서 fan만 교체한 뒤 OFF는 Replay heater를 안 보내고 manual fan은 보낸다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('drum', 10);
+            void rig.get().mc.commitNow();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ drum: 10 }]);
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+        });
+        await rig.toggle();
+        expect(rig.get().replay.active).toBe(true);
+        expect(pending.map((p) => p.cmd)).toEqual([{ drum: 10 }]);
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 90);
+            void rig.get().mc.commitNow();
+        });
+
+        await rig.toggle();
+        expect(rig.get().replay.active).toBe(false);
+        expect(rig.get().mc.desired.heater).toBeUndefined();
+        expect(rig.get().mc.desired.fan).toBe(90);
+
+        pending[0].resolve({ ok: true, applied: { drum: 10 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ drum: 10 }, { fan: 90 }]);
+        expect(pending.some((p) => p.cmd.heater === 60)).toBe(false);
+
+        pending[1].resolve({ ok: true, applied: { fan: 90 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(setControl.mock.calls.map(([cmd]) => cmd)).toEqual([{ drum: 10 }, { fan: 90 }]);
+        rig.unmount();
+    });
+
+    it('혼합 Replay snapshot을 직접 취소해도 fan/drum은 남긴다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('heater', 10);
+            void rig.get().mc.commitNow();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ heater: 10 }]);
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            rig.get().mc.setValue('drum', 40);
+            rig.get().mc.setValue('heater', 50);
+            void rig.get().mc.commitNow('replay');
+        });
+
+        await act(async () => {
+            rig.get().mc.cancelUnsentReplayHeater();
+        });
+        expect(rig.get().mc.desired.heater).toBeUndefined();
+        expect(rig.get().mc.desired.fan).toBe(80);
+        expect(rig.get().mc.desired.drum).toBe(40);
+
+        pending[0].resolve({ ok: true, applied: { heater: 10 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(pending.map((p) => p.cmd)).toEqual([{ heater: 10 }, { fan: 80, drum: 40 }]);
+        expect(pending.some((p) => p.cmd.heater === 50)).toBe(false);
+
+        pending[1].resolve({ ok: true, applied: { fan: 80, drum: 40 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        rig.unmount();
+    });
+
     it('취소된 Replay heater는 desired에 남아 미반영으로 막지 않는다', async () => {
         const rig = await renderRig();
         const pending = deferControl();

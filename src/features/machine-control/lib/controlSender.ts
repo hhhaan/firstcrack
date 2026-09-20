@@ -48,6 +48,31 @@ interface Waiter {
 
 const rolesOf = (cmd: ControlCommand): ControlRole[] => Object.keys(cmd) as ControlRole[];
 
+const omitRoles = (cmd: ControlCommand, drop: ReadonlySet<ControlRole>): ControlCommand => {
+    const out: ControlCommand = {};
+    for (const role of rolesOf(cmd)) {
+        if (!drop.has(role)) out[role] = cmd[role];
+    }
+    return out;
+};
+
+const mergeQueued = (waiters: Waiter[]): ControlCommand => {
+    let next: ControlCommand = {};
+    for (const waiter of waiters) next = { ...next, ...waiter.requested };
+    return next;
+};
+
+/** 겹친 role만 떼고 나머지는 같은 origin으로 남긴다. committed에 waiter 없는 값이 생기면 취소가 못 고른다. */
+const keepLeftover = (waiter: Waiter, leftover: ControlCommand, into: Waiter[]) => {
+    if (rolesOf(leftover).length === 0) return;
+    into.push({
+        requested: leftover,
+        origin: waiter.origin,
+        resolve: () => {},
+        settled: true,
+    });
+};
+
 /** 이 commit이 요청한 role만 applied에서 골라 귀속한다. 없으면 성공이 아니다. */
 const pickApplied = (requested: ControlCommand, applied: ControlCommand): ControlCommand | null => {
     const out: ControlCommand = {};
@@ -150,43 +175,47 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
                 return Promise.resolve({});
             }
             committedListener?.(snapshot);
-            queuedWaiters = queuedWaiters.filter((waiter) => {
-                if (!rolesOf(waiter.requested).some((role) => role in snapshot)) return true;
-                settle(waiter, null);
-                return false;
-            });
-            committed = { ...committed, ...snapshot };
+            const replaced = new Set(rolesOf(snapshot));
+            const remaining: Waiter[] = [];
+            for (const waiter of queuedWaiters) {
+                if (!rolesOf(waiter.requested).some((role) => replaced.has(role))) {
+                    remaining.push(waiter);
+                    continue;
+                }
+                const leftover = omitRoles(waiter.requested, replaced);
+                if (rolesOf(leftover).length === 0) {
+                    settle(waiter, null);
+                    continue;
+                }
+                waiter.requested = leftover;
+                remaining.push(waiter);
+            }
             return new Promise((resolve) => {
-                queuedWaiters.push({ requested: snapshot, origin, resolve, settled: false });
+                remaining.push({ requested: snapshot, origin, resolve, settled: false });
+                queuedWaiters = remaining;
+                committed = mergeQueued(queuedWaiters);
                 void flush();
             });
         },
         /**
          * 아직 안 보낸 대기만 고른다. in-flight(이미 PLC로 나간 것)는 건드리지 않는다.
-         * 매칭 waiter를 즉시 settle하고 committed에서 그 waiter의 role만 뺀다.
-         * 같은 role 대체 후 committed에만 남은 fan/drum은 그대로 둔다.
+         * 매칭 role만 취소하고 같은 waiter의 fan/drum은 origin을 유지한 채 남긴다.
          */
         cancelUnsent({ origin, role }: CancelUnsentMatch): ControlCommand[] {
             const cancelled: ControlCommand[] = [];
             const remaining: Waiter[] = [];
             for (const waiter of queuedWaiters) {
-                if (waiter.origin === origin && role in waiter.requested) {
-                    settle(waiter, null);
-                    cancelled.push(waiter.requested);
+                const value = waiter.origin === origin ? waiter.requested[role] : undefined;
+                if (value == null) {
+                    remaining.push(waiter);
                     continue;
                 }
-                remaining.push(waiter);
+                settle(waiter, null);
+                cancelled.push({ [role]: value });
+                keepLeftover(waiter, omitRoles(waiter.requested, new Set([role])), remaining);
             }
             queuedWaiters = remaining;
-            const cancelledRoles = new Set<ControlRole>();
-            for (const cmd of cancelled) {
-                for (const r of rolesOf(cmd)) cancelledRoles.add(r);
-            }
-            const next = { ...committed };
-            for (const r of cancelledRoles) {
-                if (!remaining.some((waiter) => r in waiter.requested)) delete next[r];
-            }
-            committed = next;
+            committed = mergeQueued(queuedWaiters);
             return cancelled;
         },
         dispose(): void {
