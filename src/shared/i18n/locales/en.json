@@ -948,6 +948,7 @@
         },
         "expanded": {
             "origin": "Origin",
+            "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
             "notes": "Notes",
@@ -984,6 +985,7 @@
             "date": "Date",
             "profile": "Profile",
             "duration": "Duration",
+            "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "dtr": "DTR",
             "dtrRolling": "DTR Rolling",
@@ -1023,6 +1025,7 @@
             "bean": "Bean",
             "profile": "Profile",
             "weight": "Weight",
+            "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
             "loss": "Loss",

@@ -948,6 +948,7 @@
         },
         "expanded": {
             "origin": "产地",
+            "chargeTemp": "投豆温度",
             "dropTemp": "下豆温度",
             "duration": "时长",
             "notes": "备注",
@@ -984,6 +985,7 @@
             "date": "Date",
             "profile": "Profile",
             "duration": "Duration",
+            "chargeTemp": "投豆温度",
             "dropTemp": "Drop Temp",
             "dtr": "DTR",
             "dtrRolling": "DTR Rolling",
@@ -995,6 +997,7 @@
             "bean": "生豆",
             "profile": "曲线",
             "weight": "重量",
+            "chargeTemp": "投豆温度",
             "dropTemp": "下豆温度",
             "duration": "时长",
             "loss": "失重率",

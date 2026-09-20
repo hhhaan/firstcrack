@@ -1,5 +1,7 @@
 import { sessionBeanName } from '@entities/roast';
+import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
+import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
@@ -63,7 +65,21 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         hideOnMd: true,
         render: (s) => s.roast_profiles?.name ?? '—',
     },
-    { key: 'weight', label: 'Weight', width: '90px', sortable: false, render: (s) => `${s.weight_grams}g` },
+    {
+        key: 'weight',
+        label: 'Weight',
+        width: '90px',
+        sortable: false,
+        render: (s) => `${s.weight_grams}g`,
+    },
+    {
+        key: null,
+        label: 'charge',
+        width: '80px',
+        sortable: false,
+        render: (s) =>
+            formatTemp(summarizeSessionEvents(parseStoredRoastEvents(s.events), s).charge_temp_celsius, unit),
+    },
     {
         key: 'drop',
         label: 'Drop',
@@ -157,10 +173,18 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
 
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)] dark:bg-[rgba(38,43,48,0.3)]">
-            <td colSpan={10} className="px-4 py-4 md:px-6">
+            <td colSpan={11} className="px-4 py-4 md:px-6">
                 <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
                     {[
                         { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
+                        {
+                            label: t('history.expanded.chargeTemp'),
+                            value: formatTemp(
+                                summarizeSessionEvents(parseStoredRoastEvents(session.events), session)
+                                    .charge_temp_celsius,
+                                unit,
+                            ),
+                        },
                         {
                             label: t('history.expanded.dropTemp'),
                             value: formatTemp(session.drop_temp_celsius, unit),
@@ -249,6 +273,7 @@ export const HistoryTable = ({
             bean: t('history.table.bean'),
             profile: t('history.table.profile'),
             weight: t('history.table.weight'),
+            charge: t('history.table.chargeTemp'),
             drop: t('history.table.dropTemp'),
             duration: t('history.table.duration'),
             loss: t('history.table.loss'),

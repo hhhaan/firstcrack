@@ -948,6 +948,7 @@
         },
         "expanded": {
             "origin": "産地",
+            "chargeTemp": "チャージ温度",
             "dropTemp": "排気温度",
             "duration": "時間",
             "notes": "ノート",
@@ -984,6 +985,7 @@
             "date": "Date",
             "profile": "Profile",
             "duration": "Duration",
+            "chargeTemp": "チャージ温度",
             "dropTemp": "Drop Temp",
             "dtr": "DTR",
             "dtrRolling": "DTR Rolling",
@@ -995,6 +997,7 @@
             "bean": "豆",
             "profile": "プロファイル",
             "weight": "重量",
+            "chargeTemp": "チャージ温度",
             "dropTemp": "排気温度",
             "duration": "時間",
             "loss": "損失率",
