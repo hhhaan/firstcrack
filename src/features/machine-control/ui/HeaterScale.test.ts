@@ -232,14 +232,30 @@ describe('HeaterScale A′ (#436)', () => {
 
     it('10은 왼쪽, 5·15·25는 오른쪽에 숫자를 둔다', () => {
         const { container, unmount } = renderScale();
-        const ten = container.querySelector('[data-tick="90"]');
-        const five = container.querySelector('[data-tick="15"]');
-        expect(ten?.querySelector('[data-tick-label="ten"]')?.textContent).toBe('90');
-        expect(ten?.querySelector('[data-tick-label="five"]')?.textContent).toBe('');
-        expect(five?.querySelector('[data-tick-label="ten"]')?.textContent).toBe('');
-        expect(five?.querySelector('[data-tick-label="five"]')?.textContent).toBe('15');
-        expect(container.querySelector('[data-tick="5"] [data-tick-label="five"]')?.textContent).toBe('5');
-        expect(container.querySelector('[data-tick="25"] [data-tick-label="five"]')?.textContent).toBe('25');
+        expect(container.querySelector('[data-tick="90"][data-tick-label="ten"]')?.textContent).toBe('90');
+        expect(container.querySelector('[data-tick="90"][data-tick-label="five"]')).toBeNull();
+        expect(container.querySelector('[data-tick="15"][data-tick-label="ten"]')).toBeNull();
+        expect(container.querySelector('[data-tick="15"][data-tick-label="five"]')?.textContent).toBe('15');
+        expect(container.querySelector('[data-tick="5"][data-tick-label="five"]')?.textContent).toBe('5');
+        expect(container.querySelector('[data-tick="25"][data-tick-label="five"]')?.textContent).toBe('25');
+        unmount();
+    });
+
+    it('왼쪽 10단위는 숫자만, 5단위 왼쪽 빈칸은 무시한다', () => {
+        const { container, onChange, onCommit, unmount } = renderScale({ value: 70, feedback: 70 });
+        act(() => {
+            (container.querySelector('[data-tick-gutter="85"]') as HTMLElement).dispatchEvent(
+                new MouseEvent('click', { bubbles: true }),
+            );
+        });
+        expect(onChange).not.toHaveBeenCalled();
+        expect(onCommit).not.toHaveBeenCalled();
+        act(() => (container.querySelector('[data-tick="80"]') as HTMLButtonElement).click());
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 80);
+        expect(onCommit).toHaveBeenCalledTimes(1);
+        onChange.mockClear();
+        act(() => (container.querySelector('[data-tick-bar="85"]') as HTMLButtonElement).click());
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 85);
         unmount();
     });
 

@@ -23,6 +23,7 @@ const stepBtnCls =
 
 /**
  * % 히터 A′ — 세로 5% 눈금. 10은 왼쪽, 5·15·25는 오른쪽.
+ * 왼쪽 10단위는 숫자만 탭. 바·오른쪽 5단위는 행 탭.
  * 노란 채움·큰 숫자·선택 눈금은 desired, 가로선·기기 n은 live.
  */
 export const HeaterScale = ({
@@ -173,34 +174,66 @@ export const HeaterScale = ({
                                           : 'text-muted'
                                     : 'invisible',
                             );
+                        const hitCls =
+                            'flex min-h-0 cursor-pointer items-center self-stretch border-none bg-transparent p-0 disabled:cursor-not-allowed';
                         return (
-                            <button
-                                key={tick}
-                                type="button"
-                                data-tick={tick}
-                                disabled={blocked}
-                                aria-label={`Heater ${tick}${unit}`}
-                                aria-pressed={isSelected}
-                                onClick={() => commit(tick)}
-                                className="flex h-0 min-h-0 flex-1 cursor-pointer items-center gap-1 border-none bg-transparent px-0 disabled:cursor-not-allowed"
-                            >
-                                <span data-tick-label="ten" className={cn(labelCls(isTen), 'text-right')}>
-                                    {isTen ? tick : ''}
-                                </span>
-                                <span
-                                    className={cn(
-                                        'rounded-full',
-                                        isSelected
-                                            ? 'h-0.5 flex-1 bg-(--color-control-heat)'
-                                            : isTen
-                                              ? 'h-px flex-1 bg-border'
-                                              : 'ml-auto h-px w-3 bg-border-subtle',
-                                    )}
-                                />
-                                <span data-tick-label="five" className={cn(labelCls(!isTen), 'text-left')}>
-                                    {isTen ? '' : tick}
-                                </span>
-                            </button>
+                            <div key={tick} className="flex h-0 min-h-0 flex-1 items-center gap-1">
+                                {isTen ? (
+                                    <button
+                                        type="button"
+                                        data-tick={tick}
+                                        data-tick-label="ten"
+                                        disabled={blocked}
+                                        aria-label={`Heater ${tick}${unit}`}
+                                        aria-pressed={isSelected}
+                                        onClick={() => commit(tick)}
+                                        className={cn(hitCls, labelCls(true), 'justify-end text-right')}
+                                    >
+                                        {tick}
+                                    </button>
+                                ) : (
+                                    <span
+                                        data-tick-gutter={tick}
+                                        data-tick-label="ten"
+                                        className={cn(labelCls(false), 'self-stretch text-right')}
+                                    />
+                                )}
+                                <button
+                                    type="button"
+                                    data-tick-bar={tick}
+                                    disabled={blocked}
+                                    aria-label={`Heater ${tick}${unit}`}
+                                    onClick={() => commit(tick)}
+                                    className={cn(hitCls, 'min-w-0 flex-1')}
+                                >
+                                    <span
+                                        className={cn(
+                                            'rounded-full',
+                                            isSelected
+                                                ? 'h-0.5 w-full bg-(--color-control-heat)'
+                                                : isTen
+                                                  ? 'h-px w-full bg-border'
+                                                  : 'ml-auto h-px w-3 bg-border-subtle',
+                                        )}
+                                    />
+                                </button>
+                                {!isTen ? (
+                                    <button
+                                        type="button"
+                                        data-tick={tick}
+                                        data-tick-label="five"
+                                        disabled={blocked}
+                                        aria-label={`Heater ${tick}${unit}`}
+                                        aria-pressed={isSelected}
+                                        onClick={() => commit(tick)}
+                                        className={cn(hitCls, labelCls(true), 'justify-start text-left')}
+                                    >
+                                        {tick}
+                                    </button>
+                                ) : (
+                                    <span data-tick-label="five" className={cn(labelCls(false), 'text-left')} />
+                                )}
+                            </div>
                         );
                     })}
                 </div>
