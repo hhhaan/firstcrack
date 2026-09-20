@@ -24,6 +24,7 @@ vi.mock('@entities/roast', () => ({
 }));
 vi.mock('@features/export-history-pdf', () => ({
     historyPdfFilename: () => 'roast-graph-e2e-ethiopia-26-09-20.pdf',
+    historyPdfChartBox: () => ({ width: 2151, height: 1374 }),
     useExportHistoryPdf: () => mocks.exportPdf,
 }));
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));
@@ -101,6 +102,7 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
             legend: expect.arrayContaining([{ color: expect.any(String), label: 'Heat' }]),
         }),
     );
+    expect(container.querySelector('[data-testid="curve"]')).toBeTruthy();
     expect(container.textContent).toContain('1:32');
     expect(container.textContent).toContain('365');
     expect(mocks.chart).toHaveBeenLastCalledWith(

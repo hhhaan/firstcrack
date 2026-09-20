@@ -64,23 +64,23 @@ const drawLabelValue = (
     ctx.restore();
 };
 
-const containRect = (
-    imgW: number,
-    imgH: number,
-    boxX: number,
-    boxY: number,
-    boxW: number,
-    boxH: number,
-): { x: number; y: number; w: number; h: number } => {
-    const scale = Math.min(boxW / imgW, boxH / imgH);
-    const w = imgW * scale;
-    const h = imgH * scale;
-    return { x: boxX + (boxW - w) / 2, y: boxY + (boxH - h) / 2, w, h };
+/** Header row under the 12mm margin. */
+export const HISTORY_PDF_HEADER_PX = 64;
+export const HISTORY_PDF_LEGEND_PX = 28;
+
+export const historyPdfChartBox = (hasLegend: boolean) => {
+    const { width, height } = HISTORY_PDF_PAGE_PX;
+    const margin = HISTORY_PDF_MARGIN_PX;
+    return {
+        width: width - margin * 2,
+        height: height - margin * 2 - HISTORY_PDF_HEADER_PX - (hasLegend ? HISTORY_PDF_LEGEND_PX : 0),
+    };
 };
 
 /**
  * Paint header + chart (+ optional Drum/Heat/Fan legend) onto an A4 landscape
  * JPEG. Unicode comes from canvas, not PDF fonts.
+ * The chart image fills the leftover box so the control band stays ~21% of that area.
  */
 export const composeHistoryPdfJpeg = async (
     input: ComposeHistoryPdfInput,
@@ -116,12 +116,11 @@ export const composeHistoryPdfJpeg = async (
         x += colW[i];
     }
 
-    const legendH = input.legend?.length ? 28 : 0;
-    const chartTop = margin + 64;
-    const chartBottom = height - margin - legendH;
+    const hasLegend = Boolean(input.legend?.length);
+    const chartBox = historyPdfChartBox(hasLegend);
+    const chartTop = margin + HISTORY_PDF_HEADER_PX;
     const chart = await loadImage(input.chartDataUrl);
-    const box = containRect(chart.width, chart.height, margin, chartTop, innerW, chartBottom - chartTop);
-    ctx.drawImage(chart, box.x, box.y, box.w, box.h);
+    ctx.drawImage(chart, margin, chartTop, chartBox.width, chartBox.height);
 
     if (input.legend?.length) {
         let lx = margin + 8;

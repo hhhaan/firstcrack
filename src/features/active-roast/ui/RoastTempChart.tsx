@@ -79,7 +79,7 @@ export interface RoastTempChartHandle {
     endMarkerDrag: (pointerId: number) => boolean;
     hitTestMarker: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
     openMarkerEdit: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
-    getDataURL: () => string | null;
+    getDataURL: (size?: { width: number; height: number }) => string | null;
 }
 
 const scalar = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
@@ -517,15 +517,25 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         [findDraggableMarker, localPoint, onEventMarkerEdit],
     );
 
-    const getDataURL = useCallback(
-        () =>
-            chartInstanceRef.current?.getDataURL({
-                type: 'jpeg',
-                pixelRatio: 2,
-                backgroundColor: '#ffffff',
-            }) ?? null,
-        [],
-    );
+    const getDataURL = useCallback((size?: { width: number; height: number }) => {
+        const chart = chartInstanceRef.current;
+        if (!chart) return null;
+        const opts = { type: 'png' as const, pixelRatio: 2, backgroundColor: '#ffffff' };
+        if (!size || size.width < 1 || size.height < 1) return chart.getDataURL(opts);
+
+        const el = document.createElement('div');
+        el.style.cssText = `position:absolute;left:-9999px;top:0;width:${size.width}px;height:${size.height}px`;
+        document.body.appendChild(el);
+        const clone = echarts.init(el, undefined, { renderer: 'canvas' });
+        try {
+            clone.setOption(chart.getOption() as echarts.EChartsOption, true);
+            clone.setOption({ animation: false });
+            return clone.getDataURL(opts);
+        } finally {
+            if (clone !== chart) clone.dispose();
+            el.remove();
+        }
+    }, []);
 
     useImperativeHandle(
         ref,

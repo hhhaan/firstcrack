@@ -32,7 +32,8 @@ const { chart, convertFromPixel, convertToPixel, setOption, zrHandlers } = vi.ho
         off: vi.fn(),
         resize: vi.fn(),
         setOption,
-        getDataURL: vi.fn(() => 'data:image/jpeg;base64,qq'),
+        getOption: vi.fn(() => ({})),
+        getDataURL: vi.fn(() => 'data:image/png;base64,qq'),
     };
     return { chart, convertFromPixel, convertToPixel, setOption, zrHandlers };
 });
@@ -423,12 +424,24 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('#chart-note-input')).toBeNull();
     });
 
-    it('exports the canvas as a JPEG data URL', () => {
+    it('exports the canvas as a PNG data URL', () => {
         const ref = createRef<RoastTempChartHandle>();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref })));
-        expect(ref.current?.getDataURL()).toBe('data:image/jpeg;base64,qq');
+        expect(ref.current?.getDataURL()).toBe('data:image/png;base64,qq');
         expect(chart.getDataURL).toHaveBeenCalledWith({
-            type: 'jpeg',
+            type: 'png',
+            pixelRatio: 2,
+            backgroundColor: '#ffffff',
+        });
+    });
+
+    it('re-renders at print size so the control grid is in the export', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref, controlData: controlData([]) })));
+        expect(ref.current?.getDataURL({ width: 2000, height: 1200 })).toBe('data:image/png;base64,qq');
+        expect(chart.setOption).toHaveBeenCalled();
+        expect(chart.getDataURL).toHaveBeenLastCalledWith({
+            type: 'png',
             pixelRatio: 2,
             backgroundColor: '#ffffff',
         });

@@ -2,7 +2,7 @@ import { sessionBeanName } from '@entities/roast';
 import { formatTemp, type TemperatureUnit } from '@features/active-roast';
 import { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
 import type { RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
-import { historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
+import { historyPdfChartBox, historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -23,7 +23,7 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, unit, canC
     const [exporting, setExporting] = useState(false);
 
     const onExportPdf = useCallback(async () => {
-        const chartDataUrl = chartRef.current?.getDataURL();
+        const chartDataUrl = chartRef.current?.getDataURL(historyPdfChartBox(hasControls));
         if (!chartDataUrl) {
             useToastStore.getState().show(t('history.exportPdfUnavailable'), 'error');
             return;
