@@ -1,5 +1,14 @@
 import { supabase } from '@shared/lib/supabase';
-import type { Cupping, CuppingEvent, CuppingInvite, CuppingSample, Database } from '@shared/types/database.types';
+import type {
+    Cupping,
+    CuppingEvent,
+    CuppingFormTemplate,
+    CuppingInvite,
+    CuppingSample,
+    Database,
+    Json,
+} from '@shared/types/database.types';
+import { type CuppingFormSchema, PRESET_FORMS, parseFormSchema } from './lib/form';
 import { cuppingInviteUrl, generateCuppingToken, resolveCuppingPublicBaseUrl } from './lib/token';
 
 type CuppingInsert = Database['public']['Tables']['cuppings']['Insert'];
@@ -39,12 +48,45 @@ export function formatBeanCuppingMeta(bean: Partial<BeanCuppingMeta> | null | un
     return [bean.origin, bean.region, bean.variety, bean.process, bean.farm].filter(Boolean).join(' · ');
 }
 
+export type CuppingFormRef = { kind: 'preset'; key: 'sca_v1' | 'simple_5' } | { kind: 'template'; id: string };
+
 export type CreateEventInput = {
     userId: string;
     title: string;
     heldAt?: string;
     notes?: string | null;
+    form?: CuppingFormRef;
 };
+
+export type CreateFormTemplateInput = {
+    userId: string;
+    name: string;
+    schema: CuppingFormSchema;
+};
+
+export type UpdateFormTemplateInput = {
+    id: string;
+    name: string;
+    schema: CuppingFormSchema;
+};
+
+async function snapshotForForm(
+    userId: string,
+    form?: CuppingFormRef,
+): Promise<{ snapshot: CuppingFormSchema; templateId: string | null }> {
+    if (!form || form.kind === 'preset') {
+        const key = form?.key ?? 'sca_v1';
+        return { snapshot: PRESET_FORMS[key], templateId: null };
+    }
+    const { data, error } = await supabase
+        .from('cupping_form_templates')
+        .select('*')
+        .eq('id', form.id)
+        .eq('user_id', userId)
+        .single();
+    if (error) throw error;
+    return { snapshot: parseFormSchema(data.schema), templateId: data.id };
+}
 
 export type AddSampleInput = {
     userId: string;
@@ -206,7 +248,8 @@ export const cuppingApi = {
 
     getActiveInviteForEvent: loadActiveInviteForEvent,
 
-    createEvent: async ({ userId, title, heldAt, notes = null }: CreateEventInput): Promise<CuppingEvent> => {
+    createEvent: async ({ userId, title, heldAt, notes = null, form }: CreateEventInput): Promise<CuppingEvent> => {
+        const { snapshot, templateId } = await snapshotForForm(userId, form);
         const { data, error } = await supabase
             .from('cupping_events')
             .insert({
@@ -214,11 +257,60 @@ export const cuppingApi = {
                 title: title.trim() || 'Cupping',
                 held_at: heldAt ?? new Date().toISOString(),
                 notes,
+                form_snapshot: snapshot as unknown as Json,
+                form_template_id: templateId,
             })
             .select()
             .single();
         if (error) throw error;
         return data;
+    },
+
+    listFormTemplates: async (userId: string): Promise<CuppingFormTemplate[]> => {
+        const { data, error } = await supabase
+            .from('cupping_form_templates')
+            .select('*')
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false });
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    createFormTemplate: async ({ userId, name, schema }: CreateFormTemplateInput): Promise<CuppingFormTemplate> => {
+        const parsed = parseFormSchema({ ...schema, key: 'custom', name: name.trim() || schema.name });
+        const { data, error } = await supabase
+            .from('cupping_form_templates')
+            .insert({
+                user_id: userId,
+                name: parsed.name,
+                schema: parsed as unknown as Json,
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    updateFormTemplate: async ({ id, name, schema }: UpdateFormTemplateInput): Promise<CuppingFormTemplate> => {
+        const parsed = parseFormSchema({ ...schema, key: 'custom', name: name.trim() || schema.name });
+        const { data, error } = await supabase
+            .from('cupping_form_templates')
+            .update({
+                name: parsed.name,
+                schema: parsed as unknown as Json,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    deleteFormTemplate: async (id: string): Promise<void> => {
+        const { data, error } = await supabase.from('cupping_form_templates').delete().eq('id', id).select('id');
+        if (error) throw error;
+        if (data.length === 0) throw new Error('CUPPING_FORM_NOT_DELETED');
     },
 
     deleteEvent: async (eventId: string): Promise<void> => {

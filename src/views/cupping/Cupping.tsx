@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CuppingEventDetail } from './ui/CuppingEventDetail';
 import { CuppingEventList } from './ui/CuppingEventList';
+import { CuppingForms } from './ui/CuppingForms';
 
 type CuppingProps = {
     onUpgrade?: () => void;
@@ -21,6 +22,7 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
     const { data: events = [], isLoading, isError, error, refetch } = useCuppingEvents(userId, canCupping);
 
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [showForms, setShowForms] = useState(false);
 
     const selected = events.find((e) => e.id === selectedEventId) ?? null;
 
@@ -44,6 +46,10 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
         );
     }
 
+    if (showForms) {
+        return <CuppingForms userId={userId} onBack={() => setShowForms(false)} />;
+    }
+
     if (selectedEventId) {
         return (
             <CuppingEventDetail
@@ -65,6 +71,7 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
             error={error}
             onRetry={() => void refetch()}
             onSelect={setSelectedEventId}
+            onOpenForms={() => setShowForms(true)}
         />
     );
 };
