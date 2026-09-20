@@ -781,6 +781,32 @@ it('does not apply an in-flight observation from a previous sidecar generation',
     }
 });
 
+it('resets the BT filter on sidecar-ready so prior device samples are not inherited', async () => {
+    vi.useFakeTimers();
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    let ready = () => {};
+    mocks.listen.mockImplementation(async (event: string, callback: () => void) => {
+        if (event === 'sidecar-ready') ready = callback;
+        return () => {};
+    });
+    mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 1, bt: 200, bt_raw: 200 }));
+    const root = renderProbe(500);
+    try {
+        await flushReady();
+        expect(useRoastingStore.getState().liveData?.bt).toBe(200);
+        act(() => ready());
+        mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 2, bt: 50, bt_raw: 50 }));
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(useRoastingStore.getState().liveData?.bt).toBe(50);
+        expect(useRoastingStore.getState().observation).toMatchObject({
+            quality: 'valid',
+            lastValidDeviceTimestamp: 2,
+        });
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
 it('does not refresh last-valid time on poll error or null BT', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));

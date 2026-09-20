@@ -59,6 +59,42 @@ describe('useRoastingStore observation vs display', () => {
         expect(useRoastingStore.getState().observation?.quality).toBe('stale');
     });
 
+    it('preserves the latest classify time across same-quality ticks', () => {
+        const first = reduceSensorObservation(null, {
+            receivedAtMs: 1_000,
+            deviceTimestamp: 10,
+            bt: 200,
+            stale: false,
+            reconnecting: false,
+            spikeRejected: false,
+            pollError: false,
+        });
+        useRoastingStore.getState().updateSensorObservation(first);
+        const second = reduceSensorObservation(first, {
+            receivedAtMs: 1_400,
+            deviceTimestamp: 10,
+            bt: 200,
+            stale: false,
+            reconnecting: false,
+            spikeRejected: false,
+            pollError: false,
+        });
+        useRoastingStore.getState().updateSensorObservation(second);
+        const third = reduceSensorObservation(second, {
+            receivedAtMs: 1_800,
+            deviceTimestamp: 10,
+            bt: 200,
+            stale: false,
+            reconnecting: false,
+            spikeRejected: false,
+            pollError: false,
+        });
+        useRoastingStore.getState().updateSensorObservation(third);
+        expect(useRoastingStore.getState().observation?.quality).toBe('retransmit');
+        expect(useRoastingStore.getState().observation?.receivedAtMs).toBe(1_800);
+        expect(useRoastingStore.getState().observation?.lastValidReceivedAtMs).toBe(1_000);
+    });
+
     it('clears observation on machine change and reset, not on charge', () => {
         const observation = reduceSensorObservation(null, {
             receivedAtMs: 1_000,

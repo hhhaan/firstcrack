@@ -169,17 +169,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     updateRawTemperature: (rawTemperature) => set({ rawTemperature }),
 
     updateSensorObservation: (observation) => {
-        const current = get().observation;
-        if (current === observation) return;
-        if (
-            current &&
-            observation &&
-            current.quality === observation.quality &&
-            current.isNew === observation.isNew &&
-            current.lastValidReceivedAtMs === observation.lastValidReceivedAtMs &&
-            current.lastValidDeviceTimestamp === observation.lastValidDeviceTimestamp
-        )
-            return;
+        if (get().observation === observation) return;
         set({ observation });
     },
 

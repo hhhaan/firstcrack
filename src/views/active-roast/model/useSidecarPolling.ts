@@ -284,6 +284,7 @@ export const useSidecarPolling = ({
             pollInFlightRef.current = true;
             const generation = sidecarGenerationRef.current;
             const machine = useRoastingStore.getState().machineSnapshot;
+            // First snapshot after mount (null → machine) is a generation change too.
             if (machine !== lastMachineRef.current) {
                 lastMachineRef.current = machine;
                 btFilterRef.current = createBtFilter();

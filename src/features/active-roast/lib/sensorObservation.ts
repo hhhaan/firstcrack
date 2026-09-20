@@ -1,21 +1,28 @@
-/** Control-path sensor quality at the collection boundary. Distinct from display `liveData`. */
+/**
+ * Control-path sensor quality at the collection boundary. Distinct from display `liveData`.
+ *
+ * `deviceTimestamp` is the sidecar read clock (`time.monotonic()`), not a probe-frame id.
+ * Stale last-good replies still advance that clock — those ticks are `stale`, not `retransmit`.
+ * `retransmit` is same-or-older read clock vs last valid (cached/duplicate poll) or a missing timestamp.
+ */
 
 export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
 
 export type SensorObservation = {
     /** Wall-clock when this tick was classified. Not device sample identity. */
     receivedAtMs: number;
-    /** Last time a new valid device observation was accepted. */
+    /** Last time a new valid sidecar read was accepted. Age source for later control gates. */
     lastValidReceivedAtMs: number | null;
-    /** Sidecar monotonic timestamp of that valid observation. Never roast elapsed. */
+    /** Sidecar read-clock of that valid observation. Never roast elapsed. */
     lastValidDeviceTimestamp: number | null;
+    /** Meaningful for this classified tick only — sample `lastValidReceivedAtMs` for age. */
     isNew: boolean;
     quality: ObservationQuality;
 };
 
 export type SensorObservationTick = {
     receivedAtMs: number;
-    /** Sidecar monotonic seconds. Null when the tick has no device timestamp. */
+    /** Sidecar read-clock seconds. Null when the tick has no timestamp. */
     deviceTimestamp: number | null;
     bt: number | null;
     stale: boolean;
@@ -31,7 +38,7 @@ const keepLastValid = (prev: SensorObservation | null) => ({
 
 /**
  * Reduce one collection-boundary tick.
- * Invalid / repeated device observations never refresh last-valid time.
+ * Invalid / repeated reads never refresh last-valid time.
  */
 export function reduceSensorObservation(
     prev: SensorObservation | null,
@@ -50,6 +57,7 @@ export function reduceSensorObservation(
     if (tick.stale) return { ...held, quality: 'stale' };
 
     const lastTs = prev?.lastValidDeviceTimestamp;
+    // Missing timestamp cannot prove novelty; same-or-older read clock is a cached poll.
     if (tick.deviceTimestamp == null || (lastTs != null && tick.deviceTimestamp <= lastTs)) {
         return { ...held, quality: 'retransmit' };
     }
