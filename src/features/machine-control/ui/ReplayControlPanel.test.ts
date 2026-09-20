@@ -32,13 +32,7 @@ const renderPanel = (replay: Replay) => {
     document.body.appendChild(container);
     const root = createRoot(container);
     act(() =>
-        root.render(
-            createElement(
-                I18nextProvider,
-                { i18n },
-                createElement(ReplayControlPanel, { replay, unit: 'C' }),
-            ),
-        ),
+        root.render(createElement(I18nextProvider, { i18n }, createElement(ReplayControlPanel, { replay, unit: 'C' }))),
     );
     return {
         container,
