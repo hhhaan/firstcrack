@@ -133,6 +133,7 @@ export const useNewProfileForm = ({
                 {
                     duration_seconds: editingProfile.duration_sec,
                     drop_temp_celsius: editingProfile.drop_temp_celsius,
+                    charge_temp_celsius: editingProfile.charge_temp_celsius,
                 },
             );
         }

@@ -1,4 +1,5 @@
 import { sessionBeanName, useHistoryCharts } from '@entities/roast';
+import { summarizeSessionEvents } from '@entities/roast-profile';
 import { computePhaseSegments, formatTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
@@ -40,15 +41,14 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 const first = points[0];
                 const last = points[points.length - 1];
                 const events = eventsBySession[i];
-                const dropEvt = events.find((e) => e.type === 'Drop');
-                const chargeEvt = events.find((e) => e.type === 'Charge');
+                const summary = summarizeSessionEvents(events, s);
                 return {
                     session: s,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     hasCurve: points.length > 0,
                     events,
-                    chargeBt: chargeEvt?.temp_c ?? first?.bt ?? null,
-                    dropBt: dropEvt?.temp_c ?? s.drop_temp_celsius ?? last?.bt ?? null,
+                    chargeBt: summary.charge_temp_celsius,
+                    dropBt: summary.drop_temp_celsius ?? last?.bt ?? null,
                     chargeEt: first?.et ?? null,
                     dropEt: last?.et ?? null,
                     visible: !hiddenIds.has(s.id),
@@ -227,6 +227,11 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                                         durationFallback: it.session.duration_seconds,
                                                     }).roastDurationSec,
                                                 ),
+                                        },
+                                        {
+                                            key: 'charge',
+                                            label: t('history.compare.chargeTemp'),
+                                            get: (it: CompareSidebarItem) => formatTemp(it.chargeBt, unit),
                                         },
                                         {
                                             key: 'drop',
