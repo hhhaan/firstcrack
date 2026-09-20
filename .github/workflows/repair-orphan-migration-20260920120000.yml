@@ -1,0 +1,232 @@
+# One-shot: v1.2.3 migrate failed because remote schema_migrations has
+# 20260920120000 (cupping_form_templates from unmerged PR #522) while the
+# v1.2.3 tree does not. Do not merge this workflow to main.
+#
+# Trigger: push to cursor/repair-v123-migration-c6a2 only.
+
+name: Repair orphan migration 20260920120000
+
+on:
+  push:
+    branches: [cursor/repair-v123-migration-c6a2]
+
+concurrency:
+  group: deploy-migrations
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/cursor/repair-v123-migration-c6a2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v1.2.3
+
+      # pin: supabase/setup-cli@v1.7.1
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520
+        with:
+          version: 2.24.3
+
+      - name: Inspect remote 20260920120000 and repair history
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD missing"
+            exit 1
+          fi
+
+          supabase link --project-ref vjdgdolfxvnxushxrmff
+
+          echo "## v1.2.3 local files (tail)" >> "$GITHUB_STEP_SUMMARY"
+          ls -1 supabase/migrations/*.sql | awk -F/ '{print $NF}' | sort | tail -8 | tee -a "$GITHUB_STEP_SUMMARY"
+
+          echo ""
+          echo "=== Migration list (before) ==="
+          supabase migration list --linked | tee /tmp/mig-before.txt
+          echo "## Migration list (before)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -20 /tmp/mig-before.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          extra_remote() {
+            awk -F'│' 'NF>=2 {
+              l=$1; r=$2
+              gsub(/[[:space:]]/,"",l)
+              gsub(/[[:space:]]/,"",r)
+              if (r ~ /^[0-9]+$/ && l=="") print r
+            }'
+          }
+          pending_local() {
+            awk -F'│' 'NF>=2 {
+              l=$1; r=$2
+              gsub(/[[:space:]]/,"",l)
+              gsub(/[[:space:]]/,"",r)
+              if (l ~ /^[0-9]+$/ && r=="") print l
+            }'
+          }
+
+          extra=$(extra_remote < /tmp/mig-before.txt || true)
+          pending=$(pending_local < /tmp/mig-before.txt || true)
+          echo "extra_remote=$extra"
+          echo "pending_local=$pending"
+
+          echo ""
+          echo "=== Fetch remote statements for 20260920120000 (if stored) ==="
+          set +e
+          supabase migration fetch --linked
+          fetch_rc=$?
+          set -e
+          if [ "$fetch_rc" -eq 0 ]; then
+            echo "Fetched files matching 20260920120000:"
+            shopt -s nullglob
+            fetched=(supabase/migrations/20260920120000*)
+            if [ ${#fetched[@]} -gt 0 ]; then
+              for f in "${fetched[@]}"; do
+                echo "--- $f ---"
+                cat "$f"
+                echo "--- end ---"
+                echo "### Fetched \`$f\`" >> "$GITHUB_STEP_SUMMARY"
+                echo '```sql' >> "$GITHUB_STEP_SUMMARY"
+                cat "$f" >> "$GITHUB_STEP_SUMMARY"
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+                rm -f "$f"
+              done
+            else
+              echo "(no 20260920120000 file materialized — remote may not store statements)"
+            fi
+            shopt -u nullglob
+          else
+            echo "migration fetch exited $fetch_rc (non-fatal)"
+          fi
+          git restore supabase/migrations 2>/dev/null || true
+          git clean -f supabase/migrations >/dev/null
+
+          echo ""
+          echo "=== Schema dump grep (cupping_form / form_snapshot) ==="
+          supabase db dump --linked -s public -f /tmp/public.sql
+          echo "## Applied objects" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if grep -nE 'cupping_form_templates|form_snapshot|form_template_id' /tmp/public.sql | tee /tmp/schema-hits.txt | tee -a "$GITHUB_STEP_SUMMARY"; then
+            :
+          else
+            echo "(no matching objects in public dump)" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          objects_applied=0
+          if grep -q 'CREATE TABLE public.cupping_form_templates' /tmp/public.sql; then
+            objects_applied=1
+            echo "cupping_form_templates TABLE exists"
+          fi
+          if grep -q 'form_snapshot' /tmp/public.sql; then
+            objects_applied=1
+            echo "cupping_events.form_snapshot present"
+          fi
+
+          echo ""
+          echo "=== Table row counts (form templates) ==="
+          supabase inspect db table-record-counts --linked | grep -iE 'cupping_form|cupping_events' || true
+
+          run_sql() {
+            local sql="$1"
+            local body code
+            body=$(mktemp)
+            code=$(curl -sS -o "$body" -w "%{http_code}" \
+              -X POST "https://api.supabase.com/v1/projects/vjdgdolfxvnxushxrmff/database/query" \
+              -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg q "$sql" '{query:$q}')")
+            echo "query HTTP $code"
+            cat "$body"
+            echo
+            if [ "$code" = "200" ] || [ "$code" = "201" ]; then
+              return 0
+            fi
+            echo "Management API query failed — trying direct psql"
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+            PGPASSWORD="$SUPABASE_DB_PASSWORD" psql \
+              "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.vjdgdolfxvnxushxrmff.supabase.co:5432/postgres?sslmode=require" \
+              -v ON_ERROR_STOP=1 -c "$sql"
+          }
+
+          echo ""
+          echo "=== information_schema for form columns ==="
+          set +e
+          run_sql "SELECT table_name, column_name, data_type, is_nullable, column_default
+                   FROM information_schema.columns
+                   WHERE table_schema = 'public'
+                     AND (
+                       table_name = 'cupping_form_templates'
+                       OR (table_name = 'cupping_events' AND column_name IN ('form_snapshot','form_template_id'))
+                     )
+                   ORDER BY table_name, column_name;"
+          inspect_rc=$?
+          set -e
+          echo "inspect_sql_rc=$inspect_rc"
+
+          echo "objects_applied=$objects_applied"
+          # v1.2.3 insert omits form_snapshot. If the unmerged PR applied NOT NULL
+          # without a default, createEvent breaks. SET DEFAULT is a no-op for
+          # already-defaulted columns and keeps leftover schema compatible.
+          if [ "$objects_applied" = "1" ] && grep -q 'form_snapshot' /tmp/public.sql; then
+            echo "Setting SCA default on cupping_events.form_snapshot (safe if already defaulted)"
+            set +e
+            run_sql "ALTER TABLE public.cupping_events ALTER COLUMN form_snapshot SET DEFAULT '{\"v\":1,\"key\":\"sca_v1\",\"name\":\"SCA\",\"fields\":[{\"key\":\"fragrance\",\"label\":\"Fragrance\",\"min\":0,\"max\":10,\"step\":0.25},{\"key\":\"aroma\",\"label\":\"Aroma\",\"min\":0,\"max\":10,\"step\":0.25},{\"key\":\"flavor\",\"label\":\"Flavor\",\"min\":0,\"max\":10,\"step\":0.25},{\"key\":\"aftertaste\",\"label\":\"Aftertaste\",\"min\":0,\"max\":10,\"step\":0.25},{\"key\":\"acidity\",\"label\":\"Acidity\",\"min\":0,\"max\":10,\"step\":0.25},{\"key\":\"body\",\"label\":\"Body\",\"min\":0,\"max\":10,\"step\":0.25},{\"key\":\"balance\",\"label\":\"Balance\",\"min\":0,\"max\":10,\"step\":0.25},{\"key\":\"overall\",\"label\":\"Overall\",\"min\":0,\"max\":10,\"step\":0.25}],\"scoring\":{\"base\":36,\"defectWeight\":2}}'::jsonb;"
+            alter_rc=$?
+            set -e
+            if [ "$alter_rc" -ne 0 ]; then
+              echo "::warning::Could not SET DEFAULT on form_snapshot — v1.2.3 createEvent may fail if the column is NOT NULL without a default"
+            fi
+          fi
+
+          # History: file is not on v1.2.3 (lives on open PR #522). SQL already
+          # applied or ghost version — either way drop it from schema_migrations.
+          if echo "$extra" | grep -qx '20260920120000'; then
+            echo "Repairing 20260920120000 as reverted"
+            supabase migration repair --status reverted 20260920120000
+          else
+            echo "20260920120000 is not an extra remote version — nothing to repair"
+          fi
+
+          echo ""
+          echo "=== Migration list (after) ==="
+          supabase migration list --linked | tee /tmp/mig-after.txt
+          echo "## Migration list (after)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -20 /tmp/mig-after.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          extra_after=$(extra_remote < /tmp/mig-after.txt || true)
+          pending_after=$(pending_local < /tmp/mig-after.txt || true)
+          if [ -n "$extra_after" ] || [ -n "$pending_after" ]; then
+            echo "::error::local/remote still mismatch extra='$extra_after' pending='$pending_after'"
+            exit 1
+          fi
+          echo "Local and remote migration lists match."
+
+          echo ""
+          echo "=== db push --dry-run (v1.2.3 tree) ==="
+          supabase db push --dry-run
+
+      - name: Rerun v1.2.3 failed Release jobs (no rebuild)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Failed migrate + skipped publish-r2. Successful builds are left alone.
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${{ github.repository }}/actions/runs/35524335578/rerun-failed-jobs"
+          echo "Reran failed jobs on https://github.com/${{ github.repository }}/actions/runs/35524335578"
+          echo "## Release rerun" >> "$GITHUB_STEP_SUMMARY"
+          echo "Triggered rerun-failed-jobs on [v1.2.3 Release](https://github.com/${{ github.repository }}/actions/runs/35524335578) (builds not rebuilt)." >> "$GITHUB_STEP_SUMMARY"
