@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
-import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 
 export { divergeTolerance };
 
@@ -328,6 +328,7 @@ export const useReplayControl = ({
     ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
+    const nextEventTrigger = nextEvent && plan ? eventTrigger(nextEvent, plan.tpTime) : null;
 
     return {
         /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
@@ -341,6 +342,8 @@ export const useReplayControl = ({
         stopReason,
         /** 다음에 발화할 이벤트 — UI 미리보기용. 다 소진했으면 null */
         nextEvent,
+        /** nextEvent의 실제 발화축 — judgeReplay와 같은 eventTrigger. Off/소진이면 null */
+        nextEventTrigger,
         toggle,
         /** 수동 개입 시 부모가 부른다 — 슬라이더 onChange에서, Replay 자신의 쓰기 경로에서는 부르지 않는다 */
         stop,

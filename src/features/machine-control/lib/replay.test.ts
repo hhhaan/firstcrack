@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseTsv } from '@shared/lib/tsv';
 import { describe, expect, it } from 'vitest';
-import { extractReplayEvents, judgeReplay, type ReplayPoint } from './replay';
+import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayPoint } from './replay';
 
 /** charge 180° → TP 95°(t=60) → 상승 → drop 205° 형태의 레퍼런스 */
 const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
@@ -168,6 +168,21 @@ describe('extractReplayEvents', () => {
         // 매 샘플 ±2%씩 흔들리는 PID duty
         for (let t = 0; t <= 600; t += 10) heaterAt[t] = 60 + (t % 20 === 0 ? 2 : -2);
         expect(extractReplayEvents(curve(heaterAt))).toBeNull();
+    });
+});
+
+describe('eventTrigger', () => {
+    const plan = extractReplayEvents(curve({ 0: 80, 40: 70, 60: 65, 120: 60, 300: 40 }));
+    if (!plan) throw new Error('fixture broken');
+    // TP=60. t=0·40 pre-TP, t=60 at-TP, t=120·300 post-TP. Same split as judgeReplay.
+
+    it('TP 이전과 TP와 같은 시각은 time, TP 이후는 bt — 판정 경로와 같다', () => {
+        expect(plan.tpTime).toBe(60);
+        expect(eventTrigger(plan.events[0], plan.tpTime)).toBe('time');
+        expect(eventTrigger(plan.events[1], plan.tpTime)).toBe('time');
+        expect(eventTrigger(plan.events[2], plan.tpTime)).toBe('time');
+        expect(eventTrigger(plan.events[3], plan.tpTime)).toBe('bt');
+        expect(eventTrigger(plan.events[4], plan.tpTime)).toBe('bt');
     });
 });
 

@@ -1,10 +1,14 @@
 import { Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { formatReplayCondition, formatReplayHeater } from '../lib/replayDisplay';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
     replay: ReturnType<typeof useReplayControl>;
     /** 표시 단위 — 내부 판정은 °C, 표시만 변환한다 */
     unit: 'C' | 'F';
+    /** 기기 native 화력 단위. 없으면 % */
+    heaterUnit?: string;
 }
 
 // 'finished'는 배치 종료라 안내하지 않는다 — 맵에 없으면 렌더 생략
@@ -26,7 +30,8 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * 항상 렌더한다 — 타겟 미선택·합성 프로파일 등으로 재생 불가면 체크박스만
  * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
-export const ReplayControlPanel = ({ replay, unit }: Props) => {
+export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
+    const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
@@ -68,13 +73,15 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
 
             {replay.active &&
-                (replay.nextEvent ? (
+                (replay.nextEvent && replay.nextEventTrigger ? (
                     <p className="font-mono text-[11px] text-muted">
-                        다음: BT {Math.round(unit === 'F' ? (replay.nextEvent.bt * 9) / 5 + 32 : replay.nextEvent.bt)}°
-                        {unit} → {Math.round(replay.nextEvent.heater)}%
+                        {t('activeRoast.replay.next', {
+                            condition: formatReplayCondition(replay.nextEvent, replay.nextEventTrigger, unit),
+                            heater: formatReplayHeater(replay.nextEvent.heater, heaterUnit),
+                        })}
                     </p>
                 ) : (
-                    <p className="text-[11px] text-muted">모든 이벤트 재생 완료</p>
+                    <p className="text-[11px] text-muted">{t('activeRoast.replay.done')}</p>
                 ))}
 
             {/* 상세 안내는 hover 툴팁으로 — 재생 내내 문단 2개가 패널을 차지하면 안 된다 */}

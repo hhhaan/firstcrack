@@ -36,4 +36,8 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
     it('Replay 이탈 허용치를 /status.control.limits.heater.max에서 받는다 (#428)', () => {
         expect(panelSrc).toMatch(/heaterMax:\s*limits\.heater\?\.max/);
     });
+
+    it('Replay 다음 이벤트에 기기 heater 단위를 넘긴다', () => {
+        expect(panelSrc).toMatch(/heaterUnit=\{limits\.heater\?\.unit/);
+    });
 });

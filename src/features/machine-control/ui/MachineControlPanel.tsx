@@ -291,7 +291,7 @@ export const MachineControlPanel = ({
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <ReplayControlPanel replay={replay} unit={temperatureUnit} />
+                <ReplayControlPanel replay={replay} unit={temperatureUnit} heaterUnit={limits.heater?.unit ?? '%'} />
                 <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
             </div>
         </div>
