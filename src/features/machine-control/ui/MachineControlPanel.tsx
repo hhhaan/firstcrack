@@ -25,6 +25,9 @@ const PID_DOT: Record<string, string> = {
     fault: 'bg-red-500',
 };
 
+const collapsedRailDot = (show: boolean, className: string, title: string) =>
+    show ? <span role="img" className={`h-2 w-2 rounded-full ${className}`} title={title} aria-label={title} /> : null;
+
 interface Props {
     sidecarConnected: boolean;
     /** 사이드카 재연결 대기 — 실측 동결 중이라 이탈 카운트를 멈춘다 (#307) */
@@ -208,39 +211,16 @@ export const MachineControlPanel = ({
                     />
                 )}
                 {/* 접혀도 Replay가 히터를 잡고 있다는 표시는 보여야 한다 (#300). 대기/폴백은 정상 재생과 구분. */}
-                {collapsed && replayChrome === 'running' && (
-                    <span
-                        role="img"
-                        className="h-2 w-2 rounded-full bg-emerald-500"
-                        title="Replay 재생 중"
-                        aria-label="Replay 재생 중"
-                    />
-                )}
-                {collapsed && isReplayTpHold(replayChrome) && (
-                    <span
-                        role="img"
-                        className="h-2 w-2 rounded-full bg-amber-500"
-                        title={holdLabel}
-                        aria-label={holdLabel}
-                    />
-                )}
-                {collapsed && replay.stopReason === 'tpUnconfirmed' && (
-                    <span
-                        role="img"
-                        className="h-2 w-2 rounded-full bg-red-500"
-                        title={t('activeRoast.replay.tpUnconfirmed.collapsed')}
-                        aria-label={t('activeRoast.replay.tpUnconfirmed.collapsed')}
-                    />
-                )}
+                {collapsed && collapsedRailDot(replayChrome === 'running', 'bg-emerald-500', 'Replay 재생 중')}
+                {collapsed && collapsedRailDot(isReplayTpHold(replayChrome), 'bg-amber-500', holdLabel ?? '')}
+                {collapsed &&
+                    collapsedRailDot(
+                        replay.stopReason === 'tpUnconfirmed',
+                        'bg-red-500',
+                        t('activeRoast.replay.tpUnconfirmed.collapsed'),
+                    )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
-                {collapsed && anyUnacknowledged && (
-                    <span
-                        role="img"
-                        className="h-2 w-2 rounded-full bg-red-500"
-                        title="기기가 명령을 반영하지 않았습니다"
-                        aria-label="기기가 명령을 반영하지 않았습니다"
-                    />
-                )}
+                {collapsed && collapsedRailDot(anyUnacknowledged, 'bg-red-500', '기기가 명령을 반영하지 않았습니다')}
             </div>
 
             {/* 접혀도 트리 유지 — PID/DROP 훅 언마운트 방지 */}

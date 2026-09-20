@@ -69,6 +69,20 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     return { get: () => latest, rerender, jump, writeHeater, unmount: () => act(() => root.unmount()) };
 };
 
+/** SAMPLE_GAP 필이 제안 120s 한계에서 오중지되지 않게, 한계 전에 실감지를 둔다. */
+const beforeLimitTp = (over: Partial<ReplayControlInputs> = {}): Partial<ReplayControlInputs> => ({
+    liveBt: 100,
+    elapsed: 90,
+    confirmedTurningPoint: { fallback: false },
+    ...over,
+});
+
+const timeOnlyPoints = (): ReplayPoint[] => {
+    const pts: ReplayPoint[] = [];
+    for (let t = 0; t <= 180; t += 10) pts.push({ t, bt: 200 - t, heater: t === 0 ? 80 : t === 150 ? 60 : null });
+    return pts;
+};
+
 describe('divergeTolerance (#428)', () => {
     it('0~100 스케일은 기존 ±2', () => {
         expect(divergeTolerance(100)).toBe(2);
@@ -101,7 +115,7 @@ describe('useReplayControl', () => {
         expect(h.writeHeater).not.toHaveBeenCalled();
 
         // 한계 전에 실감지 — SAMPLE_GAP 필이 120s timeout으로 오중지되지 않게
-        await h.rerender({ liveBt: 100, elapsed: 90, confirmedTurningPoint: { fallback: false } });
+        await h.rerender(beforeLimitTp());
         expect(h.writeHeater).not.toHaveBeenCalled();
 
         // TP 확정 + 도달 → 발화
@@ -191,7 +205,7 @@ describe('useReplayControl', () => {
             const h = await renderReplay();
             await act(async () => h.get().toggle()); // t=0 이벤트 발화
             h.writeHeater.mockClear();
-            await h.rerender({ liveBt: 100, elapsed: 90, confirmedTurningPoint: { fallback: false } });
+            await h.rerender(beforeLimitTp());
             await h.rerender({ ...cut, liveBt: 111, elapsed: 130, confirmedTurningPoint: { fallback: false } });
             expect(h.get().active).toBe(false);
             expect(h.writeHeater).not.toHaveBeenCalled();
@@ -229,7 +243,7 @@ describe('useReplayControl', () => {
         expect(h.get().active).toBe(true);
         expect(h.writeHeater).not.toHaveBeenCalled();
 
-        await h.rerender({ liveBt: 100, elapsed: 90, confirmedTurningPoint: { fallback: false } });
+        await h.rerender(beforeLimitTp());
         await h.rerender({ liveBt: 111, elapsed: 130, confirmedTurningPoint: { fallback: false } });
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
         expect(h.writeHeater).toHaveBeenCalledWith(60);
@@ -345,12 +359,7 @@ describe('useReplayControl', () => {
         it('zero: 재생 중 배출되면 즉시 heater 0을 쓴다 — 반복 커밋에도 한 번만', async () => {
             const h = await renderReplay({ dropBehavior: 'zero' });
             await act(async () => h.get().toggle());
-            await h.rerender({
-                dropBehavior: 'zero',
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ dropBehavior: 'zero' }));
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
             expect(h.get().active).toBe(false);
@@ -363,12 +372,7 @@ describe('useReplayControl', () => {
         it('hold: 배출 시 아무 write도 하지 않는다 — 설정으로 선택된 잔류', async () => {
             const h = await renderReplay({ dropBehavior: 'hold' });
             await act(async () => h.get().toggle());
-            await h.rerender({
-                dropBehavior: 'hold',
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ dropBehavior: 'hold' }));
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'hold', ...dropMarked });
             expect(h.get().active).toBe(false);
@@ -379,12 +383,7 @@ describe('useReplayControl', () => {
         it('zero: 기기가 안 따라오면(unacknowledged) 다시 쓴다 — safe-off 재시도', async () => {
             const h = await renderReplay({ dropBehavior: 'zero' });
             await act(async () => h.get().toggle());
-            await h.rerender({
-                dropBehavior: 'zero',
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ dropBehavior: 'zero' }));
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, heaterUnacknowledged: true });
@@ -397,12 +396,7 @@ describe('useReplayControl', () => {
             // roasting 에지에서 재시도 상태를 지우면 이 흐름에서 safe-off가 죽는다.
             const h = await renderReplay({ dropBehavior: 'zero' });
             await act(async () => h.get().toggle());
-            await h.rerender({
-                dropBehavior: 'zero',
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ dropBehavior: 'zero' }));
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, roasting: false });
             h.writeHeater.mockClear();
@@ -454,12 +448,7 @@ describe('useReplayControl', () => {
         it('zero: 배출 시점에 끊겨 있어도 write를 시도한다 — 실패는 토스트/Sentry로 관측된다', async () => {
             const h = await renderReplay({ dropBehavior: 'zero' });
             await act(async () => h.get().toggle());
-            await h.rerender({
-                dropBehavior: 'zero',
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ dropBehavior: 'zero' }));
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, sidecarConnected: false });
             expect(h.writeHeater).toHaveBeenCalledWith(0);
@@ -469,12 +458,7 @@ describe('useReplayControl', () => {
         it('zero: Drop 언토글 후 unack이어도 0 재시도 없음 — 재개된 재생을 덮지 않는다', async () => {
             const h = await renderReplay({ dropBehavior: 'zero' });
             await act(async () => h.get().toggle());
-            await h.rerender({
-                dropBehavior: 'zero',
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ dropBehavior: 'zero' }));
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
             expect(h.writeHeater).toHaveBeenCalledWith(0);
@@ -551,12 +535,7 @@ describe('useReplayControl', () => {
             // 사람이 재개 — lastWritten 리셋, 즉시 오판 없음
             await act(async () => h.get().toggle());
             expect(h.get().active).toBe(true);
-            await h.rerender({
-                heaterFeedback: 80,
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ heaterFeedback: 80 }));
             // 다음 이벤트 발화(110°→60%)로 기준이 다시 생기고, 실측(50)이 계속 벗어나 있으면 재확정
             await h.rerender({
                 heaterFeedback: 50,
@@ -626,12 +605,7 @@ describe('useReplayControl', () => {
             // 1틱째에 다음 BT 이벤트(110°→60%) 조건이 같이 성립해도 보류해야 한다.
             // 여기서 쓰면 개입을 덮는 동시에 lastWritten·pending으로 판정이 리셋된다.
             const h = await armed();
-            await h.rerender({
-                heaterFeedback: 80,
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ heaterFeedback: 80 }));
             await h.rerender({
                 heaterFeedback: 50,
                 elapsed: 130,
@@ -661,12 +635,7 @@ describe('useReplayControl', () => {
 
         it('노이즈로 판명되면(복귀) 보류했던 이벤트를 따라잡는다', async () => {
             const h = await armed();
-            await h.rerender({
-                heaterFeedback: 80,
-                liveBt: 100,
-                elapsed: 90,
-                confirmedTurningPoint: { fallback: false },
-            });
+            await h.rerender(beforeLimitTp({ heaterFeedback: 80 }));
             await h.rerender({
                 heaterFeedback: 50,
                 elapsed: 130,
@@ -886,7 +855,7 @@ describe('useReplayControl', () => {
         await act(async () => h.get().toggle());
         h.writeHeater.mockClear();
         h.writeHeater.mockResolvedValueOnce(null);
-        await h.rerender({ liveBt: 100, elapsed: 90, confirmedTurningPoint: { fallback: false } });
+        await h.rerender(beforeLimitTp());
         await h.rerender({ liveBt: 111, elapsed: 130, confirmedTurningPoint: { fallback: false } });
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
         expect(h.writeHeater).toHaveBeenCalledWith(60);
@@ -905,7 +874,7 @@ describe('useReplayControl', () => {
         h.writeHeater.mockClear();
         let resolve!: (applied: number | null) => void;
         h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolve = r)));
-        await h.rerender({ liveBt: 100, elapsed: 90, confirmedTurningPoint: { fallback: false } });
+        await h.rerender(beforeLimitTp());
         await h.rerender({ liveBt: 111, elapsed: 130, confirmedTurningPoint: { fallback: false } });
         await h.rerender({ liveBt: 112, elapsed: 131, confirmedTurningPoint: { fallback: false } });
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
@@ -1017,16 +986,13 @@ describe('useReplayControl', () => {
         });
 
         it('timeout 후 TIME-only 프로파일로 바꾸면 잠금이 풀린다 — 저장된 사유로 TIME-only를 막지 않는다', async () => {
-            const timeOnly: ReplayPoint[] = [];
-            for (let t = 0; t <= 180; t += 10) {
-                timeOnly.push({ t, bt: 200 - t, heater: t === 0 ? 80 : t === 150 ? 60 : null });
-            }
+            const pts = timeOnlyPoints();
             const h = await renderReplay();
             await act(async () => h.get().toggle());
             await h.rerender({ liveBt: 100, elapsed: limit, confirmedTurningPoint: null });
             expect(h.get().tpUnconfirmedLock).toBe(true);
             await h.rerender({
-                referencePoints: timeOnly,
+                referencePoints: pts,
                 liveBt: 80,
                 elapsed: limit,
                 confirmedTurningPoint: null,
@@ -1040,10 +1006,7 @@ describe('useReplayControl', () => {
         });
 
         it('TIME-only 계획에는 이 timeout을 적용하지 않는다 — 120s 이후 TIME도 발화', async () => {
-            const pts: ReplayPoint[] = [];
-            for (let t = 0; t <= 180; t += 10) {
-                pts.push({ t, bt: 200 - t, heater: t === 0 ? 80 : t === 150 ? 60 : null });
-            }
+            const pts = timeOnlyPoints();
             const h = await renderReplay({ referencePoints: pts });
             await act(async () => h.get().toggle());
             expect(h.writeHeater).toHaveBeenCalledWith(80);
