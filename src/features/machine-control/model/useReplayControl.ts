@@ -249,19 +249,22 @@ export const useReplayControl = ({
                 ? 'finished'
                 : null;
 
+    const pendingBt = plan != null && planHasPendingBtEvent(plan, index);
+    const tpTimeoutDue = shouldStopUnconfirmedTp({
+        elapsed,
+        realTp: afterTurningPoint,
+        pendingBt,
+    });
     // Proposed 120s TP-unconfirmed handoff (#368 R09) — render-time so the write
     // effect cannot fire first. Real detect in this same evaluation wins (predicate).
     // stopCause (DROP/PID/…) keeps priority; TIME-only plans have no pending BT.
-    if (
-        active &&
-        roasting &&
-        stopCause == null &&
-        plan != null &&
-        shouldStopUnconfirmedTp(elapsed, afterTurningPoint, planHasPendingBtEvent(plan, index))
-    ) {
+    if (active && roasting && stopCause == null && tpTimeoutDue) {
         setActive(false);
         setStopReason('tpUnconfirmed');
     }
+
+    /** Live predicate, not stored stopReason — TIME-only plan swap must not keep a stale lock. */
+    const tpUnconfirmedLock = !active && tpTimeoutDue;
 
     useEffect(() => {
         if (!active || stopCause == null) return;
@@ -301,14 +304,13 @@ export const useReplayControl = ({
             return;
         }
         if (plan == null || referenceMachineMismatch || stopCause != null) return;
-        // Timeout lock: explicit resume only after a real TP. New batch clears stopReason.
-        if (stopReason === 'tpUnconfirmed' && !afterTurningPoint) return;
+        if (tpUnconfirmedLock) return;
         setStopReason(null);
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
         setActive(true);
-    }, [active, plan, referenceMachineMismatch, stopCause, stopReason, afterTurningPoint]);
+    }, [active, plan, referenceMachineMismatch, stopCause, tpUnconfirmedLock]);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
@@ -369,6 +371,8 @@ export const useReplayControl = ({
         active,
         /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */
         stopReason,
+        /** 제안 120s 한계: 실감지 전(또는 TIME-only가 아닌 한) 재토글 금지 */
+        tpUnconfirmedLock,
         /** 다음에 발화할 이벤트 — UI 미리보기용. 다 소진했으면 null */
         nextEvent,
         /** 계획 TP 시각 — 다음 이벤트가 TIME(t ≤ tpTime)인지 BT인지 파생 */

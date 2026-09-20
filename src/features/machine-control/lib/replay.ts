@@ -120,13 +120,23 @@ export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | n
  */
 export const PROPOSED_TP_UNCONFIRMED_LIMIT_S = 120;
 
-/** Remaining events that judgeReplay would treat as BT (t > plan TP), not TIME. */
+/** BT vs TIME — TP-instant events are TIME (`t <= tpTime`), same split as judgeReplay. */
+export const isReplayBtEvent = (plan: ReplayPlan, e: { t: number }): boolean => e.t > plan.tpTime;
+
+/** Remaining events that judgeReplay would treat as BT, not TIME. */
 export const planHasPendingBtEvent = (plan: ReplayPlan, index: number): boolean =>
-    plan.events.some((e, i) => i >= index && e.t > plan.tpTime);
+    plan.events.some((e, i) => i >= index && isReplayBtEvent(plan, e));
 
 /** Real detect wins; TIME-only plans (no pending BT) never match. */
-export const shouldStopUnconfirmedTp = (elapsed: number, realTp: boolean, pendingBt: boolean): boolean =>
-    pendingBt && !realTp && elapsed >= PROPOSED_TP_UNCONFIRMED_LIMIT_S;
+export const shouldStopUnconfirmedTp = ({
+    elapsed,
+    realTp,
+    pendingBt,
+}: {
+    elapsed: number;
+    realTp: boolean;
+    pendingBt: boolean;
+}): boolean => pendingBt && !realTp && elapsed >= PROPOSED_TP_UNCONFIRMED_LIMIT_S;
 
 export interface ReplaySample {
     bt: number;
@@ -149,7 +159,7 @@ export const judgeReplay = (
     while (i < plan.events.length) {
         const e = plan.events[i];
         // TP 시각과 같은 이벤트는 시간 쪽 — BT 골짜기 부근은 값이 평평해 BT 트리거가 불안정하다
-        const fires = e.t <= plan.tpTime ? sample.elapsed >= e.t : sample.afterTurningPoint && sample.bt >= e.bt;
+        const fires = isReplayBtEvent(plan, e) ? sample.afterTurningPoint && sample.bt >= e.bt : sample.elapsed >= e.t;
         if (!fires) break;
         heater = e.heater;
         i += 1;

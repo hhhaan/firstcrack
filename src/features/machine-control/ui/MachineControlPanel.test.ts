@@ -41,6 +41,7 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/collapsedReplayTpChrome/);
         expect(panelSrc).toMatch(/replayChrome === 'running'[\s\S]*?bg-emerald-500/);
         expect(panelSrc).toMatch(/isReplayTpHold\(replayChrome\)[\s\S]*?bg-amber-500/);
+        expect(panelSrc).toMatch(/stopReason === 'tpUnconfirmed'[\s\S]*?bg-red-500/);
         expect(panelSrc).not.toMatch(/collapsed && replay\.active &&/);
     });
 });

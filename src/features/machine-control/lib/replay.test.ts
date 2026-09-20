@@ -224,14 +224,20 @@ describe('proposed TP-unconfirmed stop (#368 R09)', () => {
         expect(PROPOSED_TP_UNCONFIRMED_LIMIT_S).toBe(120);
         const justBefore = PROPOSED_TP_UNCONFIRMED_LIMIT_S - 1;
         const justAfter = PROPOSED_TP_UNCONFIRMED_LIMIT_S + 1;
-        expect(shouldStopUnconfirmedTp(justBefore, false, true)).toBe(false);
-        expect(shouldStopUnconfirmedTp(PROPOSED_TP_UNCONFIRMED_LIMIT_S, false, true)).toBe(true);
-        expect(shouldStopUnconfirmedTp(justAfter, false, true)).toBe(true);
+        expect(shouldStopUnconfirmedTp({ elapsed: justBefore, realTp: false, pendingBt: true })).toBe(false);
+        expect(
+            shouldStopUnconfirmedTp({ elapsed: PROPOSED_TP_UNCONFIRMED_LIMIT_S, realTp: false, pendingBt: true }),
+        ).toBe(true);
+        expect(shouldStopUnconfirmedTp({ elapsed: justAfter, realTp: false, pendingBt: true })).toBe(true);
     });
 
     it('같은 평가에서 실감지가 있으면 timeout보다 실감지가 이긴다', () => {
-        expect(shouldStopUnconfirmedTp(PROPOSED_TP_UNCONFIRMED_LIMIT_S, true, true)).toBe(false);
-        expect(shouldStopUnconfirmedTp(PROPOSED_TP_UNCONFIRMED_LIMIT_S + 30, true, true)).toBe(false);
+        expect(
+            shouldStopUnconfirmedTp({ elapsed: PROPOSED_TP_UNCONFIRMED_LIMIT_S, realTp: true, pendingBt: true }),
+        ).toBe(false);
+        expect(
+            shouldStopUnconfirmedTp({ elapsed: PROPOSED_TP_UNCONFIRMED_LIMIT_S + 30, realTp: true, pendingBt: true }),
+        ).toBe(false);
     });
 
     it('미실행 BT가 남아 있을 때만 후보 — TIME-only(전 이벤트 시간축)는 적용하지 않는다', () => {
@@ -245,6 +251,8 @@ describe('proposed TP-unconfirmed stop (#368 R09)', () => {
         const timePlan = extractReplayEvents(timeOnly);
         expect(timePlan?.tpTime).toBe(Number.POSITIVE_INFINITY);
         expect(timePlan && planHasPendingBtEvent(timePlan, 0)).toBe(false);
-        expect(shouldStopUnconfirmedTp(PROPOSED_TP_UNCONFIRMED_LIMIT_S, false, false)).toBe(false);
+        expect(
+            shouldStopUnconfirmedTp({ elapsed: PROPOSED_TP_UNCONFIRMED_LIMIT_S, realTp: false, pendingBt: false }),
+        ).toBe(false);
     });
 });

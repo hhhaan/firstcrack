@@ -30,8 +30,6 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  */
 export const ReplayControlPanel = ({ replay, unit }: Props) => {
     const { t } = useTranslation();
-    const realTp = replay.confirmedTurningPoint != null && !replay.confirmedTurningPoint.fallback;
-    const tpUnconfirmedLock = replay.stopReason === 'tpUnconfirmed' && !realTp;
     const stopText =
         replay.stopReason === 'tpUnconfirmed'
             ? t('activeRoast.replay.tpUnconfirmed.stop')
@@ -54,7 +52,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
         ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
         : !replay.available
           ? '레퍼런스 화력 기록이 없습니다 — heater 기록이 있는 타겟 프로파일을 선택하세요'
-          : tpUnconfirmedLock
+          : replay.tpUnconfirmedLock
             ? t('activeRoast.replay.tpUnconfirmed.lock')
             : !replay.active && replay.blocked
               ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
@@ -74,7 +72,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
                     type="checkbox"
                     checked={replay.active}
                     onChange={replay.toggle}
-                    disabled={!replay.available || (!replay.active && replay.blocked) || tpUnconfirmedLock}
+                    disabled={!replay.available || (!replay.active && replay.blocked) || replay.tpUnconfirmedLock}
                     className="h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
                 />
                 <span className="text-[12px] text-secondary">레퍼런스 화력 재생</span>

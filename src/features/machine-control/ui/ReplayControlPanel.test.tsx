@@ -23,6 +23,7 @@ const baseReplay = (over: Partial<Replay> = {}): Replay =>
         blocked: false,
         active: true,
         stopReason: null,
+        tpUnconfirmedLock: false,
         nextEvent: btEvent,
         tpTime: 60,
         confirmedTurningPoint: null,
@@ -138,12 +139,14 @@ describe('ReplayControlPanel TP unconfirmed handoff (#368 R09)', () => {
             baseReplay({
                 active: false,
                 stopReason: 'tpUnconfirmed',
+                tpUnconfirmedLock: true,
                 nextEvent: btEvent,
                 confirmedTurningPoint: null,
             }),
         );
         expect(container.textContent).toMatch(/not burner off/i);
         expect(container.textContent).toMatch(/check current heat/i);
+        expect(container.textContent).toMatch(/resume after a real turning point/i);
         expect(container.querySelector('[data-replay-status]')?.getAttribute('data-replay-status')).toBe('off');
         expect((container.querySelector('input[type="checkbox"]') as HTMLInputElement).disabled).toBe(true);
 
@@ -151,6 +154,7 @@ describe('ReplayControlPanel TP unconfirmed handoff (#368 R09)', () => {
             baseReplay({
                 active: false,
                 stopReason: 'tpUnconfirmed',
+                tpUnconfirmedLock: false,
                 nextEvent: btEvent,
                 confirmedTurningPoint: { fallback: false },
             }),

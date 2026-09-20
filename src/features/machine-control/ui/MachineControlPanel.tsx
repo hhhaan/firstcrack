@@ -224,6 +224,14 @@ export const MachineControlPanel = ({
                         aria-label={holdLabel}
                     />
                 )}
+                {collapsed && replay.stopReason === 'tpUnconfirmed' && (
+                    <span
+                        role="img"
+                        className="h-2 w-2 rounded-full bg-red-500"
+                        title={t('activeRoast.replay.tpUnconfirmed.collapsed')}
+                        aria-label={t('activeRoast.replay.tpUnconfirmed.collapsed')}
+                    />
+                )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
                 {collapsed && anyUnacknowledged && (
                     <span
