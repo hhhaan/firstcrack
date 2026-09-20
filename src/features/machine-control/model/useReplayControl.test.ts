@@ -950,6 +950,40 @@ describe('useReplayControl', () => {
             expect(h.get().nextEvent?.heater).toBe(40);
             h.unmount();
         });
+
+        it('명시적 null 관측은 이전 BT로 발화하지 않고 대기로 둔다', async () => {
+            const h = await renderReplay({
+                observationQuality: null,
+                lastValidReceivedAtMs: null,
+                nowMs: 100_000,
+                liveBt: 180,
+            });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true);
+            expect(h.get().observationHold).toBe(true);
+            await h.rerender({
+                observationQuality: null,
+                lastValidReceivedAtMs: null,
+                nowMs: 106_000,
+                liveBt: 180,
+                elapsed: 6,
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true);
+            expect(h.get().observationHold).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            await h.rerender({
+                observationQuality: 'valid',
+                lastValidReceivedAtMs: 106_000,
+                nowMs: 106_000,
+                liveBt: 180,
+                elapsed: 6,
+            });
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            expect(h.get().observationHold).toBe(false);
+            h.unmount();
+        });
     });
 
     describe('장기 센서 공백 중단 (R06, 제안 정책 last-valid >5s)', () => {
@@ -1082,6 +1116,105 @@ describe('useReplayControl', () => {
             expect(h.get().active).toBe(false);
             expect(h.get().observationHold).toBe(false);
             expect(h.get().stopReason).toBe('observationStale');
+            h.unmount();
+        });
+
+        it('같은 갱신의 stale 종료+DROP zero는 화력 0을 쓰고 재시도 상태를 유지한다', async () => {
+            const h = await renderReplay({
+                dropBehavior: 'zero',
+                elapsed: 4,
+                nowMs: 4_000,
+                lastValidReceivedAtMs: 0,
+                observationQuality: 'valid',
+            });
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({
+                dropBehavior: 'zero',
+                elapsed: 6,
+                nowMs: 6_000,
+                lastValidReceivedAtMs: 0,
+                liveBt: 205,
+                afterTurningPoint: true,
+                roastFinished: true,
+                observationQuality: 'stale',
+            });
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledTimes(1);
+            await h.rerender({
+                dropBehavior: 'zero',
+                elapsed: 6,
+                nowMs: 6_000,
+                lastValidReceivedAtMs: 0,
+                liveBt: 205,
+                afterTurningPoint: true,
+                roastFinished: true,
+                observationQuality: 'stale',
+                heaterUnacknowledged: true,
+            });
+            expect(h.writeHeater).toHaveBeenCalledTimes(2);
+            expect(h.writeHeater).toHaveBeenLastCalledWith(0);
+            h.unmount();
+        });
+
+        it('같은 갱신의 stale+DROP hold는 zero를 쓰지 않는다', async () => {
+            const h = await renderReplay({
+                dropBehavior: 'hold',
+                elapsed: 4,
+                nowMs: 4_000,
+                lastValidReceivedAtMs: 0,
+                observationQuality: 'valid',
+            });
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({
+                dropBehavior: 'hold',
+                elapsed: 6,
+                nowMs: 6_000,
+                lastValidReceivedAtMs: 0,
+                liveBt: 205,
+                afterTurningPoint: true,
+                roastFinished: true,
+                observationQuality: 'stale',
+            });
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('DROP 없는 stale 종료는 자동 zero를 쓰지 않는다', async () => {
+            const h = await renderReplay(clock(LAST));
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender(clock(LAST + 5_001, { elapsed: 6, liveBt: 150, observationQuality: 'stale' }));
+            expect(h.get().stopReason).toBe('observationStale');
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('사전 manual OFF 후 DROP은 안전 명령 소유권을 새로 얻지 않는다', async () => {
+            const h = await renderReplay({
+                dropBehavior: 'zero',
+                elapsed: 4,
+                nowMs: 4_000,
+                lastValidReceivedAtMs: 0,
+                observationQuality: 'valid',
+            });
+            await act(async () => h.get().toggle());
+            await act(async () => h.get().stop());
+            h.writeHeater.mockClear();
+            await h.rerender({
+                dropBehavior: 'zero',
+                elapsed: 6,
+                nowMs: 6_000,
+                lastValidReceivedAtMs: 0,
+                liveBt: 205,
+                afterTurningPoint: true,
+                roastFinished: true,
+                observationQuality: 'stale',
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
             h.unmount();
         });
 

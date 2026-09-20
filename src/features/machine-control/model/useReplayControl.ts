@@ -209,13 +209,28 @@ export const useReplayControl = ({
         writeGenRef.current += 1;
     }, [plan, roasting]);
 
+    // 안전 중지 사유 — 렌더 중 공백 판정보다 먼저 계산한다. DROP zero는 이 경로의
+    // effect가 active인 동안 나가야 하므로, 같은 커밋의 R06/timingGap이 먼저
+    // active를 끄면 설정된 화력 0이 누락된다.
+    const stopCause: ReplayStopReason | null = !sidecarConnected
+        ? 'disconnected'
+        : pidEngaged
+          ? 'pid'
+          : heaterUnacknowledged
+            ? 'unacknowledged'
+            : !heaterWritable
+              ? 'unwritable'
+              : roastFinished
+                ? 'finished'
+                : null;
+
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
     // 복귀 후 catch-up write는 하지 않는다 — 그동안의 실기 상태를 모른다.
     let replayRunning = active;
     if (elapsed !== prevElapsed) {
         setPrevElapsed(elapsed);
-        if (replayRunning && roasting && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+        if (replayRunning && roasting && stopCause == null && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
             replayRunning = false;
             setActive(false);
             setStopReason('timingGap');
@@ -225,10 +240,11 @@ export const useReplayControl = ({
     // R06 last-valid age — proposed >5s, not equipment-validated.
     // Elapsed ticks must check even with no new sample. A recovery sample that
     // refreshes last-valid first is still a gap against trustedLastValidMs.
-    if (replayRunning && roasting) {
+    // stopCause가 있으면 렌더 중 중지하지 않는다 — DROP zero effect가 active를 봐야 한다.
+    if (replayRunning && roasting && stopCause == null) {
         let trusted = trustedLastValidMs;
         if (trusted == null) {
-            trusted = lastValidReceivedAtMs ?? nowMs ?? null;
+            trusted = lastValidReceivedAtMs ?? null;
             if (trusted != null) setTrustedLastValidMs(trusted);
         }
         if (nowMs != null && trusted != null) {
@@ -268,7 +284,8 @@ export const useReplayControl = ({
         // 가능하고, 토글이 lastWritten을 리셋해 감지가 즉시 재무장되므로 원인이
         // 지속되면(인터락·타 소프트웨어) 다음 이벤트 write 후 ~3틱 안에 다시 걸린다.
         // 앱 슬라이더 개입(manual)과 처벌을 다르게 둘 이유가 없다.
-        if (ticks >= DIVERGE_TICKS) {
+        if (ticks >= DIVERGE_TICKS && stopCause == null) {
+            replayRunning = false;
             setActive(false);
             setStopReason('controlDiverged');
         }
@@ -284,17 +301,6 @@ export const useReplayControl = ({
     }, [active]);
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
-    const stopCause: ReplayStopReason | null = !sidecarConnected
-        ? 'disconnected'
-        : pidEngaged
-          ? 'pid'
-          : heaterUnacknowledged
-            ? 'unacknowledged'
-            : !heaterWritable
-              ? 'unwritable'
-              : roastFinished
-                ? 'finished'
-                : null;
     useEffect(() => {
         if (!active || stopCause == null) return;
         setActive(false);
@@ -337,10 +343,10 @@ export const useReplayControl = ({
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
-        // Explicit resume starts a new age window from current last-valid (or this tick).
-        setTrustedLastValidMs(lastValidReceivedAtMs ?? nowMs ?? null);
+        // Explicit resume ages from the current last-valid only — never invent one from nowMs.
+        setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
         setActive(true);
-    }, [active, plan, referenceMachineMismatch, stopCause, lastValidReceivedAtMs, nowMs]);
+    }, [active, plan, referenceMachineMismatch, stopCause, lastValidReceivedAtMs]);
 
     // 현재 generation의 유효 관측이 있을 때만 일반 TIME/BT write. production의 null/unknown
     // (observation 미수신·generation 초기화)은 hold다 — 표시용 last-good BT로 발화하지 않는다.
