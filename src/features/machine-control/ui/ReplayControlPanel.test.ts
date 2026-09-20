@@ -67,3 +67,20 @@ describe('ReplayControlPanel 무효 관측 대기 (R05)', () => {
         unmount();
     });
 });
+
+describe('ReplayControlPanel 장기 센서 공백 중지 (R06)', () => {
+    it('중지 사유와 현재 화력 확인 안내를 보여주고 짧은 보류 문구와 구분한다', () => {
+        const { container, unmount } = renderPanel(
+            replayStub({
+                active: false,
+                stopReason: 'observationStale',
+            }),
+        );
+        expect(container.textContent).toContain('Off');
+        expect(container.textContent).toContain('온도 데이터가 끊겨 재생 중지');
+        expect(container.textContent).toContain('현재 화력을 확인하세요');
+        expect(container.textContent).not.toContain('온도 데이터 확인 대기');
+        expect(container.textContent).not.toContain('On');
+        unmount();
+    });
+});

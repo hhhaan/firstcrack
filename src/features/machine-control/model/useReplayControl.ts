@@ -53,6 +53,16 @@ export interface ReplayControlInputs {
      * Do not omit the field for test convenience — pass `'valid'` when a write is expected.
      */
     observationQuality: ObservationQuality | null;
+    /**
+     * R04 last-valid wall-clock (ms). Age source for R06. Missing/null skips the age gate.
+     */
+    lastValidReceivedAtMs?: number | null;
+    /**
+     * Host wall-clock of this runtime tick (ms). Elapsed-timer renders must pass a
+     * value that advances even when no sensor sample arrived — typically roast
+     * origin + elapsed seconds. Missing/null skips the age gate.
+     */
+    nowMs?: number | null;
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
     writeHeater: (value: number) => Promise<number | null>;
     /**
@@ -73,7 +83,9 @@ export type ReplayStopReason =
     | 'profileChanged'
     | 'controlDiverged'
     | 'timingGap'
-    | 'writeFailed';
+    | 'writeFailed'
+    /** Last-valid observation older than the proposed R06 limit. Not a shipping-approved safety rating. */
+    | 'observationStale';
 
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
@@ -86,6 +98,11 @@ const DIVERGE_TICKS = 3;
  * ponytail: sidecar heartbeat로 판정을 옮기면(#308) 이 감지는 그쪽 책임이 된다.
  */
 const SAMPLE_GAP_LIMIT_S = 5;
+/**
+ * Proposed R06 policy: last-valid observation age above this stops Replay.
+ * Not equipment-validated and not a shipping-approved safety limit — under review.
+ */
+export const PROPOSED_OBSERVATION_STALE_LIMIT_MS = 5_000;
 
 /**
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
@@ -113,6 +130,8 @@ export const useReplayControl = ({
     heaterPending,
     reconnecting,
     observationQuality,
+    lastValidReceivedAtMs,
+    nowMs,
     writeHeater,
     heaterMax,
 }: ReplayControlInputs) => {
@@ -139,6 +158,11 @@ export const useReplayControl = ({
     const [diverge, setDiverge] = useState({ tick: elapsed, ticks: 0 });
     /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
     const [prevElapsed, setPrevElapsed] = useState(elapsed);
+    /**
+     * Previously accepted last-valid wall-clock for R06 age. A recovery sample that
+     * refreshes last-valid first is still a gap against this, not against the new stamp.
+     */
+    const [trustedLastValidMs, setTrustedLastValidMs] = useState<number | null>(null);
     /**
      * 이벤트 write가 /control 응답 대기 중 — 그동안 판정을 멈춰 같은 이벤트를 두 번 쓰지
      * 않는다 (#312). 응답 세대: 배치·프로파일 경계를 넘어 도착한 늦은 응답은 무시한다 —
@@ -172,6 +196,7 @@ export const useReplayControl = ({
         setStopReason(null);
         setLastWritten(null);
         setDiverge({ tick: elapsed, ticks: 0 });
+        setTrustedLastValidMs(null);
         // lookback 자동 차지는 origin을 과거로 잡아 elapsed가 0보다 크게 시작한다 —
         // 이전 배치 기준으로 재면 차지 직후 오중지된다.
         setPrevElapsed(elapsed);
@@ -187,11 +212,36 @@ export const useReplayControl = ({
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
     // 복귀 후 catch-up write는 하지 않는다 — 그동안의 실기 상태를 모른다.
+    let replayRunning = active;
     if (elapsed !== prevElapsed) {
         setPrevElapsed(elapsed);
-        if (active && roasting && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+        if (replayRunning && roasting && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+            replayRunning = false;
             setActive(false);
             setStopReason('timingGap');
+        }
+    }
+
+    // R06 last-valid age — proposed >5s, not equipment-validated.
+    // Elapsed ticks must check even with no new sample. A recovery sample that
+    // refreshes last-valid first is still a gap against trustedLastValidMs.
+    if (replayRunning && roasting) {
+        let trusted = trustedLastValidMs;
+        if (trusted == null) {
+            trusted = lastValidReceivedAtMs ?? nowMs ?? null;
+            if (trusted != null) setTrustedLastValidMs(trusted);
+        }
+        if (nowMs != null && trusted != null) {
+            const lastValid = lastValidReceivedAtMs ?? null;
+            const recoveryGap = lastValid != null && lastValid > trusted ? lastValid - trusted : 0;
+            const clockGap = nowMs - trusted;
+            if (Math.max(recoveryGap, clockGap) > PROPOSED_OBSERVATION_STALE_LIMIT_MS) {
+                replayRunning = false;
+                setActive(false);
+                setStopReason('observationStale');
+            } else if (lastValid != null && lastValid !== trustedLastValidMs) {
+                setTrustedLastValidMs(lastValid);
+            }
         }
     }
 
@@ -204,7 +254,7 @@ export const useReplayControl = ({
     // 여러 번 세면 1샘플로 확정된다. 복구 후 새 샘플부터 이어 센다.
     if (elapsed !== diverge.tick && !reconnecting) {
         const deviated =
-            active &&
+            replayRunning &&
             roasting &&
             !heaterPending &&
             lastWritten != null &&
@@ -287,8 +337,10 @@ export const useReplayControl = ({
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
+        // Explicit resume starts a new age window from current last-valid (or this tick).
+        setTrustedLastValidMs(lastValidReceivedAtMs ?? nowMs ?? null);
         setActive(true);
-    }, [active, plan, referenceMachineMismatch, stopCause]);
+    }, [active, plan, referenceMachineMismatch, stopCause, lastValidReceivedAtMs, nowMs]);
 
     // 현재 generation의 유효 관측이 있을 때만 일반 TIME/BT write. production의 null/unknown
     // (observation 미수신·generation 초기화)은 hold다 — 표시용 last-good BT로 발화하지 않는다.

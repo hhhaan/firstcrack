@@ -46,4 +46,11 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/replay\.observationHold/);
         expect(panelSrc).toMatch(/REPLAY_OBSERVATION_HOLD_TEXT/);
     });
+
+    it('R04 last-valid·runtime now를 Replay 공백 중지에 사실로 넘긴다 (R06)', () => {
+        expect(panelSrc).toMatch(/lastValidReceivedAtMs\?: number \| null/);
+        expect(panelSrc).toMatch(/nowMs\?: number \| null/);
+        expect(panelSrc).toMatch(/lastValidReceivedAtMs,/);
+        expect(panelSrc).toMatch(/nowMs,/);
+    });
 });

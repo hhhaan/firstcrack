@@ -952,6 +952,159 @@ describe('useReplayControl', () => {
         });
     });
 
+    describe('장기 센서 공백 중단 (R06, 제안 정책 last-valid >5s)', () => {
+        const LAST = 1_000;
+        const timePts: ReplayPoint[] = [
+            { t: 0, bt: 180, heater: 80 },
+            { t: 30, bt: 140, heater: 70 },
+            { t: 60, bt: 95, heater: 70 },
+            { t: 300, bt: 155, heater: 40 },
+        ];
+        const clock = (nowMs: number, over: Partial<ReplayControlInputs> = {}): Partial<ReplayControlInputs> => ({
+            referencePoints: timePts,
+            lastValidReceivedAtMs: LAST,
+            nowMs,
+            ...over,
+        });
+
+        it('elapsed가 흘러도 last-valid age가 5초이면 짧은 보류만 하고 중지하지 않는다', async () => {
+            const h = await renderReplay(clock(LAST));
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            h.writeHeater.mockClear();
+            await h.rerender(clock(LAST + 5_000, { elapsed: 4, liveBt: 150, observationQuality: 'stale' }));
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true);
+            expect(h.get().observationHold).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            expect(h.get().nextEvent?.heater).toBe(70);
+            h.unmount();
+        });
+
+        it('elapsed 진행 + last-valid age >5초이면 중지하고 index를 유지한다', async () => {
+            const h = await renderReplay(clock(LAST));
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender(clock(LAST + 5_001, { elapsed: 6, liveBt: 150, observationQuality: 'stale' }));
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(false);
+            expect(h.get().observationHold).toBe(false);
+            expect(h.get().stopReason).toBe('observationStale');
+            // 자동 zero/감화 없음
+            expect(h.writeHeater).not.toHaveBeenCalledWith(0);
+            // 명시적 재개 후 남은 이벤트부터 — index가 리셋되면 80을 다시 쓴다
+            await h.rerender(
+                clock(LAST + 8_000, {
+                    elapsed: 32,
+                    liveBt: 138,
+                    observationQuality: 'valid',
+                    lastValidReceivedAtMs: LAST + 8_000,
+                    nowMs: LAST + 8_000,
+                }),
+            );
+            expect(h.get().active).toBe(false);
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(true);
+            expect(h.writeHeater).toHaveBeenCalledWith(70);
+            expect(h.writeHeater).not.toHaveBeenCalledWith(80);
+            h.unmount();
+        });
+
+        it('새 센서 샘플이 없어도 elapsed 틱의 age로 중단한다 — 품질이 valid로 남아 있어도', async () => {
+            const h = await renderReplay(clock(LAST));
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender(clock(LAST + 5_001, { elapsed: 6, liveBt: 150, observationQuality: 'valid' }));
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('observationStale');
+            h.unmount();
+        });
+
+        it('첫 복구 sample이 last-valid를 갱신해도 catch-up write 전에 중단한다', async () => {
+            const h = await renderReplay(clock(LAST));
+            await act(async () => h.get().toggle());
+            await h.rerender(clock(LAST, { elapsed: 26, liveBt: 150 }));
+            h.writeHeater.mockClear();
+            // 복구 커밋이 last-valid를 먼저 갱신한 것처럼 보이게 한다 — age를 0으로 숨기면 안 된다
+            await h.rerender(
+                clock(LAST + 8_000, {
+                    elapsed: 31,
+                    liveBt: 140,
+                    observationQuality: 'valid',
+                    lastValidReceivedAtMs: LAST + 8_000,
+                }),
+            );
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('observationStale');
+            h.unmount();
+        });
+
+        it('정상 값이 돌아와도 자동 On되지 않고 stopCause가 있으면 재개도 막는다', async () => {
+            const h = await renderReplay(clock(LAST));
+            await act(async () => h.get().toggle());
+            await h.rerender(clock(LAST + 5_001, { elapsed: 6, liveBt: 150, observationQuality: 'stale' }));
+            expect(h.get().active).toBe(false);
+            h.writeHeater.mockClear();
+            await h.rerender(
+                clock(LAST + 8_000, {
+                    elapsed: 8,
+                    liveBt: 150,
+                    observationQuality: 'valid',
+                    lastValidReceivedAtMs: LAST + 8_000,
+                }),
+            );
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            await h.rerender(
+                clock(LAST + 8_000, {
+                    elapsed: 8,
+                    liveBt: 150,
+                    observationQuality: 'valid',
+                    lastValidReceivedAtMs: LAST + 8_000,
+                    pidEngaged: true,
+                }),
+            );
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(false);
+            h.unmount();
+        });
+
+        it('한계 이내 짧은 보류(R05)와 장기 중단(R06)을 구분한다', async () => {
+            const h = await renderReplay(clock(LAST));
+            await act(async () => h.get().toggle());
+            await h.rerender(clock(LAST + 3_000, { elapsed: 3, liveBt: 150, observationQuality: 'stale' }));
+            expect(h.get().active).toBe(true);
+            expect(h.get().observationHold).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            await h.rerender(clock(LAST + 6_000, { elapsed: 6, liveBt: 150, observationQuality: 'stale' }));
+            expect(h.get().active).toBe(false);
+            expect(h.get().observationHold).toBe(false);
+            expect(h.get().stopReason).toBe('observationStale');
+            h.unmount();
+        });
+
+        it('elapsed 점프 감시는 유지되고 공백 중지가 timingGap을 덮지 않는다', async () => {
+            const h = await renderReplay(clock(LAST));
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender(clock(LAST + 1_000, { elapsed: 4, liveBt: 150 }));
+            await h.jump(
+                clock(LAST + 1_000, {
+                    elapsed: 330,
+                    liveBt: 160,
+                    afterTurningPoint: true,
+                    observationQuality: 'valid',
+                }),
+            );
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('timingGap');
+            h.unmount();
+        });
+    });
+
     it('write 응답 대기 중 새 샘플은 같은 이벤트를 다시 쓰지 않는다', async () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle());

@@ -45,6 +45,10 @@ interface Props {
     afterTurningPoint: boolean;
     /** R04 제어용 관측 품질 — Replay 일반 이벤트 보류 사실 (R05). null = 현재 generation 관측 없음 */
     observationQuality: ObservationQuality | null;
+    /** R04 last-valid wall-clock — Replay 장기 공백 중지 사실 (R06) */
+    lastValidReceivedAtMs?: number | null;
+    /** Host wall-clock of this runtime tick — age check without a new sensor sample (R06) */
+    nowMs?: number | null;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
     /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
@@ -76,6 +80,8 @@ export const MachineControlPanel = ({
     roasting,
     afterTurningPoint,
     observationQuality,
+    lastValidReceivedAtMs,
+    nowMs,
     temperatureUnit,
     onHeaterCommitted,
 }: Props) => {
@@ -145,6 +151,8 @@ export const MachineControlPanel = ({
         heaterPending: desired.heater != null,
         reconnecting,
         observationQuality,
+        lastValidReceivedAtMs,
+        nowMs,
         writeHeater,
         heaterMax: limits.heater?.max,
     });

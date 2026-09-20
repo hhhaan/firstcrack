@@ -91,6 +91,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         reconnecting,
         machineSnapshot,
         observationQuality,
+        lastValidReceivedAtMs,
+        roastStartMs,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -103,6 +105,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             reconnecting: s.reconnecting,
             machineSnapshot: s.machineSnapshot,
             observationQuality: s.observation?.quality ?? null,
+            lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
+            roastStartMs: s.roastStartMs,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -743,6 +747,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         // #314: 120초 fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다
                         afterTurningPoint={confirmedTP !== null && !confirmedTP.fallback}
                         observationQuality={observationQuality}
+                        lastValidReceivedAtMs={lastValidReceivedAtMs}
+                        nowMs={roastStartMs > 0 ? roastStartMs + elapsed * 1000 : null}
                         temperatureUnit={unit}
                         onHeaterCommitted={handleHeaterCommitted}
                     />
