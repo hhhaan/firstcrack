@@ -3,16 +3,18 @@ import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ControlCommand, ControlRole } from '../lib/controlSender';
+import { useTranslation } from 'react-i18next';
+import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
+import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import { isPercentUnit } from '../lib/snapPercent';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
-import { useReplayControl } from '../model/useReplayControl';
+import { type ObservationQuality, useReplayControl } from '../model/useReplayControl';
 import { ChannelChip } from './ChannelChip';
 import { HeaterScale } from './HeaterScale';
 import { PidControlPanel } from './PidControlPanel';
-import { ReplayControlPanel } from './ReplayControlPanel';
+import { REPLAY_OBSERVATION_HOLD_TEXT, ReplayControlPanel } from './ReplayControlPanel';
 import { SetpointControl } from './SetpointControl';
 
 const ROLE_ORDER: ControlRole[] = ['heater', 'fan', 'drum'];
@@ -41,8 +43,10 @@ interface Props {
     liveBt: number | null;
     elapsed: number;
     roasting: boolean;
-    /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 */
-    afterTurningPoint: boolean;
+    /** 실기 TP 사실 — 게이트·대기 UI는 Replay 모듈/패널이 파생 (#314, R08) */
+    confirmedTurningPoint: { fallback?: boolean } | null;
+    /** R04 제어용 관측 품질 — Replay 일반 이벤트 보류 사실 (R05). null = 현재 generation 관측 없음 */
+    observationQuality: ObservationQuality | null;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
     /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
@@ -72,10 +76,12 @@ export const MachineControlPanel = ({
     liveBt,
     elapsed,
     roasting,
-    afterTurningPoint,
+    confirmedTurningPoint,
+    observationQuality,
     temperatureUnit,
     onHeaterCommitted,
 }: Props) => {
+    const { t } = useTranslation();
     const entitled = useFeature(FEATURE.machineControl);
     const heaterUnitRef = useRef('%');
     const handleCommitted = useCallback(
@@ -84,8 +90,17 @@ export const MachineControlPanel = ({
         },
         [onHeaterCommitted],
     );
-    const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
-        useMachineControl(sidecarConnected, liveData, handleCommitted);
+    const {
+        writable,
+        limits,
+        pidCapability,
+        desired,
+        unacknowledged,
+        sending,
+        setValue,
+        commitNow,
+        cancelUnsentReplayHeater,
+    } = useMachineControl(sidecarConnected, liveData, handleCommitted);
     useEffect(() => {
         heaterUnitRef.current = limits.heater?.unit ?? '%';
     }, [limits.heater?.unit]);
@@ -114,13 +129,16 @@ export const MachineControlPanel = ({
 
     // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
     const writeHeater = useCallback(
-        async (value: number) => {
+        async (value: number, origin: ControlOrigin = 'replay') => {
             setValue('heater', value);
-            const applied = await commitNow();
+            const applied = await commitNow(origin);
             return applied?.heater ?? null;
         },
         [setValue, commitNow],
     );
+    const commitManual = useCallback(() => {
+        void commitNow('manual');
+    }, [commitNow]);
     const replay = useReplayControl({
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,
@@ -128,7 +146,7 @@ export const MachineControlPanel = ({
         liveBt,
         elapsed,
         roasting,
-        afterTurningPoint,
+        confirmedTurningPoint,
         heaterWritable: writable && limits.heater != null,
         // fault 포함 — PID가 off가 아닌 동안 히터 소유권을 넘기지 않는다
         pidEngaged: pidActive,
@@ -141,9 +159,21 @@ export const MachineControlPanel = ({
         heaterFeedback: liveData?.heater ?? null,
         heaterPending: desired.heater != null,
         reconnecting,
+        observationQuality,
         writeHeater,
+        cancelUnsentHeater: cancelUnsentReplayHeater,
         heaterMax: limits.heater?.max,
     });
+    const replayTpWait = resolveReplayTpWait({
+        active: replay.active,
+        nextEvent: replay.nextEvent,
+        tpTime: replay.tpTime,
+        confirmedTurningPoint: replay.confirmedTurningPoint,
+    });
+    const replayChrome = collapsedReplayTpChrome(replay.active, replayTpWait);
+    let holdLabel: string | undefined;
+    if (replayChrome === 'waiting') holdLabel = t('activeRoast.replay.tp.collapsedWaiting');
+    else if (replayChrome === 'fallback') holdLabel = t('activeRoast.replay.tp.collapsedFallback');
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
     // 재생이 켜지는 경계에서 이벤트가 새면 여기가 마지막 방어선이다.
@@ -194,13 +224,21 @@ export const MachineControlPanel = ({
                         aria-label={`PID ${pidState}`}
                     />
                 )}
-                {/* 접혀도 Replay가 히터를 잡고 있다는 표시는 보여야 한다 (#300) */}
-                {collapsed && replay.active && (
+                {/* 접혀도 Replay가 히터를 잡고 있다는 표시는 보여야 한다 (#300). 대기/폴백은 정상 재생과 구분. */}
+                {collapsed && replayChrome === 'running' && (
                     <span
                         role="img"
-                        className="h-2 w-2 rounded-full bg-emerald-500"
-                        title="Replay 재생 중"
-                        aria-label="Replay 재생 중"
+                        className={`h-2 w-2 rounded-full ${replay.observationHold ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                        title={replay.observationHold ? REPLAY_OBSERVATION_HOLD_TEXT : 'Replay 재생 중'}
+                        aria-label={replay.observationHold ? REPLAY_OBSERVATION_HOLD_TEXT : 'Replay 재생 중'}
+                    />
+                )}
+                {collapsed && isReplayTpHold(replayChrome) && (
+                    <span
+                        role="img"
+                        className="h-2 w-2 rounded-full bg-amber-500"
+                        title={holdLabel}
+                        aria-label={holdLabel}
                     />
                 )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
@@ -237,7 +275,7 @@ export const MachineControlPanel = ({
                                         : undefined
                             }
                             onChange={handleManualChange}
-                            onCommit={commitNow}
+                            onCommit={commitManual}
                         />
                         {chipRoles.length > 0 && (
                             <div className="flex shrink-0 flex-col gap-1.5">
@@ -251,7 +289,7 @@ export const MachineControlPanel = ({
                                         unacknowledged={unacknowledged.has(role)}
                                         disabled={!writable}
                                         onChange={handleManualChange}
-                                        onCommit={commitNow}
+                                        onCommit={commitManual}
                                     />
                                 ))}
                             </div>
@@ -279,7 +317,7 @@ export const MachineControlPanel = ({
                                         !supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined
                                     }
                                     onChange={handleManualChange}
-                                    onCommit={commitNow}
+                                    onCommit={commitManual}
                                 />
                             );
                         })}
@@ -291,7 +329,7 @@ export const MachineControlPanel = ({
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <ReplayControlPanel replay={replay} unit={temperatureUnit} />
+                <ReplayControlPanel replay={replay} unit={temperatureUnit} heaterUnit={limits.heater?.unit ?? '%'} />
                 {/* PID 진입 UI는 임시 숨김. 이미 작동 중이면 해제·오류 확인은 유지한다. */}
                 {pidActive && <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />}
             </div>

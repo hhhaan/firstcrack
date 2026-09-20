@@ -264,6 +264,7 @@
                 "profile": "Profile",
                 "displayName": "Display name",
                 "displayNamePlaceholder": "Your name",
+                "displayNameRequired": "Enter a display name",
                 "businessName": "Business name",
                 "businessNamePlaceholder": "Your business name",
                 "businessRegNumber": "Business registration number",
@@ -749,6 +750,16 @@
             "discardConfirm": "Discard this pending recovery? This cannot be undone.",
             "discard": "Discard recovery",
             "noBbp": "I confirm no between-batch curve was recorded for this roast."
+        },
+        "replay": {
+            "next": "Next: {{condition}} → {{heater}}",
+            "done": "All events replayed",
+            "tp": {
+                "waiting": "Waiting for a real turning point",
+                "fallback": "TP fallback — not a detected rise",
+                "collapsedWaiting": "Replay waiting for a real turning point",
+                "collapsedFallback": "Replay TP fallback — not a detected rise"
+            }
         }
     },
     "schedule": {
@@ -943,6 +954,7 @@
         },
         "expanded": {
             "origin": "Origin",
+            "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
             "notes": "Notes",
@@ -979,6 +991,7 @@
             "date": "Date",
             "profile": "Profile",
             "duration": "Duration",
+            "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "dtr": "DTR",
             "dtrRolling": "DTR Rolling",
@@ -1018,6 +1031,7 @@
             "bean": "Bean",
             "profile": "Profile",
             "weight": "Weight",
+            "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
             "loss": "Loss",

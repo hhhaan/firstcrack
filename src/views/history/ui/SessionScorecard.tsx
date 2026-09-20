@@ -1,14 +1,13 @@
-import { useRoastProfiles } from '@entities/roast-profile';
+import { summarizeSessionEvents, useRoastProfiles } from '@entities/roast-profile';
 import { formatTemp, tempUnitLabel, toDisplayTempDelta, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDuration } from '@shared/lib/format';
-import { deltaOrNull, deriveSessionDevMetrics } from '@shared/lib/roast-delta';
+import { deltaOrNull, sessionRoastMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // ponytail: 허용 밴드 하드코드 — 설정화는 수요 생기면 (Roast Settings로)
-const BANDS = { dropTemp: 2, duration: 30, devTime: 15, devPct: 2 } as const;
+const BANDS = { chargeTemp: 2, dropTemp: 2, duration: 30, devTime: 15, devPct: 2 } as const;
 
 const signed = (d: number, body: string): string => `${d >= 0 ? '+' : '−'}${body}`;
 
@@ -27,10 +26,8 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
     const unit = useRoastSettings().temperatureUnit;
     const { data: profiles = [] } = useRoastProfiles(session.user_id);
     const profile = session.profile_id ? (profiles.find((p) => p.id === session.profile_id) ?? null) : null;
-    const dev = useMemo(
-        () => deriveSessionDevMetrics(parseStoredRoastEvents(session.events), session.duration_seconds),
-        [session.events, session.duration_seconds],
-    );
+    const metrics = sessionRoastMetrics(session);
+    const summary = summarizeSessionEvents(parseStoredRoastEvents(session.events), session);
 
     if (!profile) return null;
 
@@ -38,6 +35,15 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
     const fmtSecDelta = (d: number) => signed(d, formatDuration(Math.abs(Math.round(d))));
 
     const rows: Row[] = [
+        {
+            key: 'chargeTemp',
+            labelKey: 'history.table.chargeTemp',
+            actual: summary.charge_temp_celsius,
+            target: profile.charge_temp_celsius,
+            band: BANDS.chargeTemp,
+            format: (v) => formatTemp(v, unit),
+            formatDelta: (d) => signed(d, `${Math.abs(toDisplayTempDelta(d, unit)).toFixed(1)}${tempUnitLabel(unit)}`),
+        },
         {
             key: 'dropTemp',
             labelKey: 'history.table.dropTemp',
@@ -50,7 +56,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
         {
             key: 'duration',
             labelKey: 'history.table.duration',
-            actual: session.duration_seconds,
+            actual: metrics.roastDurationSec,
             target: profile.duration_sec,
             band: BANDS.duration,
             format: fmtSec,
@@ -59,7 +65,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
         {
             key: 'devTime',
             labelKey: 'history.scorecard.devTime',
-            actual: dev.devTimeSec,
+            actual: metrics.devTimeSec,
             target: profile.dev_time_sec,
             band: BANDS.devTime,
             format: fmtSec,
@@ -68,19 +74,19 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
         {
             key: 'devPct',
             labelKey: 'history.scorecard.devPct',
-            actual: dev.devPct,
+            actual: metrics.dtrPct,
             target: profile.dev_pct,
             band: BANDS.devPct,
             format: (v) => `${v.toFixed(1)}%`,
             formatDelta: (d) => signed(d, `${Math.abs(d).toFixed(1)}%`),
         },
         // Rolling DTR when FC Rolling exists — no profile target
-        ...(dev.rollingDevPct != null
+        ...(metrics.rollingDevPct != null
             ? ([
                   {
                       key: 'devTimeRolling',
                       labelKey: 'history.scorecard.devTimeRolling',
-                      actual: dev.rollingDevTimeSec,
+                      actual: metrics.rollingDevTimeSec,
                       target: null,
                       band: BANDS.devTime,
                       format: fmtSec,
@@ -89,7 +95,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
                   {
                       key: 'devPctRolling',
                       labelKey: 'history.scorecard.devPctRolling',
-                      actual: dev.rollingDevPct,
+                      actual: metrics.rollingDevPct,
                       target: null,
                       band: BANDS.devPct,
                       format: (v: number) => `${v.toFixed(1)}%`,

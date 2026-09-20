@@ -1,6 +1,7 @@
 import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDuration } from '@shared/lib/format';
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import type { Json } from '@shared/types/database.types';
 import { modalCancelBtnCls, modalFooterChrome, modalHeaderChrome } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -54,6 +55,7 @@ export const ProfileSessionPicker = ({ sessions, onSelect, onClose }: ProfileSes
                     <div className="flex flex-col gap-2">
                         {sessions.map((session) => {
                             const marks = marksLabel(session.events);
+                            const roastDurationSec = sessionRoastMetrics(session).roastDurationSec;
                             return (
                                 <button
                                     key={session.id}
@@ -70,8 +72,7 @@ export const ProfileSessionPicker = ({ sessions, onSelect, onClose }: ProfileSes
                                                 {fmtDate(session.roasted_at)}
                                                 {session.drop_temp_celsius != null &&
                                                     ` · ${t('newProfileModal.drop')} ${formatTemp(session.drop_temp_celsius, unit)}`}
-                                                {session.duration_seconds != null &&
-                                                    ` · ${formatDuration(session.duration_seconds)}`}
+                                                {roastDurationSec != null && ` · ${formatDuration(roastDurationSec)}`}
                                                 {session.roast_level && ` · ${session.roast_level}`}
                                             </span>
                                         </div>

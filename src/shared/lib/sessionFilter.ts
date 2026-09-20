@@ -1,3 +1,4 @@
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 
@@ -95,7 +96,11 @@ export const sortSessions = (
             case 'drop':
                 return compareNullable(a.drop_temp_celsius, b.drop_temp_celsius, dir);
             case 'duration':
-                return compareNullable(a.duration_seconds, b.duration_seconds, dir);
+                return compareNullable(
+                    sessionRoastMetrics(a).roastDurationSec,
+                    sessionRoastMetrics(b).roastDurationSec,
+                    dir,
+                );
             case 'level':
                 return compareNullable(a.roast_level, b.roast_level, dir);
             default:

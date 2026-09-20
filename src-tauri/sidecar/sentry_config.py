@@ -10,6 +10,8 @@
 - release는 앱 버전 기준 `first-crack@<semver>`. crate/패키지 이름을 쓰면
   프론트와 릴리스가 갈라져 이슈가 두 곳에 쌓인다.
 - 조치 가능한 오류만 이슈로 남긴다. 예상된 4xx(401 토큰 불일치 포함)·취소·정상 종료는 버린다.
+- snap7 라이브러리의 recv timeout ERROR 로그는 버린다. 같은 사고는 manager가
+  `read_failed_disconnected` 등으로 분류해 capture_exception한다.
 - 비밀·연결 대상·로컬 경로는 before_send/before_breadcrumb 한 곳에서만 지운다.
 """
 from __future__ import annotations
@@ -131,6 +133,11 @@ def _hint_exception(hint: Mapping[str, Any] | None) -> BaseException | None:
 
 
 def before_send(event: dict[str, Any], hint: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    # snap7.common ERROR 로그는 PLC recv timeout의 라이브러리 내부 기록이다.
+    # manager가 같은 사고를 분류해 capture_exception하므로 여기서 한 번 더 이슈를 만들지 않는다.
+    logger_name = str(event.get("logger") or "")
+    if logger_name.startswith("snap7"):
+        return None
     if not is_actionable(_hint_exception(hint)):
         return None
     if isinstance(event.get("message"), str):

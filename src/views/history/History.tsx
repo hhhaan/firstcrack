@@ -64,11 +64,11 @@ export const History = () => {
 
     const { workspaceOwnerId } = useActiveWorkspace();
 
-    const useClientPagination = search.length > 0 || originFilter !== 'all';
+    const useClientPagination = search.length > 0 || originFilter !== 'all' || sortKey === 'duration';
     const [exportOpen, setExportOpen] = useState(false);
     // 전체 목록이 아직 없을 때의 export 요청 — 목록이 도착하면 effect가 집어간다
     const [pendingExportRange, setPendingExportRange] = useState<ExportDateRange | null>(null);
-    // Full list only when client-side search/filter, compare mode, or export needs it.
+    // Full list when client search/filter, duration sort (Drop-first, not duration_seconds), compare, or export.
     const needFullList = useClientPagination || compareMode || pendingExportRange !== null;
 
     const {

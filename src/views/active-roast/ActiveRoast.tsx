@@ -90,6 +90,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sidecarConnected,
         reconnecting,
         machineSnapshot,
+        observationQuality,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -101,6 +102,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
             machineSnapshot: s.machineSnapshot,
+            observationQuality: s.observation?.quality ?? null,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -261,17 +263,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [bbpActive, charged, setZoomRange, setHoveredChartIndex]);
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
-    const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
-    // 고아 Rolling(FC Start 삭제됨)은 기준점이 없어 지표를 내지 않는다
-    const fcRollingEntry = fcStartEntry ? logEntries.find((e) => e.event === 'FC Rolling') : undefined;
-    const { devTimeStr, devTimeOnly, dtrPct } = useMemo(
-        () => calcDevTime(fcStartEntry, elapsed),
-        [fcStartEntry, elapsed],
-    );
-    const { devTimeOnly: rollingDevTimeStr, dtrPct: rollingDtrPct } = useMemo(
-        () => calcDevTime(fcRollingEntry, elapsed),
-        [fcRollingEntry, elapsed],
-    );
+    const liveDev = useMemo(() => calcDevTime(logEntries, elapsed), [logEntries, elapsed]);
+    const { devTimeOnly, dtrPct, rollingDevTimeOnly, rollingDtrPct, roastDurationSec } = liveDev;
 
     // 라이프사이클과 하위 훅 사이 순환 의존성을 refs로 분리
     const resetAutoDetectionRef = useRef<() => void>(() => {});
@@ -286,7 +279,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         unit,
         logEntries,
         timeStr,
-        devTimeStr,
         enterStandby,
         enterPreheating,
         storeEndRoast,
@@ -486,8 +478,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const eventMarkers = useMemo(() => buildEventMarkers(logEntries), [logEntries, resolvedTheme]);
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const phaseSegments = useMemo(
-        () => (roastSettings.showPhaseBar ? computePhaseSegments(logEntries, elapsed, charged) : []),
-        [roastSettings.showPhaseBar, logEntries, elapsed, charged, resolvedTheme],
+        () =>
+            roastSettings.showPhaseBar ? computePhaseSegments(logEntries, roastDurationSec ?? elapsed, charged) : [],
+        [roastSettings.showPhaseBar, logEntries, roastDurationSec, elapsed, charged, resolvedTheme],
     );
     const displayRoR = toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1);
 
@@ -738,8 +731,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         liveBt={rawBT}
                         elapsed={elapsed}
                         roasting={phase === 'roasting'}
-                        // #314: 120초 fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다
-                        afterTurningPoint={confirmedTP !== null && !confirmedTP.fallback}
+                        confirmedTurningPoint={confirmedTP}
+                        observationQuality={observationQuality}
                         temperatureUnit={unit}
                         onHeaterCommitted={handleHeaterCommitted}
                     />
@@ -762,7 +755,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         dtrPct={dtrPct}
                         devTimeStr={devTimeOnly}
                         rollingDtrPct={rollingDtrPct}
-                        rollingDevTimeStr={rollingDevTimeStr}
+                        rollingDevTimeStr={rollingDevTimeOnly}
                         fcDualMarkEnabled={fcDualMarkEnabled}
                         fcDualUnwind={fcDualUnwind}
                         logEntries={logEntries}

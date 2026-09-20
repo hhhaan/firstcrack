@@ -615,7 +615,9 @@ class RoasterManager:
                 exc, self._protocol, self._merged_params, first_read_failure
             )
             self._connected = False
-            _log.error("읽기 실패: %s", exc, exc_info=True)
+            # Sentry 이슈는 _capture_hardware_error가 담당한다. ERROR+exc_info는
+            # LoggingIntegration이 같은 예외를 한 번 더 이슈로 만든다 (FC-1P).
+            _log.warning("읽기 실패: %s", exc, exc_info=True)
             sentry_sdk.add_breadcrumb(
                 category="hardware",
                 message=f"{event}: {self._roaster_key} ({self._protocol}) — {exc}",

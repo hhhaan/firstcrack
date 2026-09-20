@@ -639,6 +639,271 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
     }
 });
 
+const reading = (over: Record<string, unknown> = {}) => ({
+    bt: 200,
+    bt_raw: 200,
+    timestamp: 10,
+    stale: false,
+    reconnecting: false,
+    et: 210,
+    ror: 5,
+    ror_et: 4,
+    heater: 80,
+    fan: 40,
+    drum: 60,
+    ...over,
+});
+
+const startMutablePoll = async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    const payload = reading();
+    mocks.getTemperatures.mockImplementation(async () => ({ ...payload }));
+    const root = renderProbe(1000);
+    await flushReady();
+    return { root, payload };
+};
+
+const withMutablePoll = async (
+    run: (ctx: {
+        payload: ReturnType<typeof reading>;
+        display: ReturnType<typeof useRoastingStore.getState>['liveData'];
+        lastValid: number | null | undefined;
+    }) => Promise<void>,
+) => {
+    const { root, payload } = await startMutablePoll();
+    try {
+        await run({
+            payload,
+            display: useRoastingStore.getState().liveData,
+            lastValid: useRoastingStore.getState().observation?.lastValidReceivedAtMs,
+        });
+    } finally {
+        act(() => root.unmount());
+    }
+};
+
+const captureSidecarReady = () => {
+    let ready = () => {};
+    mocks.listen.mockImplementation(async (event: string, callback: () => void) => {
+        if (event === 'sidecar-ready') ready = callback;
+        return () => {};
+    });
+    return () => ready();
+};
+
+const withSidecarReadyPoll = async (setup: () => void, run: (ready: () => void) => Promise<void>) => {
+    vi.useFakeTimers();
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    const ready = captureSidecarReady();
+    setup();
+    const root = renderProbe(500);
+    try {
+        await flushReady();
+        await run(ready);
+    } finally {
+        act(() => root.unmount());
+    }
+};
+
+it('refreshes last-valid time for a flat BT with a new device timestamp', async () => {
+    await withMutablePoll(async ({ payload, display, lastValid }) => {
+        expect(useRoastingStore.getState().observation).toMatchObject({
+            quality: 'valid',
+            isNew: true,
+            lastValidDeviceTimestamp: 10,
+        });
+        payload.timestamp = 11;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        const second = useRoastingStore.getState();
+        expect(second.liveData).toBe(display);
+        expect(second.observation).toMatchObject({ quality: 'valid', isNew: true, lastValidDeviceTimestamp: 11 });
+        expect(second.observation?.lastValidReceivedAtMs).toBeGreaterThan(lastValid ?? 0);
+    });
+});
+
+it('updates quality when only stale changes and keeps the same display object', async () => {
+    await withMutablePoll(async ({ payload, display, lastValid }) => {
+        payload.stale = true;
+        payload.timestamp = 11;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        const next = useRoastingStore.getState();
+        expect(next.liveData).toBe(display);
+        expect(next.observation?.quality).toBe('stale');
+        expect(next.observation?.isNew).toBe(false);
+        expect(next.observation?.lastValidReceivedAtMs).toBe(lastValid);
+    });
+});
+
+it('keeps the last display value and marks spike rejects invalid', async () => {
+    await withMutablePoll(async ({ payload, display, lastValid }) => {
+        payload.bt = 1372;
+        payload.bt_raw = 1372;
+        payload.timestamp = 11;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        const next = useRoastingStore.getState();
+        expect(next.liveData).toBe(display);
+        expect(next.liveData?.bt).toBe(200);
+        expect(next.observation?.quality).toBe('spike');
+        expect(next.observation?.lastValidReceivedAtMs).toBe(lastValid);
+    });
+});
+
+it('does not treat a repeated device timestamp as a new observation', async () => {
+    await withMutablePoll(async ({ lastValid }) => {
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        const next = useRoastingStore.getState();
+        expect(next.observation?.quality).toBe('retransmit');
+        expect(next.observation?.isNew).toBe(false);
+        expect(next.observation?.lastValidReceivedAtMs).toBe(lastValid);
+    });
+});
+
+it('does not apply an in-flight observation from a previous sidecar generation', async () => {
+    let resolveRead = (_reading: unknown) => {};
+    await withSidecarReadyPoll(
+        () => {
+            mocks.getTemperatures.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveRead = resolve;
+                }),
+            );
+        },
+        async (ready) => {
+            act(() => ready());
+            await act(async () => resolveRead(reading({ timestamp: 1, bt: 199, bt_raw: 199 })));
+            expect(useRoastingStore.getState().observation).toBeNull();
+            mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 2, bt: 198, bt_raw: 198 }));
+            await act(async () => vi.advanceTimersByTimeAsync(500));
+            expect(useRoastingStore.getState().observation).toMatchObject({
+                quality: 'valid',
+                lastValidDeviceTimestamp: 2,
+            });
+        },
+    );
+});
+
+it('resets the BT filter on sidecar-ready so prior device samples are not inherited', async () => {
+    await withSidecarReadyPoll(
+        () => {
+            mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 1, bt: 200, bt_raw: 200 }));
+        },
+        async (ready) => {
+            expect(useRoastingStore.getState().liveData?.bt).toBe(200);
+            act(() => ready());
+            mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 2, bt: 50, bt_raw: 50 }));
+            await act(async () => vi.advanceTimersByTimeAsync(500));
+            expect(useRoastingStore.getState().liveData?.bt).toBe(50);
+            expect(useRoastingStore.getState().observation).toMatchObject({
+                quality: 'valid',
+                lastValidDeviceTimestamp: 2,
+            });
+        },
+    );
+});
+
+it('does not refresh last-valid time on poll error or null BT', async () => {
+    await withMutablePoll(async ({ lastValid }) => {
+        mocks.getTemperatures.mockRejectedValueOnce(new Error('timeout'));
+        mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: true });
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().observation?.quality).toBe('poll_error');
+        expect(useRoastingStore.getState().observation?.lastValidReceivedAtMs).toBe(lastValid);
+        mocks.getTemperatures.mockResolvedValue(reading({ bt: null, bt_raw: null, timestamp: 12 }));
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().observation?.quality).toBe('null');
+        expect(useRoastingStore.getState().observation?.lastValidReceivedAtMs).toBe(lastValid);
+    });
+});
+
+const flushPendingPoll = async () => {
+    await act(async () => {
+        vi.advanceTimersByTime(1000);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+    });
+};
+
+const holdStatus = () => {
+    let resolve = (_status: { connected: boolean; reconnecting?: boolean }) => {};
+    mocks.getStatus.mockImplementationOnce(
+        () =>
+            new Promise((r) => {
+                resolve = r;
+            }),
+    );
+    return (status: { connected: boolean; reconnecting?: boolean }) => resolve(status);
+};
+
+it.each([
+    {
+        name: 'null BT',
+        arrange: () => mocks.getTemperatures.mockResolvedValueOnce(reading({ bt: null, bt_raw: null, timestamp: 12 })),
+        quality: 'null' as const,
+    },
+    {
+        name: 'temperature reject',
+        arrange: () => mocks.getTemperatures.mockRejectedValueOnce(new Error('timeout')),
+        quality: 'poll_error' as const,
+    },
+])('publishes $quality while getStatus is still pending ($name)', async ({ arrange, quality }) => {
+    await withMutablePoll(async ({ lastValid }) => {
+        arrange();
+        const finishStatus = holdStatus();
+        await flushPendingPoll();
+        expect(useRoastingStore.getState().observation?.quality).toBe(quality);
+        expect(useRoastingStore.getState().observation?.lastValidReceivedAtMs).toBe(lastValid);
+        await act(async () => {
+            finishStatus({ connected: true, reconnecting: true });
+            await Promise.resolve();
+        });
+        expect(useRoastingStore.getState().observation?.quality).toBe(quality);
+        expect(useRoastingStore.getState().observation?.lastValidReceivedAtMs).toBe(lastValid);
+    });
+});
+
+it('does not keep valid quality after an unauthorized temperature poll', async () => {
+    await withMutablePoll(async ({ lastValid }) => {
+        const statusCalls = mocks.getStatus.mock.calls.length;
+        mocks.getTemperatures.mockRejectedValueOnce(new Error('unauthorized'));
+        await flushPendingPoll();
+        expect(useRoastingStore.getState().observation?.quality).toBe('poll_error');
+        expect(useRoastingStore.getState().observation?.lastValidReceivedAtMs).toBe(lastValid);
+        expect(mocks.getStatus).toHaveBeenCalledTimes(statusCalls);
+    });
+});
+
+it('does not apply a late poll error from a previous sidecar generation', async () => {
+    let rejectRead = (_error: Error) => {};
+    let resolveStatus = (_status: { connected: boolean }) => {};
+    await withSidecarReadyPoll(
+        () => {
+            mocks.getTemperatures.mockReturnValueOnce(
+                new Promise((_resolve, reject) => {
+                    rejectRead = reject;
+                }),
+            );
+            mocks.getStatus.mockReturnValue(
+                new Promise((resolve) => {
+                    resolveStatus = resolve;
+                }),
+            );
+        },
+        async (ready) => {
+            act(() => ready());
+            await act(async () => rejectRead(new Error('timeout')));
+            expect(useRoastingStore.getState().observation).toBeNull();
+            await act(async () => {
+                resolveStatus({ connected: true });
+                await Promise.resolve();
+            });
+            expect(useRoastingStore.getState().observation).toBeNull();
+        },
+    );
+});
+
 it('ignores the old phase response even before React runs polling cleanup', async () => {
     mocks.initSessionTsv.mockResolvedValue(undefined);
     let resolveRead = (_reading: unknown) => {};
