@@ -7,6 +7,7 @@ export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
+export type { ObservationQuality, SensorObservation } from './lib/sensorObservation';
 // lib
 export {
     formatTemp,
