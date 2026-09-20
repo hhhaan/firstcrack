@@ -201,16 +201,17 @@ export const useAutoDetection = ({
         );
     }, [phase, livePoints, confirmedTP]);
 
-    // Lock in confirmedTP on first detection (no setState in useMemo).
+    // Lock in during render (Replay fail-closed pattern). Effect lock-in is one
+    // commit later — same-tick consumers (Replay 120s timeout) would still see
+    // the previous null and stop before real detect. Fallback stays an effect
+    // and already yields when detectedTPs is non-empty.
     // 폴백으로 확정된 잠정 TP는 실감지가 오면 승격 교체 — 실TP는 한 번 확정되면 불변
-    useEffect(() => {
-        if (detectedTPs.length === 0) return;
-        if (confirmedTP !== null && !confirmedTP.fallback) return;
+    if (detectedTPs.length > 0 && (confirmedTP === null || confirmedTP.fallback)) {
         setConfirmedTP(detectedTPs[0]);
-    }, [detectedTPs, confirmedTP]);
+    }
 
     // TP 타임아웃 폴백 — 미탐 시 Yellow 자동마킹이 조용히 죽는 것 방지.
-    // detectedTPs 가드: 같은 tick에 실감지가 있으면 lock-in effect에 양보 (폴백이 덮어쓰기 방지)
+    // detectedTPs 가드: 같은 tick에 실감지가 있으면 render lock-in에 양보 (폴백이 덮어쓰기 방지)
     useEffect(() => {
         if (phase !== 'roasting' || confirmedTP !== null || bt == null) return;
         if (elapsed < TP_FALLBACK_S || detectedTPs.length > 0) return;
