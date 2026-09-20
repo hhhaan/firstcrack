@@ -8,11 +8,11 @@ import type { ReplayPoint } from '../lib/replay';
 import { isPercentUnit } from '../lib/snapPercent';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
-import { useReplayControl } from '../model/useReplayControl';
+import { type ObservationQuality, useReplayControl } from '../model/useReplayControl';
 import { ChannelChip } from './ChannelChip';
 import { HeaterScale } from './HeaterScale';
 import { PidControlPanel } from './PidControlPanel';
-import { ReplayControlPanel } from './ReplayControlPanel';
+import { REPLAY_OBSERVATION_HOLD_TEXT, ReplayControlPanel } from './ReplayControlPanel';
 import { SetpointControl } from './SetpointControl';
 
 const ROLE_ORDER: ControlRole[] = ['heater', 'fan', 'drum'];
@@ -43,6 +43,8 @@ interface Props {
     roasting: boolean;
     /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 */
     afterTurningPoint: boolean;
+    /** R04 제어용 관측 품질 — Replay 일반 이벤트 보류 사실 (R05) */
+    observationQuality?: ObservationQuality | null;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
     /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
@@ -73,6 +75,7 @@ export const MachineControlPanel = ({
     elapsed,
     roasting,
     afterTurningPoint,
+    observationQuality,
     temperatureUnit,
     onHeaterCommitted,
 }: Props) => {
@@ -141,6 +144,7 @@ export const MachineControlPanel = ({
         heaterFeedback: liveData?.heater ?? null,
         heaterPending: desired.heater != null,
         reconnecting,
+        observationQuality,
         writeHeater,
         heaterMax: limits.heater?.max,
     });
@@ -198,9 +202,9 @@ export const MachineControlPanel = ({
                 {collapsed && replay.active && (
                     <span
                         role="img"
-                        className="h-2 w-2 rounded-full bg-emerald-500"
-                        title="Replay 재생 중"
-                        aria-label="Replay 재생 중"
+                        className={`h-2 w-2 rounded-full ${replay.observationHold ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                        title={replay.observationHold ? REPLAY_OBSERVATION_HOLD_TEXT : 'Replay 재생 중'}
+                        aria-label={replay.observationHold ? REPLAY_OBSERVATION_HOLD_TEXT : 'Replay 재생 중'}
                     />
                 )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
