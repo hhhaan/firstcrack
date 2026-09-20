@@ -12,32 +12,32 @@ export async function listForDateRange(
     startDate: string,
     endDate: string,
 ): Promise<PlanBatchWithProgress[]> {
-    // 1. Get active recurrence rules
-    const rules = await recurrenceRuleApi.listActive(userId);
-
-    // 2. Get one-off batches in the range
-    const { data: plans, error: plansError } = await supabase
-        .from('roast_day_plans')
-        .select('id, date')
-        .eq('user_id', userId)
-        .gte('date', startDate)
-        .lte('date', endDate);
+    // Independent lookups — one-off batches need plan ids; session counts need batch ids.
+    const [rules, plansResult, exceptionsResult] = await Promise.all([
+        recurrenceRuleApi.listActive(userId),
+        supabase
+            .from('roast_day_plans')
+            .select('id, date')
+            .eq('user_id', userId)
+            .gte('date', startDate)
+            .lte('date', endDate),
+        supabase
+            .from('roast_plan_batches')
+            .select('*')
+            .not('recurrence_rule_id', 'is', null)
+            .gte('scheduled_date', startDate)
+            .lte('scheduled_date', endDate),
+    ]);
+    const { data: plans, error: plansError } = plansResult;
     if (plansError) throw plansError;
+    const { data: exceptions, error: exceptionsError } = exceptionsResult;
+    if (exceptionsError) throw exceptionsError;
 
     const dateToPlanId = new Map((plans ?? []).map((p) => [p.date, p.id]));
     const planIdToDate = new Map((plans ?? []).map((p) => [p.id, p.date]));
     const planIds = (plans ?? []).map((p) => p.id);
 
-    // 3. Get exception rows for recurrence rules in the date range
-    const { data: exceptions, error: exceptionsError } = await supabase
-        .from('roast_plan_batches')
-        .select('*')
-        .not('recurrence_rule_id', 'is', null)
-        .gte('scheduled_date', startDate)
-        .lte('scheduled_date', endDate);
-    if (exceptionsError) throw exceptionsError;
-
-    // 4. Get one-off batches (no recurrence_rule_id)
+    // One-off batches need plan ids from the day-plan lookup above.
     let oneOffBatches: PlanBatch[] = [];
     if (planIds.length > 0) {
         const oneOffResult = await supabase

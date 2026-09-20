@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
+import { planBatchApi } from '@entities/plan';
+import { invalidateRoastSessionQueries } from '@entities/roast';
 import { BatchLimitError, resolveEffectivePlan, useEffectivePlan } from '@shared/lib/features';
 import { useAuthStore } from '@shared/store/auth';
-import type { PlanBatchHandoff } from '@shared/types/database.types';
+import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBbpStore } from './bbp';
 import { useRoastingStore } from './status';
-import { type SaveRoastDeps, saveRoastCore, useSaveRoast } from './useSaveRoast';
+import { refreshCachesAfterRoastSave, type SaveRoastDeps, saveRoastCore, useSaveRoast } from './useSaveRoast';
 
 const hookMocks = vi.hoisted(() => ({
     useEffectivePlan: vi.fn(() => 'pro'),
@@ -452,6 +454,42 @@ describe('saveRoastCore', () => {
         const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
         expect(arg.session.bean_id).toBe('bean-1');
         expect(arg.session.bean_label).toBeNull();
+    });
+
+    it('does not await history/dashboard refetch (coordinator refreshes once after save)', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, baseParams);
+        expect(invalidateRoastSessionQueries).not.toHaveBeenCalled();
+    });
+});
+
+describe('refreshCachesAfterRoastSave', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it('syncs schedule progress then awaits history/dashboard refetch once', async () => {
+        const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockResolvedValue({} as never);
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        await refreshCachesAfterRoastSave(qc, {
+            id: 'sess',
+            user_id: 'owner',
+            plan_batch_id: 'batch-1',
+        } as RoastSession);
+        expect(sync).toHaveBeenCalledExactlyOnceWith('owner', 'batch-1');
+        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
+        sync.mockRestore();
+    });
+
+    it('still refreshes history once when the roast is unlinked', async () => {
+        const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockResolvedValue({} as never);
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        await refreshCachesAfterRoastSave(qc, {
+            id: 'sess',
+            user_id: 'owner',
+            plan_batch_id: null,
+        } as RoastSession);
+        expect(sync).not.toHaveBeenCalled();
+        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
+        sync.mockRestore();
     });
 });
 
