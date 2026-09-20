@@ -1014,6 +1014,7 @@
         "exportPdf": "PDF",
         "exportPdfConfirm": "保存到：{{path}}\n将此烘焙曲线导出为横向 A4 单页 PDF？",
         "exportPdfUnavailable": "没有可导出的图表。",
+        "exportPdfFailed": "无法导出烘焙曲线 PDF。",
         "exportModal": {
             "title": "导出 CSV",
             "description": "选择导出时间范围。与上方列表筛选互不影响。",

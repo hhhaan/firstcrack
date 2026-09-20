@@ -784,6 +784,7 @@
         "exportPdf": "PDF",
         "exportPdfConfirm": "저장 위치: {{path}}\n이 로스팅 그래프를 가로 A4 한 장 PDF로 저장할까요?",
         "exportPdfUnavailable": "내보낼 차트가 없습니다.",
+        "exportPdfFailed": "로스팅 그래프 PDF를 저장하지 못했습니다.",
         "exportModal": {
             "title": "Export CSV",
             "description": "내보낼 기간을 선택하세요. 위 목록 필터와는 별개로 적용됩니다.",

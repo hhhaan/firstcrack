@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { runExportHistoryPdf } from './useExportHistoryPdf';
 
@@ -49,9 +50,23 @@ describe('runExportHistoryPdf', () => {
         jpegToPdf.mockReturnValue(pdf);
         downloadDir.mockResolvedValue('/downloads');
         join.mockResolvedValue('/downloads/roast-graph-ethiopia-26-09-20.pdf');
+        Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+        Reflect.deleteProperty(window, '__TAURI__');
     });
 
-    it('writes the PDF after confirm', async () => {
+    const markTauri = () => {
+        Object.assign(window, { __TAURI_INTERNALS__: {} });
+    };
+
+    it('downloads without a Tauri confirm in the Vite browser', async () => {
+        await expect(runExportHistoryPdf(input, labels)).resolves.toBe(true);
+        expect(downloadDir).not.toHaveBeenCalled();
+        expect(confirm).not.toHaveBeenCalled();
+        expect(downloadPdf).toHaveBeenCalledWith(pdf, input.filename);
+    });
+
+    it('writes the PDF after confirm in Tauri', async () => {
+        markTauri();
         confirm.mockResolvedValue(true);
         await expect(runExportHistoryPdf(input, labels)).resolves.toBe(true);
         expect(jpegToPdf).toHaveBeenCalledWith(jpeg, 2339, 1654);
@@ -65,8 +80,16 @@ describe('runExportHistoryPdf', () => {
     });
 
     it('does not write when confirm is cancelled', async () => {
+        markTauri();
         confirm.mockResolvedValue(false);
         await expect(runExportHistoryPdf(input, labels)).resolves.toBe(false);
         expect(downloadPdf).not.toHaveBeenCalled();
+    });
+
+    it('still downloads when Tauri path/confirm throws', async () => {
+        markTauri();
+        downloadDir.mockRejectedValue(new Error('plugin:path not available'));
+        await expect(runExportHistoryPdf(input, labels)).resolves.toBe(true);
+        expect(downloadPdf).toHaveBeenCalledWith(pdf, input.filename);
     });
 });

@@ -1,18 +1,16 @@
-import { sessionBeanName, useBbpCurve, useHistoryChart } from '@entities/roast';
+import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import { formatTemp, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
-import { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
-import { historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
-import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { formatDuration } from '@shared/lib/format';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { message } from '@tauri-apps/plugin-dialog';
 import { FileDown } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useHistoryPdfExport } from '../hooks/useHistoryPdfExport';
 
 export function HistorySessionChart({ session }: { session: RoastSessionWithRelations }) {
     const { t } = useTranslation();
@@ -49,48 +47,13 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
             ? { start: Math.min(actual.bbpRange?.start ?? 0, target.bbpRange?.start ?? 0), end: 0 }
             : undefined;
     const chartRef = useRef<RoastTempChartHandle>(null);
-    const exportPdf = useExportHistoryPdf();
-    const [exporting, setExporting] = useState(false);
-    const canExport = points.length > 0 && !exporting;
-
-    const onExportPdf = useCallback(async () => {
-        const chartDataUrl = chartRef.current?.getDataURL();
-        if (!chartDataUrl) {
-            await message(t('history.exportPdfUnavailable'), { title: t('history.exportTitle'), kind: 'info' });
-            return;
-        }
-        const colors = getResolvedChartColors();
-        setExporting(true);
-        try {
-            await exportPdf({
-                filename: historyPdfFilename(sessionBeanName(session), session.roasted_at),
-                chartDataUrl,
-                header: {
-                    bean: sessionBeanName(session) ?? '—',
-                    date: formatDateShort(session.roasted_at),
-                    duration: formatDuration(session.duration_seconds),
-                    charge: formatTemp(session.charge_temp_celsius, unit),
-                    drop: formatTemp(session.drop_temp_celsius, unit),
-                    labels: {
-                        bean: t('history.table.bean'),
-                        date: t('history.table.date'),
-                        duration: t('history.table.duration'),
-                        charge: t('history.compare.charge'),
-                        drop: t('history.compare.dropTemp'),
-                    },
-                },
-                legend: hasControls
-                    ? [
-                          { color: colors.controlDrum, label: 'Drum' },
-                          { color: colors.controlHeat, label: 'Heat' },
-                          { color: colors.controlFan, label: 'Fan' },
-                      ]
-                    : undefined,
-            });
-        } finally {
-            setExporting(false);
-        }
-    }, [exportPdf, hasControls, session, t, unit]);
+    const { canExport, onExportPdf } = useHistoryPdfExport({
+        session,
+        chartRef,
+        hasControls,
+        unit,
+        canCapture: points.length > 0,
+    });
 
     return (
         <section className="mt-4 rounded bg-(--color-roast-bg) p-3" aria-label={t('history.title')}>

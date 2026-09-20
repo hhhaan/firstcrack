@@ -26,7 +26,7 @@ vi.mock('@features/export-history-pdf', () => ({
     historyPdfFilename: () => 'roast-graph-e2e-ethiopia-26-09-20.pdf',
     useExportHistoryPdf: () => mocks.exportPdf,
 }));
-vi.mock('@tauri-apps/plugin-dialog', () => ({ message: vi.fn() }));
+vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [] }),
     useResolvedProfileCurve: () => ({ points: mocks.target }),

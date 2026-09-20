@@ -1042,6 +1042,7 @@
         "exportPdf": "PDF",
         "exportPdfConfirm": "Save to: {{path}}\nExport this roast graph as a one-page A4 landscape PDF?",
         "exportPdfUnavailable": "Chart is not ready to export.",
+        "exportPdfFailed": "Couldn't export the roast graph PDF.",
         "exportModal": {
             "title": "Export CSV",
             "description": "Choose a date range for this export. This is separate from the list filters above.",
