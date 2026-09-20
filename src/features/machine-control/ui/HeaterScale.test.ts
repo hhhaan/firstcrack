@@ -80,7 +80,7 @@ describe('HeaterScale A′ (#436)', () => {
 
     it('키보드 위/아래는 5%로 스냅한 뒤 커밋한다', () => {
         const { container, onChange, onCommit, unmount } = renderScale({ value: 70, feedback: 70 });
-        const slider = container.querySelector('[role="slider"]') as HTMLElement;
+        const slider = container.querySelector('input[type="range"]') as HTMLElement;
         act(() => {
             slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
         });
@@ -95,7 +95,7 @@ describe('HeaterScale A′ (#436)', () => {
 
     it('지시 중이면 큰 숫자는 desired, 라이브 라인과 기기 n은 feedback', () => {
         const { container, unmount } = renderScale({ value: 80, feedback: 60 });
-        expect(container.textContent).toContain('80');
+        expect((container.querySelector('[data-heater-input]') as HTMLInputElement).value).toBe('80');
         expect(container.textContent).toContain('기기 60');
         expect(container.querySelector('[data-live-line]')).not.toBeNull();
         unmount();
@@ -103,7 +103,7 @@ describe('HeaterScale A′ (#436)', () => {
 
     it('수렴하면 라이브 라인과 기기 n을 숨긴다', () => {
         const { container, unmount } = renderScale({ value: undefined, feedback: 80 });
-        expect(container.textContent).toContain('80');
+        expect((container.querySelector('[data-heater-input]') as HTMLInputElement).value).toBe('80');
         expect(container.textContent).not.toMatch(/기기/);
         expect(container.querySelector('[data-live-line]')).toBeNull();
         unmount();
@@ -214,7 +214,7 @@ describe('HeaterScale A′ (#436)', () => {
     it.each([undefined, 80])('keyboard uses updated feedback/desired (desired=%s)', (value) => {
         const scale = renderScale({ value: undefined });
         scale.render({ ...scale.props, value, feedback: 80 });
-        const slider = scale.container.querySelector('[role="slider"]') as HTMLElement;
+        const slider = scale.container.querySelector('input[type="range"]') as HTMLElement;
         act(() => slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
         expect(scale.onChange).toHaveBeenCalledExactlyOnceWith('heater', 75);
         scale.unmount();
@@ -230,33 +230,141 @@ describe('HeaterScale A′ (#436)', () => {
         unmount();
     });
 
-    it('10은 왼쪽, 5·15·25는 오른쪽에 숫자를 둔다', () => {
-        const { container, unmount } = renderScale();
-        expect(container.querySelector('[data-tick="90"][data-tick-label="ten"]')?.textContent).toBe('90');
-        expect(container.querySelector('[data-tick="90"][data-tick-label="five"]')).toBeNull();
-        expect(container.querySelector('[data-tick="15"][data-tick-label="ten"]')).toBeNull();
-        expect(container.querySelector('[data-tick="15"][data-tick-label="five"]')?.textContent).toBe('15');
-        expect(container.querySelector('[data-tick="5"][data-tick-label="five"]')?.textContent).toBe('5');
-        expect(container.querySelector('[data-tick="25"][data-tick-label="five"]')?.textContent).toBe('25');
-        unmount();
+    it('모든 5% 숫자는 독립 버튼이고 10단위는 왼쪽, 나머지는 오른쪽이다', () => {
+        const scale = renderScale();
+        const ticks = scale.container.querySelectorAll<HTMLButtonElement>('[data-tick]');
+        expect(ticks).toHaveLength(21);
+        for (const tick of ticks) {
+            const value = Number(tick.dataset.tick);
+            expect(tick.dataset.tickLabel).toBe(value % 10 === 0 ? 'ten' : 'five');
+            act(() => tick.click());
+            expect(scale.onChange).toHaveBeenLastCalledWith('heater', value);
+        }
+        scale.render({ ...scale.props, value: 55 });
+        expect(scale.container.querySelector('[aria-pressed="true"]')?.textContent).toBe('55');
+        scale.unmount();
     });
 
-    it('왼쪽 10단위는 숫자만, 5단위 왼쪽 빈칸은 무시한다', () => {
-        const { container, onChange, onCommit, unmount } = renderScale({ value: 70, feedback: 70 });
+    it.each(['pointerup', 'pointercancel', 'lostpointercapture', 'focusout'])(
+        '드래그는 1단위이고 중간값은 안 보내며 %s에서만 보낸다',
+        async (event) => {
+            const send = vi.fn(async (cmd: { heater?: number }) => cmd);
+            const sender = createControlSender({ send });
+            const onChange = vi.fn((role: 'heater', value: number) => sender.queue(role, value));
+            const scale = renderScale({
+                onChange,
+                onCommit: () => void sender.commitNow(),
+            });
+            const input = scale.container.querySelector('input[type="range"]') as HTMLInputElement;
+            const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+            for (const value of ['52', '83']) {
+                act(() => {
+                    setValue?.call(input, value);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            }
+            expect(send).not.toHaveBeenCalled();
+            expect(onChange).not.toHaveBeenCalled();
+            await act(async () => input.dispatchEvent(new Event(event, { bubbles: true })));
+            expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 83);
+            expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 83 });
+            scale.unmount();
+        },
+    );
+
+    it('드래그 중에는 기기 n을 숨기고 손 뗄 때 보여준다', () => {
+        const scale = renderScale({ value: 70, feedback: 70 });
+        const input = scale.container.querySelector('input[type="range"]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
         act(() => {
-            (container.querySelector('[data-tick-gutter="85"]') as HTMLElement).dispatchEvent(
-                new MouseEvent('click', { bubbles: true }),
-            );
+            setValue?.call(input, '83');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
         });
+        expect(scale.container.textContent).not.toMatch(/기기/);
+        expect(scale.container.querySelector('[data-live-line]')).toBeNull();
+        expect((scale.container.querySelector('[data-heater-input]') as HTMLInputElement).value).toBe('83');
+        act(() => input.dispatchEvent(new Event('pointerup', { bubbles: true })));
+        scale.render({ ...scale.props, value: 83, feedback: 70 });
+        expect(scale.container.textContent).toContain('기기 70');
+        expect(scale.container.querySelector('[data-live-line]')).not.toBeNull();
+        scale.unmount();
+    });
+
+    it('드래그 중 잠기면 종료 이벤트로 전송하지 않는다', () => {
+        const scale = renderScale();
+        scale.render({ ...scale.props, disabled: true });
+        const input = scale.container.querySelector('input[type="range"]') as HTMLInputElement;
+        expect(input.disabled).toBe(true);
+        act(() => {
+            input.dispatchEvent(new Event('pointerup', { bubbles: true }));
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        });
+        expect(scale.onChange).not.toHaveBeenCalled();
+        expect(scale.onCommit).not.toHaveBeenCalled();
+        scale.unmount();
+    });
+
+    it('큰 숫자 입력은 1단위이고 블러에서만 보낸다', async () => {
+        const send = vi.fn(async (cmd: { heater?: number }) => cmd);
+        const sender = createControlSender({ send });
+        const onChange = vi.fn((role: 'heater', value: number) => sender.queue(role, value));
+        const scale = renderScale({
+            onChange,
+            onCommit: () => void sender.commitNow(),
+        });
+        const input = scale.container.querySelector('[data-heater-input]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => {
+            setValue?.call(input, '5');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() => {
+            setValue?.call(input, '53');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(send).not.toHaveBeenCalled();
         expect(onChange).not.toHaveBeenCalled();
-        expect(onCommit).not.toHaveBeenCalled();
-        act(() => (container.querySelector('[data-tick="80"]') as HTMLButtonElement).click());
-        expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 80);
-        expect(onCommit).toHaveBeenCalledTimes(1);
-        onChange.mockClear();
-        act(() => (container.querySelector('[data-tick-bar="85"]') as HTMLButtonElement).click());
-        expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 85);
-        unmount();
+        await act(async () => input.dispatchEvent(new Event('focusout', { bubbles: true })));
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 53);
+        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 53 });
+        scale.unmount();
+    });
+
+    it('큰 숫자 입력은 글자를 버리고 min/max로 자른다', async () => {
+        const send = vi.fn(async (cmd: { heater?: number }) => cmd);
+        const sender = createControlSender({ send });
+        const scale = renderScale({
+            onChange: (role, value) => sender.queue(role, value),
+            onCommit: () => void sender.commitNow(),
+        });
+        const input = scale.container.querySelector('[data-heater-input]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => {
+            setValue?.call(input, '12a9');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(input.value).toBe('129');
+        await act(async () => input.dispatchEvent(new Event('focusout', { bubbles: true })));
+        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 100 });
+        scale.unmount();
+    });
+
+    it('Escape는 입력을 취소하고 전송하지 않는다', () => {
+        const scale = renderScale();
+        const input = scale.container.querySelector('[data-heater-input]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => input.focus());
+        act(() => {
+            setValue?.call(input, '40');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        });
+        expect(scale.onCommit).not.toHaveBeenCalled();
+        expect(scale.onChange).not.toHaveBeenCalled();
+        expect(input.value).toBe('70');
+        scale.unmount();
     });
 
     it('±5를 누르고 있으면 반복한다', () => {
