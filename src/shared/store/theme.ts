@@ -2,14 +2,6 @@ import { create } from 'zustand';
 
 export type Theme = 'light' | 'dark' | 'system';
 
-const STORAGE_KEY = 'fc_theme';
-
-function getInitialResolved(theme: Theme | null): 'light' | 'dark' {
-    if (theme === 'dark') return 'dark';
-    if (theme === 'light') return 'light';
-    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
 function applyThemeToDOM(resolved: 'light' | 'dark') {
     document.documentElement.classList.toggle('dark', resolved === 'dark');
 }
@@ -19,6 +11,33 @@ interface ThemeState {
     resolvedTheme: 'light' | 'dark';
     setTheme: (theme: Theme) => void;
     initTheme: () => void;
+}
+
+/** VOC: restore dark/system — uncomment the original store body at the bottom of this file. */
+export const useThemeStore = create<ThemeState>((set) => ({
+    theme: 'light',
+    resolvedTheme: 'light',
+
+    initTheme: () => {
+        applyThemeToDOM('light');
+        set({ theme: 'light', resolvedTheme: 'light' });
+    },
+
+    setTheme: (_theme: Theme) => {
+        applyThemeToDOM('light');
+        set({ theme: 'light', resolvedTheme: 'light' });
+    },
+}));
+
+/*
+VOC restore (dark / system):
+
+const STORAGE_KEY = 'fc_theme';
+
+function getInitialResolved(theme: Theme | null): 'light' | 'dark' {
+    if (theme === 'dark') return 'dark';
+    if (theme === 'light') return 'light';
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 let mediaQuery: MediaQueryList | null = null;
@@ -34,7 +53,6 @@ export const useThemeStore = create<ThemeState>((set) => ({
         applyThemeToDOM(resolved);
         set({ theme: stored, resolvedTheme: resolved });
 
-        // system 테마 변경 리스너
         if (stored === 'system' || stored === null) {
             mediaQuery = matchMedia('(prefers-color-scheme: dark)');
             mediaListener = (e: MediaQueryListEvent) => {
@@ -47,7 +65,6 @@ export const useThemeStore = create<ThemeState>((set) => ({
     },
 
     setTheme: (theme: Theme) => {
-        // 이전 mediaQuery 리스너 제거
         if (mediaQuery && mediaListener) {
             mediaQuery.removeEventListener('change', mediaListener);
             mediaQuery = null;
@@ -59,7 +76,6 @@ export const useThemeStore = create<ThemeState>((set) => ({
         localStorage.setItem(STORAGE_KEY, theme);
         set({ theme, resolvedTheme: resolved });
 
-        // system 리스너 재등록
         if (theme === 'system') {
             mediaQuery = matchMedia('(prefers-color-scheme: dark)');
             mediaListener = (e: MediaQueryListEvent) => {
@@ -71,3 +87,4 @@ export const useThemeStore = create<ThemeState>((set) => ({
         }
     },
 }));
+*/

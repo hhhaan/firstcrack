@@ -29,7 +29,8 @@ vi.mock('react-i18next', () => ({
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-describe('GeneralSettingsTab theme picker', () => {
+// VOC: restore dark/system — un-skip with the settings theme picker.
+describe.skip('GeneralSettingsTab theme picker', () => {
     let container: HTMLDivElement;
     let root: Root;
 
