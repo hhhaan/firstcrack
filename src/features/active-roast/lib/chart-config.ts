@@ -57,10 +57,10 @@ export const SINGLE_GRID_BOTTOM = 65;
 // ── Resolved colors for ECharts (reads CSS variables at runtime) ────────────
 // ECharts uses canvas rendering and doesn't support CSS var() natively,
 // so we resolve them at runtime from the document's computed styles.
-export const getResolvedChartColors = () => {
-    const root = getComputedStyle(document.documentElement);
+export const getResolvedChartColors = (print = false) => {
+    const root = print ? null : getComputedStyle(document.documentElement);
     const gv = (key: string, fallback: string) => {
-        const val = root.getPropertyValue(key).trim();
+        const val = root?.getPropertyValue(key).trim();
         return val || fallback;
     };
 
@@ -81,7 +81,7 @@ export const getResolvedChartColors = () => {
         tooltipTimeColor: gv('--color-chart-tooltip-time', '#9ca3af'),
         tooltipBg: gv('--color-chart-tooltip-bg', '#fff'),
         tooltipBorder: gv('--color-chart-tooltip-border', 'rgba(0,0,0,0.08)'),
-        markerLabelColor: gv('--color-chart-marker-label', '#fff'),
+        markerLabelColor: gv('--color-chart-marker-label', '#444'),
 
         // Phase bar (canvas — CSS vars do not resolve on canvas)
         phaseBarStroke: gv('--color-chart-phasebar-stroke', 'rgba(0,0,0,0.08)'),

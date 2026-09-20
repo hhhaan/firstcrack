@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
+
 import type { ControlData } from '@features/active-roast/lib/chart-option';
+import * as echarts from 'echarts';
 import { act, createElement, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -32,6 +34,7 @@ const { chart, convertFromPixel, convertToPixel, setOption, zrHandlers } = vi.ho
         off: vi.fn(),
         resize: vi.fn(),
         setOption,
+        getWidth: () => 1000,
         getOption: vi.fn(() => ({})),
         getDataURL: vi.fn(() => 'data:image/png;base64,qq'),
     };
@@ -435,11 +438,23 @@ describe('RoastTempChart interactions', () => {
         });
     });
 
-    it('re-renders at print size so the control grid is in the export', () => {
+    it('re-renders at print density with legible light colors and both grids, without changing the screen theme', () => {
+        document.documentElement.style.setProperty('--color-sensor-bt', '#ffffff');
         const ref = createRef<RoastTempChartHandle>();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref, controlData: controlData([]) })));
         expect(ref.current?.getDataURL({ width: 2000, height: 1200 })).toBe('data:image/png;base64,qq');
-        expect(chart.setOption).toHaveBeenCalled();
+        const init = vi.mocked(echarts.init);
+        const element = init.mock.calls[init.mock.calls.length - 1]?.[0];
+        expect(element?.style.width).toBe('1000px');
+        expect(element?.style.height).toBe('600px');
+        expect(element?.isConnected).toBe(false);
+        const printOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
+        expect(printOption.grid).toHaveLength(2);
+        expect(printOption.series.find((s: { name: string }) => s.name === 'BT Actual').lineStyle.color).toBe(
+            '#009d4c',
+        );
+        expect(document.documentElement.style.getPropertyValue('--color-sensor-bt')).toBe('#ffffff');
+        document.documentElement.style.removeProperty('--color-sensor-bt');
         expect(chart.getDataURL).toHaveBeenLastCalledWith({
             type: 'png',
             pixelRatio: 2,

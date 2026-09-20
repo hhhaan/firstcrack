@@ -13,25 +13,27 @@ type Args = {
     session: RoastSessionWithRelations;
     chartRef: RefObject<RoastTempChartHandle | null>;
     hasControls: boolean;
+    hasTarget?: boolean;
     unit: TemperatureUnit;
     canCapture: boolean;
 };
 
-export const useHistoryPdfExport = ({ session, chartRef, hasControls, unit, canCapture }: Args) => {
+export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget = false, unit, canCapture }: Args) => {
     const { t } = useTranslation();
     const exportPdf = useExportHistoryPdf();
     const [exporting, setExporting] = useState(false);
 
     const onExportPdf = useCallback(async () => {
-        const chartDataUrl = chartRef.current?.getDataURL(historyPdfChartBox(hasControls));
+        const chartDataUrl = chartRef.current?.getDataURL({ ...historyPdfChartBox(true), pixelRatio: 200 / 96 });
         if (!chartDataUrl) {
             useToastStore.getState().show(t('history.exportPdfUnavailable'), 'error');
             return;
         }
-        const colors = getResolvedChartColors();
+        const colors = getResolvedChartColors(true);
         setExporting(true);
         try {
             await exportPdf({
+                title: t('history.title'),
                 filename: historyPdfFilename(sessionBeanName(session), session.roasted_at),
                 chartDataUrl,
                 header: {
@@ -48,18 +50,26 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, unit, canC
                         drop: t('history.compare.dropTemp'),
                     },
                 },
-                legend: hasControls
-                    ? [
-                          { color: colors.controlDrum, label: 'Drum' },
-                          { color: colors.controlHeat, label: 'Heat' },
-                          { color: colors.controlFan, label: 'Fan' },
-                      ]
-                    : undefined,
+                legend: [
+                    { color: colors.btActual, label: `BT (°${unit})` },
+                    { color: colors.etActual, label: `ET (°${unit})` },
+                    { color: colors.rorActual, label: `RoR (°${unit}/min)` },
+                    ...(hasTarget
+                        ? [{ color: colors.btTarget, label: t('settings.tabs.roast.showTargetCurve'), dashed: true }]
+                        : []),
+                    ...(hasControls
+                        ? [
+                              { color: colors.controlDrum, label: 'Drum' },
+                              { color: colors.controlHeat, label: 'Heat' },
+                              { color: colors.controlFan, label: 'Fan' },
+                          ]
+                        : []),
+                ],
             });
         } finally {
             setExporting(false);
         }
-    }, [chartRef, exportPdf, hasControls, session, t, unit]);
+    }, [chartRef, exportPdf, hasControls, hasTarget, session, t, unit]);
 
     return { exporting, canExport: canCapture && !exporting, onExportPdf };
 };
