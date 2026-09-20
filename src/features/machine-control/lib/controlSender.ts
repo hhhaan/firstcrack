@@ -131,7 +131,8 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
         },
         /**
          * 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송.
-         * 성공 시 이 요청이 포함된 실제 applied(요청 role만), 실패·같은 role 대체·dispose 시 null.
+         * 성공 시 이 요청이 포함된 실제 applied(요청 role만), 실패·같은 role 전부 대체·dispose 시 null.
+         * 같은 role 일부만 대체되면 겹친 role은 성공이 아니고, 남은 role은 실제 전송 결과에 귀속한다.
          * 빈 commit은 즉시 `{}` — 대기 중인 다른 요청의 성공을 만들지 않는다.
          */
         commitNow(): Promise<ControlCommand | null> {
@@ -143,9 +144,19 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
             }
             committedListener?.(snapshot);
             queuedWaiters = queuedWaiters.filter((waiter) => {
-                if (!rolesOf(waiter.requested).some((role) => role in snapshot)) return true;
-                settle(waiter, null);
-                return false;
+                const remaining: ControlCommand = {};
+                let overlapped = false;
+                for (const role of rolesOf(waiter.requested)) {
+                    if (role in snapshot) overlapped = true;
+                    else remaining[role] = waiter.requested[role];
+                }
+                if (!overlapped) return true;
+                if (rolesOf(remaining).length === 0) {
+                    settle(waiter, null);
+                    return false;
+                }
+                waiter.requested = remaining;
+                return true;
             });
             committed = { ...committed, ...snapshot };
             return new Promise((resolve) => {

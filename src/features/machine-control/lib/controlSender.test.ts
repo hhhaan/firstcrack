@@ -345,6 +345,36 @@ describe('createControlSender', () => {
         await expect(pC).resolves.toEqual({ heater: 70 });
     });
 
+    it('혼합 snapshot에서 role 하나만 바뀌면 나머지 role 결과는 원래 commit에 남는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('drum', 10);
+        const pDrum = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('heater', 60);
+        sender.queue('fan', 80);
+        const pMixed = sender.commitNow();
+        sender.queue('fan', 90);
+        const pFan = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(d.calls).toEqual([{ drum: 10 }]);
+        expect((await peek(pMixed)).done).toBe(false);
+        expect((await peek(pFan)).done).toBe(false);
+
+        d.resolve({ drum: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pDrum).resolves.toEqual({ drum: 10 });
+        expect(d.calls).toEqual([{ drum: 10 }, { heater: 60, fan: 90 }]);
+
+        d.resolve({ heater: 60, fan: 90 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pMixed).resolves.toEqual({ heater: 60 });
+        await expect(pFan).resolves.toEqual({ fan: 90 });
+    });
+
     it('빈 commit은 대기 중인 요청값을 성공으로 돌려주지 않는다', async () => {
         const d = deferredSend();
         const sender = createControlSender({ send: d.send });
