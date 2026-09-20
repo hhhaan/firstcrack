@@ -156,6 +156,19 @@ export const useReplayControl = ({
         setWriting(false);
     }, []);
 
+    /** 렌더 중 확정된 중단 — 단조 증가만, StrictMode 이중 호출은 fail-closed. */
+    const bumpWriteGenOnRenderStop = () => {
+        writeGenRef.current += 1;
+    };
+
+    // PID 등은 렌더에서 stopCause가 먼저 보인다. effect가 세대를 올리기 전에 도착한
+    // 응답이 index·사유를 덮지 않게 이 커밋에서 무효화한다.
+    if (active && stopCause != null) {
+        // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+        bumpWriteGenOnRenderStop();
+        if (writing) setWriting(false);
+    }
+
     // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
     // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
     // effect가 stale active + 옛 index + 새 plan으로 한 번 실행돼 엉뚱한 쓰기를 쏠 수 있다.
@@ -164,6 +177,8 @@ export const useReplayControl = ({
         setPrevPlan(plan);
         setIndex(0);
         setWriting(false);
+        // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+        bumpWriteGenOnRenderStop();
         if (active) {
             setActive(false);
             setStopReason('profileChanged');
@@ -186,6 +201,8 @@ export const useReplayControl = ({
         // 이전 배치 기준으로 재면 차지 직후 오중지된다.
         setPrevElapsed(elapsed);
         setWriting(false);
+        // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+        bumpWriteGenOnRenderStop();
     }
 
     // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋의
@@ -196,18 +213,14 @@ export const useReplayControl = ({
         invalidateInFlightWrite();
     }, [plan, roasting]);
 
-    // 렌더 중 확정되는 중단도 세대를 올린다 — 늦은 응답이 timingGap/이탈 사유를 덮지 않게.
-    useEffect(() => {
-        if (stopReason !== 'timingGap' && stopReason !== 'controlDiverged') return;
-        invalidateInFlightWrite();
-    }, [stopReason, invalidateInFlightWrite]);
-
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
     // 복귀 후 catch-up write는 하지 않는다 — 그동안의 실기 상태를 모른다.
     if (elapsed !== prevElapsed) {
         setPrevElapsed(elapsed);
         if (active && roasting && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+            // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+            bumpWriteGenOnRenderStop();
             setWriting(false);
             setActive(false);
             setStopReason('timingGap');
@@ -238,6 +251,8 @@ export const useReplayControl = ({
         // 지속되면(인터락·타 소프트웨어) 다음 이벤트 write 후 ~3틱 안에 다시 걸린다.
         // 앱 슬라이더 개입(manual)과 처벌을 다르게 둘 이유가 없다.
         if (ticks >= DIVERGE_TICKS) {
+            // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+            bumpWriteGenOnRenderStop();
             setWriting(false);
             setActive(false);
             setStopReason('controlDiverged');
@@ -287,13 +302,14 @@ export const useReplayControl = ({
     }, [roastFinished]);
 
     const toggle = useCallback(() => {
-        invalidateInFlightWrite();
         if (active) {
+            invalidateInFlightWrite();
             setActive(false);
             setStopReason(null); // 사용자가 직접 껐다 — 안내할 사유가 없다
             return;
         }
         if (plan == null || referenceMachineMismatch || stopCause != null) return;
+        invalidateInFlightWrite();
         setStopReason(null);
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);

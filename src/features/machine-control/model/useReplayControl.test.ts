@@ -813,6 +813,25 @@ describe('useReplayControl', () => {
             h.unmount();
         });
 
+        it('write pending → PID 중단 → 늦은 성공: index를 소비하지 않는다', async () => {
+            const h = await renderReplay();
+            let resolveWrite!: (applied: number | null) => void;
+            h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+            await act(async () => h.get().toggle());
+            await h.rerender({ pidEngaged: true });
+            expect(h.get().stopReason).toBe('pid');
+
+            await act(async () => resolveWrite(80));
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('pid');
+
+            await h.rerender({ pidEngaged: false });
+            h.writeHeater.mockClear();
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            h.unmount();
+        });
+
         it('OFF→ON 후 옛 응답이 새 요청의 writing을 해제하거나 index를 소비하지 않는다', async () => {
             const h = await renderReplay();
             let resolveOld!: (applied: number | null) => void;
