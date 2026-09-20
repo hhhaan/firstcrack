@@ -2,6 +2,7 @@
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { sidecar } from '@shared/lib/sidecar';
+import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,7 +30,7 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({ message: vi.fn() }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const renderLifecycle = () => {
+const renderLifecycle = (logEntries: LogEntry[] = []) => {
     const root = createRoot(document.createElement('div'));
     const roastStartTimeRef = { current: 1 };
     let latest: ReturnType<typeof useRoastLifecycle>;
@@ -39,9 +40,8 @@ const renderLifecycle = () => {
             sidecarConnected: true,
             rawBT: 200,
             unit: 'C',
-            logEntries: [],
+            logEntries,
             timeStr: '8:00',
-            devTimeStr: '1:00',
             enterStandby: () => useRoastingStore.getState().enterStandby(),
             enterPreheating: () => useRoastingStore.getState().enterPreheating(),
             storeEndRoast: () => useRoastingStore.getState().endRoast(),
@@ -105,6 +105,60 @@ describe('resetActiveRoast after End (#455)', () => {
         try {
             void act(() => h.result.resetActiveRoast());
             expect(useRoastingStore.getState().phase).toBe('preheating');
+        } finally {
+            h.unmount();
+        }
+    });
+});
+
+describe('confirmEndRoast roast metrics (#514)', () => {
+    beforeEach(() => {
+        useBbpStore.setState({ active: false, startMs: 0, points: [], finalized: null });
+        useRoastingStore.setState({
+            phase: 'roasting',
+            charged: true,
+            isRoasting: true,
+            sidecarConnected: true,
+            sessionId: 's1',
+            roastStartMs: 0,
+            elapsed: 660,
+        });
+    });
+
+    const log = (event: string, timeSec: number): LogEntry => ({
+        id: event,
+        time: `${Math.floor(timeSec / 60)}:${String(timeSec % 60).padStart(2, '0')}`,
+        timeSec,
+        event,
+        temp: '0',
+        note: '',
+    });
+
+    it('summary uses Drop-first 10:00 / 2:00 (20%) and keeps End at record elapsed', () => {
+        const h = renderLifecycle([log('Charge', 0), log('FC Start', 480), log('Drop', 600)]);
+        try {
+            let summary: ReturnType<typeof h.result.confirmEndRoast> | undefined;
+            void act(() => {
+                summary = h.result.confirmEndRoast();
+            });
+            expect(summary?.totalTime).toBe('10:00');
+            expect(summary?.development).toBe('2:00 (20%)');
+            const end = summary?.logEntries.find((e) => e.event === 'End');
+            expect(end?.timeSec).toBe(660);
+        } finally {
+            h.unmount();
+        }
+    });
+
+    it('no Drop uses End elapsed 11:00 / 3:00 (~27.3%)', () => {
+        const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)]);
+        try {
+            let summary: ReturnType<typeof h.result.confirmEndRoast> | undefined;
+            void act(() => {
+                summary = h.result.confirmEndRoast();
+            });
+            expect(summary?.totalTime).toBe('11:00');
+            expect(summary?.development).toBe('3:00 (27.3%)');
         } finally {
             h.unmount();
         }

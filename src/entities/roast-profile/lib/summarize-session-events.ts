@@ -1,10 +1,11 @@
+import { deriveRoastMetrics, isValidTimeSec } from '@shared/lib/roast-delta';
 import type { StoredRoastEvent } from '@shared/types/roast';
 
 /** Profile summary columns, every one derived from a single session's event marks. */
 export type SessionSummary = {
     charge_temp_celsius: number | null;
     drop_temp_celsius: number | null;
-    /** Drop mark time — End (timer stop) only when Drop was never marked. */
+    /** Roast duration — Drop-first, then End, then stored duration_seconds. */
     duration_sec: number | null;
     /** FC Start mark — not a DB column; drives dev_time_sec and the #351 time alarms. */
     fc_time_sec: number | null;
@@ -14,7 +15,7 @@ export type SessionSummary = {
 
 type SessionFallback = { duration_seconds: number | null; drop_temp_celsius: number | null };
 
-/** DB columns are integer → round. */
+/** DB columns are integer → round at the save boundary only. */
 const roundOrNull = (v: number | null | undefined): number | null =>
     v != null && Number.isFinite(v) ? Math.round(v) : null;
 
@@ -23,21 +24,16 @@ export const summarizeSessionEvents = (events: StoredRoastEvent[], fallback: Ses
     const charge = find('Charge');
     const fc = find('FC Start');
     const drop = find('Drop');
-    const end = find('End');
-
-    const duration_sec = roundOrNull(drop?.time_sec ?? end?.time_sec ?? fallback.duration_seconds);
-    const fc_time_sec = roundOrNull(fc?.time_sec);
-    const dev_time_sec =
-        duration_sec != null && fc_time_sec != null && duration_sec > fc_time_sec ? duration_sec - fc_time_sec : null;
-    // dev_pct column is real — keep one decimal
-    const dev_pct = dev_time_sec != null && duration_sec ? Math.round((dev_time_sec / duration_sec) * 1000) / 10 : null;
+    const metrics = deriveRoastMetrics(events, { durationFallback: fallback.duration_seconds });
 
     return {
         charge_temp_celsius: roundOrNull(charge?.temp_c),
         drop_temp_celsius: roundOrNull(drop?.temp_c ?? fallback.drop_temp_celsius),
-        duration_sec,
-        fc_time_sec,
-        dev_time_sec,
-        dev_pct,
+        duration_sec: roundOrNull(metrics.roastDurationSec),
+        fc_time_sec: roundOrNull(isValidTimeSec(fc?.time_sec) ? fc.time_sec : null),
+        dev_time_sec: roundOrNull(metrics.devTimeSec),
+        // dev_pct column is real — keep one decimal at the save boundary
+        dev_pct:
+            metrics.dtrPct != null && Number.isFinite(metrics.dtrPct) ? Math.round(metrics.dtrPct * 10) / 10 : null,
     };
 };

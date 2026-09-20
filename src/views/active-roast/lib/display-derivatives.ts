@@ -5,6 +5,7 @@ import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperatur
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import { formatElapsed } from '@shared/lib/format';
+import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import type { LogEntry } from '@shared/types/roast';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
 
@@ -14,18 +15,39 @@ export interface DevTimeResult {
     /** "m:ss" — DTR을 옆에 이미 표시하는 사이드패널용 */
     devTimeOnly: string;
     dtrPct: number | null;
+    roastDurationSec: number | null;
+    rollingDevTimeOnly: string;
+    rollingDtrPct: number | null;
 }
 
-const EMPTY_DEV: DevTimeResult = { devTimeStr: '—', devTimeOnly: '—', dtrPct: null };
-
-/** Development 시간 및 DTR 비율 계산 */
-export const calcDevTime = (fcStartEntry: LogEntry | undefined, elapsed: number): DevTimeResult => {
-    if (!fcStartEntry || elapsed === 0) return EMPTY_DEV;
-    const devSec = elapsed - logEntryTimeSec(fcStartEntry);
-    if (devSec <= 0) return EMPTY_DEV;
-    const pct = Math.round((devSec / elapsed) * 100);
-    const mmss = formatElapsed(devSec);
+const formatDevParts = (
+    devTimeSec: number | null,
+    dtrPct: number | null,
+): Pick<DevTimeResult, 'devTimeStr' | 'devTimeOnly' | 'dtrPct'> => {
+    if (devTimeSec == null || dtrPct == null || devTimeSec <= 0) {
+        return { devTimeStr: '—', devTimeOnly: '—', dtrPct: null };
+    }
+    const mmss = formatElapsed(devTimeSec);
+    const pct = Number(dtrPct.toFixed(1));
     return { devTimeStr: `${mmss} (${pct}%)`, devTimeOnly: mmss, dtrPct: pct };
+};
+
+/** Live roast metrics — same Drop-first calc as History / profile. Display rounding only. */
+export const calcDevTime = (logEntries: LogEntry[], elapsed: number): DevTimeResult => {
+    const metrics = deriveRoastMetrics(
+        logEntries
+            .filter((e) => !e.current && e.event !== 'Now')
+            .map((e) => ({ type: e.event, time_sec: logEntryTimeSec(e) })),
+        { liveElapsed: elapsed },
+    );
+    const start = formatDevParts(metrics.devTimeSec, metrics.dtrPct);
+    const rolling = formatDevParts(metrics.rollingDevTimeSec, metrics.rollingDevPct);
+    return {
+        ...start,
+        roastDurationSec: metrics.roastDurationSec,
+        rollingDevTimeOnly: rolling.devTimeOnly,
+        rollingDtrPct: rolling.dtrPct,
+    };
 };
 
 export interface DeltaResult {

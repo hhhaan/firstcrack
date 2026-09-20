@@ -25,8 +25,8 @@ describe('summarizeSessionEvents', () => {
             drop_temp_celsius: 210,
             duration_sec: 691,
             fc_time_sec: 569,
-            dev_time_sec: 122,
-            dev_pct: 17.7,
+            dev_time_sec: 121,
+            dev_pct: 17.5,
         });
     });
 
@@ -50,6 +50,30 @@ describe('summarizeSessionEvents', () => {
             duration_sec: 120,
             drop_temp_celsius: null,
             charge_temp_celsius: null,
+        });
+    });
+
+    it('Drop-first: FC=480 / Drop=600 / End=660 → 600 / 120 / 20 (record End ignored)', () => {
+        expect(
+            summarizeSessionEvents(
+                [ev('Charge', 0, 200), ev('FC Start', 480, 190), ev('Drop', 600, 210), ev('End', 660, 180)],
+                { duration_seconds: 660, drop_temp_celsius: 151 },
+            ),
+        ).toMatchObject({
+            duration_sec: 600,
+            fc_time_sec: 480,
+            dev_time_sec: 120,
+            dev_pct: 20,
+            drop_temp_celsius: 210,
+        });
+    });
+
+    it('no Drop, End=660 → 660 / 180 / ~27.3', () => {
+        expect(summarizeSessionEvents([ev('Charge', 0), ev('FC Start', 480), ev('End', 660)], fallback)).toMatchObject({
+            duration_sec: 660,
+            fc_time_sec: 480,
+            dev_time_sec: 180,
+            dev_pct: 27.3,
         });
     });
 });

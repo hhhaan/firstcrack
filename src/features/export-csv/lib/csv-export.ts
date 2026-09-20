@@ -1,5 +1,6 @@
 import { escapeCsvField } from '@shared/lib/csv';
 import { formatDuration } from '@shared/lib/format';
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -58,6 +59,7 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
         s.output_weight_grams,
         s.roast_level,
     );
+    const roastSec = sessionRoastMetrics(s).roastDurationSec;
 
     return {
         date: s.roasted_at ? s.roasted_at.slice(0, 10) : '',
@@ -71,7 +73,7 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
         lossBasis: measured ? 'measured' : 'estimated',
         roastLevel: s.roast_level ?? '',
         dropTemp: s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '',
-        duration: s.duration_seconds != null ? formatDuration(s.duration_seconds) : '',
+        duration: roastSec != null ? formatDuration(roastSec) : '',
         notes: s.notes ?? '',
     };
 };

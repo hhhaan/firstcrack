@@ -1,5 +1,6 @@
 import { toDisplayTemp, useRoastSettings } from '@features/active-roast';
 import { formatDuration, formatElapsed } from '@shared/lib/format';
+import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import type { StoredRoastEvent } from '@shared/types/roast';
@@ -124,7 +125,10 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                                         {t('history.compare.duration')}
                                     </span>
                                     <span className="font-mono text-[11px] tabular-nums text-secondary">
-                                        {formatDuration(s.duration_seconds)}
+                                        {formatDuration(
+                                            deriveRoastMetrics(events, { durationFallback: s.duration_seconds })
+                                                .roastDurationSec,
+                                        )}
                                     </span>
                                 </div>
                             </div>

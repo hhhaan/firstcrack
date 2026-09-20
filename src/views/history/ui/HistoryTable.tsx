@@ -1,8 +1,7 @@
 import { sessionBeanName } from '@entities/roast';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
-import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
-import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
@@ -77,7 +76,7 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         label: 'Duration',
         width: '90px',
         sortable: true,
-        render: (s) => formatDuration(s.duration_seconds),
+        render: (s) => formatDuration(sessionRoastMetrics(s).roastDurationSec),
     },
     {
         key: null,
@@ -97,8 +96,8 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         sortable: false,
         hideOnMd: true,
         render: (s) => {
-            const dev = deriveSessionDevMetrics(parseStoredRoastEvents(s.events), s.duration_seconds);
-            return dev.devPct != null ? `${dev.devPct.toFixed(1)}%` : '—';
+            const dtr = sessionRoastMetrics(s).dtrPct;
+            return dtr != null ? `${dtr.toFixed(1)}%` : '—';
         },
     },
     {
@@ -166,7 +165,10 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                             label: t('history.expanded.dropTemp'),
                             value: formatTemp(session.drop_temp_celsius, unit),
                         },
-                        { label: t('history.expanded.duration'), value: formatDuration(session.duration_seconds) },
+                        {
+                            label: t('history.expanded.duration'),
+                            value: formatDuration(sessionRoastMetrics(session).roastDurationSec),
+                        },
                     ].map(({ label, value }) => (
                         <div key={label} className="mb-2">
                             <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
