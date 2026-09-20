@@ -22,7 +22,7 @@ const readonlyInputCls =
     'w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262b31] text-[14px] text-[#9CA3AF] dark:text-[#666] font-normal outline-none cursor-default select-none';
 
 const primaryBtnCls =
-    'px-4 py-2.5 rounded-lg bg-[#111827] dark:bg-[#e5e5e5] text-white dark:text-[#111827] text-[13px] font-semibold border hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer';
+    'px-4 py-2.5 rounded-lg bg-[#111827] dark:bg-[#e5e5e5] text-white dark:text-[#111827] text-[13px] font-semibold border hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-opacity cursor-pointer';
 
 type InputFieldProps = {
     label: string;
