@@ -36,7 +36,9 @@ vi.mock('@tanstack/react-query', () => ({
     useQueryClient: () => ({ fetchQuery: mocks.fetchQuery, invalidateQueries: mocks.invalidateQueries }),
 }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ message: mocks.message }));
-vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
+vi.mock('@shared/lib/logger', () => ({
+    logger: { capture: vi.fn(), debug: vi.fn(), error: vi.fn(), warn: vi.fn(), log: vi.fn(), info: vi.fn() },
+}));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const roots = new Set<ReturnType<typeof createRoot>>();
@@ -236,5 +238,66 @@ describe('roast save identity and Continue lifecycle', () => {
         await act(async () => h.api.handleStartNext(batch));
         expect(mocks.startForRoast).toHaveBeenCalledTimes(2);
         expect(startBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('closes the save modal before waiting for next-batch fetch', async () => {
+        let finishFetch = () => {};
+        mocks.fetchQuery.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finishFetch = () => resolve([]);
+                }),
+        );
+        const h = renderFlow();
+        act(() => h.api.confirmEndRoast(summary));
+        expect(h.api.flow.summaryModal).toBe(true);
+        let pending = Promise.resolve();
+        await act(async () => {
+            pending = h.api.handleSave(form);
+            await vi.waitFor(() => {
+                expect(mocks.fetchQuery).toHaveBeenCalled();
+            });
+        });
+        expect(h.api.flow.summaryModal).toBe(false);
+        expect(h.api.flow.continueModal).toBe(false);
+        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+        expect(mocks.fetchQuery).toHaveBeenCalled();
+        const completeBatch = vi.spyOn(useRoastSessionStore.getState(), 'completeBatch');
+        await act(async () => {
+            finishFetch();
+            await pending;
+        });
+        expect(h.api.flow.continueModal).toBe(false);
+        expect(completeBatch).toHaveBeenCalled();
+        expect(h.onResetActiveRoast).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens continue only after fresh remaining batches resolve', async () => {
+        let finishFetch = () => {};
+        mocks.fetchQuery.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finishFetch = () => resolve([batch]);
+                }),
+        );
+        const h = renderFlow();
+        act(() => h.api.confirmEndRoast(summary));
+        let pending = Promise.resolve();
+        await act(async () => {
+            pending = h.api.handleSave(form);
+            await vi.waitFor(() => {
+                expect(mocks.fetchQuery).toHaveBeenCalled();
+            });
+        });
+        expect(h.api.flow.summaryModal).toBe(false);
+        expect(h.api.flow.continueModal).toBe(false);
+        expect(h.api.flow.continueCandidates).toEqual([]);
+        await act(async () => {
+            finishFetch();
+            await pending;
+        });
+        expect(h.api.flow.continueModal).toBe(true);
+        expect(h.api.flow.continueCandidates).toEqual([batch]);
+        expect(h.onResetActiveRoast).toHaveBeenCalledTimes(1);
     });
 });

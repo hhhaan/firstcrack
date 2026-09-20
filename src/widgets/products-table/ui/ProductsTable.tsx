@@ -16,7 +16,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const ghostBtn =
-    'inline-flex items-center justify-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer';
+    'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border-subtle bg-transparent px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer';
 
 const iconBtn =
     'inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-surface-elevated cursor-pointer';
@@ -187,7 +187,7 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                                                     {units} {t('inventory.products.unitSuffix')}
                                                 </Badge>
                                             </td>
-                                            <td className="px-4 py-3.5">
+                                            <td className="whitespace-nowrap px-4 py-3.5">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <input
                                                         type="number"

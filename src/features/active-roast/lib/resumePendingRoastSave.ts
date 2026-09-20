@@ -146,10 +146,13 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
             if (!saved) throw new Error('Roast save returned no session');
         }
         checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
+        const t0 = Date.now();
         // A lost RPC response also skips cache invalidation for unlinked roasts.
         await deps.syncBatch(saved);
+        logger.debug('roast-save-stage', { stage: 'sync-batch', ms: Date.now() - t0 });
         if (pending.batch === 'pending') checkpoint({ batch: 'synced' });
         if (pending.profile !== 'not_required' || pending.bbp !== 'not_required') {
+            const uploadStarted = Date.now();
             await deps.syncRoastCurve({
                 sessionId,
                 roastSessionId: saved.id,
@@ -157,6 +160,7 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
                 profileRequired: pending.profile !== 'not_required',
                 bbpRequired: pending.bbp !== 'not_required',
             });
+            logger.debug('roast-save-stage', { stage: 'sync-curve', ms: Date.now() - uploadStarted });
             checkpoint({
                 profile: pending.profile === 'not_required' ? 'not_required' : 'synced',
                 bbp: pending.bbp === 'not_required' ? 'not_required' : 'synced',

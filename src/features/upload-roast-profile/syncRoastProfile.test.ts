@@ -64,10 +64,13 @@ describe('artifact recovery', () => {
         expect(mocks.upload).toHaveBeenCalledExactlyOnceWith('session', 'owner');
         expect(mocks.flush).toHaveBeenCalledOnce();
         expect(mocks.uploadBbp).toHaveBeenLastCalledWith('session', 'owner');
-        expect(mocks.update.mock.calls).toEqual([
-            [{ id: 'session', tsv_path: 'main-key' }],
-            [{ id: 'session', bbp_tsv_path: 'bbp-key' }],
-        ]);
+        expect(mocks.update.mock.calls).toEqual(
+            expect.arrayContaining([
+                [{ id: 'session', tsv_path: 'main-key' }],
+                [{ id: 'session', bbp_tsv_path: 'bbp-key' }],
+            ]),
+        );
+        expect(mocks.update).toHaveBeenCalledTimes(2);
     });
 
     it.each(['paths', 'not-required'])(
@@ -100,10 +103,10 @@ describe('artifact recovery', () => {
     });
 
     it('does not delete a file when the DB response lacks the requested path', async () => {
-        mocks.update.mockResolvedValueOnce({ ...row });
+        mocks.update.mockImplementation(async () => ({ ...row }));
         await expect(syncRoastProfile(input)).rejects.toThrow('not confirmed');
         expect(mocks.deleteMain).not.toHaveBeenCalled();
-        expect(mocks.uploadBbp).not.toHaveBeenCalled();
+        expect(mocks.deleteBbp).not.toHaveBeenCalled();
     });
 
     it.each(['main', 'bbp'])('rejects a missing required %s file', async (artifact) => {
@@ -113,7 +116,13 @@ describe('artifact recovery', () => {
             mocks.uploadBbp.mockResolvedValue(null);
         }
         await expect(syncRoastProfile(input)).rejects.toThrow('TSV missing');
-        expect(mocks.update).not.toHaveBeenCalled();
+        if (artifact === 'main') {
+            expect(mocks.deleteMain).not.toHaveBeenCalled();
+            expect(row.bbp_tsv_path).toBe('bbp-key');
+        } else {
+            expect(mocks.update).not.toHaveBeenCalled();
+            expect(mocks.deleteBbp).not.toHaveBeenCalled();
+        }
     });
 
     it.each(['id', 'owner', 'status', 'absent', 'input'])(
@@ -132,12 +141,54 @@ describe('artifact recovery', () => {
         },
     );
 
-    it('keeps DB read failures and flush errors visible without uploading', async () => {
+    it('keeps DB read failures visible without uploading', async () => {
         mocks.find.mockRejectedValueOnce(new Error('DB offline'));
         await expect(syncRoastProfile(input)).rejects.toThrow('DB offline');
+        expect(mocks.upload).not.toHaveBeenCalled();
+        expect(mocks.uploadBbp).not.toHaveBeenCalled();
+    });
+
+    it('keeps flush errors visible without uploading the profile TSV', async () => {
         mocks.flush.mockRejectedValueOnce(new Error('partial append'));
         await expect(syncRoastProfile(input)).rejects.toThrow('partial append');
         expect(mocks.upload).not.toHaveBeenCalled();
+        expect(mocks.deleteMain).not.toHaveBeenCalled();
+        expect(row.bbp_tsv_path).toBe('bbp-key');
+    });
+
+    it('starts profile and BBP uploads without waiting for each other', async () => {
+        let releaseProfile: (key: string) => void = () => {};
+        let releaseBbp: (key: string) => void = () => {};
+        mocks.upload.mockReturnValue(
+            new Promise<string>((resolve) => {
+                releaseProfile = resolve;
+            }),
+        );
+        mocks.uploadBbp.mockReturnValue(
+            new Promise<string>((resolve) => {
+                releaseBbp = resolve;
+            }),
+        );
+        const pending = syncRoastProfile(input);
+        await vi.waitFor(() => {
+            expect(mocks.upload).toHaveBeenCalledOnce();
+            expect(mocks.uploadBbp).toHaveBeenCalledOnce();
+        });
+        expect(mocks.update).not.toHaveBeenCalled();
+        releaseProfile('main-key');
+        releaseBbp('bbp-key');
+        await expect(pending).resolves.toEqual({ key: 'main-key', bbpKey: 'bbp-key' });
+        expect(mocks.deleteMain).toHaveBeenCalledOnce();
+        expect(mocks.deleteBbp).toHaveBeenCalledOnce();
+    });
+
+    it('confirms BBP when profile PUT fails and keeps the local profile TSV', async () => {
+        mocks.upload.mockRejectedValueOnce(new Error('R2 upload failed (timeout)'));
+        await expect(syncRoastProfile(input)).rejects.toThrow('R2 upload failed (timeout)');
+        expect(row.bbp_tsv_path).toBe('bbp-key');
+        expect(mocks.deleteBbp).toHaveBeenCalledOnce();
+        expect(mocks.deleteMain).not.toHaveBeenCalled();
+        expect(mocks.update.mock.calls).toEqual([[{ id: 'session', bbp_tsv_path: 'bbp-key' }]]);
     });
 });
 

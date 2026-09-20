@@ -262,8 +262,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         throw mapServerBatchGateError(e) ?? e;
     });
 
-    // Await so inactive History/dashboard caches refetch before the user switches tabs.
-    await invalidateRoastSessionQueries(qc, userId);
+    // History/dashboard refetch is awaited once in refreshCachesAfterRoastSave
+    // (after optional schedule progress). Inventory marks are fire-and-forget.
     if (wantDeduct && provisionalPlan) {
         void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries, refetchType: 'all' });
         if (provisionalPlan.singleBeanId) {
@@ -282,6 +282,21 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     }
 
     return { savedSession, shouldOpenContinue: effectiveBatch != null };
+}
+
+/** Single post-save cache refresh — covers lost RPC (saveRoastCore never ran invalidation). */
+export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
+    if (saved.plan_batch_id) await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
+    invalidateScheduledBatchQueries(qc);
+    await invalidateRoastSessionQueries(qc, saved.user_id);
+    for (const queryKey of [
+        inventoryQueryRoots.beanStockSummaries,
+        inventoryQueryRoots.beanStockSummary,
+        inventoryQueryRoots.beanStockEvents,
+        roastedStockKeys.byUser(saved.user_id),
+    ]) {
+        void qc.invalidateQueries({ queryKey, refetchType: 'all' });
+    }
 }
 
 export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
@@ -333,20 +348,7 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
                         }
                     },
                     resolveForRoast: planBatchApi.resolveForRoast,
-                    syncBatch: async (saved) => {
-                        if (saved.plan_batch_id)
-                            await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
-                        invalidateScheduledBatchQueries(qc);
-                        await invalidateRoastSessionQueries(qc, saved.user_id);
-                        for (const queryKey of [
-                            inventoryQueryRoots.beanStockSummaries,
-                            inventoryQueryRoots.beanStockSummary,
-                            inventoryQueryRoots.beanStockEvents,
-                            roastedStockKeys.byUser(saved.user_id),
-                        ]) {
-                            void qc.invalidateQueries({ queryKey, refetchType: 'all' });
-                        }
-                    },
+                    syncBatch: (saved) => refreshCachesAfterRoastSave(qc, saved),
                     syncRoastCurve,
                 });
             } finally {

@@ -31,30 +31,59 @@ export const syncRoastProfile = async ({
     bbpRequired,
 }: SyncRoastCurveInput): Promise<UploadResult> => {
     if (!sessionId || sessionId !== roastSessionId || !ownerId) throw new Error('Upload session mismatch');
-    let row = await roastSessionApi.find(roastSessionId);
-    const assertSession = (session: typeof row) => {
+    const assertSession = (session: Awaited<ReturnType<typeof roastSessionApi.find>>) => {
         if (!session || session.id !== sessionId || session.user_id !== ownerId || session.status !== 'completed') {
             throw new Error('Upload session mismatch');
         }
         return session;
     };
-    row = assertSession(row);
+    const row = assertSession(await roastSessionApi.find(roastSessionId));
+
+    type Artifact = { profile?: string; bbp?: string };
+    const jobs: Promise<Artifact>[] = [];
     if (profileRequired && !row.tsv_path) {
-        await flushTsv(sessionId);
-        const key = await uploadRoastProfile(sessionId, ownerId);
-        if (!key) throw new Error('Local TSV missing or empty upload key');
-        row = assertSession(await roastSessionApi.update({ id: roastSessionId, tsv_path: key }));
-        if (row.tsv_path !== key) throw new Error('Profile path was not confirmed');
-        await deleteSessionTsv(sessionId);
+        jobs.push(
+            (async () => {
+                await flushTsv(sessionId);
+                const key = await uploadRoastProfile(sessionId, ownerId);
+                if (!key) throw new Error('Local TSV missing or empty upload key');
+                const updated = assertSession(await roastSessionApi.update({ id: roastSessionId, tsv_path: key }));
+                if (updated.tsv_path !== key) throw new Error('Profile path was not confirmed');
+                await deleteSessionTsv(sessionId);
+                return { profile: key };
+            })(),
+        );
     }
     if (bbpRequired && !row.bbp_tsv_path) {
-        const bbpKey = await uploadBbpProfile(sessionId, ownerId);
-        if (!bbpKey) throw new Error('Local BBP TSV missing or empty upload key');
-        row = assertSession(await roastSessionApi.update({ id: roastSessionId, bbp_tsv_path: bbpKey }));
-        if (row.bbp_tsv_path !== bbpKey) throw new Error('BBP path was not confirmed');
-        await deleteBbpTsv(sessionId);
+        jobs.push(
+            (async () => {
+                const bbpKey = await uploadBbpProfile(sessionId, ownerId);
+                if (!bbpKey) throw new Error('Local BBP TSV missing or empty upload key');
+                const updated = assertSession(
+                    await roastSessionApi.update({ id: roastSessionId, bbp_tsv_path: bbpKey }),
+                );
+                if (updated.bbp_tsv_path !== bbpKey) throw new Error('BBP path was not confirmed');
+                await deleteBbpTsv(sessionId);
+                return { bbp: bbpKey };
+            })(),
+        );
     }
-    return { key: row.tsv_path, bbpKey: row.bbp_tsv_path };
+
+    // allSettled: one PUT/DB failure must not roll back the other confirmed artifact.
+    const settled = await Promise.allSettled(jobs);
+    let key = row.tsv_path;
+    let bbpKey = row.bbp_tsv_path;
+    let firstError: unknown;
+    for (const result of settled) {
+        if (result.status === 'fulfilled') {
+            if (result.value.profile) key = result.value.profile;
+            if (result.value.bbp) bbpKey = result.value.bbp;
+        } else {
+            firstError ??= result.reason;
+        }
+    }
+    if (firstError) throw firstError;
+    return { key, bbpKey };
 };
 
 export const useUploadRoastProfile = () => {
