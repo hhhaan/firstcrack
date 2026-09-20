@@ -48,8 +48,9 @@ export interface ReplayControlInputs {
      */
     reconnecting: boolean;
     /**
-     * R04 collection-boundary quality. Ordinary TIME/BT writes hold unless `valid`.
-     * Missing/null is not an explicit invalid observation — callers that omit it keep prior behavior.
+     * R04 collection-boundary quality. Ordinary TIME/BT writes run only on `'valid'`.
+     * Production passes `null` when this generation has no observation yet — that is a hold,
+     * not “omit the fact”. Tests that need to fire must pass `'valid'` explicitly.
      */
     observationQuality?: ObservationQuality | null;
     /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
@@ -326,9 +327,10 @@ export const useReplayControl = ({
         setActive(true);
     }, [active, plan, referenceMachineMismatch, stopCause, invalidateInFlightWrite]);
 
-    // 명시적 무효 관측(stale/null/spike/…) 동안 일반 TIME/BT write만 보류한다 (R05).
+    // 현재 generation의 유효 관측이 있을 때만 일반 TIME/BT write. production의 null/unknown
+    // (observation 미수신·generation 초기화)은 hold다 — 표시용 last-good BT로 발화하지 않는다.
     // active·index는 유지 — 중단은 R06. DROP zero는 위의 stopCause 경로라 이 게이트 밖이다.
-    const observationHold = active && observationQuality != null && observationQuality !== 'valid';
+    const observationHold = active && observationQuality !== 'valid';
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
@@ -342,7 +344,7 @@ export const useReplayControl = ({
     // effect가 다시 돌면 기존 Level/순서/catch-up이 최신 정상 샘플로 재평가한다.
     useEffect(() => {
         if (!active || stopCause != null || !roasting || reconnecting || liveBt == null || plan == null) return;
-        if (observationQuality != null && observationQuality !== 'valid') return;
+        if (observationQuality !== 'valid') return;
         // 이탈 후보 확정 대기 중(1~2틱)에는 이벤트를 쓰지 않는다 — 여기서 쓰면 실기
         // 개입을 덮는 동시에 lastWritten 갱신·pending으로 판정까지 리셋돼, #307이
         // 막으려던 경로가 확정 창 안에서 재현된다. 노이즈로 판명되면(카운터 0 복귀)

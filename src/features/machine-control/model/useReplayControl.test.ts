@@ -875,6 +875,81 @@ describe('useReplayControl', () => {
             expect(h.writeHeater).toHaveBeenCalledWith(0);
             h.unmount();
         });
+
+        it('DROP zero는 관측 없음(null)에도 막히지 않는다', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({
+                dropBehavior: 'zero',
+                liveBt: 205,
+                elapsed: 650,
+                afterTurningPoint: true,
+                roastFinished: true,
+                observationQuality: null,
+            });
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            h.unmount();
+        });
+
+        it('관측 없음(null) + 이전 BT로 켜도 write 없다', async () => {
+            const h = await renderReplay({ observationQuality: null, liveBt: 180, elapsed: 0 });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true);
+            expect(h.get().observationHold).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(80);
+            h.unmount();
+        });
+
+        it('unknown(null) 상태에서 elapsed만 흘러도 TIME을 쓰지 않는다', async () => {
+            const h = await renderReplay({
+                referencePoints: timePts,
+                observationQuality: null,
+                liveBt: 180,
+            });
+            await act(async () => h.get().toggle());
+            await h.rerender({
+                referencePoints: timePts,
+                observationQuality: null,
+                liveBt: 180,
+                elapsed: 31,
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true);
+            expect(h.get().observationHold).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(80);
+            h.unmount();
+        });
+
+        it('장비/사이드카 generation 초기화(관측 null, 표시 BT 유지) 후 첫 valid에서만 발화한다', async () => {
+            const h = await renderReplay({ referencePoints: timePts });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            await h.rerender({ referencePoints: timePts, elapsed: 26, liveBt: 150 });
+            h.writeHeater.mockClear();
+            await h.jump({
+                referencePoints: timePts,
+                elapsed: 31,
+                liveBt: 150,
+                observationQuality: null,
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().observationHold).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(70);
+            await h.rerender({
+                referencePoints: timePts,
+                elapsed: 32,
+                liveBt: 138,
+                observationQuality: 'valid',
+            });
+            expect(h.writeHeater).toHaveBeenCalledWith(70);
+            expect(h.get().observationHold).toBe(false);
+            expect(h.get().active).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(40);
+            h.unmount();
+        });
     });
 
     it('write 응답 대기 중 새 샘플은 같은 이벤트를 다시 쓰지 않는다', async () => {

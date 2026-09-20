@@ -97,6 +97,7 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[] } = 
             heaterFeedback: inputs.feedback?.heater ?? null,
             heaterPending: mc.desired.heater != null,
             reconnecting: false,
+            observationQuality: 'valid',
             referenceMachineMismatch: false,
             writeHeater,
             heaterMax: mc.limits.heater?.max,
