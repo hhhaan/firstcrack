@@ -345,6 +345,31 @@ describe('중단 시 미전송 Replay heater 취소 (#368 R03)', () => {
         rig.unmount();
     });
 
+    it('취소된 Replay heater는 desired에 남아 미반영으로 막지 않는다', async () => {
+        const rig = await renderRig();
+        const pending = deferControl();
+
+        await act(async () => {
+            rig.get().mc.setValue('fan', 80);
+            void rig.get().mc.commitNow();
+        });
+        await rig.toggle();
+        expect(rig.get().mc.desired.heater).toBe(60);
+
+        await rig.toggle();
+        expect(rig.get().replay.active).toBe(false);
+        expect(rig.get().mc.desired.heater).toBeUndefined();
+        expect(rig.get().replay.blocked).toBe(false);
+
+        pending[0].resolve({ ok: true, applied: { fan: 80 } });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        await rig.toggle();
+        expect(rig.get().replay.active).toBe(true);
+        rig.unmount();
+    });
+
     it('같은 상황에서 수동 heater commit은 보존되어 전송된다', async () => {
         const rig = await renderRig();
         const pending = deferControl();
@@ -465,7 +490,8 @@ describe('중단 시 미전송 Replay heater 취소 (#368 R03)', () => {
         });
         expect(rig.get().replay.active).toBe(false);
         expect(rig.get().replay.stopReason).not.toBe('writeFailed');
-        expect(rig.get().replay.nextEvent?.heater).not.toBe(40);
+        await rig.toggle();
+        expect(rig.get().replay.nextEvent?.heater).toBe(60);
         rig.unmount();
     });
 

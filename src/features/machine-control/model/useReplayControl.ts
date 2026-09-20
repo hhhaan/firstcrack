@@ -49,9 +49,8 @@ export interface ReplayControlInputs {
     writeHeater: (value: number, origin?: ControlOrigin) => Promise<number | null>;
     /**
      * 미전송 Replay heater만 선택 취소. fan/drum·수동 commit·DROP zero(safety)는 남긴다.
-     * 없으면 상태 세대만 올리고 큐는 그대로 — R02 보호만 있는 테스트 하네스용.
      */
-    cancelUnsentHeater?: () => void;
+    cancelUnsentHeater: () => void;
     /**
      * heater write_map.max — `/status.control.limits.heater.max`. 수렴·이탈
      * 허용치를 같이 유도한다. 없으면 0~100% 전제(기존 수렴 1 / 이탈 2).
@@ -161,7 +160,7 @@ export const useReplayControl = ({
     const invalidateInFlightWrite = useCallback(() => {
         writeGenRef.current += 1;
         // 세대만 올리면 늦은 응답은 무시되지만, sender에 남은 Replay heater는 그대로 나간다 (#368 R03).
-        cancelUnsentHeater?.();
+        cancelUnsentHeater();
         setWriting(false);
     }, [cancelUnsentHeater]);
 
@@ -169,7 +168,7 @@ export const useReplayControl = ({
      * 큐 취소도 여기서: effect까지 미루면 in-flight 슬롯이 비며 Replay heater가 먼저 나간다. */
     const bumpWriteGenOnRenderStop = () => {
         writeGenRef.current += 1;
-        cancelUnsentHeater?.();
+        cancelUnsentHeater();
     };
 
     // PID 등은 렌더에서 stopCause가 먼저 보인다. effect가 세대를 올리기 전에 도착한

@@ -163,20 +163,31 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
         },
         /**
          * 아직 안 보낸 대기만 고른다. in-flight(이미 PLC로 나간 것)는 건드리지 않는다.
-         * 매칭 waiter를 즉시 settle하고 committed에서 해당 role을 뺀다.
+         * 매칭 waiter를 즉시 settle하고 committed에서 그 waiter의 role만 뺀다.
+         * 같은 role 대체 후 committed에만 남은 fan/drum은 그대로 둔다.
          */
-        cancelUnsent({ origin, role }: CancelUnsentMatch): void {
+        cancelUnsent({ origin, role }: CancelUnsentMatch): ControlCommand[] {
+            const cancelled: ControlCommand[] = [];
             const remaining: Waiter[] = [];
             for (const waiter of queuedWaiters) {
                 if (waiter.origin === origin && role in waiter.requested) {
                     settle(waiter, null);
+                    cancelled.push(waiter.requested);
                     continue;
                 }
                 remaining.push(waiter);
             }
             queuedWaiters = remaining;
-            committed = {};
-            for (const waiter of remaining) committed = { ...committed, ...waiter.requested };
+            const cancelledRoles = new Set<ControlRole>();
+            for (const cmd of cancelled) {
+                for (const r of rolesOf(cmd)) cancelledRoles.add(r);
+            }
+            const next = { ...committed };
+            for (const r of cancelledRoles) {
+                if (!remaining.some((waiter) => r in waiter.requested)) delete next[r];
+            }
+            committed = next;
+            return cancelled;
         },
         dispose(): void {
             draft = {};

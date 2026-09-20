@@ -130,6 +130,9 @@ export const MachineControlPanel = ({
         },
         [setValue, commitNow],
     );
+    const commitManual = useCallback(() => {
+        void commitNow('manual');
+    }, [commitNow]);
     const replay = useReplayControl({
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,
@@ -247,7 +250,7 @@ export const MachineControlPanel = ({
                                         : undefined
                             }
                             onChange={handleManualChange}
-                            onCommit={commitNow}
+                            onCommit={commitManual}
                         />
                         {chipRoles.length > 0 && (
                             <div className="flex shrink-0 flex-col gap-1.5">
@@ -261,7 +264,7 @@ export const MachineControlPanel = ({
                                         unacknowledged={unacknowledged.has(role)}
                                         disabled={!writable}
                                         onChange={handleManualChange}
-                                        onCommit={commitNow}
+                                        onCommit={commitManual}
                                     />
                                 ))}
                             </div>
@@ -289,7 +292,7 @@ export const MachineControlPanel = ({
                                         !supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined
                                     }
                                     onChange={handleManualChange}
-                                    onCommit={commitNow}
+                                    onCommit={commitManual}
                                 />
                             );
                         })}

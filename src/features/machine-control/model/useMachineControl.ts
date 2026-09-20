@@ -146,10 +146,24 @@ export const useMachineControl = (
     /** 전송 성공 여부 — 슬라이더는 무시하고, Replay는 실패 시 이벤트를 보존한다 (#312) */
     const commitNow = useCallback((origin?: ControlOrigin) => sender.commitNow(origin), [sender]);
     /** 미전송 Replay heater만 — fan/drum·수동·DROP zero는 남긴다 (#368 R03) */
-    const cancelUnsentReplayHeater = useCallback(
-        () => sender.cancelUnsent({ origin: 'replay', role: 'heater' }),
-        [sender],
-    );
+    const cancelUnsentReplayHeater = useCallback(() => {
+        const cancelled = sender.cancelUnsent({ origin: 'replay', role: 'heater' });
+        if (cancelled.length === 0) return;
+        setTracking((t) => {
+            const nextDesired = { ...t.desired };
+            const nextPolls = { ...t.unackPolls };
+            let changed = false;
+            for (const cmd of cancelled) {
+                for (const role of ROLES) {
+                    if (cmd[role] == null || nextDesired[role] !== cmd[role]) continue;
+                    delete nextDesired[role];
+                    delete nextPolls[role];
+                    changed = true;
+                }
+            }
+            return changed ? { desired: nextDesired, unackPolls: nextPolls } : t;
+        });
+    }, [sender]);
 
     /** 지시했는데 기기가 계속 그대로인 role — 명령이 먹지 않았을 가능성 */
     const unacknowledged = new Set(ROLES.filter((role) => (tracking.unackPolls[role] ?? 0) >= STALE_COMMAND_POLLS));
