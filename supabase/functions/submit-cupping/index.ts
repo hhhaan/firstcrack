@@ -1,6 +1,13 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
-import { normalizeDescriptors, parseScaV1Scores, totalScoreScaV1 } from '../_shared/cupping-score.ts';
+import {
+    formSchemaOrSca,
+    parseScoresForForm,
+    totalScoreForForm,
+    type CuppingFormSchema,
+    type FormScores,
+} from '../_shared/cupping-form.ts';
+import { normalizeDescriptors } from '../_shared/cupping-score.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 const serviceClient = () =>
@@ -35,19 +42,23 @@ serveWithSentry('submit-cupping', async (req) => {
         return jsonResponse({ error: 'Invalid JSON body' }, 400);
     }
 
-    let scores;
-    try {
-        scores = parseScaV1Scores(body.scores);
-    } catch (e) {
-        return jsonResponse({ error: e instanceof Error ? e.message : 'invalid scores' }, 400);
-    }
-
-    const defects =
-        typeof body.defects === 'number' && Number.isInteger(body.defects) && body.defects >= 0 ? body.defects : 0;
-    const totalScore = totalScoreScaV1(scores, defects);
     const cuppedBy = (body.cuppedBy?.trim() || 'Anonymous').slice(0, 80);
     const notes = typeof body.notes === 'string' ? body.notes.slice(0, 2000) : null;
     const descriptors = normalizeDescriptors(body.descriptors);
+
+    const scoreFromForm = (schema: CuppingFormSchema) => {
+        const scores = parseScoresForForm(schema, body.scores);
+        const defects =
+            typeof body.defects === 'number' && Number.isInteger(body.defects) && body.defects >= 0
+                ? body.defects
+                : 0;
+        return {
+            scores,
+            defects,
+            totalScore: totalScoreForForm(schema, scores, defects),
+            formVersion: schema.key,
+        };
+    };
 
     const supabase = serviceClient();
 
@@ -107,13 +118,29 @@ serveWithSentry('submit-cupping', async (req) => {
             if (sample.event_id) resolvedEventId = sample.event_id;
         }
 
+        let schema: CuppingFormSchema = formSchemaOrSca(null);
         if (resolvedEventId) {
             const { data: event } = await supabase
                 .from('cupping_events')
-                .select('ended_at')
+                .select('ended_at, form_snapshot')
                 .eq('id', resolvedEventId)
                 .maybeSingle();
             if (event?.ended_at) return jsonResponse({ error: 'ended' }, 410);
+            schema = formSchemaOrSca(event?.form_snapshot);
+        }
+
+        let scores: FormScores;
+        let defects: number;
+        let totalScore: number;
+        let formVersion: string;
+        try {
+            const parsed = scoreFromForm(schema);
+            scores = parsed.scores;
+            defects = parsed.defects;
+            totalScore = parsed.totalScore;
+            formVersion = parsed.formVersion;
+        } catch (e) {
+            return jsonResponse({ error: e instanceof Error ? e.message : 'invalid scores' }, 400);
         }
 
         if (!sampleId && !roastSessionId) {
@@ -155,7 +182,7 @@ serveWithSentry('submit-cupping', async (req) => {
                         defects,
                         notes,
                         descriptors,
-                        form_version: 'sca_v1',
+                        form_version: formVersion,
                     })
                     .eq('id', existing.id)
                     .select('id, total_score, cupped_at')
@@ -249,7 +276,7 @@ serveWithSentry('submit-cupping', async (req) => {
                 descriptors,
                 source: 'invite',
                 invite_id: invite.id,
-                form_version: 'sca_v1',
+                form_version: formVersion,
             })
             .select('id, total_score, cupped_at')
             .single();
@@ -277,15 +304,17 @@ serveWithSentry('submit-cupping', async (req) => {
     let roastSessionId = body.roastSessionId?.trim() || null;
     let profileId: string | null = null;
 
+    let ownerEventId: string | null = null;
     if (sampleId) {
         const { data: sample, error: sampleErr } = await supabase
             .from('cupping_samples')
-            .select('id, roast_session_id, user_id')
+            .select('id, roast_session_id, user_id, event_id')
             .eq('id', sampleId)
             .eq('user_id', user.id)
             .maybeSingle();
         if (sampleErr || !sample) return jsonResponse({ error: 'sample_not_found' }, 404);
         roastSessionId = sample.roast_session_id ?? roastSessionId;
+        ownerEventId = sample.event_id ?? null;
     }
 
     if (roastSessionId) {
@@ -305,6 +334,29 @@ serveWithSentry('submit-cupping', async (req) => {
 
     const source = body.source === 'web' ? 'web' : 'desktop';
 
+    let ownerSchema = formSchemaOrSca(null);
+    if (ownerEventId) {
+        const { data: event } = await supabase
+            .from('cupping_events')
+            .select('form_snapshot')
+            .eq('id', ownerEventId)
+            .maybeSingle();
+        ownerSchema = formSchemaOrSca(event?.form_snapshot);
+    }
+    let ownerScores: FormScores;
+    let ownerDefects: number;
+    let ownerTotal: number;
+    let ownerFormVersion: string;
+    try {
+        const parsed = scoreFromForm(ownerSchema);
+        ownerScores = parsed.scores;
+        ownerDefects = parsed.defects;
+        ownerTotal = parsed.totalScore;
+        ownerFormVersion = parsed.formVersion;
+    } catch (e) {
+        return jsonResponse({ error: e instanceof Error ? e.message : 'invalid scores' }, 400);
+    }
+
     const { data: row, error: insertErr } = await supabase
         .from('cuppings')
         .insert({
@@ -312,14 +364,14 @@ serveWithSentry('submit-cupping', async (req) => {
             roast_session_id: roastSessionId,
             sample_id: sampleId,
             roast_profile_id: profileId,
-            scores,
-            total_score: totalScore,
-            defects,
+            scores: ownerScores,
+            total_score: ownerTotal,
+            defects: ownerDefects,
             cupped_by: cuppedBy,
             notes,
             descriptors,
             source,
-            form_version: 'sca_v1',
+            form_version: ownerFormVersion,
         })
         .select('id, total_score, cupped_at')
         .single();

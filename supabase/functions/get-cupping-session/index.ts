@@ -1,5 +1,6 @@
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { type BeanMeta, beanMetaFromJoin, beanMetaLine } from '../_shared/cupping-bean-meta.ts';
+import { formSchemaOrSca } from '../_shared/cupping-form.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 type SampleRow = {
@@ -87,11 +88,12 @@ serveWithSentry('get-cupping-session', async (req) => {
 
     let eventTitle: string | null = null;
     let samples: SampleOut[] = [];
+    let form = formSchemaOrSca(null);
 
     if (eventId) {
         const { data: event } = await supabase
             .from('cupping_events')
-            .select('id, title, ended_at, results_token')
+            .select('id, title, ended_at, results_token, form_snapshot')
             .eq('id', eventId)
             .maybeSingle();
         // Session closed: clients should open results (same invite token works via get-cupping-results)
@@ -108,6 +110,7 @@ serveWithSentry('get-cupping-session', async (req) => {
             );
         }
         eventTitle = event?.title ?? null;
+        form = formSchemaOrSca(event?.form_snapshot);
 
         const { data: sampleRows } = await supabase
             .from('cupping_samples')
@@ -179,5 +182,6 @@ serveWithSentry('get-cupping-session', async (req) => {
         profileName: null,
         roastLevel: null,
         roastedAt: null,
+        form,
     });
 });
