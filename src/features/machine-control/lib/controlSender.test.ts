@@ -585,7 +585,7 @@ describe('createControlSender 미전송 Replay heater 취소 (#368 R03)', () => 
         d.resolve({ fan: 80 });
         await vi.advanceTimersByTimeAsync(0);
         await expect(pFan).resolves.toEqual({ fan: 80 });
-        if (next) expect(d.calls.at(-1)).toEqual(next);
+        if (next) expect(d.calls[d.calls.length - 1]).toEqual(next);
     };
 
     it('fan 전송 중 Replay heater 대기는 취소하면 보내지 않고 즉시 settle된다', async () => {
