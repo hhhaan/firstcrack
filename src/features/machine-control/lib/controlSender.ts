@@ -35,6 +35,7 @@ interface Options {
 interface Waiter {
     requested: ControlCommand;
     resolve: (result: ControlCommand | null) => void;
+    settled: boolean;
 }
 
 const rolesOf = (cmd: ControlCommand): ControlRole[] => Object.keys(cmd) as ControlRole[];
@@ -47,6 +48,20 @@ const pickApplied = (requested: ControlCommand, applied: ControlCommand): Contro
         if (value != null) out[role] = value;
     }
     return rolesOf(out).length > 0 ? out : null;
+};
+
+const settle = (waiter: Waiter, result: ControlCommand | null) => {
+    if (waiter.settled) return;
+    waiter.settled = true;
+    waiter.resolve(result);
+};
+
+const notify = (fn: () => void) => {
+    try {
+        fn();
+    } catch {
+        // observer 예외가 waiter settle / 다음 flush를 막으면 안 된다
+    }
 };
 
 /**
@@ -66,50 +81,43 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
     // 커밋 없이 자동 전송해 "손 뗄 때만 전송" 계약이 깨진다(#269).
     let draft: ControlCommand = {};
     let committed: ControlCommand = {};
+    let queuedWaiters: Waiter[] = [];
+    let inFlightWaiters: Waiter[] = [];
     let inFlight = false;
     let committedListener = onCommitted;
-    let waiters: Waiter[] = [];
     // dispose 세대 — 폐기 이후에 도착한 응답의 콜백을 무시한다. 그러지 않으면
     // 연결이 끊겨 상태를 비운 뒤에 늦게 온 응답이 옛 setpoint를 되살린다.
     let generation = 0;
 
-    const settleSent = (sent: ControlCommand, applied: ControlCommand | null) => {
-        waiters = waiters.filter((waiter) => {
-            const included = rolesOf(waiter.requested).every((role) => sent[role] === waiter.requested[role]);
-            if (!included) return true;
-            waiter.resolve(applied == null ? null : pickApplied(waiter.requested, applied));
-            return false;
-        });
-    };
-
-    /**
-     * 성공 시 사이드카가 범위로 자른 applied, 실패·대체·dispose 시 null.
-     * Replay는 실패한 이벤트를 소진하면 안 되고, lastWritten은 요청값이 아니라 applied다 (#376).
-     * 각 commit Promise는 자신이 포함된 실제 전송 완료에 붙는다. in-flight 중 merge된
-     * 요청값을 성공으로 돌려주지 않는다 (#368 R01).
-     */
     const flush = async (): Promise<void> => {
         if (inFlight) return;
         const cmd = committed;
         if (Object.keys(cmd).length === 0) return;
         const gen = generation;
+        const sentWaiters = queuedWaiters;
         committed = {};
+        queuedWaiters = [];
+        inFlightWaiters = sentWaiters;
         inFlight = true;
-        onSendingChange?.(true);
+        notify(() => onSendingChange?.(true));
         try {
             const applied = await send(cmd);
             if (gen === generation) {
-                onApplied?.(applied);
-                settleSent(cmd, applied);
+                for (const waiter of sentWaiters) {
+                    settle(waiter, pickApplied(waiter.requested, applied));
+                }
+                inFlightWaiters = [];
+                notify(() => onApplied?.(applied));
             }
         } catch (err) {
             if (gen === generation) {
-                onError?.(err);
-                settleSent(cmd, null);
+                for (const waiter of sentWaiters) settle(waiter, null);
+                inFlightWaiters = [];
+                notify(() => onError?.(err));
             }
         } finally {
             inFlight = false;
-            if (gen === generation) onSendingChange?.(false);
+            if (gen === generation) notify(() => onSendingChange?.(false));
             // 이 슬롯이 비면 현재 세대의 대기 명령을 보낸다. dispose 뒤 새 commit이
             // 옛 in-flight 뒤에 붙을 수 있으므로 generation이 달라도 비우면 flush한다.
             if (Object.keys(committed).length > 0) void flush();
@@ -121,7 +129,11 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
         queue(role: ControlRole, value: number): void {
             draft = { ...draft, [role]: value };
         },
-        /** 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송 */
+        /**
+         * 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송.
+         * 성공 시 이 요청이 포함된 실제 applied(요청 role만), 실패·같은 role 대체·dispose 시 null.
+         * 빈 commit은 즉시 `{}` — 대기 중인 다른 요청의 성공을 만들지 않는다.
+         */
         commitNow(): Promise<ControlCommand | null> {
             const snapshot = draft;
             draft = {};
@@ -130,17 +142,14 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
                 return Promise.resolve({});
             }
             committedListener?.(snapshot);
-            // 아직 안 보낸 committed만 같은 role 최신값으로 대체한다. in-flight waiter는
-            // 이미 나간 전송의 결과를 받아야 한다.
-            waiters = waiters.filter((waiter) => {
-                const queued = rolesOf(waiter.requested).every((role) => committed[role] === waiter.requested[role]);
-                if (!queued || !rolesOf(waiter.requested).some((role) => role in snapshot)) return true;
-                waiter.resolve(null);
+            queuedWaiters = queuedWaiters.filter((waiter) => {
+                if (!rolesOf(waiter.requested).some((role) => role in snapshot)) return true;
+                settle(waiter, null);
                 return false;
             });
             committed = { ...committed, ...snapshot };
             return new Promise((resolve) => {
-                waiters.push({ requested: snapshot, resolve });
+                queuedWaiters.push({ requested: snapshot, resolve, settled: false });
                 void flush();
             });
         },
@@ -148,9 +157,10 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
             draft = {};
             committed = {};
             generation += 1; // 진행 중인 요청의 콜백을 무효화한다
-            const pending = waiters;
-            waiters = [];
-            for (const waiter of pending) waiter.resolve(null);
+            const pending = [...queuedWaiters, ...inFlightWaiters];
+            queuedWaiters = [];
+            inFlightWaiters = [];
+            for (const waiter of pending) settle(waiter, null);
         },
         setOnCommitted(callback?: (command: ControlCommand) => void): void {
             committedListener = callback;

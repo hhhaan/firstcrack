@@ -21,13 +21,14 @@ const deferredSend = () => {
     };
 };
 
-/** Promise가 이미 settle됐는지 한 틱만 보고 확인한다 */
-const peek = <T>(p: Promise<T>) => {
+/** Promise가 이미 settle됐는지 한 틱을 기다린 뒤 확인한다 */
+const peek = async <T>(p: Promise<T>) => {
     const state: { done: boolean; value?: T } = { done: false };
     void p.then((value) => {
         state.done = true;
         state.value = value;
     });
+    await Promise.resolve();
     return state;
 };
 
@@ -138,7 +139,7 @@ describe('createControlSender', () => {
         d.resolve({ heater: 10 });
         await vi.advanceTimersByTimeAsync(0);
         await expect(pA).resolves.toEqual({ heater: 10 });
-        expect(peek(pB).done).toBe(false);
+        expect((await peek(pB)).done).toBe(false);
         expect(d.calls).toEqual([{ heater: 10 }, { heater: 80 }]);
 
         d.resolve({ heater: 80 });
@@ -276,7 +277,7 @@ describe('createControlSender', () => {
 
         sender.queue('heater', 50);
         const pB = sender.commitNow();
-        const b = peek(pB);
+        const b = await peek(pB);
         await vi.advanceTimersByTimeAsync(0);
 
         expect(d.calls).toEqual([{ fan: 80 }]);
@@ -308,7 +309,7 @@ describe('createControlSender', () => {
         d.reject(new Error('fan failed'));
         await vi.advanceTimersByTimeAsync(0);
         await expect(pA).resolves.toBeNull();
-        expect(peek(pB).done).toBe(false);
+        expect((await peek(pB)).done).toBe(false);
         expect(d.calls).toEqual([{ fan: 80 }, { heater: 50 }]);
 
         d.resolve({ heater: 50 });
@@ -332,7 +333,7 @@ describe('createControlSender', () => {
 
         expect(d.calls).toEqual([{ fan: 80 }]);
         await expect(pB).resolves.toBeNull();
-        expect(peek(pC).done).toBe(false);
+        expect((await peek(pC)).done).toBe(false);
 
         d.resolve({ fan: 80 });
         await vi.advanceTimersByTimeAsync(0);
@@ -358,7 +359,7 @@ describe('createControlSender', () => {
         await vi.advanceTimersByTimeAsync(0);
 
         await expect(pEmpty).resolves.toEqual({});
-        expect(peek(pB).done).toBe(false);
+        expect((await peek(pB)).done).toBe(false);
         expect(d.calls).toEqual([{ fan: 80 }]);
 
         d.resolve({ fan: 80 });
@@ -406,5 +407,111 @@ describe('createControlSender', () => {
         d.resolve({ fan: 80 });
         await vi.advanceTimersByTimeAsync(0);
         expect(d.calls).toEqual([{ fan: 80 }]);
+    });
+
+    it('같은 값의 대기 요청은 in-flight 성공을 가로채지 않는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('heater', 60);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 60);
+        const pB = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toEqual({ heater: 60 });
+        expect((await peek(pB)).done).toBe(false);
+        expect(d.calls).toEqual([{ heater: 60 }, { heater: 60 }]);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toEqual({ heater: 60 });
+    });
+
+    it('같은 값 대기 중 in-flight 실패는 대기 요청을 실패로 만들지 않는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('heater', 60);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 60);
+        const pB = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        d.reject(new Error('first failed'));
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toBeNull();
+        expect((await peek(pB)).done).toBe(false);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toEqual({ heater: 60 });
+    });
+
+    it('in-flight A와 같은 값 대기 B 위에 C가 오면 A는 유지되고 B만 대체된다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('heater', 60);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 60);
+        const pB = sender.commitNow();
+        sender.queue('heater', 70);
+        const pC = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        await expect(pB).resolves.toBeNull();
+        expect((await peek(pC)).done).toBe(false);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toEqual({ heater: 60 });
+        expect(d.calls).toEqual([{ heater: 60 }, { heater: 70 }]);
+
+        d.resolve({ heater: 70 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pC).resolves.toEqual({ heater: 70 });
+    });
+
+    it('dispose 중 in-flight가 끝나도 그 뒤 commit은 전송된다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('fan', 80);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.dispose();
+        await expect(pA).resolves.toBeNull();
+
+        sender.queue('heater', 50);
+        const pB = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ fan: 80 }]);
+        expect((await peek(pB)).done).toBe(false);
+
+        d.resolve({ fan: 80 });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ fan: 80 }, { heater: 50 }]);
+
+        d.resolve({ heater: 50 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toEqual({ heater: 50 });
+    });
+
+    it('onApplied 예외가 있어도 commit Promise는 settle된다', async () => {
+        const send = vi.fn(async (cmd: ControlCommand) => cmd);
+        const sender = createControlSender({
+            send,
+            onApplied: () => {
+                throw new Error('toast down');
+            },
+        });
+        sender.queue('heater', 40);
+        await expect(sender.commitNow()).resolves.toEqual({ heater: 40 });
     });
 });
