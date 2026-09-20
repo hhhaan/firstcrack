@@ -759,4 +759,103 @@ describe('useReplayControl', () => {
         expect(h.get().nextEvent?.heater).toBe(40);
         h.unmount();
     });
+
+    describe('중단된 실행의 늦은 응답 무효화 (#368 R02)', () => {
+        it('write pending → OFF → 늦은 성공: OFF 유지, 재개해도 같은 이벤트를 다시 쓴다', async () => {
+            const h = await renderReplay();
+            let resolveWrite!: (applied: number | null) => void;
+            h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBeNull();
+
+            await act(async () => resolveWrite(80));
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBeNull();
+
+            h.writeHeater.mockClear();
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(true);
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            expect(h.writeHeater).not.toHaveBeenCalledWith(60);
+            h.unmount();
+        });
+
+        it('write pending → 수동 중단 → 늦은 실패: writeFailed가 manual을 덮지 않는다', async () => {
+            const h = await renderReplay();
+            let resolveWrite!: (applied: number | null) => void;
+            h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+            await act(async () => h.get().toggle());
+            await act(async () => h.get().stop());
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('manual');
+
+            await act(async () => resolveWrite(null));
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('manual');
+            h.unmount();
+        });
+
+        it('write pending → PID 중단 → 늦은 실패: writeFailed가 pid를 덮지 않는다', async () => {
+            const h = await renderReplay();
+            let resolveWrite!: (applied: number | null) => void;
+            h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+            await act(async () => h.get().toggle());
+            await h.rerender({ pidEngaged: true });
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('pid');
+
+            await act(async () => resolveWrite(null));
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('pid');
+            h.unmount();
+        });
+
+        it('OFF→ON 후 옛 응답이 새 요청의 writing을 해제하거나 index를 소비하지 않는다', async () => {
+            const h = await renderReplay();
+            let resolveOld!: (applied: number | null) => void;
+            let resolveNew!: (applied: number | null) => void;
+            h.writeHeater
+                .mockImplementationOnce(() => new Promise<number | null>((r) => (resolveOld = r)))
+                .mockImplementationOnce(() => new Promise<number | null>((r) => (resolveNew = r)));
+            await act(async () => h.get().toggle());
+            await act(async () => h.get().toggle());
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledTimes(2);
+            expect(h.get().active).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(80);
+
+            await act(async () => resolveOld(80));
+            expect(h.get().active).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(80);
+
+            await h.rerender({ liveBt: 180, elapsed: 1 });
+            expect(h.writeHeater).toHaveBeenCalledTimes(2);
+
+            await act(async () => resolveNew(80));
+            expect(h.get().nextEvent?.heater).toBe(60);
+            h.unmount();
+        });
+
+        it('현재 실행에서 정상 완료된 요청은 인덱스를 정확히 한 번 전진한다', async () => {
+            const h = await renderReplay();
+            let resolveWrite!: (applied: number | null) => void;
+            h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+            await act(async () => h.get().toggle());
+            expect(h.get().nextEvent?.heater).toBe(80);
+            await h.rerender({ liveBt: 180, elapsed: 1 });
+            expect(h.writeHeater).toHaveBeenCalledTimes(1);
+
+            await act(async () => resolveWrite(80));
+            expect(h.get().active).toBe(true);
+            expect(h.get().nextEvent?.heater).toBe(60);
+
+            await h.rerender({ liveBt: 180, elapsed: 2 });
+            expect(h.writeHeater).toHaveBeenCalledTimes(1);
+            expect(h.get().nextEvent?.heater).toBe(60);
+            h.unmount();
+        });
+    });
 });

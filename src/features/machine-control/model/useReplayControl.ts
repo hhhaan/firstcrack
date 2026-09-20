@@ -114,6 +114,19 @@ export const useReplayControl = ({
         [referencePoints, referenceDropTime],
     );
 
+    // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
+    const stopCause: ReplayStopReason | null = !sidecarConnected
+        ? 'disconnected'
+        : pidEngaged
+          ? 'pid'
+          : heaterUnacknowledged
+            ? 'unacknowledged'
+            : !heaterWritable
+              ? 'unwritable'
+              : roastFinished
+                ? 'finished'
+                : null;
+
     const [active, setActive] = useState(false);
     const [index, setIndex] = useState(0);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
@@ -131,11 +144,17 @@ export const useReplayControl = ({
     const [prevElapsed, setPrevElapsed] = useState(elapsed);
     /**
      * 이벤트 write가 /control 응답 대기 중 — 그동안 판정을 멈춰 같은 이벤트를 두 번 쓰지
-     * 않는다 (#312). 응답 세대: 배치·프로파일 경계를 넘어 도착한 늦은 응답은 무시한다 —
-     * 리셋된 index를 옛 nextIndex로 덮으면 안 된다.
+     * 않는다 (#312). 응답 세대: 배치·프로파일 경계뿐 아니라 사용자 OFF·수동/PID 중단·재시작
+     * 뒤에 도착한 늦은 성공/실패는 무시한다. 옛 응답이 index·lastWritten·stop reason을
+     * 덮거나 새 요청의 writing을 풀면 안 된다 (#368 R02).
      */
     const [writing, setWriting] = useState(false);
     const writeGenRef = useRef(0);
+
+    const invalidateInFlightWrite = useCallback(() => {
+        writeGenRef.current += 1;
+        setWriting(false);
+    }, []);
 
     // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
     // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
@@ -144,6 +163,7 @@ export const useReplayControl = ({
     if (plan !== prevPlan) {
         setPrevPlan(plan);
         setIndex(0);
+        setWriting(false);
         if (active) {
             setActive(false);
             setStopReason('profileChanged');
@@ -165,14 +185,22 @@ export const useReplayControl = ({
         // lookback 자동 차지는 origin을 과거로 잡아 elapsed가 0보다 크게 시작한다 —
         // 이전 배치 기준으로 재면 차지 직후 오중지된다.
         setPrevElapsed(elapsed);
+        setWriting(false);
     }
 
-    // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋에 실행되므로
-    // 경계 전에 나간 write의 응답은 반드시 새 세대를 본다. (렌더 중 ref 갱신은 lint 금지)
+    // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋의
+    // effect에서 올려, 경계 전에 나간 write의 응답이 리셋된 index를 덮지 않게 한다.
+    // (렌더 중 ref 갱신은 lint 금지)
     // biome-ignore lint/correctness/useExhaustiveDependencies: plan·roasting은 트리거이지 읽는 값이 아니다
     useEffect(() => {
-        writeGenRef.current += 1;
+        invalidateInFlightWrite();
     }, [plan, roasting]);
+
+    // 렌더 중 확정되는 중단도 세대를 올린다 — 늦은 응답이 timingGap/이탈 사유를 덮지 않게.
+    useEffect(() => {
+        if (stopReason !== 'timingGap' && stopReason !== 'controlDiverged') return;
+        invalidateInFlightWrite();
+    }, [stopReason, invalidateInFlightWrite]);
 
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
@@ -180,6 +208,7 @@ export const useReplayControl = ({
     if (elapsed !== prevElapsed) {
         setPrevElapsed(elapsed);
         if (active && roasting && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+            setWriting(false);
             setActive(false);
             setStopReason('timingGap');
         }
@@ -209,6 +238,7 @@ export const useReplayControl = ({
         // 지속되면(인터락·타 소프트웨어) 다음 이벤트 write 후 ~3틱 안에 다시 걸린다.
         // 앱 슬라이더 개입(manual)과 처벌을 다르게 둘 이유가 없다.
         if (ticks >= DIVERGE_TICKS) {
+            setWriting(false);
             setActive(false);
             setStopReason('controlDiverged');
         }
@@ -218,25 +248,15 @@ export const useReplayControl = ({
         // 수동 개입은 active 여부와 무관하게 safe-off 재시도를 취소한다 —
         // 배출 후 사람이 만진 화력을 재시도가 덮으면 안 된다 (#316)
         setSafeOffIssued(false);
+        invalidateInFlightWrite();
         if (!active) return;
         setActive(false);
         setStopReason('manual');
-    }, [active]);
+    }, [active, invalidateInFlightWrite]);
 
-    // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
-    const stopCause: ReplayStopReason | null = !sidecarConnected
-        ? 'disconnected'
-        : pidEngaged
-          ? 'pid'
-          : heaterUnacknowledged
-            ? 'unacknowledged'
-            : !heaterWritable
-              ? 'unwritable'
-              : roastFinished
-                ? 'finished'
-                : null;
     useEffect(() => {
         if (!active || stopCause == null) return;
+        invalidateInFlightWrite();
         setActive(false);
         setStopReason(stopCause);
         // 재생이 화력을 잡은 채 배출됐다 — zero 정책이면 즉시 끈다 (#316, PID off와
@@ -248,7 +268,7 @@ export const useReplayControl = ({
             void writeHeater(0);
             setSafeOffIssued(true);
         }
-    }, [active, stopCause, roastFinished, dropBehavior, writeHeater]);
+    }, [active, stopCause, roastFinished, dropBehavior, writeHeater, invalidateInFlightWrite]);
 
     // safe-off 재시도 — zero write가 나갔는데 기기가 안 따라오면 다시 쓴다 (#269의
     // PID safe-off와 같은 등급: 아무도 안 보는 로스터에 불이 남는 쪽이 최악이다).
@@ -267,6 +287,7 @@ export const useReplayControl = ({
     }, [roastFinished]);
 
     const toggle = useCallback(() => {
+        invalidateInFlightWrite();
         if (active) {
             setActive(false);
             setStopReason(null); // 사용자가 직접 껐다 — 안내할 사유가 없다
@@ -278,7 +299,7 @@ export const useReplayControl = ({
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
         setActive(true);
-    }, [active, plan, referenceMachineMismatch, stopCause]);
+    }, [active, plan, referenceMachineMismatch, stopCause, invalidateInFlightWrite]);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
@@ -299,11 +320,12 @@ export const useReplayControl = ({
         // 성공을 확인한 뒤에만 index를 전진한다 — 실패한 이벤트는 남겨 두고 fail-closed로
         // 멈춘다. 자동 재시도는 없다: 물리 제어 실패는 사람이 기기를 보고 다시 켠다.
         const heater = result.heater;
+        writeGenRef.current += 1;
         const gen = writeGenRef.current;
         setWriting(true);
         void writeHeater(heater).then((applied) => {
-            setWriting(false);
             if (gen !== writeGenRef.current) return;
+            setWriting(false);
             if (applied != null) {
                 setIndex(result.nextIndex);
                 setLastWritten(applied);
