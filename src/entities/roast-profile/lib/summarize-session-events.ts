@@ -13,9 +13,13 @@ export type SessionSummary = {
     dev_pct: number | null;
 };
 
-type SessionFallback = { duration_seconds: number | null; drop_temp_celsius: number | null };
+type SessionFallback = {
+    duration_seconds: number | null;
+    drop_temp_celsius: number | null;
+    charge_temp_celsius?: number | null;
+};
 
-/** DB columns are integer → round at the save boundary only. */
+/** DB columns are integer → round at the save boundary only. Display callers that want raw event °C should read the event. */
 const roundOrNull = (v: number | null | undefined): number | null =>
     v != null && Number.isFinite(v) ? Math.round(v) : null;
 
@@ -24,11 +28,13 @@ export const summarizeSessionEvents = (events: StoredRoastEvent[], fallback: Ses
     const charge = find('Charge');
     const fc = find('FC Start');
     const drop = find('Drop');
+    const end = find('End');
     const metrics = deriveRoastMetrics(events, { durationFallback: fallback.duration_seconds });
 
     return {
-        charge_temp_celsius: roundOrNull(charge?.temp_c),
-        drop_temp_celsius: roundOrNull(drop?.temp_c ?? fallback.drop_temp_celsius),
+        charge_temp_celsius: roundOrNull(charge?.temp_c ?? fallback.charge_temp_celsius),
+        // Drop → End → stored; same temp precedence as resolveDropTempCelsius (save path).
+        drop_temp_celsius: roundOrNull(drop?.temp_c ?? end?.temp_c ?? fallback.drop_temp_celsius),
         duration_sec: roundOrNull(metrics.roastDurationSec),
         fc_time_sec: roundOrNull(isValidTimeSec(fc?.time_sec) ? fc.time_sec : null),
         dev_time_sec: roundOrNull(metrics.devTimeSec),

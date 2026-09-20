@@ -45,6 +45,7 @@ describe('summarizeSessionEvents', () => {
         expect(summarizeSessionEvents([ev('Charge', 0, 210), ev('End', 305, 150.9)], fallback)).toMatchObject({
             duration_sec: 305,
             drop_temp_celsius: 151,
+            charge_temp_celsius: 210,
         });
         expect(summarizeSessionEvents([], { duration_seconds: 120.4, drop_temp_celsius: null })).toMatchObject({
             duration_sec: 120,
@@ -74,6 +75,32 @@ describe('summarizeSessionEvents', () => {
             fc_time_sec: 480,
             dev_time_sec: 180,
             dev_pct: 27.3,
+        });
+    });
+
+    it('Charge 210 / Drop 208 / End 208 → chargeTemp 210, not 208 (#492)', () => {
+        const events = [ev('Charge', 0, 210), ev('Drop', 600, 208), ev('End', 660, 208)];
+        expect(
+            summarizeSessionEvents(events, {
+                duration_seconds: 660,
+                drop_temp_celsius: 208,
+                charge_temp_celsius: 208,
+            }),
+        ).toMatchObject({
+            charge_temp_celsius: 210,
+            drop_temp_celsius: 208,
+        });
+    });
+
+    it('Charge 210 / End 208 without Drop → chargeTemp 210, drop from End (#492)', () => {
+        expect(
+            summarizeSessionEvents([ev('Charge', 0, 210), ev('End', 660, 208)], {
+                duration_seconds: 660,
+                drop_temp_celsius: 999,
+            }),
+        ).toMatchObject({
+            charge_temp_celsius: 210,
+            drop_temp_celsius: 208,
         });
     });
 });
