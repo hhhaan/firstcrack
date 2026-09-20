@@ -757,11 +757,7 @@
                 "collapsedWaiting": "Replay 等待实际转折点",
                 "collapsedFallback": "Replay TP 回退 — 不是实测上升"
             },
-            "tpUnconfirmed": {
-                "stop": "未确认实际转折点，已停止回放。关闭 Replay 并不等于关闭燃烧器 — 请确认当前火力。实际转折点确认后可重新开启。",
-                "lock": "确认实际转折点之前无法重新开启",
-                "collapsed": "Replay 已停止 — 无实际转折点，请确认当前火力"
-            }
+            "tpUnconfirmed": "未确认实际转折点，已停止回放。关闭 Replay 并不等于关闭燃烧器 — 请确认当前火力。实际转折点确认后可重新开启。"
         }
     },
     "schedule": {

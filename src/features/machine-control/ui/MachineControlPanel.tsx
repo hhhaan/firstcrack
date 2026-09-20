@@ -217,7 +217,7 @@ export const MachineControlPanel = ({
                     collapsedRailDot(
                         replay.stopReason === 'tpUnconfirmed',
                         'bg-red-500',
-                        t('activeRoast.replay.tpUnconfirmed.collapsed'),
+                        t('activeRoast.replay.tpUnconfirmed'),
                     )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
                 {collapsed && collapsedRailDot(anyUnacknowledged, 'bg-red-500', '기기가 명령을 반영하지 않았습니다')}

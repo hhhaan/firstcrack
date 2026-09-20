@@ -32,7 +32,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
     const { t } = useTranslation();
     const stopText =
         replay.stopReason === 'tpUnconfirmed'
-            ? t('activeRoast.replay.tpUnconfirmed.stop')
+            ? t('activeRoast.replay.tpUnconfirmed')
             : replay.stopReason
               ? STOP_REASON_TEXT[replay.stopReason]
               : undefined;
@@ -53,7 +53,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
         : !replay.available
           ? '레퍼런스 화력 기록이 없습니다 — heater 기록이 있는 타겟 프로파일을 선택하세요'
           : replay.tpUnconfirmedLock
-            ? t('activeRoast.replay.tpUnconfirmed.lock')
+            ? t('activeRoast.replay.tpUnconfirmed')
             : !replay.active && replay.blocked
               ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
               : undefined;

@@ -757,11 +757,7 @@
                 "collapsedWaiting": "Replay 実測 TP 待ち",
                 "collapsedFallback": "Replay TP フォールバック — 実測の上昇ではない"
             },
-            "tpUnconfirmed": {
-                "stop": "実測 TP が確認されず再生を停止しました。Replay オフはバーナーオフではありません — 現在の火力を確認してください。実測 TP の後に再開できます。",
-                "lock": "実測 TP の確認までは再開できません",
-                "collapsed": "Replay 停止 — 実測 TP なし、現在の火力を確認"
-            }
+            "tpUnconfirmed": "実測 TP が確認されず再生を停止しました。Replay オフはバーナーオフではありません — 現在の火力を確認してください。実測 TP の後に再開できます。"
         }
     },
     "schedule": {
