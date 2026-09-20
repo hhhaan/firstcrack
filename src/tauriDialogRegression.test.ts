@@ -5,6 +5,7 @@ import cuppingSampleSummary from './views/cupping/ui/CuppingSampleSummary.tsx?ra
 import channelsTab from './views/orders/ui/ChannelsTab.tsx?raw';
 import ordersTab from './views/orders/ui/OrdersTab.tsx?raw';
 import scheduleDayView from './views/schedule/hooks/useScheduleDayView.ts?raw';
+import pendingRoastRecovery from './widgets/pending-roast-recovery/ui/PendingRoastRecovery.tsx?raw';
 import productsTable from './widgets/products-table/ui/ProductsTable.tsx?raw';
 
 describe('Tauri confirmation dialogs', () => {
@@ -28,5 +29,11 @@ describe('Tauri confirmation dialogs', () => {
         expect(cuppingEventDetail).toContain('DeleteCuppingEventModal');
         expect(cuppingEventList).not.toMatch(/await confirm\(t\('cupping.deleteEventConfirm'/);
         expect(cuppingEventDetail).not.toMatch(/await confirm\(t\('cupping.deleteEventConfirm'/);
+    });
+
+    it('pending roast recovery discard uses an in-app modal, not plugin-dialog ask', () => {
+        expect(pendingRoastRecovery).toContain('pending-roast-discard-modal');
+        expect(pendingRoastRecovery).not.toMatch(/from '@tauri-apps\/plugin-dialog'/);
+        expect(pendingRoastRecovery).not.toMatch(/\bask\(/);
     });
 });
