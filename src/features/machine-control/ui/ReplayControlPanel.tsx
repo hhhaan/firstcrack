@@ -1,6 +1,6 @@
 import { Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { resolveReplayTpWait } from '../lib/replayStatus';
+import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
@@ -37,7 +37,11 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
         tpTime: replay.tpTime,
         confirmedTurningPoint: replay.confirmedTurningPoint,
     });
-    const waiting = tpWait === 'waiting' || tpWait === 'fallback';
+    const chrome = collapsedReplayTpChrome(replay.active, tpWait);
+    const holding = isReplayTpHold(chrome);
+    let statusClass = 'text-muted';
+    if (holding) statusClass = 'text-amber-600 dark:text-amber-500';
+    else if (chrome === 'running') statusClass = 'text-emerald-500';
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
         ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
@@ -51,16 +55,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
         <div className="flex shrink-0 flex-col gap-2">
             <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">Replay</span>
-                <span
-                    data-replay-status={replay.active ? (waiting ? tpWait : 'running') : 'off'}
-                    className={`text-[11px] font-medium ${
-                        replay.active
-                            ? waiting
-                                ? 'text-amber-600 dark:text-amber-500'
-                                : 'text-emerald-500'
-                            : 'text-muted'
-                    }`}
-                >
+                <span data-replay-status={chrome ?? 'off'} className={`text-[11px] font-medium ${statusClass}`}>
                     {replay.active ? 'On' : 'Off'}
                 </span>
             </div>
@@ -86,13 +81,12 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
 
-            {replay.active && (tpWait === 'waiting' || tpWait === 'fallback') && (
+            {isReplayTpHold(chrome) && (
                 <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
-                    {t(`activeRoast.replay.tp.${tpWait}`)}
+                    {t(`activeRoast.replay.tp.${chrome}`)}
                 </p>
             )}
-            {replay.active &&
-                !waiting &&
+            {chrome === 'running' &&
                 (replay.nextEvent ? (
                     <p className="font-mono text-[11px] text-muted">
                         다음: BT {Math.round(unit === 'F' ? (replay.nextEvent.bt * 9) / 5 + 32 : replay.nextEvent.bt)}°

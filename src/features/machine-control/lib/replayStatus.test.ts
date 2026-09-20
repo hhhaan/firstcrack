@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collapsedReplayTpChrome, resolveReplayTpWait } from './replayStatus';
+import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from './replayStatus';
 
 const btNext = { t: 120, bt: 110, heater: 60 };
 const timeNext = { t: 0, bt: 180, heater: 80 };
@@ -105,5 +105,14 @@ describe('collapsedReplayTpChrome', () => {
         expect(collapsedReplayTpChrome(true, 'detected')).toBe('running');
         expect(collapsedReplayTpChrome(true, null)).toBe('running');
         expect(collapsedReplayTpChrome(false, 'waiting')).toBeNull();
+    });
+});
+
+describe('isReplayTpHold', () => {
+    it('waiting/fallback만 hold다', () => {
+        expect(isReplayTpHold('waiting')).toBe(true);
+        expect(isReplayTpHold('fallback')).toBe(true);
+        expect(isReplayTpHold('running')).toBe(false);
+        expect(isReplayTpHold(null)).toBe(false);
     });
 });

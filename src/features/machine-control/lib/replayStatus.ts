@@ -35,3 +35,6 @@ export const collapsedReplayTpChrome = (
     if (tpWait === 'waiting' || tpWait === 'fallback') return tpWait;
     return 'running';
 };
+
+export const isReplayTpHold = (chrome: ReturnType<typeof collapsedReplayTpChrome>): chrome is 'waiting' | 'fallback' =>
+    chrome === 'waiting' || chrome === 'fallback';

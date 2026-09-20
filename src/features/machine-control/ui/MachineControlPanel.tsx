@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ControlCommand, ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
-import { collapsedReplayTpChrome, resolveReplayTpWait } from '../lib/replayStatus';
+import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import { isPercentUnit } from '../lib/snapPercent';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
@@ -154,6 +154,13 @@ export const MachineControlPanel = ({
         confirmedTurningPoint: replay.confirmedTurningPoint,
     });
     const replayChrome = collapsedReplayTpChrome(replay.active, replayTpWait);
+    const holdLabel = isReplayTpHold(replayChrome)
+        ? t(
+              replayChrome === 'waiting'
+                  ? 'activeRoast.replay.tp.collapsedWaiting'
+                  : 'activeRoast.replay.tp.collapsedFallback',
+          )
+        : undefined;
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
     // 재생이 켜지는 경계에서 이벤트가 새면 여기가 마지막 방어선이다.
@@ -213,20 +220,12 @@ export const MachineControlPanel = ({
                         aria-label="Replay 재생 중"
                     />
                 )}
-                {collapsed && replayChrome === 'waiting' && (
+                {collapsed && isReplayTpHold(replayChrome) && (
                     <span
                         role="img"
                         className="h-2 w-2 rounded-full bg-amber-500"
-                        title={t('activeRoast.replay.tp.collapsedWaiting')}
-                        aria-label={t('activeRoast.replay.tp.collapsedWaiting')}
-                    />
-                )}
-                {collapsed && replayChrome === 'fallback' && (
-                    <span
-                        role="img"
-                        className="h-2 w-2 rounded-full bg-amber-500"
-                        title={t('activeRoast.replay.tp.collapsedFallback')}
-                        aria-label={t('activeRoast.replay.tp.collapsedFallback')}
+                        title={holdLabel}
+                        aria-label={holdLabel}
                     />
                 )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
