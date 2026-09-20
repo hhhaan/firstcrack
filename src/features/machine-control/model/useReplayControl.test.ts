@@ -1043,6 +1043,34 @@ describe('useReplayControl', () => {
             nowMs,
             ...over,
         });
+        const recovered = (over: Partial<ReplayControlInputs> = {}) =>
+            clock(LAST + 8_000, {
+                observationQuality: 'valid',
+                lastValidReceivedAtMs: LAST + 8_000,
+                ...over,
+            });
+        // Same-commit DROP + stale: elapsed +2s so timingGap does not fire.
+        const dropOn = (dropBehavior: 'hold' | 'zero'): Partial<ReplayControlInputs> => ({
+            dropBehavior,
+            elapsed: 4,
+            nowMs: 4_000,
+            lastValidReceivedAtMs: 0,
+            observationQuality: 'valid',
+        });
+        const dropFinish = (
+            dropBehavior: 'hold' | 'zero',
+            over: Partial<ReplayControlInputs> = {},
+        ): Partial<ReplayControlInputs> => ({
+            dropBehavior,
+            elapsed: 6,
+            nowMs: 6_000,
+            lastValidReceivedAtMs: 0,
+            liveBt: 205,
+            afterTurningPoint: true,
+            roastFinished: true,
+            observationQuality: 'stale',
+            ...over,
+        });
 
         it('elapsed가 흘러도 last-valid age가 5초이면 짧은 보류만 하고 중지하지 않는다', async () => {
             const h = await renderReplay(clock(LAST));
@@ -1070,15 +1098,7 @@ describe('useReplayControl', () => {
             // 자동 zero/감화 없음
             expect(h.writeHeater).not.toHaveBeenCalledWith(0);
             // 명시적 재개 후 남은 이벤트부터 — index가 리셋되면 80을 다시 쓴다
-            await h.rerender(
-                clock(LAST + 8_000, {
-                    elapsed: 32,
-                    liveBt: 138,
-                    observationQuality: 'valid',
-                    lastValidReceivedAtMs: LAST + 8_000,
-                    nowMs: LAST + 8_000,
-                }),
-            );
+            await h.rerender(recovered({ elapsed: 32, liveBt: 138 }));
             expect(h.get().active).toBe(false);
             await act(async () => h.get().toggle());
             expect(h.get().active).toBe(true);
@@ -1104,14 +1124,7 @@ describe('useReplayControl', () => {
             await h.rerender(clock(LAST, { elapsed: 26, liveBt: 150 }));
             h.writeHeater.mockClear();
             // 복구 커밋이 last-valid를 먼저 갱신한 것처럼 보이게 한다 — age를 0으로 숨기면 안 된다
-            await h.rerender(
-                clock(LAST + 8_000, {
-                    elapsed: 31,
-                    liveBt: 140,
-                    observationQuality: 'valid',
-                    lastValidReceivedAtMs: LAST + 8_000,
-                }),
-            );
+            await h.rerender(recovered({ elapsed: 31, liveBt: 140 }));
             expect(h.writeHeater).not.toHaveBeenCalled();
             expect(h.get().active).toBe(false);
             expect(h.get().stopReason).toBe('observationStale');
@@ -1124,25 +1137,10 @@ describe('useReplayControl', () => {
             await h.rerender(clock(LAST + 5_001, { elapsed: 6, liveBt: 150, observationQuality: 'stale' }));
             expect(h.get().active).toBe(false);
             h.writeHeater.mockClear();
-            await h.rerender(
-                clock(LAST + 8_000, {
-                    elapsed: 8,
-                    liveBt: 150,
-                    observationQuality: 'valid',
-                    lastValidReceivedAtMs: LAST + 8_000,
-                }),
-            );
+            await h.rerender(recovered({ elapsed: 8, liveBt: 150 }));
             expect(h.get().active).toBe(false);
             expect(h.writeHeater).not.toHaveBeenCalled();
-            await h.rerender(
-                clock(LAST + 8_000, {
-                    elapsed: 8,
-                    liveBt: 150,
-                    observationQuality: 'valid',
-                    lastValidReceivedAtMs: LAST + 8_000,
-                    pidEngaged: true,
-                }),
-            );
+            await h.rerender(recovered({ elapsed: 8, liveBt: 150, pidEngaged: true }));
             await act(async () => h.get().toggle());
             expect(h.get().active).toBe(false);
             h.unmount();
@@ -1163,64 +1161,24 @@ describe('useReplayControl', () => {
         });
 
         it('같은 갱신의 stale 종료+DROP zero는 화력 0을 쓰고 재시도 상태를 유지한다', async () => {
-            const h = await renderReplay({
-                dropBehavior: 'zero',
-                elapsed: 4,
-                nowMs: 4_000,
-                lastValidReceivedAtMs: 0,
-                observationQuality: 'valid',
-            });
+            const h = await renderReplay(dropOn('zero'));
             await act(async () => h.get().toggle());
             h.writeHeater.mockClear();
-            await h.rerender({
-                dropBehavior: 'zero',
-                elapsed: 6,
-                nowMs: 6_000,
-                lastValidReceivedAtMs: 0,
-                liveBt: 205,
-                afterTurningPoint: true,
-                roastFinished: true,
-                observationQuality: 'stale',
-            });
+            await h.rerender(dropFinish('zero'));
             expect(h.get().active).toBe(false);
             expect(h.writeHeater).toHaveBeenCalledWith(0);
             expect(h.writeHeater).toHaveBeenCalledTimes(1);
-            await h.rerender({
-                dropBehavior: 'zero',
-                elapsed: 6,
-                nowMs: 6_000,
-                lastValidReceivedAtMs: 0,
-                liveBt: 205,
-                afterTurningPoint: true,
-                roastFinished: true,
-                observationQuality: 'stale',
-                heaterUnacknowledged: true,
-            });
+            await h.rerender(dropFinish('zero', { heaterUnacknowledged: true }));
             expect(h.writeHeater).toHaveBeenCalledTimes(2);
             expect(h.writeHeater).toHaveBeenLastCalledWith(0);
             h.unmount();
         });
 
         it('같은 갱신의 stale+DROP hold는 zero를 쓰지 않는다', async () => {
-            const h = await renderReplay({
-                dropBehavior: 'hold',
-                elapsed: 4,
-                nowMs: 4_000,
-                lastValidReceivedAtMs: 0,
-                observationQuality: 'valid',
-            });
+            const h = await renderReplay(dropOn('hold'));
             await act(async () => h.get().toggle());
             h.writeHeater.mockClear();
-            await h.rerender({
-                dropBehavior: 'hold',
-                elapsed: 6,
-                nowMs: 6_000,
-                lastValidReceivedAtMs: 0,
-                liveBt: 205,
-                afterTurningPoint: true,
-                roastFinished: true,
-                observationQuality: 'stale',
-            });
+            await h.rerender(dropFinish('hold'));
             expect(h.get().active).toBe(false);
             expect(h.writeHeater).not.toHaveBeenCalled();
             h.unmount();
@@ -1237,26 +1195,11 @@ describe('useReplayControl', () => {
         });
 
         it('사전 manual OFF 후 DROP은 안전 명령 소유권을 새로 얻지 않는다', async () => {
-            const h = await renderReplay({
-                dropBehavior: 'zero',
-                elapsed: 4,
-                nowMs: 4_000,
-                lastValidReceivedAtMs: 0,
-                observationQuality: 'valid',
-            });
+            const h = await renderReplay(dropOn('zero'));
             await act(async () => h.get().toggle());
             await act(async () => h.get().stop());
             h.writeHeater.mockClear();
-            await h.rerender({
-                dropBehavior: 'zero',
-                elapsed: 6,
-                nowMs: 6_000,
-                lastValidReceivedAtMs: 0,
-                liveBt: 205,
-                afterTurningPoint: true,
-                roastFinished: true,
-                observationQuality: 'stale',
-            });
+            await h.rerender(dropFinish('zero'));
             expect(h.writeHeater).not.toHaveBeenCalled();
             h.unmount();
         });
