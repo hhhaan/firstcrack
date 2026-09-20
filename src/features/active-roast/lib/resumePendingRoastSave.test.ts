@@ -80,6 +80,25 @@ describe('shared durable save coordinator', () => {
         );
         expect(readPendingRoastSave('owner', ID)).toBeNull();
     });
+    it('refreshes caches once after save and before curve sync', async () => {
+        const order: string[] = [];
+        const d = deps({
+            saveRoast: vi.fn(async () => {
+                order.push('save');
+                return { savedSession: saved, shouldOpenContinue: true };
+            }),
+            syncBatch: vi.fn(async () => {
+                order.push('syncBatch');
+            }),
+            syncRoastCurve: vi.fn(async () => {
+                order.push('curve');
+            }),
+        });
+        await resumePendingRoastSave(d);
+        expect(order).toEqual(['save', 'syncBatch', 'curve']);
+        expect(d.syncBatch).toHaveBeenCalledTimes(1);
+        expect(d.syncRoastCurve).toHaveBeenCalledTimes(1);
+    });
     it('already committed sessions bypass resolver/F3/quota/save and only synchronize', async () => {
         const d = deps({ findSession: vi.fn(async () => saved) });
         await resumePendingRoastSave(d);

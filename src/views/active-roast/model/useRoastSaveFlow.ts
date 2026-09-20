@@ -164,7 +164,9 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 if (!sessionId) pending.params.sessionId = unrecordedId.current ??= pending.params.sessionId;
                 writePendingRoastSave(pending);
 
+                const saveStarted = Date.now();
                 const saveResult = await resumeSave(pending);
+                logger.debug('roast-save-stage', { stage: 'resume-save', ms: Date.now() - saveStarted });
                 if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 if (saveResult.syncPending) {
                     useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'));
@@ -176,8 +178,15 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     linkedBatch?.planBatchId ??
                     null;
 
+                // Close save UI now. Keep the ended roast until continue candidates
+                // have fresh progress so we cannot start the wrong next batch (#317).
+                flow.onSaveSuccess({ shouldOpenContinue: false });
+                unrecordedId.current = null;
+                setPreparing(false);
+
                 let continueCandidates: PlanBatchWithProgress[] = [];
                 if (!saveResult.syncPending && isWorkspaceReady && workspaceOwnerId) {
+                    const continueStarted = Date.now();
                     try {
                         continueCandidates = await resolveContinueCandidates({
                             preferBatchId,
@@ -195,6 +204,10 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                         logger.capture(err, { context: 'resolveContinueCandidates' });
                         continueCandidates = [];
                     }
+                    logger.debug('roast-save-stage', {
+                        stage: 'continue-candidates',
+                        ms: Date.now() - continueStarted,
+                    });
                 }
 
                 if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
@@ -203,13 +216,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 // 여기서 떼지 않으면 다음 애드혹 로스트가 끝난 배치에 붙는다 (#317)
                 if (continueCandidates.length === 0) {
                     useRoastSessionStore.getState().completeBatch();
+                } else {
+                    flow.onSaveSuccess({
+                        shouldOpenContinue: true,
+                        continueCandidates,
+                    });
                 }
-
-                flow.onSaveSuccess({
-                    shouldOpenContinue: continueCandidates.length > 0,
-                    continueCandidates,
-                });
-                unrecordedId.current = null;
                 onResetActiveRoast();
             } catch (err) {
                 logger.capture(err, { context: 'roastSummary save' });
