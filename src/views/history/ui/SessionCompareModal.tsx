@@ -42,13 +42,16 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 const last = points[points.length - 1];
                 const events = eventsBySession[i];
                 const summary = summarizeSessionEvents(events, s);
+                const chargeEvt = events.find((e) => e.type === 'Charge');
+                const dropEvt = events.find((e) => e.type === 'Drop');
                 return {
                     session: s,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     hasCurve: points.length > 0,
                     events,
-                    chargeBt: summary.charge_temp_celsius,
-                    dropBt: summary.drop_temp_celsius ?? last?.bt ?? null,
+                    // event temps stay unrounded for compare; curve 00:00 is Charge when no mark/BBP
+                    chargeBt: chargeEvt?.temp_c ?? summary.charge_temp_celsius ?? first?.bt ?? null,
+                    dropBt: dropEvt?.temp_c ?? summary.drop_temp_celsius ?? last?.bt ?? null,
                     chargeEt: first?.et ?? null,
                     dropEt: last?.et ?? null,
                     visible: !hiddenIds.has(s.id),
