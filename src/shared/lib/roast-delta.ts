@@ -10,7 +10,7 @@ export type RoastMetrics = {
     /** FC Start → roast end (same basis as duration). */
     devTimeSec: number | null;
     dtrPct: number | null;
-    /** FC Rolling → same roast end; null when FC Start is missing. */
+    /** FC Rolling → same roast end; null unless FC Start ≤ Rolling < roast end. */
     rollingDevTimeSec: number | null;
     rollingDevPct: number | null;
     endSource: RoastMetricsEndSource | null;
@@ -20,7 +20,7 @@ export interface SessionDevMetrics {
     /** FC Start → roast end (canonical DTR). */
     devTimeSec: number | null;
     devPct: number | null;
-    /** FC Rolling → roast end (only when FC Start is also present — orphan Rolling is meaningless). */
+    /** FC Rolling → roast end; null unless FC Start ≤ Rolling < roast end. */
     rollingDevTimeSec: number | null;
     rollingDevPct: number | null;
 }
@@ -84,8 +84,9 @@ export const deriveRoastMetrics = (events: NumericRoastEvent[], opts?: DeriveRoa
     const { roastDurationSec, endSource } = pickEnd(events, opts?.durationFallback, opts?.liveElapsed);
     const fcStartSec = firstValidTime(events, 'FC Start');
     const start = devFromAnchor(fcStartSec, roastDurationSec);
+    const rollingSec = firstValidTime(events, 'FC Rolling');
     const rolling = devFromAnchor(
-        fcStartSec == null ? undefined : firstValidTime(events, 'FC Rolling'),
+        fcStartSec != null && rollingSec != null && fcStartSec <= rollingSec ? rollingSec : undefined,
         roastDurationSec,
     );
     return {

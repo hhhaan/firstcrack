@@ -141,6 +141,20 @@ describe('deriveRoastMetrics', () => {
         expect(result).toMatchObject(emptyDev);
     });
 
+    it('returns rolling nulls when Rolling is before FC Start', () => {
+        const result = deriveRoastMetrics([ev('FC Start', 480), ev('FC Rolling', 450), ev('Drop', 600)]);
+        expect(result.devTimeSec).toBe(120);
+        expect(result.dtrPct).toBe(20);
+        expect(result.rollingDevTimeSec).toBeNull();
+        expect(result.rollingDevPct).toBeNull();
+    });
+
+    it('returns rolling nulls when FC Start is after roast end even if Rolling is inside', () => {
+        const result = deriveRoastMetrics([ev('FC Start', 700), ev('FC Rolling', 520), ev('Drop', 600)]);
+        expect(result.roastDurationSec).toBe(600);
+        expect(result).toMatchObject(emptyDev);
+    });
+
     it('prefers duration fallback over live elapsed (completed-session contract)', () => {
         const result = deriveRoastMetrics([ev('FC Start', 480)], { durationFallback: 600, liveElapsed: 540 });
         expect(result.endSource).toBe('legacy');

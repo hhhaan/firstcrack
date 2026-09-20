@@ -137,6 +137,37 @@ describe('sortSessions', () => {
         ];
         expect(sortSessions(sessions, 'duration', true).map((s) => s.id)).toEqual(['early-drop', 'late-drop']);
     });
+
+    it('includes oldest shortest/longest sessions past the 1000-row PostgREST cap in sort and page count', () => {
+        const pageSize = 10;
+        const sessions = Array.from({ length: 1001 }, (_, i) =>
+            session({
+                id: `s${i}`,
+                duration_seconds: 800,
+                events: [{ id: 'd', type: 'Drop', time_sec: 500 }],
+            }),
+        );
+        sessions[1000] = session({
+            id: 'oldest-shortest',
+            duration_seconds: 900,
+            events: [{ id: 'd', type: 'Drop', time_sec: 100 }],
+        });
+        sessions[999] = session({
+            id: 'oldest-longest',
+            duration_seconds: 400,
+            events: [{ id: 'd', type: 'Drop', time_sec: 900 }],
+        });
+
+        const asc = sortSessions(sessions, 'duration', true);
+        expect(asc).toHaveLength(1001);
+        expect(asc[0].id).toBe('oldest-shortest');
+        expect(Math.ceil(asc.length / pageSize)).toBe(101);
+        expect(paginateSessions(asc, 1, pageSize)[0].id).toBe('oldest-shortest');
+
+        const desc = sortSessions(sessions, 'duration', false);
+        expect(desc[0].id).toBe('oldest-longest');
+        expect(paginateSessions(desc, 101, pageSize).some((s) => s.id === 'oldest-shortest')).toBe(true);
+    });
 });
 
 describe('paginateSessions', () => {
