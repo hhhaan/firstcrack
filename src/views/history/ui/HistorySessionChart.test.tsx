@@ -11,14 +11,22 @@ const mocks = vi.hoisted(() => ({
     target: [] as TsvPoint[],
     chart: vi.fn(),
     useBbpCurve: vi.fn(),
+    exportPdf: vi.fn(),
+    dataUrl: 'data:image/jpeg;base64,qq',
 }));
 vi.mock('@entities/roast', () => ({
     useHistoryChart: () => mocks.roast,
+    sessionBeanName: () => 'E2E Ethiopia',
     useBbpCurve: (...args: unknown[]) => {
         mocks.useBbpCurve(...args);
         return args[1] === 'charge-session' ? mocks.query : { data: [] };
     },
 }));
+vi.mock('@features/export-history-pdf', () => ({
+    historyPdfFilename: () => 'roast-graph-e2e-ethiopia-26-09-20.pdf',
+    useExportHistoryPdf: () => mocks.exportPdf,
+}));
+vi.mock('@tauri-apps/plugin-dialog', () => ({ message: vi.fn() }));
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [] }),
     useResolvedProfileCurve: () => ({ points: mocks.target }),
@@ -33,12 +41,23 @@ vi.mock('@features/active-roast/lib/serialize-roast-events', () => ({
     storedEventsToMarkers: () => [{ event: 'Charge', timeSec: 0 }],
 }));
 vi.mock('@shared/store/theme', () => ({ useThemeStore: () => 'light' }));
-vi.mock('@features/active-roast/ui/RoastTempChart', () => ({
-    RoastTempChart: (props: unknown) => {
-        mocks.chart(props);
-        return <div data-testid="curve" />;
-    },
-}));
+vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
+    const react = await vi.importActual<typeof import('react')>('react');
+    return {
+        RoastTempChart: react.forwardRef((props: unknown, ref) => {
+            mocks.chart(props);
+            react.useImperativeHandle(ref, () => ({
+                getDataURL: () => mocks.dataUrl,
+                beginMarkerDrag: () => false,
+                moveMarkerDrag: () => false,
+                endMarkerDrag: () => false,
+                hitTestMarker: () => false,
+                openMarkerEdit: () => false,
+            }));
+            return <div data-testid="curve" />;
+        }),
+    };
+});
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -71,6 +90,17 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     await render();
     expect(mocks.useBbpCurve).toHaveBeenCalledWith('owner', 'charge-session', 'saved.bbp.tsv');
     expect(container.querySelectorAll('[data-testid="curve"]')).toHaveLength(1);
+    const pdfBtn = container.querySelector('[data-testid="history-export-pdf"]') as HTMLButtonElement;
+    expect(pdfBtn.disabled).toBe(false);
+    await act(async () => pdfBtn.click());
+    expect(mocks.exportPdf).toHaveBeenCalledWith(
+        expect.objectContaining({
+            filename: 'roast-graph-e2e-ethiopia-26-09-20.pdf',
+            chartDataUrl: mocks.dataUrl,
+            header: expect.objectContaining({ bean: 'E2E Ethiopia' }),
+            legend: expect.arrayContaining([{ color: expect.any(String), label: 'Heat' }]),
+        }),
+    );
     expect(container.textContent).toContain('1:32');
     expect(container.textContent).toContain('365');
     expect(mocks.chart).toHaveBeenLastCalledWith(
@@ -110,5 +140,9 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     await render();
     expect(container.textContent).toContain('history.expanded.chartUnavailable');
     expect(mocks.chart).toHaveBeenLastCalledWith(expect.objectContaining({ xs: [-90, -2] }));
+    mocks.roast.points = [];
+    mocks.query.data = [];
+    await render();
+    expect((container.querySelector('[data-testid="history-export-pdf"]') as HTMLButtonElement).disabled).toBe(true);
     await act(async () => root.unmount());
 });

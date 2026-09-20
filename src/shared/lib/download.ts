@@ -15,3 +15,10 @@ export const downloadBlob = (blob: Blob, filename: string): void => {
 export const downloadCsv = (csv: string, filename: string): void => {
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), filename);
 };
+
+/** Download PDF bytes. */
+export const downloadPdf = (bytes: Uint8Array, filename: string): void => {
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(buffer).set(bytes);
+    downloadBlob(new Blob([buffer], { type: 'application/pdf' }), filename);
+};

@@ -32,6 +32,7 @@ const { chart, convertFromPixel, convertToPixel, setOption, zrHandlers } = vi.ho
         off: vi.fn(),
         resize: vi.fn(),
         setOption,
+        getDataURL: vi.fn(() => 'data:image/jpeg;base64,qq'),
     };
     return { chart, convertFromPixel, convertToPixel, setOption, zrHandlers };
 });
@@ -420,5 +421,16 @@ describe('RoastTempChart interactions', () => {
             chartElement.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 20 })),
         );
         expect(container.querySelector('#chart-note-input')).toBeNull();
+    });
+
+    it('exports the canvas as a JPEG data URL', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref })));
+        expect(ref.current?.getDataURL()).toBe('data:image/jpeg;base64,qq');
+        expect(chart.getDataURL).toHaveBeenCalledWith({
+            type: 'jpeg',
+            pixelRatio: 2,
+            backgroundColor: '#ffffff',
+        });
     });
 });

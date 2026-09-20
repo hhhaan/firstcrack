@@ -79,6 +79,7 @@ export interface RoastTempChartHandle {
     endMarkerDrag: (pointerId: number) => boolean;
     hitTestMarker: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
     openMarkerEdit: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
+    getDataURL: () => string | null;
 }
 
 const scalar = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
@@ -516,10 +517,20 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         [findDraggableMarker, localPoint, onEventMarkerEdit],
     );
 
+    const getDataURL = useCallback(
+        () =>
+            chartInstanceRef.current?.getDataURL({
+                type: 'jpeg',
+                pixelRatio: 2,
+                backgroundColor: '#ffffff',
+            }) ?? null,
+        [],
+    );
+
     useImperativeHandle(
         ref,
-        () => ({ beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit }),
-        [beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit],
+        () => ({ beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit, getDataURL }),
+        [beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit, getDataURL],
     );
 
     useEffect(
