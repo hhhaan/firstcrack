@@ -7,6 +7,14 @@ interface Props {
     unit: 'C' | 'F';
 }
 
+export const REPLAY_OBSERVATION_HOLD_TEXT = '온도 데이터 확인 대기';
+
+const replayStatus = (active: boolean, observationHold: boolean) => {
+    if (observationHold) return { label: '대기', className: 'text-amber-600 dark:text-amber-500' };
+    if (active) return { label: 'On', className: 'text-emerald-500' };
+    return { label: 'Off', className: 'text-muted' };
+};
+
 // 'finished'는 배치 종료라 안내하지 않는다 — 맵에 없으면 렌더 생략
 const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
     disconnected: '연결 끊김으로 재생 중지',
@@ -28,6 +36,7 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  */
 export const ReplayControlPanel = ({ replay, unit }: Props) => {
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
+    const status = replayStatus(replay.active, replay.observationHold);
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
         ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
@@ -41,9 +50,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
         <div className="flex shrink-0 flex-col gap-2">
             <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">Replay</span>
-                <span className={`text-[11px] font-medium ${replay.active ? 'text-emerald-500' : 'text-muted'}`}>
-                    {replay.active ? 'On' : 'Off'}
-                </span>
+                <span className={`text-[11px] font-medium ${status.className}`}>{status.label}</span>
             </div>
 
             <label className="group relative flex cursor-pointer items-center gap-2">
@@ -67,7 +74,14 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
 
+            {replay.active && replay.observationHold && (
+                <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
+                    {REPLAY_OBSERVATION_HOLD_TEXT}
+                </p>
+            )}
+
             {replay.active &&
+                !replay.observationHold &&
                 (replay.nextEvent ? (
                     <p className="font-mono text-[11px] text-muted">
                         다음: BT {Math.round(unit === 'F' ? (replay.nextEvent.bt * 9) / 5 + 32 : replay.nextEvent.bt)}°
