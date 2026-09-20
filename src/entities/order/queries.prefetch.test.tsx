@@ -97,6 +97,18 @@ describe('useOrdersPaginated N+1 prefetch', () => {
         expect(observers(2)).toBe(1);
     });
 
+    it('serves the next numbered page from cache without refetching it', async () => {
+        await renderHook(1);
+        await waitUntil(() => calledPages().includes(2));
+        await renderHook(2);
+        await waitUntil(() => calledPages().includes(3));
+        expect(latest.data?.data).toEqual([{ id: 'o2' }]);
+        expect(latest.isPlaceholderData).toBe(false);
+        expect(calledPages()).toEqual([1, 2, 3]);
+        expect(observers(2)).toBe(1);
+        expect(observers(3)).toBe(1);
+    });
+
     it('does not prefetch past the last page', async () => {
         vi.mocked(orderApi.listPaginated).mockImplementation(async (p) => ({
             data: [{ id: `o${p.page}` }] as never,
