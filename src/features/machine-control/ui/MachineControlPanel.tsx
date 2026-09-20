@@ -4,7 +4,7 @@ import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ControlCommand, ControlRole } from '../lib/controlSender';
+import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
 import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import { isPercentUnit } from '../lib/snapPercent';
@@ -90,8 +90,17 @@ export const MachineControlPanel = ({
         },
         [onHeaterCommitted],
     );
-    const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
-        useMachineControl(sidecarConnected, liveData, handleCommitted);
+    const {
+        writable,
+        limits,
+        pidCapability,
+        desired,
+        unacknowledged,
+        sending,
+        setValue,
+        commitNow,
+        cancelUnsentReplayHeater,
+    } = useMachineControl(sidecarConnected, liveData, handleCommitted);
     useEffect(() => {
         heaterUnitRef.current = limits.heater?.unit ?? '%';
     }, [limits.heater?.unit]);
@@ -120,13 +129,16 @@ export const MachineControlPanel = ({
 
     // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
     const writeHeater = useCallback(
-        async (value: number) => {
+        async (value: number, origin: ControlOrigin = 'replay') => {
             setValue('heater', value);
-            const applied = await commitNow();
+            const applied = await commitNow(origin);
             return applied?.heater ?? null;
         },
         [setValue, commitNow],
     );
+    const commitManual = useCallback(() => {
+        void commitNow('manual');
+    }, [commitNow]);
     const replay = useReplayControl({
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,
@@ -149,6 +161,7 @@ export const MachineControlPanel = ({
         reconnecting,
         observationQuality,
         writeHeater,
+        cancelUnsentHeater: cancelUnsentReplayHeater,
         heaterMax: limits.heater?.max,
     });
     const replayTpWait = resolveReplayTpWait({
@@ -262,7 +275,7 @@ export const MachineControlPanel = ({
                                         : undefined
                             }
                             onChange={handleManualChange}
-                            onCommit={commitNow}
+                            onCommit={commitManual}
                         />
                         {chipRoles.length > 0 && (
                             <div className="flex shrink-0 flex-col gap-1.5">
@@ -276,7 +289,7 @@ export const MachineControlPanel = ({
                                         unacknowledged={unacknowledged.has(role)}
                                         disabled={!writable}
                                         onChange={handleManualChange}
-                                        onCommit={commitNow}
+                                        onCommit={commitManual}
                                     />
                                 ))}
                             </div>
@@ -304,7 +317,7 @@ export const MachineControlPanel = ({
                                         !supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined
                                     }
                                     onChange={handleManualChange}
-                                    onCommit={commitNow}
+                                    onCommit={commitManual}
                                 />
                             );
                         })}

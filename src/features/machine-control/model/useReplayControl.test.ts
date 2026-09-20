@@ -16,7 +16,7 @@ const POINTS: ReplayPoint[] = [
     { t: 600, bt: 205, heater: 40 },
 ];
 
-const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
+const BASE: Omit<ReplayControlInputs, 'writeHeater' | 'cancelUnsentHeater'> = {
     referencePoints: POINTS,
     referenceMachineMismatch: false,
     referenceDropTime: null,
@@ -39,10 +39,11 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
 /** repo 표준 패턴 — 실제 훅을 렌더해 반환값을 노출한다 */
 const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     const writeHeater = vi.fn(async (value: number): Promise<number | null> => value);
+    const cancelUnsentHeater = vi.fn();
     const root = createRoot(document.createElement('div'));
     let latest!: ReturnType<typeof useReplayControl>;
     const Probe = ({ inputs }: { inputs: Partial<ReplayControlInputs> }) => {
-        latest = useReplayControl({ ...BASE, writeHeater, ...inputs });
+        latest = useReplayControl({ ...BASE, writeHeater, cancelUnsentHeater, ...inputs });
         return null;
     };
     const render = (inputs: Partial<ReplayControlInputs>) =>
@@ -65,7 +66,14 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
         return render(inputs);
     };
     await render(initial);
-    return { get: () => latest, rerender, jump, writeHeater, unmount: () => act(() => root.unmount()) };
+    return {
+        get: () => latest,
+        rerender,
+        jump,
+        writeHeater,
+        cancelUnsentHeater,
+        unmount: () => act(() => root.unmount()),
+    };
 };
 
 describe('divergeTolerance (#428)', () => {
@@ -373,7 +381,7 @@ describe('useReplayControl', () => {
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
             expect(h.get().active).toBe(false);
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, liveBt: 200 });
             expect(h.writeHeater).toHaveBeenCalledTimes(1);
             h.unmount();
@@ -395,7 +403,7 @@ describe('useReplayControl', () => {
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, heaterUnacknowledged: true });
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
 
@@ -408,7 +416,7 @@ describe('useReplayControl', () => {
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, roasting: false });
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, roasting: false, heaterUnacknowledged: true });
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
 
@@ -457,7 +465,7 @@ describe('useReplayControl', () => {
             await act(async () => h.get().toggle());
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, sidecarConnected: false });
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
 
@@ -466,7 +474,7 @@ describe('useReplayControl', () => {
             await act(async () => h.get().toggle());
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked });
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             expect(h.writeHeater).toHaveBeenCalledTimes(1);
 
             // un-drop. unack는 아직 false — 같은 커밋에서 retry effect가 stale safeOffIssued로
@@ -499,6 +507,7 @@ describe('useReplayControl', () => {
             await act(async () => h.get().toggle());
             expect(h.writeHeater).toHaveBeenCalled();
             expect(h.writeHeater).not.toHaveBeenCalledWith(0);
+            expect(h.writeHeater).not.toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
     });
@@ -994,7 +1003,7 @@ describe('useReplayControl', () => {
                 observationQuality: 'stale',
             });
             expect(h.get().active).toBe(false);
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
 
@@ -1011,7 +1020,7 @@ describe('useReplayControl', () => {
                 observationQuality: null,
             });
             expect(h.get().active).toBe(false);
-            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledWith(0, 'safety');
             h.unmount();
         });
 
@@ -1203,6 +1212,51 @@ describe('useReplayControl', () => {
             expect(h.writeHeater).toHaveBeenCalledTimes(1);
             expect(h.get().nextEvent?.heater).toBe(60);
             h.unmount();
+        });
+    });
+
+    describe('중단 시 미전송 heater 취소 연결 (#368 R03)', () => {
+        it('toggle OFF / 수동 / PID / 프로파일·배치에서 cancelUnsentHeater를 호출한다', async () => {
+            const h = await renderReplay();
+            await act(async () => h.get().toggle());
+            h.cancelUnsentHeater.mockClear();
+            await act(async () => h.get().toggle());
+            expect(h.cancelUnsentHeater).toHaveBeenCalled();
+            h.unmount();
+
+            const manual = await renderReplay();
+            await act(async () => manual.get().toggle());
+            manual.cancelUnsentHeater.mockClear();
+            await act(async () => manual.get().stop());
+            expect(manual.cancelUnsentHeater).toHaveBeenCalled();
+            manual.unmount();
+
+            const pid = await renderReplay();
+            await act(async () => pid.get().toggle());
+            pid.cancelUnsentHeater.mockClear();
+            await pid.rerender({ pidEngaged: true });
+            expect(pid.cancelUnsentHeater).toHaveBeenCalled();
+            pid.unmount();
+
+            const profile = await renderReplay();
+            await act(async () => profile.get().toggle());
+            profile.cancelUnsentHeater.mockClear();
+            await profile.rerender({
+                referencePoints: [
+                    { t: 0, bt: 180, heater: 40 },
+                    { t: 60, bt: 95, heater: 40 },
+                    { t: 300, bt: 155, heater: 20 },
+                ],
+            });
+            expect(profile.cancelUnsentHeater).toHaveBeenCalled();
+            profile.unmount();
+
+            const batch = await renderReplay();
+            await act(async () => batch.get().toggle());
+            batch.cancelUnsentHeater.mockClear();
+            await batch.rerender({ roasting: false });
+            expect(batch.cancelUnsentHeater).toHaveBeenCalled();
+            batch.unmount();
         });
     });
 });
