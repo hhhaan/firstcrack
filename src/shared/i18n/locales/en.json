@@ -264,6 +264,7 @@
                 "profile": "Profile",
                 "displayName": "Display name",
                 "displayNamePlaceholder": "Your name",
+                "displayNameRequired": "Enter a display name",
                 "businessName": "Business name",
                 "businessNamePlaceholder": "Your business name",
                 "businessRegNumber": "Business registration number",

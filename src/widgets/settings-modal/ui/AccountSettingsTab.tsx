@@ -1,13 +1,14 @@
-import { useProfile, useUpdateProfile } from '@entities/profile';
+import { normalizeDisplayName, useProfile, useUpdateProfile } from '@entities/profile';
 import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { logger } from '@shared/lib/logger';
 import { weatherKeys } from '@shared/lib/query-keys';
 import { useAuthStore } from '@shared/store/auth';
+import { formErrorCls } from '@shared/ui/form-styles';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { LogOut } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type AccountSettingsTabProps = {
@@ -31,6 +32,8 @@ type InputFieldProps = {
     type?: string;
     placeholder?: string;
     right?: React.ReactNode;
+    error?: string;
+    required?: boolean;
 };
 
 function InputField({
@@ -41,7 +44,10 @@ function InputField({
     type = 'text',
     placeholder,
     right,
+    error,
+    required,
 }: InputFieldProps) {
+    const errorId = useId();
     return (
         <div>
             <label className="block text-[13px] font-medium text-[#374151] dark:text-[#ccc] mb-1.5">
@@ -52,10 +58,20 @@ function InputField({
                 type={type}
                 value={value}
                 readOnly={readOnly}
+                required={required}
                 placeholder={placeholder}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? errorId : undefined}
                 onChange={onValueChange ? (e) => onValueChange(e.target.value) : undefined}
-                className={readOnly ? readonlyInputCls : inputCls}
+                className={
+                    readOnly ? readonlyInputCls : error ? `${inputCls} border-red-500 dark:border-red-500` : inputCls
+                }
             />
+            {error ? (
+                <p id={errorId} className={formErrorCls}>
+                    {error}
+                </p>
+            ) : null}
         </div>
     );
 }
@@ -70,6 +86,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const updateProfile = useUpdateProfile(user?.id ?? '');
 
     const [displayName, setDisplayName] = useState('');
+    const [displayNameTouched, setDisplayNameTouched] = useState(false);
     const [businessName, setBusinessName] = useState('');
     const [businessRegNumber, setBusinessRegNumber] = useState('');
     const [location, setLocation] = useState('');
@@ -99,13 +116,20 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
         [],
     );
 
+    const trimmedDisplayName = normalizeDisplayName(displayName);
+    const storedDisplayName = normalizeDisplayName(profile?.display_name ?? '');
+    const displayNameError =
+        !trimmedDisplayName && (displayNameTouched || (profile !== undefined && !storedDisplayName))
+            ? tk('displayNameRequired')
+            : undefined;
+
     const handleSaveProfile = async () => {
-        if (!user) return;
+        if (!user || !trimmedDisplayName) return;
         try {
             const coords = parseLocationString(location);
             await Promise.all([
                 updateProfile.mutateAsync({
-                    display_name: displayName.trim(),
+                    display_name: trimmedDisplayName,
                     business_name: businessName.trim() || null,
                     business_registration_number: businessRegNumber.trim() || null,
                 }),
@@ -149,8 +173,13 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                         <InputField
                             label={tk('displayName')}
                             value={displayName}
-                            onValueChange={setDisplayName}
+                            onValueChange={(value) => {
+                                setDisplayNameTouched(true);
+                                setDisplayName(value);
+                            }}
                             placeholder={tk('displayNamePlaceholder')}
+                            required
+                            error={displayNameError}
                         />
                         <InputField
                             label={tk('businessName')}
@@ -186,7 +215,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                         <button
                             type="button"
                             onClick={handleSaveProfile}
-                            disabled={updateProfile.isPending}
+                            disabled={updateProfile.isPending || !trimmedDisplayName}
                             className={primaryBtnCls}
                         >
                             {updateProfile.isPending ? tk('saving') : tk('saveChanges')}
