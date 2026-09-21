@@ -342,7 +342,7 @@ describe('completeDrop → BBP (#484)', () => {
                     heaterSet: 50,
                 }),
             );
-            const written = vi.mocked(replaceSessionTsv).mock.calls.at(-1)?.[1] ?? '';
+            const written = String(vi.mocked(replaceSessionTsv).mock.calls[0]?.[1] ?? '');
             expect(written).not.toContain('612.00');
         } finally {
             h.unmount();
