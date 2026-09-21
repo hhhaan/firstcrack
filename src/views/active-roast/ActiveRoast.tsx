@@ -34,7 +34,7 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useThemeStore } from '@shared/store/theme';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
@@ -437,7 +437,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         },
         [disableAutoDrop, lifecycle, livePoints, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName],
     );
-    applyDropRef.current = applyDrop;
+    useLayoutEffect(() => {
+        applyDropRef.current = applyDrop;
+    }, [applyDrop]);
 
     const markDrop = useCallback(() => {
         applyDrop();
