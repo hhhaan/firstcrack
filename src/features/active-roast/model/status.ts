@@ -48,6 +48,13 @@ export interface RoastingState {
     reconnecting: boolean;
     /** Last connected machine this roast; kept through disconnect until reset. */
     machineSnapshot: MachineSnapshot | null;
+    /** After Drop/abort: next Charge is allowed even before the prior batch is saved. */
+    awaitingNextCharge: boolean;
+    /**
+     * Drop/abort stopped PID/Replay. Stays set through Drop cancel so cancel cannot
+     * auto-resume machine output. Cleared only on the next Charge / full reset.
+     */
+    heatHoldAfterDrop: boolean;
 
     // derived convenience
     isRoasting: boolean;
@@ -88,6 +95,8 @@ const initialState = {
     sessionOwnerId: null as string | null,
     reconnecting: false,
     machineSnapshot: null as MachineSnapshot | null,
+    awaitingNextCharge: false,
+    heatHoldAfterDrop: false,
     isRoasting: false,
     charged: false,
 };
@@ -121,6 +130,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             sessionOwnerId: ownerId || null,
             roastStartMs: origin,
             elapsed: Math.floor((now - origin) / 1000),
+            awaitingNextCharge: false,
+            heatHoldAfterDrop: false,
         });
     },
 

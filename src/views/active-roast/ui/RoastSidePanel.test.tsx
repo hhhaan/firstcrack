@@ -102,20 +102,20 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(container.querySelector('[data-testid="roast-charge"]')).toBeNull();
     });
 
-    it('#484 ended+BBP: End Roast 활성, Charge 없음, Time 숨김', () => {
+    it('#484 Drop 이후 Charge wait: Charge 표시, Time 숨김, End Roast는 abort 전용으로 비활성', () => {
         renderPanel({
-            phase: 'ended',
-            charged: true,
-            roastEnded: true,
-            roastPhaseName: 'ENDED',
+            phase: 'standby',
+            charged: false,
+            roastEnded: false,
+            roastPhaseName: 'CHARGE WAIT',
             bbpTimer: '1:05',
             bbpChargeWait: true,
             timeStr: '8:42',
         });
         const end = container.querySelector('[data-testid="roast-end"]');
         expect(end).not.toBeNull();
-        expect((end as HTMLButtonElement).disabled).toBe(false);
-        expect(container.querySelector('[data-testid="roast-charge"]')).toBeNull();
+        expect((end as HTMLButtonElement).disabled).toBe(true);
+        expect(container.querySelector('[data-testid="roast-charge"]')).not.toBeNull();
         expect(container.querySelector('[data-testid="roast-time"]')).toBeNull();
         expect(container.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('1:05');
     });

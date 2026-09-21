@@ -14,7 +14,7 @@ interface UseRoastActionsParams {
     rawBT: number | null;
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
-    setShowEndRoastModal: () => void;
+    onDrop: (onset?: { timeSec: number; bt: number }) => void;
     storeStartCharge: (originMs?: number, ownerId?: string) => void;
     roastStartTimeRef: React.MutableRefObject<number>;
 }
@@ -32,7 +32,7 @@ export const useRoastActions = ({
     rawBT,
     setLogEntries,
     setIsRunning,
-    setShowEndRoastModal,
+    onDrop,
     storeStartCharge,
     roastStartTimeRef,
 }: UseRoastActionsParams): UseRoastActionsReturn => {
@@ -66,26 +66,10 @@ export const useRoastActions = ({
 
     const handleAutoDrop = useCallback(
         (onset?: { timeSec: number; bt: number }) => {
-            const timeSec = Math.max(0, onset?.timeSec ?? useRoastingStore.getState().elapsed);
-            const btVal = onset?.bt ?? rawBT;
-            const entry: LogEntry = {
-                id: crypto.randomUUID(),
-                time: formatElapsed(timeSec),
-                timeSec,
-                event: 'Drop',
-                temp: formatTemp(btVal, unit),
-                tempC: btVal,
-                note: 'Bean drop detected',
-            };
-            setLogEntries((prev) => {
-                if (prev.some((e) => e.event === 'Drop')) return prev;
-                return [...prev, entry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
-            });
-            // Do not gate this on the updater. React may run the updater later in the same
-            // batch; PID/Replay already stop when the Drop log appears.
-            setShowEndRoastModal();
+            // Same Drop→end transition as manual Drop. PID/Replay stop via heatHoldAfterDrop.
+            onDrop(onset);
         },
-        [rawBT, unit, setLogEntries, setShowEndRoastModal],
+        [onDrop],
     );
 
     const handleTurningPoint = useCallback(

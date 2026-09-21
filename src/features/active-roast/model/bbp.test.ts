@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { BBP_MAX_SECONDS, useBbpStore } from './bbp';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BBP_MAX_SECONDS, hydrateLiveBbp, useBbpStore } from './bbp';
 
 const sample = (bt: number) => ({ bt, et: 200, heater: 50, fan: 40, drum: 60 });
 
@@ -144,5 +144,60 @@ describe('bbp store', () => {
             chargeTemp: 195.4,
         });
         expect(useBbpStore.getState().finalizedPoints.map((p) => p.t)).toEqual([0, 1, 1200]);
+    });
+
+    it('begin은 auto Drop lookback seed를 시작점에 붙인다', () => {
+        useBbpStore.getState().begin(1_000, [
+            { t: 0, ...sample(205) },
+            { t: 1.5, ...sample(150) },
+        ]);
+        expect(useBbpStore.getState().points.map((p) => [p.t, p.bt])).toEqual([
+            [0, 205],
+            [1.5, 150],
+        ]);
+        useBbpStore.getState().append(sample(148), 4_000);
+        expect(useBbpStore.getState().points.map((p) => p.t)).toEqual([0, 1.5, 3]);
+    });
+
+    it('abort는 진행 중 BBP만 지우고 직전 세션 finalized를 남긴다', () => {
+        const st = useBbpStore.getState();
+        st.begin(0);
+        st.append(sample(210), 1_000);
+        st.append(sample(195.4), 2_000);
+        useBbpStore.getState().finalize(180_000, 's1');
+        useBbpStore.getState().begin(500_000, [{ t: 0, ...sample(190) }]);
+        useBbpStore.getState().abort();
+        const s = useBbpStore.getState();
+        expect(s.active).toBe(false);
+        expect(s.points).toEqual([]);
+        expect(s.finalized).toEqual({ sessionId: 's1', seconds: 180, chargeTemp: 195.4 });
+    });
+
+    it('persists in-progress BBP so a restart can resume Charge wait', () => {
+        const mem: Record<string, string> = {};
+        vi.stubGlobal('localStorage', {
+            getItem: (k: string) => mem[k] ?? null,
+            setItem: (k: string, v: string) => {
+                mem[k] = v;
+            },
+            removeItem: (k: string) => {
+                delete mem[k];
+            },
+            clear: () => {
+                for (const k of Object.keys(mem)) delete mem[k];
+            },
+        });
+        try {
+            useBbpStore.getState().begin(1_000, [{ t: 0, ...sample(200) }]);
+            expect(JSON.parse(mem.fc_bbp_live ?? '{}').startMs).toBe(1_000);
+            useBbpStore.setState({ active: false, startMs: 0, points: [] });
+            expect(hydrateLiveBbp()).toBe(true);
+            expect(useBbpStore.getState()).toMatchObject({ active: true, startMs: 1_000 });
+            useBbpStore.getState().abort();
+            expect(mem.fc_bbp_live).toBeUndefined();
+            expect(hydrateLiveBbp()).toBe(false);
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 });

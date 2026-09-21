@@ -2,12 +2,12 @@ import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import type { RawTemperatureSample } from '@features/active-roast';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { reduceSensorObservation, sensorObservationTick } from '@features/active-roast/lib/sensorObservation';
-import { useBbpStore } from '@features/active-roast/model/bbp';
+import { BBP_INPROGRESS_ID, bbpPointsToTsv, useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { errorMessage } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
+import { deleteBbpTsv, enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import { listen } from '@tauri-apps/api/event';
 import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -164,12 +164,14 @@ export const useSidecarPolling = ({
                 ? useBbpStore.getState().finalize(chargeTime || Date.now(), bbpSessionId)
                 : null;
             if (bbpResult && bbpSessionId) {
-                void writeBbpTsv(bbpSessionId, bbpResult.tsv).catch((err) => {
-                    logger.capture(err instanceof Error ? err : new Error(String(err)), {
-                        context: 'bbp tsv write',
-                        sessionId: bbpSessionId,
+                void writeBbpTsv(bbpSessionId, bbpResult.tsv)
+                    .then(() => deleteBbpTsv(BBP_INPROGRESS_ID))
+                    .catch((err) => {
+                        logger.capture(err instanceof Error ? err : new Error(String(err)), {
+                            context: 'bbp tsv write',
+                            sessionId: bbpSessionId,
+                        });
                     });
-                });
             }
             // 대기 커브는 지우되 Charge 로그와 같은 00:00 시작점은 보존한다 (#452).
             const lastPoint = livePoints.length > 0 ? livePoints[livePoints.length - 1] : null;
@@ -362,6 +364,10 @@ export const useSidecarPolling = ({
                         },
                         Date.now(),
                     );
+                    const liveBbp = useBbpStore.getState();
+                    if (liveBbp.active && liveBbp.points.length > 0) {
+                        void writeBbpTsv(BBP_INPROGRESS_ID, bbpPointsToTsv(liveBbp.points)).catch(() => {});
+                    }
                 }
 
                 if (currentPhase === 'roasting' && roastStartTimeRef.current !== 0) {

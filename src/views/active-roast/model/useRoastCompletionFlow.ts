@@ -1,4 +1,4 @@
-import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useReducer } from 'react';
 
@@ -7,6 +7,13 @@ export interface RoastSummaryData {
     development: string;
     finalBt: string;
     logEntries: LogEntry[];
+    /** Frozen at Drop/abort so late save cannot pick up the next batch's session. */
+    sessionId?: string | null;
+    /** Charge-relative seconds locked at Drop (or abort End). */
+    elapsedSec?: number;
+    selectedBeanId?: string | null;
+    planBatchHandoff?: PlanBatchHandoff | null;
+    handoffBeanName?: string | null;
 }
 
 export interface SaveFlowResult {

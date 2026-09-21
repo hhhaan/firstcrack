@@ -103,7 +103,7 @@ export const RoastSidePanel = ({
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
     const canMark = isRoastEventMarkEnabled(phase);
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
-    const hideRoastClock = roastEnded && bbpTimer != null;
+    const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
     const endDisabled = !charged && !roastEnded;
 
     return (

@@ -614,6 +614,11 @@
             "dtr": "DTR",
             "bbp": "BBP"
         },
+        "unsaved": {
+            "banner": "未保存烘焙 {{time}}",
+            "reopen": "保存结果",
+            "cancelDrop": "取消出豆"
+        },
         "chart": {
             "ariaLabel": "温度曲线图。使用滚轮或 +/- 缩放，拖拽或方向键平移，按 0 重置缩放。"
         },

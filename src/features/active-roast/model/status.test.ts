@@ -19,6 +19,16 @@ afterEach(() => {
     useRoastingStore.getState().reset();
 });
 
+describe('startCharge after Drop (#484)', () => {
+    it('clears Charge-wait and heat hold so PID/Replay can run on the next batch only after Charge', () => {
+        useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
+        useRoastingStore.getState().startCharge();
+        expect(useRoastingStore.getState().awaitingNextCharge).toBe(false);
+        expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(false);
+        expect(useRoastingStore.getState().charged).toBe(true);
+    });
+});
+
 describe('useRoastingStore observation vs display', () => {
     it('keeps liveData identity when only timestamp/stale/receivedAt change', () => {
         useRoastingStore.getState().updateLiveData(live);

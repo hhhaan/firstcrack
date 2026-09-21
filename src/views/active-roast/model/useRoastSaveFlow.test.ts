@@ -1,13 +1,35 @@
 // @vitest-environment jsdom
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
-import { listPendingRoastSaves, type PendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
+import {
+    clearPendingRoastSave,
+    listPendingRoastSaves,
+    type PendingRoastSave,
+} from '@features/active-roast/model/pendingRoastSave';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type UseRoastSaveFlowParams, useRoastSaveFlow } from './useRoastSaveFlow';
+import { isLiveDetachedFromPending, type UseRoastSaveFlowParams, useRoastSaveFlow } from './useRoastSaveFlow';
+
+const sessionActions = {
+    startBatch: useRoastSessionStore.getState().startBatch,
+    completeBatch: useRoastSessionStore.getState().completeBatch,
+    recordAdhocSave: useRoastSessionStore.getState().recordAdhocSave,
+};
+
+const handoffB: PlanBatchHandoff = {
+    planBatchId: 'batch-b',
+    planId: 'plan-b',
+    beanId: 'bean-b',
+    blendId: null,
+    beanName: 'Next',
+    batchSizeKg: 1,
+    profileId: null,
+    batchCount: 2,
+    completedSessions: 0,
+};
 
 const mocks = vi.hoisted(() => ({
     ownerId: 'workspace-a',
@@ -120,9 +142,26 @@ afterEach(() => {
     });
     roots.clear();
     vi.restoreAllMocks();
+    useRoastSessionStore.setState({
+        planBatchHandoff: null,
+        lastAdhocSave: null,
+        ...sessionActions,
+    });
 });
 
 describe('roast save identity and Continue lifecycle', () => {
+    it('treats next Charge and Charge-wait as detached from the saved batch', () => {
+        expect(isLiveDetachedFromPending({ sessionId: 's-b', charged: true, awaitingNextCharge: false }, 's-a')).toBe(
+            true,
+        );
+        expect(isLiveDetachedFromPending({ sessionId: null, charged: false, awaitingNextCharge: true }, 's-a')).toBe(
+            true,
+        );
+        expect(isLiveDetachedFromPending({ sessionId: 's-a', charged: true, awaitingNextCharge: false }, 's-a')).toBe(
+            false,
+        );
+    });
+
     it('reuses the summary UUID for submission, then generates a distinct UUID for the next unrecorded roast', async () => {
         const h = renderFlow();
         act(() => h.api.confirmEndRoast(summary));
@@ -299,5 +338,84 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(h.api.flow.continueModal).toBe(true);
         expect(h.api.flow.continueCandidates).toEqual([batch]);
         expect(h.onResetActiveRoast).toHaveBeenCalledTimes(1);
+    });
+
+    it('Drop confirm keeps live schedule handoff for Charge B', () => {
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => sessionActions.startBatch(handoffB));
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        expect(useRoastSessionStore.getState().planBatchHandoff?.planBatchId).toBe('batch-b');
+    });
+
+    it('late save without pending reconstructs from frozen summary, not live B', async () => {
+        const h = renderFlow({ sessionId: 's-a', selectedBeanId: 'bean-a', planBatchHandoff: null });
+        act(() =>
+            h.api.confirmEndRoast({
+                ...summary,
+                sessionId: 's-a',
+                selectedBeanId: 'bean-a',
+                elapsedSec: 600,
+                planBatchHandoff: null,
+            }),
+        );
+        clearPendingRoastSave('workspace-a', 's-a');
+        act(() => {
+            sessionActions.startBatch(handoffB);
+            useRoastingStore.setState({
+                phase: 'roasting',
+                charged: true,
+                sessionId: 's-b',
+                elapsed: 12,
+                awaitingNextCharge: false,
+            });
+        });
+        await act(async () =>
+            h.api.handleSave({ ...form, beanId: 'bean-a', linkMode: 'schedule', planBatchId: 'batch-a' }),
+        );
+        const saved = mocks.resumeSave.mock.calls[0][0] as PendingRoastSave;
+        expect(saved.params.sessionId).toBe('s-a');
+        expect(saved.params.elapsed).toBe(600);
+        expect(saved.params.planBatchHandoff).toBeNull();
+        expect(saved.params.formData.linkedBatchId).toBe('batch-a');
+        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+    });
+
+    it('late A save does not reset in-progress B or swap handoff', async () => {
+        const h = renderFlow({ sessionId: 's-a', selectedBeanId: 'bean-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a', selectedBeanId: 'bean-a' }));
+        act(() => {
+            sessionActions.startBatch(handoffB);
+            useRoastingStore.setState({
+                phase: 'roasting',
+                charged: true,
+                isRoasting: true,
+                sessionId: 's-b',
+                awaitingNextCharge: false,
+            });
+        });
+        expect(listPendingRoastSaves()[0].params.sessionId).toBe('s-a');
+        expect(useRoastingStore.getState().sessionId).toBe('s-b');
+        const completeBatch = vi.fn();
+        useRoastSessionStore.setState({ completeBatch });
+        await act(async () => h.api.handleSave({ ...form, beanId: 'bean-a' }));
+        expect(mocks.resumeSave.mock.calls[0][0].params.sessionId).toBe('s-a');
+        expect(mocks.resumeSave.mock.calls[0][0].params.selectedBeanId).toBe('bean-a');
+        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+        expect(completeBatch).not.toHaveBeenCalled();
+        expect(useRoastingStore.getState().sessionId).toBe('s-b');
+        expect(useRoastSessionStore.getState().planBatchHandoff?.planBatchId).toBe('batch-b');
+    });
+
+    it('save during Drop Charge-wait does not wipe the next-batch machine state', async () => {
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        useRoastingStore.setState({ charged: false, sessionId: null, awaitingNextCharge: true });
+        const completeBatch = vi.fn();
+        useRoastSessionStore.setState({ completeBatch });
+        await act(async () => h.api.handleSave(form));
+        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+        expect(completeBatch).not.toHaveBeenCalled();
+        expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
+        expect(mocks.fetchQuery).not.toHaveBeenCalled();
     });
 });

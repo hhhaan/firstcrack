@@ -6,7 +6,9 @@ import {
     deleteSessionTsv,
     enqueueTsvRow,
     flushTsv,
+    formatRoastTsvRow,
     initSessionTsv,
+    replaceSessionTsv,
     sessionTsvPath,
     TSV_HEADER,
     writeBbpTsv,
@@ -36,6 +38,27 @@ describe('tsv-writer', () => {
                 removed.push(path);
             },
         });
+    });
+
+    it('replaceSessionTsv overwrites lookback rows with the Drop clip', async () => {
+        await initSessionTsv('s1');
+        enqueueTsvRow(
+            's1',
+            formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50 }),
+        );
+        enqueueTsvRow('s1', formatRoastTsvRow({ time: 612, bt: 150, et: 210, heater: 50, fan: 40, drum: 60 }));
+        await flushTsv('s1');
+        await replaceSessionTsv(
+            's1',
+            formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50 }),
+        );
+        const file = writes
+            .filter((w) => w.path === 'session_s1.tsv')
+            .reduce((acc, w) => (w.append ? acc + w.contents : w.contents), '');
+        expect(file).toBe(
+            `${TSV_HEADER}${formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50 })}`,
+        );
+        expect(file).not.toContain('612');
     });
 
     it('sessionTsvPath formats filename', () => {
