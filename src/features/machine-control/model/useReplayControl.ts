@@ -147,9 +147,8 @@ export const PROPOSED_OBSERVATION_STALE_LIMIT_MS = 5_000;
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
  * 이 훅은 켜기/끄기와 안전 중지만 담당한다.
  *
- * 기본 OFF, 명시적 토글로만 시작. 슬라이더·PID·끊김으로 멈춰도 인덱스는 남긴다.
- * 다시 켜면 남은 이벤트부터 이어간다 — 지난 값을 다시 쓰지 않는다.
- * 단, 배치 안에서만이다 — 새 배치가 시작되면 인덱스는 처음으로 돌아간다.
+ * 기본 OFF, 명시적 토글로만 시작. 시작·재개 시 현재 시간·BT로 처음부터 판정해
+ * 마지막으로 충족한 화력 하나를 적용하고, 이후 이벤트부터 이어간다.
  */
 export const useReplayControl = ({
     referencePoints,
@@ -513,6 +512,8 @@ export const useReplayControl = ({
         if (plan == null || referenceMachineMismatch || stopCause != null) return;
         invalidateInFlightWrite();
         setStopReason(null);
+        // 시작·재개 모두 현재 조건의 마지막 화력으로 동기화한다.
+        setIndex(0);
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));

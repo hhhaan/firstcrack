@@ -752,6 +752,7 @@
             "noBbp": "我确认此烘焙未记录批次间曲线。"
         },
         "replay": {
+            "syncOnStart": "开启或恢复时，将应用参考曲线当前阶段对应的火力。",
             "next": "下一个：{{condition}} → {{heater}}",
             "done": "所有事件已回放",
             "missingHeatSet": "没有火力操作记录，无法使用 Replay。",

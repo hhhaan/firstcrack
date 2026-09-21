@@ -139,6 +139,8 @@ const ReplayPanelMessages = ({
     const { t } = useTranslation();
     return (
         <>
+            <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.syncOnStart')}</p>
+
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
             {!replay.active && !stopText && replay.missingHeatSet && (
                 <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.missingHeatSet')}</p>
@@ -177,6 +179,7 @@ const ReplayPanelMessages = ({
                     <p className="text-[11px] text-muted">{t('activeRoast.replay.done')}</p>
                 ))}
 
+            {/* 상세 안내는 hover 툴팁으로 — 재생 내내 문단 2개가 패널을 차지하면 안 된다 */}
             {replay.active && (
                 <div className="group relative flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-500">
                     <Info size={12} strokeWidth={2} className="shrink-0" />
@@ -186,8 +189,7 @@ const ReplayPanelMessages = ({
                         className="pointer-events-none absolute bottom-full left-0 right-0 z-10 mb-1 hidden rounded-md border border-border-subtle bg-surface-elevated p-2 leading-snug text-secondary group-hover:block"
                     >
                         재생 중에는 자리를 비우지 마세요 — 화력이 재생 지시에서 계속 벗어나면 자동 중지됩니다. 수동
-                        조절은 체크 해제 후 하세요. 다시 켜면 남은 구간부터 이어집니다. 기센은 본체 Auto를 Manual로
-                        두어야 합니다.
+                        조절은 체크 해제 후 하세요. 기센은 본체 Auto를 Manual로 두어야 합니다.
                     </span>
                 </div>
             )}

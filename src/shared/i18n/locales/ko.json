@@ -1050,6 +1050,7 @@
             "noBbp": "이 로스트는 배치 사이 곡선을 기록하지 않았습니다."
         },
         "replay": {
+            "syncOnStart": "켜거나 다시 켜면 현재 기준의 레퍼런스 화력이 적용됩니다.",
             "next": "다음: {{condition}} → {{heater}}",
             "done": "모든 이벤트 재생 완료",
             "missingHeatSet": "화력 조작 기록이 없어 Replay를 사용할 수 없습니다.",
