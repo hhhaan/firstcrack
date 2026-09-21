@@ -16,6 +16,7 @@ const cardCls = (active: boolean) =>
             : 'border-[#E5E7EB] bg-white dark:border-[#585d61] dark:bg-[#181d21] hover:border-[#9CA3AF] dark:hover:border-[#585d61]'
     }`;
 
+/** VOC: restore dark/system — re-mount from App.tsx (`theme === null`). */
 export const ThemeSelectModal = () => {
     const setTheme = useThemeStore((s) => s.setTheme);
 

@@ -1,4 +1,5 @@
 import { dashboardKeys, inventoryQueryRoots, roastedStockKeys } from '@shared/lib/query-keys';
+import { shouldPrefetchNextPage } from '@shared/lib/shouldPrefetchNextPage';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roastSessionApi } from './api';
@@ -185,25 +186,48 @@ export const useRoastSessionsPaginated = (params: {
     fromYM?: string | null;
     toYM?: string | null;
     enabled?: boolean;
-}) =>
-    useQuery({
-        queryKey: roastSessionKeys.paginated(
+}) => {
+    const enabled = !!params.userId && (params.enabled ?? true);
+    const pageKey = (page: number) =>
+        roastSessionKeys.paginated(
             params.userId,
             params.status ?? null,
-            params.page,
+            page,
             params.pageSize,
             params.sortKey,
             params.sortAsc,
             params.level,
             params.fromYM,
             params.toYM,
-        ),
+        );
+    const query = useQuery({
+        queryKey: pageKey(params.page),
         queryFn: () => roastSessionApi.listPaginated(params),
         staleTime: Infinity,
         // Remount after save must not reuse stale cached pages (staleTime Infinity).
         refetchOnMount: true,
-        enabled: !!params.userId && (params.enabled ?? true),
+        // Same as Orders: keep previous rows on page/filter key changes instead of a skeleton.
+        placeholderData: (prev) => prev,
+        enabled,
     });
+    const nextPage = params.page + 1;
+    // Active subscribe (not prefetchQuery) so default invalidateQueries refreshes N+1 too.
+    useQuery({
+        queryKey: pageKey(nextPage),
+        queryFn: () => roastSessionApi.listPaginated({ ...params, page: nextPage }),
+        staleTime: Infinity,
+        refetchOnMount: true,
+        enabled: shouldPrefetchNextPage({
+            enabled,
+            page: params.page,
+            pageSize: params.pageSize,
+            total: query.data?.total,
+            isSuccess: query.isSuccess,
+            isPlaceholderData: query.isPlaceholderData,
+        }),
+    });
+    return query;
+};
 
 export const useDeleteRoastSession = (userId: string) => {
     const qc = useQueryClient();

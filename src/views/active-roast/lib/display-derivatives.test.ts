@@ -1,7 +1,8 @@
+import { summarizeSessionEvents } from '@entities/roast-profile';
 import type { LogEntry } from '@shared/types/roast';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
-import { buildEventMarkers, calcDelta, calcTargetDelta } from './display-derivatives';
+import { buildEventMarkers, calcDelta, calcDevTime, calcTargetDelta } from './display-derivatives';
 
 // 0s:200° → 60s:180° 직선 타겟
 const target = [
@@ -129,5 +130,58 @@ describe('buildEventMarkers', () => {
                 note: '50%',
             },
         ]);
+    });
+});
+
+describe('calcDevTime', () => {
+    const log = (event: string, timeSec: number): LogEntry => ({
+        time: `${Math.floor(timeSec / 60)}:${String(timeSec % 60).padStart(2, '0')}`,
+        timeSec,
+        event,
+        temp: '0',
+        note: '',
+    });
+
+    it('freezes roast metrics at Drop while elapsed continues (480/600/660)', () => {
+        const entries = [log('Charge', 0), log('FC Start', 480), log('Drop', 600)];
+        const result = calcDevTime(entries, 660);
+        expect(result.devTimeOnly).toBe('2:00');
+        expect(result.dtrPct).toBe(20);
+        expect(result.roastDurationSec).toBe(600);
+        expect(result.rollingDtrPct).toBeNull();
+    });
+
+    it('uses live elapsed when Drop is missing', () => {
+        const result = calcDevTime([log('FC Start', 480)], 660);
+        expect(result.devTimeOnly).toBe('3:00');
+        expect(result.dtrPct).toBeCloseTo(27.3, 1);
+        expect(result.roastDurationSec).toBe(660);
+    });
+
+    it('recalculates after Drop undo', () => {
+        const withDrop = calcDevTime([log('FC Start', 480), log('Drop', 600)], 630);
+        expect(withDrop.roastDurationSec).toBe(600);
+        const undone = calcDevTime([log('FC Start', 480)], 630);
+        expect(undone.roastDurationSec).toBe(630);
+        expect(undone.devTimeOnly).toBe('2:30');
+    });
+
+    it('agrees with profile-from-session summary on 480/600/660', () => {
+        const entries = [log('Charge', 0), log('FC Start', 480), log('Drop', 600), log('End', 660)];
+        const live = calcDevTime(entries, 660);
+        const summary = summarizeSessionEvents(
+            entries.map((e) => ({
+                id: e.event,
+                type: e.event,
+                time_sec: e.timeSec ?? 0,
+            })),
+            { duration_seconds: 660, drop_temp_celsius: null },
+        );
+        expect(live.roastDurationSec).toBe(600);
+        expect(summary.duration_sec).toBe(600);
+        expect(summary.dev_time_sec).toBe(120);
+        expect(summary.dev_pct).toBe(20);
+        expect(live.devTimeOnly).toBe('2:00');
+        expect(live.dtrPct).toBe(20);
     });
 });

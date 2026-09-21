@@ -264,6 +264,7 @@
                 "profile": "プロフィール",
                 "displayName": "表示名",
                 "displayNamePlaceholder": "お名前",
+                "displayNameRequired": "表示名を入力してください",
                 "businessName": "事業者名",
                 "businessNamePlaceholder": "事業者名を入力",
                 "businessRegNumber": "事業者登録番号",
@@ -749,6 +750,24 @@
             "discardConfirm": "この復旧記録を破棄しますか？元に戻せません。",
             "discard": "復旧記録を破棄",
             "noBbp": "この焙煎ではバッチ間の曲線を記録していません。"
+        },
+        "replay": {
+            "next": "次: {{condition}} → {{heater}}",
+            "done": "すべてのイベントを再生済み",
+            "missingHeatSet": "火力操作の記録がないため Replay を使えません。",
+            "invalidPlan": "火力操作記録が不完全か、この機器の再生条件に適合していません。",
+            "profileChange": {
+                "title": "Replay 実行中",
+                "message": "Replay 実行中です。プロファイルを変えると Replay が停止します。現在の火力はそのままです。",
+                "confirm": "Replay を停止して変更",
+                "cancel": "キャンセル"
+            },
+            "tp": {
+                "waiting": "実測 TP の確認待ち",
+                "fallback": "TP フォールバック — 実測の上昇ではない",
+                "collapsedWaiting": "Replay 実測 TP 待ち",
+                "collapsedFallback": "Replay TP フォールバック — 実測の上昇ではない"
+            }
         }
     },
     "schedule": {
@@ -943,6 +962,7 @@
         },
         "expanded": {
             "origin": "産地",
+            "chargeTemp": "チャージ温度",
             "dropTemp": "排気温度",
             "duration": "時間",
             "notes": "ノート",
@@ -979,6 +999,7 @@
             "date": "Date",
             "profile": "Profile",
             "duration": "Duration",
+            "chargeTemp": "チャージ温度",
             "dropTemp": "Drop Temp",
             "dtr": "DTR",
             "dtrRolling": "DTR Rolling",
@@ -990,6 +1011,7 @@
             "bean": "豆",
             "profile": "プロファイル",
             "weight": "重量",
+            "chargeTemp": "チャージ温度",
             "dropTemp": "排気温度",
             "duration": "時間",
             "loss": "損失率",

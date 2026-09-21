@@ -1,12 +1,17 @@
 import { setLanguage, supportedLanguages } from '@shared/i18n';
 import { inventoryStore } from '@shared/lib/inventoryStore';
 import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
-import { type Theme, useThemeStore } from '@shared/store/theme';
+// VOC: restore dark/system picker
+// import { type Theme, useThemeStore } from '@shared/store/theme';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { Languages, Package } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsCheckRow } from './SettingsOptionRow';
+
+/*
+VOC: restore dark/system picker — uncomment themeOptions / MiniWindow / ThemePreview
+and the theme SectionCard in GeneralSettingsTab.
 
 const themeOptions: { value: Theme; labelKey: string; descKey: string }[] = [
     {
@@ -54,11 +59,39 @@ const ThemePreview = ({ value }: { value: Theme }) => {
     return <MiniWindow dark={value === 'dark'} />;
 };
 
+// In GeneralSettingsTab return, first SectionCard:
+            <SectionCard>
+                <SectionCard.Header
+                    title={t('settings.tabs.general.theme')}
+                    description={t('settings.tabs.general.themeDescription')}
+                />
+                <SectionCard.Body className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {themeOptions.map(({ value, labelKey, descKey }) => {
+                        const active = activeTheme === value;
+                        return (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setTheme(value)}
+                                aria-pressed={active}
+                                aria-label={`${t(labelKey)}: ${t(descKey)}`}
+                                data-theme-option={value}
+                            >
+                                <ThemePreview value={value} />
+                                {t(labelKey)}
+                            </button>
+                        );
+                    })}
+                </SectionCard.Body>
+            </SectionCard>
+*/
+
 export const GeneralSettingsTab = () => {
     const { t, i18n } = useTranslation();
-    const theme = useThemeStore((s) => s.theme);
-    const setTheme = useThemeStore((s) => s.setTheme);
-    const activeTheme = theme ?? 'system';
+    // VOC: restore dark/system picker
+    // const theme = useThemeStore((s) => s.theme);
+    // const setTheme = useThemeStore((s) => s.setTheme);
+    // const activeTheme = theme ?? 'system';
     const [horizonDays, setHorizonDays] = useState(STOCK_HORIZON_DAYS);
 
     useEffect(() => {
@@ -73,57 +106,6 @@ export const GeneralSettingsTab = () => {
 
     return (
         <div className="grid gap-4">
-            <SectionCard>
-                <SectionCard.Header
-                    title={t('settings.tabs.general.theme')}
-                    description={t('settings.tabs.general.themeDescription')}
-                />
-                <SectionCard.Body className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    {themeOptions.map(({ value, labelKey, descKey }) => {
-                        const active = activeTheme === value;
-
-                        return (
-                            <button
-                                key={value}
-                                type="button"
-                                onClick={() => setTheme(value)}
-                                aria-pressed={active}
-                                aria-label={`${t(labelKey)}: ${t(descKey)}`}
-                                data-theme-option={value}
-                                className="group flex min-w-0 cursor-pointer flex-col gap-2 border-none bg-transparent p-0 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-palette-blue/50"
-                            >
-                                <div
-                                    className={`aspect-[1.68] w-full overflow-hidden rounded-[11px] border-2 bg-surface shadow-(--shadow-edge) transition-all ${
-                                        active
-                                            ? 'border-palette-blue shadow-[0_0_0_1px_var(--color-palette-blue)]'
-                                            : 'border-border group-hover:border-secondary'
-                                    }`}
-                                >
-                                    <ThemePreview value={value} />
-                                </div>
-                                <div className="flex items-center gap-2 px-0.5">
-                                    <span
-                                        aria-hidden="true"
-                                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
-                                            active ? 'border-palette-blue' : 'border-muted'
-                                        }`}
-                                    >
-                                        {active && <span className="h-2 w-2 rounded-full bg-palette-blue" />}
-                                    </span>
-                                    <span
-                                        className={`text-[14px] tracking-[0.14px] ${
-                                            active ? 'font-semibold text-primary' : 'font-medium text-secondary'
-                                        }`}
-                                    >
-                                        {t(labelKey)}
-                                    </span>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </SectionCard.Body>
-            </SectionCard>
-
             <SectionCard>
                 <SectionCard.Header
                     icon={<Languages size={16} strokeWidth={1.8} />}

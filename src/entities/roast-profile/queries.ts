@@ -2,7 +2,7 @@ import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { curveQueryConfig } from '@shared/lib/roast-curve';
 import { supabase } from '@shared/lib/supabase';
 import type { Json, RoastProfile } from '@shared/types/database.types';
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { type RoastProfileWithSource, roastProfileApi } from './api';
 import { resolveSourceSession } from './lib/resolve-source-session';
@@ -27,12 +27,38 @@ export const useRoastProfiles = (userId: string) =>
         enabled: !!userId,
     });
 
+/** List is the SSoT for count/cards/detail — patch it immediately, then invalidate for joins. */
+const toListRow = (created: RoastProfile): RoastProfileWithSource => ({
+    ...created,
+    source_session: null,
+    default_bean: null,
+    default_blend: null,
+});
+
+export const applyCreatedRoastProfileCache = (qc: QueryClient, userId: string, created: RoastProfile) => {
+    const ownerId = created.user_id || userId;
+    qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(ownerId), (old = []) => [
+        toListRow(created),
+        ...old.filter((p) => p.id !== created.id),
+    ]);
+    void qc.invalidateQueries({ queryKey: roastProfileKeys.all(ownerId) });
+};
+
+export const applyUpdatedRoastProfileCache = (qc: QueryClient, userId: string, updated: RoastProfile) => {
+    const ownerId = updated.user_id || userId;
+    qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(ownerId), (old) =>
+        old?.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)),
+    );
+    qc.setQueryData<RoastProfile>(roastProfileKeys.detail(updated.id), updated);
+    void qc.invalidateQueries({ queryKey: roastProfileKeys.all(ownerId) });
+};
+
 export const useCreateRoastProfile = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: roastProfileApi.create,
-        onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
+        onSuccess: (created) => {
+            applyCreatedRoastProfileCache(qc, userId, created);
         },
     });
 };
@@ -42,8 +68,7 @@ export const useUpdateRoastProfile = (userId: string) => {
     return useMutation({
         mutationFn: roastProfileApi.update,
         onSuccess: (updated) => {
-            void qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
-            qc.setQueryData<RoastProfile>(roastProfileKeys.detail(updated.id), updated);
+            applyUpdatedRoastProfileCache(qc, userId, updated);
         },
     });
 };

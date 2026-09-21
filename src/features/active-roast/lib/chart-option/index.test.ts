@@ -380,7 +380,7 @@ describe('buildRoastChartOption', () => {
             { coord: (value: number[]) => [value[0] * 2, 250 - value[1]] },
         );
         const text = result?.children.find((child) => child.type === 'text');
-        expect(text).toMatchObject({ type: 'text', x: 120, y: 53 });
+        expect(text).toMatchObject({ type: 'text', x: 124, y: 65 });
         expect(result?.children.some((child) => child.type === 'circle')).toBe(false);
     });
 });

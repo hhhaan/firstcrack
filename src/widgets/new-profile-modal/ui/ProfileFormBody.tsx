@@ -21,7 +21,6 @@ import { ProfileDefaultSourceFields } from './ProfileDefaultSourceFields';
 type SessionSummaryRow = {
     beans?: { name?: string | null } | null;
     roasted_at: string | null;
-    duration_seconds: number | null;
 };
 
 type BlendOption = { id: string; name: string };
@@ -106,8 +105,7 @@ export const ProfileFormBody = ({
                                 </span>
                                 {' · '}
                                 {fmtDate(selectedSession.roasted_at)}
-                                {selectedSession.duration_seconds != null &&
-                                    ` · ${formatDuration(selectedSession.duration_seconds)}`}
+                                {summary?.duration_sec != null && ` · ${formatDuration(summary.duration_sec)}`}
                             </span>
                         </div>
                     </div>

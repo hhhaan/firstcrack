@@ -1,6 +1,7 @@
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { type BeanMeta, beanMetaFromJoin, beanMetaLine } from '../_shared/cupping-bean-meta.ts';
 import { formSchemaOrSca } from '../_shared/cupping-form.ts';
+import { normalizeCuppedBy } from '../_shared/cupping-publish.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 type SampleRow = {
@@ -41,12 +42,16 @@ serveWithSentry('get-cupping-session', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     let token: string | undefined;
+    let cuppedByRaw: string | undefined;
     if (req.method === 'GET') {
-        token = new URL(req.url).searchParams.get('token') ?? undefined;
+        const url = new URL(req.url);
+        token = url.searchParams.get('token') ?? undefined;
+        cuppedByRaw = url.searchParams.get('cuppedBy') ?? undefined;
     } else if (req.method === 'POST') {
         try {
             const body = await req.json();
             token = typeof body?.token === 'string' ? body.token : undefined;
+            cuppedByRaw = typeof body?.cuppedBy === 'string' ? body.cuppedBy : undefined;
         } catch {
             return jsonResponse({ error: 'Invalid JSON body' }, 400);
         }
@@ -73,7 +78,8 @@ serveWithSentry('get-cupping-session', async (req) => {
     if (!invite) return jsonResponse({ error: 'not_found' }, 404);
     if (invite.revoked_at) return jsonResponse({ error: 'revoked' }, 410);
     if (new Date(invite.expires_at) <= new Date()) return jsonResponse({ error: 'expired' }, 410);
-    if (invite.used_count >= invite.max_uses) return jsonResponse({ error: 'full' }, 410);
+    const remainingUses = Math.max(0, invite.max_uses - invite.used_count);
+    const sessionFull = invite.used_count >= invite.max_uses;
 
     // Resolve event_id: direct column, or via sample (legacy per-sample invites)
     let eventId = invite.event_id as string | null;
@@ -167,13 +173,56 @@ serveWithSentry('get-cupping-session', async (req) => {
         }
     }
 
+    let participant: { id: string; publishedAt: string | null } | null = null;
+    let submissions: Array<{
+        id: string;
+        sampleId: string;
+        scores: unknown;
+        defects: number;
+        notes: string | null;
+        descriptors: string[];
+        totalScore: number;
+        cuppedAt: string;
+    }> = [];
+
+    if (cuppedByRaw != null && String(cuppedByRaw).trim()) {
+        const cuppedBy = normalizeCuppedBy(cuppedByRaw);
+        const { data: seat } = await supabase
+            .from('cupping_participants')
+            .select('id, published_at')
+            .eq('invite_id', invite.id)
+            .eq('cupped_by', cuppedBy)
+            .maybeSingle();
+        if (seat) {
+            participant = { id: seat.id, publishedAt: seat.published_at ?? null };
+        }
+        const { data: rows } = await supabase
+            .from('cuppings')
+            .select('id, sample_id, scores, defects, notes, descriptors, total_score, cupped_at')
+            .eq('invite_id', invite.id)
+            .eq('cupped_by', cuppedBy);
+        submissions = (rows ?? []).map((row) => ({
+            id: row.id,
+            sampleId: row.sample_id,
+            scores: row.scores,
+            defects: row.defects,
+            notes: row.notes,
+            descriptors: row.descriptors ?? [],
+            totalScore: Number(row.total_score),
+            cuppedAt: row.cupped_at,
+        }));
+    }
+
     return jsonResponse({
         inviteId: invite.id,
         eventId,
         eventTitle,
         samples,
         expiresAt: invite.expires_at,
-        remainingUses: invite.max_uses - invite.used_count,
+        remainingUses,
+        sessionFull,
+        participant,
+        submissions,
         // legacy fields for older clients
         sampleId: invite.sample_id,
         sampleLabel: samples.length === 1 ? samples[0].label : null,

@@ -1,10 +1,8 @@
 import { TSV_HEADER } from '@shared/lib/tsv-writer';
 import { create } from 'zustand';
 
-/** charge가 이 시간(초)보다 늦으면 드럼 열 상태가 리셋된 것으로 보고 BBP를 폐기한다. */
-export const BBP_MAX_SECONDS = 1800;
-/** 대기 중 차트 창 (#433). 기록 캡과 별개. */
-export const BBP_DISPLAY_SECONDS = 900;
+/** Rolling FIFO window (seconds) kept immediately before Charge. */
+export const BBP_MAX_SECONDS = 1200;
 
 export interface BbpSample {
     bt: number;
@@ -30,6 +28,21 @@ export interface FinalizedBbp extends BbpSummary {
 }
 
 export type BbpResult = BbpSummary & { tsv: string };
+
+const windowOrigin = (endT: number) => Math.max(0, endT - BBP_MAX_SECONDS);
+
+/** Drop samples older than the last BBP_MAX_SECONDS before `endT`. Times stay End-relative. */
+const clipBbpWindow = (points: BbpPoint[], endT: number): BbpPoint[] => {
+    const origin = windowOrigin(endT);
+    return points.filter((p) => p.t >= origin && p.t <= endT);
+};
+
+/** Charge-relative copy of the kept window so stored/display t starts near 0. */
+export const rebaseBbpWindow = (points: BbpPoint[], endT: number): BbpPoint[] => {
+    const origin = windowOrigin(endT);
+    const kept = clipBbpWindow(points, endT);
+    return origin === 0 ? kept : kept.map((p) => ({ ...p, t: p.t - origin }));
+};
 
 interface BbpState {
     active: boolean;
@@ -71,9 +84,9 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const { active, startMs, points } = get();
         if (!active) return;
         const t = (nowMs - startMs) / 1000;
-        if (t < 0 || t > BBP_MAX_SECONDS) return;
+        if (t < 0) return;
         if (points.length > 0 && t - points[points.length - 1].t < 1) return;
-        set({ points: [...points, { t, ...sample }] });
+        set({ points: clipBbpWindow([...points, { t, ...sample }], t) });
     },
 
     finalize: (chargeMs, sessionId) => {
@@ -81,9 +94,9 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const cutoff = (chargeMs - startMs) / 1000;
         // auto-charge는 lookback으로 잡은 onset을 charge 시각으로 쓰므로 그 이후 폴링된
         // 투입 직후(BT 급락) 샘플이 섞인다 — 잘라내야 chargeTemp가 실제 투입 온도가 된다.
-        const points = all.filter((p) => p.t <= cutoff);
-        const seconds = Math.round(cutoff);
-        const valid = active && points.length >= 2 && seconds > 0 && seconds <= BBP_MAX_SECONDS;
+        const points = rebaseBbpWindow(all, cutoff);
+        const seconds = Math.round(Math.min(Math.max(cutoff, 0), BBP_MAX_SECONDS));
+        const valid = active && points.length >= 2 && seconds > 0;
         if (!valid) {
             set({ active: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
             return null;

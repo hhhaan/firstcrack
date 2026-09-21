@@ -7,6 +7,14 @@ export const useBeanFormFieldUpdates = (
     getValues: UseFormGetValues<BeanForm>,
     nameIsAuto: boolean,
 ) => {
+    const setAutoName = (origin: string, region: string, farm: string, variety: string) => {
+        if (!nameIsAuto) return;
+        const name = buildAutoName(origin, region, farm, variety);
+        // ponytail: only revalidate when a value is present so emptying a chip
+        // doesn't surface the required error before submit.
+        setValue('name', name, { shouldValidate: name.length > 0 });
+    };
+
     const updateOrigin = (origin: string) => {
         const v = getValues();
         const newOrigin = v.origin === origin ? '' : origin;
@@ -14,9 +22,7 @@ export const useBeanFormFieldUpdates = (
         setValue('region', '');
         setValue('farm', '');
         setValue('variety', '');
-        if (nameIsAuto) {
-            setValue('name', buildAutoName(newOrigin, '', '', ''));
-        }
+        setAutoName(newOrigin, '', '', '');
     };
 
     const updateRegion = (region: string) => {
@@ -24,27 +30,21 @@ export const useBeanFormFieldUpdates = (
         const newRegion = v.region === region ? '' : region;
         setValue('region', newRegion);
         setValue('farm', '');
-        if (nameIsAuto) {
-            setValue('name', buildAutoName(v.origin, newRegion, '', v.variety));
-        }
+        setAutoName(v.origin, newRegion, '', v.variety);
     };
 
     const updateFarm = (farm: string) => {
         const v = getValues();
         const newFarm = v.farm === farm ? '' : farm;
         setValue('farm', newFarm);
-        if (nameIsAuto) {
-            setValue('name', buildAutoName(v.origin, v.region, newFarm, v.variety));
-        }
+        setAutoName(v.origin, v.region, newFarm, v.variety);
     };
 
     const updateVariety = (variety: string) => {
         const v = getValues();
         const newVariety = v.variety === variety ? '' : variety;
         setValue('variety', newVariety);
-        if (nameIsAuto) {
-            setValue('name', buildAutoName(v.origin, v.region, v.farm, newVariety));
-        }
+        setAutoName(v.origin, v.region, v.farm, newVariety);
     };
 
     const updateProcess = (process: string) => {

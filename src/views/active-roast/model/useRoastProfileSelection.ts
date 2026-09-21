@@ -3,7 +3,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 interface UserProfile {
     default_roast_profile_id?: string | null;
@@ -17,6 +17,11 @@ export interface UseRoastProfileSelectionParams {
     beans?: Pick<Bean, 'id'>[];
     /** Must be true before clearing — prevents wipe during loading placeholder. */
     beansReady?: boolean;
+    /**
+     * Replay On이면 타겟을 바꾸기 전에 확인. false면 적용하지 않는다.
+     * 기본 프로파일 초기 세팅은 이 게이트를 타지 않는다.
+     */
+    confirmTargetChange?: (nextId: string | null) => boolean | Promise<boolean>;
 }
 
 export interface UseRoastProfileSelectionReturn {
@@ -29,7 +34,7 @@ export interface UseRoastProfileSelectionReturn {
 }
 
 export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams): UseRoastProfileSelectionReturn => {
-    const { isActive, charged, userProfile, beans = [], beansReady = false } = params;
+    const { isActive, charged, userProfile, beans = [], beansReady = false, confirmTargetChange } = params;
 
     const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
     const userSelectedTargetRef = useRef(false);
@@ -48,6 +53,20 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     useEffect(() => {
         chargedRef.current = charged;
     }, [charged]);
+    const targetProfileIdRef = useRef(targetProfileId);
+    const confirmTargetChangeRef = useRef(confirmTargetChange);
+    useLayoutEffect(() => {
+        targetProfileIdRef.current = targetProfileId;
+        confirmTargetChangeRef.current = confirmTargetChange;
+    }, [targetProfileId, confirmTargetChange]);
+
+    const applyTarget = useCallback(async (id: string | null, markUserSelected: boolean) => {
+        if (id === targetProfileIdRef.current) return;
+        const gate = confirmTargetChangeRef.current;
+        if (gate && !(await gate(id))) return;
+        if (markUserSelected) userSelectedTargetRef.current = true;
+        setTargetProfileId(id);
+    }, []);
 
     // 로그인 후 DB에서 기본 프로파일 ID를 가져와서 targetProfileId에 세팅.
     // charged 상태(로스팅 진행 중)에서는 절대 덮어쓰면 안 됨.
@@ -77,10 +96,9 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         const { pendingProfileId, setPendingProfile } = useRoastingStore.getState();
         if (!pendingProfileId) return;
 
-        userSelectedTargetRef.current = true;
-        setTargetProfileId(pendingProfileId);
         setPendingProfile(null);
-    }, [isActive]);
+        void applyTarget(pendingProfileId, true);
+    }, [isActive, applyTarget]);
 
     // Schedule batch handoff → bean/profile on active roast
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
@@ -92,11 +110,9 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         setHandoffBeanName(planBatchHandoff.beanName || null);
         appliedDefaultBeanRef.current = true;
         if (planBatchHandoff.profileId) {
-            userSelectedTargetRef.current = true;
-
-            setTargetProfileId(planBatchHandoff.profileId);
+            void applyTarget(planBatchHandoff.profileId, true);
         }
-    }, [isActive, planBatchHandoff]);
+    }, [isActive, planBatchHandoff, applyTarget]);
 
     // One-time default bean from localStorage if nothing was handed off yet
     useEffect(() => {
@@ -131,10 +147,12 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         }
     }, [beansReady, beans, selectedBeanId, handoffBeanName]);
 
-    const setUserSelectedTarget = useCallback((id: string | null) => {
-        userSelectedTargetRef.current = true;
-        setTargetProfileId(id);
-    }, []);
+    const setUserSelectedTarget = useCallback(
+        (id: string | null) => {
+            void applyTarget(id, true);
+        },
+        [applyTarget],
+    );
 
     const handleSetSelectedBeanId = useCallback((id: string | null) => {
         setSelectedBeanId(id);

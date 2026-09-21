@@ -34,7 +34,7 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 Secrets: `SLACK_WEBHOOK_URL` (signup + payment + errors), optional `SENTRY_DSN` for Edge.
 | `coffee-futures` | public | Yahoo `KC=F` proxy (short cache) | `functions/coffee-futures/` |
 | `get-cupping-session` | invite token | Public cupping payload | `functions/get-cupping-session/` |
-| `submit-cupping` | invite/owner | Score upsert | `functions/submit-cupping/` |
+| `submit-cupping` | invite/owner | Claim seat / batch publish / legacy sample upsert | `functions/submit-cupping/` |
 | `get-cupping-results` | results/invite token | Aggregated results | `functions/get-cupping-results/` |
 
 Shared modules: `functions/_shared/auth.ts`, `r2.ts`, `channels/*`, `webhook-auth.ts`, `cupping-score.ts`, `slack.ts`.

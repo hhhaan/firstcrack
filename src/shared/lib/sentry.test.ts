@@ -70,6 +70,31 @@ describe('isActionableError', () => {
         expect(isActionableError({ message: 'trial_expired' })).toBe(false);
         expect(isActionableError(new BatchLimitError(0, 0, 'read_only_plan'))).toBe(false);
     });
+
+    it('drops transient transport failures (FC-16, FC-1H, FC-1J, FC-1K)', () => {
+        expect(isActionableError(new TypeError('Load failed'))).toBe(false);
+        expect(isActionableError(new TypeError('Failed to fetch'))).toBe(false);
+        expect(
+            isActionableError({
+                code: '',
+                hint: '',
+                message: 'TypeError: Failed to fetch (example.supabase.co)',
+                details: 'TypeError: Failed to fetch\n    at fetchCoffeeFutures',
+            }),
+        ).toBe(false);
+        expect(
+            isActionableError(new Error('error sending request for url (https://cdn.example/releases/latest.json)')),
+        ).toBe(false);
+    });
+
+    it('drops expected Tauri ACL denials for the removed dialog confirm command (FC-S)', () => {
+        expect(isActionableError('Command plugin:dialog|confirm not allowed by ACL')).toBe(false);
+    });
+
+    it('keeps real TypeErrors and server failures', () => {
+        expect(isActionableError(new TypeError("Cannot read properties of undefined (reading 'bt')"))).toBe(true);
+        expect(isActionableError(new Error('new row violates row-level security policy'))).toBe(true);
+    });
 });
 
 describe('captureActionable', () => {
@@ -92,6 +117,10 @@ describe('captureActionable', () => {
         abort.name = 'AbortError';
         captureActionable(abort);
         captureActionable({ code: '23514', message: 'read_only_plan' });
+        captureActionable(new TypeError('Load failed'));
+        captureActionable({ message: 'TypeError: Failed to fetch (example.supabase.co)' });
+        captureActionable(new Error('error sending request for url (https://cdn.example/releases/latest.json)'));
+        captureActionable('Command plugin:dialog|confirm not allowed by ACL');
         expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 });
@@ -227,6 +256,23 @@ describe('buildSentryOptions', () => {
     it('beforeSend drops non-actionable events', () => {
         const { beforeSend } = buildSentryOptions();
         expect(beforeSend({ type: undefined, extra: {} }, { originalException: { status: 404 } })).toBeNull();
+        expect(
+            beforeSend({ type: undefined, extra: {} }, { originalException: new TypeError('Failed to fetch') }),
+        ).toBeNull();
+        expect(
+            beforeSend(
+                {
+                    type: undefined,
+                    extra: {},
+                    exception: {
+                        values: [
+                            { type: 'UnhandledRejection', value: 'Command plugin:dialog|confirm not allowed by ACL' },
+                        ],
+                    },
+                },
+                {},
+            ),
+        ).toBeNull();
     });
 
     it('beforeSend scrubs message, exception values, request and breadcrumbs', () => {

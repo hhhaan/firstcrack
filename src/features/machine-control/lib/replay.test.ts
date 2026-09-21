@@ -2,16 +2,16 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseTsv } from '@shared/lib/tsv';
 import { describe, expect, it } from 'vitest';
-import { extractReplayEvents, judgeReplay, type ReplayPoint } from './replay';
+import { eventTrigger, extractReplayEvents, hasHeatSetRecord, judgeReplay, type ReplayPoint } from './replay';
 
 /** charge 180° → TP 95°(t=60) → 상승 → drop 205° 형태의 레퍼런스 */
 const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
     const pts: ReplayPoint[] = [];
-    let heater: number | null = null;
+    let heaterSet: number | null = null;
     for (let t = 0; t <= 600; t += 10) {
-        if (heaterAt[t] != null) heater = heaterAt[t];
+        if (heaterAt[t] != null) heaterSet = heaterAt[t];
         const bt = t <= 60 ? 180 - (t / 60) * 85 : 95 + ((t - 60) / 540) * 110;
-        pts.push({ t, bt, heater });
+        pts.push({ t, bt, heaterSet });
     }
     return pts;
 };
@@ -34,10 +34,14 @@ describe('extractReplayEvents', () => {
         const pts: ReplayPoint[] = [];
         for (let t = 0; t <= 320; t += 4) {
             const bt = t <= 140 ? 200 - (t / 140) * 55 : 145 + ((t - 140) / 180) * 23;
-            pts.push({ t, bt, heater: null });
+            pts.push({ t, bt, heaterSet: null });
         }
         const heaterAt: Record<number, number> = { 0: 75, 56: 90, 72: 12, 80: 84, 100: 18, 132: 71, 316: 47 };
-        for (const p of pts) if (heaterAt[p.t] != null) p.heater = heaterAt[p.t];
+        let heaterSet: number | null = null;
+        for (const p of pts) {
+            if (heaterAt[p.t] != null) heaterSet = heaterAt[p.t];
+            p.heaterSet = heaterSet;
+        }
 
         const plan = extractReplayEvents(pts);
         expect(plan?.tpTime).toBe(140);
@@ -46,11 +50,20 @@ describe('extractReplayEvents', () => {
         expect(plan?.events.filter((e) => e.t <= 140).map((e) => e.heater)).toEqual([75, 90, 12, 84, 18, 71]);
     });
 
-    it('#310 실데이터: TP는 실제 골짜기, 시간축 5 + BT 2로 분류되고 7건 전부 순서대로 발화한다', () => {
-        // "테스트임" 레퍼런스 원본 TSV — charge 200.2° → 145.5°(t≈122.5) → 168°까지만 회복
+    it('#310 실데이터: 구 TSV(Heat set 열 없음)는 추출하지 않는다', () => {
         const points = parseTsv(
             readFileSync(fileURLToPath(new URL('./__fixtures__/issue310-reference.tsv', import.meta.url)), 'utf8'),
         );
+        expect(points.every((p) => p.heaterSet == null)).toBe(true);
+        expect(extractReplayEvents(points)).toBeNull();
+        expect(hasHeatSetRecord(points)).toBe(false);
+    });
+
+    it('#310 실데이터: TP는 실제 골짜기, 시간축 5 + BT 2로 분류되고 7건 전부 순서대로 발화한다', () => {
+        // 구 TSV heater 열을 테스트용 지시 시계열로만 쓴다. 프로덕션은 이 폴백을 하지 않는다.
+        const points = parseTsv(
+            readFileSync(fileURLToPath(new URL('./__fixtures__/issue310-reference.tsv', import.meta.url)), 'utf8'),
+        ).map((p) => ({ ...p, heaterSet: p.heater }));
         const plan = extractReplayEvents(points);
         expect(plan).not.toBeNull();
         if (!plan) return;
@@ -76,23 +89,23 @@ describe('extractReplayEvents', () => {
 
     it('단조 하강만 있는 세션은 TP 미확정(Infinity) — 전 이벤트 시간축', () => {
         const pts: ReplayPoint[] = [];
-        for (let t = 0; t <= 120; t += 10) pts.push({ t, bt: 200 - t, heater: t === 0 ? 75 : null });
+        for (let t = 0; t <= 120; t += 10) pts.push({ t, bt: 200 - t, heaterSet: 75 });
         expect(extractReplayEvents(pts)?.tpTime).toBe(Number.POSITIVE_INFINITY);
     });
 
     it('마진 미만의 미세 회복(센서 흔들림)은 TP로 확정하지 않는다', () => {
         // t=20에서 +1° 블립(마진 2° 미만) → 무시, 진짜 골짜기 t=50에서 +3° 회복 → 확정
         const bts = [200, 190, 191, 180, 170, 160, 163, 166];
-        const pts: ReplayPoint[] = bts.map((bt, i) => ({ t: i * 10, bt, heater: i === 0 ? 75 : null }));
+        const pts: ReplayPoint[] = bts.map((bt, i) => ({ t: i * 10, bt, heaterSet: 75 }));
         expect(extractReplayEvents(pts)?.tpTime).toBe(50);
     });
 
     it('배출 후 쿨다운 꼬리가 TP보다 식어도 TP는 골짜기로 잡힌다', () => {
         // drop(205°) 이후 세션 종료 전까지 기록된 꼬리 — BT가 TP(95°) 아래로 떨어진다
         const tail: ReplayPoint[] = [
-            { t: 610, bt: 150, heater: 0 },
-            { t: 660, bt: 90, heater: 0 },
-            { t: 720, bt: 60, heater: 0 },
+            { t: 610, bt: 150, heaterSet: 0 },
+            { t: 660, bt: 90, heaterSet: 0 },
+            { t: 720, bt: 60, heaterSet: 0 },
         ];
         const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), ...tail]);
         expect(plan?.tpTime).toBe(60);
@@ -101,9 +114,9 @@ describe('extractReplayEvents', () => {
     it('dropTime 이후 포인트(배출 후 쿨다운 조작)는 이벤트에서 제외한다', () => {
         // drop(600s) 후 쿨다운 중 슬라이더 조작 — BT 하강 꼬리라 이번 배치의 발전 구간과 겹친다
         const tail: ReplayPoint[] = [
-            { t: 610, bt: 160, heater: 69 },
-            { t: 660, bt: 163, heater: 21 },
-            { t: 720, bt: 165, heater: 100 },
+            { t: 610, bt: 160, heaterSet: 69 },
+            { t: 660, bt: 163, heaterSet: 21 },
+            { t: 720, bt: 165, heaterSet: 100 },
         ];
         const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), ...tail], 600);
         expect(plan?.events.map((e) => e.heater)).toEqual([80, 40]);
@@ -128,9 +141,8 @@ describe('extractReplayEvents', () => {
         expect(extractReplayEvents(curve({ 0: -1 }))).toBeNull();
     });
 
-    it('음수 구간은 null로 건너뛰고, 양수 뒤의 0(가스 컷)은 이벤트로 남는다', () => {
-        const plan = extractReplayEvents(curve({ 0: 80, 100: -1, 200: 0, 300: 60 }));
-        expect(plan?.events.map((e) => e.heater)).toEqual([80, 0, 60]);
+    it('첫 유효 지시 뒤의 음수 구간은 기록 손실로 보고 거부한다', () => {
+        expect(extractReplayEvents(curve({ 0: 80, 100: -1, 200: 0, 300: 60 }))).toBeNull();
     });
 
     it('charge 직후 글리치 골짜기(t<20)는 TP로 확정하지 않는다 — 하강 구간 조작이 BT축으로 밀리지 않는다', () => {
@@ -143,24 +155,77 @@ describe('extractReplayEvents', () => {
     });
 
     it('Drop 마크 직후 safe-off(heater 0)는 컷오프 밖이다 — 정수 Drop 시각 vs 소수 샘플 시각', () => {
-        const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), { t: 600.5, bt: 204, heater: 0 }], 600);
+        const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), { t: 600.5, bt: 204, heaterSet: 0 }], 600);
         expect(plan?.events.map((e) => e.heater)).toEqual([80, 40]);
     });
 
     it('Drop 시각(t===cutoff) heater 0은 컷오프 밖이다 — 같은 tick zero write가 다음 배치 계획에 안 섞인다', () => {
-        const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), { t: 600, bt: 204, heater: 0 }], 600);
+        const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), { t: 600, bt: 204, heaterSet: 0 }], 600);
         expect(plan?.events.map((e) => e.heater)).toEqual([80, 40]);
     });
 
     it('pre-charge(t<0) 포인트는 무시한다', () => {
-        const pts: ReplayPoint[] = [{ t: -30, bt: 150, heater: 90 }, ...curve({ 100: 70 })];
+        const pts: ReplayPoint[] = [{ t: -30, bt: 150, heaterSet: 90 }, ...curve({ 100: 70 })];
         const plan = extractReplayEvents(pts);
         expect(plan?.events.map((e) => e.heater)).toEqual([70]);
     });
 
-    it('1% 미만 흔들림은 이벤트가 아니다', () => {
+    it('첫 유효 지시 전 null은 허용한다', () => {
+        const plan = extractReplayEvents(curve({ 100: 70, 300: 50 }));
+        expect(plan?.events.map((e) => ({ t: e.t, heater: e.heater }))).toEqual([
+            { t: 100, heater: 70 },
+            { t: 300, heater: 50 },
+        ]);
+    });
+
+    it('첫 유효 지시 뒤 null 공백이 있으면 계획을 거부한다', () => {
+        const pts = curve({ 0: 80, 300: 60 });
+        pts[10].heaterSet = null;
+        expect(extractReplayEvents(pts)).toBeNull();
+    });
+
+    it('시간 또는 BT가 유한수가 아니면 계획을 거부한다', () => {
+        expect(extractReplayEvents([{ t: Number.NaN, bt: 180, heaterSet: 80 }, ...curve({ 0: 80 })])).toBeNull();
+        expect(extractReplayEvents([{ t: 0, bt: Number.POSITIVE_INFINITY, heaterSet: 80 }])).toBeNull();
+    });
+
+    it('소수점 지시(80→80.5)는 유지하고 같은 값 연속만 접는다', () => {
         const plan = extractReplayEvents(curve({ 0: 80, 120: 80.5, 300: 60 }));
-        expect(plan?.events.map((e) => e.heater)).toEqual([80, 60]);
+        expect(plan?.events.map((e) => e.heater)).toEqual([80, 80.5, 60]);
+        const dup = extractReplayEvents(curve({ 0: 80, 10: 80, 120: 60 }));
+        expect(dup?.events.map((e) => e.heater)).toEqual([80, 60]);
+    });
+
+    it('부동소수점 차이가 0.01보다 작아도 서로 다른 지시는 유지한다', () => {
+        const plan = extractReplayEvents(curve({ 0: 80.01, 120: 80.02 }));
+        expect(plan?.events.map((e) => e.heater)).toEqual([80.01, 80.02]);
+    });
+
+    it('실측 heater만 있고 Heat set이 없으면 추출하지 않는다', () => {
+        const pts = curve({ 0: 80, 120: 60 }).map((p) => ({ ...p, heater: p.heaterSet ?? null, heaterSet: null }));
+        expect(hasHeatSetRecord(pts)).toBe(false);
+        expect(extractReplayEvents(pts)).toBeNull();
+    });
+
+    it('Heat set 70 이후 실측 70이 늦어도 이벤트 시각은 지시 샘플이다', () => {
+        const pts: ReplayPoint[] = [0, 10, 20, 30].map((t) => ({
+            t,
+            bt: 180 - t,
+            heater: t >= 20 ? 70 : 50,
+            heaterSet: t >= 10 ? 70 : 50,
+        }));
+        const plan = extractReplayEvents(pts);
+        expect(plan?.events.map((e) => ({ t: e.t, heater: e.heater }))).toEqual([
+            { t: 0, heater: 50 },
+            { t: 10, heater: 70 },
+        ]);
+    });
+
+    it('0은 결측이 아니다 — 양수 뒤의 0은 이벤트로 남고, 기록 있음으로 센다', () => {
+        expect(hasHeatSetRecord(curve({ 0: 0 }))).toBe(true);
+        expect(extractReplayEvents(curve({ 0: 0 }))).toBeNull();
+        const plan = extractReplayEvents(curve({ 0: 80, 200: 0 }));
+        expect(plan?.events.map((e) => e.heater)).toEqual([80, 0]);
     });
 
     it('이벤트 폭증(PID 기록)이면 null — 재생 부적합', () => {
@@ -168,6 +233,21 @@ describe('extractReplayEvents', () => {
         // 매 샘플 ±2%씩 흔들리는 PID duty
         for (let t = 0; t <= 600; t += 10) heaterAt[t] = 60 + (t % 20 === 0 ? 2 : -2);
         expect(extractReplayEvents(curve(heaterAt))).toBeNull();
+    });
+});
+
+describe('eventTrigger', () => {
+    const plan = extractReplayEvents(curve({ 0: 80, 40: 70, 60: 65, 120: 60, 300: 40 }));
+    if (!plan) throw new Error('fixture broken');
+    // TP=60. t=0·40 pre-TP, t=60 at-TP, t=120·300 post-TP. Same split as judgeReplay.
+
+    it('TP 이전과 TP와 같은 시각은 time, TP 이후는 bt — 판정 경로와 같다', () => {
+        expect(plan.tpTime).toBe(60);
+        expect(eventTrigger(plan.events[0], plan.tpTime)).toBe('time');
+        expect(eventTrigger(plan.events[1], plan.tpTime)).toBe('time');
+        expect(eventTrigger(plan.events[2], plan.tpTime)).toBe('time');
+        expect(eventTrigger(plan.events[3], plan.tpTime)).toBe('bt');
+        expect(eventTrigger(plan.events[4], plan.tpTime)).toBe('bt');
     });
 });
 

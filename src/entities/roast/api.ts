@@ -35,22 +35,37 @@ export type RoastSessionFilterMeta = {
     beans: { origin: string | null } | null;
 };
 
+/** PostgREST `max_rows` in supabase/config.toml. A single select silently drops the rest. */
+export const POSTGREST_MAX_ROWS = 1000;
+
+const fetchAllRows = async <T>(
+    queryPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> => {
+    const out: T[] = [];
+    let from = 0;
+    for (;;) {
+        const { data, error } = await queryPage(from, from + POSTGREST_MAX_ROWS - 1);
+        if (error) throw error;
+        const page = data ?? [];
+        out.push(...page);
+        if (page.length < POSTGREST_MAX_ROWS) return out;
+        from += POSTGREST_MAX_ROWS;
+    }
+};
+
 export const roastSessionApi = {
     list: async (userId: string, status?: RoastSession['status']): Promise<RoastSessionWithRelations[]> => {
-        let query = supabase
-            .from('roast_sessions')
-            .select(SELECT_WITH_RELATIONS)
-            .eq('user_id', userId)
-            .order('roasted_at', { ascending: false, nullsFirst: true })
-            .order('created_at', { ascending: false });
-
-        if (status) {
-            query = query.eq('status', status);
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-        return data || [];
+        return fetchAllRows(async (from, to) => {
+            let query = supabase
+                .from('roast_sessions')
+                .select(SELECT_WITH_RELATIONS)
+                .eq('user_id', userId)
+                .order('roasted_at', { ascending: false, nullsFirst: true })
+                .order('created_at', { ascending: false })
+                .range(from, to);
+            if (status) query = query.eq('status', status);
+            return query;
+        });
     },
 
     /** Lightweight rows for History filter dropdowns + total count (no events/embeds bloat). */
