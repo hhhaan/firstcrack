@@ -462,10 +462,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         triggerChargeRef.current = triggerCharge;
     }, [resetAutoDetection, disableAutoCharge, rearmAutoCharge, triggerCharge]);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: hydrate in-progress BBP once on mount
+    const recoverLiveBbp = lifecycle.recoverLiveBbp;
     useEffect(() => {
-        lifecycle.recoverLiveBbp();
-    }, []);
+        recoverLiveBbp();
+    }, [recoverLiveBbp]);
 
     const timeAlerts = useMemo(
         () => ({

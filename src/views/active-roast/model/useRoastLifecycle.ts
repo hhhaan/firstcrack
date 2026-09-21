@@ -317,14 +317,14 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
 
     const recoverLiveBbp = useCallback(() => {
         if (!hydrateLiveBbp()) return;
-        const { phase, charged } = useRoastingStore.getState();
-        if (charged || phase === 'roasting') return;
+        const store = useRoastingStore.getState();
+        if (store.charged || store.phase === 'roasting') return;
         useRoastingStore.setState({ awaitingNextCharge: true });
-        if (sidecarConnected && (phase === 'idle' || phase === 'preheating')) {
-            enterPreheating();
-            enterStandby();
+        if (store.sidecarConnected && (store.phase === 'idle' || store.phase === 'preheating')) {
+            store.enterPreheating();
+            store.enterStandby();
         }
-    }, [sidecarConnected, enterPreheating, enterStandby]);
+    }, []);
 
     return {
         handleEnterStandby,
