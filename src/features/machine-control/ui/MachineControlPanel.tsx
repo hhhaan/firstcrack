@@ -3,6 +3,7 @@ import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import { numericHeaterStep } from '../lib/heater-events';
@@ -60,6 +61,8 @@ interface Props {
     temperatureUnit: 'C' | 'F';
     /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
     onHeaterCommitted?: (value: number, unit: string) => void;
+    /** T 토글 — 로스팅 단축키 베이스 게이트와 동일하게 넘긴다 */
+    hotkeysEnabled?: boolean;
 }
 
 /**
@@ -93,6 +96,7 @@ export const MachineControlPanel = ({
     onReplayControl,
     temperatureUnit,
     onHeaterCommitted,
+    hotkeysEnabled = false,
 }: Props) => {
     const { t } = useTranslation();
     const entitled = useFeature(FEATURE.machineControl);
@@ -140,6 +144,17 @@ export const MachineControlPanel = ({
     // fault 포함 — 화력이 남았을 수 있는 동안은 상태·에러가 계속 보여야 한다
     const pidActive = pidState !== 'off';
     const anyUnacknowledged = ROLE_ORDER.some((role) => limits[role] != null && unacknowledged.has(role));
+    const panelVisible = pidActive || (entitled && writable && anyWritableChannel);
+
+    useHotkeys(
+        't',
+        (e) => {
+            e.preventDefault();
+            setCollapsed((c) => !c);
+        },
+        { enabled: hotkeysEnabled && panelVisible },
+        [hotkeysEnabled, panelVisible],
+    );
 
     // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
     const writeHeater = useCallback(
@@ -213,7 +228,7 @@ export const MachineControlPanel = ({
     //
     // 단 PID가 off가 아니면 권한·capability와 무관하게 계속 렌더한다 — 상태와 fault
     // 에러가 보여야 하고, 플랜 스토어가 로딩 중 잠깐 비entitled로 보일 수 있다.
-    if (!pidActive && (!entitled || !writable || !anyWritableChannel)) return null;
+    if (!panelVisible) return null;
 
     return (
         <div
@@ -232,9 +247,10 @@ export const MachineControlPanel = ({
                 <button
                     type="button"
                     onClick={() => setCollapsed((c) => !c)}
-                    aria-label={collapsed ? 'Expand machine control' : 'Collapse machine control'}
+                    aria-label={collapsed ? 'Expand machine control (T)' : 'Collapse machine control (T)'}
                     aria-expanded={!collapsed}
-                    title={collapsed ? 'Expand machine control' : 'Collapse machine control'}
+                    aria-keyshortcuts="t"
+                    title={collapsed ? 'Expand machine control (T)' : 'Collapse machine control (T)'}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent"
                 >
                     {collapsed ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}

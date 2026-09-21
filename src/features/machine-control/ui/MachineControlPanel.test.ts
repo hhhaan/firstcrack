@@ -4,9 +4,7 @@ import panelSrc from './MachineControlPanel.tsx?raw';
 describe('MachineControlPanel PID lifecycle (#269)', () => {
     it('PID 훅을 표시 가드보다 먼저 호출한다', () => {
         const hook = panelSrc.indexOf('usePidControl(');
-        const guard = panelSrc.indexOf(
-            'if (!pidActive && (!entitled || !writable || !anyWritableChannel)) return null',
-        );
+        const guard = panelSrc.indexOf('if (!panelVisible) return null');
         expect(hook).toBeGreaterThan(-1);
         expect(guard).toBeGreaterThan(hook);
     });
@@ -61,6 +59,13 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
 
     it('Replay 다음 이벤트에 기기 heater 단위를 넘긴다', () => {
         expect(panelSrc).toMatch(/heaterUnit=\{limits\.heater\?\.unit/);
+    });
+
+    it('T 단축키로 패널을 접고 펼친다', () => {
+        expect(panelSrc).toMatch(/useHotkeys\(\s*'t'/);
+        expect(panelSrc).toMatch(/hotkeysEnabled && panelVisible/);
+        expect(panelSrc).toMatch(/setCollapsed\(\(c\) => !c\)/);
+        expect(panelSrc).toMatch(/aria-keyshortcuts="t"/);
     });
 
     it('접힌 Replay 점은 TP 대기/폴백을 정상 재생과 구분한다', () => {
