@@ -47,25 +47,26 @@ const Harness = () => {
     );
 };
 
-const hosts: HTMLElement[] = [];
+const mounts: Array<{ host: HTMLElement; unmount: () => void }> = [];
 
 const mount = () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
     act(() => root.render(createElement(Harness)));
-    hosts.push(host);
-    return {
+    const instance = {
         host,
         unmount: () => {
             act(() => root.unmount());
             host.remove();
         },
     };
+    mounts.push(instance);
+    return instance;
 };
 
 afterEach(() => {
-    for (const host of hosts.splice(0)) host.remove();
+    for (const instance of mounts.splice(0)) instance.unmount();
 });
 
 const submitEmpty = async (host: HTMLElement) => {
@@ -95,7 +96,7 @@ const typeName = async (host: HTMLElement, value: string) => {
 
 describe('BeanFormFields lot-name validation', () => {
     it('clears the required error when an origin chip fills the name', async () => {
-        const { host, unmount } = mount();
+        const { host } = mount();
 
         await submitEmpty(host);
         expect(host.textContent).toContain(LOT_NAME_REQUIRED);
@@ -107,14 +108,13 @@ describe('BeanFormFields lot-name validation', () => {
 
         await clickChip(host, 'Ethiopia');
         expect(name.value).toBe('');
+        expect(host.textContent).not.toContain(LOT_NAME_REQUIRED);
         await submitEmpty(host);
         expect(host.textContent).toContain(LOT_NAME_REQUIRED);
-
-        unmount();
     });
 
     it('clears the required error when a name is typed, then re-shows it on empty submit', async () => {
-        const { host, unmount } = mount();
+        const { host } = mount();
 
         await submitEmpty(host);
         expect(host.textContent).toContain(LOT_NAME_REQUIRED);
@@ -125,7 +125,5 @@ describe('BeanFormFields lot-name validation', () => {
         await typeName(host, '');
         await submitEmpty(host);
         expect(host.textContent).toContain(LOT_NAME_REQUIRED);
-
-        unmount();
     });
 });
