@@ -3,7 +3,7 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     formatEditTime,
@@ -103,15 +103,18 @@ export const HeaterEventsEditor = ({
     const [selected, setSelected] = useState(0);
     const [busy, setBusy] = useState(false);
 
+    const onEscape = useEffectEvent(() => {
+        if (!busy) onClose();
+    });
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') return;
             e.stopImmediatePropagation();
-            if (!busy) onClose();
+            onEscape();
         };
         window.addEventListener('keydown', onKey, true);
         return () => window.removeEventListener('keydown', onKey, true);
-    }, [onClose, busy]);
+    }, []);
 
     const parsed = useMemo(() => parseRows(rows, unit, heaterBounds) ?? [], [rows, unit, heaterBounds]);
 
@@ -246,153 +249,24 @@ export const HeaterEventsEditor = ({
                             onSelect={setSelected}
                         />
                     </div>
-                    <fieldset
-                        disabled={busy}
-                        className="m-0 flex min-h-[240px] min-w-0 flex-1 flex-col border-0 px-6 py-4"
-                    >
-                        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl bg-surface/60 p-3">
-                            <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                                {t('heaterEventsEditor.ruleWhen')} (°{unit})
-                                <input
-                                    value={ruleBt}
-                                    onChange={(e) => setRuleBt(e.target.value)}
-                                    className={`${inputCls} mt-1 py-1.5 text-xs`}
-                                    inputMode="decimal"
-                                    aria-label={t('heaterEventsEditor.bt')}
-                                />
-                            </label>
-                            <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                                {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
-                                <input
-                                    value={ruleHeater}
-                                    onChange={(e) => setRuleHeater(e.target.value)}
-                                    className={`${inputCls} mt-1 py-1.5 text-xs`}
-                                    inputMode="decimal"
-                                    aria-label={t('heaterEventsEditor.heat')}
-                                />
-                            </label>
-                            <button
-                                type="button"
-                                disabled={busy || rows.length >= MAX_EVENTS}
-                                onClick={addBtRule}
-                                className="mb-0.5 cursor-pointer rounded-xl border-none bg-surface px-2.5 py-2 text-xs font-medium text-primary"
-                            >
-                                {t('heaterEventsEditor.ruleAdd')}
-                            </button>
-                        </div>
-                        <div className="min-h-0 flex-1 overflow-auto">
-                            <table className="w-full min-w-[480px] table-fixed border-collapse text-xs">
-                                <thead>
-                                    <tr className="text-[11px] font-semibold tracking-wide text-muted uppercase">
-                                        <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
-                                            {t('heaterEventsEditor.time')} (m:ss)
-                                        </th>
-                                        <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
-                                            {t('heaterEventsEditor.bt')} (°{unit})
-                                        </th>
-                                        <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
-                                            {t('heaterEventsEditor.heat')} ({heaterUnit})
-                                        </th>
-                                        <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
-                                            {t('heaterEventsEditor.trigger')}
-                                        </th>
-                                        <th className="sticky top-0 z-10 w-10 bg-main-bg pb-2" />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rows.map((row, i) => {
-                                        const locked = i < lockedCount;
-                                        return (
-                                            <tr
-                                                key={row.key}
-                                                className={i === selected ? 'bg-surface' : undefined}
-                                                onClick={() => setSelected(i)}
-                                                onFocus={() => setSelected(i)}
-                                            >
-                                                <td className="py-1 pr-1">
-                                                    <input
-                                                        value={row.t}
-                                                        onChange={(e) => update(row.key, { t: e.target.value })}
-                                                        className={`${inputCls} py-1.5 text-xs`}
-                                                        aria-label={t('heaterEventsEditor.time')}
-                                                        readOnly={locked}
-                                                    />
-                                                </td>
-                                                <td className="py-1 pr-1">
-                                                    <input
-                                                        value={row.bt}
-                                                        onChange={(e) => update(row.key, { bt: e.target.value })}
-                                                        className={`${inputCls} py-1.5 text-xs`}
-                                                        inputMode="decimal"
-                                                        aria-label={t('heaterEventsEditor.bt')}
-                                                        readOnly={locked}
-                                                    />
-                                                </td>
-                                                <td className="py-1 pr-1">
-                                                    <input
-                                                        value={row.heater}
-                                                        onChange={(e) => update(row.key, { heater: e.target.value })}
-                                                        className={`${inputCls} py-1.5 text-xs`}
-                                                        inputMode="decimal"
-                                                        aria-label={t('heaterEventsEditor.heat')}
-                                                        readOnly={locked}
-                                                    />
-                                                </td>
-                                                <td className="py-1 pr-1">
-                                                    <select
-                                                        value={row.trigger}
-                                                        onChange={(e) =>
-                                                            update(row.key, {
-                                                                trigger: e.target.value as ReplayTrigger,
-                                                            })
-                                                        }
-                                                        className={`${inputCls} py-1.5 pr-6 text-xs`}
-                                                        aria-label={t('heaterEventsEditor.trigger')}
-                                                        disabled={locked}
-                                                    >
-                                                        <option value="time">
-                                                            {t('heaterEventsEditor.triggerTime')}
-                                                        </option>
-                                                        <option value="bt">{t('heaterEventsEditor.triggerBt')}</option>
-                                                    </select>
-                                                </td>
-                                                <td className="py-1">
-                                                    <button
-                                                        type="button"
-                                                        className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-surface hover:text-red-600"
-                                                        aria-label={t('heaterEventsEditor.deleteRow')}
-                                                        disabled={locked}
-                                                        onClick={() =>
-                                                            setRows((prev) => prev.filter((r) => r.key !== row.key))
-                                                        }
-                                                    >
-                                                        <Trash2 size={14} strokeWidth={2} />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                            {rows.length === 0 && (
-                                <p className="py-6 text-center text-sm text-muted">{t('heaterEventsEditor.empty')}</p>
-                            )}
-                        </div>
-                        <button
-                            type="button"
-                            disabled={busy || rows.length >= MAX_EVENTS}
-                            onClick={addStep}
-                            className="mt-2 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent text-xs font-medium text-secondary"
-                        >
-                            <Plus size={14} strokeWidth={2} />
-                            {t('heaterEventsEditor.addStep')}
-                        </button>
-                        {error && (
-                            <p role="alert" className={formErrorCls}>
-                                {error}
-                            </p>
-                        )}
-                    </fieldset>
+                    <HeaterEventsTable
+                        unit={unit}
+                        heaterUnit={heaterUnit}
+                        busy={busy}
+                        rows={rows}
+                        selected={selected}
+                        lockedCount={lockedCount}
+                        error={error}
+                        ruleBt={ruleBt}
+                        ruleHeater={ruleHeater}
+                        onRuleBt={setRuleBt}
+                        onRuleHeater={setRuleHeater}
+                        onAddBtRule={addBtRule}
+                        onAddStep={addStep}
+                        onSelect={setSelected}
+                        onUpdate={update}
+                        onDelete={(key) => setRows((prev) => prev.filter((r) => r.key !== key))}
+                    />
                 </div>
                 <div className="flex shrink-0 gap-3 border-t border-black/4 px-6 pt-4 pb-5 dark:border-[#585d61]">
                     <button type="button" onClick={onClose} disabled={busy} className={modalCancelBtnCls}>
@@ -410,6 +284,190 @@ export const HeaterEventsEditor = ({
         </ModalShell>
     );
 };
+
+const HeaterEventsTable = ({
+    unit,
+    heaterUnit,
+    busy,
+    rows,
+    selected,
+    lockedCount,
+    error,
+    ruleBt,
+    ruleHeater,
+    onRuleBt,
+    onRuleHeater,
+    onAddBtRule,
+    onAddStep,
+    onSelect,
+    onUpdate,
+    onDelete,
+}: {
+    unit: 'C' | 'F';
+    heaterUnit: string;
+    busy: boolean;
+    rows: DraftRow[];
+    selected: number;
+    lockedCount: number;
+    error: string | null;
+    ruleBt: string;
+    ruleHeater: string;
+    onRuleBt: (value: string) => void;
+    onRuleHeater: (value: string) => void;
+    onAddBtRule: () => void;
+    onAddStep: () => void;
+    onSelect: (index: number) => void;
+    onUpdate: (key: string, patch: Partial<DraftRow>) => void;
+    onDelete: (key: string) => void;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <fieldset disabled={busy} className="m-0 flex min-h-[240px] min-w-0 flex-1 flex-col border-0 px-6 py-4">
+            <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl bg-surface/60 p-3">
+                <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
+                    {t('heaterEventsEditor.ruleWhen')} (°{unit})
+                    <input
+                        value={ruleBt}
+                        onChange={(e) => onRuleBt(e.target.value)}
+                        className={`${inputCls} mt-1 py-1.5 text-xs`}
+                        inputMode="decimal"
+                        aria-label={t('heaterEventsEditor.bt')}
+                    />
+                </label>
+                <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
+                    {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
+                    <input
+                        value={ruleHeater}
+                        onChange={(e) => onRuleHeater(e.target.value)}
+                        className={`${inputCls} mt-1 py-1.5 text-xs`}
+                        inputMode="decimal"
+                        aria-label={t('heaterEventsEditor.heat')}
+                    />
+                </label>
+                <button
+                    type="button"
+                    disabled={busy || rows.length >= MAX_EVENTS}
+                    onClick={onAddBtRule}
+                    className="mb-0.5 cursor-pointer rounded-xl border-none bg-surface px-2.5 py-2 text-xs font-medium text-primary"
+                >
+                    {t('heaterEventsEditor.ruleAdd')}
+                </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">
+                <table className="w-full min-w-[480px] table-fixed border-collapse text-xs">
+                    <thead>
+                        <tr className="text-[11px] font-semibold tracking-wide text-muted uppercase">
+                            <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                                {t('heaterEventsEditor.time')} (m:ss)
+                            </th>
+                            <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                                {t('heaterEventsEditor.bt')} (°{unit})
+                            </th>
+                            <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                                {t('heaterEventsEditor.heat')} ({heaterUnit})
+                            </th>
+                            <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                                {t('heaterEventsEditor.trigger')}
+                            </th>
+                            <th className="sticky top-0 z-10 w-10 bg-main-bg pb-2" />
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row, i) => {
+                            const locked = i < lockedCount;
+                            return (
+                                <tr
+                                    key={row.key}
+                                    className={i === selected ? 'bg-surface' : undefined}
+                                    onClick={() => onSelect(i)}
+                                    onFocus={() => onSelect(i)}
+                                >
+                                    <td className="py-1 pr-1">
+                                        <input
+                                            value={row.t}
+                                            onChange={(e) => onUpdate(row.key, { t: e.target.value })}
+                                            className={`${inputCls} py-1.5 text-xs`}
+                                            aria-label={t('heaterEventsEditor.time')}
+                                            readOnly={locked}
+                                        />
+                                    </td>
+                                    <td className="py-1 pr-1">
+                                        <input
+                                            value={row.bt}
+                                            onChange={(e) => onUpdate(row.key, { bt: e.target.value })}
+                                            className={`${inputCls} py-1.5 text-xs`}
+                                            inputMode="decimal"
+                                            aria-label={t('heaterEventsEditor.bt')}
+                                            readOnly={locked}
+                                        />
+                                    </td>
+                                    <td className="py-1 pr-1">
+                                        <input
+                                            value={row.heater}
+                                            onChange={(e) => onUpdate(row.key, { heater: e.target.value })}
+                                            className={`${inputCls} py-1.5 text-xs`}
+                                            inputMode="decimal"
+                                            aria-label={t('heaterEventsEditor.heat')}
+                                            readOnly={locked}
+                                        />
+                                    </td>
+                                    <td className="py-1 pr-1">
+                                        <select
+                                            value={row.trigger}
+                                            onChange={(e) =>
+                                                onUpdate(row.key, {
+                                                    trigger: e.target.value as ReplayTrigger,
+                                                })
+                                            }
+                                            className={`${inputCls} py-1.5 pr-6 text-xs`}
+                                            aria-label={t('heaterEventsEditor.trigger')}
+                                            disabled={locked}
+                                        >
+                                            <option value="time">{t('heaterEventsEditor.triggerTime')}</option>
+                                            <option value="bt">{t('heaterEventsEditor.triggerBt')}</option>
+                                        </select>
+                                    </td>
+                                    <td className="py-1">
+                                        <button
+                                            type="button"
+                                            className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-surface hover:text-red-600"
+                                            aria-label={t('heaterEventsEditor.deleteRow')}
+                                            disabled={locked}
+                                            onClick={() => onDelete(row.key)}
+                                        >
+                                            <Trash2 size={14} strokeWidth={2} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+                {rows.length === 0 && (
+                    <p className="py-6 text-center text-sm text-muted">{t('heaterEventsEditor.empty')}</p>
+                )}
+            </div>
+            <button
+                type="button"
+                disabled={busy || rows.length >= MAX_EVENTS}
+                onClick={onAddStep}
+                className="mt-2 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent text-xs font-medium text-secondary"
+            >
+                <Plus size={14} strokeWidth={2} />
+                {t('heaterEventsEditor.addStep')}
+            </button>
+            {error && (
+                <p role="alert" className={formErrorCls}>
+                    {error}
+                </p>
+            )}
+        </fieldset>
+    );
+};
+
+const CHART_PAD = { l: 48, r: 52, t: 16, b: 28 };
+const CHART_WIDTH = 1040;
+const CHART_HEIGHT = 180;
 
 const HeatStepChart = ({
     events,
@@ -429,11 +487,14 @@ const HeatStepChart = ({
     onSelect: (index: number) => void;
 }) => {
     const { t } = useTranslation();
-    const width = 1040;
-    const height = 180;
-    const pad = { l: 48, r: 52, t: 16, b: 28 };
+    const width = CHART_WIDTH;
+    const height = CHART_HEIGHT;
+    const pad = CHART_PAD;
     const maxT = Math.max(60, ...btPoints.map((p) => p.t), ...events.map((e) => e.t), 1);
-    const bts = btPoints.map((p) => p.bt).filter((n) => Number.isFinite(n));
+    const bts: number[] = [];
+    for (const p of btPoints) {
+        if (Number.isFinite(p.bt)) bts.push(p.bt);
+    }
     const minBt = (bts.length ? Math.min(...bts) : 80) - 10;
     const maxBt = (bts.length ? Math.max(...bts) : 220) + 10;
     const heatMax = Math.max(heaterMax, ...events.map((e) => e.heater), 1);

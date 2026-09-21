@@ -12,7 +12,9 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
     });
 
     it('접힌 레일에 미반영 경고를 남긴다', () => {
-        expect(panelSrc).toMatch(/collapsed && anyUnacknowledged/);
+        expect(panelSrc).toMatch(/collapsed && \(/);
+        expect(panelSrc).toMatch(/anyUnacknowledged=\{anyUnacknowledged\}/);
+        expect(panelSrc).toMatch(/anyUnacknowledged &&/);
     });
 
     it('수동·Replay 공용 commit 경로에서 0을 포함한 heater 값을 알린다', () => {

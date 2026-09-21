@@ -7,8 +7,12 @@ import {
 } from '@entities/roast-profile';
 import { useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
-import { heaterEventsToJson, parseHeaterEvents } from '@features/machine-control/lib/heater-events';
-import { extractReplayEvents } from '@features/machine-control/lib/replay';
+import {
+    heaterEventsToJson,
+    parseHeaterEvents,
+    type ReplayPlanSource,
+} from '@features/machine-control/lib/heater-events';
+import { extractReplayEvents, type ReplayEvent, type ReplayPoint } from '@features/machine-control/lib/replay';
 import { ProfileHeaterEventsEditor } from '@features/machine-control/ui/ProfileHeaterEventsEditor';
 import type { RoastProfile } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -42,18 +46,10 @@ export const NewProfileModal = ({
     const unit = useRoastSettings().temperatureUnit;
     const [heatOpen, setHeatOpen] = useState(false);
     const { points } = useResolvedProfileCurve(editingProfile ?? null);
-    const dropTime = useMemo(() => {
-        if (!editingProfile) return null;
-        const events = parseStoredRoastEvents(resolveSourceSession(editingProfile.source_session)?.events);
-        return events.find((e) => e.type === 'Drop')?.time_sec ?? editingProfile.duration_sec ?? null;
-    }, [editingProfile]);
-    const extracted = useMemo(() => extractReplayEvents(points, dropTime), [points, dropTime]);
-    const storedHeaterEvents = editingProfile?.heater_events;
-    const profileEvents = storedHeaterEvents == null ? null : parseHeaterEvents(storedHeaterEvents);
-    const storedInvalid = storedHeaterEvents != null && profileEvents == null;
-    const editorEvents = storedInvalid ? [] : (profileEvents ?? extracted?.events ?? []);
-    const editorSource = profileEvents || storedInvalid ? 'profile' : extracted ? 'tsv' : null;
-    const curveReady = points.length > 0 || storedHeaterEvents != null;
+    const heatEditor = useMemo(
+        () => resolveProfileHeatEditor(editingProfile ?? null, points),
+        [editingProfile, points],
+    );
 
     if (!open) return null;
 
@@ -87,17 +83,17 @@ export const NewProfileModal = ({
                         onBack={editingProfile || initialSessionId ? undefined : () => form.setMode('session-list')}
                         onClose={onClose}
                         onSubmit={form.handleSubmit}
-                        onEditHeat={editingProfile && curveReady ? () => setHeatOpen(true) : undefined}
+                        onEditHeat={editingProfile && heatEditor.curveReady ? () => setHeatOpen(true) : undefined}
                     />
                 )}
             </ModalShell>
             {heatOpen && editingProfile && (
                 <ProfileHeaterEventsEditor
                     profile={editingProfile}
-                    events={editorEvents}
-                    tpTime={extracted?.tpTime ?? Number.POSITIVE_INFINITY}
+                    events={heatEditor.events}
+                    tpTime={heatEditor.tpTime}
                     btPoints={points}
-                    source={editorSource}
+                    source={heatEditor.source}
                     unit={unit}
                     onClose={() => setHeatOpen(false)}
                     onApply={async (events) => {
@@ -111,4 +107,30 @@ export const NewProfileModal = ({
             )}
         </>
     );
+};
+
+const resolveProfileHeatEditor = (
+    editingProfile: RoastProfileWithSource | null,
+    points: ReplayPoint[],
+): {
+    events: ReplayEvent[];
+    tpTime: number;
+    source: ReplayPlanSource | null;
+    curveReady: boolean;
+} => {
+    if (!editingProfile) {
+        return { events: [], tpTime: Number.POSITIVE_INFINITY, source: null, curveReady: false };
+    }
+    const dropEvents = parseStoredRoastEvents(resolveSourceSession(editingProfile.source_session)?.events);
+    const dropTime = dropEvents.find((e) => e.type === 'Drop')?.time_sec ?? editingProfile.duration_sec ?? null;
+    const extracted = extractReplayEvents(points, dropTime);
+    const stored = editingProfile.heater_events;
+    const profileEvents = stored == null ? null : parseHeaterEvents(stored);
+    const storedInvalid = stored != null && profileEvents == null;
+    return {
+        events: storedInvalid ? [] : (profileEvents ?? extracted?.events ?? []),
+        tpTime: extracted?.tpTime ?? Number.POSITIVE_INFINITY,
+        source: profileEvents || storedInvalid ? 'profile' : extracted ? 'tsv' : null,
+        curveReady: points.length > 0 || stored != null,
+    };
 };

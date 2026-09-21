@@ -105,6 +105,27 @@ export type ReplayStopReason =
     /** Last-valid observation older than the proposed R06 limit. Not a shipping-approved safety rating. */
     | 'observationStale';
 
+const replayStopCause = ({
+    sidecarConnected,
+    pidEngaged,
+    heaterUnacknowledged,
+    heaterWritable,
+    roastFinished,
+}: {
+    sidecarConnected: boolean;
+    pidEngaged: boolean;
+    heaterUnacknowledged: boolean;
+    heaterWritable: boolean;
+    roastFinished: boolean;
+}): ReplayStopReason | null => {
+    if (!sidecarConnected) return 'disconnected';
+    if (pidEngaged) return 'pid';
+    if (heaterUnacknowledged) return 'unacknowledged';
+    if (!heaterWritable) return 'unwritable';
+    if (roastFinished) return 'finished';
+    return null;
+};
+
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
 /**
@@ -207,17 +228,13 @@ export const useReplayControl = ({
     const rawEvents = rawPlan?.events ?? null;
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
-    const stopCause: ReplayStopReason | null = !sidecarConnected
-        ? 'disconnected'
-        : pidEngaged
-          ? 'pid'
-          : heaterUnacknowledged
-            ? 'unacknowledged'
-            : !heaterWritable
-              ? 'unwritable'
-              : roastFinished
-                ? 'finished'
-                : null;
+    const stopCause = replayStopCause({
+        sidecarConnected,
+        pidEngaged,
+        heaterUnacknowledged,
+        heaterWritable,
+        roastFinished,
+    });
 
     const [active, setActive] = useState(false);
     const [index, setIndex] = useState(0);
@@ -247,6 +264,7 @@ export const useReplayControl = ({
      */
     const [writing, setWriting] = useState(false);
     const writeGenRef = useRef(0);
+    const [safeOffNonce, setSafeOffNonce] = useState(0);
     const [pendingWrite, setPendingWrite] = useState<{
         heater: number;
         nextIndex: number;
@@ -284,10 +302,14 @@ export const useReplayControl = ({
 
     // PID 등은 렌더에서 stopCause가 먼저 보인다. effect가 세대를 올리기 전에 도착한
     // 응답이 index·사유를 덮지 않게 이 커밋에서 무효화한다.
-    if (active && stopCause != null) {
+    const stoppingForCause = active && stopCause != null;
+    if (stoppingForCause) {
         // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
         bumpWriteGenOnRenderStop();
         if (writing) setWriting(false);
+        setActive(false);
+        setStopReason(stopCause);
+        if (roastFinished && dropBehavior === 'zero') setSafeOffNonce((n) => n + 1);
     }
 
     // 레퍼런스/프로파일 오버라이드가 바뀌면 진행 중인 재생은 무효.
@@ -357,13 +379,6 @@ export const useReplayControl = ({
     useEffect(() => {
         labeledEventsRef.current = labeledEvents;
     }, [labeledEvents]);
-
-    // 배치 경계에서 write 세대를 올린다. 배치 편집은 위 렌더에서 in-flight 행이
-    // 바뀐 경우에만 무효화한다 — plan identity가 바뀐다고 ACK/실패를 삼키지 않는다.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: roasting은 트리거이지 읽는 값이 아니다
-    useEffect(() => {
-        invalidateInFlightWrite();
-    }, [roasting]);
 
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
@@ -462,20 +477,15 @@ export const useReplayControl = ({
     );
 
     useEffect(() => {
-        if (!active || stopCause == null) return;
-        invalidateInFlightWrite();
-        setActive(false);
-        setStopReason(stopCause);
+        if (safeOffNonce === 0) return;
         // 재생이 화력을 잡은 채 배출됐다 — zero 정책이면 즉시 끈다 (#316, PID off와
         // 동일 타이밍). stopCause 라벨이 아니라 roastFinished를 보는 이유: "끊김+배출"
         // 커밋에서는 우선순위가 'disconnected'로 밀리는데, 그때도 write는 시도해야
         // 실패가 토스트/Sentry로 관측된다. hold면 아무것도 안 쓴다 — 설정으로 선택된
         // 잔류라 PID hold와 같은 등급의 문서화된 동작이다.
-        if (roastFinished && dropBehavior === 'zero') {
-            void writeHeater(0, 'safety');
-            setSafeOffIssued(true);
-        }
-    }, [active, stopCause, roastFinished, dropBehavior, writeHeater, invalidateInFlightWrite]);
+        void writeHeater(0, 'safety');
+        setSafeOffIssued(true);
+    }, [safeOffNonce, writeHeater]);
 
     // safe-off 재시도 — zero write가 나갔는데 기기가 안 따라오면 다시 쓴다 (#269의
     // PID safe-off와 같은 등급: 아무도 안 보는 로스터에 불이 남는 쪽이 최악이다).
