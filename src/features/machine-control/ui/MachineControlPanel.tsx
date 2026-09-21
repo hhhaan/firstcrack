@@ -10,7 +10,7 @@ import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '..
 import { isPercentUnit } from '../lib/snapPercent';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
-import { type ObservationQuality, useReplayControl } from '../model/useReplayControl';
+import { type ObservationQuality, type ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 import { ChannelChip } from './ChannelChip';
 import { HeaterScale } from './HeaterScale';
 import { PidControlPanel } from './PidControlPanel';
@@ -47,6 +47,11 @@ interface Props {
     confirmedTurningPoint: { fallback?: boolean } | null;
     /** R04 제어용 관측 품질 — Replay 일반 이벤트 보류 사실 (R05). null = 현재 generation 관측 없음 */
     observationQuality: ObservationQuality | null;
+    /** Last-valid observation wall-clock for long-gap stop. null = this generation unknown */
+    lastValidReceivedAtMs: number | null;
+    nowMs: number;
+    /** 상위 합성용 — 훅을 두 번 만들지 않고 active/stop만 노출 (#529 D) */
+    onReplayControl?: (control: { active: boolean; stop: (reason?: ReplayStopReason) => void } | null) => void;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
     /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
@@ -78,6 +83,9 @@ export const MachineControlPanel = ({
     roasting,
     confirmedTurningPoint,
     observationQuality,
+    lastValidReceivedAtMs,
+    nowMs,
+    onReplayControl,
     temperatureUnit,
     onHeaterCommitted,
 }: Props) => {
@@ -160,10 +168,17 @@ export const MachineControlPanel = ({
         heaterPending: desired.heater != null,
         reconnecting,
         observationQuality,
+        lastValidReceivedAtMs,
+        nowMs,
         writeHeater,
         cancelUnsentHeater: cancelUnsentReplayHeater,
         heaterMax: limits.heater?.max,
+        heaterMin: limits.heater?.min,
     });
+    useEffect(() => {
+        onReplayControl?.({ active: replay.active, stop: replay.stop });
+        return () => onReplayControl?.(null);
+    }, [onReplayControl, replay.active, replay.stop]);
     const replayTpWait = resolveReplayTpWait({
         active: replay.active,
         nextEvent: replay.nextEvent,

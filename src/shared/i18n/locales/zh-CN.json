@@ -754,6 +754,14 @@
         "replay": {
             "next": "下一个：{{condition}} → {{heater}}",
             "done": "所有事件已回放",
+            "missingHeatSet": "没有火力操作记录，无法使用 Replay。",
+            "invalidPlan": "火力操作记录不完整，或不符合当前设备的回放条件。",
+            "profileChange": {
+                "title": "Replay 进行中",
+                "message": "Replay 正在运行。更改曲线会停止 Replay。当前火力保持不变。",
+                "confirm": "停止 Replay 并更改",
+                "cancel": "取消"
+            },
             "tp": {
                 "waiting": "等待实际转折点确认",
                 "fallback": "TP 回退 — 不是实测上升",

@@ -594,11 +594,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         const patch: { timeSec: number; note?: string } = {
             timeSec: Math.max(0, Math.min(Math.floor(currentTimeSec), timeSec)),
         };
-        if (editForm.event === 'Heater') {
-            const heat = Number(editForm.note);
-            if (!Number.isFinite(heat)) return;
-            patch.note = `${Math.round(heat)}${editForm.heaterUnit}`;
-        } else if (editForm.event === 'Note') {
+        if (editForm.event === 'Note') {
             const body = editForm.note.trim();
             if (!body) return;
             patch.note = body;
@@ -715,8 +711,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 id="chart-marker-heat"
                                 type="number"
                                 value={editForm.note}
-                                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
-                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                                readOnly
+                                disabled
+                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none opacity-60"
                             />
                             <span className="font-mono text-[11px]">{editForm.heaterUnit}</span>
                         </label>

@@ -31,6 +31,7 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
     controlDiverged: '화력이 재생 지시에서 벗어나 재생 중지',
     timingGap: '화면이 멈췄던 동안 재생 중지 — 현재 화력을 확인하세요',
     writeFailed: '화력 명령 전송 실패로 재생 중지 — 현재 화력을 확인하세요',
+    observationStale: '온도 데이터가 끊겨 재생 중지 — 현재 화력을 확인하세요',
 };
 
 /**
@@ -59,11 +60,15 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
         ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
-        : !replay.available
-          ? '레퍼런스 화력 기록이 없습니다 — heater 기록이 있는 타겟 프로파일을 선택하세요'
-          : !replay.active && replay.blocked
-            ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
-            : undefined;
+        : replay.referenceLoading
+          ? undefined
+          : replay.missingHeatSet
+            ? t('activeRoast.replay.missingHeatSet')
+            : !replay.available
+              ? t('activeRoast.replay.invalidPlan')
+              : !replay.active && replay.blocked
+                ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
+                : undefined;
 
     return (
         <div className="flex shrink-0 flex-col gap-2">
@@ -94,6 +99,9 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
             </label>
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
+            {!replay.active && !stopText && replay.missingHeatSet && (
+                <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.missingHeatSet')}</p>
+            )}
 
             {replay.active && observationHold && (
                 <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
