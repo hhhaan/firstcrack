@@ -58,17 +58,50 @@ interface BbpState {
     /** Session-scoped display samples; never persisted as live session state. */
     finalizedPoints: BbpPoint[];
 
-    begin: (startMs: number) => void;
+    begin: (startMs: number, seed?: BbpPoint[]) => void;
     append: (sample: BbpSample, nowMs: number) => void;
+    /** Drop cancel: clear in-progress samples, keep the previous session's finalized BBP. */
+    abort: () => void;
     finalize: (chargeMs: number, sessionId: string) => BbpResult | null;
 }
 
-const toTsv = (points: BbpPoint[]): string =>
+/** Local TSV id for the in-progress A→B wait. Charge rewrites under the new sessionId. */
+export const BBP_INPROGRESS_ID = 'inprogress';
+const BBP_LIVE_KEY = 'fc_bbp_live';
+
+const persistLive = (active: boolean, startMs: number, points: BbpPoint[]) => {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        if (!active) {
+            localStorage.removeItem(BBP_LIVE_KEY);
+            return;
+        }
+        localStorage.setItem(BBP_LIVE_KEY, JSON.stringify({ startMs, points }));
+    } catch {
+        // ponytail: quota/private-mode — in-memory BBP still runs this session
+    }
+};
+
+export const readLiveBbp = (): { startMs: number; points: BbpPoint[] } | null => {
+    try {
+        if (typeof localStorage === 'undefined') return null;
+        const raw = localStorage.getItem(BBP_LIVE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as { startMs?: unknown; points?: unknown };
+        if (typeof parsed.startMs !== 'number' || parsed.startMs <= 0 || !Array.isArray(parsed.points)) return null;
+        return { startMs: parsed.startMs, points: parsed.points as BbpPoint[] };
+    } catch {
+        return null;
+    }
+};
+
+export const bbpPointsToTsv = (points: BbpPoint[]): string =>
     TSV_HEADER +
-    // 8열(heater_set)은 비워 둔다 — pre-charge 샘플에는 세트포인트가 없다
     points
         .map((p) => `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t\n`)
         .join('');
+
+const toTsv = bbpPointsToTsv;
 
 export const useBbpStore = create<BbpState>((set, get) => ({
     active: false,
@@ -78,7 +111,11 @@ export const useBbpStore = create<BbpState>((set, get) => ({
     finalizedPoints: [],
 
     // finalized는 건드리지 않는다 — 직전 세션이 아직 저장 전일 수 있다
-    begin: (startMs) => set({ active: true, startMs, points: [] }),
+    begin: (startMs, seed = []) => {
+        const points = seed.length > 0 ? clipBbpWindow(seed, seed[seed.length - 1]?.t ?? 0) : [];
+        persistLive(true, startMs, points);
+        set({ active: true, startMs, points });
+    },
 
     append: (sample, nowMs) => {
         const { active, startMs, points } = get();
@@ -86,7 +123,14 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const t = (nowMs - startMs) / 1000;
         if (t < 0) return;
         if (points.length > 0 && t - points[points.length - 1].t < 1) return;
-        set({ points: clipBbpWindow([...points, { t, ...sample }], t) });
+        const next = clipBbpWindow([...points, { t, ...sample }], t);
+        persistLive(true, startMs, next);
+        set({ points: next });
+    },
+
+    abort: () => {
+        persistLive(false, 0, []);
+        set({ active: false, startMs: 0, points: [] });
     },
 
     finalize: (chargeMs, sessionId) => {
@@ -98,11 +142,13 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const seconds = Math.round(Math.min(Math.max(cutoff, 0), BBP_MAX_SECONDS));
         const valid = active && points.length >= 2 && seconds > 0;
         if (!valid) {
+            persistLive(false, 0, []);
             set({ active: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
             return null;
         }
         const chargeTemp = points[points.length - 1].bt;
         const result: BbpResult = { seconds, chargeTemp, tsv: toTsv(points) };
+        persistLive(false, 0, []);
         set({
             active: false,
             startMs: 0,
@@ -113,3 +159,10 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         return result;
     },
 }));
+
+export const hydrateLiveBbp = (): boolean => {
+    const live = readLiveBbp();
+    if (!live) return false;
+    useBbpStore.setState({ active: true, startMs: live.startMs, points: live.points });
+    return true;
+};

@@ -28,6 +28,21 @@ export function isRoastShortcutBaseEnabled(p: {
     return p.isActive && !p.showEndRoastModal && !p.showSummaryModal && !p.showContinueModal;
 }
 
+/** Charge (and Roast Ready) stay available while the result form is open. */
+export function isRoastChargeShortcutEnabled(p: {
+    isActive: boolean;
+    showEndRoastModal: boolean;
+    showContinueModal?: boolean;
+    phase: string;
+}): boolean {
+    return (
+        p.isActive &&
+        !p.showEndRoastModal &&
+        !p.showContinueModal &&
+        (p.phase === 'standby' || p.phase === 'preheating')
+    );
+}
+
 /** Event-mark buttons + hotkeys: Yellow / FC / Drop only while roasting. */
 export function isRoastEventMarkEnabled(phase: string): boolean {
     return phase === 'roasting';
@@ -68,6 +83,12 @@ export const useRoastKeyboardShortcuts = ({
         showSummaryModal,
         showContinueModal,
     });
+    const canCharge = isRoastChargeShortcutEnabled({
+        isActive,
+        showEndRoastModal,
+        showContinueModal,
+        phase,
+    });
     const canMark = isRoastMarkShortcutEnabled({
         isActive,
         showEndRoastModal,
@@ -106,8 +127,8 @@ export const useRoastKeyboardShortcuts = ({
             if (phase === 'preheating') onEnterStandby();
             else if (phase === 'standby') onManualCharge();
         },
-        { enabled },
-        [enabled, phase, onEnterStandby, onManualCharge],
+        { enabled: canCharge },
+        [canCharge, phase, onEnterStandby, onManualCharge],
     );
 
     // Ctrl/Meta + 1 → Mark Yellow

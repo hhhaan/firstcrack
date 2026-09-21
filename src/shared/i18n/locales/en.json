@@ -614,6 +614,11 @@
             "dtr": "DTR",
             "bbp": "BBP"
         },
+        "unsaved": {
+            "banner": "Unsaved roast {{time}}",
+            "reopen": "Save results",
+            "cancelDrop": "Cancel Drop"
+        },
         "chart": {
             "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         },

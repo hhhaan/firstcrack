@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    isRoastChargeShortcutEnabled,
     isRoastEventMarkEnabled,
     isRoastMarkShortcutEnabled,
     isRoastShortcutBaseEnabled,
@@ -22,6 +23,36 @@ describe('isRoastShortcutBaseEnabled', () => {
         expect(isRoastShortcutBaseEnabled({ ...base, showEndRoastModal: true })).toBe(false);
         expect(isRoastShortcutBaseEnabled({ ...base, showSummaryModal: true })).toBe(false);
         expect(isRoastShortcutBaseEnabled({ ...base, showContinueModal: true })).toBe(false);
+    });
+});
+
+describe('isRoastChargeShortcutEnabled', () => {
+    it('allows Charge while the result summary is open', () => {
+        // showSummaryModal is intentionally not a gate — result entry must not block Charge.
+        expect(
+            isRoastChargeShortcutEnabled({
+                isActive: true,
+                showEndRoastModal: false,
+                showContinueModal: false,
+                phase: 'standby',
+            }),
+        ).toBe(true);
+        expect(
+            isRoastChargeShortcutEnabled({
+                isActive: true,
+                showEndRoastModal: false,
+                showContinueModal: false,
+                phase: 'preheating',
+            }),
+        ).toBe(true);
+        expect(
+            isRoastChargeShortcutEnabled({
+                isActive: true,
+                showEndRoastModal: true,
+                showContinueModal: false,
+                phase: 'standby',
+            }),
+        ).toBe(false);
     });
 });
 
