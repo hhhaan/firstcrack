@@ -2,7 +2,7 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createControlSender } from '../lib/controlSender';
+import { type ControlRole, createControlSender } from '../lib/controlSender';
 import { HOLD_DELAY_MS, HOLD_INTERVAL_MS } from '../lib/useHoldRepeat';
 import { HeaterScale } from './HeaterScale';
 
@@ -250,7 +250,7 @@ describe('HeaterScale A′ (#436)', () => {
         async (event) => {
             const send = vi.fn(async (cmd: { heater?: number }) => cmd);
             const sender = createControlSender({ send });
-            const onChange = vi.fn((role: 'heater', value: number) => sender.queue(role, value));
+            const onChange = vi.fn((role: ControlRole, value: number) => sender.queue(role, value));
             const scale = renderScale({
                 onChange,
                 onCommit: () => void sender.commitNow(),
@@ -307,7 +307,7 @@ describe('HeaterScale A′ (#436)', () => {
     it('큰 숫자 입력은 1단위이고 블러에서만 보낸다', async () => {
         const send = vi.fn(async (cmd: { heater?: number }) => cmd);
         const sender = createControlSender({ send });
-        const onChange = vi.fn((role: 'heater', value: number) => sender.queue(role, value));
+        const onChange = vi.fn((role: ControlRole, value: number) => sender.queue(role, value));
         const scale = renderScale({
             onChange,
             onCommit: () => void sender.commitNow(),
