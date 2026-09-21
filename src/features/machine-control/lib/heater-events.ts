@@ -70,22 +70,119 @@ export const heaterEventsToJson = (events: ReplayEvent[]): Json =>
         e.trigger ? { t: e.t, bt: e.bt, heater: e.heater, trigger: e.trigger } : { t: e.t, bt: e.bt, heater: e.heater },
     );
 
-export const sameReplayEvent = (a: ReplayEvent, b: ReplayEvent): boolean =>
-    a.t === b.t && a.bt === b.bt && a.heater === b.heater && (a.trigger ?? '') === (b.trigger ?? '');
+const FALLBACK_HEATER_BOUNDS: HeaterBounds = { min: 0, max: 100 };
+
+export const numericHeaterStep = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+
+const finiteBound = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+type WriteMapHeater = { min?: unknown; max?: unknown; unit?: unknown; step?: unknown };
+
+const writeMapHeater = (params: unknown): WriteMapHeater | undefined => {
+    if (!params || typeof params !== 'object') return undefined;
+    const writeMap = (params as { write_map?: unknown }).write_map;
+    if (!writeMap || typeof writeMap !== 'object') return undefined;
+    const heater = (writeMap as { heater?: unknown }).heater;
+    if (!heater || typeof heater !== 'object') return undefined;
+    return heater as WriteMapHeater;
+};
+
+/** Status limit / write_map heater. step only when the device actually has one. */
+export const resolveHeaterBounds = (input?: {
+    min?: number | null;
+    max?: number | null;
+    unit?: string | null;
+    step?: number | null;
+    params?: unknown;
+}): HeaterBounds & { unit: string } => {
+    const fromMap = writeMapHeater(input?.params);
+    const step = numericHeaterStep(input?.step) ?? numericHeaterStep(fromMap?.step);
+    return {
+        min: finiteBound(input?.min ?? fromMap?.min, FALLBACK_HEATER_BOUNDS.min),
+        max: finiteBound(input?.max ?? fromMap?.max, FALLBACK_HEATER_BOUNDS.max),
+        unit:
+            (typeof input?.unit === 'string' && input.unit) ||
+            (typeof fromMap?.unit === 'string' && fromMap.unit) ||
+            '%',
+        ...(step != null ? { step } : {}),
+    };
+};
+
+export type ProfileHeaterOrigin = 'live' | 'saved' | 'fallback';
+
+export const liveHeaterFromStatus = (
+    status:
+        | {
+              connected?: boolean;
+              roaster?: string;
+              control?: { limits?: { heater?: { min?: number; max?: number; unit?: string; step?: unknown } } };
+          }
+        | null
+        | undefined,
+): { roaster: string; heater: { min?: number; max?: number; unit?: string; step?: number } | null } | undefined => {
+    if (!status?.connected || !status.roaster) return undefined;
+    const heater = status.control?.limits?.heater;
+    if (!heater) return { roaster: status.roaster, heater: null };
+    return {
+        roaster: status.roaster,
+        heater: {
+            min: heater.min,
+            max: heater.max,
+            unit: heater.unit,
+            step: numericHeaterStep(heater.step),
+        },
+    };
+};
+
+export const profileHeaterBounds = (
+    profile: { machine_id?: string | null; machine_roaster_key?: string | null } | null | undefined,
+    machines: Array<{ id: string; roasterKey?: string; connectionParams: Record<string, unknown> }>,
+    registry: Record<string, { default_params: Record<string, unknown> }>,
+    live?: { roaster?: string | null; heater?: { min?: number; max?: number; unit?: string; step?: number } | null },
+): HeaterBounds & { unit: string; origin: ProfileHeaterOrigin } => {
+    const saved = profile?.machine_id ? machines.find((m) => m.id === profile.machine_id) : undefined;
+    const key = saved?.roasterKey ?? profile?.machine_roaster_key ?? undefined;
+    const params = saved?.connectionParams ?? (key ? registry[key]?.default_params : undefined);
+    const liveMatches = Boolean(live?.roaster && (live.roaster === key || live.roaster === saved?.roasterKey));
+    if (liveMatches && live?.heater) {
+        return {
+            ...resolveHeaterBounds({
+                min: live.heater.min,
+                max: live.heater.max,
+                unit: live.heater.unit,
+                step: live.heater.step,
+            }),
+            origin: 'live',
+        };
+    }
+    const bounds = resolveHeaterBounds({ params });
+    return { ...bounds, origin: writeMapHeater(params) ? 'saved' : 'fallback' };
+};
+
+/** Keep explicit ids; otherwise inherit the previous slot so value edits stay the same row. */
+export const carryReplayEventIds = (events: ReplayEvent[], prev?: ReplayEvent[] | null): ReplayEvent[] =>
+    events.map((e, i) => ({ ...e, id: e.id ?? prev?.[i]?.id ?? `e${i}` }));
 
 /**
- * 이미 실행한 이벤트(old[0..consumed))를 new에서 순서대로 부분수열 매칭.
- * 매칭된 새 행은 건너뛴다(재실행 없음). 삭제된 실행 행은 버림.
- * 실행 지점 앞에 끼워 넣은 행도 이미 지난 것으로 보고 건너뛴다.
+ * Consumed rows are identified by id, not mutable t/heater.
+ * Missing ids fall back to an acked prefix count so unlabeled edits do not re-run.
  */
 export const remapReplayIndex = (oldEvents: ReplayEvent[], consumed: number, newEvents: ReplayEvent[]): number => {
-    let j = 0;
     const limit = Math.max(0, Math.min(consumed, oldEvents.length));
-    for (let i = 0; i < limit; i++) {
-        while (j < newEvents.length && !sameReplayEvent(oldEvents[i], newEvents[j])) j += 1;
-        if (j < newEvents.length && sameReplayEvent(oldEvents[i], newEvents[j])) j += 1;
+    if (limit === 0) return 0;
+    const oldIds = oldEvents.slice(0, limit).map((e) => e.id);
+    if (oldIds.every((id) => id != null) && newEvents.some((e) => e.id != null)) {
+        let j = 0;
+        for (const id of oldIds) {
+            let k = j;
+            while (k < newEvents.length && newEvents[k].id !== id) k += 1;
+            if (k < newEvents.length) j = k + 1;
+        }
+        return j;
     }
-    return j;
+    return Math.min(limit, newEvents.length);
 };
 
 /** 정렬·상한·기기 범위. 빈 배열/과다/양수 화력 없음/범위 밖 → null. */
@@ -101,15 +198,11 @@ export const normalizeHeaterPlan = (
     return { events: sorted, tpTime };
 };
 
-const defaultBounds = (heaterMin?: number, heaterMax?: number): HeaterBounds => ({
-    min: heaterMin ?? 0,
-    max: heaterMax ?? 100,
-});
-
 /**
  * 배치 > 프로파일 > TSV(Heat set).
  * 배치/프로파일 값이 있는데 파싱·검증 실패면 TSV로 조용히 대체하지 않는다.
  * profileEvents === null/undefined 만 TSV로 내려간다 (원본 복원).
+ * step은 기기 값이 있을 때만. % UI 간격으로 만들지 않는다.
  */
 export const resolveReplayPlan = ({
     points,
@@ -118,6 +211,7 @@ export const resolveReplayPlan = ({
     batchEvents,
     heaterMin,
     heaterMax,
+    heaterStep,
 }: {
     points: ReplayPoint[] | null | undefined;
     dropTime?: number | null;
@@ -125,13 +219,13 @@ export const resolveReplayPlan = ({
     batchEvents?: ReplayEvent[] | null;
     heaterMin?: number;
     heaterMax?: number;
+    heaterStep?: number;
 }): { plan: ReplayPlan | null; source: ReplayPlanSource | null; overrideInvalid: boolean } => {
     const extracted = points && points.length > 0 ? extractReplayEvents(points, dropTime) : null;
     const tpTime = extracted?.tpTime ?? Number.POSITIVE_INFINITY;
-    const bounds = defaultBounds(heaterMin, heaterMax);
+    const bounds = resolveHeaterBounds({ min: heaterMin, max: heaterMax, step: heaterStep });
 
-    const inRangeTsv =
-        extracted != null && extracted.events.every((e) => heaterFitsBounds(e.heater, bounds)) ? extracted : null;
+    const inRangeTsv = extracted?.events.every((e) => heaterFitsBounds(e.heater, bounds)) ? extracted : null;
 
     if (batchEvents != null) {
         const batchPlan = normalizeHeaterPlan(batchEvents, tpTime, bounds);

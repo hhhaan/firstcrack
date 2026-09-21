@@ -9,7 +9,7 @@ import { useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { heaterEventsToJson, parseHeaterEvents } from '@features/machine-control/lib/heater-events';
 import { extractReplayEvents } from '@features/machine-control/lib/replay';
-import { HeaterEventsEditor } from '@features/machine-control/ui/HeaterEventsEditor';
+import { ProfileHeaterEventsEditor } from '@features/machine-control/ui/ProfileHeaterEventsEditor';
 import type { RoastProfile } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -48,9 +48,12 @@ export const NewProfileModal = ({
         return events.find((e) => e.type === 'Drop')?.time_sec ?? editingProfile.duration_sec ?? null;
     }, [editingProfile]);
     const extracted = useMemo(() => extractReplayEvents(points, dropTime), [points, dropTime]);
-    const profileEvents = parseHeaterEvents(editingProfile?.heater_events);
-    const editorEvents = profileEvents ?? extracted?.events ?? [];
-    const editorSource = profileEvents ? 'profile' : extracted ? 'tsv' : null;
+    const storedHeaterEvents = editingProfile?.heater_events;
+    const profileEvents = storedHeaterEvents == null ? null : parseHeaterEvents(storedHeaterEvents);
+    const storedInvalid = storedHeaterEvents != null && profileEvents == null;
+    const editorEvents = storedInvalid ? [] : (profileEvents ?? extracted?.events ?? []);
+    const editorSource = profileEvents || storedInvalid ? 'profile' : extracted ? 'tsv' : null;
+    const curveReady = points.length > 0 || storedHeaterEvents != null;
 
     if (!open) return null;
 
@@ -84,13 +87,13 @@ export const NewProfileModal = ({
                         onBack={editingProfile || initialSessionId ? undefined : () => form.setMode('session-list')}
                         onClose={onClose}
                         onSubmit={form.handleSubmit}
-                        onEditHeat={editingProfile ? () => setHeatOpen(true) : undefined}
+                        onEditHeat={editingProfile && curveReady ? () => setHeatOpen(true) : undefined}
                     />
                 )}
             </ModalShell>
             {heatOpen && editingProfile && (
-                <HeaterEventsEditor
-                    mode="profile"
+                <ProfileHeaterEventsEditor
+                    profile={editingProfile}
                     events={editorEvents}
                     tpTime={extracted?.tpTime ?? Number.POSITIVE_INFINITY}
                     btPoints={points}

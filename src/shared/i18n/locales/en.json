@@ -1192,7 +1192,8 @@
         "saveFailed": "Could not save. Please try again.",
         "saving": "Saving…",
         "empty": "Add a step or restore the original plan.",
-        "chartHint": "Time preview · BT conditions run after TP"
+        "chartHint": "Time preview · BT conditions run after TP",
+        "boundsFallback": "Device range unknown. Using 0–100%."
     },
     "beanList": {
         "searchPlaceholder": "Search beans...",

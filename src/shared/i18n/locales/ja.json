@@ -1192,7 +1192,8 @@
         "saveFailed": "保存できませんでした。もう一度お試しください。",
         "saving": "保存中…",
         "empty": "ステップを追加するか、元に戻してください。",
-        "chartHint": "時間基準のプレビュー · BT条件はTP後に実行"
+        "chartHint": "時間基準のプレビュー · BT条件はTP後に実行",
+        "boundsFallback": "機器の範囲が不明です。0–100%で検証します。"
     },
     "beanList": {
         "searchPlaceholder": "豆を検索...",

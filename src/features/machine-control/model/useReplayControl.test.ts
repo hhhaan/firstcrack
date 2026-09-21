@@ -1555,4 +1555,164 @@ describe('useReplayControl', () => {
         expect(h.writeHeater).toHaveBeenCalledWith(45);
         h.unmount();
     });
+
+    it('실행한 행을 지우면 다음 미실행 스텝을 건너뛰지 않는다', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        h.writeHeater.mockClear();
+        const rest = h.get().plan?.events.slice(1) ?? [];
+        await act(async () => h.get().applyBatchEvents(rest));
+        expect(h.get().active).toBe(true);
+        expect(h.get().nextEvent?.heater).toBe(60);
+        await h.rerender({ liveBt: 111, elapsed: 130, confirmedTurningPoint: { fallback: false } });
+        expect(h.writeHeater).toHaveBeenCalledWith(60);
+        h.unmount();
+    });
+
+    it('already-acked heater edit does not re-write', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        h.writeHeater.mockClear();
+        await act(async () =>
+            h.get().applyBatchEvents([
+                { t: 0, bt: 180, heater: 90, trigger: 'time' },
+                { t: 120, bt: 110, heater: 60, trigger: 'bt' },
+            ]),
+        );
+        expect(h.get().active).toBe(true);
+        expect(h.writeHeater).not.toHaveBeenCalled();
+        expect(h.get().nextEvent?.heater).toBe(60);
+        await h.rerender({ liveBt: 111, elapsed: 130, confirmedTurningPoint: { fallback: false } });
+        expect(h.writeHeater).toHaveBeenCalledWith(60);
+        expect(h.writeHeater).not.toHaveBeenCalledWith(90);
+        h.unmount();
+    });
+
+    it('pending edit keeps in-flight success and then writes the new step', async () => {
+        const h = await renderReplay();
+        let resolveWrite!: (applied: number | null) => void;
+        h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        h.cancelUnsentHeater.mockClear();
+        await act(async () =>
+            h.get().applyBatchEvents([
+                { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                { t: 30, bt: 160, heater: 55, trigger: 'time' },
+            ]),
+        );
+        expect(h.get().active).toBe(true);
+        expect(h.cancelUnsentHeater).not.toHaveBeenCalled();
+        await act(async () => resolveWrite(80));
+        expect(h.get().active).toBe(true);
+        expect(h.get().stopReason).toBeNull();
+        expect(h.get().firedCount).toBe(1);
+        h.writeHeater.mockClear();
+        await h.rerender({ elapsed: 35, liveBt: 160 });
+        expect(h.writeHeater).toHaveBeenCalledWith(55);
+        expect(h.writeHeater).not.toHaveBeenCalledWith(80);
+        h.unmount();
+    });
+
+    it('pending edit keeps in-flight failure and does not skip the failed step', async () => {
+        const h = await renderReplay();
+        let resolveWrite!: (applied: number | null) => void;
+        h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        h.cancelUnsentHeater.mockClear();
+        await act(async () =>
+            h.get().applyBatchEvents([
+                { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                { t: 30, bt: 160, heater: 55, trigger: 'time' },
+            ]),
+        );
+        await act(async () => resolveWrite(null));
+        expect(h.get().active).toBe(false);
+        expect(h.get().stopReason).toBe('writeFailed');
+        expect(h.get().firedCount).toBe(0);
+        h.writeHeater.mockClear();
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        expect(h.writeHeater).not.toHaveBeenCalledWith(55);
+        h.unmount();
+    });
+
+    it('rejects a profile override that is not on the device step', async () => {
+        const h = await renderReplay({
+            heaterStep: 1,
+            profileHeaterEvents: [{ t: 0, bt: 180, heater: 50.5, trigger: 'time' }],
+        });
+        expect(h.get().available).toBe(false);
+        expect(h.get().overrideInvalid).toBe(true);
+        h.unmount();
+    });
+
+    it('catch-up in-flight failure survives an unrelated pending edit', async () => {
+        const h = await renderReplay();
+        let resolveWrite!: (applied: number | null) => void;
+        h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+        await act(async () =>
+            h.get().applyBatchEvents([
+                { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                { t: 0, bt: 175, heater: 70, trigger: 'time' },
+                { t: 30, bt: 160, heater: 55, trigger: 'time' },
+            ]),
+        );
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        const inFlight = h.get().plan?.events.slice(0, 2) ?? [];
+        await act(async () => h.get().applyBatchEvents([...inFlight, { t: 30, bt: 160, heater: 50, trigger: 'time' }]));
+        await act(async () => resolveWrite(null));
+        expect(h.get().active).toBe(false);
+        expect(h.get().stopReason).toBe('writeFailed');
+        expect(h.get().firedCount).toBe(0);
+        h.writeHeater.mockClear();
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        expect(h.writeHeater).not.toHaveBeenCalledWith(50);
+        h.unmount();
+    });
+
+    it('catch-up in-flight success consumes result.nextIndex then writes the pending edit', async () => {
+        const h = await renderReplay();
+        let resolveWrite!: (applied: number | null) => void;
+        h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolveWrite = r)));
+        await act(async () =>
+            h.get().applyBatchEvents([
+                { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                { t: 0, bt: 175, heater: 70, trigger: 'time' },
+                { t: 30, bt: 160, heater: 55, trigger: 'time' },
+            ]),
+        );
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        const inFlight = h.get().plan?.events.slice(0, 2) ?? [];
+        await act(async () => h.get().applyBatchEvents([...inFlight, { t: 30, bt: 160, heater: 50, trigger: 'time' }]));
+        await act(async () => resolveWrite(80));
+        expect(h.get().active).toBe(true);
+        expect(h.get().firedCount).toBe(2);
+        h.writeHeater.mockClear();
+        await h.rerender({ elapsed: 35, liveBt: 160 });
+        expect(h.writeHeater).toHaveBeenCalledWith(50);
+        expect(h.writeHeater).not.toHaveBeenCalledWith(80);
+        h.unmount();
+    });
+
+    it('insert before acked rows does not re-run them', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        h.writeHeater.mockClear();
+        const events = h.get().plan?.events ?? [];
+        await act(async () =>
+            h.get().applyBatchEvents([{ id: 'new', t: 0, bt: 10, heater: 75, trigger: 'time' }, ...events]),
+        );
+        expect(h.get().active).toBe(true);
+        expect(h.writeHeater).not.toHaveBeenCalled();
+        expect(h.get().nextEvent?.heater).toBe(60);
+        h.unmount();
+    });
 });

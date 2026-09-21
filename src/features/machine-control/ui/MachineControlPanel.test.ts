@@ -73,5 +73,9 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/onEditHeat/);
         expect(panelSrc).toMatch(/applyBatchEvents/);
         expect(panelSrc).toMatch(/profileHeaterEvents:\s*replayHeaterEvents/);
+        expect(panelSrc).toMatch(/numericHeaterStep/);
+        expect(panelSrc).toMatch(/heaterStep: numericHeaterStep/);
+        expect(panelSrc).toMatch(/lockedCount=\{replay\.active \? replay\.firedCount : 0\}/);
+        expect(panelSrc).not.toMatch(/heaterStep=\{1\}/);
     });
 });

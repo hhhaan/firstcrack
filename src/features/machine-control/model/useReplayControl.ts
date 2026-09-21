@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
 import type { ControlOrigin } from '../lib/controlSender';
-import { resolveReplayPlan } from '../lib/heater-events';
+import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
 import {
     eventTrigger,
     extractReplayEvents,
@@ -86,6 +86,8 @@ export interface ReplayControlInputs {
      */
     heaterMax?: number | null;
     heaterMin?: number | null;
+    /** Device write_map step when the sidecar actually has one. Never a UI percent snap. */
+    heaterStep?: number | null;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -153,6 +155,7 @@ export const useReplayControl = ({
     cancelUnsentHeater,
     heaterMax,
     heaterMin,
+    heaterStep,
 }: ReplayControlInputs) => {
     const hasHeatSet = useMemo(
         () => hasHeatSetRecord(referencePoints, referenceDropTime),
@@ -174,7 +177,11 @@ export const useReplayControl = ({
         setPrevProfileEvents(profileHeaterEvents);
         if (batchEvents != null) setBatchEvents(null);
     }
-    const { plan: resolvedPlan, source: planSource, overrideInvalid } = useMemo(
+    const {
+        plan: resolvedPlan,
+        source: planSource,
+        overrideInvalid,
+    } = useMemo(
         () =>
             resolveReplayPlan({
                 points: referencePoints,
@@ -183,10 +190,21 @@ export const useReplayControl = ({
                 batchEvents: sourceChanged ? null : batchEvents,
                 heaterMin: minHeater,
                 heaterMax: maxHeater,
+                heaterStep: heaterStep ?? undefined,
             }),
-        [referencePoints, referenceDropTime, profileHeaterEvents, batchEvents, sourceChanged, minHeater, maxHeater],
+        [
+            referencePoints,
+            referenceDropTime,
+            profileHeaterEvents,
+            batchEvents,
+            sourceChanged,
+            minHeater,
+            maxHeater,
+            heaterStep,
+        ],
     );
-    const plan = overrideInvalid ? null : resolvedPlan;
+    const rawPlan = overrideInvalid ? null : resolvedPlan;
+    const rawEvents = rawPlan?.events ?? null;
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
     const stopCause: ReplayStopReason | null = !sidecarConnected
@@ -229,6 +247,15 @@ export const useReplayControl = ({
      */
     const [writing, setWriting] = useState(false);
     const writeGenRef = useRef(0);
+    const [pendingWrite, setPendingWrite] = useState<{
+        heater: number;
+        nextIndex: number;
+        oldEvents: ReplayEvent[];
+        id?: string;
+    } | null>(null);
+    const [labeledEvents, setLabeledEvents] = useState<ReplayEvent[] | null>(null);
+    const [prevRawEvents, setPrevRawEvents] = useState<ReplayEvent[] | null>(null);
+    const labeledEventsRef = useRef<ReplayEvent[] | null>(null);
     // #314: fallback TP는 곡선에서 관측된 상승이 아니라 BT 게이트를 열 수 없다
     const afterTurningPoint = confirmedTurningPoint != null && !confirmedTurningPoint.fallback;
 
@@ -236,6 +263,7 @@ export const useReplayControl = ({
         writeGenRef.current += 1;
         // 세대만 올리면 늦은 응답은 무시되지만, sender에 남은 Replay heater는 그대로 나간다 (#368 R03).
         cancelUnsentHeater();
+        setPendingWrite(null);
         setWriting(false);
     }, [cancelUnsentHeater]);
 
@@ -244,6 +272,7 @@ export const useReplayControl = ({
     const bumpWriteGenOnRenderStop = () => {
         writeGenRef.current += 1;
         cancelUnsentHeater();
+        if (pendingWrite != null) setPendingWrite(null);
     };
 
     // Hold cancels queued Replay writes too; an already-sent response cannot consume the held event.
@@ -262,20 +291,46 @@ export const useReplayControl = ({
     }
 
     // 레퍼런스/프로파일 오버라이드가 바뀌면 진행 중인 재생은 무효.
-    // 배치 편집(#435)은 같은 레퍼런스라 인덱스를 유지하고 다음 이벤트부터 이어간다.
+    // 배치 편집은 ACK된 행만 소비로 보고, 행 id로 이어간다(가변 t/heater가 식별자가 아님).
     if (sourceChanged) {
         setIndex(0);
         setWriting(false);
+        const nextLabeled = rawEvents ? carryReplayEventIds(rawEvents, null) : null;
+        setLabeledEvents(nextLabeled);
+        setPrevRawEvents(rawEvents);
         // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
         bumpWriteGenOnRenderStop();
         if (active) {
             setActive(false);
             setStopReason('profileChanged');
         }
-    } else {
-        const len = plan?.events.length ?? 0;
-        if (index > len) setIndex(len);
+    } else if (rawEvents !== prevRawEvents) {
+        const nextLabeled = rawEvents ? carryReplayEventIds(rawEvents, labeledEvents) : null;
+        const acked = index;
+        const inFlight = nextLabeled?.[index];
+        const sameInFlightRow = inFlight != null && (pendingWrite?.id == null || inFlight.id === pendingWrite.id);
+        // Catch-up writes the last eligible heater; that is not events[index].heater.
+        const catchup = pendingWrite != null && pendingWrite.nextIndex > acked + 1;
+        const stillWriting =
+            writing && pendingWrite != null && sameInFlightRow && (catchup || inFlight.heater === pendingWrite.heater);
+        if (writing && !stillWriting) {
+            // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+            bumpWriteGenOnRenderStop();
+            setWriting(false);
+        }
+        if (labeledEvents && nextLabeled) {
+            setIndex(remapReplayIndex(labeledEvents, acked, nextLabeled));
+        } else {
+            const len = nextLabeled?.length ?? 0;
+            if (index > len) setIndex(len);
+        }
+        setLabeledEvents(nextLabeled);
+        setPrevRawEvents(rawEvents);
     }
+    const plan = useMemo(
+        () => (rawPlan && labeledEvents ? { events: labeledEvents, tpTime: rawPlan.tpTime } : rawPlan),
+        [rawPlan, labeledEvents],
+    );
 
     // 배치 경계(roasting 양쪽 에지)에서 인덱스를 되돌린다 — 남은 인덱스는 이전 배치
     // 것이라, 상승 에지만 리셋하면 차지 전(standby/preheat)에 토글을 켰을 때 stale
@@ -299,13 +354,16 @@ export const useReplayControl = ({
         if (prevRoasting && !roasting) setBatchEvents(null);
     }
 
-    // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋의
-    // effect에서 올려, 경계 전에 나간 write의 응답이 리셋된 index를 덮지 않게 한다.
-    // (렌더 중 ref 갱신은 lint 금지)
-    // biome-ignore lint/correctness/useExhaustiveDependencies: plan·roasting은 트리거이지 읽는 값이 아니다
+    useEffect(() => {
+        labeledEventsRef.current = labeledEvents;
+    }, [labeledEvents]);
+
+    // 배치 경계에서 write 세대를 올린다. 배치 편집은 위 렌더에서 in-flight 행이
+    // 바뀐 경우에만 무효화한다 — plan identity가 바뀐다고 ACK/실패를 삼키지 않는다.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: roasting은 트리거이지 읽는 값이 아니다
     useEffect(() => {
         invalidateInFlightWrite();
-    }, [plan, roasting]);
+    }, [roasting]);
 
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
@@ -483,12 +541,21 @@ export const useReplayControl = ({
         const heater = result.heater;
         writeGenRef.current += 1;
         const gen = writeGenRef.current;
+        const pending = {
+            heater,
+            nextIndex: result.nextIndex,
+            oldEvents: plan.events,
+            id: plan.events[index]?.id,
+        };
+        setPendingWrite(pending);
         setWriting(true);
         void writeHeater(heater).then((applied) => {
             if (gen !== writeGenRef.current) return;
+            setPendingWrite(null);
             setWriting(false);
             if (applied != null) {
-                setIndex(result.nextIndex);
+                const current = labeledEventsRef.current;
+                setIndex(current ? remapReplayIndex(pending.oldEvents, pending.nextIndex, current) : result.nextIndex);
                 setLastWritten(applied);
                 return;
             }
@@ -539,6 +606,8 @@ export const useReplayControl = ({
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
         blocked: stopCause != null,
         active,
+        /** ACK된 이벤트 수. 실행 중 편집에서 이미 보낸 행을 잠글 때 쓴다 */
+        firedCount: index,
         /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */
         stopReason,
         /** 다음에 발화할 이벤트 — UI 미리보기용. 다 소진했으면 null */

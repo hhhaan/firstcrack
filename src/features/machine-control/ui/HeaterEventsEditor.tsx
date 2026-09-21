@@ -5,7 +5,15 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatEditTime, normalizeHeaterPlan, parseEditTime, type ReplayPlanSource } from '../lib/heater-events';
+import {
+    formatEditTime,
+    type HeaterBounds,
+    heaterFitsBounds,
+    normalizeHeaterPlan,
+    parseEditTime,
+    parseFiniteNumber,
+    type ReplayPlanSource,
+} from '../lib/heater-events';
 import { eventTrigger, MAX_EVENTS, type ReplayEvent, type ReplayPoint, type ReplayTrigger } from '../lib/replay';
 
 type DraftRow = {
@@ -25,6 +33,13 @@ type Props = {
     btPoints: ReplayPoint[];
     source: ReplayPlanSource | null;
     unit: 'C' | 'F';
+    heaterMin?: number;
+    heaterMax?: number;
+    heaterUnit?: string;
+    heaterStep?: number;
+    /** ACK된 앞쪽 행. 실행 중에는 값을 바꿔도 다시 보내지 않는다. */
+    lockedCount?: number;
+    boundsNote?: string;
     onClose: () => void;
     onApply: (events: ReplayEvent[] | null) => void | Promise<void>;
 };
@@ -34,34 +49,52 @@ const fromDisplayBt = (v: number, unit: 'C' | 'F') => (unit === 'F' ? ((v - 32) 
 
 const toDraft = (events: ReplayEvent[], tpTime: number, unit: 'C' | 'F'): DraftRow[] =>
     events.map((e, i) => ({
-        key: `${i}-${e.t}-${e.heater}-${e.trigger ?? ''}`,
+        key: e.id ?? `${i}-${e.t}-${e.heater}-${e.trigger ?? ''}`,
         t: formatEditTime(e.t),
         bt: String(Math.round(toDisplayBt(e.bt, unit) * 10) / 10),
         heater: String(e.heater),
         trigger: eventTrigger(e, tpTime),
     }));
 
-const parseRows = (rows: DraftRow[], unit: 'C' | 'F'): ReplayEvent[] | null => {
+const parseRows = (rows: DraftRow[], unit: 'C' | 'F', bounds: HeaterBounds): ReplayEvent[] | null => {
     const events: ReplayEvent[] = [];
     for (const row of rows) {
         const t = parseEditTime(row.t);
-        const bt = fromDisplayBt(Number(row.bt), unit);
-        const heater = Number(row.heater);
-        if (
-            t == null ||
-            !row.bt.trim() ||
-            !row.heater.trim() ||
-            !Number.isFinite(bt) ||
-            !Number.isFinite(heater) ||
-            heater < 0
-        )
-            return null;
-        events.push({ t, bt, heater, trigger: row.trigger });
+        const btDisplay = parseFiniteNumber(row.bt);
+        const heater = parseFiniteNumber(row.heater);
+        if (t == null || btDisplay == null || heater == null) return null;
+        const bt = fromDisplayBt(btDisplay, unit);
+        if (!Number.isFinite(bt)) return null;
+        if (!heaterFitsBounds(heater, bounds)) return null;
+        events.push({ t, bt, heater, trigger: row.trigger, id: row.key });
     }
     return events;
 };
 
-export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, unit, onClose, onApply }: Props) => {
+export const HeaterEventsEditor = ({
+    mode,
+    events,
+    tpTime,
+    btPoints,
+    source,
+    unit,
+    heaterMin,
+    heaterMax,
+    heaterUnit = '%',
+    heaterStep,
+    lockedCount = 0,
+    boundsNote,
+    onClose,
+    onApply,
+}: Props) => {
+    const heaterBounds: HeaterBounds = useMemo(
+        () => ({
+            min: heaterMin ?? 0,
+            max: heaterMax ?? 100,
+            ...(heaterStep != null && heaterStep > 0 ? { step: heaterStep } : {}),
+        }),
+        [heaterMin, heaterMax, heaterStep],
+    );
     const { t } = useTranslation();
     const [rows, setRows] = useState<DraftRow[]>(() => toDraft(events, tpTime, unit));
     const [error, setError] = useState<string | null>(null);
@@ -80,7 +113,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
         return () => window.removeEventListener('keydown', onKey, true);
     }, [onClose, busy]);
 
-    const parsed = useMemo(() => parseRows(rows, unit) ?? [], [rows, unit]);
+    const parsed = useMemo(() => parseRows(rows, unit, heaterBounds) ?? [], [rows, unit, heaterBounds]);
 
     const update = (key: string, patch: Partial<DraftRow>) => {
         setRows((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -104,9 +137,9 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
     };
 
     const addBtRule = () => {
-        const bt = Number(ruleBt);
-        const heater = Number(ruleHeater);
-        if (!ruleBt.trim() || !ruleHeater.trim() || !Number.isFinite(bt) || !Number.isFinite(heater) || heater < 0) {
+        const bt = parseFiniteNumber(ruleBt);
+        const heater = parseFiniteNumber(ruleHeater);
+        if (bt == null || heater == null || !heaterFitsBounds(heater, heaterBounds)) {
             setError(t('heaterEventsEditor.invalid'));
             return;
         }
@@ -125,7 +158,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
     };
 
     const handleApply = async (next: ReplayEvent[] | null) => {
-        if (next && next.length > 0 && !normalizeHeaterPlan(next, tpTime)) {
+        if (next && next.length > 0 && !normalizeHeaterPlan(next, tpTime, heaterBounds)) {
             setError(t(next.length > MAX_EVENTS ? 'heaterEventsEditor.tooMany' : 'heaterEventsEditor.invalid'));
             return;
         }
@@ -142,7 +175,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
     };
 
     const submit = () => {
-        const next = parseRows(rows, unit);
+        const next = parseRows(rows, unit, heaterBounds);
         if (!next) {
             setError(t('heaterEventsEditor.invalid'));
             return;
@@ -189,6 +222,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                     <span className="inline-flex h-[22px] items-center rounded-full bg-surface px-2 font-semibold text-secondary">
                         {sourceLabel}
                     </span>
+                    {boundsNote && <span>{boundsNote}</span>}
                     {source && source !== 'tsv' && (
                         <button
                             type="button"
@@ -206,6 +240,8 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                             events={parsed}
                             btPoints={btPoints}
                             unit={unit}
+                            heaterUnit={heaterUnit}
+                            heaterMax={heaterBounds.max}
                             selected={selected}
                             onSelect={setSelected}
                         />
@@ -226,7 +262,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                                 />
                             </label>
                             <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                                {t('heaterEventsEditor.ruleThen')} (%)
+                                {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
                                 <input
                                     value={ruleHeater}
                                     onChange={(e) => setRuleHeater(e.target.value)}
@@ -255,7 +291,7 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                                             {t('heaterEventsEditor.bt')} (°{unit})
                                         </th>
                                         <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
-                                            {t('heaterEventsEditor.heat')} (%)
+                                            {t('heaterEventsEditor.heat')} ({heaterUnit})
                                         </th>
                                         <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
                                             {t('heaterEventsEditor.trigger')}
@@ -264,66 +300,78 @@ export const HeaterEventsEditor = ({ mode, events, tpTime, btPoints, source, uni
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {rows.map((row, i) => (
-                                        <tr
-                                            key={row.key}
-                                            className={i === selected ? 'bg-surface' : undefined}
-                                            onClick={() => setSelected(i)}
-                                            onFocus={() => setSelected(i)}
-                                        >
-                                            <td className="py-1 pr-1">
-                                                <input
-                                                    value={row.t}
-                                                    onChange={(e) => update(row.key, { t: e.target.value })}
-                                                    className={`${inputCls} py-1.5 text-xs`}
-                                                    aria-label={t('heaterEventsEditor.time')}
-                                                />
-                                            </td>
-                                            <td className="py-1 pr-1">
-                                                <input
-                                                    value={row.bt}
-                                                    onChange={(e) => update(row.key, { bt: e.target.value })}
-                                                    className={`${inputCls} py-1.5 text-xs`}
-                                                    inputMode="decimal"
-                                                    aria-label={t('heaterEventsEditor.bt')}
-                                                />
-                                            </td>
-                                            <td className="py-1 pr-1">
-                                                <input
-                                                    value={row.heater}
-                                                    onChange={(e) => update(row.key, { heater: e.target.value })}
-                                                    className={`${inputCls} py-1.5 text-xs`}
-                                                    inputMode="decimal"
-                                                    aria-label={t('heaterEventsEditor.heat')}
-                                                />
-                                            </td>
-                                            <td className="py-1 pr-1">
-                                                <select
-                                                    value={row.trigger}
-                                                    onChange={(e) =>
-                                                        update(row.key, { trigger: e.target.value as ReplayTrigger })
-                                                    }
-                                                    className={`${inputCls} py-1.5 pr-6 text-xs`}
-                                                    aria-label={t('heaterEventsEditor.trigger')}
-                                                >
-                                                    <option value="time">{t('heaterEventsEditor.triggerTime')}</option>
-                                                    <option value="bt">{t('heaterEventsEditor.triggerBt')}</option>
-                                                </select>
-                                            </td>
-                                            <td className="py-1">
-                                                <button
-                                                    type="button"
-                                                    className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-surface hover:text-red-600"
-                                                    aria-label={t('heaterEventsEditor.deleteRow')}
-                                                    onClick={() =>
-                                                        setRows((prev) => prev.filter((r) => r.key !== row.key))
-                                                    }
-                                                >
-                                                    <Trash2 size={14} strokeWidth={2} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {rows.map((row, i) => {
+                                        const locked = i < lockedCount;
+                                        return (
+                                            <tr
+                                                key={row.key}
+                                                className={i === selected ? 'bg-surface' : undefined}
+                                                onClick={() => setSelected(i)}
+                                                onFocus={() => setSelected(i)}
+                                            >
+                                                <td className="py-1 pr-1">
+                                                    <input
+                                                        value={row.t}
+                                                        onChange={(e) => update(row.key, { t: e.target.value })}
+                                                        className={`${inputCls} py-1.5 text-xs`}
+                                                        aria-label={t('heaterEventsEditor.time')}
+                                                        readOnly={locked}
+                                                    />
+                                                </td>
+                                                <td className="py-1 pr-1">
+                                                    <input
+                                                        value={row.bt}
+                                                        onChange={(e) => update(row.key, { bt: e.target.value })}
+                                                        className={`${inputCls} py-1.5 text-xs`}
+                                                        inputMode="decimal"
+                                                        aria-label={t('heaterEventsEditor.bt')}
+                                                        readOnly={locked}
+                                                    />
+                                                </td>
+                                                <td className="py-1 pr-1">
+                                                    <input
+                                                        value={row.heater}
+                                                        onChange={(e) => update(row.key, { heater: e.target.value })}
+                                                        className={`${inputCls} py-1.5 text-xs`}
+                                                        inputMode="decimal"
+                                                        aria-label={t('heaterEventsEditor.heat')}
+                                                        readOnly={locked}
+                                                    />
+                                                </td>
+                                                <td className="py-1 pr-1">
+                                                    <select
+                                                        value={row.trigger}
+                                                        onChange={(e) =>
+                                                            update(row.key, {
+                                                                trigger: e.target.value as ReplayTrigger,
+                                                            })
+                                                        }
+                                                        className={`${inputCls} py-1.5 pr-6 text-xs`}
+                                                        aria-label={t('heaterEventsEditor.trigger')}
+                                                        disabled={locked}
+                                                    >
+                                                        <option value="time">
+                                                            {t('heaterEventsEditor.triggerTime')}
+                                                        </option>
+                                                        <option value="bt">{t('heaterEventsEditor.triggerBt')}</option>
+                                                    </select>
+                                                </td>
+                                                <td className="py-1">
+                                                    <button
+                                                        type="button"
+                                                        className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-surface hover:text-red-600"
+                                                        aria-label={t('heaterEventsEditor.deleteRow')}
+                                                        disabled={locked}
+                                                        onClick={() =>
+                                                            setRows((prev) => prev.filter((r) => r.key !== row.key))
+                                                        }
+                                                    >
+                                                        <Trash2 size={14} strokeWidth={2} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                             {rows.length === 0 && (
@@ -367,12 +415,16 @@ const HeatStepChart = ({
     events,
     btPoints,
     unit,
+    heaterUnit,
+    heaterMax,
     selected,
     onSelect,
 }: {
     events: ReplayEvent[];
     btPoints: ReplayPoint[];
     unit: 'C' | 'F';
+    heaterUnit: string;
+    heaterMax: number;
     selected: number;
     onSelect: (index: number) => void;
 }) => {
@@ -384,7 +436,7 @@ const HeatStepChart = ({
     const bts = btPoints.map((p) => p.bt).filter((n) => Number.isFinite(n));
     const minBt = (bts.length ? Math.min(...bts) : 80) - 10;
     const maxBt = (bts.length ? Math.max(...bts) : 220) + 10;
-    const heatMax = Math.max(100, ...events.map((e) => e.heater), 10);
+    const heatMax = Math.max(heaterMax, ...events.map((e) => e.heater), 1);
     const innerW = width - pad.l - pad.r;
     const innerH = height - pad.t - pad.b;
     const x = (t: number) => pad.l + (t / maxT) * innerW;
@@ -404,7 +456,7 @@ const HeatStepChart = ({
             <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold text-muted">
                 <span className="inline-flex items-center gap-1.5">
                     <span className="h-0.5 w-4 bg-(--color-control-heat)" />
-                    {t('heaterEventsEditor.chartHeat')} (%)
+                    {t('heaterEventsEditor.chartHeat')} ({heaterUnit})
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                     <span className="h-0.5 w-4 bg-(--color-sensor-bt)" />
@@ -434,7 +486,8 @@ const HeatStepChart = ({
                             fill="var(--color-chart-axis-label)"
                             fontSize="11"
                         >
-                            {Math.round(ratio * heatMax)}%
+                            {Math.round(ratio * heatMax)}
+                            {heaterUnit}
                         </text>
                         <text
                             x={width - pad.r + 6}
@@ -466,18 +519,12 @@ const HeatStepChart = ({
                     />
                 )}
                 {events.map((e, i) => (
-                    <circle
+                    <g
                         key={`${e.t}-${e.heater}-${i}`}
-                        cx={x(e.t)}
-                        cy={yHeat(e.heater)}
-                        r={i === selected ? 5 : 3.5}
-                        fill={i === selected ? 'var(--color-control-heat)' : 'var(--color-main-bg)'}
-                        stroke="var(--color-control-heat)"
-                        strokeWidth="1.5"
                         className="cursor-pointer"
                         role="button"
                         tabIndex={0}
-                        aria-label={`${formatEditTime(e.t)}, ${e.heater}%`}
+                        aria-label={`${formatEditTime(e.t)}, ${e.heater}${heaterUnit}`}
                         onKeyDown={(event) => {
                             if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault();
@@ -485,7 +532,17 @@ const HeatStepChart = ({
                             }
                         }}
                         onClick={() => onSelect(i)}
-                    />
+                    >
+                        <circle cx={x(e.t)} cy={yHeat(e.heater)} r="12" fill="transparent" />
+                        <circle
+                            cx={x(e.t)}
+                            cy={yHeat(e.heater)}
+                            r={i === selected ? 5 : 3.5}
+                            fill={i === selected ? 'var(--color-control-heat)' : 'var(--color-main-bg)'}
+                            stroke="var(--color-control-heat)"
+                            strokeWidth="1.5"
+                        />
+                    </g>
                 ))}
             </svg>
         </div>

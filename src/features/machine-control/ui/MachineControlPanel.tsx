@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
+import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
 import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import { isPercentUnit } from '../lib/snapPercent';
@@ -180,6 +181,7 @@ export const MachineControlPanel = ({
         cancelUnsentHeater: cancelUnsentReplayHeater,
         heaterMax: limits.heater?.max,
         heaterMin: limits.heater?.min,
+        heaterStep: numericHeaterStep((limits.heater as { step?: unknown } | undefined)?.step),
     });
     useEffect(() => {
         onReplayControl?.({ active: replay.active, stop: replay.stop });
@@ -364,6 +366,11 @@ export const MachineControlPanel = ({
                         btPoints={replayPoints ?? []}
                         source={replay.source}
                         unit={temperatureUnit}
+                        heaterMin={limits.heater?.min}
+                        heaterMax={limits.heater?.max}
+                        heaterUnit={limits.heater?.unit ?? '%'}
+                        heaterStep={numericHeaterStep((limits.heater as { step?: unknown } | undefined)?.step)}
+                        lockedCount={replay.active ? replay.firedCount : 0}
                         onClose={() => setHeatEditorOpen(false)}
                         onApply={(events) => {
                             replay.applyBatchEvents(events);

@@ -30,6 +30,8 @@ export interface ReplayEvent {
     bt: number;
     heater: number;
     trigger?: ReplayTrigger;
+    /** Session-only row id. Not persisted in jsonb. */
+    id?: string;
 }
 
 export interface ReplayPlan {

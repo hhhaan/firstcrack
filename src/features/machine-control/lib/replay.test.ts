@@ -306,4 +306,27 @@ describe('judgeReplay', () => {
         const hit = judgeReplay(custom, 0, { bt: 90, elapsed: last.t, afterTurningPoint: true });
         expect(hit.heater).toBe(last.heater);
     });
+
+    it('앞 BT가 미충족이면 뒤 TIME이 시각이 돼도 발화하지 않는다', () => {
+        const custom = {
+            tpTime: 60,
+            events: [
+                { t: 120, bt: 192, heater: 50, trigger: 'bt' as const },
+                { t: 130, bt: 100, heater: 40, trigger: 'time' as const },
+            ],
+        };
+        const r = judgeReplay(custom, 0, { bt: 100, elapsed: 200, afterTurningPoint: true });
+        expect(r.heater).toBeNull();
+        expect(r.nextIndex).toBe(0);
+    });
+});
+
+describe('extractReplayEvents BT identity', () => {
+    it('지시가 바뀐 샘플의 BT를 쓰고 단일 값을 복사하지 않는다', () => {
+        const plan = extractReplayEvents([
+            { t: 1, bt: 210.4, heaterSet: 60 },
+            { t: 31, bt: 180.1, heaterSet: 50 },
+        ]);
+        expect(plan?.events.map((e) => e.bt)).toEqual([210.4, 180.1]);
+    });
 });
