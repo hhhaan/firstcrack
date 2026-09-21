@@ -31,19 +31,19 @@ const Harness = () => {
         formState: { errors },
     } = form;
 
-    return createElement(
-        FormProvider,
-        { ...form },
-        createElement(BeanFormFields, {
-            register,
-            setValue,
-            getValues,
-            errors,
-            nameIsAuto,
-            setNameIsAuto,
-            onSubmit: () => {},
-            handleSubmit,
-        }),
+    return (
+        <FormProvider {...form}>
+            <BeanFormFields
+                register={register}
+                setValue={setValue}
+                getValues={getValues}
+                errors={errors}
+                nameIsAuto={nameIsAuto}
+                setNameIsAuto={setNameIsAuto}
+                onSubmit={() => {}}
+                handleSubmit={handleSubmit}
+            />
+        </FormProvider>
     );
 };
 
