@@ -8,9 +8,10 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
+import { logger } from '@shared/lib/logger';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sidecar } from '@shared/lib/sidecar';
-import { deleteBbpTsv } from '@shared/lib/tsv-writer';
+import { deleteBbpTsv, formatRoastTsvRow, replaceSessionTsv } from '@shared/lib/tsv-writer';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
@@ -266,6 +267,14 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             if (bbpEnabled) useBbpStore.getState().begin(planned.bbpStartMs, planned.bbpSeed);
             useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
             setIsRunning(false);
+            void replaceSessionTsv(planned.sessionId, planned.roastPoints.map(formatRoastTsvRow).join('')).catch(
+                (err) => {
+                    logger.capture(err instanceof Error ? err : new Error(String(err)), {
+                        context: 'drop clip session tsv',
+                        sessionId: planned.sessionId,
+                    });
+                },
+            );
             return {
                 totalTime: planned.summary.totalTime,
                 development: planned.summary.development,
@@ -286,15 +295,16 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         void deleteBbpTsv(BBP_INPROGRESS_ID);
         clearPendingRoastSave(restore.sessionOwnerId ?? '', restore.sessionId);
         useCompletedRoastStore.getState().clear();
-        roastStartTimeRef.current = restore.roastStartMs;
-        const elapsed = Math.max(0, Math.floor((Date.now() - restore.roastStartMs) / 1000));
+        const elapsed = Math.max(0, restore.elapsed);
+        const origin = Date.now() - elapsed * 1000;
+        roastStartTimeRef.current = origin;
         useRoastingStore.setState({
             phase: 'roasting',
             charged: true,
             isRoasting: true,
             sessionId: restore.sessionId,
             sessionOwnerId: restore.sessionOwnerId,
-            roastStartMs: restore.roastStartMs,
+            roastStartMs: origin,
             elapsed,
             awaitingNextCharge: false,
             heatHoldAfterDrop: true,

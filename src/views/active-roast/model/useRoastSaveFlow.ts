@@ -8,6 +8,7 @@ import { useBbpStore } from '@features/active-roast/model/bbp';
 import {
     clearPendingRoastSave,
     createPendingRoastSave,
+    listPendingRoastSaves,
     type PendingRoastParams,
     readPendingRoastSave,
     writePendingRoastSave,
@@ -141,8 +142,18 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             setPreparing(true);
             const epoch = flowEpoch.current;
             try {
+                const frozen = flow.summaryData;
+                const frozenId = frozen?.sessionId ?? sessionId ?? unrecordedId.current;
+                const liveOwner = useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId;
+                const existing = frozenId
+                    ? (readPendingRoastSave(liveOwner, frozenId) ??
+                      readPendingRoastSave(workspaceOwnerId, frozenId) ??
+                      listPendingRoastSaves().find((p) => p.params.sessionId === frozenId) ??
+                      null)
+                    : null;
+                const ownerId = existing?.params.userId ?? liveOwner;
+                const frozenHandoff = existing?.params.planBatchHandoff ?? frozen?.planBatchHandoff ?? null;
                 let linkedBatch: PlanBatchHandoff | null = null;
-                const frozenHandoff = flow.summaryData?.planBatchHandoff ?? planBatchHandoff;
                 if (!frozenHandoff && formData.linkMode === 'schedule' && formData.planBatchId) {
                     const row = dayBatches.find((b) => b.id === formData.planBatchId);
                     if (row) linkedBatch = toPlanBatchHandoff(row);
@@ -151,9 +162,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 // Durable intent: written BEFORE any auth gate so the roast survives
                 // an auth kick to the login screen, a crash, or a force quit.
                 // Recovered (auto-saved) by PendingRoastRecovery on next launch.
-                const frozenId = flow.summaryData?.sessionId ?? sessionId ?? unrecordedId.current;
-                const ownerId = useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId;
-                const existing = frozenId ? readPendingRoastSave(ownerId, frozenId) : null;
                 const formPatch: SaveRoastFormData = {
                     notes: formData.notes,
                     weightGrams: formData.weightGrams,
@@ -163,10 +171,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     beanLabel: formData.beanId ? null : formData.beanLabel,
                     linkedBatch,
                     deductStock: formData.deductStock,
-                    linkedBatchId:
-                        !(existing?.params.planBatchHandoff ?? planBatchHandoff) && formData.linkMode === 'schedule'
-                            ? formData.planBatchId
-                            : null,
+                    linkedBatchId: !frozenHandoff && formData.linkMode === 'schedule' ? formData.planBatchId : null,
                 };
                 const pending = existing
                     ? {
@@ -175,10 +180,28 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                           params: {
                               ...existing.params,
                               formData: { ...existing.params.formData, ...formPatch },
-                              logEntries: flow.summaryData?.logEntries ?? existing.params.logEntries,
+                              logEntries: frozen?.logEntries ?? existing.params.logEntries,
                           },
                       }
-                    : createPendingRoastSave(snapshotParams(formPatch, flow.summaryData?.logEntries ?? []), true);
+                    : createPendingRoastSave(
+                          frozen
+                              ? {
+                                    ...snapshotParams(formPatch, frozen.logEntries),
+                                    sessionId: frozen.sessionId ?? null,
+                                    elapsed: frozen.elapsedSec ?? 0,
+                                    selectedBeanId: frozen.selectedBeanId ?? null,
+                                    planBatchHandoff: frozen.planBatchHandoff ?? null,
+                                    handoffBeanName: frozen.handoffBeanName ?? null,
+                                    targetProfileId: null,
+                                    roastStartTime: 0,
+                                    rawBT: null,
+                                    machineSnapshot: null,
+                                    bbpSummary: null,
+                                    userId: ownerId,
+                                }
+                              : snapshotParams(formPatch, []),
+                          true,
+                      );
                 if (!pending.params.sessionId) pending.params.sessionId = unrecordedId.current ??= crypto.randomUUID();
                 writePendingRoastSave(pending);
 
@@ -315,8 +338,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 useToastStore.getState().show(formatRoastSaveError(err));
             }
             flow.confirmEndRoast(frozen);
-            const liveSid = useRoastingStore.getState().sessionId;
-            if (!liveSid || liveSid === frozen.sessionId) useRoastSessionStore.getState().completeBatch();
         },
         [snapshotParams, planBatchHandoff, selectedBeanId, sessionId, handoffBeanName, flow.confirmEndRoast],
     );

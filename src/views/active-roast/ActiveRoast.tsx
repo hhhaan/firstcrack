@@ -432,10 +432,20 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 handoffBeanName,
             });
             lifecycle.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
-            // resetActiveRoast rearms detectors; keep auto Drop off until the next Charge.
+            // resetActiveRoast rearms detectors; keep Charge/Drop off until the next Charge.
             disableAutoDrop();
+            disableAutoCharge();
         },
-        [disableAutoDrop, lifecycle, livePoints, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName],
+        [
+            disableAutoCharge,
+            disableAutoDrop,
+            lifecycle,
+            livePoints,
+            saveFlow,
+            selectedBeanId,
+            planBatchHandoff,
+            handoffBeanName,
+        ],
     );
     useLayoutEffect(() => {
         applyDropRef.current = applyDrop;
@@ -501,8 +511,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useEffect(() => {
         if (sidecarConnected) return;
         if (phase !== 'preheating' && phase !== 'standby') return;
+        if (awaitingNextCharge || bbpActive) return;
         lifecycle.resetActiveRoast();
-    }, [sidecarConnected, phase, lifecycle.resetActiveRoast]);
+    }, [sidecarConnected, phase, awaitingNextCharge, bbpActive, lifecycle.resetActiveRoast]);
 
     // ── Effect: 타이머 ────────────────────────────────────────────
     useEffect(() => {

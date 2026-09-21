@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
-import { listPendingRoastSaves, type PendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
+import {
+    clearPendingRoastSave,
+    listPendingRoastSaves,
+    type PendingRoastSave,
+} from '@features/active-roast/model/pendingRoastSave';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
@@ -334,6 +338,46 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(h.api.flow.continueModal).toBe(true);
         expect(h.api.flow.continueCandidates).toEqual([batch]);
         expect(h.onResetActiveRoast).toHaveBeenCalledTimes(1);
+    });
+
+    it('Drop confirm keeps live schedule handoff for Charge B', () => {
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => sessionActions.startBatch(handoffB));
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        expect(useRoastSessionStore.getState().planBatchHandoff?.planBatchId).toBe('batch-b');
+    });
+
+    it('late save without pending reconstructs from frozen summary, not live B', async () => {
+        const h = renderFlow({ sessionId: 's-a', selectedBeanId: 'bean-a', planBatchHandoff: null });
+        act(() =>
+            h.api.confirmEndRoast({
+                ...summary,
+                sessionId: 's-a',
+                selectedBeanId: 'bean-a',
+                elapsedSec: 600,
+                planBatchHandoff: null,
+            }),
+        );
+        clearPendingRoastSave('workspace-a', 's-a');
+        act(() => {
+            sessionActions.startBatch(handoffB);
+            useRoastingStore.setState({
+                phase: 'roasting',
+                charged: true,
+                sessionId: 's-b',
+                elapsed: 12,
+                awaitingNextCharge: false,
+            });
+        });
+        await act(async () =>
+            h.api.handleSave({ ...form, beanId: 'bean-a', linkMode: 'schedule', planBatchId: 'batch-a' }),
+        );
+        const saved = mocks.resumeSave.mock.calls[0][0] as PendingRoastSave;
+        expect(saved.params.sessionId).toBe('s-a');
+        expect(saved.params.elapsed).toBe(600);
+        expect(saved.params.planBatchHandoff).toBeNull();
+        expect(saved.params.formData.linkedBatchId).toBe('batch-a');
+        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
     });
 
     it('late A save does not reset in-progress B or swap handoff', async () => {

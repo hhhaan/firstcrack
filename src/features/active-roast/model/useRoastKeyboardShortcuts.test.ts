@@ -5,6 +5,7 @@ import {
     isRoastMarkShortcutEnabled,
     isRoastShortcutBaseEnabled,
 } from './useRoastKeyboardShortcuts';
+import shortcutsSrc from './useRoastKeyboardShortcuts.ts?raw';
 
 const base = {
     isActive: true,
@@ -53,6 +54,12 @@ describe('isRoastChargeShortcutEnabled', () => {
                 phase: 'standby',
             }),
         ).toBe(false);
+    });
+});
+
+describe('Charge hotkey form tags', () => {
+    it('enables mod+enter on form fields while the summary is open', () => {
+        expect(shortcutsSrc).toContain('enableOnFormTags: true');
     });
 });
 

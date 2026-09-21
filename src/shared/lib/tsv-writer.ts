@@ -113,6 +113,37 @@ export const initSessionTsv = async (sessionId: string): Promise<void> => {
     if (!settled.ready) throw settled.initError ?? new Error(`TSV initialization failed: ${sessionId}`);
 };
 
+export const formatRoastTsvRow = (p: {
+    time: number;
+    bt: number;
+    et: number | null;
+    ror?: number | null;
+    heater: number | null;
+    fan: number;
+    drum: number;
+    heaterSet?: number | null;
+}): string =>
+    `${p.time.toFixed(2)}\t${p.bt}\t${p.et ?? ''}\t${p.ror ?? ''}\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t${p.heaterSet ?? ''}\n`;
+
+/** Drop clip: replace the roast file so post-Drop samples are not uploaded with A. */
+export const replaceSessionTsv = async (sessionId: string, rows: string): Promise<void> => {
+    const q = getQueue(sessionId);
+    const path = sessionTsvPath(sessionId);
+    const body = `${TSV_HEADER}${rows.startsWith(TSV_HEADER) ? rows.slice(TSV_HEADER.length) : rows}`;
+    const contents = body.endsWith('\n') ? body : `${body}\n`;
+    enqueue(sessionId, async () => {
+        q.pending = [];
+        await writeImpl(path, contents, { append: false });
+        q.ready = true;
+        q.initScheduled = true;
+        q.initError = null;
+        q.appendError = null;
+    });
+    await q.chain;
+    const settled = getQueue(sessionId);
+    if (settled.appendError) throw settled.appendError;
+};
+
 export const enqueueTsvRow = (sessionId: string, row: string): void => {
     const q = getQueue(sessionId);
     if (q.initError !== null && !q.initScheduled) {

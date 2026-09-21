@@ -2,6 +2,7 @@
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { sidecar } from '@shared/lib/sidecar';
+import { formatRoastTsvRow, replaceSessionTsv } from '@shared/lib/tsv-writer';
 import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -28,9 +29,14 @@ vi.mock('@features/active-roast/model/useBatchQuota', () => ({
     useBatchQuota: () => ({ exceeded: false, isTrial: false, max: 99 }),
 }));
 
-vi.mock('@shared/lib/tsv-writer', () => ({
-    deleteBbpTsv: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock('@shared/lib/tsv-writer', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/tsv-writer')>();
+    return {
+        ...actual,
+        deleteBbpTsv: vi.fn().mockResolvedValue(undefined),
+        replaceSessionTsv: vi.fn().mockResolvedValue(undefined),
+    };
+});
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -175,6 +181,7 @@ describe('confirmEndRoast roast metrics (#514)', () => {
 describe('completeDrop → BBP (#484)', () => {
     beforeEach(() => {
         feature.bbp = true;
+        vi.mocked(replaceSessionTsv).mockClear();
         useCompletedRoastStore.getState().clear();
         useBbpStore.setState({ active: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
         useRoastingStore.setState({
@@ -248,6 +255,8 @@ describe('completeDrop → BBP (#484)', () => {
     });
 
     it('Drop cancel restores Charge clock and does not clear heat hold', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-21T00:10:00Z'));
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)]);
         try {
             void act(() => {
@@ -270,13 +279,71 @@ describe('completeDrop → BBP (#484)', () => {
                 h.result.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
             });
             expect(useRoastingStore.getState().charged).toBe(false);
+            vi.setSystemTime(new Date('2026-09-21T00:12:00Z'));
             void act(() => {
                 expect(h.result.cancelDrop()).toBe(true);
             });
             expect(useRoastingStore.getState().phase).toBe('roasting');
             expect(useRoastingStore.getState().sessionId).toBe('s-a');
+            expect(useRoastingStore.getState().elapsed).toBe(600);
+            expect(useRoastingStore.getState().roastStartMs).toBe(Date.now() - 600_000);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             expect(useBbpStore.getState().active).toBe(false);
+        } finally {
+            vi.useRealTimers();
+            h.unmount();
+        }
+    });
+
+    it('rewrites session TSV at Drop so lookback is not uploaded with A', () => {
+        const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)]);
+        try {
+            void act(() => {
+                h.result.completeDrop({
+                    livePoints: [
+                        {
+                            time: 600,
+                            label: '10:00',
+                            bt: 205,
+                            et: 210,
+                            ror: 1,
+                            ror_et: 0,
+                            heater: 50,
+                            fan: 40,
+                            drum: 60,
+                            heaterSet: 50,
+                        },
+                        {
+                            time: 612,
+                            label: '10:12',
+                            bt: 150,
+                            et: 210,
+                            ror: 0,
+                            ror_et: 0,
+                            heater: 50,
+                            fan: 40,
+                            drum: 60,
+                            heaterSet: 50,
+                        },
+                    ],
+                    onset: { timeSec: 600, bt: 205 },
+                });
+            });
+            expect(replaceSessionTsv).toHaveBeenCalledWith(
+                's-a',
+                formatRoastTsvRow({
+                    time: 600,
+                    bt: 205,
+                    et: 210,
+                    ror: 1,
+                    heater: 50,
+                    fan: 40,
+                    drum: 60,
+                    heaterSet: 50,
+                }),
+            );
+            const written = vi.mocked(replaceSessionTsv).mock.calls.at(-1)?.[1] ?? '';
+            expect(written).not.toContain('612.00');
         } finally {
             h.unmount();
         }
@@ -356,7 +423,7 @@ describe('completeDrop → BBP (#484)', () => {
                 });
             });
             expect(second?.elapsedSec).toBe(610);
-            expect(useBbpStore.getState().startMs).toBe(1 + 610_000);
+            expect(useBbpStore.getState().startMs).toBe(useRoastingStore.getState().roastStartMs + 610_000);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
         } finally {
             h.unmount();

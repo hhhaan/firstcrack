@@ -127,7 +127,7 @@ export const useRoastKeyboardShortcuts = ({
             if (phase === 'preheating') onEnterStandby();
             else if (phase === 'standby') onManualCharge();
         },
-        { enabled: canCharge },
+        { enabled: canCharge, enableOnFormTags: true },
         [canCharge, phase, onEnterStandby, onManualCharge],
     );
 
