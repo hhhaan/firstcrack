@@ -350,7 +350,7 @@ export const useSidecarPolling = ({
                 const currentPhase = useRoastingStore.getState().phase;
 
                 // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
-                // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
+                // 비활성 시 no-op — 간격 제한·FIFO 창은 스토어 append가 처리.
                 if (currentPhase !== 'roasting' && !data.stale) {
                     useBbpStore.getState().append(
                         {
