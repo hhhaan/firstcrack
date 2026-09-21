@@ -6,6 +6,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sidecarStatusKey } from '../api/useSidecarStatus';
+import type { ReplayEvent } from '../lib/replay';
 import { ProfileHeaterEventsEditor } from './ProfileHeaterEventsEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -63,7 +64,7 @@ describe('ProfileHeaterEventsEditor status query', () => {
         );
     };
 
-    const renderEditor = async (onApply: ReturnType<typeof vi.fn>) => {
+    const renderEditor = async (onApply: (events: ReplayEvent[] | null) => void | Promise<void>) => {
         await act(async () => {
             root.render(
                 createElement(
