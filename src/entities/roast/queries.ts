@@ -206,10 +206,12 @@ export const useRoastSessionsPaginated = (params: {
         staleTime: Infinity,
         // Remount after save must not reuse stale cached pages (staleTime Infinity).
         refetchOnMount: true,
+        // Same as Orders: keep previous rows on page/filter key changes instead of a skeleton.
         placeholderData: (prev) => prev,
         enabled,
     });
     const nextPage = params.page + 1;
+    // Active subscribe (not prefetchQuery) so default invalidateQueries refreshes N+1 too.
     useQuery({
         queryKey: pageKey(nextPage),
         queryFn: () => roastSessionApi.listPaginated({ ...params, page: nextPage }),

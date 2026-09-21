@@ -32,6 +32,7 @@ export const useOrdersPaginated = (params: OrderPageParams) => {
         placeholderData: (prev) => prev,
     });
     const nextPage = params.page + 1;
+    // Active subscribe (not prefetchQuery) so default invalidateQueries refreshes N+1 too.
     useQuery({
         queryKey: pageKey(nextPage),
         queryFn: () => orderApi.listPaginated({ ...params, page: nextPage }),
