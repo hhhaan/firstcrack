@@ -752,6 +752,7 @@
             "noBbp": "I confirm no between-batch curve was recorded for this roast."
         },
         "replay": {
+            "syncOnStart": "Starting or resuming applies the reference heat for the current point.",
             "next": "Next: {{condition}} → {{heater}}",
             "done": "All events replayed",
             "missingHeatSet": "Replay needs a recorded heat-set history.",

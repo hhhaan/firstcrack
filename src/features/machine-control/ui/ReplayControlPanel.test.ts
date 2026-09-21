@@ -58,6 +58,12 @@ describe('ReplayControlPanel 무효 관측 대기 (R05)', () => {
             });
         }
     });
+    it.each([false, true])('시작·재개 동기화 안내를 active=%s에서도 보여 준다', (active) => {
+        const { container, unmount } = renderPanel(replayStub({ active }));
+        expect(container.textContent).toContain(en.activeRoast.replay.syncOnStart);
+        unmount();
+    });
+
     it('보류 중에는 정상 On이 아니라 온도 데이터 확인 대기를 보여 준다', () => {
         const { container, unmount } = renderPanel(
             replayStub({

@@ -355,21 +355,81 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
-    it('수동 중지 후 다시 켜면 지난 이벤트를 다시 쓰지 않고 남은 구간부터 이어간다', async () => {
+    it('수동 중지 후 다시 켜면 현재 레퍼런스 화력을 복원하고 이어간다', async () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle()); // t=0 h=80, index=1
         h.writeHeater.mockClear();
         await act(async () => h.get().stop());
 
-        // 아직 다음 BT 이벤트(110°) 전 — 재개해도 즉시 쓰기 없음, 손 값이 유지
+        // 다음 BT 이벤트(110°) 전에도 수동 화력을 현재 레퍼런스 값으로 복원한다.
+        await h.rerender({ heaterFeedback: 25 });
         await act(async () => h.get().toggle());
         expect(h.get().active).toBe(true);
-        expect(h.writeHeater).not.toHaveBeenCalled();
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
+        await h.rerender({ heaterFeedback: 80 });
+        h.writeHeater.mockClear();
 
         await h.rerender({ liveBt: 111, elapsed: 130, confirmedTurningPoint: { fallback: false } });
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
         expect(h.writeHeater).toHaveBeenCalledWith(60);
         expect(h.writeHeater).not.toHaveBeenCalledWith(80);
+        h.unmount();
+    });
+
+    it.each([30, 50])('TP 이전 %s초 시작·재개는 마지막 시간 이벤트 하나만 적용한다', async (elapsed) => {
+        const h = await renderReplay({
+            elapsed,
+            referencePoints: [
+                { t: 15, bt: 160, heaterSet: 70 },
+                { t: 45, bt: 110, heaterSet: 60 },
+                { t: 60, bt: 95, heaterSet: 60 },
+                { t: 120, bt: 110, heaterSet: 50 },
+            ],
+        });
+        const expected = elapsed < 45 ? 70 : 60;
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(expected);
+        await act(async () => h.get().toggle());
+        h.writeHeater.mockClear();
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(expected);
+        h.unmount();
+    });
+
+    it.each([160, 140])('전체 소진 후 BT %s에서 재개하면 현재 조건으로 다시 맞춘다', async (liveBt) => {
+        const inputs = { elapsed: 400, liveBt: 160, confirmedTurningPoint: { fallback: false } };
+        const h = await renderReplay(inputs);
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(40);
+        expect(h.get().nextEvent).toBeNull();
+        await act(async () => h.get().stop());
+        await h.rerender({ ...inputs, liveBt, heaterFeedback: 25 });
+        h.writeHeater.mockClear();
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(liveBt >= 155 ? 40 : 60);
+        h.unmount();
+    });
+
+    it('재개 관측 보류 후 최신 BT로 동기화한다', async () => {
+        const inputs = { elapsed: 200, liveBt: 120, confirmedTurningPoint: { fallback: false } };
+        const h = await renderReplay(inputs);
+        await act(async () => h.get().toggle());
+        await act(async () => h.get().stop());
+        h.writeHeater.mockClear();
+        await h.rerender({ ...inputs, observationQuality: 'stale' });
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).not.toHaveBeenCalled();
+        await h.rerender({ ...inputs, liveBt: 160, elapsed: 201 });
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(40);
+        h.unmount();
+    });
+
+    it('첫 이벤트 이전에 시작·재개해도 화력을 쓰지 않는다', async () => {
+        const h = await renderReplay({ referencePoints: POINTS.map((p) => ({ ...p, t: p.t + 15 })) });
+        await act(async () => h.get().toggle());
+        await act(async () => h.get().stop());
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).not.toHaveBeenCalled();
         h.unmount();
     });
 
@@ -645,41 +705,19 @@ describe('useReplayControl', () => {
             h.unmount();
         });
 
-        it('재개 후 원인이 지속되면 다음 write 뒤 다시 걸린다 — 감지 재무장', async () => {
+        it('재개 동기화 후에도 실측 이탈이 지속되면 다시 중지한다', async () => {
             const h = await armed();
             await h.rerender({ heaterFeedback: 50, elapsed: 10 });
             await h.rerender({ heaterFeedback: 50, elapsed: 11 });
             await h.rerender({ heaterFeedback: 50, elapsed: 12 });
             expect(h.get().stopReason).toBe('controlDiverged');
-            // 사람이 재개 — lastWritten 리셋, 즉시 오판 없음
             await act(async () => h.get().toggle());
             expect(h.get().active).toBe(true);
-            // 다음 이벤트 발화(110°→60%)로 기준이 다시 생기고, 실측(50)이 계속 벗어나 있으면 재확정
-            await h.rerender({
-                heaterFeedback: 50,
-                elapsed: 130,
-                liveBt: 111,
-                confirmedTurningPoint: { fallback: false },
-            });
-            expect(h.writeHeater).toHaveBeenCalledWith(60);
-            await h.rerender({
-                heaterFeedback: 50,
-                elapsed: 131,
-                liveBt: 111,
-                confirmedTurningPoint: { fallback: false },
-            });
-            await h.rerender({
-                heaterFeedback: 50,
-                elapsed: 132,
-                liveBt: 111,
-                confirmedTurningPoint: { fallback: false },
-            });
-            await h.rerender({
-                heaterFeedback: 50,
-                elapsed: 133,
-                liveBt: 111,
-                confirmedTurningPoint: { fallback: false },
-            });
+            expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
+            await h.rerender({ heaterFeedback: 50, elapsed: 13 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 14 });
+            expect(h.get().active).toBe(true);
+            await h.rerender({ heaterFeedback: 50, elapsed: 15 });
             expect(h.get().active).toBe(false);
             expect(h.get().stopReason).toBe('controlDiverged');
             h.unmount();

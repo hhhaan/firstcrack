@@ -98,6 +98,8 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
                 )}
             </label>
 
+            <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.syncOnStart')}</p>
+
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
             {!replay.active && !stopText && replay.missingHeatSet && (
                 <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.missingHeatSet')}</p>
@@ -136,8 +138,7 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
                         className="pointer-events-none absolute bottom-full left-0 right-0 z-10 mb-1 hidden rounded-md border border-border-subtle bg-surface-elevated p-2 leading-snug text-secondary group-hover:block"
                     >
                         재생 중에는 자리를 비우지 마세요 — 화력이 재생 지시에서 계속 벗어나면 자동 중지됩니다. 수동
-                        조절은 체크 해제 후 하세요. 다시 켜면 남은 구간부터 이어집니다. 기센은 본체 Auto를 Manual로
-                        두어야 합니다.
+                        조절은 체크 해제 후 하세요. 기센은 본체 Auto를 Manual로 두어야 합니다.
                     </span>
                 </div>
             )}
