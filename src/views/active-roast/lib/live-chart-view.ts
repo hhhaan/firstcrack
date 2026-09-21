@@ -1,4 +1,4 @@
-import type { BbpPoint } from '@features/active-roast/model/bbp';
+import { type BbpPoint, rebaseBbpWindow } from '@features/active-roast/model/bbp';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
 import type { TsvPoint } from '@shared/lib/tsv';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
@@ -33,10 +33,12 @@ export const resolveLiveChartView = (input: {
     }
 
     const combined = combineBbpCurve(input.roastTarget, input.bbpTargetError ? [] : input.bbpTarget, input.bbpSeconds);
-    const elapsed = input.bbpActive ? (input.bbpPoints[input.bbpPoints.length - 1]?.t ?? 0) : 0;
+    const lastT = input.bbpPoints[input.bbpPoints.length - 1]?.t ?? 0;
+    const windowed = input.bbpActive ? rebaseBbpWindow(input.bbpPoints, lastT) : [];
+    const elapsed = input.bbpActive ? (windowed[windowed.length - 1]?.t ?? 0) : 0;
     const duration = combined.bbpRange ? -combined.bbpRange.start : elapsed;
     const livePoints = input.bbpActive
-        ? livePointsFromBbp(input.bbpPoints, duration)
+        ? livePointsFromBbp(windowed, duration)
         : shiftLivePoints(input.livePoints, duration);
     const liveMin = livePoints[0]?.time ?? 0;
     const bbpRange = input.bbpActive

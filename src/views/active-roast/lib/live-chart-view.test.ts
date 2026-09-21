@@ -105,4 +105,20 @@ describe('resolveLiveChartView', () => {
         expect(view.bbpRange).toBeUndefined();
         expect(view.xMin).toBe(-90);
     });
+
+    it.each([
+        { first: 60, last: 1260 },
+        { first: 1740, last: 2940 },
+    ])('실측이 20분을 넘으면 Charge 직전 20분만 음의 축에 쓴다 ($last s)', ({ first, last }) => {
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpTarget: [],
+            bbpPoints: [bbpPt(first, 210), bbpPt(last, 200)],
+        });
+        expect(view.xMin).toBe(-1200);
+        expect(view.bbpRange).toEqual({ start: -1200, end: 0 });
+        expect(view.livePoints.map((p) => p.time)).toEqual([-1200, 0]);
+    });
 });

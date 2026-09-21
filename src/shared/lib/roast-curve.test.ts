@@ -26,4 +26,12 @@ describe('combined BBP timeline', () => {
         expect(combineBbpCurve(roast, [], 92)).toEqual({ points: roast, bbpRange: undefined });
         expect(combineBbpCurve([], [point(2), point(92)], 92).points.map((p) => p.t)).toEqual([-90, 0]);
     });
+
+    it('saved 20-minute BBP sits at -20:00…00:00 with Charge at 00:00', () => {
+        const roast = [point(0), point(60)];
+        const combined = combineBbpCurve(roast, [point(0), point(1200)], 1200);
+        expect(combined.bbpRange).toEqual({ start: -1200, end: 0 });
+        expect(combined.points.map((p) => p.t)).toEqual([-1200, 0, 60]);
+        expect(combined.points.find((p) => p.t === 0)?.bt).toBe(190);
+    });
 });
