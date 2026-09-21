@@ -286,4 +286,47 @@ describe('judgeReplay', () => {
         const again = judgeReplay(plan, first.nextIndex, { bt: 100, elapsed: 50, afterTurningPoint: false });
         expect(again.heater).toBeNull();
     });
+
+    it('행별 trigger=bt는 TP 이후에도 시간 무시하고 BT로 발화한다', () => {
+        const custom = {
+            ...plan,
+            events: plan.events.map((e, i) => (i === 0 ? { ...e, trigger: 'bt' as const } : e)),
+        };
+        const early = judgeReplay(custom, 0, { bt: 179, elapsed: 90, afterTurningPoint: true });
+        expect(early.heater).toBeNull();
+        const hit = judgeReplay(custom, 0, { bt: 180, elapsed: 0, afterTurningPoint: true });
+        expect(hit.heater).toBe(80);
+    });
+
+    it('행별 trigger=time은 TP 이후에도 시각으로 발화한다', () => {
+        const last = plan.events[3];
+        const custom = { ...plan, events: [{ ...last, trigger: 'time' as const }] };
+        const miss = judgeReplay(custom, 0, { bt: 200, elapsed: last.t - 1, afterTurningPoint: true });
+        expect(miss.heater).toBeNull();
+        const hit = judgeReplay(custom, 0, { bt: 90, elapsed: last.t, afterTurningPoint: true });
+        expect(hit.heater).toBe(last.heater);
+    });
+
+    it('앞 BT가 미충족이면 뒤 TIME이 시각이 돼도 발화하지 않는다', () => {
+        const custom = {
+            tpTime: 60,
+            events: [
+                { t: 120, bt: 192, heater: 50, trigger: 'bt' as const },
+                { t: 130, bt: 100, heater: 40, trigger: 'time' as const },
+            ],
+        };
+        const r = judgeReplay(custom, 0, { bt: 100, elapsed: 200, afterTurningPoint: true });
+        expect(r.heater).toBeNull();
+        expect(r.nextIndex).toBe(0);
+    });
+});
+
+describe('extractReplayEvents BT identity', () => {
+    it('지시가 바뀐 샘플의 BT를 쓰고 단일 값을 복사하지 않는다', () => {
+        const plan = extractReplayEvents([
+            { t: 1, bt: 210.4, heaterSet: 60 },
+            { t: 31, bt: 180.1, heaterSet: 50 },
+        ]);
+        expect(plan?.events.map((e) => e.bt)).toEqual([210.4, 180.1]);
+    });
 });

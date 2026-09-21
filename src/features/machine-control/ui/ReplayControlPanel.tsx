@@ -10,6 +10,7 @@ interface Props {
     unit: 'C' | 'F';
     /** 기기 native 화력 단위. 없으면 % */
     heaterUnit?: string;
+    onEditHeat?: () => void;
 }
 
 export const REPLAY_OBSERVATION_HOLD_TEXT = '온도 데이터 확인 대기';
@@ -40,7 +41,23 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * 항상 렌더한다 — 타겟 미선택·합성 프로파일 등으로 재생 불가면 체크박스만
  * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
-export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
+const replayDisabledHint = (
+    replay: ReturnType<typeof useReplayControl>,
+    t: (key: string) => string,
+): string | undefined => {
+    if (replay.machineMismatch) {
+        return '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요';
+    }
+    if (replay.referenceLoading) return undefined;
+    if (replay.missingHeatSet) return t('activeRoast.replay.missingHeatSet');
+    if (!replay.available) return t('activeRoast.replay.invalidPlan');
+    if (!replay.active && replay.blocked) {
+        return '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요';
+    }
+    return undefined;
+};
+
+export const ReplayControlPanel = ({ replay, unit, heaterUnit, onEditHeat }: Props) => {
     const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
     const tpWait = resolveReplayTpWait({
@@ -52,23 +69,14 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
     const chrome = collapsedReplayTpChrome(replay.active, tpWait);
     const observationHold = replay.observationHold;
     const holding = isReplayTpHold(chrome) || observationHold;
-    let statusClass = 'text-muted';
-    if (holding) statusClass = 'text-amber-600 dark:text-amber-500';
-    else if (chrome === 'running') statusClass = 'text-emerald-500';
+    const statusClass = holding
+        ? 'text-amber-600 dark:text-amber-500'
+        : chrome === 'running'
+          ? 'text-emerald-500'
+          : 'text-muted';
     const statusLabel = observationHold ? replayStatus(true, true).label : replay.active ? 'On' : 'Off';
     const statusAttr = observationHold ? 'observation-hold' : (chrome ?? 'off');
-    // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
-    const disabledHint = replay.machineMismatch
-        ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
-        : replay.referenceLoading
-          ? undefined
-          : replay.missingHeatSet
-            ? t('activeRoast.replay.missingHeatSet')
-            : !replay.available
-              ? t('activeRoast.replay.invalidPlan')
-              : !replay.active && replay.blocked
-                ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
-                : undefined;
+    const disabledHint = replayDisabledHint(replay, t);
 
     return (
         <div className="flex shrink-0 flex-col gap-2">
@@ -98,11 +106,54 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
                 )}
             </label>
 
+            <ReplayPanelMessages
+                replay={replay}
+                unit={unit}
+                heaterUnit={heaterUnit}
+                chrome={chrome}
+                observationHold={observationHold}
+                stopText={stopText}
+                onEditHeat={onEditHeat}
+            />
+        </div>
+    );
+};
+
+const ReplayPanelMessages = ({
+    replay,
+    unit,
+    heaterUnit,
+    chrome,
+    observationHold,
+    stopText,
+    onEditHeat,
+}: {
+    replay: ReturnType<typeof useReplayControl>;
+    unit: 'C' | 'F';
+    heaterUnit?: string;
+    chrome: ReturnType<typeof collapsedReplayTpChrome>;
+    observationHold: boolean;
+    stopText?: string;
+    onEditHeat?: () => void;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <>
             <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.syncOnStart')}</p>
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
             {!replay.active && !stopText && replay.missingHeatSet && (
                 <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.missingHeatSet')}</p>
+            )}
+
+            {onEditHeat && (
+                <button
+                    type="button"
+                    onClick={onEditHeat}
+                    className="w-full cursor-pointer rounded-lg border-none bg-surface py-1.5 text-[12px] font-medium text-primary dark:bg-surface-elevated"
+                >
+                    {t('heaterEventsEditor.editHeat')}
+                </button>
             )}
 
             {replay.active && observationHold && (
@@ -142,6 +193,6 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit }: Props) => {
                     </span>
                 </div>
             )}
-        </div>
+        </>
     );
 };

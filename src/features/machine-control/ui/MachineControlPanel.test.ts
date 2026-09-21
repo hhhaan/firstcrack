@@ -12,7 +12,9 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
     });
 
     it('접힌 레일에 미반영 경고를 남긴다', () => {
-        expect(panelSrc).toMatch(/collapsed && anyUnacknowledged/);
+        expect(panelSrc).toMatch(/collapsed && \(/);
+        expect(panelSrc).toMatch(/anyUnacknowledged=\{anyUnacknowledged\}/);
+        expect(panelSrc).toMatch(/anyUnacknowledged &&/);
     });
 
     it('수동·Replay 공용 commit 경로에서 0을 포함한 heater 값을 알린다', () => {
@@ -66,5 +68,16 @@ describe('MachineControlPanel PID lifecycle (#269)', () => {
         expect(panelSrc).toMatch(/replayChrome === 'running'[\s\S]*?bg-emerald-500/);
         expect(panelSrc).toMatch(/isReplayTpHold\(replayChrome\)[\s\S]*?bg-amber-500/);
         expect(panelSrc).not.toMatch(/collapsed && replay\.active &&/);
+    });
+
+    it('Replay 패널에서 화력 편집 모달을 연다 (#435)', () => {
+        expect(panelSrc).toMatch(/HeaterEventsEditor/);
+        expect(panelSrc).toMatch(/onEditHeat/);
+        expect(panelSrc).toMatch(/applyBatchEvents/);
+        expect(panelSrc).toMatch(/profileHeaterEvents:\s*replayHeaterEvents/);
+        expect(panelSrc).toMatch(/numericHeaterStep/);
+        expect(panelSrc).toMatch(/heaterStep: numericHeaterStep/);
+        expect(panelSrc).toMatch(/lockedCount=\{replay\.active \? replay\.firedCount : 0\}/);
+        expect(panelSrc).not.toMatch(/heaterStep=\{1\}/);
     });
 });

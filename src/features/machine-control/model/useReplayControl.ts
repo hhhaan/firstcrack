@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { divergeTolerance } from '../lib/controlScale';
 import type { ControlOrigin } from '../lib/controlSender';
+import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
 import {
     eventTrigger,
     extractReplayEvents,
@@ -26,6 +27,8 @@ export interface ReplayControlInputs {
     referenceMachineMismatch: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록(쿨다운 조작)을 재생에서 제외한다 */
     referenceDropTime: number | null;
+    /** 프로파일 heater_events jsonb — null이면 TSV 추출 (#435) */
+    profileHeaterEvents?: unknown;
     liveBt: number | null;
     elapsed: number;
     /** phase === 'roasting' — 이 밖에서는 판정도 쓰기도 하지 않는다 */
@@ -83,6 +86,8 @@ export interface ReplayControlInputs {
      */
     heaterMax?: number | null;
     heaterMin?: number | null;
+    /** Device write_map step when the sidecar actually has one. Never a UI percent snap. */
+    heaterStep?: number | null;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -99,6 +104,27 @@ export type ReplayStopReason =
     | 'writeFailed'
     /** Last-valid observation older than the proposed R06 limit. Not a shipping-approved safety rating. */
     | 'observationStale';
+
+const replayStopCause = ({
+    sidecarConnected,
+    pidEngaged,
+    heaterUnacknowledged,
+    heaterWritable,
+    roastFinished,
+}: {
+    sidecarConnected: boolean;
+    pidEngaged: boolean;
+    heaterUnacknowledged: boolean;
+    heaterWritable: boolean;
+    roastFinished: boolean;
+}): ReplayStopReason | null => {
+    if (!sidecarConnected) return 'disconnected';
+    if (pidEngaged) return 'pid';
+    if (heaterUnacknowledged) return 'unacknowledged';
+    if (!heaterWritable) return 'unwritable';
+    if (roastFinished) return 'finished';
+    return null;
+};
 
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
@@ -128,6 +154,7 @@ export const useReplayControl = ({
     referencePoints,
     referenceMachineMismatch,
     referenceDropTime,
+    profileHeaterEvents,
     liveBt,
     elapsed,
     roasting,
@@ -148,6 +175,7 @@ export const useReplayControl = ({
     cancelUnsentHeater,
     heaterMax,
     heaterMin,
+    heaterStep,
 }: ReplayControlInputs) => {
     const hasHeatSet = useMemo(
         () => hasHeatSetRecord(referencePoints, referenceDropTime),
@@ -156,25 +184,56 @@ export const useReplayControl = ({
     const minHeater = heaterMin ?? 0;
     const maxHeater = heaterMax ?? 100;
     // null points = 로딩. 이전 프로파일 계획을 새 프로파일에 쓰지 않는다.
-    const plan = useMemo(() => {
-        const extracted = referencePoints ? extractReplayEvents(referencePoints, referenceDropTime) : null;
-        return extracted?.events.every((event) => event.heater >= minHeater && event.heater <= maxHeater)
-            ? extracted
-            : null;
-    }, [referencePoints, referenceDropTime, minHeater, maxHeater]);
+    const extracted = useMemo(
+        () => (referencePoints ? extractReplayEvents(referencePoints, referenceDropTime) : null),
+        [referencePoints, referenceDropTime],
+    );
+    const [batchEvents, setBatchEvents] = useState<ReplayEvent[] | null>(null);
+    const [prevExtracted, setPrevExtracted] = useState(extracted);
+    const [prevProfileEvents, setPrevProfileEvents] = useState(profileHeaterEvents);
+    const sourceChanged = extracted !== prevExtracted || profileHeaterEvents !== prevProfileEvents;
+    if (sourceChanged) {
+        setPrevExtracted(extracted);
+        setPrevProfileEvents(profileHeaterEvents);
+        if (batchEvents != null) setBatchEvents(null);
+    }
+    const {
+        plan: resolvedPlan,
+        source: planSource,
+        overrideInvalid,
+    } = useMemo(
+        () =>
+            resolveReplayPlan({
+                points: referencePoints,
+                dropTime: referenceDropTime,
+                profileEvents: profileHeaterEvents,
+                batchEvents: sourceChanged ? null : batchEvents,
+                heaterMin: minHeater,
+                heaterMax: maxHeater,
+                heaterStep: heaterStep ?? undefined,
+            }),
+        [
+            referencePoints,
+            referenceDropTime,
+            profileHeaterEvents,
+            batchEvents,
+            sourceChanged,
+            minHeater,
+            maxHeater,
+            heaterStep,
+        ],
+    );
+    const rawPlan = overrideInvalid ? null : resolvedPlan;
+    const rawEvents = rawPlan?.events ?? null;
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
-    const stopCause: ReplayStopReason | null = !sidecarConnected
-        ? 'disconnected'
-        : pidEngaged
-          ? 'pid'
-          : heaterUnacknowledged
-            ? 'unacknowledged'
-            : !heaterWritable
-              ? 'unwritable'
-              : roastFinished
-                ? 'finished'
-                : null;
+    const stopCause = replayStopCause({
+        sidecarConnected,
+        pidEngaged,
+        heaterUnacknowledged,
+        heaterWritable,
+        roastFinished,
+    });
 
     const [active, setActive] = useState(false);
     const [index, setIndex] = useState(0);
@@ -204,6 +263,16 @@ export const useReplayControl = ({
      */
     const [writing, setWriting] = useState(false);
     const writeGenRef = useRef(0);
+    const [safeOffNonce, setSafeOffNonce] = useState(0);
+    const [pendingWrite, setPendingWrite] = useState<{
+        heater: number;
+        nextIndex: number;
+        oldEvents: ReplayEvent[];
+        id?: string;
+    } | null>(null);
+    const [labeledEvents, setLabeledEvents] = useState<ReplayEvent[] | null>(null);
+    const [prevRawEvents, setPrevRawEvents] = useState<ReplayEvent[] | null>(null);
+    const labeledEventsRef = useRef<ReplayEvent[] | null>(null);
     // #314: fallback TP는 곡선에서 관측된 상승이 아니라 BT 게이트를 열 수 없다
     const afterTurningPoint = confirmedTurningPoint != null && !confirmedTurningPoint.fallback;
 
@@ -211,6 +280,7 @@ export const useReplayControl = ({
         writeGenRef.current += 1;
         // 세대만 올리면 늦은 응답은 무시되지만, sender에 남은 Replay heater는 그대로 나간다 (#368 R03).
         cancelUnsentHeater();
+        setPendingWrite(null);
         setWriting(false);
     }, [cancelUnsentHeater]);
 
@@ -219,6 +289,7 @@ export const useReplayControl = ({
     const bumpWriteGenOnRenderStop = () => {
         writeGenRef.current += 1;
         cancelUnsentHeater();
+        if (pendingWrite != null) setPendingWrite(null);
     };
 
     // Hold cancels queued Replay writes too; an already-sent response cannot consume the held event.
@@ -230,27 +301,57 @@ export const useReplayControl = ({
 
     // PID 등은 렌더에서 stopCause가 먼저 보인다. effect가 세대를 올리기 전에 도착한
     // 응답이 index·사유를 덮지 않게 이 커밋에서 무효화한다.
-    if (active && stopCause != null) {
+    const stoppingForCause = active && stopCause != null;
+    if (stoppingForCause) {
         // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
         bumpWriteGenOnRenderStop();
         if (writing) setWriting(false);
+        setActive(false);
+        setStopReason(stopCause);
+        if (roastFinished && dropBehavior === 'zero') setSafeOffNonce((n) => n + 1);
     }
 
-    // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
-    // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
-    // effect가 stale active + 옛 index + 새 plan으로 한 번 실행돼 엉뚱한 쓰기를 쏠 수 있다.
-    const [prevPlan, setPrevPlan] = useState(plan);
-    if (plan !== prevPlan) {
-        setPrevPlan(plan);
+    // 레퍼런스/프로파일 오버라이드가 바뀌면 진행 중인 재생은 무효.
+    // 배치 편집은 ACK된 행만 소비로 보고, 행 id로 이어간다(가변 t/heater가 식별자가 아님).
+    if (sourceChanged) {
         setIndex(0);
         setWriting(false);
+        const nextLabeled = rawEvents ? carryReplayEventIds(rawEvents, null) : null;
+        setLabeledEvents(nextLabeled);
+        setPrevRawEvents(rawEvents);
         // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
         bumpWriteGenOnRenderStop();
         if (active) {
             setActive(false);
             setStopReason('profileChanged');
         }
+    } else if (rawEvents !== prevRawEvents) {
+        const nextLabeled = rawEvents ? carryReplayEventIds(rawEvents, labeledEvents) : null;
+        const acked = index;
+        const inFlight = nextLabeled?.[index];
+        const sameInFlightRow = inFlight != null && (pendingWrite?.id == null || inFlight.id === pendingWrite.id);
+        // Catch-up writes the last eligible heater; that is not events[index].heater.
+        const catchup = pendingWrite != null && pendingWrite.nextIndex > acked + 1;
+        const stillWriting =
+            writing && pendingWrite != null && sameInFlightRow && (catchup || inFlight.heater === pendingWrite.heater);
+        if (writing && !stillWriting) {
+            // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
+            bumpWriteGenOnRenderStop();
+            setWriting(false);
+        }
+        if (labeledEvents && nextLabeled) {
+            setIndex(remapReplayIndex(labeledEvents, acked, nextLabeled));
+        } else {
+            const len = nextLabeled?.length ?? 0;
+            if (index > len) setIndex(len);
+        }
+        setLabeledEvents(nextLabeled);
+        setPrevRawEvents(rawEvents);
     }
+    const plan = useMemo(
+        () => (rawPlan && labeledEvents ? { events: labeledEvents, tpTime: rawPlan.tpTime } : rawPlan),
+        [rawPlan, labeledEvents],
+    );
 
     // 배치 경계(roasting 양쪽 에지)에서 인덱스를 되돌린다 — 남은 인덱스는 이전 배치
     // 것이라, 상승 에지만 리셋하면 차지 전(standby/preheat)에 토글을 켰을 때 stale
@@ -270,15 +371,13 @@ export const useReplayControl = ({
         setWriting(false);
         // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
         bumpWriteGenOnRenderStop();
+        // 이번 배치 편집본은 배치가 끝나면 버린다. Charge(false→true)에서는 유지.
+        if (prevRoasting && !roasting) setBatchEvents(null);
     }
 
-    // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋의
-    // effect에서 올려, 경계 전에 나간 write의 응답이 리셋된 index를 덮지 않게 한다.
-    // (렌더 중 ref 갱신은 lint 금지)
-    // biome-ignore lint/correctness/useExhaustiveDependencies: plan·roasting은 트리거이지 읽는 값이 아니다
     useEffect(() => {
-        invalidateInFlightWrite();
-    }, [plan, roasting]);
+        labeledEventsRef.current = labeledEvents;
+    }, [labeledEvents]);
 
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
@@ -377,20 +476,15 @@ export const useReplayControl = ({
     );
 
     useEffect(() => {
-        if (!active || stopCause == null) return;
-        invalidateInFlightWrite();
-        setActive(false);
-        setStopReason(stopCause);
+        if (safeOffNonce === 0) return;
         // 재생이 화력을 잡은 채 배출됐다 — zero 정책이면 즉시 끈다 (#316, PID off와
         // 동일 타이밍). stopCause 라벨이 아니라 roastFinished를 보는 이유: "끊김+배출"
         // 커밋에서는 우선순위가 'disconnected'로 밀리는데, 그때도 write는 시도해야
         // 실패가 토스트/Sentry로 관측된다. hold면 아무것도 안 쓴다 — 설정으로 선택된
         // 잔류라 PID hold와 같은 등급의 문서화된 동작이다.
-        if (roastFinished && dropBehavior === 'zero') {
-            void writeHeater(0, 'safety');
-            setSafeOffIssued(true);
-        }
-    }, [active, stopCause, roastFinished, dropBehavior, writeHeater, invalidateInFlightWrite]);
+        void writeHeater(0, 'safety');
+        setSafeOffIssued(true);
+    }, [safeOffNonce, writeHeater]);
 
     // safe-off 재시도 — zero write가 나갔는데 기기가 안 따라오면 다시 쓴다 (#269의
     // PID safe-off와 같은 등급: 아무도 안 보는 로스터에 불이 남는 쪽이 최악이다).
@@ -458,12 +552,21 @@ export const useReplayControl = ({
         const heater = result.heater;
         writeGenRef.current += 1;
         const gen = writeGenRef.current;
+        const pending = {
+            heater,
+            nextIndex: result.nextIndex,
+            oldEvents: plan.events,
+            id: plan.events[index]?.id,
+        };
+        setPendingWrite(pending);
         setWriting(true);
         void writeHeater(heater).then((applied) => {
             if (gen !== writeGenRef.current) return;
+            setPendingWrite(null);
             setWriting(false);
             if (applied != null) {
-                setIndex(result.nextIndex);
+                const current = labeledEventsRef.current;
+                setIndex(current ? remapReplayIndex(pending.oldEvents, pending.nextIndex, current) : result.nextIndex);
                 setLastWritten(applied);
                 return;
             }
@@ -489,18 +592,33 @@ export const useReplayControl = ({
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
     const nextEventTrigger = nextEvent && plan ? eventTrigger(nextEvent, plan.tpTime) : null;
 
+    const applyBatchEvents = useCallback((events: ReplayEvent[] | null) => {
+        setBatchEvents(events && events.length > 0 ? events : null);
+    }, []);
+
     return {
+        plan,
+        source: planSource,
+        applyBatchEvents,
+        overrideInvalid,
         /** 레퍼런스에 Heat set 지시가 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
         available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
         /** 타겟 곡선 로딩 중 — 이전 계획/기록 없음 문구를 쓰지 않는다 */
         referenceLoading: referencePoints == null,
         /** 로드된 레퍼런스에 Heat set 조작 기록이 없다. 실측만 있는 구 TSV 포함 */
-        missingHeatSet: referencePoints != null && !hasHeatSet,
+        missingHeatSet:
+            referencePoints != null &&
+            !hasHeatSet &&
+            planSource !== 'profile' &&
+            planSource !== 'batch' &&
+            !overrideInvalid,
         /** 다른 기종 기록 — UI 힌트 분리용 */
         machineMismatch: referenceMachineMismatch,
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
         blocked: stopCause != null,
         active,
+        /** ACK된 이벤트 수. 실행 중 편집에서 이미 보낸 행을 잠글 때 쓴다 */
+        firedCount: index,
         /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */
         stopReason,
         /** 다음에 발화할 이벤트 — UI 미리보기용. 다 소진했으면 null */
