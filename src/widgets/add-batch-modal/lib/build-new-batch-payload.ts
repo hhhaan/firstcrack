@@ -8,6 +8,7 @@ export type BuildNewBatchPayloadInput = {
     batchType: BatchType;
     profileId: string | null;
     profileName: string;
+    keepExistingProfile?: boolean;
     beanId: string | null;
     blendId: string | null;
     beanName: string;
@@ -34,6 +35,7 @@ export const buildNewBatchPayload = (input: BuildNewBatchPayloadInput): NewBatch
         batchType: input.batchType,
         profileId: input.profileId,
         profileName: input.profileName,
+        keepExistingProfile: input.keepExistingProfile,
         beanId: isBlendType ? null : input.beanId || null,
         blendId: isBlendType ? input.blendId || null : null,
         beanName: input.beanName,

@@ -121,18 +121,29 @@ export async function listForDateRange(
             if (instance.exceptionType === 'cancelled') continue;
 
             if (instance.exceptionType === 'modified' && instance.exception) {
-                // Use exception data
-                const exBatch = exceptions?.find((e) => e.original_date === instance.originalDate);
+                // Scope to this rule — the exceptions query is every rule in the range.
+                const exBatch = exceptions?.find(
+                    (e) => e.recurrence_rule_id === rule.id && e.original_date === instance.originalDate,
+                );
                 if (exBatch) {
                     result.push({
                         ...exBatch,
                         // Exception rows may not store rrule; use master rule
                         rrule: exBatch.rrule ?? rule.rrule,
+                        // ponytail: null on the row keeps the series profile. A one-off clear
+                        // does not stick until the row stores an explicit clear.
+                        roast_profile_id: exBatch.roast_profile_id ?? rule.roast_profile_id,
                         completed_sessions: sessionCountMap.get(exBatch.id) ?? 0,
                     });
                 }
             } else if (instance.exceptionType === 'normal') {
                 const planId = dateToPlanId.get(instance.date) ?? '';
+                const sameDayRow = (exceptions ?? []).find(
+                    (e) =>
+                        e.recurrence_rule_id === rule.id &&
+                        e.exception_type !== 'cancelled' &&
+                        e.original_date === instance.originalDate,
+                );
 
                 const batchSize = Number(rule.batch_size_kg) || 0;
                 const targetKg = Number(rule.target_roasted_kg) || 0;
@@ -151,7 +162,7 @@ export async function listForDateRange(
                     yield_pct: rule.yield_pct,
                     order_index: 0,
                     machine_id: rule.machine_id,
-                    roast_profile_id: rule.roast_profile_id,
+                    roast_profile_id: rule.roast_profile_id ?? sameDayRow?.roast_profile_id ?? null,
                     rrule: rule.rrule,
                     recurrence_group_id: null,
                     recurrence_rule_id: rule.id,

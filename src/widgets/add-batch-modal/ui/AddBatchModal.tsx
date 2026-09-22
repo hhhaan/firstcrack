@@ -72,6 +72,7 @@ export const AddBatchModal = ({
     const [machineId, setMachineId] = useState('');
     const [batchType, setBatchType] = useState<BatchType>('Single Origin');
     const [profileId, setProfileId] = useState('');
+    const [profileCleared, setProfileCleared] = useState(false);
     const [beanId, setBeanId] = useState('');
     const [blendId, setBlendId] = useState<string | null>(null);
     const [targetRoasted, setTargetRoasted] = useState('');
@@ -91,6 +92,7 @@ export const AddBatchModal = ({
         setMachineId,
         setBatchType,
         setProfileId,
+        setProfileCleared,
         setBeanId,
         setBlendId,
         setTargetRoasted,
@@ -127,6 +129,7 @@ export const AddBatchModal = ({
 
     const handleProfileSelect = (id: string) => {
         setProfileId(id);
+        setProfileCleared(!id);
         if (!id) return;
         const selected = profiles.find((p) => p.id === id);
         if (selected?.default_bean_id) {
@@ -159,6 +162,7 @@ export const AddBatchModal = ({
                     batchType,
                     profileId: profileId || null,
                     profileName: selectedProfile?.name ?? '',
+                    keepExistingProfile: isEdit && !profileId && !profileCleared,
                     beanId: beanId || null,
                     blendId: blendId || null,
                     beanName: isBlendType ? (selectedBlend?.name ?? '') : (selectedBean?.name ?? ''),

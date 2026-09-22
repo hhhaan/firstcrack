@@ -25,6 +25,7 @@ import {
     nextOneOffOrderIndex,
     runCompleteBatchFlow,
 } from '../lib/plan-day-flow';
+import { roastProfilePatch } from '../lib/roast-profile-patch';
 import type { EditScope, NewBatchData } from '../lib/types';
 
 /**
@@ -158,7 +159,7 @@ export const usePlanDayWrites = ({
                     plan_id: targetPlanId,
                     machine_id: data.machineId || null,
                     batch_type: data.batchType,
-                    roast_profile_id: data.profileId,
+                    ...roastProfilePatch(data.profileId, editing.roast_profile_id, !!data.keepExistingProfile),
                     bean_id: isBlendType ? null : data.beanId,
                     blend_id: isBlendType ? data.blendId : null,
                     bean_name: data.beanName || editing.bean_name,
@@ -185,6 +186,11 @@ export const usePlanDayWrites = ({
         async (editing: PlanBatchWithProgress, scope: EditScope, data: NewBatchData) => {
             if (!editing.recurrence_rule_id) return;
 
+            const profileFields = roastProfilePatch(
+                data.profileId,
+                editing.roast_profile_id,
+                !!data.keepExistingProfile,
+            );
             const basePatch = {
                 id: editing.id,
                 plan_id: '',
@@ -192,7 +198,7 @@ export const usePlanDayWrites = ({
                 bean_id: data.beanId,
                 blend_id: data.blendId ?? null,
                 batch_type: data.batchType,
-                roast_profile_id: data.profileId,
+                ...profileFields,
                 machine_id: data.machineId,
                 target_roasted_kg: data.targetRoasted,
                 batch_size_kg: data.batchSize,
@@ -227,7 +233,7 @@ export const usePlanDayWrites = ({
             const instanceDate = editing.scheduled_date ?? dateKey;
             const masterPatch = {
                 machine_id: data.machineId || null,
-                roast_profile_id: data.profileId,
+                ...profileFields,
                 bean_id: data.beanId,
                 blend_id: data.blendId ?? null,
                 bean_name: data.beanName || editing.bean_name,

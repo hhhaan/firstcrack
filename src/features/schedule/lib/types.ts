@@ -13,6 +13,11 @@ export interface NewBatchData {
     batchType: BatchType;
     profileId: string | null;
     profileName: string;
+    /**
+     * Edit only. The profile control is blank and the user did not clear it —
+     * writers must not store null over a profile the form failed to show.
+     */
+    keepExistingProfile?: boolean;
     beanId: string | null;
     blendId: string | null;
     beanName: string;

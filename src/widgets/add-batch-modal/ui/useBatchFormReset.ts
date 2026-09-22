@@ -26,6 +26,8 @@ type Params = {
     setMachineId: (v: string) => void;
     setBatchType: (v: BatchType) => void;
     setProfileId: (v: string) => void;
+    /** Edit session: user pressed clear on the profile control. Reset with the form. */
+    setProfileCleared?: (v: boolean) => void;
     setBeanId: (v: string) => void;
     setBlendId: (v: string | null) => void;
     setTargetRoasted: (v: string) => void;
@@ -44,6 +46,7 @@ export const useBatchFormReset = ({
     setMachineId,
     setBatchType,
     setProfileId,
+    setProfileCleared,
     setBeanId,
     setBlendId,
     setTargetRoasted,
@@ -60,6 +63,7 @@ export const useBatchFormReset = ({
             setMachineId(editingBatch.machine_id ?? machines[0]?.id ?? '');
             setBatchType((editingBatch.batch_type as BatchType) || 'Single Origin');
             setProfileId(editingBatch.roast_profile_id ?? '');
+            setProfileCleared?.(false);
             setBeanId(editingBatch.bean_id ?? '');
             setBlendId(editingBatch.blend_id ?? null);
             setTargetRoasted(String(editingBatch.target_roasted_kg));
@@ -72,6 +76,7 @@ export const useBatchFormReset = ({
             setMachineId(machines[0]?.id ?? '');
             setBatchType('Single Origin');
             setProfileId('');
+            setProfileCleared?.(false);
             setBeanId('');
             setBlendId(null);
             setTargetRoasted('');
@@ -89,6 +94,7 @@ export const useBatchFormReset = ({
         setMachineId,
         setBatchType,
         setProfileId,
+        setProfileCleared,
         setBeanId,
         setBlendId,
         setTargetRoasted,

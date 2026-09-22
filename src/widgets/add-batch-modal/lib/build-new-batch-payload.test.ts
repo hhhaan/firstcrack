@@ -33,6 +33,17 @@ describe('buildNewBatchPayload', () => {
         });
     });
 
+    it('passes keepExistingProfile through so a blank edit does not clear a saved profile', () => {
+        const payload = buildNewBatchPayload({
+            ...base,
+            batchType: 'Single Origin',
+            profileId: null,
+            keepExistingProfile: true,
+        });
+        expect(payload.profileId).toBeNull();
+        expect(payload.keepExistingProfile).toBe(true);
+    });
+
     it('pre-roast blend: keeps blendId, clears beanId', () => {
         const payload = buildNewBatchPayload({
             ...base,
