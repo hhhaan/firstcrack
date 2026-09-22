@@ -10,13 +10,7 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBbpStore } from './bbp';
 import { useRoastingStore } from './status';
-import {
-    refreshCachesAfterRoastSave,
-    type SaveRoastDeps,
-    saveRoastCore,
-    syncScheduleAfterRoastSave,
-    useSaveRoast,
-} from './useSaveRoast';
+import { refreshCachesAfterRoastSave, type SaveRoastDeps, saveRoastCore, useSaveRoast } from './useSaveRoast';
 
 const hookMocks = vi.hoisted(() => ({
     useEffectivePlan: vi.fn(() => 'pro'),
@@ -472,51 +466,100 @@ describe('saveRoastCore', () => {
 describe('refreshCachesAfterRoastSave', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('starts history refetch without waiting for it', async () => {
+    const keysOf = (qc: QueryClient) => {
+        const seen: string[] = [];
+        vi.spyOn(qc, 'invalidateQueries').mockImplementation((filters) => {
+            const key = (filters as { queryKey?: readonly unknown[] } | undefined)?.queryKey?.[0];
+            seen.push(String(key));
+            return Promise.resolve();
+        });
+        return seen;
+    };
+
+    it('invalidates schedule caches only after the progress update', async () => {
         let release: () => void = () => {};
-        vi.mocked(invalidateRoastSessionQueries).mockImplementation(
+        const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockImplementation(
             () =>
-                new Promise<void>((resolve) => {
-                    release = resolve;
+                new Promise((resolve) => {
+                    release = () => resolve({} as never);
                 }),
         );
-        const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockResolvedValue({} as never);
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-        await refreshCachesAfterRoastSave(qc, {
+        const seen = keysOf(qc);
+        const pending = refreshCachesAfterRoastSave(qc, {
             id: 'sess',
             user_id: 'owner',
             plan_batch_id: 'batch-1',
         } as RoastSession);
-        expect(sync).toHaveBeenCalledExactlyOnceWith('owner', 'batch-1');
-        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
+        expect(seen).toContain('roast_sessions');
+        expect(seen).not.toContain('day_batches');
+        expect(seen).not.toContain('dashboard');
         release();
+        await pending;
+        expect(sync).toHaveBeenCalledExactlyOnceWith('owner', 'batch-1');
+        expect(seen).toContain('day_batches');
+        expect(seen).toContain('dashboard');
         sync.mockRestore();
     });
 
-    it('schedule rejection does not wait on cache refresh', async () => {
+    it('a rejected schedule update does not invalidate schedule or dashboard caches', async () => {
         const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockRejectedValue(new Error('schedule'));
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const seen = keysOf(qc);
         await expect(
-            syncScheduleAfterRoastSave({
+            refreshCachesAfterRoastSave(qc, {
                 id: 'sess',
                 user_id: 'owner',
                 plan_batch_id: 'batch-1',
             } as RoastSession),
         ).rejects.toThrow('schedule');
-        expect(invalidateRoastSessionQueries).not.toHaveBeenCalled();
+        expect(seen).toContain('roast_sessions');
+        expect(seen).not.toContain('day_batches');
+        expect(seen).not.toContain('dashboard');
         sync.mockRestore();
     });
 
-    it('still refreshes history once when the roast is unlinked', async () => {
+    it('still refreshes history and dashboard when the roast is unlinked', async () => {
         const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockResolvedValue({} as never);
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const seen = keysOf(qc);
         await refreshCachesAfterRoastSave(qc, {
             id: 'sess',
             user_id: 'owner',
             plan_batch_id: null,
         } as RoastSession);
         expect(sync).not.toHaveBeenCalled();
-        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
+        expect(seen).toContain('roast_sessions');
+        expect(seen).toContain('dashboard');
+        expect(seen).not.toContain('day_batches');
         sync.mockRestore();
+    });
+
+    it('shows a bare RPC row before history refetch finishes', async () => {
+        const { roastSessionKeys } = await import('@entities/roast');
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+        const page = roastSessionKeys.paginated('owner', 'completed', 1, 10, 'date', false, null, null, null);
+        qc.setQueryData(page, { data: [], total: 0 });
+        let release: () => void = () => {};
+        vi.spyOn(qc, 'invalidateQueries').mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    release = () => resolve(undefined);
+                }),
+        );
+        vi.spyOn(planBatchApi, 'syncRoastProgress').mockResolvedValue({} as never);
+        const pending = refreshCachesAfterRoastSave(qc, {
+            id: 'rpc',
+            user_id: 'owner',
+            status: 'completed',
+            roasted_at: '2026-09-22T00:00:00.000Z',
+            plan_batch_id: null,
+        } as RoastSession);
+        expect(qc.getQueryData<{ data: { id: string; beans: null }[] }>(page)?.data).toEqual([
+            expect.objectContaining({ id: 'rpc', beans: null, roast_profiles: null }),
+        ]);
+        release();
+        await pending;
     });
 });
 

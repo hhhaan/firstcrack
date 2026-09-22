@@ -105,12 +105,26 @@ describe('roast session mutation invalidation', () => {
         expect(qc.getQueryData(roastSessionKeys.detail(uid, 'saved'))).toEqual(row);
     });
 
-    it('does not invent a history row when the save has no relation fields', () => {
+    it('inserts a bare RPC row and keeps an older recovery off the front', () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-        const first = roastSessionKeys.paginated(uid, null, 1, 10, 'date', false, null, null, null);
-        qc.setQueryData(first, { data: [], total: 0 });
-        insertConfirmedRoastOnFirstPage(qc, uid, { id: 'plain', user_id: uid, status: 'completed' } as never);
-        expect(qc.getQueryData(first)).toEqual({ data: [], total: 0 });
+        const first = roastSessionKeys.paginated(uid, null, 1, 1, 'date', false, null, null, null);
+        const newest = { id: 'newest', user_id: uid, status: 'completed', roasted_at: '2026-09-22T00:00:00.000Z' };
+        qc.setQueryData(first, { data: [newest], total: 1 });
+        const rpc = { id: 'rpc', user_id: uid, status: 'completed', roasted_at: '2026-09-22T01:00:00.000Z' };
+        insertConfirmedRoastOnFirstPage(qc, uid, rpc as never);
+        expect(qc.getQueryData(first)).toEqual({
+            data: [{ ...rpc, beans: null, roast_profiles: null }],
+            total: 2,
+        });
+        insertConfirmedRoastOnFirstPage(qc, uid, {
+            id: 'old',
+            user_id: uid,
+            status: 'completed',
+            roasted_at: '2026-01-01T00:00:00.000Z',
+        } as never);
+        expect(qc.getQueryData<{ data: { id: string }[] }>(first)?.data.map((row) => row.id)).toEqual(['rpc']);
+        insertConfirmedRoastOnFirstPage(qc, uid, rpc as never);
+        expect(qc.getQueryData<{ total: number }>(first)?.total).toBe(2);
     });
 
     it('optimistic delete setQueriesData hits real paginated page caches', () => {

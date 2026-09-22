@@ -5,9 +5,9 @@ import { useActiveWorkspace } from '@entities/organization';
 import { invalidateScheduledBatchQueries, planBatchApi } from '@entities/plan';
 import {
     insertConfirmedRoastOnFirstPage,
-    invalidateRoastSessionQueries,
     type RoastSessionInsert,
     roastSessionApi,
+    roastSessionKeys,
 } from '@entities/roast';
 import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
@@ -25,7 +25,7 @@ import {
     useEffectivePlan,
 } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
-import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import type { Bean, PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
@@ -287,8 +287,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
             logger.debug('roast-save-stage', { stage: 'save-rpc', ms: Date.now() - rpcStarted });
         });
 
-    // Inventory marks are fire-and-forget. History/dashboard refetch starts after
-    // schedule sync in refreshRoastCachesAfterSave and is not awaited there.
+    // Inventory marks are fire-and-forget. History refetch starts in
+    // refreshRoastCachesAfterSave and is not awaited. Schedule caches wait
+    // until syncRoastProgress succeeds.
     if (wantDeduct && provisionalPlan) {
         void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries, refetchType: 'all' });
         if (provisionalPlan.singleBeanId) {
@@ -320,12 +321,14 @@ export async function syncScheduleAfterRoastSave(saved: RoastSession): Promise<v
     }
 }
 
-/** Screen caches. Callers do not wait for refetch completion. */
+/** History and inventory only. Not awaited. Schedule caches are not touched here. */
 export function refreshRoastCachesAfterSave(qc: QueryClient, saved: RoastSession): void {
-    invalidateScheduledBatchQueries(qc);
     logger.debug('roast-save-stage', { stage: 'cache-invalidate' });
     insertConfirmedRoastOnFirstPage(qc, saved.user_id, saved);
-    void invalidateRoastSessionQueries(qc, saved.user_id);
+    void qc.invalidateQueries({ queryKey: roastSessionKeys.all(saved.user_id), refetchType: 'all' });
+    if (!saved.plan_batch_id) {
+        void qc.invalidateQueries({ queryKey: dashboardKeys.all(saved.user_id), refetchType: 'all' });
+    }
     for (const queryKey of [
         inventoryQueryRoots.beanStockSummaries,
         inventoryQueryRoots.beanStockSummary,
@@ -336,10 +339,13 @@ export function refreshRoastCachesAfterSave(qc: QueryClient, saved: RoastSession
     }
 }
 
-/** Schedule first, then start cache refresh. Lost RPC still reaches both from the coordinator. */
+/** History immediately, then schedule update, then schedule/dashboard caches. Refetch is not awaited. */
 export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
-    await syncScheduleAfterRoastSave(saved);
     refreshRoastCachesAfterSave(qc, saved);
+    await syncScheduleAfterRoastSave(saved);
+    if (!saved.plan_batch_id) return;
+    invalidateScheduledBatchQueries(qc);
+    void qc.invalidateQueries({ queryKey: dashboardKeys.all(saved.user_id), refetchType: 'all' });
 }
 
 export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
@@ -390,10 +396,7 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
                     }
                 },
                 resolveForRoast: planBatchApi.resolveForRoast,
-                syncBatch: async (saved) => {
-                    refreshRoastCachesAfterSave(qc, saved);
-                    await syncScheduleAfterRoastSave(saved);
-                },
+                syncBatch: (saved) => refreshCachesAfterRoastSave(qc, saved),
                 syncRoastCurve,
             });
             try {

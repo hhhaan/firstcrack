@@ -2,7 +2,7 @@ import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import { formatTemp, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
-import { readPendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
+import { usePendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
 import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import { formatDuration } from '@shared/lib/format';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
@@ -39,12 +39,7 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
         void resolvedTheme;
         return storedEventsToMarkers(parseStoredRoastEvents(session.events), unit);
     }, [session.events, unit, resolvedTheme]);
-    let pendingSave: ReturnType<typeof readPendingRoastSave> = null;
-    try {
-        pendingSave = readPendingRoastSave(session.user_id, session.id);
-    } catch {
-        pendingSave = null;
-    }
+    const pendingSave = usePendingRoastSave(session.user_id, session.id);
     const curveSyncing =
         pendingSave?.db === 'saved' &&
         !pendingSave.needsAttention &&

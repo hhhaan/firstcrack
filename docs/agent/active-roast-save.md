@@ -46,7 +46,7 @@ Typical sequence:
 5. Build session payload + serialized events
 6. **Server atomic path:** `roastSessionApi.saveOp` / RPC `save_roast_op` — session + green events + roasted inbound when deduct/inbound flags set (see latest `supabase/migrations/*inventory_flow_hardening*`)
 7. `pending.db = saved` is the user-visible save. The save modal closes here. `isSaving` clears here. The owner/session lock stays until schedule sync and curve upload finish.
-8. After that checkpoint, schedule progress and curve upload run together. Cache invalidation starts without awaiting refetch. A schedule failure does not skip the upload, and a cache failure does not skip either.
+8. After that checkpoint, schedule progress and curve upload run together. History and inventory caches invalidate immediately and are not awaited. Schedule and dashboard caches invalidate only after `syncRoastProgress` succeeds, also not awaited. A schedule failure does not skip the upload.
 9. Parallel profile + BBP uploads (`Promise.allSettled`); local TSV deleted only after that file's DB path confirm. Partial success is kept. Pending is cleared only after required schedule sync and artifact sync. Screen refetch is not part of that decision.
 10. Continue candidates are fetched only after schedule sync succeeds: `fetchQuery` today's day batches → `getRemainingDayBatches` (`completed_sessions < batch_count`). If schedule sync fails, do not open Continue and do not start the next batch. **Start next** calls `startBatch(handoff)`. `listForDateRange` parallelizes independent rule/plan/exception lookups. A's late completion must not reset a detached B.
 

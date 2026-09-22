@@ -1,5 +1,9 @@
 // @vitest-environment jsdom
-import { createPendingRoastSave, writePendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
+import {
+    clearPendingRoastSave,
+    createPendingRoastSave,
+    writePendingRoastSave,
+} from '@features/active-roast/model/pendingRoastSave';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { act, type ComponentProps } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -150,10 +154,33 @@ it('shows curve sync state instead of a missing-curve error', async () => {
     await act(async () => root.render(<HistorySessionChart session={session} />));
     expect(container.textContent).toContain('activeRoast.recovery.curveSyncing');
     expect(container.textContent).not.toContain('history.expanded.chartUnavailable');
+
+    const other = createPendingRoastSave(
+        {
+            ...pending.params,
+            sessionId: 'other-session',
+        },
+        true,
+    );
+    other.db = 'saved';
+    other.error = 'other failed';
+    await act(async () => writePendingRoastSave(other));
+    expect(container.textContent).toContain('activeRoast.recovery.curveSyncing');
+    expect(container.textContent).not.toContain('activeRoast.recovery.curveRetry');
+
     pending.error = 'upload failed';
-    writePendingRoastSave(pending);
-    await act(async () => root.render(<HistorySessionChart session={session} />));
+    await act(async () => writePendingRoastSave(pending));
     expect(container.textContent).toContain('activeRoast.recovery.curveRetry');
+    expect(container.textContent).not.toContain('activeRoast.recovery.curveSyncing');
+
+    pending.error = undefined;
+    await act(async () => writePendingRoastSave(pending));
+    expect(container.textContent).toContain('activeRoast.recovery.curveSyncing');
+
+    await act(async () => clearPendingRoastSave('owner', 'charge-session'));
+    expect(container.textContent).not.toContain('activeRoast.recovery.curveSyncing');
+    expect(container.textContent).not.toContain('activeRoast.recovery.curveRetry');
+    expect(container.textContent).toContain('history.expanded.chartUnavailable');
     await act(async () => root.unmount());
     localStorage.clear();
 });
