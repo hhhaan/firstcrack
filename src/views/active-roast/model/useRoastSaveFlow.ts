@@ -209,9 +209,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 const saveResult = await resumeSave(pending);
                 logger.debug('roast-save-stage', { stage: 'resume-save', ms: Date.now() - saveStarted });
                 if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
-                if (saveResult.syncPending) {
-                    useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'));
-                }
 
                 const preferBatchId =
                     saveResult.savedSession.plan_batch_id ??
@@ -221,6 +218,11 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     null;
 
                 flow.onSaveSuccess({ shouldOpenContinue: false });
+                logger.debug('roast-save-stage', {
+                    stage: 'modal-close',
+                    ms: Date.now() - saveStarted,
+                    includes: ['resume-save'],
+                });
                 unrecordedId.current = null;
                 setPreparing(false);
                 useCompletedRoastStore.getState().markSubmitted(pending.params.sessionId);
@@ -229,8 +231,17 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 const live = useRoastingStore.getState();
                 if (isLiveDetachedFromPending(live, pending.params.sessionId)) return;
 
+                const schedule = await saveResult.scheduleSettled;
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
+                if (isLiveDetachedFromPending(useRoastingStore.getState(), pending.params.sessionId)) return;
+                if (schedule && !schedule.ok) {
+                    useRoastSessionStore.getState().completeBatch();
+                    onResetActiveRoast();
+                    return;
+                }
+
                 let continueCandidates: PlanBatchWithProgress[] = [];
-                if (!saveResult.syncPending && isWorkspaceReady && workspaceOwnerId) {
+                if (isWorkspaceReady && workspaceOwnerId) {
                     const continueStarted = Date.now();
                     try {
                         continueCandidates = await resolveContinueCandidates({

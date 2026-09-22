@@ -1,5 +1,6 @@
 import { patchRoastSessionTsvPaths, roastSessionApi } from '@entities/roast';
 import { roastProfileKeys } from '@entities/roast-profile/queries';
+import { logger } from '@shared/lib/logger';
 import { deleteBbpTsv, deleteSessionTsv, flushTsv } from '@shared/lib/tsv-writer';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadBbpProfile, uploadRoastProfile } from './uploadRoastProfile';
@@ -47,7 +48,18 @@ export const syncRoastProfile = async ({
                 await flushTsv(sessionId);
                 const key = await uploadRoastProfile(sessionId, ownerId);
                 if (!key) throw new Error('Local TSV missing or empty upload key');
-                const updated = assertSession(await roastSessionApi.update({ id: roastSessionId, tsv_path: key }));
+                const pathStarted = Date.now();
+                const updated = await roastSessionApi
+                    .update({ id: roastSessionId, tsv_path: key })
+                    .finally(() => {
+                        logger.debug('roast-save-stage', {
+                            stage: 'curve-path',
+                            ms: Date.now() - pathStarted,
+                            parent: 'sync-curve',
+                            kind: 'profile',
+                        });
+                    })
+                    .then(assertSession);
                 if (updated.tsv_path !== key) throw new Error('Profile path was not confirmed');
                 await deleteSessionTsv(sessionId);
                 return { profile: key };
@@ -59,9 +71,18 @@ export const syncRoastProfile = async ({
             (async () => {
                 const bbpKey = await uploadBbpProfile(sessionId, ownerId);
                 if (!bbpKey) throw new Error('Local BBP TSV missing or empty upload key');
-                const updated = assertSession(
-                    await roastSessionApi.update({ id: roastSessionId, bbp_tsv_path: bbpKey }),
-                );
+                const pathStarted = Date.now();
+                const updated = await roastSessionApi
+                    .update({ id: roastSessionId, bbp_tsv_path: bbpKey })
+                    .finally(() => {
+                        logger.debug('roast-save-stage', {
+                            stage: 'curve-path',
+                            ms: Date.now() - pathStarted,
+                            parent: 'sync-curve',
+                            kind: 'bbp',
+                        });
+                    })
+                    .then(assertSession);
                 if (updated.bbp_tsv_path !== bbpKey) throw new Error('BBP path was not confirmed');
                 await deleteBbpTsv(sessionId);
                 return { bbp: bbpKey };

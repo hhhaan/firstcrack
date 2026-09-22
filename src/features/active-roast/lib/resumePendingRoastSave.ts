@@ -1,8 +1,10 @@
 import { beanStockEventApi } from '@entities/bean-stock-event';
+import { i18n } from '@shared/i18n';
 import { errorMessage } from '@shared/lib/errorMessage';
 import { BatchLimitError } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { bbpTsvPath } from '@shared/lib/tsv-writer';
+import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import { BaseDirectory, exists } from '@tauri-apps/plugin-fs';
 import {
@@ -28,31 +30,98 @@ export type ResumePendingRoastSaveDeps = {
     hasBbpFile?: (id: string) => Promise<boolean>;
     hasBatchDeduction?: (id: string) => Promise<boolean>;
 };
-const active = new Map<string, Promise<SaveRoastResult>>();
+export type PendingRoastSaveHandle = {
+    /** DB row confirmed and pending.db === 'saved' is stored. Rejects if the row never commits. */
+    committed: Promise<SaveRoastResult>;
+    /** Schedule progress sync finished. Does not wait for the curve upload. */
+    scheduleSettled: Promise<{ ok: boolean }>;
+    /** Schedule sync and curve upload finished, or the saved row still needs recovery. */
+    settled: Promise<SaveRoastResult>;
+};
+
+type SaveSignals = {
+    resolveCommitted: (result: SaveRoastResult) => void;
+    rejectCommitted: (err: unknown) => void;
+    settleSchedule: (ok: boolean) => void;
+};
+
+const active = new Map<string, PendingRoastSaveHandle>();
+const announcedSyncError = new Map<string, string>();
 export const isPendingRoastSaveActive = (ownerId: string, sessionId: string | null) =>
     active.has(`${ownerId}:${sessionId}`);
+export const resetRoastSyncToasts = () => announcedSyncError.clear();
 const changed = () => {
     if (typeof window !== 'undefined') window.dispatchEvent(new Event('fc-pending-roast-save'));
 };
 const attention = (message: string) => Object.assign(new Error(message), { code: 'unresolvable_plan_batch_id' });
+const announceSyncFailure = (userId: string, sessionId: string, message: string) => {
+    if (!message) return;
+    const key = `${userId}:${sessionId}`;
+    if (announcedSyncError.get(key) === message) return;
+    announcedSyncError.set(key, message);
+    useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'));
+};
 
 /** One durable procedure for live saves and recovery. No writes to the live roast store. */
-export function resumePendingRoastSave(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult> {
+export function startPendingRoastSave(deps: ResumePendingRoastSaveDeps): PendingRoastSaveHandle {
     const key = `${deps.pending.params.userId}:${deps.pending.params.sessionId}`;
     const running = active.get(key);
     if (running) return running;
-    const work = resume(deps).finally(() => {
-        active.delete(key);
-        changed();
+    let committedDone = false;
+    let scheduleDone = false;
+    let resolveCommitted: SaveSignals['resolveCommitted'] = () => {};
+    let rejectCommitted: SaveSignals['rejectCommitted'] = () => {};
+    let settleSchedule: SaveSignals['settleSchedule'] = () => {};
+    const committed = new Promise<SaveRoastResult>((resolve, reject) => {
+        resolveCommitted = (result) => {
+            if (committedDone) return;
+            committedDone = true;
+            resolve(result);
+        };
+        rejectCommitted = (err) => {
+            if (committedDone) return;
+            committedDone = true;
+            reject(err);
+        };
     });
-    active.set(key, work);
+    const scheduleSettled = new Promise<{ ok: boolean }>((resolve) => {
+        settleSchedule = (ok) => {
+            if (scheduleDone) return;
+            scheduleDone = true;
+            resolve({ ok });
+        };
+    });
+    const settled = resume(deps, { resolveCommitted, rejectCommitted, settleSchedule })
+        .catch((err: unknown) => {
+            rejectCommitted(err);
+            settleSchedule(false);
+            throw err;
+        })
+        .finally(() => {
+            active.delete(key);
+            changed();
+        });
+    const handle: PendingRoastSaveHandle = { committed, scheduleSettled, settled };
+    void committed.catch(() => {});
+    void settled.catch(() => {});
+    active.set(key, handle);
     changed();
-    return work;
+    return handle;
 }
-async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult> {
+
+export function resumePendingRoastSave(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult> {
+    return startPendingRoastSave(deps).settled;
+}
+
+async function resume(deps: ResumePendingRoastSaveDeps, signals: SaveSignals): Promise<SaveRoastResult> {
+    const started = Date.now();
     let pending = deps.pending;
     const { sessionId, userId } = pending.params;
     let saved: RoastSession | null = null;
+    const finish = (result: SaveRoastResult) => {
+        logger.debug('roast-save-stage', { stage: 'settled', ms: Date.now() - started });
+        return result;
+    };
     const checkpoint = (patch: Partial<PendingRoastSave>) => {
         pending = { ...pending, ...patch };
         writePendingRoastSave(pending);
@@ -67,8 +136,26 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
     checkpoint({ error: undefined });
     try {
         if (!sessionId || !userId || userId !== deps.ownerId) throw attention('Roast owner/session needs confirmation');
-        await deps.ensureAccess();
-        saved = verify(await deps.findSession(sessionId));
+        const accessStarted = Date.now();
+        try {
+            await deps.ensureAccess();
+        } finally {
+            logger.debug('roast-save-stage', {
+                stage: 'ensure-access',
+                ms: Date.now() - accessStarted,
+                parent: 'settled',
+            });
+        }
+        const findStarted = Date.now();
+        try {
+            saved = verify(await deps.findSession(sessionId));
+        } finally {
+            logger.debug('roast-save-stage', {
+                stage: 'find-session',
+                ms: Date.now() - findStarted,
+                parent: 'settled',
+            });
+        }
         if (pending.legacyBbpUnknown) {
             const recorded =
                 saved?.bbp_tsv_path ||
@@ -103,7 +190,14 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
                       } satisfies PlanBatchHandoff)
                     : null);
             if (source) {
-                const latest = await deps.resolveForRoast(userId, source);
+                const resolveStarted = Date.now();
+                const latest = await deps.resolveForRoast(userId, source).finally(() => {
+                    logger.debug('roast-save-stage', {
+                        stage: 'resolve-batch',
+                        ms: Date.now() - resolveStarted,
+                        parent: 'settled',
+                    });
+                });
                 if (latest.status === 'done' || latest.completed_sessions >= latest.batch_count) {
                     throw attention('This batch is complete. Select another batch or explicitly unlink this roast.');
                 }
@@ -136,45 +230,130 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
                     logger.capture(err, { context: 'stockDeduct guard' });
                 }
             }
+            const saveStarted = Date.now();
+            let recovered = false;
             try {
                 saved = verify((await deps.saveRoast(prepared)).savedSession);
             } catch (err) {
                 // INSERT may have committed despite a lost response or competing quota check.
+                recovered = true;
                 saved = verify(await deps.findSession(sessionId));
                 if (!saved) throw err;
             }
             if (!saved) throw new Error('Roast save returned no session');
+            checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
+            logger.debug('roast-save-stage', {
+                stage: 'db-committed',
+                ms: Date.now() - saveStarted,
+                includes: recovered
+                    ? ['quota-count', 'tsv-flush', 'save-rpc', 'find-session']
+                    : ['quota-count', 'tsv-flush', 'save-rpc'],
+            });
+        } else {
+            checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
         }
-        checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
-        const t0 = Date.now();
-        // A lost RPC response also skips cache invalidation for unlinked roasts.
-        await deps.syncBatch(saved);
-        logger.debug('roast-save-stage', { stage: 'sync-batch', ms: Date.now() - t0 });
-        if (pending.batch === 'pending') checkpoint({ batch: 'synced' });
-        if (pending.profile !== 'not_required' || pending.bbp !== 'not_required') {
-            const uploadStarted = Date.now();
-            await deps.syncRoastCurve({
-                sessionId,
-                roastSessionId: saved.id,
-                ownerId: userId,
-                profileRequired: pending.profile !== 'not_required',
-                bbpRequired: pending.bbp !== 'not_required',
+        const savedRow = saved;
+        if (!savedRow) throw new Error('Roast save returned no session');
+        signals.resolveCommitted({ savedSession: savedRow, shouldOpenContinue: false });
+
+        const scheduleStarted = Date.now();
+        const schedulePromise = Promise.resolve(deps.syncBatch(savedRow))
+            .then(() => {
+                if (pending.batch === 'pending') checkpoint({ batch: 'synced' });
+                signals.settleSchedule(true);
+            })
+            .catch((err: unknown) => {
+                signals.settleSchedule(false);
+                throw err;
+            })
+            .finally(() => {
+                logger.debug('roast-save-stage', {
+                    stage: 'sync-batch',
+                    ms: Date.now() - scheduleStarted,
+                    parent: 'settled',
+                    includes: ['schedule-sync', 'cache-invalidate'],
+                });
             });
-            logger.debug('roast-save-stage', { stage: 'sync-curve', ms: Date.now() - uploadStarted });
+        const curveNeeded = pending.profile !== 'not_required' || pending.bbp !== 'not_required';
+        const uploadStarted = Date.now();
+        const curvePromise = Promise.resolve(
+            curveNeeded
+                ? deps.syncRoastCurve({
+                      sessionId,
+                      roastSessionId: savedRow.id,
+                      ownerId: userId,
+                      profileRequired: pending.profile !== 'not_required',
+                      bbpRequired: pending.bbp !== 'not_required',
+                  })
+                : undefined,
+        ).finally(() => {
+            if (!curveNeeded) return;
+            logger.debug('roast-save-stage', {
+                stage: 'sync-curve',
+                ms: Date.now() - uploadStarted,
+                parent: 'settled',
+            });
+        });
+        const [scheduleResult, curveResult] = await Promise.allSettled([schedulePromise, curvePromise]);
+        if (curveNeeded) {
+            if (curveResult.status === 'fulfilled') {
+                checkpoint({
+                    profile: pending.profile === 'not_required' ? 'not_required' : 'synced',
+                    bbp: pending.bbp === 'not_required' ? 'not_required' : 'synced',
+                });
+            } else {
+                let row: RoastSession | null = null;
+                try {
+                    row = verify(await deps.findSession(sessionId));
+                } catch (err) {
+                    logger.capture(err, { context: 'curve checkpoint lookup' });
+                }
+                checkpoint({
+                    profile: pending.profile === 'not_required' ? 'not_required' : row?.tsv_path ? 'synced' : 'pending',
+                    bbp: pending.bbp === 'not_required' ? 'not_required' : row?.bbp_tsv_path ? 'synced' : 'pending',
+                });
+            }
+        }
+        const problems = [scheduleResult, curveResult].filter(
+            (result): result is PromiseRejectedResult => result.status === 'rejected',
+        );
+        if (problems.length > 0) {
+            const err = problems[0].reason;
+            const message = errorMessage(err);
             checkpoint({
-                profile: pending.profile === 'not_required' ? 'not_required' : 'synced',
-                bbp: pending.bbp === 'not_required' ? 'not_required' : 'synced',
+                needsAttention:
+                    isPermanentSaveError(err) || isFixablePlanBatchIdError(err) || err instanceof BatchLimitError,
+                error: message,
             });
+            announceSyncFailure(userId, sessionId, message);
+            return finish({ savedSession: savedRow, shouldOpenContinue: false, syncPending: true });
+        }
+        const durable =
+            (pending.batch === 'synced' || pending.batch === 'not_required') &&
+            (pending.profile === 'synced' || pending.profile === 'not_required') &&
+            (pending.bbp === 'synced' || pending.bbp === 'not_required');
+        if (!durable) {
+            const message = pending.error ?? 'Roast sync incomplete';
+            checkpoint({ error: message });
+            announceSyncFailure(userId, sessionId, message);
+            return finish({ savedSession: savedRow, shouldOpenContinue: false, syncPending: true });
         }
         clearPendingRoastSave(userId, sessionId);
-        return { savedSession: saved, shouldOpenContinue: saved.plan_batch_id != null };
+        announcedSyncError.delete(`${userId}:${sessionId}`);
+        return finish({ savedSession: savedRow, shouldOpenContinue: savedRow.plan_batch_id != null });
     } catch (err) {
         checkpoint({
             needsAttention:
                 isPermanentSaveError(err) || isFixablePlanBatchIdError(err) || err instanceof BatchLimitError,
             error: errorMessage(err),
         });
-        if (saved) return { savedSession: saved, shouldOpenContinue: false, syncPending: true };
+        signals.settleSchedule(false);
+        if (saved && sessionId && userId) {
+            signals.resolveCommitted({ savedSession: saved, shouldOpenContinue: false });
+            announceSyncFailure(userId, sessionId, errorMessage(err));
+            return finish({ savedSession: saved, shouldOpenContinue: false, syncPending: true });
+        }
+        signals.rejectCommitted(err);
         throw err;
     }
 }

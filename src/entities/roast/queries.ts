@@ -58,6 +58,48 @@ export const applyOptimisticRoastSessionDelete = (qc: QueryClient, userId: strin
     return { prevAll, prevPaginated };
 };
 
+const isDefaultHistoryFirstPage = (key: readonly unknown[], userId: string) => {
+    if (key[0] !== 'roast_sessions' || key[1] !== userId || key[2] !== 'paginated') return false;
+    const status = key[3];
+    const page = key[4];
+    const sortKey = key[6];
+    const sortAsc = key[7];
+    const level = key[8];
+    const fromYM = key[9];
+    const toYM = key[10];
+    if (page !== 1) return false;
+    if (status != null && status !== 'completed') return false;
+    if (sortKey != null && sortKey !== 'date') return false;
+    if (sortAsc != null && sortAsc !== false) return false;
+    return level == null && fromYM == null && toYM == null;
+};
+
+const asHistoryRow = (row: RoastSession): RoastSessionWithRelations =>
+    'beans' in row && 'roast_profiles' in row
+        ? (row as RoastSessionWithRelations)
+        : { ...row, beans: null, roast_profiles: null };
+
+/** Confirmed save on the default first page. Bare RPC rows are shown without invented joins. */
+export const insertConfirmedRoastOnFirstPage = (qc: QueryClient, userId: string, row: RoastSession): void => {
+    if (row.user_id !== userId) return;
+    const confirmed = asHistoryRow(row);
+    for (const query of qc.getQueryCache().findAll({ queryKey: roastSessionKeys.paginated(userId) })) {
+        if (!isDefaultHistoryFirstPage(query.queryKey, userId)) continue;
+        const pageSize = query.queryKey[5];
+        qc.setQueryData<PaginatedSessions>(query.queryKey, (prev) => {
+            if (!prev || prev.data.some((session) => session.id === confirmed.id)) return prev;
+            const newest = prev.data[0]?.roasted_at ?? null;
+            if (prev.data.length > 0 && (!confirmed.roasted_at || !newest || confirmed.roasted_at < newest)) {
+                return prev;
+            }
+            const limit = typeof pageSize === 'number' ? pageSize : prev.data.length + 1;
+            return { data: [confirmed, ...prev.data].slice(0, limit), total: prev.total + 1 };
+        });
+    }
+    const detailKey = roastSessionKeys.detail(userId, confirmed.id);
+    if (qc.getQueryData(detailKey) == null) qc.setQueryData(detailKey, confirmed);
+};
+
 export const restoreOptimisticRoastSessionDelete = (
     qc: QueryClient,
     userId: string,

@@ -1,4 +1,9 @@
 // @vitest-environment jsdom
+import {
+    clearPendingRoastSave,
+    createPendingRoastSave,
+    writePendingRoastSave,
+} from '@features/active-roast/model/pendingRoastSave';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { act, type ComponentProps } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -111,4 +116,71 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     expect(container.textContent).toContain('history.expanded.chartUnavailable');
     expect(mocks.chart).toHaveBeenLastCalledWith(expect.objectContaining({ xs: [-90, -2] }));
     await act(async () => root.unmount());
+});
+
+it('shows curve sync state instead of a missing-curve error', async () => {
+    localStorage.clear();
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    const session = {
+        id: 'charge-session',
+        user_id: 'owner',
+        tsv_path: null,
+        bbp_tsv_path: null,
+        bbp_seconds: null,
+        duration_seconds: 0,
+        events: [],
+    } as unknown as ComponentProps<typeof HistorySessionChart>['session'];
+    const pending = createPendingRoastSave(
+        {
+            userId: 'owner',
+            sessionId: 'charge-session',
+            roastStartTime: 0,
+            elapsed: 0,
+            rawBT: null,
+            selectedBeanId: null,
+            targetProfileId: null,
+            planBatchHandoff: null,
+            handoffBeanName: null,
+            logEntries: [],
+            formData: { notes: '', weightGrams: 0, roastLevel: null, beanId: null },
+        },
+        true,
+    );
+    pending.db = 'saved';
+    writePendingRoastSave(pending);
+    mocks.roast.isError = true;
+    mocks.roast.points = [];
+    await act(async () => root.render(<HistorySessionChart session={session} />));
+    expect(container.textContent).toContain('activeRoast.recovery.curveSyncing');
+    expect(container.textContent).not.toContain('history.expanded.chartUnavailable');
+
+    const other = createPendingRoastSave(
+        {
+            ...pending.params,
+            sessionId: 'other-session',
+        },
+        true,
+    );
+    other.db = 'saved';
+    other.error = 'other failed';
+    await act(async () => writePendingRoastSave(other));
+    expect(container.textContent).toContain('activeRoast.recovery.curveSyncing');
+    expect(container.textContent).not.toContain('activeRoast.recovery.curveRetry');
+
+    pending.error = 'upload failed';
+    await act(async () => writePendingRoastSave(pending));
+    expect(container.textContent).toContain('activeRoast.recovery.curveRetry');
+    expect(container.textContent).not.toContain('activeRoast.recovery.curveSyncing');
+
+    pending.error = undefined;
+    await act(async () => writePendingRoastSave(pending));
+    expect(container.textContent).toContain('activeRoast.recovery.curveSyncing');
+
+    await act(async () => clearPendingRoastSave('owner', 'charge-session'));
+    expect(container.textContent).not.toContain('activeRoast.recovery.curveSyncing');
+    expect(container.textContent).not.toContain('activeRoast.recovery.curveRetry');
+    expect(container.textContent).toContain('history.expanded.chartUnavailable');
+    await act(async () => root.unmount());
+    localStorage.clear();
 });

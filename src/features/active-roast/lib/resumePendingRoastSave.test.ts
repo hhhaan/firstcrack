@@ -1,8 +1,16 @@
 // @vitest-environment jsdom
+
+import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, PlanBatchWithProgress, RoastSession } from '@shared/types/database.types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPendingRoastSave, type PendingRoastParams, readPendingRoastSave } from '../model/pendingRoastSave';
-import { type ResumePendingRoastSaveDeps, resumePendingRoastSave } from './resumePendingRoastSave';
+import {
+    isPendingRoastSaveActive,
+    type ResumePendingRoastSaveDeps,
+    resetRoastSyncToasts,
+    resumePendingRoastSave,
+    startPendingRoastSave,
+} from './resumePendingRoastSave';
 
 const ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const BATCH = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -58,6 +66,7 @@ const deps = (patch: Partial<ResumePendingRoastSaveDeps> = {}): ResumePendingRoa
 beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    resetRoastSyncToasts();
 });
 describe('shared durable save coordinator', () => {
     it('persists before auth and resolves before F3/RPC with the same UUID', async () => {
@@ -154,6 +163,112 @@ describe('shared durable save coordinator', () => {
             await expect(resumePendingRoastSave(d)).rejects.toMatchObject({ code: 'unresolvable_plan_batch_id' });
             expect(d.saveRoast).not.toHaveBeenCalled();
         }
+    });
+    it('schedule failure still uploads the curve and keeps the saved row', async () => {
+        let curveStarted: () => void = () => {};
+        const curveGate = new Promise<void>((resolve) => {
+            curveStarted = resolve;
+        });
+        const d = deps({
+            syncBatch: vi.fn(async () => {
+                throw new Error('schedule');
+            }),
+            syncRoastCurve: vi.fn(async () => {
+                curveStarted();
+            }),
+        });
+        const handle = startPendingRoastSave(d);
+        await curveGate;
+        expect(d.syncRoastCurve).toHaveBeenCalledTimes(1);
+        expect((await handle.committed).syncPending).toBeUndefined();
+        expect((await handle.scheduleSettled).ok).toBe(false);
+        expect((await handle.settled).syncPending).toBe(true);
+        expect(readPendingRoastSave('owner', ID)?.db).toBe('saved');
+    });
+    it('resolves the DB commit while the owner lock is still held', async () => {
+        let release: () => void = () => {};
+        const d = deps({
+            syncBatch: vi.fn(
+                () =>
+                    new Promise<void>((resolve) => {
+                        release = resolve;
+                    }),
+            ),
+        });
+        const handle = startPendingRoastSave(d);
+        await handle.committed;
+        expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
+        expect(readPendingRoastSave('owner', ID)?.db).toBe('saved');
+        expect(startPendingRoastSave(deps())).toBe(handle);
+        expect(d.saveRoast).toHaveBeenCalledTimes(1);
+        release();
+        await handle.settled;
+        expect(isPendingRoastSaveActive('owner', ID)).toBe(false);
+    });
+    it('keeps a confirmed profile path when the BBP upload fails', async () => {
+        const initial = createPendingRoastSave(params, true);
+        initial.bbp = 'pending';
+        const d = deps({
+            pending: initial,
+            findSession: vi
+                .fn()
+                .mockResolvedValueOnce(null)
+                .mockResolvedValueOnce({ ...saved, tsv_path: 'profiles/owner/a.tsv', bbp_tsv_path: null }),
+            syncRoastCurve: vi.fn(async () => {
+                throw new Error('BBP upload failed');
+            }),
+        });
+        expect((await resumePendingRoastSave(d)).syncPending).toBe(true);
+        const kept = readPendingRoastSave('owner', ID);
+        expect(kept?.profile).toBe('synced');
+        expect(kept?.bbp).toBe('pending');
+        expect(kept?.db).toBe('saved');
+    });
+    it('toasts one sync failure when the same error is retried', async () => {
+        const show = vi.spyOn(useToastStore.getState(), 'show');
+        const failCurve = vi.fn(async () => {
+            throw new Error('BBP upload failed');
+        });
+        await resumePendingRoastSave(deps({ syncRoastCurve: failCurve }));
+        const kept = readPendingRoastSave('owner', ID);
+        if (!kept) throw new Error('Missing pending snapshot');
+        await resumePendingRoastSave(
+            deps({
+                pending: kept,
+                findSession: vi.fn(async () => saved),
+                syncRoastCurve: vi.fn(async () => {
+                    throw new Error('BBP upload failed');
+                }),
+            }),
+        );
+        expect(show).toHaveBeenCalledTimes(1);
+    });
+    it('a hanging cache refresh inside syncBatch still reaches the curve', async () => {
+        let release: () => void = () => {};
+        const cache = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const order: string[] = [];
+        let curveStarted: () => void = () => {};
+        const curveGate = new Promise<void>((resolve) => {
+            curveStarted = resolve;
+        });
+        const d = deps({
+            syncBatch: vi.fn(async () => {
+                order.push('schedule');
+                void cache.then(() => order.push('cache'));
+            }),
+            syncRoastCurve: vi.fn(async () => {
+                order.push('curve');
+                curveStarted();
+            }),
+        });
+        const done = resumePendingRoastSave(d);
+        await curveGate;
+        expect(order).toEqual(['schedule', 'curve']);
+        release();
+        await done;
+        expect(readPendingRoastSave('owner', ID)).toBeNull();
     });
     it('does not clear pending or redo inventory after artifact failure', async () => {
         const d = deps({

@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import type { SaveRoastParams } from './useSaveRoast';
 
 export type PendingRoastParams = Omit<SaveRoastParams, 'roastStartTimeRef'> & { roastStartTime: number };
@@ -80,6 +81,50 @@ const entries = (): Record<string, PendingRoastSave> => {
 export const listPendingRoastSaves = (): PendingRoastSave[] => Object.values(entries());
 export const readPendingRoastSave = (ownerId: string, sessionId: string | null): PendingRoastSave | null =>
     entries()[entryKey(ownerId, sessionId)] ?? null;
+
+let snapshotRaw: string | null | undefined;
+const snapshotValues = new Map<string, PendingRoastSave | null>();
+
+const subscribePendingRoastSaves = (onStoreChange: () => void) => {
+    if (typeof window === 'undefined') return () => {};
+    window.addEventListener('fc-pending-roast-save', onStoreChange);
+    window.addEventListener('storage', onStoreChange);
+    return () => {
+        window.removeEventListener('fc-pending-roast-save', onStoreChange);
+        window.removeEventListener('storage', onStoreChange);
+    };
+};
+
+/** Same reference until the stored blob changes, so useSyncExternalStore does not loop. */
+export const pendingRoastSaveSnapshot = (ownerId: string, sessionId: string): PendingRoastSave | null => {
+    let raw: string | null = null;
+    try {
+        raw = localStorage.getItem(KEY);
+    } catch {
+        raw = null;
+    }
+    const slot = entryKey(ownerId, sessionId);
+    if (snapshotRaw === raw && snapshotValues.has(slot)) return snapshotValues.get(slot) ?? null;
+    if (snapshotRaw !== raw) {
+        snapshotRaw = raw;
+        snapshotValues.clear();
+    }
+    let value: PendingRoastSave | null = null;
+    try {
+        value = readPendingRoastSave(ownerId, sessionId);
+    } catch {
+        value = null;
+    }
+    snapshotValues.set(slot, value);
+    return value;
+};
+
+export const usePendingRoastSave = (ownerId: string, sessionId: string) =>
+    useSyncExternalStore(
+        subscribePendingRoastSaves,
+        () => pendingRoastSaveSnapshot(ownerId, sessionId),
+        () => null,
+    );
 export const writePendingRoastSave = (pending: PendingRoastSave): void => {
     const all = entries();
     all[entryKey(pending.params.userId, pending.params.sessionId)] = pending;
