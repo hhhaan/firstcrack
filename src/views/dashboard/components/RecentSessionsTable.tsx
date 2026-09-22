@@ -1,5 +1,6 @@
 import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { formatDuration } from '@shared/lib/format';
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
@@ -88,7 +89,7 @@ export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSession
                                         {formatTemp(session.drop_temp_celsius, unit)}
                                     </td>
                                     <td className="px-6 py-3 text-[13px] text-secondary font-mono whitespace-nowrap">
-                                        {session.duration_seconds ? formatDuration(session.duration_seconds) : '—'}
+                                        {formatDuration(sessionRoastMetrics(session).roastDurationSec)}
                                     </td>
                                     <td className="px-6 py-3">
                                         {level && (

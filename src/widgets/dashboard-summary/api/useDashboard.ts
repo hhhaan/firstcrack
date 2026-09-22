@@ -8,8 +8,9 @@ import { dashboardKeys } from '@shared/lib/query-keys';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
+import { averageRoastDurationSeconds } from '../lib/averageRoastDuration';
 
-/** Columns actually rendered / aggregated by dashboard (no events jsonb). */
+/** Columns the dashboard renders or aggregates. `events` feeds Charge→Drop `시간`. */
 export type DashboardRecentSession = {
     id: string;
     roasted_at: string | null;
@@ -18,6 +19,8 @@ export type DashboardRecentSession = {
     drop_temp_celsius: number | null;
     roast_level: string | null;
     bean_label: string | null;
+    /** Event markers. KPI and recent `시간` use Charge→Drop via sessionRoastMetrics. */
+    events: unknown;
     beans: { name: string; origin: string | null } | null;
     roast_profiles: { name: string; target_level: string | null } | null;
 };
@@ -130,8 +133,6 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const lastMonth = completed.filter((s) => s.roasted_at < thisMonthStart);
 
     const sumKg = (arr: typeof completed) => arr.reduce((acc, s) => acc + s.weight_grams, 0) / 1000;
-    const avgDuration = (arr: typeof completed) =>
-        arr.length > 0 ? arr.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0) / arr.length : 0;
 
     const monthlyMap = new Map<string, number>();
     for (let i = 5; i >= 0; i--) {
@@ -164,8 +165,8 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         batchesLastMonth: lastMonth.length,
         kgRoastedThisMonth: sumKg(thisMonth),
         kgRoastedLastMonth: sumKg(lastMonth),
-        avgDurationSeconds: avgDuration(thisMonth),
-        avgDurationLastMonthSeconds: avgDuration(lastMonth),
+        avgDurationSeconds: averageRoastDurationSeconds(thisMonth),
+        avgDurationLastMonthSeconds: averageRoastDurationSeconds(lastMonth),
         recentSessions: completed.slice(0, 5),
         upcomingBatches,
         inventoryAlerts,
