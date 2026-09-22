@@ -155,6 +155,43 @@ describe('shared durable save coordinator', () => {
             expect(d.saveRoast).not.toHaveBeenCalled();
         }
     });
+    it('schedule failure keeps the saved row and does not start the curve', async () => {
+        const d = deps({
+            syncBatch: vi.fn(async () => {
+                throw new Error('schedule');
+            }),
+        });
+        expect((await resumePendingRoastSave(d)).syncPending).toBe(true);
+        expect(d.syncRoastCurve).not.toHaveBeenCalled();
+        expect(readPendingRoastSave('owner', ID)?.db).toBe('saved');
+    });
+    it('a hanging cache refresh inside syncBatch still reaches the curve', async () => {
+        let release: () => void = () => {};
+        const cache = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const order: string[] = [];
+        let curveStarted: () => void = () => {};
+        const curveGate = new Promise<void>((resolve) => {
+            curveStarted = resolve;
+        });
+        const d = deps({
+            syncBatch: vi.fn(async () => {
+                order.push('schedule');
+                void cache.then(() => order.push('cache'));
+            }),
+            syncRoastCurve: vi.fn(async () => {
+                order.push('curve');
+                curveStarted();
+            }),
+        });
+        const done = resumePendingRoastSave(d);
+        await curveGate;
+        expect(order).toEqual(['schedule', 'curve']);
+        release();
+        await done;
+        expect(readPendingRoastSave('owner', ID)).toBeNull();
+    });
     it('does not clear pending or redo inventory after artifact failure', async () => {
         const d = deps({
             syncRoastCurve: vi.fn(async () => {

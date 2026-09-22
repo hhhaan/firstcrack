@@ -50,9 +50,14 @@ export function resumePendingRoastSave(deps: ResumePendingRoastSaveDeps): Promis
     return work;
 }
 async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult> {
+    const started = Date.now();
     let pending = deps.pending;
     const { sessionId, userId } = pending.params;
     let saved: RoastSession | null = null;
+    const finish = (result: SaveRoastResult) => {
+        logger.debug('roast-save-stage', { stage: 'settled', ms: Date.now() - started });
+        return result;
+    };
     const checkpoint = (patch: Partial<PendingRoastSave>) => {
         pending = { ...pending, ...patch };
         writePendingRoastSave(pending);
@@ -67,8 +72,26 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
     checkpoint({ error: undefined });
     try {
         if (!sessionId || !userId || userId !== deps.ownerId) throw attention('Roast owner/session needs confirmation');
-        await deps.ensureAccess();
-        saved = verify(await deps.findSession(sessionId));
+        const accessStarted = Date.now();
+        try {
+            await deps.ensureAccess();
+        } finally {
+            logger.debug('roast-save-stage', {
+                stage: 'ensure-access',
+                ms: Date.now() - accessStarted,
+                parent: 'settled',
+            });
+        }
+        const findStarted = Date.now();
+        try {
+            saved = verify(await deps.findSession(sessionId));
+        } finally {
+            logger.debug('roast-save-stage', {
+                stage: 'find-session',
+                ms: Date.now() - findStarted,
+                parent: 'settled',
+            });
+        }
         if (pending.legacyBbpUnknown) {
             const recorded =
                 saved?.bbp_tsv_path ||
@@ -103,7 +126,14 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
                       } satisfies PlanBatchHandoff)
                     : null);
             if (source) {
-                const latest = await deps.resolveForRoast(userId, source);
+                const resolveStarted = Date.now();
+                const latest = await deps.resolveForRoast(userId, source).finally(() => {
+                    logger.debug('roast-save-stage', {
+                        stage: 'resolve-batch',
+                        ms: Date.now() - resolveStarted,
+                        parent: 'settled',
+                    });
+                });
                 if (latest.status === 'done' || latest.completed_sessions >= latest.batch_count) {
                     throw attention('This batch is complete. Select another batch or explicitly unlink this roast.');
                 }
@@ -136,20 +166,37 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
                     logger.capture(err, { context: 'stockDeduct guard' });
                 }
             }
+            const saveStarted = Date.now();
+            let recovered = false;
             try {
                 saved = verify((await deps.saveRoast(prepared)).savedSession);
             } catch (err) {
                 // INSERT may have committed despite a lost response or competing quota check.
+                recovered = true;
                 saved = verify(await deps.findSession(sessionId));
                 if (!saved) throw err;
             }
             if (!saved) throw new Error('Roast save returned no session');
+            checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
+            logger.debug('roast-save-stage', {
+                stage: 'db-committed',
+                ms: Date.now() - saveStarted,
+                includes: recovered
+                    ? ['quota-count', 'tsv-flush', 'save-rpc', 'find-session']
+                    : ['quota-count', 'tsv-flush', 'save-rpc'],
+            });
+        } else {
+            checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
         }
-        checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
         const t0 = Date.now();
         // A lost RPC response also skips cache invalidation for unlinked roasts.
         await deps.syncBatch(saved);
-        logger.debug('roast-save-stage', { stage: 'sync-batch', ms: Date.now() - t0 });
+        logger.debug('roast-save-stage', {
+            stage: 'sync-batch',
+            ms: Date.now() - t0,
+            parent: 'settled',
+            includes: ['schedule-sync', 'cache-invalidate'],
+        });
         if (pending.batch === 'pending') checkpoint({ batch: 'synced' });
         if (pending.profile !== 'not_required' || pending.bbp !== 'not_required') {
             const uploadStarted = Date.now();
@@ -160,21 +207,25 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
                 profileRequired: pending.profile !== 'not_required',
                 bbpRequired: pending.bbp !== 'not_required',
             });
-            logger.debug('roast-save-stage', { stage: 'sync-curve', ms: Date.now() - uploadStarted });
+            logger.debug('roast-save-stage', {
+                stage: 'sync-curve',
+                ms: Date.now() - uploadStarted,
+                parent: 'settled',
+            });
             checkpoint({
                 profile: pending.profile === 'not_required' ? 'not_required' : 'synced',
                 bbp: pending.bbp === 'not_required' ? 'not_required' : 'synced',
             });
         }
         clearPendingRoastSave(userId, sessionId);
-        return { savedSession: saved, shouldOpenContinue: saved.plan_batch_id != null };
+        return finish({ savedSession: saved, shouldOpenContinue: saved.plan_batch_id != null });
     } catch (err) {
         checkpoint({
             needsAttention:
                 isPermanentSaveError(err) || isFixablePlanBatchIdError(err) || err instanceof BatchLimitError,
             error: errorMessage(err),
         });
-        if (saved) return { savedSession: saved, shouldOpenContinue: false, syncPending: true };
+        if (saved) return finish({ savedSession: saved, shouldOpenContinue: false, syncPending: true });
         throw err;
     }
 }

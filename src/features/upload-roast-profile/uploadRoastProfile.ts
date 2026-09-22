@@ -13,12 +13,28 @@ export const uploadRoastProfile = async (sessionId: string, userId: string): Pro
         return null;
     }
 
-    const uploadUrl = await requestUploadUrl(sessionId, 'profile', userId);
+    const presignStarted = Date.now();
+    const uploadUrl = await requestUploadUrl(sessionId, 'profile', userId).finally(() => {
+        logger.debug('roast-save-stage', {
+            stage: 'curve-presign',
+            ms: Date.now() - presignStarted,
+            parent: 'sync-curve',
+            kind: 'profile',
+        });
+    });
+    const putStarted = Date.now();
     const res = await fetch(uploadUrl, {
         method: 'PUT',
         body: tsvContent,
         headers: { 'Content-Type': 'text/tab-separated-values' },
         signal: AbortSignal.timeout(10_000),
+    }).finally(() => {
+        logger.debug('roast-save-stage', {
+            stage: 'curve-put',
+            ms: Date.now() - putStarted,
+            parent: 'sync-curve',
+            kind: 'profile',
+        });
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
@@ -41,12 +57,28 @@ export const uploadBbpProfile = async (sessionId: string, userId: string): Promi
         return null;
     }
 
-    const uploadUrl = await requestUploadUrl(sessionId, 'bbp', userId);
+    const presignStarted = Date.now();
+    const uploadUrl = await requestUploadUrl(sessionId, 'bbp', userId).finally(() => {
+        logger.debug('roast-save-stage', {
+            stage: 'curve-presign',
+            ms: Date.now() - presignStarted,
+            parent: 'sync-curve',
+            kind: 'bbp',
+        });
+    });
+    const putStarted = Date.now();
     const res = await fetch(uploadUrl, {
         method: 'PUT',
         body: tsvContent,
         headers: { 'Content-Type': 'text/tab-separated-values' },
         signal: AbortSignal.timeout(10_000),
+    }).finally(() => {
+        logger.debug('roast-save-stage', {
+            stage: 'curve-put',
+            ms: Date.now() - putStarted,
+            parent: 'sync-curve',
+            kind: 'bbp',
+        });
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');

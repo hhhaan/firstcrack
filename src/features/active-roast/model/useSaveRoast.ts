@@ -131,6 +131,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         throw new BatchLimitError(0, 0, 'read_only_plan');
     }
     if (plan === 'trial') {
+        const quotaStarted = Date.now();
         try {
             const used = await countCompletedTotal(userId);
             if (used >= TRIAL_BATCH_CAP) {
@@ -139,10 +140,13 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         } catch (err) {
             if (err instanceof BatchLimitError) throw err;
             logger.capture(err, { context: 'saveRoast trial count pre-check' });
+        } finally {
+            logger.debug('roast-save-stage', { stage: 'quota-count', ms: Date.now() - quotaStarted });
         }
     } else {
         const monthCap = planMaxBatchesPerMonth(plan);
         if (monthCap != null) {
+            const quotaStarted = Date.now();
             try {
                 const used = await countCompletedThisMonth(userId);
                 if (!canCompleteBatch(plan, used)) {
@@ -151,6 +155,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
             } catch (err) {
                 if (err instanceof BatchLimitError) throw err;
                 logger.capture(err, { context: 'saveRoast monthly count pre-check' });
+            } finally {
+                logger.debug('roast-save-stage', { stage: 'quota-count', ms: Date.now() - quotaStarted });
             }
         }
     }
@@ -247,8 +253,16 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const wantDeduct = Boolean(formData.deductStock && provisionalPlan?.canDeduct);
     const deductionGrams = wantDeduct ? (provisionalPlan?.deductionGrams ?? 0) : 0;
 
-    if (sessionId) await flushCurve(sessionId);
+    if (sessionId) {
+        const flushStarted = Date.now();
+        try {
+            await flushCurve(sessionId);
+        } finally {
+            logger.debug('roast-save-stage', { stage: 'tsv-flush', ms: Date.now() - flushStarted });
+        }
+    }
 
+    const rpcStarted = Date.now();
     const savedSession = await saveOp({
         session: payload,
         deduct: wantDeduct,
@@ -258,12 +272,16 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         ...(effectiveBatch
             ? { expectedBatch: { beanId: effectiveBatch.beanId, blendId: effectiveBatch.blendId ?? null } }
             : {}),
-    }).catch((e: unknown) => {
-        throw mapServerBatchGateError(e) ?? e;
-    });
+    })
+        .catch((e: unknown) => {
+            throw mapServerBatchGateError(e) ?? e;
+        })
+        .finally(() => {
+            logger.debug('roast-save-stage', { stage: 'save-rpc', ms: Date.now() - rpcStarted });
+        });
 
-    // History/dashboard refetch is awaited once in refreshCachesAfterRoastSave
-    // (after optional schedule progress). Inventory marks are fire-and-forget.
+    // Inventory marks are fire-and-forget. History/dashboard refetch starts after
+    // schedule sync in refreshRoastCachesAfterSave and is not awaited there.
     if (wantDeduct && provisionalPlan) {
         void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries, refetchType: 'all' });
         if (provisionalPlan.singleBeanId) {
@@ -284,11 +302,22 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     return { savedSession, shouldOpenContinue: effectiveBatch != null };
 }
 
-/** Single post-save cache refresh — covers lost RPC (saveRoastCore never ran invalidation). */
-export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
-    if (saved.plan_batch_id) await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
+/** Schedule progress only. History refetch must not ride on this await. */
+export async function syncScheduleAfterRoastSave(saved: RoastSession): Promise<void> {
+    if (!saved.plan_batch_id) return;
+    const started = Date.now();
+    try {
+        await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
+    } finally {
+        logger.debug('roast-save-stage', { stage: 'schedule-sync', ms: Date.now() - started, parent: 'settled' });
+    }
+}
+
+/** Screen caches. Callers do not wait for refetch completion. */
+export function refreshRoastCachesAfterSave(qc: QueryClient, saved: RoastSession): void {
     invalidateScheduledBatchQueries(qc);
-    await invalidateRoastSessionQueries(qc, saved.user_id);
+    logger.debug('roast-save-stage', { stage: 'cache-invalidate' });
+    void invalidateRoastSessionQueries(qc, saved.user_id);
     for (const queryKey of [
         inventoryQueryRoots.beanStockSummaries,
         inventoryQueryRoots.beanStockSummary,
@@ -297,6 +326,12 @@ export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastS
     ]) {
         void qc.invalidateQueries({ queryKey, refetchType: 'all' });
     }
+}
+
+/** Schedule first, then start cache refresh. Lost RPC still reaches both from the coordinator. */
+export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
+    await syncScheduleAfterRoastSave(saved);
+    refreshRoastCachesAfterSave(qc, saved);
 }
 
 export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {

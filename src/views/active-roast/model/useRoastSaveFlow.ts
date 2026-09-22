@@ -221,6 +221,11 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     null;
 
                 flow.onSaveSuccess({ shouldOpenContinue: false });
+                logger.debug('roast-save-stage', {
+                    stage: 'modal-close',
+                    ms: Date.now() - saveStarted,
+                    includes: ['resume-save'],
+                });
                 unrecordedId.current = null;
                 setPreparing(false);
                 useCompletedRoastStore.getState().markSubmitted(pending.params.sessionId);

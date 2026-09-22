@@ -10,7 +10,13 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBbpStore } from './bbp';
 import { useRoastingStore } from './status';
-import { refreshCachesAfterRoastSave, type SaveRoastDeps, saveRoastCore, useSaveRoast } from './useSaveRoast';
+import {
+    refreshCachesAfterRoastSave,
+    type SaveRoastDeps,
+    saveRoastCore,
+    syncScheduleAfterRoastSave,
+    useSaveRoast,
+} from './useSaveRoast';
 
 const hookMocks = vi.hoisted(() => ({
     useEffectivePlan: vi.fn(() => 'pro'),
@@ -466,7 +472,14 @@ describe('saveRoastCore', () => {
 describe('refreshCachesAfterRoastSave', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('syncs schedule progress then awaits history/dashboard refetch once', async () => {
+    it('starts history refetch without waiting for it', async () => {
+        let release: () => void = () => {};
+        vi.mocked(invalidateRoastSessionQueries).mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    release = resolve;
+                }),
+        );
         const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockResolvedValue({} as never);
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         await refreshCachesAfterRoastSave(qc, {
@@ -476,6 +489,20 @@ describe('refreshCachesAfterRoastSave', () => {
         } as RoastSession);
         expect(sync).toHaveBeenCalledExactlyOnceWith('owner', 'batch-1');
         expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
+        release();
+        sync.mockRestore();
+    });
+
+    it('schedule rejection does not wait on cache refresh', async () => {
+        const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockRejectedValue(new Error('schedule'));
+        await expect(
+            syncScheduleAfterRoastSave({
+                id: 'sess',
+                user_id: 'owner',
+                plan_batch_id: 'batch-1',
+            } as RoastSession),
+        ).rejects.toThrow('schedule');
+        expect(invalidateRoastSessionQueries).not.toHaveBeenCalled();
         sync.mockRestore();
     });
 
