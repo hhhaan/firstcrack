@@ -11,7 +11,10 @@ own BBP duration without stretching samples. The roast's 00:00 sample owns the
 Charge boundary, and RoR stays absent during BBP. Live waiting BBP aligns Charge
 at 00:00: target BBP (dashed) plus current temperature sit before Charge, the
 roast target dashed line continues after, and only that BBP interval is a
-translucent band so the grid stays visible. After Charge the live chart drops
+translucent band so the grid stays visible. The 20-minute FIFO cap is not a
+reserved axis width (#547): no saved and no measured BBP means no BBP region,
+and a shorter recording — including samples that fill only part of the cap
+window — is drawn at that length on both the temperature and control grids. After Charge the live chart drops
 BBP (no negative lookback) and starts at 00:00; History keeps the combined overlay.
 
 The existing Target selector chooses a roast profile. Its `source_session_id`

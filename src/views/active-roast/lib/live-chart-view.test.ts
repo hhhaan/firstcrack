@@ -106,6 +106,63 @@ describe('resolveLiveChartView', () => {
         expect(view.xMin).toBe(-90);
     });
 
+    it('저장된 BBP도 실측도 없으면 20분 빈 구간을 잡지 않는다', () => {
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpTarget: [],
+            bbpPoints: [],
+            bbpSeconds: 1200,
+        });
+        expect(view.bbpRange).toBeUndefined();
+        expect(view.xMin).toBe(0);
+        expect(view.targetPoints.every((p) => p.t >= 0)).toBe(true);
+    });
+
+    it('6분 기록은 20분 슬롯으로 패딩하지 않는다', () => {
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpTarget: [roastPt(0, 200), roastPt(360, 190)],
+            bbpSeconds: 1200,
+            bbpPoints: [bbpPt(1, 210), bbpPt(360, 200)],
+        });
+        expect(view.xMin).toBe(-360);
+        expect(view.bbpRange).toEqual({ start: -360, end: 0 });
+        expect((view.bbpRange?.end ?? 0) - (view.bbpRange?.start ?? 0)).toBe(360);
+        expect(view.targetPoints.map((p) => p.t)).toEqual([-360, 0, 60]);
+        expect(view.livePoints.map((p) => p.time)).toEqual([-359, 0]);
+    });
+
+    it('기준 BBP 없이 실측만 있으면 기록된 길이만 보여 준다', () => {
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpTarget: [],
+            bbpSeconds: 1200,
+            bbpPoints: [bbpPt(1, 210), bbpPt(360, 200)],
+        });
+        expect(view.xMin).toBe(-360);
+        expect(view.bbpRange).toEqual({ start: -360, end: 0 });
+        expect(view.livePoints.map((p) => p.time)).toEqual([-359, 0]);
+    });
+
+    it('캡 창 안에 6분만 샘플이 있으면 그 6분만 보여 준다', () => {
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpTarget: [],
+            bbpPoints: [bbpPt(900, 210), bbpPt(1260, 200)],
+        });
+        expect(view.xMin).toBe(-360);
+        expect(view.bbpRange).toEqual({ start: -360, end: 0 });
+        expect(view.livePoints.map((p) => p.time)).toEqual([-360, 0]);
+    });
+
     it.each([
         { first: 60, last: 1260 },
         { first: 1740, last: 2940 },
