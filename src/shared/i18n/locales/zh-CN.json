@@ -744,6 +744,8 @@
             "discarded": "恢复的烘焙记录数值无效、无法保存，已将其丢弃。",
             "pending": "待恢复烘焙 ({{count}})",
             "syncPending": "烘焙已保存，等待同步。",
+            "curveSyncing": "已保存，曲线正在同步。",
+            "curveRetry": "已保存，曲线同步需要重试。",
             "bean": "生豆",
             "noBean": "无库存豆",
             "inputWeight": "投豆量 (kg)",

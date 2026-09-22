@@ -77,7 +77,7 @@ onSuccess: (ownerId) => {
 Examples of correct multi-root invalidation:
 
 - Fulfill/cancel: `src/features/fulfill-order/`, `src/features/cancel-order/`
-- Roast save: `src/features/active-roast/model/useSaveRoast.ts` invalidates roast + inventory roots and does not await that refetch. `invalidateRoastSessionQueries` keeps `refetchType: 'all'`; update, delete, and setOutput still await it.
+- Roast save: `src/features/active-roast/model/useSaveRoast.ts` invalidates roast + inventory roots and does not await that refetch. The save modal closes when the DB row is confirmed, before curve upload finishes. `invalidateRoastSessionQueries` keeps `refetchType: 'all'`; update, delete, and setOutput still await it.
 - Plan writes: plan entity query helpers / `invalidateScheduledBatchQueries`
 
 When a write touches stock **and** orders/plans, invalidate **all** relevant roots conservatively.

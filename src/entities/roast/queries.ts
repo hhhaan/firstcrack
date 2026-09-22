@@ -58,6 +58,37 @@ export const applyOptimisticRoastSessionDelete = (qc: QueryClient, userId: strin
     return { prevAll, prevPaginated };
 };
 
+const isDefaultHistoryFirstPage = (key: readonly unknown[], userId: string) => {
+    if (key[0] !== 'roast_sessions' || key[1] !== userId || key[2] !== 'paginated') return false;
+    const status = key[3];
+    const page = key[4];
+    const sortKey = key[6];
+    const sortAsc = key[7];
+    const level = key[8];
+    const fromYM = key[9];
+    const toYM = key[10];
+    if (page !== 1) return false;
+    if (status != null && status !== 'completed') return false;
+    if (sortKey != null && sortKey !== 'date') return false;
+    if (sortAsc != null && sortAsc !== false) return false;
+    return level == null && fromYM == null && toYM == null;
+};
+
+/** Confirmed save only. Skips rows without relation fields and non-default pages. */
+export const insertConfirmedRoastOnFirstPage = (qc: QueryClient, userId: string, row: RoastSession): void => {
+    if (!('beans' in row) || !('roast_profiles' in row)) return;
+    const confirmed = row as RoastSessionWithRelations;
+    for (const query of qc.getQueryCache().findAll({ queryKey: roastSessionKeys.paginated(userId) })) {
+        if (!isDefaultHistoryFirstPage(query.queryKey, userId)) continue;
+        qc.setQueryData<PaginatedSessions>(query.queryKey, (prev) => {
+            if (!prev) return prev;
+            if (prev.data.some((session) => session.id === confirmed.id)) return prev;
+            return { data: [confirmed, ...prev.data], total: prev.total + 1 };
+        });
+    }
+    qc.setQueryData(roastSessionKeys.detail(userId, confirmed.id), confirmed);
+};
+
 export const restoreOptimisticRoastSessionDelete = (
     qc: QueryClient,
     userId: string,

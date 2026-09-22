@@ -139,6 +139,28 @@ describe('PendingRoastRecovery safety', () => {
         expect(host.textContent).toContain('network offline');
     });
 
+    it('keeps discard blocked while the curve uploads after the row is saved', async () => {
+        let release = () => {};
+        mocks.find.mockResolvedValue({ id: ID, user_id: 'owner', status: 'completed', plan_batch_id: null });
+        mocks.upload.mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    release = resolve;
+                }),
+        );
+        await mount(pending({ db: 'saved' }));
+        try {
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
+            expect(button('discard').disabled).toBe(true);
+            expect(discardModal()).toBeNull();
+        } finally {
+            await act(async () => {
+                release();
+            });
+        }
+        expect(isPendingRoastSaveActive('owner', ID)).toBe(false);
+    });
+
     it.each([false, true])(
         'keeps submitted=%s after closing the modal and cancelling discard; only confirmed discard clears',
         async (submitted) => {

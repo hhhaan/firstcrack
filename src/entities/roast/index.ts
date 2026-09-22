@@ -3,6 +3,7 @@ export type { RoastSessionFilterMeta, RoastSessionInsert } from './api';
 export { roastSessionApi } from './api';
 export { useBbpCurve, useHistoryChart, useHistoryCharts } from './chart-queries';
 export {
+    insertConfirmedRoastOnFirstPage,
     invalidateAfterCreateRoastSession,
     invalidateRoastSessionQueries,
     patchRoastSessionTsvPaths,

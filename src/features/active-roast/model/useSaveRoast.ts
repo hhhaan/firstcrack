@@ -3,7 +3,12 @@ import { stockEventKeys } from '@entities/bean-stock-event';
 import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT, type MachineSnapshot } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { invalidateScheduledBatchQueries, planBatchApi } from '@entities/plan';
-import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
+import {
+    insertConfirmedRoastOnFirstPage,
+    invalidateRoastSessionQueries,
+    type RoastSessionInsert,
+    roastSessionApi,
+} from '@entities/roast';
 import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
@@ -27,7 +32,7 @@ import type { Bean, PlanBatchHandoff, RoastSession } from '@shared/types/databas
 import type { LogEntry } from '@shared/types/roast';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { resumePendingRoastSave } from '../lib/resumePendingRoastSave';
+import { startPendingRoastSave } from '../lib/resumePendingRoastSave';
 import type { FinalizedBbp } from './bbp';
 import type { PendingRoastSave } from './pendingRoastSave';
 
@@ -95,6 +100,8 @@ export interface SaveRoastResult {
     /** Session saved but plan_batch status=done update failed — user should complete it in Schedule. */
     batchStatusUpdateFailed?: boolean;
     syncPending?: boolean;
+    /** Present on the live resume path. Resolves when schedule sync finishes, before the curve upload. */
+    scheduleSettled?: Promise<{ ok: boolean }>;
 }
 
 export type SaveRoastDeps = {
@@ -317,6 +324,7 @@ export async function syncScheduleAfterRoastSave(saved: RoastSession): Promise<v
 export function refreshRoastCachesAfterSave(qc: QueryClient, saved: RoastSession): void {
     invalidateScheduledBatchQueries(qc);
     logger.debug('roast-save-stage', { stage: 'cache-invalidate' });
+    insertConfirmedRoastOnFirstPage(qc, saved.user_id, saved);
     void invalidateRoastSessionQueries(qc, saved.user_id);
     for (const queryKey of [
         inventoryQueryRoots.beanStockSummaries,
@@ -366,26 +374,31 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
     const resumeSave = useCallback(
         async (pending: PendingRoastSave) => {
             setIsSaving(true);
+            const handle = startPendingRoastSave({
+                pending,
+                ownerId: workspaceOwnerId,
+                saveRoast,
+                findSession: roastSessionApi.find,
+                ensureAccess: async () => {
+                    if (
+                        !isWorkspaceReady ||
+                        !workspaceOwnerId ||
+                        pending.params.userId !== workspaceOwnerId ||
+                        !(await ensureSession())
+                    ) {
+                        throw new Error(i18n.t('activeRoast.summary.sessionExpired'));
+                    }
+                },
+                resolveForRoast: planBatchApi.resolveForRoast,
+                syncBatch: async (saved) => {
+                    refreshRoastCachesAfterSave(qc, saved);
+                    await syncScheduleAfterRoastSave(saved);
+                },
+                syncRoastCurve,
+            });
             try {
-                return await resumePendingRoastSave({
-                    pending,
-                    ownerId: workspaceOwnerId,
-                    saveRoast,
-                    findSession: roastSessionApi.find,
-                    ensureAccess: async () => {
-                        if (
-                            !isWorkspaceReady ||
-                            !workspaceOwnerId ||
-                            pending.params.userId !== workspaceOwnerId ||
-                            !(await ensureSession())
-                        ) {
-                            throw new Error(i18n.t('activeRoast.summary.sessionExpired'));
-                        }
-                    },
-                    resolveForRoast: planBatchApi.resolveForRoast,
-                    syncBatch: (saved) => refreshCachesAfterRoastSave(qc, saved),
-                    syncRoastCurve,
-                });
+                const committed = await handle.committed;
+                return { ...committed, scheduleSettled: handle.scheduleSettled };
             } finally {
                 setIsSaving(false);
             }

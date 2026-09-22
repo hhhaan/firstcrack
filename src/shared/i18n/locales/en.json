@@ -744,6 +744,8 @@
             "discarded": "The recovered roast had invalid data and could not be saved, so it was discarded.",
             "pending": "Pending roasts ({{count}})",
             "syncPending": "Roast saved; synchronization is pending.",
+            "curveSyncing": "Saved. Curve sync in progress.",
+            "curveRetry": "Saved. Curve sync needs a retry.",
             "bean": "Green bean",
             "noBean": "No inventory bean",
             "inputWeight": "Green input (kg)",

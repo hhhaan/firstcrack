@@ -1,7 +1,12 @@
 import { dashboardKeys, roastedStockKeys } from '@shared/lib/query-keys';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { applyOptimisticRoastSessionDelete, invalidateRoastSessionQueries, roastSessionKeys } from './queries';
+import {
+    applyOptimisticRoastSessionDelete,
+    insertConfirmedRoastOnFirstPage,
+    invalidateRoastSessionQueries,
+    roastSessionKeys,
+} from './queries';
 
 const uid = 'user-1';
 
@@ -70,6 +75,42 @@ describe('roast session mutation invalidation', () => {
         expect(qc.getQueryState(metaKey)?.isInvalidated).toBe(true);
         expect(qc.getQueryState(detailKey)?.isInvalidated).toBe(true);
         expect(qc.getQueryState(dashKey)?.isInvalidated).toBe(true);
+    });
+
+    it('inserts a confirmed row only on the default first page', () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const first = roastSessionKeys.paginated(uid, 'completed', 1, 10, 'date', false, null, null, null);
+        const second = roastSessionKeys.paginated(uid, 'completed', 2, 10, 'date', false, null, null, null);
+        const filtered = roastSessionKeys.paginated(uid, 'completed', 1, 10, 'date', false, 'Light', null, null);
+        const other = roastSessionKeys.paginated('other', 'completed', 1, 10, 'date', false, null, null, null);
+        const row = {
+            id: 'saved',
+            user_id: uid,
+            status: 'completed',
+            beans: null,
+            roast_profiles: null,
+        };
+        qc.setQueryData(first, { data: [], total: 0 });
+        qc.setQueryData(second, { data: [], total: 0 });
+        qc.setQueryData(filtered, { data: [], total: 0 });
+        qc.setQueryData(other, { data: [], total: 0 });
+
+        insertConfirmedRoastOnFirstPage(qc, uid, row as never);
+        insertConfirmedRoastOnFirstPage(qc, uid, row as never);
+
+        expect(qc.getQueryData(first)).toEqual({ data: [row], total: 1 });
+        expect(qc.getQueryData(second)).toEqual({ data: [], total: 0 });
+        expect(qc.getQueryData(filtered)).toEqual({ data: [], total: 0 });
+        expect(qc.getQueryData(other)).toEqual({ data: [], total: 0 });
+        expect(qc.getQueryData(roastSessionKeys.detail(uid, 'saved'))).toEqual(row);
+    });
+
+    it('does not invent a history row when the save has no relation fields', () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const first = roastSessionKeys.paginated(uid, null, 1, 10, 'date', false, null, null, null);
+        qc.setQueryData(first, { data: [], total: 0 });
+        insertConfirmedRoastOnFirstPage(qc, uid, { id: 'plain', user_id: uid, status: 'completed' } as never);
+        expect(qc.getQueryData(first)).toEqual({ data: [], total: 0 });
     });
 
     it('optimistic delete setQueriesData hits real paginated page caches', () => {

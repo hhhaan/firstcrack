@@ -418,4 +418,41 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
         expect(mocks.fetchQuery).not.toHaveBeenCalled();
     });
+
+    it('closes the save modal before schedule sync resolves', async () => {
+        let finishSchedule = () => {};
+        mocks.resumeSave.mockImplementation(async (pending: PendingRoastSave) => ({
+            savedSession: { id: pending.params.sessionId, plan_batch_id: null },
+            scheduleSettled: new Promise<{ ok: boolean }>((resolve) => {
+                finishSchedule = () => resolve({ ok: true });
+            }),
+        }));
+        const h = renderFlow();
+        act(() => h.api.confirmEndRoast(summary));
+        let pending = Promise.resolve();
+        await act(async () => {
+            pending = h.api.handleSave(form);
+            await Promise.resolve();
+        });
+        expect(h.api.flow.summaryModal).toBe(false);
+        expect(mocks.fetchQuery).not.toHaveBeenCalled();
+        await act(async () => {
+            finishSchedule();
+            await pending;
+        });
+        expect(mocks.fetchQuery).toHaveBeenCalled();
+    });
+
+    it('does not offer Continue when schedule sync fails', async () => {
+        mocks.resumeSave.mockImplementation(async (pending: PendingRoastSave) => ({
+            savedSession: { id: pending.params.sessionId, plan_batch_id: 'batch-a' },
+            scheduleSettled: Promise.resolve({ ok: false }),
+        }));
+        const h = renderFlow();
+        act(() => h.api.confirmEndRoast(summary));
+        await act(async () => h.api.handleSave(form));
+        expect(mocks.fetchQuery).not.toHaveBeenCalled();
+        expect(h.api.flow.continueModal).toBe(false);
+        expect(h.onResetActiveRoast).toHaveBeenCalledTimes(1);
+    });
 });
