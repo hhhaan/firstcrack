@@ -335,6 +335,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 const existing = readPendingRoastSave(pending.params.userId, pending.params.sessionId);
                 if (!existing?.submitted) writePendingRoastSave(pending);
             } catch (err) {
+                logger.capture(err, { context: 'confirmEndRoast.pendingCheckpoint' });
                 useToastStore.getState().show(formatRoastSaveError(err));
             }
             flow.confirmEndRoast(frozen);

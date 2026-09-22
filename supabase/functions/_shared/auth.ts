@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { captureEdgeException } from './sentry.ts';
 
 export const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -63,6 +64,7 @@ export const resolveWorkspaceOwner = async (
     });
     if (error) {
         console.error('[auth] has_workspace_access', error);
+        await captureEdgeException(error, { function: 'resolve-workspace-owner', status: 500 });
         return null;
     }
     return data === true ? requested : null;

@@ -286,9 +286,15 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 
 /** Single post-save cache refresh — covers lost RPC (saveRoastCore never ran invalidation). */
 export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
-    if (saved.plan_batch_id) await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
-    invalidateScheduledBatchQueries(qc);
-    await invalidateRoastSessionQueries(qc, saved.user_id);
+    try {
+        if (saved.plan_batch_id) await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
+        invalidateScheduledBatchQueries(qc);
+        await invalidateRoastSessionQueries(qc, saved.user_id);
+    } catch (err) {
+        // resumePendingRoastSave turns this into syncPending and does not rethrow.
+        logger.capture(err, { context: 'refreshCachesAfterRoastSave', planBatchId: saved.plan_batch_id });
+        throw err;
+    }
     for (const queryKey of [
         inventoryQueryRoots.beanStockSummaries,
         inventoryQueryRoots.beanStockSummary,

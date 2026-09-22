@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { captureEdgeException } from '../sentry.ts';
 import { planInboundStockActions } from './inbound-actions.ts';
 import { mergeStatus } from './status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, CanonicalStatus, LineStatus, Platform } from './types.ts';
@@ -145,16 +146,31 @@ export async function buildProductMap(
         .select('external_key, product_id')
         .eq('user_id', userId)
         .eq('platform', platform);
-    if (mapErr) console.error('[normalize] product_channel_skus lookup failed', mapErr.message);
+    if (mapErr) {
+        console.error('[normalize] product_channel_skus lookup failed', mapErr.message);
+        await captureEdgeException(mapErr, {
+            function: 'order-sync',
+            status: 500,
+            tags: { platform, step: 'product-channel-skus' },
+        });
+    }
     for (const m of mappings ?? []) {
         if (m.external_key && m.product_id && keys.has(m.external_key)) map.set(m.external_key, m.product_id);
     }
 
-    const { data: products } = await supabase
+    const { data: products, error: productErr } = await supabase
         .from('products')
         .select('id, sku')
         .eq('user_id', userId)
         .not('sku', 'is', null);
+    if (productErr) {
+        console.error('[normalize] products sku lookup failed', productErr.message);
+        await captureEdgeException(productErr, {
+            function: 'order-sync',
+            status: 500,
+            tags: { platform, step: 'products-sku' },
+        });
+    }
     for (const p of products ?? []) {
         if (p.sku && keys.has(p.sku) && !map.has(p.sku)) map.set(p.sku, p.id);
     }
@@ -361,6 +377,20 @@ export async function upsertCanonicalOrders(
                     `[order-sync] stock events skipped for connection ${ctx.connectionId}:`,
                     JSON.stringify(skips),
                 );
+                await captureEdgeException(new Error(`stock events skipped: ${skips.length}`), {
+                    function: 'order-sync',
+                    status: 500,
+                    level: 'warning',
+                    tags: { platform: ctx.platform, step: 'stock-event-skip' },
+                    extra: {
+                        connectionId: ctx.connectionId,
+                        skips: skips.map((skip) => ({
+                            referenceId: skip.referenceId,
+                            reason: skip.reason,
+                            orderStatus: skip.orderStatus,
+                        })),
+                    },
+                });
             }
 
             cancelledCompensations += planned.events.filter((e) => e.event_type === 'order_cancel').length;

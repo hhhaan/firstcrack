@@ -2,6 +2,7 @@
 import { planBatchApi } from '@entities/plan';
 import { invalidateRoastSessionQueries } from '@entities/roast';
 import { BatchLimitError, resolveEffectivePlan, useEffectivePlan } from '@shared/lib/features';
+import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -477,6 +478,26 @@ describe('refreshCachesAfterRoastSave', () => {
         expect(sync).toHaveBeenCalledExactlyOnceWith('owner', 'batch-1');
         expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
         sync.mockRestore();
+    });
+
+    it('reports schedule sync failure and still rejects', async () => {
+        const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockRejectedValue(new Error('rpc down'));
+        const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        await expect(
+            refreshCachesAfterRoastSave(qc, {
+                id: 'sess',
+                user_id: 'owner',
+                plan_batch_id: 'batch-1',
+            } as RoastSession),
+        ).rejects.toThrow('rpc down');
+        expect(capture).toHaveBeenCalledWith(expect.any(Error), {
+            context: 'refreshCachesAfterRoastSave',
+            planBatchId: 'batch-1',
+        });
+        expect(invalidateRoastSessionQueries).not.toHaveBeenCalled();
+        sync.mockRestore();
+        capture.mockRestore();
     });
 
     it('still refreshes history once when the roast is unlinked', async () => {
