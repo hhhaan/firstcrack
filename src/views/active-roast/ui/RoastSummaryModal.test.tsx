@@ -16,8 +16,12 @@ vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'user-1', isWorkspaceReady: true }),
 }));
 
+const planMock = vi.hoisted(() => ({
+    batches: [] as Array<Record<string, unknown>>,
+}));
+
 vi.mock('@entities/plan', () => ({
-    useDayBatches: () => ({ data: [] }),
+    useDayBatches: () => ({ data: planMock.batches }),
 }));
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({
@@ -58,6 +62,7 @@ const baseProps = {
 };
 
 afterEach(() => {
+    planMock.batches = [];
     useRoastSessionStore.setState({ planBatchHandoff: null, lastAdhocSave: null });
 });
 
@@ -103,6 +108,85 @@ it('checks deductStock when selectedBeanId is set without handoff', () => {
     const checkbox = host.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(true);
     unmount();
+});
+
+it('keeps the opened bean and weight when a later batch selection arrives', () => {
+    useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const props = { ...baseProps, selectedBeanId: 'bean-1' as string | null };
+    act(() => root.render(createElement(RoastSummaryModal, props)));
+    act(() => {
+        root.render(createElement(RoastSummaryModal, { ...props, selectedBeanId: 'bean-2' }));
+    });
+    const weight = host.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    const bean = host.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
+    expect(weight.value).toBe('5');
+    expect(bean.value).toBe('Yirg');
+    act(() => root.unmount());
+    host.remove();
+});
+
+const setInputValue = (el: HTMLInputElement | HTMLSelectElement, value: string) => {
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
+    setter?.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+};
+
+it('applies a schedule batch, keeps a same-batch edit, and restores the opened weight on clear', () => {
+    useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
+    planMock.batches = [
+        {
+            id: 'batch-9',
+            bean_id: 'bean-1',
+            bean_name: 'Yirg',
+            batch_size_kg: 8,
+            batch_count: 2,
+            completed_sessions: 0,
+            blend_id: null,
+        },
+    ];
+    const { host, unmount } = renderModal({ selectedBeanId: 'bean-1' });
+    const weight = () => host.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    expect(weight().value).toBe('5');
+    act(() => setInputValue(weight(), '6'));
+
+    const schedule = [...host.querySelectorAll('button')].find(
+        (b) => b.textContent === 'activeRoast.summary.linkSchedule',
+    );
+    act(() => schedule?.click());
+    const select = host.querySelector('select') as HTMLSelectElement;
+    act(() => setInputValue(select, 'batch-9'));
+    expect(weight().value).toBe('8');
+
+    act(() => setInputValue(weight(), '7'));
+    act(() => setInputValue(select, 'batch-9'));
+    expect(weight().value).toBe('7');
+
+    const none = [...host.querySelectorAll('button')].find((b) => b.textContent === 'activeRoast.summary.linkNone');
+    act(() => none?.click());
+    expect(weight().value).toBe('5');
+    unmount();
+});
+
+it('reopens from the opened batch after an edit', () => {
+    useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const props = { ...baseProps, selectedBeanId: 'bean-1' as string | null };
+    act(() => root.render(createElement(RoastSummaryModal, props)));
+    const weight = () => host.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    act(() => setInputValue(weight(), '9'));
+    act(() => root.render(createElement(RoastSummaryModal, { ...props, open: false })));
+    act(() => root.render(createElement(RoastSummaryModal, props)));
+    expect(weight().value).toBe('5');
+    const bean = host.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
+    expect(bean.value).toBe('Yirg');
+    act(() => root.unmount());
+    host.remove();
 });
 
 it('calls onClose from the header X without discarding', () => {
