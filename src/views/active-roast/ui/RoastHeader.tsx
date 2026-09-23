@@ -1,12 +1,11 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
-import { useProfile, useUpdateProfile } from '@entities/profile';
+import { useProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { ChevronDown, Settings2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -92,28 +91,10 @@ export const RoastHeader = ({
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
-    const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
-    // 드롭다운을 빠르게 바꿀 때 매번 DB 쓰기가 발생하는 걸 막기 위한 디바운스 타이머.
-    // 300ms 안에 다시 바뀌면 이전 요청은 취소되고 마지막 값만 저장됨.
-    const profileSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    useEffect(
-        () => () => {
-            if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
-        },
-        [],
-    );
 
     const handleProfileChange = (id: string | null) => {
-        // 같은 값이면 DB 쓰기 스킵 (no-op guard)
         if (id === targetProfileId) return;
         onTargetProfileChange(id);
-        // 로스팅 중 Target 변경은 세션만 — 기본 프로파일을 영구 덮어쓰지 않음 (#183)
-        if (charged) return;
-        // UI는 즉시 반응, DB 저장은 300ms 디바운스 → 빠른 변경 시 마지막 값만 기록
-        if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
-        profileSaveTimer.current = setTimeout(() => {
-            updateProfile({ default_roast_profile_id: id ?? null });
-        }, 300);
     };
 
     const handleBeanChange = (id: string | null) => {
