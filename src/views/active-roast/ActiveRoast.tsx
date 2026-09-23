@@ -21,7 +21,7 @@ import { useAutoDetection } from '@features/active-roast/model/useAutoDetection'
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
-import { MachineControlPanel } from '@features/machine-control';
+import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
 import { FEATURE, useFeature } from '@shared/lib/features';
@@ -262,13 +262,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         pendingProfileChangeRef.current = null;
         setProfileChangeOpen(false);
     }, [sessionId, workspaceOwnerId, targetProfileId]);
-    const handleReplayControl = useCallback(
-        (control: { active: boolean; stop: (reason?: ReplayStopReason) => void } | null) => {
-            replayActiveRef.current = control?.active ?? false;
-            replayStopRef.current = control?.stop ?? (() => {});
-        },
-        [],
-    );
     const cancelReplayProfileChange = useCallback(() => {
         pendingProfileChangeRef.current?.resolve(false);
         pendingProfileChangeRef.current = null;
@@ -713,6 +706,32 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [bbpActive, charged, markEvent, roastEnded],
     );
 
+    const machineControl = useMachineControlComposition({
+        sidecarConnected,
+        reconnecting,
+        liveData,
+        pidRuntime,
+        roastFinished: heatHoldAfterDrop || roastEnded || logEntries.some((e) => e.event === 'Drop'),
+        pidDropBehavior: roastSettings.pidDropBehavior,
+        replayPoints,
+        replayMachineMismatch,
+        replayDropTime,
+        replayHeaterEvents: targetProfile?.heater_events,
+        liveBt: rawBT,
+        elapsed,
+        roasting: phase === 'roasting',
+        confirmedTurningPoint: confirmedTP,
+        observationQuality,
+        lastValidReceivedAtMs,
+        // eslint-disable-next-line react-hooks/purity -- fresh wall-clock must stop stale Replay before this commit's write effects
+        nowMs: Date.now(),
+        onHeaterCommitted: handleHeaterCommitted,
+    });
+    useLayoutEffect(() => {
+        replayActiveRef.current = machineControl.replay.active;
+        replayStopRef.current = machineControl.replay.stop;
+    }, [machineControl.replay.active, machineControl.replay.stop]);
+
     const [noteInput, setNoteInput] = useState('');
     const handleNoteSubmit = useCallback(() => {
         if (!noteInput.trim()) return;
@@ -860,29 +879,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
                     {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}
                     <MachineControlPanel
-                        sidecarConnected={sidecarConnected}
-                        reconnecting={reconnecting}
+                        model={machineControl}
                         liveData={liveData}
-                        pidRuntime={pidRuntime}
-                        // 배출·로스팅 종료 시 PID 자동 해제 (무인 화력 방지)
-                        roastFinished={heatHoldAfterDrop || roastEnded || logEntries.some((e) => e.event === 'Drop')}
                         pidDropBehavior={roastSettings.pidDropBehavior}
-                        // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
                         replayPoints={replayPoints}
-                        replayMachineMismatch={replayMachineMismatch}
-                        replayDropTime={replayDropTime}
-                        replayHeaterEvents={targetProfile?.heater_events}
-                        liveBt={rawBT}
-                        elapsed={elapsed}
-                        roasting={phase === 'roasting'}
-                        confirmedTurningPoint={confirmedTP}
-                        observationQuality={observationQuality}
-                        lastValidReceivedAtMs={lastValidReceivedAtMs}
-                        // eslint-disable-next-line react-hooks/purity -- fresh wall-clock must stop stale Replay before this commit's write effects
-                        nowMs={Date.now()}
-                        onReplayControl={handleReplayControl}
                         temperatureUnit={unit}
-                        onHeaterCommitted={handleHeaterCommitted}
                     />
 
                     <RoastSidePanel

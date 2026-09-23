@@ -7,7 +7,7 @@
  * 핵심 불변식(안전 바닥): 어떤 프로파일에서도 실패는 "재생 중지·write 중단" 방향이다.
  * 엉뚱한 화력이 추가로 나가는 경로는 없다 — setControl 호출 수로 박제한다.
  */
-import { act, createElement, useCallback } from 'react';
+import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -15,15 +15,18 @@ vi.mock('@shared/lib/sidecar', () => ({
     sidecar: {
         getStatus: vi.fn(),
         setControl: vi.fn(),
+        pidOn: vi.fn(),
+        pidOff: vi.fn(),
+        pidSetSv: vi.fn(),
     },
 }));
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
 
+import type { PidRuntime } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
-import type { ControlOrigin } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
-import { type MachineFeedback, useMachineControl } from './useMachineControl';
-import { useReplayControl } from './useReplayControl';
+import type { MachineFeedback } from './useMachineControl';
+import { useMachineControlComposition } from './useMachineControlComposition';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -51,7 +54,9 @@ const COARSE_POINTS: ReplayPoint[] = [
     { t: 600, bt: 205, heaterSet: 4 },
 ];
 
-/** 두 훅을 MachineControlPanel과 동일하게 배선한 합성 하네스 */
+const runningPid = { state: 'running', sv: null, duty: null, pv: null, p: 0, i: 0, d: 0, error: null } as PidRuntime;
+
+/** Production composition — the same hook ActiveRoast mounts above the panel. */
 const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[]; dropBehavior?: 'hold' | 'zero' } = {}) => {
     const heaterMax = opts.heaterMax ?? 100;
     const points = opts.points ?? POINTS;
@@ -64,7 +69,7 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[]; dro
 
     const root = createRoot(document.createElement('div'));
     const committed = vi.fn();
-    let latest!: { replay: ReturnType<typeof useReplayControl>; mc: ReturnType<typeof useMachineControl> };
+    let latest!: ReturnType<typeof useMachineControlComposition>;
     interface Inputs {
         feedback: MachineFeedback;
         elapsed: number;
@@ -77,39 +82,23 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[]; dro
         points: ReplayPoint[];
     }
     const Probe = ({ inputs }: { inputs: Inputs }) => {
-        const mc = useMachineControl(true, inputs.feedback, committed);
-        const { setValue, commitNow, cancelUnsentReplayHeater } = mc;
-        const writeHeater = useCallback(
-            async (value: number, origin: ControlOrigin = 'replay') => {
-                setValue('heater', value);
-                const applied = await commitNow(origin);
-                return applied?.heater ?? null;
-            },
-            [setValue, commitNow],
-        );
-        const replay = useReplayControl({
-            referencePoints: inputs.points,
-            referenceDropTime: null,
+        latest = useMachineControlComposition({
+            sidecarConnected: true,
+            reconnecting: false,
+            liveData: inputs.feedback,
+            pidRuntime: inputs.pidEngaged ? runningPid : null,
+            roastFinished: inputs.roastFinished,
+            pidDropBehavior: inputs.dropBehavior,
+            replayPoints: inputs.points,
+            replayMachineMismatch: false,
+            replayDropTime: null,
             liveBt: inputs.liveBt,
             elapsed: inputs.elapsed,
             roasting: inputs.roasting,
             confirmedTurningPoint: inputs.confirmedTurningPoint,
-            heaterWritable: mc.writable && mc.limits.heater != null,
-            pidEngaged: inputs.pidEngaged,
-            roastFinished: inputs.roastFinished,
-            sidecarConnected: true,
-            heaterUnacknowledged: mc.unacknowledged.has('heater'),
-            dropBehavior: inputs.dropBehavior,
-            heaterFeedback: inputs.feedback?.heater ?? null,
-            heaterPending: mc.desired.heater != null,
-            reconnecting: false,
             observationQuality: 'valid',
-            referenceMachineMismatch: false,
-            writeHeater,
-            cancelUnsentHeater: cancelUnsentReplayHeater,
-            heaterMax: mc.limits.heater?.max,
+            onCommitted: committed,
         });
-        latest = { replay, mc };
         return null;
     };
 
@@ -134,7 +123,7 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[]; dro
     await render(current);
 
     return {
-        get: () => latest,
+        get: () => ({ replay: latest.replay, mc: latest.machine }),
         committed,
         toggle: () => act(async () => latest.replay.toggle()),
         /** 1폴 = 1초 진행 — 기계가 보고한 실측 한 샘플을 먹인다 */
