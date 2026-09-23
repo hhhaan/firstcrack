@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
-import { useMachineControl } from './useMachineControl';
+import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { usePidControl } from './usePidControl';
 import { type ObservationQuality, type ReplayStopReason, useReplayControl } from './useReplayControl';
 
@@ -11,7 +11,7 @@ export interface MachineControlCompositionInput {
     sidecarConnected: boolean;
     /** 사이드카 재연결 대기 — 실측 동결 중이라 이탈 카운트를 멈춘다 (#307) */
     reconnecting: boolean;
-    liveData: { heater: number | null; fan: number; drum: number } | null;
+    liveData: MachineFeedback;
     pidRuntime: PidRuntime | null;
     /** 배출·로스팅 종료 — PID 자동 해제 신호 */
     roastFinished: boolean;
