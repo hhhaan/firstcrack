@@ -13,7 +13,7 @@ vi.mock('@shared/lib/sidecar', () => ({
     },
 }));
 vi.mock('@shared/lib/logger', () => ({
-    logger: { capture: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn(), log: vi.fn(), info: vi.fn() },
+    logger: { capture: vi.fn() },
 }));
 vi.mock('@shared/store/toast', () => ({
     useToastStore: { getState: () => ({ show: vi.fn() }) },
