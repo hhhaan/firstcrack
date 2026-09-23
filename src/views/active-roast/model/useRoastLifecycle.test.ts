@@ -40,7 +40,14 @@ vi.mock('@shared/lib/tsv-writer', async (importOriginal) => {
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const renderLifecycle = (logEntries: LogEntry[] = []) => {
+const renderLifecycle = (
+    logEntries: LogEntry[] = [],
+    detection: {
+        resetAutoDetection?: () => void;
+        disableAutoCharge?: () => void;
+        disableAutoDrop?: () => void;
+    } = {},
+) => {
     const root = createRoot(document.createElement('div'));
     const roastStartTimeRef = { current: 1 };
     let latest: ReturnType<typeof useRoastLifecycle>;
@@ -57,8 +64,9 @@ const renderLifecycle = (logEntries: LogEntry[] = []) => {
             setConnected: () => undefined,
             setIsRunning: vi.fn(),
             resetStore: () => useRoastingStore.getState().reset(),
-            resetAutoDetectionRef: { current: () => undefined },
-            disableAutoChargeRef: { current: () => undefined },
+            resetAutoDetectionRef: { current: detection.resetAutoDetection ?? (() => undefined) },
+            disableAutoChargeRef: { current: detection.disableAutoCharge ?? (() => undefined) },
+            disableAutoDropRef: { current: detection.disableAutoDrop ?? (() => undefined) },
             rearmAutoChargeRef: { current: () => undefined },
             setLogEntries: vi.fn(),
             setLivePoints: vi.fn(),
@@ -248,6 +256,69 @@ describe('completeDrop → BBP (#484)', () => {
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             void act(() => h.result.completeDrop({ livePoints: [], onset: { timeSec: 600, bt: 205 } }));
+            expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
+        } finally {
+            h.unmount();
+        }
+    });
+
+    it('finishDrop is the manual and auto boundary: one snapshot, then detectors stay off', () => {
+        const order: string[] = [];
+        const armed = { charge: false, drop: false };
+        const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)], {
+            resetAutoDetection: () => {
+                order.push('reset');
+                armed.charge = true;
+                armed.drop = true;
+            },
+            disableAutoCharge: () => {
+                order.push('disable-charge');
+                armed.charge = false;
+            },
+            disableAutoDrop: () => {
+                order.push('disable-drop');
+                armed.drop = false;
+            },
+        });
+        const commitSummary = vi.fn();
+        try {
+            let summary: ReturnType<typeof h.result.finishDrop> | undefined;
+            void act(() => {
+                summary = h.result.finishDrop({
+                    livePoints: [
+                        {
+                            time: 600,
+                            label: '10:00',
+                            bt: 205,
+                            et: 210,
+                            ror: 0,
+                            ror_et: 0,
+                            heater: 50,
+                            fan: 40,
+                            drum: 60,
+                        },
+                    ],
+                    onset: { timeSec: 600, bt: 205 },
+                    commitSummary,
+                });
+            });
+            expect(summary?.sessionId).toBe('s-a');
+            expect(commitSummary).toHaveBeenCalledTimes(1);
+            expect(order).toEqual(['disable-drop', 'reset', 'disable-drop', 'disable-charge']);
+            expect(armed).toEqual({ charge: false, drop: false });
+            expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
+            expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
+            expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
+
+            void act(() => {
+                const again = h.result.finishDrop({
+                    livePoints: [],
+                    onset: { timeSec: 600, bt: 205 },
+                    commitSummary,
+                });
+                expect(again).toBeNull();
+            });
+            expect(commitSummary).toHaveBeenCalledTimes(1);
             expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
         } finally {
             h.unmount();
