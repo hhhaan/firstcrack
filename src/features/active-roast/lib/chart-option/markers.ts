@@ -26,15 +26,17 @@ const formatMarkerTime = (timeSec: number) => {
 };
 
 export const eventLabelText = (event: string, timeSec: number, temp: string, note?: string) => {
-    const name = event === 'Note' ? note?.trim() || event : event === 'Heater' && note ? `${event} → ${note}` : event;
-    return `${name} | ${formatMarkerTime(timeSec)} | ${temp || '—'}`;
+    const name = event === 'Note' ? note?.trim() || event : event === 'Heater' && note ? `${event}→${note}` : event;
+    return `${name}|${formatMarkerTime(timeSec)}|${temp || '—'}`;
 };
 
 export const MARKER_LABEL_STACK_PX = 14;
-export const MARKER_LABEL_DISTANCE_PX = 12;
+export const MARKER_LABEL_DISTANCE_PX = 0;
 export const MARKER_LABEL_MAX_WIDTH_PX = 240;
 export const MARKER_LABEL_CHAR_WIDTH_PX = 6;
 export const MARKER_LABEL_GAP_PX = 2;
+/** Gap from the event line to the left edge of the label. */
+export const MARKER_LABEL_X_OFFSET_PX = 4;
 
 export const markerLabelDy = (below: boolean, rank = 0) =>
     (below ? MARKER_LABEL_DISTANCE_PX : -MARKER_LABEL_DISTANCE_PX) - MARKER_LABEL_STACK_PX * rank;
@@ -45,7 +47,7 @@ export const estimateLabelWidth = (text: string) =>
 export interface MarkerLabelGeometry {
     x: number;
     y: number;
-    align: 'center';
+    align: 'left';
     text: string;
     rank: number;
 }
@@ -93,16 +95,14 @@ const boxesOverlap = (a: CurveLabelBox, b: CurveLabelBox) =>
 
 const makeLabelBox = (item: CurveLabelLayoutInput, textY: number, canvasWidth: number): CurveLabelBox => {
     const width = Math.min(estimateLabelWidth(item.text), Math.max(0, canvasWidth - 8));
-    const x = Number.isFinite(canvasWidth)
-        ? Math.max(4 + width / 2, Math.min(item.xPx, canvasWidth - 4 - width / 2))
-        : item.xPx;
+    const x = Math.max(4, Math.min(item.xPx + MARKER_LABEL_X_OFFSET_PX, canvasWidth - 4 - width));
     const top = item.below ? textY : textY - MARKER_LABEL_STACK_PX;
     const bottom = item.below ? textY + MARKER_LABEL_STACK_PX : textY;
     return {
         x,
         textY,
-        left: x - width / 2,
-        right: x + width / 2,
+        left: x,
+        right: x + width,
         top,
         bottom,
         below: item.below,
@@ -162,9 +162,9 @@ export const getMarkerLabelGeometry = ({
     text: string;
     below?: boolean;
 }): MarkerLabelGeometry => ({
-    x: anchorX,
+    x: anchorX + MARKER_LABEL_X_OFFSET_PX,
     y: anchorY + markerLabelDy(below, rank),
-    align: 'center',
+    align: 'left',
     text,
     rank,
 });

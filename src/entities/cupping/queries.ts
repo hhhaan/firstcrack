@@ -1,15 +1,18 @@
-import type { CuppingEvent, CuppingSample } from '@shared/types/database.types';
+import type { CuppingEvent, CuppingFormTemplate, CuppingSample, Json } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     type AddSampleInput,
     type CreateEventInput,
+    type CreateFormTemplateInput,
     type CreateInviteForEventInput,
     type CreateInviteResult,
     type CuppingEventSummary,
     type CuppingSampleWithMeta,
     cuppingApi,
+    type UpdateFormTemplateInput,
     type UpdateSampleInput,
 } from './api';
+import { PRESET_FORMS, SCA_V1_FORM } from './lib/form';
 import { cuppingInviteUrl, generateCuppingToken, resolveCuppingPublicBaseUrl } from './lib/token';
 
 export const cuppingKeys = {
@@ -18,6 +21,7 @@ export const cuppingKeys = {
     samples: (eventId: string) => ['cupping_samples', eventId] as const,
     invite: (eventId: string) => ['cupping_invite', eventId] as const,
     scores: (sampleId: string) => ['cuppings', 'sample', sampleId] as const,
+    forms: (userId: string) => ['cupping_form_templates', userId] as const,
 };
 
 type ActiveInvite = CuppingEventSummary['active_invite'];
@@ -232,6 +236,10 @@ export const useCreateCuppingEvent = (userId: string) => {
                 notes: input.notes ?? null,
                 ended_at: null,
                 results_token: null,
+                form_template_id: input.form?.kind === 'template' ? input.form.id : null,
+                form_snapshot: (input.form?.kind === 'preset'
+                    ? PRESET_FORMS[input.form.key]
+                    : SCA_V1_FORM) as unknown as Json,
                 created_at: now,
                 updated_at: now,
                 sample_count: 0,
@@ -585,6 +593,50 @@ export const useRevokeCuppingInvite = (eventId: string, userId?: string) => {
         onSuccess: () => {
             // Confirm null on both keys after server revoke
             syncActiveInviteCache(qc, eventId, null, userId);
+        },
+    });
+};
+
+export const useCuppingFormTemplates = (userId: string, enabled = true) =>
+    useQuery({
+        queryKey: cuppingKeys.forms(userId),
+        queryFn: () => cuppingApi.listFormTemplates(userId),
+        staleTime: Infinity,
+        enabled: !!userId && enabled,
+        throwOnError: false,
+    });
+
+export const useCreateCuppingFormTemplate = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (input: Omit<CreateFormTemplateInput, 'userId'>) =>
+            cuppingApi.createFormTemplate({ ...input, userId }),
+        onSuccess: (row) => {
+            qc.setQueryData<CuppingFormTemplate[]>(cuppingKeys.forms(userId), (old = []) => [row, ...old]);
+        },
+    });
+};
+
+export const useUpdateCuppingFormTemplate = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (input: UpdateFormTemplateInput) => cuppingApi.updateFormTemplate(input),
+        onSuccess: (row) => {
+            qc.setQueryData<CuppingFormTemplate[]>(cuppingKeys.forms(userId), (old = []) =>
+                old.map((t) => (t.id === row.id ? row : t)),
+            );
+        },
+    });
+};
+
+export const useDeleteCuppingFormTemplate = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: cuppingApi.deleteFormTemplate,
+        onSuccess: (_void, id) => {
+            qc.setQueryData<CuppingFormTemplate[]>(cuppingKeys.forms(userId), (old = []) =>
+                old.filter((t) => t.id !== id),
+            );
         },
     });
 };

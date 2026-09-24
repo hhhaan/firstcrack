@@ -18,7 +18,7 @@ vi.mock('@entities/organization', () => ({
 const renderActions = (roastStartTimeRef: { current: number }) => {
     const root = createRoot(document.createElement('div'));
     const setLogEntries = vi.fn();
-    const setShowEndRoastModal = vi.fn();
+    const onDrop = vi.fn();
     let latest: ReturnType<typeof useRoastActions>;
 
     const Probe = () => {
@@ -27,7 +27,7 @@ const renderActions = (roastStartTimeRef: { current: number }) => {
             rawBT: 200,
             setLogEntries,
             setIsRunning: vi.fn(),
-            setShowEndRoastModal,
+            onDrop,
             storeStartCharge: (ms, ownerId) => useRoastingStore.getState().startCharge(ms, ownerId),
             roastStartTimeRef: roastStartTimeRef as React.MutableRefObject<number>,
         });
@@ -37,7 +37,7 @@ const renderActions = (roastStartTimeRef: { current: number }) => {
     void act(() => root.render(createElement(Probe)));
     return {
         setLogEntries,
-        setShowEndRoastModal,
+        onDrop,
         get result() {
             return latest;
         },
@@ -92,14 +92,12 @@ describe('startCharge 심층 방어 가드 (#174)', () => {
 describe('handleAutoDrop', () => {
     beforeEach(resetStore);
 
-    it('opens the end-roast dialog even when the log updater runs later', () => {
+    it('uses the shared Drop transition, not an End-confirm dialog', () => {
         const ref = { current: 0 };
         const h = renderActions(ref);
         void act(() => h.result.handleAutoDrop({ timeSec: 430, bt: 200 }));
-        expect(h.setShowEndRoastModal).toHaveBeenCalledTimes(1);
-        expect(h.setLogEntries).toHaveBeenCalledTimes(1);
-        const queued = (h.setLogEntries as ReturnType<typeof vi.fn>).mock.calls[0][0] as (prev: unknown[]) => unknown[];
-        const next = queued([]);
-        expect(next).toEqual(expect.arrayContaining([expect.objectContaining({ event: 'Drop', timeSec: 430 })]));
+        expect(h.onDrop).toHaveBeenCalledTimes(1);
+        expect(h.onDrop).toHaveBeenCalledWith({ timeSec: 430, bt: 200 });
+        expect(h.setLogEntries).not.toHaveBeenCalled();
     });
 });

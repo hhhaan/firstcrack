@@ -1,14 +1,20 @@
-import { type CuppingEventSummary, useCreateCuppingEvent, useDeleteCuppingEvent } from '@entities/cupping';
+import {
+    type CuppingEventSummary,
+    type CuppingFormRef,
+    useCreateCuppingEvent,
+    useCuppingFormTemplates,
+    useDeleteCuppingEvent,
+} from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
-import { PillButton } from '@shared/ui/PillButton';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { eventFormLabel } from '../lib/formLabel';
 import { CuppingEventListSkeleton } from './CuppingSkeleton';
 import { DeleteCuppingEventModal } from './DeleteCuppingEventModal';
 
@@ -20,6 +26,7 @@ type CuppingEventListProps = {
     error: unknown;
     onRetry: () => void;
     onSelect: (eventId: string) => void;
+    onOpenForms: () => void;
 };
 
 export const CuppingEventList = ({
@@ -30,24 +37,35 @@ export const CuppingEventList = ({
     error,
     onRetry,
     onSelect,
+    onOpenForms,
 }: CuppingEventListProps) => {
     const { t } = useTranslation();
     const createEvent = useCreateCuppingEvent(userId);
     const deleteEvent = useDeleteCuppingEvent(userId);
+    const { data: templates = [] } = useCuppingFormTemplates(userId);
 
     const [showCreate, setShowCreate] = useState(false);
     const [title, setTitle] = useState('');
+    const [formValue, setFormValue] = useState('preset:sca_v1');
     const [createError, setCreateError] = useState<string | null>(null);
     const [deleting, setDeleting] = useState<CuppingEventSummary | null>(null);
+
+    const parseFormRef = (raw: string): CuppingFormRef => {
+        if (raw.startsWith('template:')) return { kind: 'template', id: raw.slice('template:'.length) };
+        if (raw === 'preset:simple_5') return { kind: 'preset', key: 'simple_5' };
+        return { kind: 'preset', key: 'sca_v1' };
+    };
 
     const handleCreate = async () => {
         setCreateError(null);
         try {
             const ev = await createEvent.mutateAsync({
                 title: title.trim() || t('cupping.defaultTitle'),
+                form: parseFormRef(formValue),
             });
             setShowCreate(false);
             setTitle('');
+            setFormValue('preset:sca_v1');
             onSelect(ev.id);
         } catch (e) {
             setCreateError(e instanceof Error ? e.message : 'Failed');
@@ -60,9 +78,23 @@ export const CuppingEventList = ({
                 title={t('cupping.title')}
                 subtitle={isLoading ? t('cupping.subtitleLoading') : t('cupping.subtitle', { count: events.length })}
                 actions={
-                    <PillButton onClick={() => setShowCreate(true)} icon={<Plus size={15} strokeWidth={2.5} />}>
-                        {t('cupping.newEvent')}
-                    </PillButton>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={onOpenForms}
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]"
+                        >
+                            {t('cupping.forms')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowCreate(true)}
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px dark:bg-[#0d0d0d]"
+                        >
+                            <Plus size={14} strokeWidth={2} />
+                            {t('cupping.newEvent')}
+                        </button>
+                    </div>
                 }
             />
 
@@ -107,6 +139,9 @@ export const CuppingEventList = ({
                                     {t('cupping.colDate')}
                                 </th>
                                 <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                    {t('cupping.colForm')}
+                                </th>
+                                <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                     {t('cupping.colSamples')}
                                 </th>
                                 <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
@@ -131,6 +166,9 @@ export const CuppingEventList = ({
                                     <td className="px-4 py-3 text-[13px] font-medium text-primary">{ev.title}</td>
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {formatDateShort(ev.held_at)}
+                                    </td>
+                                    <td className="px-4 py-3 text-[13px] text-secondary">
+                                        {eventFormLabel(ev.form_snapshot, t)}
                                     </td>
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {ev.sample_count}
@@ -197,6 +235,22 @@ export const CuppingEventList = ({
                                 placeholder={t('cupping.defaultTitle')}
                                 className="rounded-md border border-border-subtle bg-main-bg px-3 py-2 text-[13px] text-primary dark:border-[#585d61]"
                             />
+                        </label>
+                        <label className="mb-4 flex flex-col gap-1 text-[12px] text-muted">
+                            {t('cupping.eventForm')}
+                            <select
+                                value={formValue}
+                                onChange={(e) => setFormValue(e.target.value)}
+                                className="rounded-md border border-border-subtle bg-main-bg px-3 py-2 text-[13px] text-primary dark:border-[#585d61]"
+                            >
+                                <option value="preset:sca_v1">{t('cupping.presetSca')}</option>
+                                <option value="preset:simple_5">{t('cupping.presetSimple5')}</option>
+                                {templates.map((row) => (
+                                    <option key={row.id} value={`template:${row.id}`}>
+                                        {row.name}
+                                    </option>
+                                ))}
+                            </select>
                         </label>
                         {createError ? <div className="mb-3 text-xs text-red-600">{createError}</div> : null}
                         <div className="flex justify-end gap-2">

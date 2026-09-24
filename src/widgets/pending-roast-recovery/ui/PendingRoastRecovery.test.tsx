@@ -17,7 +17,9 @@ const mocks = vi.hoisted(() => ({
     find: vi.fn(),
     upload: vi.fn(),
     save: vi.fn(),
-    ask: vi.fn(),
+    ask: vi.fn(async () => {
+        throw new TypeError("Cannot read properties of undefined (reading 'invoke')");
+    }),
 }));
 vi.mock('@entities/bean', () => ({ useBeans: () => ({ data: [] }) }));
 vi.mock('@entities/organization', () => ({
@@ -59,9 +61,16 @@ const pending = (overrides: Partial<PendingRoastSave> = {}): PendingRoastSave =>
     ),
     ...overrides,
 });
+const OTHER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const button = (name: string) => {
     const result = [...host.querySelectorAll('button')].find((el) => el.textContent === `activeRoast.recovery.${name}`);
     if (!result) throw new Error(`Missing button: ${name}`);
+    return result;
+};
+const discardModal = () => host.querySelector('[data-testid="pending-roast-discard-modal"]');
+const confirmDiscard = () => {
+    const result = host.querySelector('[data-testid="pending-roast-discard-confirm"]') as HTMLButtonElement | null;
+    if (!result) throw new Error('Missing in-app discard confirm');
     return result;
 };
 const mount = async (item: PendingRoastSave) => {
@@ -116,7 +125,7 @@ describe('PendingRoastRecovery safety', () => {
                 button('discard').click();
             });
             expect(mocks.resume).toHaveBeenCalledTimes(1);
-            expect(mocks.ask).not.toHaveBeenCalled();
+            expect(discardModal()).toBeNull();
             expect(readPendingRoastSave('owner', ID)).not.toBeNull();
         } finally {
             await act(async () => {
@@ -140,26 +149,49 @@ describe('PendingRoastRecovery safety', () => {
             expect(host.querySelector('[role="dialog"]')).toBeNull();
             expect(readPendingRoastSave('owner', ID)).not.toBeNull();
             await act(async () => button('pending').click());
-            mocks.ask.mockResolvedValueOnce(false);
             await act(async () => button('discard').click());
+            expect(discardModal()?.textContent).toContain('activeRoast.recovery.discardConfirm');
+            expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+            const cancel = [...(discardModal()?.querySelectorAll('button') ?? [])].find(
+                (el) => el.textContent === 'common.cancel',
+            );
+            if (!cancel) throw new Error('Missing in-app discard cancel');
+            await act(async () => cancel.click());
+            expect(discardModal()).toBeNull();
             expect(readPendingRoastSave('owner', ID)).not.toBeNull();
             expect(button('pending')).toBeDefined();
-            mocks.ask.mockResolvedValueOnce(true);
             await act(async () => button('discard').click());
+            await act(async () => confirmDiscard().click());
             expect(readPendingRoastSave('owner', ID)).toBeNull();
             expect(host.textContent).toBe('');
         },
     );
 
-    it('does not discard if recovery starts while the confirmation dialog is open', async () => {
-        let confirm = (_answer: boolean) => {};
-        let release = () => {};
-        mocks.ask.mockImplementation(
-            () =>
-                new Promise<boolean>((resolve) => {
-                    confirm = resolve;
-                }),
+    it('shows an in-app confirm and clears the pending roast when Tauri dialog invoke is missing', async () => {
+        writePendingRoastSave(pending({ submitted: false }));
+        writePendingRoastSave(
+            pending({
+                submitted: false,
+                params: { ...pending().params, sessionId: OTHER_ID, handoffBeanName: 'Ethiopia' },
+            }),
         );
+        await act(async () => root.render(<PendingRoastRecovery />));
+        await act(async () => button('pending').click());
+        expect(host.querySelectorAll('section').length).toBe(2);
+        await act(async () => button('discard').click());
+        expect(mocks.ask).not.toHaveBeenCalled();
+        expect(discardModal()).toBeTruthy();
+        expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+        expect(readPendingRoastSave('owner', OTHER_ID)).not.toBeNull();
+        await act(async () => confirmDiscard().click());
+        expect(readPendingRoastSave('owner', ID)).toBeNull();
+        expect(readPendingRoastSave('owner', OTHER_ID)).not.toBeNull();
+        expect(host.querySelectorAll('section').length).toBe(1);
+        expect(button('pending')).toBeDefined();
+    });
+
+    it('does not discard if recovery starts while the confirmation dialog is open', async () => {
+        let release = () => {};
         mocks.access.mockImplementation(
             () =>
                 new Promise<void>((resolve) => {
@@ -169,11 +201,13 @@ describe('PendingRoastRecovery safety', () => {
         const item = pending({ submitted: false });
         await mount(item);
         await act(async () => button('discard').click());
+        expect(discardModal()).toBeTruthy();
         await act(async () => writePendingRoastSave({ ...item, submitted: true }));
         try {
             expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
-            await act(async () => confirm(true));
+            await act(async () => confirmDiscard().click());
             expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+            expect(discardModal()).toBeNull();
         } finally {
             await act(async () => release());
         }

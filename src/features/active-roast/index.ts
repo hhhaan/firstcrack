@@ -7,6 +7,7 @@ export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
+export type { ObservationQuality, SensorObservation } from './lib/sensorObservation';
 // lib
 export {
     formatTemp,
@@ -20,7 +21,7 @@ export {
 export type { TurningPoint } from './lib/turningPoints';
 export { detectTurningPoints } from './lib/turningPoints';
 export type { BbpPoint, BbpSample, BbpSummary } from './model/bbp';
-export { BBP_DISPLAY_SECONDS, BBP_MAX_SECONDS, useBbpStore } from './model/bbp';
+export { BBP_INPROGRESS_ID, BBP_MAX_SECONDS, useBbpStore } from './model/bbp';
 export type {
     EventMarkerStyle,
     PidDropBehavior,

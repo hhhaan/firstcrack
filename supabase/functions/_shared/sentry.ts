@@ -76,10 +76,16 @@ function parseDsn(dsn: string): { publicKey: string; host: string; projectId: st
     }
 }
 
+/** Vitest loads Edge modules without a Deno global. Missing runtime → no-op, same as a missing DSN. */
+function denoEnv(name: string): string | undefined {
+    const deno = (globalThis as { Deno?: { env?: { get?: (key: string) => string | undefined } } }).Deno;
+    return deno?.env?.get?.(name);
+}
+
 export async function captureEdgeException(err: unknown, opts: CaptureOpts = {}): Promise<void> {
     if (!isActionableEdgeError(opts.status)) return;
 
-    const dsn = Deno.env.get('SENTRY_DSN');
+    const dsn = denoEnv('SENTRY_DSN');
     if (!dsn) return;
     const parsed = parseDsn(dsn);
     if (!parsed) {
@@ -89,14 +95,14 @@ export async function captureEdgeException(err: unknown, opts: CaptureOpts = {})
 
     const { type, message } = describe(err);
     const stack = err instanceof Error ? err.stack : undefined;
-    const release = Deno.env.get('SENTRY_RELEASE');
+    const release = denoEnv('SENTRY_RELEASE');
     const event = {
         event_id: crypto.randomUUID().replace(/-/g, ''),
         timestamp: Date.now() / 1000,
         platform: 'javascript',
         level: opts.level ?? 'error',
         server_name: 'fc-edge',
-        environment: Deno.env.get('SENTRY_ENVIRONMENT') ?? 'production',
+        environment: denoEnv('SENTRY_ENVIRONMENT') ?? 'production',
         release,
         tags: {
             runtime: 'edge',

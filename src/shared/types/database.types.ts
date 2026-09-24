@@ -215,6 +215,8 @@ export type Database = {
                 Row: {
                     created_at: string;
                     ended_at: string | null;
+                    form_snapshot: Json;
+                    form_template_id: string | null;
                     held_at: string;
                     id: string;
                     notes: string | null;
@@ -226,6 +228,8 @@ export type Database = {
                 Insert: {
                     created_at?: string;
                     ended_at?: string | null;
+                    form_snapshot?: Json;
+                    form_template_id?: string | null;
                     held_at?: string;
                     id?: string;
                     notes?: string | null;
@@ -237,6 +241,8 @@ export type Database = {
                 Update: {
                     created_at?: string;
                     ended_at?: string | null;
+                    form_snapshot?: Json;
+                    form_template_id?: string | null;
                     held_at?: string;
                     id?: string;
                     notes?: string | null;
@@ -247,7 +253,49 @@ export type Database = {
                 };
                 Relationships: [
                     {
+                        foreignKeyName: 'cupping_events_form_template_id_fkey';
+                        columns: ['form_template_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'cupping_form_templates';
+                        referencedColumns: ['id'];
+                    },
+                    {
                         foreignKeyName: 'cupping_events_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            cupping_form_templates: {
+                Row: {
+                    created_at: string;
+                    id: string;
+                    name: string;
+                    schema: Json;
+                    updated_at: string;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    id?: string;
+                    name: string;
+                    schema: Json;
+                    updated_at?: string;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    id?: string;
+                    name?: string;
+                    schema?: Json;
+                    updated_at?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'cupping_form_templates_user_id_fkey';
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
@@ -322,6 +370,51 @@ export type Database = {
                     },
                     {
                         foreignKeyName: 'cupping_invites_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            cupping_participants: {
+                Row: {
+                    claimed_at: string;
+                    created_at: string;
+                    cupped_by: string;
+                    id: string;
+                    invite_id: string;
+                    published_at: string | null;
+                    user_id: string;
+                };
+                Insert: {
+                    claimed_at?: string;
+                    created_at?: string;
+                    cupped_by: string;
+                    id?: string;
+                    invite_id: string;
+                    published_at?: string | null;
+                    user_id: string;
+                };
+                Update: {
+                    claimed_at?: string;
+                    created_at?: string;
+                    cupped_by?: string;
+                    id?: string;
+                    invite_id?: string;
+                    published_at?: string | null;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'cupping_participants_invite_id_fkey';
+                        columns: ['invite_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'cupping_invites';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cupping_participants_user_id_fkey';
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
@@ -1493,6 +1586,7 @@ export type Database = {
                     dev_time_sec: number | null;
                     drop_temp_celsius: number | null;
                     duration_sec: number | null;
+                    heater_events: Json | null;
                     id: string;
                     machine_brand: string | null;
                     machine_id: string | null;
@@ -1515,6 +1609,7 @@ export type Database = {
                     dev_time_sec?: number | null;
                     drop_temp_celsius?: number | null;
                     duration_sec?: number | null;
+                    heater_events?: Json | null;
                     id?: string;
                     machine_brand?: string | null;
                     machine_id?: string | null;
@@ -1537,6 +1632,7 @@ export type Database = {
                     dev_time_sec?: number | null;
                     drop_temp_celsius?: number | null;
                     duration_sec?: number | null;
+                    heater_events?: Json | null;
                     id?: string;
                     machine_brand?: string | null;
                     machine_id?: string | null;
@@ -2342,6 +2438,8 @@ export type RoastSessionWithRelations = RoastSession & {
 export type Cupping = Database['public']['Tables']['cuppings']['Row'];
 export type CuppingInvite = Database['public']['Tables']['cupping_invites']['Row'];
 export type CuppingEvent = Database['public']['Tables']['cupping_events']['Row'];
+export type CuppingFormTemplate = Database['public']['Tables']['cupping_form_templates']['Row'];
+export type CuppingParticipant = Database['public']['Tables']['cupping_participants']['Row'];
 export type CuppingSample = Database['public']['Tables']['cupping_samples']['Row'];
 
 export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row'];

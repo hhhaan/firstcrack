@@ -1,0 +1,138 @@
+// @vitest-environment jsdom
+import { sidecar } from '@shared/lib/sidecar';
+import type { SidecarStatus } from '@shared/types/sidecar';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sidecarStatusKey } from '../api/useSidecarStatus';
+import type { ReplayEvent } from '../lib/replay';
+import { ProfileHeaterEventsEditor } from './ProfileHeaterEventsEditor';
+
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('@shared/lib/sidecar', () => ({ sidecar: { getStatus: vi.fn() } }));
+
+const STATUS: SidecarStatus = {
+    connected: true,
+    roaster: 'giesen_wxa_coarse',
+    display_name: 'Giesen WxA coarse',
+    brand: 'Giesen',
+    capabilities: ['heater'],
+    control: { writable: true, limits: { heater: { min: 1, max: 10, unit: 'step' } } },
+    uptime: 1,
+    error: null,
+};
+
+describe('ProfileHeaterEventsEditor status query', () => {
+    let host: HTMLDivElement;
+    let root: ReturnType<typeof createRoot>;
+    let qc: QueryClient;
+
+    beforeEach(() => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        root = createRoot(host);
+        qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        vi.mocked(sidecar.getStatus).mockReset();
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        host.remove();
+        qc.clear();
+    });
+
+    const waitForEditor = async () => {
+        for (let i = 0; i < 20 && !host.querySelector('[data-testid="heater-events-editor"]'); i++) {
+            await act(async () => {
+                await new Promise((r) => setTimeout(r, 10));
+            });
+        }
+        return host.querySelector('[data-testid="heater-events-editor"]');
+    };
+
+    const saveHeater = async (value: string) => {
+        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await act(async () =>
+            [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+        );
+    };
+
+    const renderEditor = async (onApply: (events: ReplayEvent[] | null) => void | Promise<void>) => {
+        await act(async () => {
+            root.render(
+                createElement(
+                    QueryClientProvider,
+                    { client: qc },
+                    createElement(ProfileHeaterEventsEditor, {
+                        profile: { machine_roaster_key: 'giesen_wxa_coarse' },
+                        events: [{ t: 0, bt: 180, heater: 8, trigger: 'time' as const }],
+                        tpTime: 60,
+                        btPoints: [],
+                        source: 'profile',
+                        unit: 'C',
+                        onClose: () => {},
+                        onApply,
+                    }),
+                ),
+            );
+        });
+    };
+
+    it('holds the editor until matching status arrives, then rejects 50 against max 10', async () => {
+        let resolveStatus!: (status: SidecarStatus) => void;
+        vi.mocked(sidecar.getStatus).mockImplementation(
+            () =>
+                new Promise<SidecarStatus>((resolve) => {
+                    resolveStatus = resolve;
+                }),
+        );
+        const onApply = vi.fn();
+        await renderEditor(onApply);
+        expect(host.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
+        expect(onApply).not.toHaveBeenCalled();
+
+        await act(async () => {
+            resolveStatus(STATUS);
+            await Promise.resolve();
+        });
+        expect(await waitForEditor()).not.toBeNull();
+        await saveHeater('50');
+        expect(onApply).not.toHaveBeenCalled();
+        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(qc.getQueryState(sidecarStatusKey)?.status).toBe('success');
+    });
+
+    it('does not use cached max 100 while a fresh max 10 fetch is in flight', async () => {
+        qc.setQueryData(sidecarStatusKey, {
+            ...STATUS,
+            control: { writable: true, limits: { heater: { min: 1, max: 100, unit: '%' } } },
+        });
+        let resolveStatus!: (status: SidecarStatus) => void;
+        vi.mocked(sidecar.getStatus).mockImplementation(
+            () =>
+                new Promise<SidecarStatus>((resolve) => {
+                    resolveStatus = resolve;
+                }),
+        );
+        const onApply = vi.fn();
+        await renderEditor(onApply);
+        expect(host.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
+        expect(onApply).not.toHaveBeenCalled();
+
+        await act(async () => {
+            resolveStatus(STATUS);
+            await Promise.resolve();
+        });
+        expect(await waitForEditor()).not.toBeNull();
+        await saveHeater('50');
+        expect(onApply).not.toHaveBeenCalled();
+        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+    });
+});

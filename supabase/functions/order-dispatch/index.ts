@@ -254,7 +254,14 @@ serveWithSentry('order-dispatch', async (req) => {
                 .select('auto_fulfill_on_shipped')
                 .eq('id', order.connection_id)
                 .maybeSingle();
-            if (connErr) console.error('[order-dispatch] connection lookup', connErr);
+            if (connErr) {
+                console.error('[order-dispatch] connection lookup', connErr);
+                await captureEdgeException(connErr, {
+                    function: 'order-dispatch',
+                    status: 500,
+                    tags: { step: 'connection-lookup' },
+                });
+            }
             if (
                 shouldAutoFulfillOnDispatch({
                     fulfilledAt: order.fulfilled_at,
@@ -265,6 +272,12 @@ serveWithSentry('order-dispatch', async (req) => {
                 if (fulfillErr) {
                     fulfillError = fulfillErr.message;
                     console.error('[order-dispatch] fulfill_order', fulfillErr);
+                    await captureEdgeException(fulfillErr, {
+                        function: 'order-dispatch',
+                        status: 500,
+                        tags: { step: 'fulfill_order' },
+                        extra: { orderId: order.id },
+                    });
                     await admin
                         .from('order_dispatches')
                         .update({
@@ -299,6 +312,11 @@ serveWithSentry('order-dispatch', async (req) => {
             .eq('id', dispatchId);
 
         outcome = { status: 'error', errorMessage: failMsg };
+        await captureEdgeException(new Error(failMsg), {
+            function: 'order-dispatch',
+            status: 502,
+            tags: { step: 'platform-dispatch', platform: order.platform },
+        });
         return jsonResponse(
             {
                 status: 'failed',

@@ -1,8 +1,9 @@
 import { sessionBeanName } from '@entities/roast';
+import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
-import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
@@ -64,7 +65,21 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         hideOnMd: true,
         render: (s) => s.roast_profiles?.name ?? '—',
     },
-    { key: 'weight', label: 'Weight', width: '90px', sortable: false, render: (s) => `${s.weight_grams}g` },
+    {
+        key: 'weight',
+        label: 'Weight',
+        width: '90px',
+        sortable: false,
+        render: (s) => `${s.weight_grams}g`,
+    },
+    {
+        key: null,
+        label: 'charge',
+        width: '80px',
+        sortable: false,
+        render: (s) =>
+            formatTemp(summarizeSessionEvents(parseStoredRoastEvents(s.events), s).charge_temp_celsius, unit),
+    },
     {
         key: 'drop',
         label: 'Drop',
@@ -77,7 +92,7 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         label: 'Duration',
         width: '90px',
         sortable: true,
-        render: (s) => formatDuration(s.duration_seconds),
+        render: (s) => formatDuration(sessionRoastMetrics(s).roastDurationSec),
     },
     {
         key: null,
@@ -97,8 +112,8 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         sortable: false,
         hideOnMd: true,
         render: (s) => {
-            const dev = deriveSessionDevMetrics(parseStoredRoastEvents(s.events), s.duration_seconds);
-            return dev.devPct != null ? `${dev.devPct.toFixed(1)}%` : '—';
+            const dtr = sessionRoastMetrics(s).dtrPct;
+            return dtr != null ? `${dtr.toFixed(1)}%` : '—';
         },
     },
     {
@@ -157,40 +172,52 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { temperatureUnit: unit } = useRoastSettings();
 
     return (
-        <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)] dark:bg-[rgba(38,43,48,0.3)]">
-            <td colSpan={10} className="px-4 py-4 md:px-6">
-                <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
+        <tr className="border-b border-border bg-surface-warm/30">
+            <td colSpan={11} className="px-4 py-4 md:px-6">
+                <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,1.5fr)] items-start gap-6 border-b border-border-subtle pb-2">
                     {[
                         { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
+                        {
+                            label: t('history.expanded.chargeTemp'),
+                            value: formatTemp(
+                                summarizeSessionEvents(parseStoredRoastEvents(session.events), session)
+                                    .charge_temp_celsius,
+                                unit,
+                            ),
+                        },
                         {
                             label: t('history.expanded.dropTemp'),
                             value: formatTemp(session.drop_temp_celsius, unit),
                         },
-                        { label: t('history.expanded.duration'), value: formatDuration(session.duration_seconds) },
+                        {
+                            label: t('history.expanded.duration'),
+                            value: formatDuration(sessionRoastMetrics(session).roastDurationSec),
+                        },
                     ].map(({ label, value }) => (
-                        <div key={label} className="mb-2">
+                        <div key={label} className="min-w-0">
                             <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                 {label}
                             </div>
-                            <div className="font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
+                            <div className="break-words font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
                                 {value}
                             </div>
                         </div>
                     ))}
                     <OutputWeightEditor session={session} />
-                    <div className="mb-2 md:col-span-3 lg:col-auto">
-                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                            {t('history.expanded.notes')}
-                        </div>
-                        <div className="text-[13px] leading-normal tracking-[0.14px] text-secondary">
-                            {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
-                        </div>
-                    </div>
                 </div>
 
                 <SessionScorecard session={session} />
 
                 <HistorySessionChart session={session} />
+
+                <div className="mt-3 flex items-baseline gap-4 border-t border-border-subtle pt-3">
+                    <div className="shrink-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                        {t('history.expanded.notes')}
+                    </div>
+                    <div className="min-w-0 whitespace-pre-wrap break-words text-[13px] leading-relaxed tracking-[0.14px] text-secondary">
+                        {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
+                    </div>
+                </div>
             </td>
         </tr>
     );
@@ -247,6 +274,7 @@ export const HistoryTable = ({
             bean: t('history.table.bean'),
             profile: t('history.table.profile'),
             weight: t('history.table.weight'),
+            charge: t('history.table.chargeTemp'),
             drop: t('history.table.dropTemp'),
             duration: t('history.table.duration'),
             loss: t('history.table.loss'),

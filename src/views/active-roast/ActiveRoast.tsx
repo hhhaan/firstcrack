@@ -22,6 +22,7 @@ import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel } from '@features/machine-control';
+import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
@@ -33,7 +34,7 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useThemeStore } from '@shared/store/theme';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
@@ -46,6 +47,7 @@ import {
 } from './lib/display-derivatives';
 import { resolveLiveChartView } from './lib/live-chart-view';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
+import { useCompletedRoastStore } from './model/completedRoast';
 import { useChartKeyboard } from './model/useChartKeyboard';
 import { useChartPipeline } from './model/useChartPipeline';
 import { useRoastLifecycle } from './model/useRoastLifecycle';
@@ -54,10 +56,12 @@ import { useRoastSaveFlow } from './model/useRoastSaveFlow';
 import { useSidecarPolling } from './model/useSidecarPolling';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
+import { ReplayProfileChangeModal } from './ui/ReplayProfileChangeModal';
 import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
 import { RoastSidePanel } from './ui/RoastSidePanel';
 import { RoastSummaryModal } from './ui/RoastSummaryModal';
+import { UnsavedRoastBanner } from './ui/UnsavedRoastBanner';
 
 interface ActiveRoastProps {
     isActive: boolean;
@@ -77,7 +81,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const bbpTimer = bbpEnabled ? bbpElapsed : null;
     const bbpActive = useBbpStore((s) => s.active);
     const bbpPoints = useBbpStore((s) => s.points);
-    const bbpChargeWait = bbpActive;
+    const awaitingNextCharge = useRoastingStore((s) => s.awaitingNextCharge);
+    const heatHoldAfterDrop = useRoastingStore((s) => s.heatHoldAfterDrop);
+    const bbpChargeWait = bbpActive || awaitingNextCharge;
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -90,6 +96,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sidecarConnected,
         reconnecting,
         machineSnapshot,
+        observationQuality,
+        lastValidReceivedAtMs,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -101,6 +109,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
             machineSnapshot: s.machineSnapshot,
+            observationQuality: s.observation?.quality ?? null,
+            lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -108,7 +118,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         enterPreheating,
         enterStandby,
         startCharge: storeStartCharge,
-        endRoast: storeEndRoast,
         reset: resetStore,
         setConnected,
     } = storeActions;
@@ -128,8 +137,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 프로파일/원두 선택 ─────────────────────────────────────────
     const { data: beans = [], isSuccess: beansReady } = useBeans(workspaceOwnerId);
+    const replayActiveRef = useRef(false);
+    const replayStopRef = useRef<(reason?: ReplayStopReason) => void>(() => {});
+    const profileChangeGenRef = useRef(0);
+    const pendingProfileChangeRef = useRef<{ resolve: (ok: boolean) => void; gen: number } | null>(null);
+    const [profileChangeOpen, setProfileChangeOpen] = useState(false);
+    const confirmTargetChange = useCallback((_nextId: string | null) => {
+        if (!replayActiveRef.current) return Promise.resolve(true);
+        pendingProfileChangeRef.current?.resolve(false);
+        return new Promise<boolean>((resolve) => {
+            pendingProfileChangeRef.current = { resolve, gen: profileChangeGenRef.current };
+            setProfileChangeOpen(true);
+        });
+    }, []);
     const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
-        useRoastProfileSelection({ isActive, charged, userProfile, beans, beansReady });
+        useRoastProfileSelection({ isActive, charged, userProfile, beans, beansReady, confirmTargetChange });
 
     // ── UI 상태 ───────────────────────────────────────────────────
     const [isRunning, setIsRunning] = useState(false);
@@ -141,8 +163,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // 미저장 로스트(진행 중 or ended 요약) — 창 닫기 가드용 (#177)
     const hasUnsavedRoastRef = useRef(false);
     useEffect(() => {
-        hasUnsavedRoastRef.current = isRunning || phase === 'ended';
-    }, [isRunning, phase]);
+        hasUnsavedRoastRef.current = isRunning || phase === 'ended' || awaitingNextCharge;
+    }, [isRunning, phase, awaitingNextCharge]);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
@@ -158,8 +180,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const rawET = liveData?.et ?? null;
     const timeStr = formatElapsed(elapsed);
 
-    const { logEntries, pressedButtons, markEvent, cycleFc, fcDualUnwind, handleDrop, setLogEntries, removeLogEntry } =
-        useRoastLog(unit, rawBT, elapsed);
+    const { logEntries, pressedButtons, markEvent, cycleFc, fcDualUnwind, setLogEntries, removeLogEntry } = useRoastLog(
+        unit,
+        rawBT,
+        elapsed,
+    );
 
     // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
     const { livePoints, setLivePoints } = useSidecarPolling({
@@ -178,7 +203,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => dbProfiles.find((p) => p.id === targetProfileId && p.user_id === workspaceOwnerId) ?? null,
         [dbProfiles, targetProfileId, workspaceOwnerId],
     );
-    const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
+    const { points: targetCurvePoints, isLoading: curveLoading } = useResolvedProfileCurve(targetProfile);
+    const replayPoints = !targetProfileId ? [] : curveLoading ? null : targetCurvePoints;
     const sourceSession = resolveSourceSession(targetProfile?.source_session);
     const waitingForCharge = bbpActive || !charged;
     const bbpTarget = useBbpCurve(
@@ -206,6 +232,39 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const referenceKey = targetProfile?.machine_roaster_key ?? null;
     const currentKey = machineSnapshot?.machine_roaster_key ?? null;
     const replayMachineMismatch = referenceKey != null && currentKey != null && referenceKey !== currentKey;
+    // biome-ignore lint/correctness/useExhaustiveDependencies: identity for in-flight Replay profile confirm
+    useEffect(() => {
+        profileChangeGenRef.current += 1;
+        const pending = pendingProfileChangeRef.current;
+        if (!pending) return;
+        pending.resolve(false);
+        pendingProfileChangeRef.current = null;
+        setProfileChangeOpen(false);
+    }, [sessionId, workspaceOwnerId, targetProfileId]);
+    const handleReplayControl = useCallback(
+        (control: { active: boolean; stop: (reason?: ReplayStopReason) => void } | null) => {
+            replayActiveRef.current = control?.active ?? false;
+            replayStopRef.current = control?.stop ?? (() => {});
+        },
+        [],
+    );
+    const cancelReplayProfileChange = useCallback(() => {
+        pendingProfileChangeRef.current?.resolve(false);
+        pendingProfileChangeRef.current = null;
+        setProfileChangeOpen(false);
+    }, []);
+    const confirmReplayProfileChange = useCallback(() => {
+        const pending = pendingProfileChangeRef.current;
+        pendingProfileChangeRef.current = null;
+        setProfileChangeOpen(false);
+        if (!pending) return;
+        if (pending.gen !== profileChangeGenRef.current) {
+            pending.resolve(false);
+            return;
+        }
+        replayStopRef.current('profileChanged');
+        pending.resolve(true);
+    }, []);
 
     const chartView = useMemo(
         () =>
@@ -217,18 +276,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 roastTarget: targetCurvePoints,
                 bbpTarget: bbpTarget.data ?? [],
                 bbpTargetError: bbpTarget.isError,
-                bbpSeconds: sourceSession?.bbp_seconds,
             }),
-        [
-            bbpActive,
-            bbpPoints,
-            bbpTarget.data,
-            bbpTarget.isError,
-            charged,
-            livePoints,
-            sourceSession?.bbp_seconds,
-            targetCurvePoints,
-        ],
+        [bbpActive, bbpPoints, bbpTarget.data, bbpTarget.isError, charged, livePoints, targetCurvePoints],
     );
     const bbpNowSec = bbpPoints.length > 0 ? bbpPoints[bbpPoints.length - 1].t : 0;
     const waitTemps = waitingForCharge
@@ -261,17 +310,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [bbpActive, charged, setZoomRange, setHoveredChartIndex]);
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
-    const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
-    // 고아 Rolling(FC Start 삭제됨)은 기준점이 없어 지표를 내지 않는다
-    const fcRollingEntry = fcStartEntry ? logEntries.find((e) => e.event === 'FC Rolling') : undefined;
-    const { devTimeStr, devTimeOnly, dtrPct } = useMemo(
-        () => calcDevTime(fcStartEntry, elapsed),
-        [fcStartEntry, elapsed],
-    );
-    const { devTimeOnly: rollingDevTimeStr, dtrPct: rollingDtrPct } = useMemo(
-        () => calcDevTime(fcRollingEntry, elapsed),
-        [fcRollingEntry, elapsed],
-    );
+    const liveDev = useMemo(() => calcDevTime(logEntries, elapsed), [logEntries, elapsed]);
+    const { devTimeOnly, dtrPct, rollingDevTimeOnly, rollingDtrPct, roastDurationSec } = liveDev;
 
     // 라이프사이클과 하위 훅 사이 순환 의존성을 refs로 분리
     const resetAutoDetectionRef = useRef<() => void>(() => {});
@@ -286,10 +326,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         unit,
         logEntries,
         timeStr,
-        devTimeStr,
         enterStandby,
         enterPreheating,
-        storeEndRoast,
         setConnected,
         setIsRunning,
         resetStore,
@@ -321,16 +359,38 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         ambientHumidity: weatherData?.humidity,
         onResetActiveRoast: lifecycle.resetActiveRoast,
     });
+    const completedRestore = useCompletedRoastStore((s) => s.restore);
+    const completedSubmitted = useCompletedRoastStore((s) => s.submitted);
+    const dropCancelable =
+        Boolean(completedRestore) &&
+        !completedSubmitted &&
+        !(charged && sessionId != null && sessionId !== completedRestore?.sessionId);
 
-    const { triggerCharge, handleAutoDrop, handleTurningPoint } = useRoastActions({
+    const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
+
+    const {
+        triggerCharge: startChargeAction,
+        handleAutoDrop,
+        handleTurningPoint,
+    } = useRoastActions({
         unit,
         rawBT,
         setLogEntries,
         setIsRunning,
-        setShowEndRoastModal: saveFlow.flow.openEndRoast,
+        onDrop: (onset) => applyDropRef.current(onset),
         storeStartCharge,
         roastStartTimeRef,
     });
+
+    const triggerCharge = useCallback(
+        (bt?: number | null, chargeTimeMs?: number) => {
+            startChargeAction(bt, chargeTimeMs);
+            useCompletedRoastStore.getState().lockAfterCharge(useRoastingStore.getState().sessionId);
+            // Rearm auto Drop for this batch only. Drop's reset would re-arm too early (#484).
+            resetAutoDetectionRef.current?.();
+        },
+        [startChargeAction],
+    );
 
     const { turningPoints, confirmedTP, resetAutoDetection, disableAutoCharge, rearmAutoCharge, disableAutoDrop } =
         useAutoDetection({
@@ -350,10 +410,40 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             autoYellowEnabled: roastSettings.autoYellowEnabled,
         });
 
+    const applyDrop = useCallback(
+        (onset?: { timeSec: number; bt: number }) => {
+            disableAutoDrop();
+            const summary = lifecycle.completeDrop({ livePoints, onset });
+            if (!summary) return;
+            saveFlow.confirmEndRoast({
+                ...summary,
+                selectedBeanId,
+                planBatchHandoff,
+                handoffBeanName,
+            });
+            lifecycle.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
+            // resetActiveRoast rearms detectors; keep Charge/Drop off until the next Charge.
+            disableAutoDrop();
+            disableAutoCharge();
+        },
+        [
+            disableAutoCharge,
+            disableAutoDrop,
+            lifecycle,
+            livePoints,
+            saveFlow,
+            selectedBeanId,
+            planBatchHandoff,
+            handoffBeanName,
+        ],
+    );
+    useLayoutEffect(() => {
+        applyDropRef.current = applyDrop;
+    }, [applyDrop]);
+
     const markDrop = useCallback(() => {
-        disableAutoDrop();
-        handleDrop();
-    }, [disableAutoDrop, handleDrop]);
+        applyDrop();
+    }, [applyDrop]);
 
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
@@ -361,6 +451,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         rearmAutoChargeRef.current = rearmAutoCharge;
         triggerChargeRef.current = triggerCharge;
     }, [resetAutoDetection, disableAutoCharge, rearmAutoCharge, triggerCharge]);
+
+    const recoverLiveBbp = lifecycle.recoverLiveBbp;
+    useEffect(() => {
+        recoverLiveBbp();
+    }, [recoverLiveBbp]);
 
     const timeAlerts = useMemo(
         () => ({
@@ -406,8 +501,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useEffect(() => {
         if (sidecarConnected) return;
         if (phase !== 'preheating' && phase !== 'standby') return;
+        if (awaitingNextCharge || bbpActive) return;
         lifecycle.resetActiveRoast();
-    }, [sidecarConnected, phase, lifecycle.resetActiveRoast]);
+    }, [sidecarConnected, phase, awaitingNextCharge, bbpActive, lifecycle.resetActiveRoast]);
 
     // ── Effect: 타이머 ────────────────────────────────────────────
     useEffect(() => {
@@ -486,8 +582,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const eventMarkers = useMemo(() => buildEventMarkers(logEntries), [logEntries, resolvedTheme]);
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const phaseSegments = useMemo(
-        () => (roastSettings.showPhaseBar ? computePhaseSegments(logEntries, elapsed, charged) : []),
-        [roastSettings.showPhaseBar, logEntries, elapsed, charged, resolvedTheme],
+        () =>
+            roastSettings.showPhaseBar ? computePhaseSegments(logEntries, roastDurationSec ?? elapsed, charged) : [],
+        [roastSettings.showPhaseBar, logEntries, roastDurationSec, elapsed, charged, resolvedTheme],
     );
     const displayRoR = toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1);
 
@@ -541,19 +638,29 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 이벤트 핸들러 ─────────────────────────────────────────────
     const handleEndRoastClick = useCallback(() => {
-        // ended + summary payload → reopen (safety net if modal was dismissed) (#172)
-        if (roastEnded) {
-            if (saveFlow.flow.summaryData) saveFlow.flow.reopenSummary();
+        if (saveFlow.flow.summaryData) {
+            saveFlow.flow.reopenSummary();
             return;
         }
         if (!charged) return;
         saveFlow.flow.openEndRoast();
-    }, [roastEnded, charged, saveFlow.flow.summaryData, saveFlow.flow.reopenSummary, saveFlow.flow.openEndRoast]);
+    }, [charged, saveFlow.flow.summaryData, saveFlow.flow.reopenSummary, saveFlow.flow.openEndRoast]);
 
     const confirmEndRoast = useCallback(() => {
         const summaryData = lifecycle.confirmEndRoast();
-        saveFlow.confirmEndRoast(summaryData);
-    }, [lifecycle, saveFlow.confirmEndRoast]);
+        saveFlow.confirmEndRoast({
+            ...summaryData,
+            selectedBeanId,
+            planBatchHandoff,
+            handoffBeanName,
+        });
+        lifecycle.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
+    }, [lifecycle, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName]);
+
+    const handleCancelDrop = useCallback(() => {
+        if (!lifecycle.cancelDrop()) return;
+        saveFlow.flow.discardSummary();
+    }, [lifecycle, saveFlow.flow]);
 
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
@@ -619,6 +726,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}
             />
+
+            {!saveFlow.flow.summaryModal && saveFlow.flow.summaryData && (
+                <UnsavedRoastBanner
+                    timeStr={saveFlow.flow.summaryData.totalTime}
+                    cancelable={dropCancelable}
+                    onReopen={saveFlow.flow.reopenSummary}
+                    onCancelDrop={handleCancelDrop}
+                />
+            )}
 
             {phase === 'standby' && roastSettings.autoChargeEnabled && !hasRawTemperature && (
                 <p role="status" className="text-sm text-muted-foreground">
@@ -729,17 +845,22 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         liveData={liveData}
                         pidRuntime={pidRuntime}
                         // 배출·로스팅 종료 시 PID 자동 해제 (무인 화력 방지)
-                        roastFinished={roastEnded || logEntries.some((e) => e.event === 'Drop')}
+                        roastFinished={heatHoldAfterDrop || roastEnded || logEntries.some((e) => e.event === 'Drop')}
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
-                        replayPoints={targetCurvePoints}
+                        replayPoints={replayPoints}
                         replayMachineMismatch={replayMachineMismatch}
                         replayDropTime={replayDropTime}
+                        replayHeaterEvents={targetProfile?.heater_events}
                         liveBt={rawBT}
                         elapsed={elapsed}
                         roasting={phase === 'roasting'}
-                        // #314: 120초 fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다
-                        afterTurningPoint={confirmedTP !== null && !confirmedTP.fallback}
+                        confirmedTurningPoint={confirmedTP}
+                        observationQuality={observationQuality}
+                        lastValidReceivedAtMs={lastValidReceivedAtMs}
+                        // eslint-disable-next-line react-hooks/purity -- fresh wall-clock must stop stale Replay before this commit's write effects
+                        nowMs={Date.now()}
+                        onReplayControl={handleReplayControl}
                         temperatureUnit={unit}
                         onHeaterCommitted={handleHeaterCommitted}
                     />
@@ -762,7 +883,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         dtrPct={dtrPct}
                         devTimeStr={devTimeOnly}
                         rollingDtrPct={rollingDtrPct}
-                        rollingDevTimeStr={rollingDevTimeStr}
+                        rollingDevTimeStr={rollingDevTimeOnly}
                         fcDualMarkEnabled={fcDualMarkEnabled}
                         fcDualUnwind={fcDualUnwind}
                         logEntries={logEntries}
@@ -784,6 +905,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 </div>
             </div>
 
+            <ReplayProfileChangeModal
+                open={profileChangeOpen}
+                onCancel={cancelReplayProfileChange}
+                onConfirm={confirmReplayProfileChange}
+            />
             <EndRoastModal
                 open={saveFlow.flow.endRoastModal}
                 timeStr={timeStr}
@@ -796,13 +922,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 isSaving={saveFlow.isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
-                selectedBeanId={selectedBeanId}
-                planBatchHandoff={planBatchHandoff}
-                fallbackBeanName={handoffBeanName}
+                selectedBeanId={saveFlow.flow.summaryData?.selectedBeanId ?? selectedBeanId}
+                planBatchHandoff={saveFlow.flow.summaryData?.planBatchHandoff ?? planBatchHandoff}
+                fallbackBeanName={saveFlow.flow.summaryData?.handoffBeanName ?? handoffBeanName}
                 onClose={saveFlow.flow.closeSummary}
                 onDiscard={() => {
                     saveFlow.discardSummary();
-                    lifecycle.resetActiveRoast();
                 }}
                 onSave={saveFlow.handleSave}
             />

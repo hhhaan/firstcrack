@@ -21,6 +21,7 @@ vi.mock('@entities/cupping', async (importOriginal) => {
         useCuppingSamples: () => ({ data: [], isLoading: false }),
         useCuppingEvent: () => ({ data: null }),
         useEndCuppingEvent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+        useCuppingFormTemplates: () => ({ data: [], isLoading: false }),
     };
 });
 
@@ -49,6 +50,14 @@ const event: CuppingEventSummary = {
     notes: null,
     ended_at: null,
     results_token: null,
+    form_template_id: null,
+    form_snapshot: {
+        v: 1,
+        key: 'sca_v1',
+        name: 'SCA',
+        fields: [],
+        scoring: { base: 36, defectWeight: 2 },
+    },
     created_at: '2026-09-17T00:00:00.000Z',
     updated_at: '2026-09-17T00:00:00.000Z',
     sample_count: 0,
@@ -83,6 +92,7 @@ const renderList = () => {
                 error: null,
                 onRetry: () => {},
                 onSelect: () => {},
+                onOpenForms: () => {},
             }),
         ),
     );

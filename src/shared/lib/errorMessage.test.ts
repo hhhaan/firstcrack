@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorMessage, isOpaqueNetworkError, isSidecarStartingError } from './errorMessage';
+import { errorMessage, isOpaqueNetworkError, isOpaqueNetworkMessage, isSidecarStartingError } from './errorMessage';
 
 describe('errorMessage', () => {
     it('reads Error, string, and { message }', () => {
@@ -25,6 +25,12 @@ describe('isOpaqueNetworkError', () => {
         expect(isOpaqueNetworkError(new Error('invite_expired'))).toBe(false);
         expect(isOpaqueNetworkError(new Error(''))).toBe(false);
         expect(isOpaqueNetworkError({ code: 'PGRST301' })).toBe(false);
+    });
+
+    it('classifies opaque messages without treating every TypeError as network', () => {
+        expect(isOpaqueNetworkMessage('Failed to fetch (example.supabase.co)')).toBe(true);
+        expect(isOpaqueNetworkMessage('Load failed')).toBe(true);
+        expect(isOpaqueNetworkMessage("Cannot read properties of undefined (reading 'bt')")).toBe(false);
     });
 });
 

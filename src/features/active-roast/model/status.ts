@@ -1,6 +1,7 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
 import { create } from 'zustand';
 import type { RawTemperatureSample } from '../lib/autoCharge';
+import type { SensorObservation } from '../lib/sensorObservation';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
 
@@ -31,6 +32,9 @@ export interface RoastingState {
     liveData: LiveData | null;
     rawTemperature: RawTemperatureSample | null;
     updateRawTemperature: (sample: RawTemperatureSample | null) => void;
+    /** Control-path quality/freshness. Display consumers should keep selecting `liveData`. */
+    observation: SensorObservation | null;
+    updateSensorObservation: (observation: SensorObservation | null) => void;
     /** 사이드카 PID 런타임 상태 (/temperatures에 실려 온다). PID 미사용이면 null. */
     pid: PidRuntime | null;
     /** Inventory/other entry → active roast bean handoff (consumed once when roast view activates). */
@@ -44,6 +48,13 @@ export interface RoastingState {
     reconnecting: boolean;
     /** Last connected machine this roast; kept through disconnect until reset. */
     machineSnapshot: MachineSnapshot | null;
+    /** After Drop/abort: next Charge is allowed even before the prior batch is saved. */
+    awaitingNextCharge: boolean;
+    /**
+     * Drop/abort stopped PID/Replay. Stays set through Drop cancel so cancel cannot
+     * auto-resume machine output. Cleared only on the next Charge / full reset.
+     */
+    heatHoldAfterDrop: boolean;
 
     // derived convenience
     isRoasting: boolean;
@@ -75,6 +86,7 @@ const initialState = {
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
     rawTemperature: null as RawTemperatureSample | null,
+    observation: null as SensorObservation | null,
     pid: null as PidRuntime | null,
     pendingBeanId: null as string | null,
     pendingBeanName: null as string | null,
@@ -83,6 +95,8 @@ const initialState = {
     sessionOwnerId: null as string | null,
     reconnecting: false,
     machineSnapshot: null as MachineSnapshot | null,
+    awaitingNextCharge: false,
+    heatHoldAfterDrop: false,
     isRoasting: false,
     charged: false,
 };
@@ -116,6 +130,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             sessionOwnerId: ownerId || null,
             roastStartMs: origin,
             elapsed: Math.floor((now - origin) / 1000),
+            awaitingNextCharge: false,
+            heatHoldAfterDrop: false,
         });
     },
 
@@ -158,10 +174,15 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current?.machine_protocol === snapshot.machine_protocol
         )
             return;
-        set({ machineSnapshot: snapshot, rawTemperature: null });
+        set({ machineSnapshot: snapshot, rawTemperature: null, observation: null });
     },
 
     updateRawTemperature: (rawTemperature) => set({ rawTemperature }),
+
+    updateSensorObservation: (observation) => {
+        if (get().observation === observation) return;
+        set({ observation });
+    },
 
     updateLiveData: (data) => {
         const current = get().liveData;

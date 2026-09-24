@@ -57,8 +57,11 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
     });
 
     return (
-        <section className="mt-4 rounded bg-(--color-roast-bg) p-3" aria-label={t('history.title')}>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 text-xs text-secondary">
+        <section
+            className="mt-3 rounded-lg border border-border-subtle bg-(--color-roast-bg) px-3 pt-3 pb-7"
+            aria-label={t('history.title')}
+        >
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-b border-border-subtle pb-2 text-xs text-secondary">
                 <div className="flex flex-wrap gap-x-6 gap-y-1">
                     <span>
                         BBP · {t('bbp.duration')}: {formatDuration(session.bbp_seconds)}
@@ -133,7 +136,7 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                               }
                             : undefined
                     }
-                    height={550}
+                    height={420}
                 />
             )}
         </section>

@@ -32,7 +32,9 @@ import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
 import { PendingRoastRecovery } from './widgets/pending-roast-recovery';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
-import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
+
+// VOC: restore first-run theme picker
+// import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
 
 const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
@@ -43,7 +45,7 @@ export const App = () => {
     const oauthPending = useAuthStore((s) => s.oauthPending);
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
     const init = useAuthStore((s) => s.init);
-    const theme = useThemeStore((s) => s.theme);
+    // VOC: restore first-run theme picker — const theme = useThemeStore((s) => s.theme);
     const initTheme = useThemeStore((s) => s.initTheme);
 
     useEffect(() => init(), [init]);
@@ -205,7 +207,7 @@ export const App = () => {
                     overflow: 'hidden',
                 }}
             >
-                {theme === null && <ThemeSelectModal />}
+                {/* VOC: restore first-run theme picker — {theme === null && <ThemeSelectModal />} */}
                 <PendingRoastRecovery />
                 <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <Sidebar

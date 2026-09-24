@@ -15,6 +15,7 @@ import { confirm } from '@tauri-apps/plugin-dialog';
 import { ChevronLeft, Plus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { eventFormLabel } from '../lib/formLabel';
 import { CuppingAddSamplesForm } from './CuppingAddSamplesForm';
 import { CuppingResultsShare } from './CuppingResultsShare';
 import { CuppingSampleSummary } from './CuppingSampleSummary';
@@ -68,12 +69,12 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                 }
                 subtitle={
                     event
-                        ? t('cupping.eventSubtitle', {
+                        ? `${t('cupping.eventSubtitle', {
                               date: formatDateShort(event.held_at),
                               samples: samples.length,
                               scores: event.score_count,
                               participants: participantCount,
-                          })
+                          })} · ${eventFormLabel(event.form_snapshot, t)}`
                         : undefined
                 }
                 actions={
@@ -165,6 +166,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                 samples={samples}
                 isLoading={isLoading}
                 readOnly={isEnded}
+                formSnapshot={event?.form_snapshot ?? eventDetail?.form_snapshot}
                 onAddClick={() => setSampleForm('add')}
                 onEditClick={(s) => setSampleForm(s)}
             />

@@ -182,7 +182,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
             ? new Date(payloadParams.roastStartTimeRef.current).toISOString()
             : null;
 
-    // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/만료/무료 플랜).
+    // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/무료 플랜).
     // 이 세션 것이 맞을 때만 사용 — 다른 배치 요약이 붙는 것을 막는다.
     const pendingBbp = params.bbpSummary;
     const bbpSummary = pendingBbp?.sessionId === sessionId ? pendingBbp : null;
@@ -262,8 +262,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         throw mapServerBatchGateError(e) ?? e;
     });
 
-    // Await so inactive History/dashboard caches refetch before the user switches tabs.
-    await invalidateRoastSessionQueries(qc, userId);
+    // History/dashboard refetch is awaited once in refreshCachesAfterRoastSave
+    // (after optional schedule progress). Inventory marks are fire-and-forget.
     if (wantDeduct && provisionalPlan) {
         void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries, refetchType: 'all' });
         if (provisionalPlan.singleBeanId) {
@@ -282,6 +282,27 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     }
 
     return { savedSession, shouldOpenContinue: effectiveBatch != null };
+}
+
+/** Single post-save cache refresh — covers lost RPC (saveRoastCore never ran invalidation). */
+export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
+    try {
+        if (saved.plan_batch_id) await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
+        invalidateScheduledBatchQueries(qc);
+        await invalidateRoastSessionQueries(qc, saved.user_id);
+    } catch (err) {
+        // resumePendingRoastSave turns this into syncPending and does not rethrow.
+        logger.capture(err, { context: 'refreshCachesAfterRoastSave', planBatchId: saved.plan_batch_id });
+        throw err;
+    }
+    for (const queryKey of [
+        inventoryQueryRoots.beanStockSummaries,
+        inventoryQueryRoots.beanStockSummary,
+        inventoryQueryRoots.beanStockEvents,
+        roastedStockKeys.byUser(saved.user_id),
+    ]) {
+        void qc.invalidateQueries({ queryKey, refetchType: 'all' });
+    }
 }
 
 export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
@@ -333,20 +354,7 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
                         }
                     },
                     resolveForRoast: planBatchApi.resolveForRoast,
-                    syncBatch: async (saved) => {
-                        if (saved.plan_batch_id)
-                            await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
-                        invalidateScheduledBatchQueries(qc);
-                        await invalidateRoastSessionQueries(qc, saved.user_id);
-                        for (const queryKey of [
-                            inventoryQueryRoots.beanStockSummaries,
-                            inventoryQueryRoots.beanStockSummary,
-                            inventoryQueryRoots.beanStockEvents,
-                            roastedStockKeys.byUser(saved.user_id),
-                        ]) {
-                            void qc.invalidateQueries({ queryKey, refetchType: 'all' });
-                        }
-                    },
+                    syncBatch: (saved) => refreshCachesAfterRoastSave(qc, saved),
                     syncRoastCurve,
                 });
             } finally {

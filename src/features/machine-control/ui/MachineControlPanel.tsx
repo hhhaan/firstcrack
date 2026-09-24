@@ -1,18 +1,22 @@
-import type { PidRuntime } from '@entities/machine';
+import type { ControlCapability, PidRuntime } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ControlCommand, ControlRole } from '../lib/controlSender';
+import { useTranslation } from 'react-i18next';
+import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
+import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
+import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import { isPercentUnit } from '../lib/snapPercent';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
-import { useReplayControl } from '../model/useReplayControl';
+import { type ObservationQuality, type ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 import { ChannelChip } from './ChannelChip';
+import { HeaterEventsEditor } from './HeaterEventsEditor';
 import { HeaterScale } from './HeaterScale';
 import { PidControlPanel } from './PidControlPanel';
-import { ReplayControlPanel } from './ReplayControlPanel';
+import { REPLAY_OBSERVATION_HOLD_TEXT, ReplayControlPanel } from './ReplayControlPanel';
 import { SetpointControl } from './SetpointControl';
 
 const ROLE_ORDER: ControlRole[] = ['heater', 'fan', 'drum'];
@@ -38,11 +42,20 @@ interface Props {
     replayMachineMismatch: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록 제외용 */
     replayDropTime: number | null;
+    /** 프로파일 heater_events jsonb (#435) */
+    replayHeaterEvents?: unknown;
     liveBt: number | null;
     elapsed: number;
     roasting: boolean;
-    /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 */
-    afterTurningPoint: boolean;
+    /** 실기 TP 사실 — 게이트·대기 UI는 Replay 모듈/패널이 파생 (#314, R08) */
+    confirmedTurningPoint: { fallback?: boolean } | null;
+    /** R04 제어용 관측 품질 — Replay 일반 이벤트 보류 사실 (R05). null = 현재 generation 관측 없음 */
+    observationQuality: ObservationQuality | null;
+    /** Last-valid observation wall-clock for long-gap stop. null = this generation unknown */
+    lastValidReceivedAtMs: number | null;
+    nowMs: number;
+    /** 상위 합성용 — 훅을 두 번 만들지 않고 active/stop만 노출 (#529 D) */
+    onReplayControl?: (control: { active: boolean; stop: (reason?: ReplayStopReason) => void } | null) => void;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
     /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
@@ -69,13 +82,19 @@ export const MachineControlPanel = ({
     replayPoints,
     replayMachineMismatch,
     replayDropTime,
+    replayHeaterEvents,
     liveBt,
     elapsed,
     roasting,
-    afterTurningPoint,
+    confirmedTurningPoint,
+    observationQuality,
+    lastValidReceivedAtMs,
+    nowMs,
+    onReplayControl,
     temperatureUnit,
     onHeaterCommitted,
 }: Props) => {
+    const { t } = useTranslation();
     const entitled = useFeature(FEATURE.machineControl);
     const heaterUnitRef = useRef('%');
     const handleCommitted = useCallback(
@@ -84,8 +103,17 @@ export const MachineControlPanel = ({
         },
         [onHeaterCommitted],
     );
-    const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
-        useMachineControl(sidecarConnected, liveData, handleCommitted);
+    const {
+        writable,
+        limits,
+        pidCapability,
+        desired,
+        unacknowledged,
+        sending,
+        setValue,
+        commitNow,
+        cancelUnsentReplayHeater,
+    } = useMachineControl(sidecarConnected, liveData, handleCommitted);
     useEffect(() => {
         heaterUnitRef.current = limits.heater?.unit ?? '%';
     }, [limits.heater?.unit]);
@@ -100,6 +128,7 @@ export const MachineControlPanel = ({
         dropBehavior: pidDropBehavior,
     });
     const [collapsed, setCollapsed] = useState(false);
+    const [heatEditorOpen, setHeatEditorOpen] = useState(false);
 
     const anyWritableChannel = ROLE_ORDER.some((role) => limits[role] != null);
     const chipRoles = (['fan', 'drum'] as const).filter((role) => limits[role] != null);
@@ -114,21 +143,25 @@ export const MachineControlPanel = ({
 
     // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
     const writeHeater = useCallback(
-        async (value: number) => {
+        async (value: number, origin: ControlOrigin = 'replay') => {
             setValue('heater', value);
-            const applied = await commitNow();
+            const applied = await commitNow(origin);
             return applied?.heater ?? null;
         },
         [setValue, commitNow],
     );
+    const commitManual = useCallback(() => {
+        void commitNow('manual');
+    }, [commitNow]);
     const replay = useReplayControl({
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,
         referenceDropTime: replayDropTime,
+        profileHeaterEvents: replayHeaterEvents,
         liveBt,
         elapsed,
         roasting,
-        afterTurningPoint,
+        confirmedTurningPoint,
         heaterWritable: writable && limits.heater != null,
         // fault 포함 — PID가 off가 아닌 동안 히터 소유권을 넘기지 않는다
         pidEngaged: pidActive,
@@ -141,9 +174,29 @@ export const MachineControlPanel = ({
         heaterFeedback: liveData?.heater ?? null,
         heaterPending: desired.heater != null,
         reconnecting,
+        observationQuality,
+        lastValidReceivedAtMs,
+        nowMs,
         writeHeater,
+        cancelUnsentHeater: cancelUnsentReplayHeater,
         heaterMax: limits.heater?.max,
+        heaterMin: limits.heater?.min,
+        heaterStep: numericHeaterStep((limits.heater as { step?: unknown } | undefined)?.step),
     });
+    useEffect(() => {
+        onReplayControl?.({ active: replay.active, stop: replay.stop });
+        return () => onReplayControl?.(null);
+    }, [onReplayControl, replay.active, replay.stop]);
+    const replayTpWait = resolveReplayTpWait({
+        active: replay.active,
+        nextEvent: replay.nextEvent,
+        tpTime: replay.tpTime,
+        confirmedTurningPoint: replay.confirmedTurningPoint,
+    });
+    const replayChrome = collapsedReplayTpChrome(replay.active, replayTpWait);
+    let holdLabel: string | undefined;
+    if (replayChrome === 'waiting') holdLabel = t('activeRoast.replay.tp.collapsedWaiting');
+    else if (replayChrome === 'fallback') holdLabel = t('activeRoast.replay.tp.collapsedFallback');
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
     // 재생이 켜지는 경계에서 이벤트가 새면 여기가 마지막 방어선이다.
@@ -186,114 +239,206 @@ export const MachineControlPanel = ({
                 >
                     {collapsed ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
                 </button>
-                {collapsed && statusDot && (
-                    <span
-                        role="img"
-                        className={`h-2 w-2 rounded-full ${statusDot}`}
-                        title={`PID ${pidState}`}
-                        aria-label={`PID ${pidState}`}
-                    />
-                )}
-                {/* 접혀도 Replay가 히터를 잡고 있다는 표시는 보여야 한다 (#300) */}
-                {collapsed && replay.active && (
-                    <span
-                        role="img"
-                        className="h-2 w-2 rounded-full bg-emerald-500"
-                        title="Replay 재생 중"
-                        aria-label="Replay 재생 중"
-                    />
-                )}
-                {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
-                {collapsed && anyUnacknowledged && (
-                    <span
-                        role="img"
-                        className="h-2 w-2 rounded-full bg-red-500"
-                        title="기기가 명령을 반영하지 않았습니다"
-                        aria-label="기기가 명령을 반영하지 않았습니다"
+                {collapsed && (
+                    <CollapsedRailDots
+                        statusDot={statusDot}
+                        pidState={pidState}
+                        replayChrome={replayChrome}
+                        observationHold={replay.observationHold}
+                        holdLabel={holdLabel}
+                        anyUnacknowledged={anyUnacknowledged}
                     />
                 )}
             </div>
 
             {/* 접혀도 트리 유지 — PID/DROP 훅 언마운트 방지 */}
             <div className={collapsed ? 'hidden' : 'flex min-h-0 flex-1 flex-col gap-3'} aria-hidden={collapsed}>
-                {/* % 히터는 A′ 세로 눈금, Fan/Drum은 칩. step(0–10) 기센은 기존 fader (#436) */}
-                {isPercentUnit(limits.heater?.unit) ? (
-                    <>
-                        <HeaterScale
-                            limit={limits.heater ?? {}}
-                            value={limits.heater != null ? desired.heater : undefined}
-                            feedback={limits.heater != null && liveData ? liveData.heater : null}
-                            unacknowledged={limits.heater != null && unacknowledged.has('heater')}
-                            disabled={!writable || limits.heater == null || pidHoldsHeater || replay.active}
-                            unsupported={limits.heater == null}
-                            sending={sending}
-                            lockedNote={
-                                limits.heater == null
-                                    ? 'N/A'
-                                    : pidHoldsHeater
-                                      ? 'PID'
-                                      : replay.active
-                                        ? 'Replay'
-                                        : undefined
-                            }
-                            onChange={handleManualChange}
-                            onCommit={commitNow}
-                        />
-                        {chipRoles.length > 0 && (
-                            <div className="flex shrink-0 flex-col gap-1.5">
-                                {chipRoles.map((role) => (
-                                    <ChannelChip
-                                        key={role}
-                                        role={role}
-                                        limit={limits[role] ?? {}}
-                                        value={desired[role]}
-                                        feedback={liveData ? liveData[role] : null}
-                                        unacknowledged={unacknowledged.has(role)}
-                                        disabled={!writable}
-                                        onChange={handleManualChange}
-                                        onCommit={commitNow}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <div className={cn('flex min-h-24 flex-1 justify-around gap-1', sending && 'opacity-40')}>
-                        {ROLE_ORDER.map((role) => {
-                            const supported = limits[role] != null;
-                            const lockedByPid = role === 'heater' && pidHoldsHeater;
-                            // Replay 재생 중 화력 소유권은 Replay에 있다 — 수동 조절은 체크 해제 후.
-                            // (fan/drum은 Replay가 안 만지므로 열어둔다)
-                            const lockedByReplay = role === 'heater' && replay.active;
-                            return (
-                                <SetpointControl
-                                    key={role}
-                                    role={role}
-                                    limit={limits[role] ?? {}}
-                                    value={supported ? desired[role] : undefined}
-                                    feedback={supported && liveData ? liveData[role] : null}
-                                    unacknowledged={supported && unacknowledged.has(role)}
-                                    disabled={!writable || !supported || lockedByPid || lockedByReplay}
-                                    unsupported={!supported}
-                                    lockedNote={
-                                        !supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined
-                                    }
-                                    onChange={handleManualChange}
-                                    onCommit={commitNow}
-                                />
-                            );
-                        })}
-                    </div>
-                )}
+                <MachineControlChannels
+                    limits={limits}
+                    desired={desired}
+                    liveData={liveData}
+                    unacknowledged={unacknowledged}
+                    writable={writable}
+                    sending={sending}
+                    pidHoldsHeater={pidHoldsHeater}
+                    replayActive={replay.active}
+                    chipRoles={chipRoles}
+                    onChange={handleManualChange}
+                    onCommit={commitManual}
+                />
                 {/* fader 열은 좁아 문장이 안 들어간다 — 경고는 패널 폭 전체를 쓴다 */}
                 {anyUnacknowledged && (
                     <p className="text-[11px] leading-snug text-red-500">
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <ReplayControlPanel replay={replay} unit={temperatureUnit} />
-                <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
+                <ReplayControlPanel
+                    replay={replay}
+                    unit={temperatureUnit}
+                    heaterUnit={limits.heater?.unit ?? '%'}
+                    onEditHeat={() => setHeatEditorOpen(true)}
+                />
+                {heatEditorOpen && (
+                    <HeaterEventsEditor
+                        mode="batch"
+                        events={replay.plan?.events ?? []}
+                        tpTime={replay.plan?.tpTime ?? Number.POSITIVE_INFINITY}
+                        btPoints={replayPoints ?? []}
+                        source={replay.source}
+                        unit={temperatureUnit}
+                        heaterMin={limits.heater?.min}
+                        heaterMax={limits.heater?.max}
+                        heaterUnit={limits.heater?.unit ?? '%'}
+                        heaterStep={numericHeaterStep((limits.heater as { step?: unknown } | undefined)?.step)}
+                        lockedCount={replay.active ? replay.firedCount : 0}
+                        onClose={() => setHeatEditorOpen(false)}
+                        onApply={(events) => {
+                            replay.applyBatchEvents(events);
+                            setHeatEditorOpen(false);
+                        }}
+                    />
+                )}
+                {/* PID 진입 UI는 임시 숨김. 이미 작동 중이면 해제·오류 확인은 유지한다. */}
+                {pidActive && <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />}
             </div>
+        </div>
+    );
+};
+
+const CollapsedRailDots = ({
+    statusDot,
+    pidState,
+    replayChrome,
+    observationHold,
+    holdLabel,
+    anyUnacknowledged,
+}: {
+    statusDot?: string;
+    pidState: string;
+    replayChrome: ReturnType<typeof collapsedReplayTpChrome>;
+    observationHold: boolean;
+    holdLabel?: string;
+    anyUnacknowledged: boolean;
+}) => (
+    <>
+        {statusDot && (
+            <span
+                role="img"
+                className={`h-2 w-2 rounded-full ${statusDot}`}
+                title={`PID ${pidState}`}
+                aria-label={`PID ${pidState}`}
+            />
+        )}
+        {/* 접혀도 Replay가 히터를 잡고 있다는 표시는 보여야 한다 (#300). 대기/폴백은 정상 재생과 구분. */}
+        {replayChrome === 'running' && (
+            <span
+                role="img"
+                className={`h-2 w-2 rounded-full ${observationHold ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                title={observationHold ? REPLAY_OBSERVATION_HOLD_TEXT : 'Replay 재생 중'}
+                aria-label={observationHold ? REPLAY_OBSERVATION_HOLD_TEXT : 'Replay 재생 중'}
+            />
+        )}
+        {isReplayTpHold(replayChrome) && (
+            <span role="img" className="h-2 w-2 rounded-full bg-amber-500" title={holdLabel} aria-label={holdLabel} />
+        )}
+        {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
+        {anyUnacknowledged && (
+            <span
+                role="img"
+                className="h-2 w-2 rounded-full bg-red-500"
+                title="기기가 명령을 반영하지 않았습니다"
+                aria-label="기기가 명령을 반영하지 않았습니다"
+            />
+        )}
+    </>
+);
+
+const MachineControlChannels = ({
+    limits,
+    desired,
+    liveData,
+    unacknowledged,
+    writable,
+    sending,
+    pidHoldsHeater,
+    replayActive,
+    chipRoles,
+    onChange,
+    onCommit,
+}: {
+    limits: ControlCapability['limits'];
+    desired: ControlCommand;
+    liveData: { heater: number | null; fan: number; drum: number } | null;
+    unacknowledged: Set<ControlRole>;
+    writable: boolean;
+    sending: boolean;
+    pidHoldsHeater: boolean;
+    replayActive: boolean;
+    chipRoles: Array<'fan' | 'drum'>;
+    onChange: (role: ControlRole, value: number) => void;
+    onCommit: () => void;
+}) => {
+    if (isPercentUnit(limits.heater?.unit)) {
+        return (
+            <>
+                <HeaterScale
+                    limit={limits.heater ?? {}}
+                    value={limits.heater != null ? desired.heater : undefined}
+                    feedback={limits.heater != null && liveData ? liveData.heater : null}
+                    unacknowledged={limits.heater != null && unacknowledged.has('heater')}
+                    disabled={!writable || limits.heater == null || pidHoldsHeater || replayActive}
+                    unsupported={limits.heater == null}
+                    sending={sending}
+                    lockedNote={
+                        limits.heater == null ? 'N/A' : pidHoldsHeater ? 'PID' : replayActive ? 'Replay' : undefined
+                    }
+                    onChange={onChange}
+                    onCommit={onCommit}
+                />
+                {chipRoles.length > 0 && (
+                    <div className="flex shrink-0 flex-col gap-1.5">
+                        {chipRoles.map((role) => (
+                            <ChannelChip
+                                key={role}
+                                role={role}
+                                limit={limits[role] ?? {}}
+                                value={desired[role]}
+                                feedback={liveData ? liveData[role] : null}
+                                unacknowledged={unacknowledged.has(role)}
+                                disabled={!writable}
+                                onChange={onChange}
+                                onCommit={onCommit}
+                            />
+                        ))}
+                    </div>
+                )}
+            </>
+        );
+    }
+    return (
+        <div className={cn('flex min-h-24 flex-1 justify-around gap-1', sending && 'opacity-40')}>
+            {ROLE_ORDER.map((role) => {
+                const supported = limits[role] != null;
+                const lockedByPid = role === 'heater' && pidHoldsHeater;
+                // Replay 재생 중 화력 소유권은 Replay에 있다 — 수동 조절은 체크 해제 후.
+                // (fan/drum은 Replay가 안 만지므로 열어둔다)
+                const lockedByReplay = role === 'heater' && replayActive;
+                return (
+                    <SetpointControl
+                        key={role}
+                        role={role}
+                        limit={limits[role] ?? {}}
+                        value={supported ? desired[role] : undefined}
+                        feedback={supported && liveData ? liveData[role] : null}
+                        unacknowledged={supported && unacknowledged.has(role)}
+                        disabled={!writable || !supported || lockedByPid || lockedByReplay}
+                        unsupported={!supported}
+                        lockedNote={!supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined}
+                        onChange={onChange}
+                        onCommit={onCommit}
+                    />
+                );
+            })}
         </div>
     );
 };

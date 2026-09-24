@@ -1,4 +1,4 @@
-import { serveWithSentry } from '../_shared/sentry.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
 const SYMBOL = 'KC=F';
 const YAHOO_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/' + SYMBOL + '?interval=1d&range=2d';
@@ -38,20 +38,33 @@ serveWithSentry('coffee-futures', async (_req: Request) => {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
             },
         });
-        if (!res.ok) return json({ error: 'upstream ' + res.status }, 502);
+        if (!res.ok) {
+            await captureEdgeException(new Error('upstream ' + res.status), {
+                function: 'coffee-futures',
+                status: 502,
+            });
+            return json({ error: 'upstream ' + res.status }, 502);
+        }
 
         const yj = await res.json();
         const meta = yj.chart?.result?.[0]?.meta;
-        if (!meta) return json({ error: 'no data' }, 502);
+        if (!meta) {
+            await captureEdgeException(new Error('no data'), { function: 'coffee-futures', status: 502 });
+            return json({ error: 'no data' }, 502);
+        }
 
         const previousClose = meta.chartPreviousClose;
         const price = meta.regularMarketPrice;
-        if (price == null || previousClose == null) return json({ error: 'incomplete data' }, 502);
+        if (price == null || previousClose == null) {
+            await captureEdgeException(new Error('incomplete data'), { function: 'coffee-futures', status: 502 });
+            return json({ error: 'incomplete data' }, 502);
+        }
 
         const body: FuturesBody = { price, previousClose };
         cached = { body, at: Date.now() };
         return json(body);
-    } catch {
+    } catch (err) {
+        await captureEdgeException(err, { function: 'coffee-futures', status: 502 });
         return json({ error: 'fetch failed' }, 502);
     }
 });

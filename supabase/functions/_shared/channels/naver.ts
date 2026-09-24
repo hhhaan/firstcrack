@@ -22,6 +22,8 @@
  *   https://apicenter.commerce.naver.com/docs/commerce-api/current/schemas/상품-주문-정보-구조체
  */
 
+import { captureEdgeException } from '../sentry.ts';
+
 // bcryptjs 2.x is CommonJS: it has no named ESM exports, so `import { hash }` throws
 // SyntaxError while the module is evaluated — which the edge runtime reports as BOOT_ERROR
 // for every function importing this file. Type-checking does not catch it (the .d.ts
@@ -399,6 +401,11 @@ export const naverAdapter: ChannelAdapter = {
                 }
             } catch (e) {
                 console.error('[naver] product-orders/query failed', e);
+                await captureEdgeException(e, {
+                    function: 'order-sync',
+                    status: 502,
+                    tags: { platform: 'naver', step: 'product-orders-query' },
+                });
                 // Fallback: synthesize from last-changed rows only
                 for (const id of chunk) {
                     const hint = statusHint.get(id);

@@ -7,6 +7,7 @@
  * "duplicate delivery", not "lock held").
  *
  * No Deno / npm imports — vitest must be able to load this file.
+ * `captureEdgeException` no-ops without a Deno global.
  */
 
 /**
@@ -15,6 +16,8 @@
  * starts stealing the lock from a live invocation, i.e. two concurrent Cafe24
  * refresh_token rotations.
  */
+import { captureEdgeException } from '../sentry.ts';
+
 export const STALE_RUN_MS = 10 * 60 * 1000;
 
 export type PostgrestLikeError = { code?: string; message?: string };
@@ -65,7 +68,10 @@ export async function reclaimStaleRuns(admin: RunLockClient): Promise<void> {
         .eq('status', 'running')
         .neq('trigger', 'webhook')
         .lt('started_at', new Date(Date.now() - STALE_RUN_MS).toISOString());
-    if (error) console.error('[run-lock] reclaim stale runs', error);
+    if (error) {
+        console.error('[run-lock] reclaim stale runs', error);
+        await captureEdgeException(error, { function: 'run-lock', status: 500, tags: { step: 'reclaim' } });
+    }
 }
 
 export type AcquireDispatchRunLockResult =
@@ -131,5 +137,8 @@ export async function releaseRunLock(
             ...(outcome.errorMessage ? { error_message: outcome.errorMessage.slice(0, 1000) } : {}),
         })
         .eq('id', runId);
-    if (error) console.error('[run-lock] release', error);
+    if (error) {
+        console.error('[run-lock] release', error);
+        await captureEdgeException(error, { function: 'run-lock', status: 500, tags: { step: 'release' } });
+    }
 }

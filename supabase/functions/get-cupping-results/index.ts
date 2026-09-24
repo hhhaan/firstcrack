@@ -1,6 +1,6 @@
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { type BeanMeta, beanMetaFromJoin, beanMetaLine } from '../_shared/cupping-bean-meta.ts';
-import { SCA_V1_KEYS } from '../_shared/cupping-score.ts';
+import { choiceValuesForScores, formSchemaOrSca, tallyChoiceFields } from '../_shared/cupping-form.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 function avg(nums: number[]): number | null {
@@ -44,12 +44,13 @@ serveWithSentry('get-cupping-results', async (req) => {
         held_at: string;
         ended_at: string | null;
         results_token: string | null;
+        form_snapshot?: unknown;
     } | null = null;
 
     {
         const { data, error } = await supabase
             .from('cupping_events')
-            .select('id, title, held_at, ended_at, results_token')
+            .select('id, title, held_at, ended_at, results_token, form_snapshot')
             .eq('results_token', token)
             .maybeSingle();
         if (error) {
@@ -85,7 +86,7 @@ serveWithSentry('get-cupping-results', async (req) => {
 
         const { data, error } = await supabase
             .from('cupping_events')
-            .select('id, title, held_at, ended_at, results_token')
+            .select('id, title, held_at, ended_at, results_token, form_snapshot')
             .eq('id', eventId)
             .maybeSingle();
         if (error) {
@@ -155,7 +156,7 @@ serveWithSentry('get-cupping-results', async (req) => {
         total_score: number;
         cupped_by: string | null;
         descriptors: string[] | null;
-        scores: Record<string, number> | null;
+        scores: Record<string, unknown> | null;
         cupped_at: string;
     };
 
@@ -186,11 +187,12 @@ serveWithSentry('get-cupping-results', async (req) => {
         participantSet.add(name || '');
     }
 
+    const form = formSchemaOrSca(event.form_snapshot);
     const sampleOut = samples.map((s) => {
         const rows = bySample.get(s.id) ?? [];
         const totals = rows.map((r) => Number(r.total_score));
         const attrAvgs: Record<string, number | null> = {};
-        for (const key of SCA_V1_KEYS) {
+        for (const { key } of form.fields) {
             const vals = rows
                 .map((r) => {
                     const v = r.scores?.[key];
@@ -225,6 +227,7 @@ serveWithSentry('get-cupping-results', async (req) => {
             scoreCount: rows.length,
             avgTotal: avg(totals),
             avgScores: attrAvgs,
+            choiceTallies: tallyChoiceFields(form, rows),
             topDescriptors,
             cuppers: rows.map((r) => ({
                 cuppedBy: (r.cupped_by ?? '').trim() || 'Anonymous',
@@ -232,6 +235,7 @@ serveWithSentry('get-cupping-results', async (req) => {
                 descriptors: Array.isArray(r.descriptors)
                     ? r.descriptors.map((d) => String(d)).filter(Boolean)
                     : [],
+                choices: choiceValuesForScores(form, r.scores),
                 cuppedAt: r.cupped_at,
             })),
         };

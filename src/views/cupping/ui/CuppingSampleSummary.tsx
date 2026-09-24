@@ -20,6 +20,7 @@ type CuppingSampleSummaryProps = {
     isLoading: boolean;
     /** Ended session: view scores only (no add/reorder/delete). */
     readOnly?: boolean;
+    formSnapshot?: unknown;
     onAddClick: () => void;
     onEditClick: (sample: CuppingSampleWithMeta) => void;
 };
@@ -40,6 +41,7 @@ export const CuppingSampleSummary = ({
     samples,
     isLoading,
     readOnly = false,
+    formSnapshot,
     onAddClick,
     onEditClick,
 }: CuppingSampleSummaryProps) => {
@@ -220,7 +222,7 @@ export const CuppingSampleSummary = ({
                                                 <div className="px-4 pt-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                                     {t('cupping.scoreDetail')}
                                                 </div>
-                                                <CuppingScoreList sampleId={s.id} />
+                                                <CuppingScoreList sampleId={s.id} formSnapshot={formSnapshot} />
                                             </div>
                                         </td>
                                     </tr>

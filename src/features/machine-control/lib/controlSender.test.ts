@@ -21,6 +21,17 @@ const deferredSend = () => {
     };
 };
 
+/** Promise가 이미 settle됐는지 한 틱을 기다린 뒤 확인한다 */
+const peek = async <T>(p: Promise<T>) => {
+    const state: { done: boolean; value?: T } = { done: false };
+    void p.then((value) => {
+        state.done = true;
+        state.value = value;
+    });
+    await Promise.resolve();
+    return state;
+};
+
 describe('settledRoles', () => {
     const fb = { heater: 60, fan: 100, drum: 50 };
 
@@ -112,6 +123,28 @@ describe('createControlSender', () => {
         expect(onCommitted).toHaveBeenCalledTimes(1);
         expect(onCommitted).toHaveBeenCalledWith({ heater: 0 });
         expect(order).toEqual(['commit:0', 'send:0']);
+    });
+
+    it('이미 보낸 in-flight 같은 role은 대기 대체와 무관하게 자신의 applied를 받는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('heater', 10);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 80);
+        const pB = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        d.resolve({ heater: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toEqual({ heater: 10 });
+        expect((await peek(pB)).done).toBe(false);
+        expect(d.calls).toEqual([{ heater: 10 }, { heater: 80 }]);
+
+        d.resolve({ heater: 80 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toEqual({ heater: 80 });
     });
 
     it('전송 중에는 새 요청을 겹쳐 보내지 않고, 끝난 뒤 최신값만 보낸다', async () => {
@@ -232,5 +265,499 @@ describe('createControlSender', () => {
         await sender.commitNow();
 
         expect(send).not.toHaveBeenCalled();
+    });
+
+    it('in-flight 중 다른 role commit은 요청값을 성공으로 돌려주지 않고 실제 전송을 기다린다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('fan', 80);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('heater', 50);
+        const pB = sender.commitNow();
+        const b = await peek(pB);
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(d.calls).toEqual([{ fan: 80 }]);
+        expect(b.done).toBe(false);
+
+        d.resolve({ fan: 80 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toEqual({ fan: 80 });
+        expect(b.done).toBe(false);
+        expect(d.calls).toEqual([{ fan: 80 }, { heater: 50 }]);
+
+        d.reject(new Error('heater failed'));
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toBeNull();
+    });
+
+    it('A 실패 후 B 성공은 각 요청에 따로 귀속되고 A는 B를 기다리지 않는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('fan', 80);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('heater', 50);
+        const pB = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        d.reject(new Error('fan failed'));
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toBeNull();
+        expect((await peek(pB)).done).toBe(false);
+        expect(d.calls).toEqual([{ fan: 80 }, { heater: 50 }]);
+
+        d.resolve({ heater: 50 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toEqual({ heater: 50 });
+    });
+
+    it('같은 role의 대기 값을 C가 대체하면 B는 성공이 아니고 C만 전송한다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('fan', 80);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('heater', 50);
+        const pB = sender.commitNow();
+        sender.queue('heater', 70);
+        const pC = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(d.calls).toEqual([{ fan: 80 }]);
+        await expect(pB).resolves.toBeNull();
+        expect((await peek(pC)).done).toBe(false);
+
+        d.resolve({ fan: 80 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toEqual({ fan: 80 });
+        expect(d.calls).toEqual([{ fan: 80 }, { heater: 70 }]);
+
+        d.resolve({ heater: 70 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pC).resolves.toEqual({ heater: 70 });
+    });
+
+    it('혼합 snapshot에서 role 하나만 바뀌면 나머지 role 결과는 원래 commit에 남는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('drum', 10);
+        const pDrum = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('heater', 60);
+        sender.queue('fan', 80);
+        const pMixed = sender.commitNow();
+        sender.queue('fan', 90);
+        const pFan = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(d.calls).toEqual([{ drum: 10 }]);
+        expect((await peek(pMixed)).done).toBe(false);
+        expect((await peek(pFan)).done).toBe(false);
+
+        d.resolve({ drum: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pDrum).resolves.toEqual({ drum: 10 });
+        expect(d.calls).toEqual([{ drum: 10 }, { heater: 60, fan: 90 }]);
+
+        d.resolve({ heater: 60, fan: 90 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pMixed).resolves.toEqual({ heater: 60 });
+        await expect(pFan).resolves.toEqual({ fan: 90 });
+    });
+
+    it('빈 commit은 대기 중인 요청값을 성공으로 돌려주지 않는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('fan', 80);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 50);
+        const pB = sender.commitNow();
+
+        const pEmpty = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        await expect(pEmpty).resolves.toEqual({});
+        expect((await peek(pB)).done).toBe(false);
+        expect(d.calls).toEqual([{ fan: 80 }]);
+
+        d.resolve({ fan: 80 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toEqual({ fan: 80 });
+        expect(d.calls).toEqual([{ fan: 80 }, { heater: 50 }]);
+        d.resolve({ heater: 50 });
+        await expect(pB).resolves.toEqual({ heater: 50 });
+    });
+
+    it('clamp된 applied와 heater=0을 성공으로 반환한다', async () => {
+        const send = vi.fn(async (cmd: ControlCommand) => {
+            if (cmd.heater === 150) return { heater: 100 };
+            return cmd;
+        });
+        const sender = createControlSender({ send });
+
+        sender.queue('heater', 150);
+        await expect(sender.commitNow()).resolves.toEqual({ heater: 100 });
+
+        sender.queue('heater', 0);
+        await expect(sender.commitNow()).resolves.toEqual({ heater: 0 });
+    });
+
+    it('요청한 heater가 applied에 없으면 성공이 아니다', async () => {
+        const sender = createControlSender({ send: async () => ({ fan: 40 }) });
+        sender.queue('heater', 50);
+        await expect(sender.commitNow()).resolves.toBeNull();
+    });
+
+    it('dispose는 in-flight·대기 Promise를 남기지 않는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('fan', 80);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 50);
+        const pB = sender.commitNow();
+
+        sender.dispose();
+        await expect(pA).resolves.toBeNull();
+        await expect(pB).resolves.toBeNull();
+
+        d.resolve({ fan: 80 });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ fan: 80 }]);
+    });
+
+    it('같은 값의 대기 요청은 in-flight 성공을 가로채지 않는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('heater', 60);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 60);
+        const pB = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toEqual({ heater: 60 });
+        expect((await peek(pB)).done).toBe(false);
+        expect(d.calls).toEqual([{ heater: 60 }, { heater: 60 }]);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toEqual({ heater: 60 });
+    });
+
+    it('같은 값 대기 중 in-flight 실패는 대기 요청을 실패로 만들지 않는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('heater', 60);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 60);
+        const pB = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        d.reject(new Error('first failed'));
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toBeNull();
+        expect((await peek(pB)).done).toBe(false);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toEqual({ heater: 60 });
+    });
+
+    it('in-flight A와 같은 값 대기 B 위에 C가 오면 A는 유지되고 B만 대체된다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('heater', 60);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.queue('heater', 60);
+        const pB = sender.commitNow();
+        sender.queue('heater', 70);
+        const pC = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        await expect(pB).resolves.toBeNull();
+        expect((await peek(pC)).done).toBe(false);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pA).resolves.toEqual({ heater: 60 });
+        expect(d.calls).toEqual([{ heater: 60 }, { heater: 70 }]);
+
+        d.resolve({ heater: 70 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pC).resolves.toEqual({ heater: 70 });
+    });
+
+    it('dispose 중 in-flight가 끝나도 그 뒤 commit은 전송된다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('fan', 80);
+        const pA = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        sender.dispose();
+        await expect(pA).resolves.toBeNull();
+
+        sender.queue('heater', 50);
+        const pB = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ fan: 80 }]);
+        expect((await peek(pB)).done).toBe(false);
+
+        d.resolve({ fan: 80 });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ fan: 80 }, { heater: 50 }]);
+
+        d.resolve({ heater: 50 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pB).resolves.toEqual({ heater: 50 });
+    });
+
+    it('onApplied 예외가 있어도 commit Promise는 settle된다', async () => {
+        const send = vi.fn(async (cmd: ControlCommand) => cmd);
+        const sender = createControlSender({
+            send,
+            onApplied: () => {
+                throw new Error('toast down');
+            },
+        });
+        sender.queue('heater', 40);
+        await expect(sender.commitNow()).resolves.toEqual({ heater: 40 });
+    });
+});
+
+describe('createControlSender 미전송 Replay heater 취소 (#368 R03)', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    const fanInFlight = async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+        sender.queue('fan', 80);
+        const pFan = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        return { d, sender, pFan };
+    };
+
+    const heaterInFlight = async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+        sender.queue('heater', 10);
+        const pHeater = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        return { d, sender, pHeater };
+    };
+
+    const queueReplay = (sender: ReturnType<typeof createControlSender>, value = 60) => {
+        sender.queue('heater', value);
+        return sender.commitNow('replay');
+    };
+
+    const cancelReplay = (sender: ReturnType<typeof createControlSender>) =>
+        sender.cancelUnsent({ origin: 'replay', role: 'heater' });
+
+    const flushFan = async (
+        d: ReturnType<typeof deferredSend>,
+        pFan: Promise<ControlCommand | null>,
+        next?: ControlCommand,
+    ) => {
+        d.resolve({ fan: 80 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pFan).resolves.toEqual({ fan: 80 });
+        if (next) expect(d.calls[d.calls.length - 1]).toEqual(next);
+    };
+
+    it('fan 전송 중 Replay heater 대기는 취소하면 보내지 않고 즉시 settle된다', async () => {
+        const { d, sender, pFan } = await fanInFlight();
+        const pReplay = queueReplay(sender);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ fan: 80 }]);
+
+        cancelReplay(sender);
+        await expect(pReplay).resolves.toBeNull();
+        expect((await peek(pFan)).done).toBe(false);
+
+        await flushFan(d, pFan);
+        expect(d.calls).toEqual([{ fan: 80 }]);
+    });
+
+    it('Replay 취소 뒤 수동 heater commit은 보존되어 전송된다', async () => {
+        const { d, sender, pFan } = await fanInFlight();
+        const pReplay = queueReplay(sender);
+        cancelReplay(sender);
+        await expect(pReplay).resolves.toBeNull();
+
+        sender.queue('heater', 70);
+        const pManual = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        await flushFan(d, pFan, { heater: 70 });
+        d.resolve({ heater: 70 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pManual).resolves.toEqual({ heater: 70 });
+    });
+
+    it('fan/drum 대기는 Replay heater 취소에 휩쓸리지 않는다', async () => {
+        const { d, sender, pHeater } = await heaterInFlight();
+        sender.queue('fan', 80);
+        const pFan = sender.commitNow();
+        sender.queue('drum', 40);
+        const pDrum = sender.commitNow();
+        const pReplay = queueReplay(sender);
+        await vi.advanceTimersByTimeAsync(0);
+
+        cancelReplay(sender);
+        await expect(pReplay).resolves.toBeNull();
+        expect((await peek(pFan)).done).toBe(false);
+        expect((await peek(pDrum)).done).toBe(false);
+
+        d.resolve({ heater: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pHeater).resolves.toEqual({ heater: 10 });
+        expect(d.calls).toEqual([{ heater: 10 }, { fan: 80, drum: 40 }]);
+
+        d.resolve({ fan: 80, drum: 40 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pFan).resolves.toEqual({ fan: 80 });
+        await expect(pDrum).resolves.toEqual({ drum: 40 });
+    });
+
+    it('Replay 취소 뒤 DROP zero(safety)는 보존되어 전송된다', async () => {
+        const { d, sender, pFan } = await fanInFlight();
+        const pReplay = queueReplay(sender);
+        cancelReplay(sender);
+        await expect(pReplay).resolves.toBeNull();
+
+        sender.queue('heater', 0);
+        const pZero = sender.commitNow('safety');
+        await vi.advanceTimersByTimeAsync(0);
+
+        await flushFan(d, pFan, { heater: 0 });
+        d.resolve({ heater: 0 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pZero).resolves.toEqual({ heater: 0 });
+    });
+
+    it('이미 큐에 있는 DROP zero는 Replay 취소로 지워지지 않는다', async () => {
+        const { d, sender, pFan } = await fanInFlight();
+        sender.queue('heater', 0);
+        const pZero = sender.commitNow('safety');
+        cancelReplay(sender);
+        expect((await peek(pZero)).done).toBe(false);
+
+        await flushFan(d, pFan, { heater: 0 });
+        d.resolve({ heater: 0 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pZero).resolves.toEqual({ heater: 0 });
+    });
+
+    it('부분 대체된 fan은 Replay 취소 때 committed에서 사라지지 않는다', async () => {
+        const { d, sender, pHeater } = await heaterInFlight();
+        sender.queue('fan', 80);
+        sender.queue('drum', 40);
+        const pFanDrum = sender.commitNow();
+        sender.queue('drum', 50);
+        const pDrum = sender.commitNow();
+        const pReplay = queueReplay(sender);
+        expect((await peek(pFanDrum)).done).toBe(false);
+        await vi.advanceTimersByTimeAsync(0);
+
+        cancelReplay(sender);
+        await expect(pReplay).resolves.toBeNull();
+
+        d.resolve({ heater: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pHeater).resolves.toEqual({ heater: 10 });
+        expect(d.calls).toEqual([{ heater: 10 }, { fan: 80, drum: 50 }]);
+
+        d.resolve({ fan: 80, drum: 50 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pFanDrum).resolves.toEqual({ fan: 80 });
+        await expect(pDrum).resolves.toEqual({ drum: 50 });
+    });
+
+    it('이미 전송된 Replay heater는 취소됐다고 표시하지 않는다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+        sender.queue('heater', 60);
+        const pSent = sender.commitNow('replay');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ heater: 60 }]);
+
+        cancelReplay(sender);
+        expect((await peek(pSent)).done).toBe(false);
+
+        d.resolve({ heater: 60 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pSent).resolves.toEqual({ heater: 60 });
+    });
+
+    it('혼합 snapshot에서 fan만 교체한 뒤 Replay 취소는 heater를 안 보내고 manual fan은 보낸다', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+        sender.queue('drum', 10);
+        const pDrum = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('fan', 80);
+        sender.queue('heater', 50);
+        const pReplay = sender.commitNow('replay');
+        await vi.advanceTimersByTimeAsync(0);
+
+        sender.queue('fan', 90);
+        const pFan = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        expect((await peek(pReplay)).done).toBe(false);
+
+        expect(cancelReplay(sender)).toEqual([{ heater: 50 }]);
+        await expect(pReplay).resolves.toBeNull();
+
+        d.resolve({ drum: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pDrum).resolves.toEqual({ drum: 10 });
+        expect(d.calls).toEqual([{ drum: 10 }, { fan: 90 }]);
+
+        d.resolve({ fan: 90 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pFan).resolves.toEqual({ fan: 90 });
+    });
+
+    it('혼합 Replay snapshot을 직접 취소해도 fan/drum은 남긴다', async () => {
+        const { d, sender, pHeater } = await heaterInFlight();
+        sender.queue('fan', 80);
+        sender.queue('drum', 40);
+        sender.queue('heater', 50);
+        const pReplay = sender.commitNow('replay');
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(cancelReplay(sender)).toEqual([{ heater: 50 }]);
+        await expect(pReplay).resolves.toBeNull();
+
+        d.resolve({ heater: 10 });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(pHeater).resolves.toEqual({ heater: 10 });
+        expect(d.calls).toEqual([{ heater: 10 }, { fan: 80, drum: 40 }]);
+        expect(d.calls.some((cmd) => cmd.heater === 50)).toBe(false);
     });
 });

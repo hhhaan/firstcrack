@@ -1,5 +1,5 @@
 import { supabase } from '@shared/lib/supabase';
-import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
@@ -35,22 +35,37 @@ export type RoastSessionFilterMeta = {
     beans: { origin: string | null } | null;
 };
 
+/** PostgREST `max_rows` in supabase/config.toml. A single select silently drops the rest. */
+export const POSTGREST_MAX_ROWS = 1000;
+
+const fetchAllRows = async <T>(
+    queryPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> => {
+    const out: T[] = [];
+    let from = 0;
+    for (;;) {
+        const { data, error } = await queryPage(from, from + POSTGREST_MAX_ROWS - 1);
+        if (error) throw error;
+        const page = data ?? [];
+        out.push(...page);
+        if (page.length < POSTGREST_MAX_ROWS) return out;
+        from += POSTGREST_MAX_ROWS;
+    }
+};
+
 export const roastSessionApi = {
     list: async (userId: string, status?: RoastSession['status']): Promise<RoastSessionWithRelations[]> => {
-        let query = supabase
-            .from('roast_sessions')
-            .select(SELECT_WITH_RELATIONS)
-            .eq('user_id', userId)
-            .order('roasted_at', { ascending: false, nullsFirst: true })
-            .order('created_at', { ascending: false });
-
-        if (status) {
-            query = query.eq('status', status);
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-        return data || [];
+        return fetchAllRows(async (from, to) => {
+            let query = supabase
+                .from('roast_sessions')
+                .select(SELECT_WITH_RELATIONS)
+                .eq('user_id', userId)
+                .order('roasted_at', { ascending: false, nullsFirst: true })
+                .order('created_at', { ascending: false })
+                .range(from, to);
+            if (status) query = query.eq('status', status);
+            return query;
+        });
     },
 
     /** Lightweight rows for History filter dropdowns + total count (no events/embeds bloat). */
@@ -221,7 +236,7 @@ export const roastSessionApi = {
 
     /**
      * Dashboard recent/KPI sessions (completed since lastMonthStart).
-     * Narrow select — no events jsonb.
+     * `events` is included so 시간 is Charge→Drop (`sessionRoastMetrics`), not record End.
      */
     listCompletedDashboard: async (
         userId: string,
@@ -232,6 +247,7 @@ export const roastSessionApi = {
             roasted_at: string | null;
             weight_grams: number;
             duration_seconds: number | null;
+            events: Json;
             drop_temp_celsius: number | null;
             roast_level: string | null;
             bean_label: string | null;
@@ -242,7 +258,7 @@ export const roastSessionApi = {
         const { data, error } = await supabase
             .from('roast_sessions')
             .select(
-                'id, roasted_at, weight_grams, duration_seconds, drop_temp_celsius, roast_level, bean_label, beans(name, origin), roast_profiles!profile_id(name, target_level)',
+                'id, roasted_at, weight_grams, duration_seconds, events, drop_temp_celsius, roast_level, bean_label, beans(name, origin), roast_profiles!profile_id(name, target_level)',
             )
             .eq('user_id', userId)
             .eq('status', 'completed')

@@ -21,7 +21,6 @@ import { ProfileDefaultSourceFields } from './ProfileDefaultSourceFields';
 type SessionSummaryRow = {
     beans?: { name?: string | null } | null;
     roasted_at: string | null;
-    duration_seconds: number | null;
 };
 
 type BlendOption = { id: string; name: string };
@@ -49,6 +48,7 @@ type ProfileFormBodyProps = {
     onBack?: () => void;
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => void;
+    onEditHeat?: () => void;
 };
 
 export const ProfileFormBody = ({
@@ -70,6 +70,7 @@ export const ProfileFormBody = ({
     onBack,
     onClose,
     onSubmit,
+    onEditHeat,
 }: ProfileFormBodyProps) => {
     const { t } = useTranslation();
 
@@ -106,8 +107,7 @@ export const ProfileFormBody = ({
                                 </span>
                                 {' · '}
                                 {fmtDate(selectedSession.roasted_at)}
-                                {selectedSession.duration_seconds != null &&
-                                    ` · ${formatDuration(selectedSession.duration_seconds)}`}
+                                {summary?.duration_sec != null && ` · ${formatDuration(summary.duration_sec)}`}
                             </span>
                         </div>
                     </div>
@@ -153,6 +153,16 @@ export const ProfileFormBody = ({
                     </div>
 
                     {summary ? <ProfileCurveSummary summary={summary} /> : null}
+
+                    {isEditing && onEditHeat ? (
+                        <button
+                            type="button"
+                            onClick={onEditHeat}
+                            className="w-full cursor-pointer rounded-xl border-none bg-surface py-2.5 text-[13px] font-medium text-primary dark:bg-surface-elevated"
+                        >
+                            {t('heaterEventsEditor.editHeat')}
+                        </button>
+                    ) : null}
 
                     <ProfileDefaultSourceFields
                         beans={beans}
