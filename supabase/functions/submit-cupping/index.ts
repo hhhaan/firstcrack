@@ -123,6 +123,7 @@ async function handleInvite(supabase: Sb, body: Body): Promise<Response> {
     if (action === 'claim') {
         if (seat.participant.published_at) {
             const submissions = await loadSubmissions(supabase, invite.id, seat.participant.cupped_by);
+            if (submissions instanceof Response) return submissions;
             return jsonResponse({
                 participantId: seat.participant.id,
                 publishedAt: seat.participant.published_at,
@@ -139,6 +140,7 @@ async function handleInvite(supabase: Sb, body: Body): Promise<Response> {
 
     if (seat.participant.published_at) {
         const submissions = await loadSubmissions(supabase, invite.id, seat.participant.cupped_by);
+        if (submissions instanceof Response) return submissions;
         return jsonResponse(
             {
                 error: 'already_published',
@@ -328,7 +330,7 @@ async function loadParticipant(
     supabase: Sb,
     inviteId: string,
     opts: { id?: string; cuppedBy: string },
-): Promise<Participant | null> {
+): Promise<Participant | Response | null> {
     if (opts.id) {
         const { data, error } = await supabase
             .from('cupping_participants')
@@ -338,7 +340,7 @@ async function loadParticipant(
             .maybeSingle();
         if (error) {
             console.error('[submit-cupping] participant by id', error);
-            return null;
+            return respondServerError('submit-cupping', 'lookup failed', error);
         }
         if (data) return data;
     }
@@ -350,7 +352,7 @@ async function loadParticipant(
         .maybeSingle();
     if (error) {
         console.error('[submit-cupping] participant by name', error);
-        return null;
+        return respondServerError('submit-cupping', 'lookup failed', error);
     }
     return data;
 }
@@ -362,6 +364,7 @@ async function ensureSeat(
     participantId: string,
 ): Promise<{ participant: Participant } | Response> {
     let existing = await loadParticipant(supabase, invite.id, { id: participantId || undefined, cuppedBy });
+    if (existing instanceof Response) return existing;
     if (existing) {
         if (!existing.published_at && existing.cupped_by !== cuppedBy) {
             const { data: renamed, error } = await supabase
@@ -410,6 +413,7 @@ async function ensureSeat(
 
     if (insErr?.code === '23505') {
         const raced = await loadParticipant(supabase, invite.id, { cuppedBy });
+        if (raced instanceof Response) return raced;
         if (raced) return { participant: raced };
     }
     if (insErr || !inserted) {
@@ -575,7 +579,7 @@ async function loadSubmissions(supabase: Sb, inviteId: string, cuppedBy: string)
         .eq('cupped_by', cuppedBy);
     if (error) {
         console.error('[submit-cupping] submissions', error);
-        return [];
+        return respondServerError('submit-cupping', 'lookup failed', error);
     }
     return (data ?? []).map((row) => ({
         id: row.id,
@@ -609,7 +613,8 @@ async function handleOwner(supabase: Sb, req: Request, body: Body): Promise<Resp
             .eq('id', sampleId)
             .eq('user_id', user.id)
             .maybeSingle();
-        if (sampleErr || !sample) return jsonResponse({ error: 'sample_not_found' }, 404);
+        if (sampleErr) return respondServerError('submit-cupping', 'lookup failed', sampleErr);
+        if (!sample) return jsonResponse({ error: 'sample_not_found' }, 404);
         roastSessionId = sample.roast_session_id ?? roastSessionId;
         ownerEventId = sample.event_id ?? null;
     }
@@ -621,7 +626,8 @@ async function handleOwner(supabase: Sb, req: Request, body: Body): Promise<Resp
             .eq('id', roastSessionId)
             .eq('user_id', user.id)
             .maybeSingle();
-        if (sessionErr || !session) return jsonResponse({ error: 'session_not_found' }, 404);
+        if (sessionErr) return respondServerError('submit-cupping', 'lookup failed', sessionErr);
+        if (!session) return jsonResponse({ error: 'session_not_found' }, 404);
         profileId = session.profile_id;
     }
 

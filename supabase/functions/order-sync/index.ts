@@ -126,6 +126,12 @@ async function syncOne(
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('[order-sync] connection', conn.id, msg);
+        await captureEdgeException(e, {
+            function: 'order-sync',
+            status: 500,
+            tags: { platform: conn.platform },
+            extra: { connectionId: conn.id },
+        });
         const now = new Date().toISOString();
         const failures = (conn.consecutive_failures ?? 0) + 1;
         await admin

@@ -93,6 +93,12 @@ describe('captureEdgeException', () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it('is a no-op when Deno is absent', async () => {
+        vi.stubGlobal('Deno', undefined);
+        await captureEdgeException(new Error('boom'), { status: 500 });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('scrubs secrets out of extra and presigned URLs out of the message', async () => {
         await captureEdgeException(
             new Error('PUT https://acc.r2.cloudflarestorage.com/k.tsv?X-Amz-Signature=deadbeef failed'),

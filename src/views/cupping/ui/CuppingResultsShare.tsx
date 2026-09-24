@@ -49,7 +49,8 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
                     (old ?? []).map((e) => (e.id === eventId ? { ...e, results_token: ev.results_token } : e)),
                 );
             })
-            .catch(() => {
+            .catch((err: unknown) => {
+                logger.capture(err, { scope: 'cupping.ensureResultsToken', eventId });
                 if (!cancelled) setError(t('cupping.resultsLinkError'));
             })
             .finally(() => {
