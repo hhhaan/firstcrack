@@ -1,6 +1,6 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
-import { useProfile } from '@entities/profile';
+import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useBbpCurve } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
@@ -130,6 +130,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { workspaceOwnerId } = useActiveWorkspace();
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
+    const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
+    const saveDefaultProfile = useCallback(
+        (id: string | null) => {
+            updateProfile({ default_roast_profile_id: id });
+        },
+        [updateProfile],
+    );
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
@@ -150,8 +157,22 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             setProfileChangeOpen(true);
         });
     }, []);
+    const commitApprovedTarget = useCallback((_id: string | null) => {
+        replayStopRef.current('profileChanged');
+    }, []);
+    const selectionEpoch = `${workspaceOwnerId ?? ''}:${sessionId ?? 'pre'}`;
     const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
-        useRoastProfileSelection({ isActive, charged, userProfile, beans, beansReady, confirmTargetChange });
+        useRoastProfileSelection({
+            isActive,
+            charged,
+            userProfile,
+            beans,
+            beansReady,
+            confirmTargetChange,
+            commitApprovedTarget,
+            saveDefaultProfile,
+            selectionEpoch,
+        });
 
     // ── UI 상태 ───────────────────────────────────────────────────
     const [isRunning, setIsRunning] = useState(false);
@@ -262,7 +283,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             pending.resolve(false);
             return;
         }
-        replayStopRef.current('profileChanged');
         pending.resolve(true);
     }, []);
 
