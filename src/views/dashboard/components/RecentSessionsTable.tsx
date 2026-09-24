@@ -88,7 +88,7 @@ export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSession
                                         {formatTemp(session.drop_temp_celsius, unit)}
                                     </td>
                                     <td className="px-6 py-3 text-[13px] text-secondary font-mono whitespace-nowrap">
-                                        {session.duration_seconds ? formatDuration(session.duration_seconds) : '—'}
+                                        {formatDuration(session.roastDurationSec)}
                                     </td>
                                     <td className="px-6 py-3">
                                         {level && (

@@ -5,16 +5,18 @@ import { planBatchApi } from '@entities/plan';
 import { roastSessionApi } from '@entities/roast';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { dashboardKeys } from '@shared/lib/query-keys';
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
+import { averageRoastDurationSec, splitDashboardMonths } from '../lib/dashboard-roast-stats';
 
-/** Columns actually rendered / aggregated by dashboard (no events jsonb). */
+/** Recent-row view model. `roastDurationSec` is History 시간 (Charge→Drop), not record End. */
 export type DashboardRecentSession = {
     id: string;
     roasted_at: string | null;
     weight_grams: number;
-    duration_seconds: number | null;
+    roastDurationSec: number | null;
     drop_temp_celsius: number | null;
     roast_level: string | null;
     bean_label: string | null;
@@ -85,7 +87,6 @@ const isUpcomingBatch = (batch: PlanBatchWithProgress, today: string): boolean =
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
@@ -123,15 +124,23 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             };
         });
 
-    const completed = completedRows.filter((s) => !!s.roasted_at) as Array<
-        DashboardRecentSession & { roasted_at: string }
-    >;
-    const thisMonth = completed.filter((s) => s.roasted_at >= thisMonthStart);
-    const lastMonth = completed.filter((s) => s.roasted_at < thisMonthStart);
+    const completed = completedRows.filter(
+        (s): s is (typeof completedRows)[number] & { roasted_at: string } => !!s.roasted_at,
+    );
+    const { thisMonth, lastMonth } = splitDashboardMonths(completed, now);
+    const toRecent = (s: (typeof completed)[number]): DashboardRecentSession => ({
+        id: s.id,
+        roasted_at: s.roasted_at,
+        weight_grams: s.weight_grams,
+        roastDurationSec: sessionRoastMetrics(s).roastDurationSec,
+        drop_temp_celsius: s.drop_temp_celsius,
+        roast_level: s.roast_level,
+        bean_label: s.bean_label,
+        beans: s.beans,
+        roast_profiles: s.roast_profiles,
+    });
 
     const sumKg = (arr: typeof completed) => arr.reduce((acc, s) => acc + s.weight_grams, 0) / 1000;
-    const avgDuration = (arr: typeof completed) =>
-        arr.length > 0 ? arr.reduce((acc, s) => acc + (s.duration_seconds ?? 0), 0) / arr.length : 0;
 
     const monthlyMap = new Map<string, number>();
     for (let i = 5; i >= 0; i--) {
@@ -164,9 +173,9 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         batchesLastMonth: lastMonth.length,
         kgRoastedThisMonth: sumKg(thisMonth),
         kgRoastedLastMonth: sumKg(lastMonth),
-        avgDurationSeconds: avgDuration(thisMonth),
-        avgDurationLastMonthSeconds: avgDuration(lastMonth),
-        recentSessions: completed.slice(0, 5),
+        avgDurationSeconds: averageRoastDurationSec(thisMonth),
+        avgDurationLastMonthSeconds: averageRoastDurationSec(lastMonth),
+        recentSessions: completed.slice(0, 5).map(toRecent),
         upcomingBatches,
         inventoryAlerts,
         monthlyBatches,

@@ -1,5 +1,5 @@
 import { supabase } from '@shared/lib/supabase';
-import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
@@ -236,7 +236,7 @@ export const roastSessionApi = {
 
     /**
      * Dashboard recent/KPI sessions (completed since lastMonthStart).
-     * Narrow select — no events jsonb.
+     * `events` is included so 시간 is Charge→Drop (`sessionRoastMetrics`), not record End.
      */
     listCompletedDashboard: async (
         userId: string,
@@ -247,6 +247,7 @@ export const roastSessionApi = {
             roasted_at: string | null;
             weight_grams: number;
             duration_seconds: number | null;
+            events: Json;
             drop_temp_celsius: number | null;
             roast_level: string | null;
             bean_label: string | null;
@@ -257,7 +258,7 @@ export const roastSessionApi = {
         const { data, error } = await supabase
             .from('roast_sessions')
             .select(
-                'id, roasted_at, weight_grams, duration_seconds, drop_temp_celsius, roast_level, bean_label, beans(name, origin), roast_profiles!profile_id(name, target_level)',
+                'id, roasted_at, weight_grams, duration_seconds, events, drop_temp_celsius, roast_level, bean_label, beans(name, origin), roast_profiles!profile_id(name, target_level)',
             )
             .eq('user_id', userId)
             .eq('status', 'completed')

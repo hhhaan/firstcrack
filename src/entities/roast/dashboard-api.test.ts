@@ -42,6 +42,8 @@ describe('roastSessionApi dashboard reads', () => {
         const rows = await roastSessionApi.listCompletedDashboard('user-1', '2026-01-01T00:00:00.000Z');
         expect(Array.isArray(rows)).toBe(true);
         expect(fromMock).toHaveBeenCalledWith('roast_sessions');
+        const chain = fromMock.mock.results[0]?.value as { select: { mock: { calls: unknown[][] } } };
+        expect(String(chain.select.mock.calls[0]?.[0])).toContain('events');
     });
 
     it('exposes listCompletedWeightsSince for monthly chart series', async () => {
