@@ -936,9 +936,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 isSaving={saveFlow.isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
-                selectedBeanId={saveFlow.flow.summaryData?.selectedBeanId ?? selectedBeanId}
-                planBatchHandoff={saveFlow.flow.summaryData?.planBatchHandoff ?? planBatchHandoff}
-                fallbackBeanName={saveFlow.flow.summaryData?.handoffBeanName ?? handoffBeanName}
+                selectedBeanId={saveFlow.flow.summaryData?.selectedBeanId ?? null}
+                planBatchHandoff={saveFlow.flow.summaryData?.planBatchHandoff ?? null}
+                fallbackBeanName={saveFlow.flow.summaryData?.handoffBeanName ?? null}
                 onClose={saveFlow.flow.closeSummary}
                 onDiscard={() => {
                     saveFlow.discardSummary();

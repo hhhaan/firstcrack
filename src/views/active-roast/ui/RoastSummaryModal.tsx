@@ -7,7 +7,11 @@ import {
     MAX_BATCH_WEIGHT_KG,
     type RoastSummaryForm,
 } from '@features/active-roast/lib/roastSummarySchema';
-import { summaryPrefill } from '@features/active-roast/lib/summaryPrefill';
+import {
+    isDeductDisplayEligible,
+    scheduleLinkFieldPatch,
+    summaryFormInitialValues,
+} from '@features/active-roast/lib/summaryPrefill';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRoastSessionStore } from '@shared/store/roastSession';
@@ -81,7 +85,6 @@ export const RoastSummaryModal = ({
     const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? userId : '', today);
 
     const hasHandoff = Boolean(planBatchHandoff);
-    const hasBlendHandoff = Boolean(planBatchHandoff?.blendId);
 
     const incompleteBatches = useMemo(
         () => dayBatches.filter((b) => b.completed_sessions < b.batch_count),
@@ -141,6 +144,11 @@ export const RoastSummaryModal = ({
     const handoffRef = useRef(planBatchHandoff);
     const lastAdhoc = useRoastSessionStore((s) => s.lastAdhocSave);
     const lastAdhocRef = useRef(lastAdhoc);
+    const openedBaseRef = useRef<{ weightGrams: number; beanId: string | null }>({ weightGrams: 0, beanId: null });
+    const prevLinkRef = useRef<{ mode: 'schedule' | 'none'; batchId: string | null }>({
+        mode: 'none',
+        batchId: null,
+    });
     useEffect(() => {
         selectedBeanIdRef.current = selectedBeanId;
     }, [selectedBeanId]);
@@ -153,30 +161,17 @@ export const RoastSummaryModal = ({
 
     useEffect(() => {
         if (open && summaryData) {
-            const handoff = handoffRef.current;
-            const prefill = summaryPrefill(handoff, lastAdhocRef.current, selectedBeanIdRef.current);
-            reset({
-                notes: '',
-                weightGrams: prefill.weightGrams,
-                outputWeightKg: undefined,
-                roastLevel: prefill.roastLevel,
-                beanId: prefill.beanId,
-                beanLabel: '',
-                linkMode: handoff ? 'schedule' : 'none',
-                planBatchId: handoff?.planBatchId ?? null,
-                deductStock: Boolean(handoff) || prefill.beanId != null,
-            });
+            const initial = summaryFormInitialValues(
+                handoffRef.current,
+                lastAdhocRef.current,
+                selectedBeanIdRef.current,
+            );
+            openedBaseRef.current = { weightGrams: initial.weightGrams, beanId: initial.beanId };
+            prevLinkRef.current = { mode: initial.linkMode, batchId: initial.planBatchId };
+            reset(initial);
             setBeanComboboxKey((k) => k + 1);
         }
     }, [open, summaryData, reset]);
-
-    useEffect(() => {
-        if (open && summaryData && !planBatchHandoff && selectedBeanId) {
-            setValue('beanId', selectedBeanId, { shouldDirty: false });
-            setValue('beanLabel', '', { shouldDirty: false });
-            setBeanComboboxKey((k) => k + 1);
-        }
-    }, [selectedBeanId, open, summaryData, setValue, planBatchHandoff]);
 
     const linkedBatch = useMemo(() => {
         if (hasHandoff || linkMode !== 'schedule' || !formPlanBatchId) return null;
@@ -192,15 +187,21 @@ export const RoastSummaryModal = ({
     const linkedBeanId = linkedBatch?.bean_id ?? null;
     useEffect(() => {
         if (!open || !summaryData || hasHandoff) return;
-        if (linkMode !== 'schedule' || !linkedBatchId) return;
-        if (linkedBatchSizeKg != null && linkedBatchSizeKg > 0) {
-            setValue('weightGrams', linkedBatchSizeKg, { shouldDirty: true, shouldValidate: true });
-        }
-        if (linkedBeanId) {
-            setValue('beanId', linkedBeanId, { shouldDirty: true, shouldValidate: true });
-            setValue('beanLabel', '', { shouldDirty: true });
-            setBeanComboboxKey((k) => k + 1);
-        }
+        const patch = scheduleLinkFieldPatch({
+            prevMode: prevLinkRef.current.mode,
+            mode: linkMode,
+            batch: linkedBatchId
+                ? { id: linkedBatchId, batchSizeKg: linkedBatchSizeKg ?? 0, beanId: linkedBeanId }
+                : null,
+            prevBatchId: prevLinkRef.current.batchId,
+            base: openedBaseRef.current,
+        });
+        prevLinkRef.current = { mode: linkMode, batchId: linkMode === 'schedule' ? linkedBatchId : null };
+        if (!patch) return;
+        setValue('weightGrams', patch.weightGrams, { shouldDirty: true, shouldValidate: true });
+        setValue('beanId', patch.beanId, { shouldDirty: true, shouldValidate: true });
+        setValue('beanLabel', '', { shouldDirty: true });
+        setBeanComboboxKey((k) => k + 1);
     }, [open, summaryData, hasHandoff, linkMode, linkedBatchId, linkedBatchSizeKg, linkedBeanId, setValue]);
 
     const showBeanPicker = !hasHandoff && linkMode === 'none';
@@ -220,8 +221,12 @@ export const RoastSummaryModal = ({
     }, [effectiveHandoff, weightGrams]);
 
     const isCustomBean = showBeanPicker && !formBeanId && Boolean(beanLabel.trim());
-    const canDeduct =
-        !isCustomBean && deductionKg > 0 && Boolean(resolvedBeanId || effectiveHandoff?.blendId || hasBlendHandoff);
+    const canDeduct = isDeductDisplayEligible({
+        customBean: isCustomBean,
+        deductionKg,
+        resolvedBeanId,
+        blendId: effectiveHandoff?.blendId ?? null,
+    });
 
     const beanComboboxItems = useMemo(() => beans.map((b) => ({ id: b.id, name: b.name })), [beans]);
 
