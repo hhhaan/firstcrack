@@ -527,6 +527,12 @@ pub fn run() {
         .expect("error while running tauri application");
 
     app.run(|_app, event| {
+        #[cfg(target_os = "macos")]
+        if let RunEvent::ExitRequested { code: None, api, .. } = &event {
+            api.prevent_exit();
+            let _ = _app.emit("quit-requested", ());
+        }
+
         if let RunEvent::Exit = event {
             // 사이드카 정리 — 데스크톱 전용 (모바일은 사이드카 없음)
             #[cfg(desktop)]

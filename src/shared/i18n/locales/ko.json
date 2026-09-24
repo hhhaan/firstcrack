@@ -13,6 +13,9 @@
     },
     "common": {
         "cancel": "취소",
+        "quit": "종료",
+        "quitConfirmTitle": "First Crack 종료?",
+        "quitConfirmMessage": "앱을 종료하면 진행 중인 로스팅이 중단됩니다. 종료하시겠습니까?",
         "close": "닫기",
         "connected": "연결됨",
         "connecting": "연결 중...",
