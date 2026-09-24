@@ -1,24 +1,30 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fcDualButtonLabel, getFcDualStage } from '../lib/fc-dual-mark';
 import type { TemperatureUnit } from './settings';
 import { useRoastLog } from './useRoastLog';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const renderHook = async (unit: TemperatureUnit, rawBT: number | null, elapsed: number) => {
+const renderHook = async (unit: TemperatureUnit, rawBT: number | null, elapsed: number, strict = false) => {
     const root = createRoot(document.createElement('div'));
     let latest!: ReturnType<typeof useRoastLog>;
     const Probe = (props: { unit: TemperatureUnit; rawBT: number | null; elapsed: number }) => {
         latest = useRoastLog(props.unit, props.rawBT, props.elapsed);
         return null;
     };
-    const render = (nextElapsed: number, nextRawBT = rawBT) =>
-        act(() => root.render(createElement(Probe, { unit, rawBT: nextRawBT, elapsed: nextElapsed })));
+    const render = (nextElapsed: number, nextRawBT = rawBT) => {
+        const probe = createElement(Probe, { unit, rawBT: nextRawBT, elapsed: nextElapsed });
+        return act(() => root.render(strict ? createElement(StrictMode, null, probe) : probe));
+    };
     await render(elapsed);
     return { get: () => latest, render, unmount: () => act(() => root.unmount()) };
 };
+
+const fcButton = (hook: { get: () => ReturnType<typeof useRoastLog> }) =>
+    fcDualButtonLabel(getFcDualStage(hook.get().logEntries), hook.get().fcDualUnwind);
 
 describe('useRoastLog markEvent', () => {
     afterEach(() => vi.unstubAllGlobals());
@@ -86,6 +92,67 @@ describe('useRoastLog markEvent', () => {
 
         expect(hook.get().logEntries).toEqual([]);
         expect(crypto.randomUUID).not.toHaveBeenCalled();
+        hook.unmount();
+    });
+});
+
+describe('useRoastLog cycleFc', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    const cycle = async (strict: boolean) => {
+        vi.stubGlobal('crypto', {
+            randomUUID: vi
+                .fn()
+                .mockReturnValueOnce('fc-start')
+                .mockReturnValueOnce('fc-rolling')
+                .mockReturnValueOnce('fc-start-2')
+                .mockReturnValueOnce('fc-rolling-2'),
+        });
+        const hook = await renderHook('C', 196, 500, strict);
+
+        act(() => hook.get().cycleFc());
+        expect(hook.get().logEntries.map((e) => e.event)).toEqual(['FC Start']);
+        expect(hook.get().fcDualUnwind).toBe(false);
+        expect(fcButton(hook)).toBe('FC Rolling');
+
+        await hook.render(540, 201);
+        act(() => hook.get().cycleFc());
+        expect(hook.get().logEntries.map((e) => e.event)).toEqual(['FC Start', 'FC Rolling']);
+        expect(hook.get().fcDualUnwind).toBe(false);
+        expect(fcButton(hook)).toBe('FC Rolling');
+
+        act(() => hook.get().cycleFc());
+        expect(hook.get().logEntries.map((e) => e.event)).toEqual(['FC Start']);
+        expect(hook.get().fcDualUnwind).toBe(true);
+        expect(fcButton(hook)).toBe('FC Start');
+
+        act(() => hook.get().cycleFc());
+        expect(hook.get().logEntries.map((e) => e.event)).toEqual([]);
+        expect(hook.get().fcDualUnwind).toBe(false);
+        expect(fcButton(hook)).toBe('FC Start');
+        hook.unmount();
+    };
+
+    it('keeps the log and button on one Start → Rolling → clear Rolling → clear Start transition', async () => {
+        await cycle(false);
+    });
+
+    it('keeps that transition under StrictMode double-invoked updates', async () => {
+        await cycle(true);
+    });
+
+    it('two rapid clicks advance two stages and leave the button matching the log', async () => {
+        vi.stubGlobal('crypto', {
+            randomUUID: vi.fn().mockReturnValueOnce('fc-start').mockReturnValueOnce('fc-rolling'),
+        });
+        const hook = await renderHook('C', 196, 500, true);
+        act(() => {
+            hook.get().cycleFc();
+            hook.get().cycleFc();
+        });
+        expect(hook.get().logEntries.map((e) => e.event)).toEqual(['FC Start', 'FC Rolling']);
+        expect(hook.get().fcDualUnwind).toBe(false);
+        expect(fcButton(hook)).toBe('FC Rolling');
         hook.unmount();
     });
 });
