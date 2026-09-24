@@ -276,18 +276,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 roastTarget: targetCurvePoints,
                 bbpTarget: bbpTarget.data ?? [],
                 bbpTargetError: bbpTarget.isError,
-                bbpSeconds: sourceSession?.bbp_seconds,
             }),
-        [
-            bbpActive,
-            bbpPoints,
-            bbpTarget.data,
-            bbpTarget.isError,
-            charged,
-            livePoints,
-            sourceSession?.bbp_seconds,
-            targetCurvePoints,
-        ],
+        [bbpActive, bbpPoints, bbpTarget.data, bbpTarget.isError, charged, livePoints, targetCurvePoints],
     );
     const bbpNowSec = bbpPoints.length > 0 ? bbpPoints[bbpPoints.length - 1].t : 0;
     const waitTemps = waitingForCharge
