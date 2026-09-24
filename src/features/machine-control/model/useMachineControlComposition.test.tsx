@@ -19,50 +19,19 @@ vi.mock('@shared/store/toast', () => ({
     useToastStore: { getState: () => ({ show: vi.fn() }) },
 }));
 
-import type { PidRuntime } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
-import type { ReplayPoint } from '../lib/replay';
 import { type MachineControlCompositionInput, useMachineControlComposition } from './useMachineControlComposition';
+import {
+    baseMachineControlInput as base,
+    replayPoints as POINTS,
+    pidRuntime as runtime,
+} from './useMachineControlComposition.fixtures';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const getStatus = vi.mocked(sidecar.getStatus);
 const setControl = vi.mocked(sidecar.setControl);
 const pidOff = vi.mocked(sidecar.pidOff);
-
-const POINTS: ReplayPoint[] = [
-    { t: 0, bt: 180, heaterSet: 60 },
-    { t: 60, bt: 95, heaterSet: 60 },
-    { t: 120, bt: 110, heaterSet: 40 },
-];
-
-const runtime = (state: PidRuntime['state']): PidRuntime => ({
-    state,
-    sv: 200,
-    duty: 40,
-    pv: 180,
-    p: 0,
-    i: 0,
-    d: 0,
-    error: null,
-});
-
-const base = (): MachineControlCompositionInput => ({
-    sidecarConnected: true,
-    reconnecting: false,
-    liveData: { heater: 40, fan: 0, drum: 0 },
-    pidRuntime: null,
-    roastFinished: false,
-    pidDropBehavior: 'hold',
-    replayPoints: POINTS,
-    replayMachineMismatch: false,
-    replayDropTime: null,
-    liveBt: 180,
-    elapsed: 30,
-    roasting: true,
-    confirmedTurningPoint: null,
-    observationQuality: 'valid',
-});
 
 const renderComposition = async (initial: MachineControlCompositionInput) => {
     const root = createRoot(document.createElement('div'));

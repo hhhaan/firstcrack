@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
-import type { PidRuntime } from '@entities/machine';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isMachineControlPanelShown } from '../lib/controlPanelShown';
-import type { ReplayPoint } from '../lib/replay';
 import {
     type MachineControlComposition,
     type MachineControlCompositionInput,
     useMachineControlComposition,
 } from '../model/useMachineControlComposition';
+import {
+    baseMachineControlInput as baseInput,
+    pidRuntime as runtime,
+} from '../model/useMachineControlComposition.fixtures';
 import { MachineControlPanel } from './MachineControlPanel';
 
 const flags = vi.hoisted(() => ({ entitled: true }));
@@ -24,20 +26,10 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('@shared/lib/sidecar', () => ({
-    sidecar: {
-        getStatus: vi.fn(),
-        setControl: vi.fn(),
-        pidOn: vi.fn(),
-        pidOff: vi.fn(),
-        pidSetSv: vi.fn(),
-    },
+    sidecar: { getStatus: vi.fn(), setControl: vi.fn(), pidOff: vi.fn() },
 }));
-vi.mock('@shared/lib/logger', () => ({
-    logger: { capture: vi.fn() },
-}));
-vi.mock('@shared/store/toast', () => ({
-    useToastStore: { getState: () => ({ show: vi.fn() }) },
-}));
+vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
+vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));
 
 import { sidecar } from '@shared/lib/sidecar';
 
@@ -273,40 +265,6 @@ describe('MachineControlPanel display', () => {
         expect(host.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
         unmount();
     });
-});
-
-const POINTS: ReplayPoint[] = [
-    { t: 0, bt: 180, heaterSet: 60 },
-    { t: 60, bt: 95, heaterSet: 60 },
-    { t: 120, bt: 110, heaterSet: 40 },
-];
-
-const runtime = (state: PidRuntime['state']): PidRuntime => ({
-    state,
-    sv: 200,
-    duty: 40,
-    pv: 180,
-    p: 0,
-    i: 0,
-    d: 0,
-    error: null,
-});
-
-const baseInput = (): MachineControlCompositionInput => ({
-    sidecarConnected: true,
-    reconnecting: false,
-    liveData: { heater: 40, fan: 0, drum: 0 },
-    pidRuntime: null,
-    roastFinished: false,
-    pidDropBehavior: 'hold',
-    replayPoints: POINTS,
-    replayMachineMismatch: false,
-    replayDropTime: null,
-    liveBt: 180,
-    elapsed: 30,
-    roasting: true,
-    confirmedTurningPoint: null,
-    observationQuality: 'valid',
 });
 
 describe('MachineControlPanel fold keeps the control hook', () => {
