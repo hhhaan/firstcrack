@@ -1,11 +1,11 @@
 import type { BbpPoint } from '@features/active-roast/model/bbp';
 import { formatLookbackLabel, type LiveRoastPoint } from '../model/useSidecarPolling';
 
-/** BBP 스토어 포인트를 라이브 차트 시계열로. t는 End 확정 기준 초. chargeOffset이면 Charge=0. */
-export const livePointsFromBbp = (points: BbpPoint[], chargeOffset = 0): LiveRoastPoint[] =>
+/** BBP samples use elapsed seconds since End, starting at the left of the chart. */
+export const livePointsFromBbp = (points: BbpPoint[]): LiveRoastPoint[] =>
     points.map((p) => ({
-        time: p.t - chargeOffset,
-        label: formatLookbackLabel(p.t - chargeOffset),
+        time: p.t,
+        label: formatLookbackLabel(p.t),
         bt: p.bt,
         et: p.et,
         ror: null,
@@ -14,12 +14,3 @@ export const livePointsFromBbp = (points: BbpPoint[], chargeOffset = 0): LiveRoa
         fan: p.fan,
         drum: p.drum,
     }));
-
-export const shiftLivePoints = (points: LiveRoastPoint[], chargeOffset: number): LiveRoastPoint[] =>
-    chargeOffset <= 0
-        ? points
-        : points.map((p) => ({
-              ...p,
-              time: p.time - chargeOffset,
-              label: formatLookbackLabel(p.time - chargeOffset),
-          }));
