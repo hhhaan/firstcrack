@@ -13,6 +13,9 @@
     },
     "common": {
         "cancel": "Cancel",
+        "quit": "Quit",
+        "quitConfirmTitle": "Quit First Crack?",
+        "quitConfirmMessage": "Closing the app will interrupt any active roast. Quit now?",
         "close": "Close",
         "connected": "Connected",
         "connecting": "Connecting...",
