@@ -1,13 +1,11 @@
 import type { ControlCapability } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
+import { MACHINE_CONTROL_CHANNEL_ROLES } from '../lib/controlPanelShown';
 import type { ControlCommand, ControlRole } from '../lib/controlSender';
 import { isPercentUnit } from '../lib/snapPercent';
 import { ChannelChip } from './ChannelChip';
 import { HeaterScale } from './HeaterScale';
 import { SetpointControl } from './SetpointControl';
-
-/** Display order of the manual channels. Send order lives in the control sender. */
-export const MACHINE_CONTROL_CHANNEL_ROLES: ControlRole[] = ['heater', 'fan', 'drum'];
 
 /**
  * Manual setpoint layout. Percent heaters use the scale plus optional fan/drum chips.

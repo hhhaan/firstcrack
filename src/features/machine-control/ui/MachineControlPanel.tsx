@@ -1,13 +1,13 @@
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import { isMachineControlPanelShown } from '../lib/controlPanelShown';
+import { isMachineControlPanelShown, MACHINE_CONTROL_CHANNEL_ROLES } from '../lib/controlPanelShown';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
 import type { MachineControlComposition } from '../model/useMachineControlComposition';
 import { CollapsedControlStatus } from './CollapsedControlStatus';
 import { HeaterEventsEditor } from './HeaterEventsEditor';
-import { MACHINE_CONTROL_CHANNEL_ROLES, MachineControlChannels } from './MachineControlChannels';
+import { MachineControlChannels } from './MachineControlChannels';
 import { PidControlPanel } from './PidControlPanel';
 import { ReplayControlPanel } from './ReplayControlPanel';
 

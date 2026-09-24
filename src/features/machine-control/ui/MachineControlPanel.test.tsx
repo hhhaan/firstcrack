@@ -343,7 +343,11 @@ describe('MachineControlPanel fold keeps the control hook', () => {
             modelRef.current = model;
             return createElement(MachineControlPanel, {
                 model,
-                liveData: input.liveData,
+                liveData: {
+                    heater: input.liveData?.heater ?? null,
+                    fan: input.liveData?.fan ?? 0,
+                    drum: input.liveData?.drum ?? 0,
+                },
                 replayPoints: input.replayPoints,
                 pidDropBehavior: input.pidDropBehavior,
                 temperatureUnit: 'C',
@@ -360,7 +364,7 @@ describe('MachineControlPanel fold keeps the control hook', () => {
         const before = setControl.mock.calls.length;
         act(() => (host.querySelector('[aria-label="Collapse machine control"]') as HTMLButtonElement).click());
         expect(modelRef.current?.replay.active).toBe(true);
-        expect(host.querySelector('[aria-label="Replay 재생 중"]')).not.toBeNull();
+        expect(host.querySelector('[aria-label="activeRoast.replay.tp.collapsedWaiting"]')).not.toBeNull();
         expect(setControl.mock.calls.length).toBe(before);
 
         input = { ...baseInput(), pidRuntime: runtime('running'), roastFinished: true };
