@@ -6,8 +6,10 @@ neighboring session or the roast TSV. BBP and roast share one temperature/contro
 chart: Charge is 00:00, BBP precedes it at negative times, and only that interval
 has a gray background. There is no separate BBP chart.
 
-Stored BBP keeps seconds since the previous End. Display subtracts each source's
-own BBP duration without stretching samples. The roast's 00:00 sample owns the
+Stored BBP keeps seconds since the previous End. History display subtracts each
+source's own BBP duration without stretching samples. The live target clips saved
+samples to the latest 20 minutes and anchors their actual kept span at Charge.
+The roast's 00:00 sample owns the
 Charge boundary, and RoR stays absent during BBP. Live waiting BBP aligns Charge
 at 00:00: target BBP (dashed) plus current temperature sit before Charge, the
 roast target dashed line continues after, and only that BBP interval is a
