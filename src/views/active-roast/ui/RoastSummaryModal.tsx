@@ -1,20 +1,6 @@
-import { useBeans } from '@entities/bean/queries';
-import { useActiveWorkspace } from '@entities/organization';
-import { useDayBatches } from '@entities/plan';
 import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
-import {
-    buildRoastSummarySchema,
-    MAX_BATCH_WEIGHT_KG,
-    type RoastSummaryForm,
-} from '@features/active-roast/lib/roastSummarySchema';
-import {
-    isDeductDisplayEligible,
-    scheduleLinkFieldPatch,
-    summaryFormInitialValues,
-} from '@features/active-roast/lib/summaryPrefill';
-import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useRoastSessionStore } from '@shared/store/roastSession';
+import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
+import { isDeductDisplayEligible } from '@features/active-roast/lib/summaryPrefill';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { formErrorCls } from '@shared/ui/form-styles';
@@ -23,12 +9,11 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
 import { ask } from '@tauri-apps/plugin-dialog';
-import { format } from 'date-fns';
 import { Check, Coffee, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
+import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
 
 export type { RoastSummaryData };
 
@@ -79,41 +64,21 @@ export const RoastSummaryModal = ({
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
-    const { workspaceOwnerId: userId, isWorkspaceReady } = useActiveWorkspace();
-    const { data: beans = [] } = useBeans(userId);
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? userId : '', today);
-
     const hasHandoff = Boolean(planBatchHandoff);
-
-    const incompleteBatches = useMemo(
-        () => dayBatches.filter((b) => b.completed_sessions < b.batch_count),
-        [dayBatches],
-    );
-
-    const roastSummarySchema = useMemo(() => buildRoastSummarySchema({ t, hasHandoff }), [hasHandoff, t]);
-
     const {
-        register,
-        handleSubmit,
-        watch,
-        setValue,
-        reset,
-        formState: { errors },
-    } = useForm<RoastSummaryForm>({
-        resolver: zodResolver(roastSummarySchema),
-        defaultValues: {
-            notes: '',
-            weightGrams: 0,
-            outputWeightKg: undefined,
-            roastLevel: null,
-            beanId: selectedBeanId,
-            beanLabel: '',
-            linkMode: hasHandoff ? 'schedule' : 'none',
-            planBatchId: planBatchHandoff?.planBatchId ?? null,
-            deductStock: hasHandoff || selectedBeanId != null,
+        form: {
+            register,
+            handleSubmit,
+            watch,
+            setValue,
+            formState: { errors },
         },
-    });
+        isWorkspaceReady,
+        incompleteBatches,
+        beans,
+        effectiveHandoff,
+        beanFieldEpoch,
+    } = useRoastSummaryForm({ open, summaryData, selectedBeanId, planBatchHandoff });
 
     const roastLevel = watch('roastLevel');
     const formBeanId = watch('beanId');
@@ -123,9 +88,6 @@ export const RoastSummaryModal = ({
     const deductStock = watch('deductStock');
     const weightGrams = watch('weightGrams');
     const outputWeightKg = watch('outputWeightKg');
-
-    /** Remount combobox when the modal opens so query syncs with prefill. */
-    const [beanComboboxKey, setBeanComboboxKey] = useState(0);
 
     /** null until both green and measured output are present — then the real loss %. */
     const lossPreview = useMemo(() => {
@@ -139,70 +101,6 @@ export const RoastSummaryModal = ({
             return null;
         return ((weightGrams - outputWeightKg) / weightGrams) * 100;
     }, [weightGrams, outputWeightKg]);
-
-    const selectedBeanIdRef = useRef(selectedBeanId);
-    const handoffRef = useRef(planBatchHandoff);
-    const lastAdhoc = useRoastSessionStore((s) => s.lastAdhocSave);
-    const lastAdhocRef = useRef(lastAdhoc);
-    const openedBaseRef = useRef<{ weightGrams: number; beanId: string | null }>({ weightGrams: 0, beanId: null });
-    const prevLinkRef = useRef<{ mode: 'schedule' | 'none'; batchId: string | null }>({
-        mode: 'none',
-        batchId: null,
-    });
-    useEffect(() => {
-        selectedBeanIdRef.current = selectedBeanId;
-    }, [selectedBeanId]);
-    useEffect(() => {
-        handoffRef.current = planBatchHandoff;
-    }, [planBatchHandoff]);
-    useEffect(() => {
-        lastAdhocRef.current = lastAdhoc;
-    }, [lastAdhoc]);
-
-    useEffect(() => {
-        if (open && summaryData) {
-            const initial = summaryFormInitialValues(
-                handoffRef.current,
-                lastAdhocRef.current,
-                selectedBeanIdRef.current,
-            );
-            openedBaseRef.current = { weightGrams: initial.weightGrams, beanId: initial.beanId };
-            prevLinkRef.current = { mode: initial.linkMode, batchId: initial.planBatchId };
-            reset(initial);
-            setBeanComboboxKey((k) => k + 1);
-        }
-    }, [open, summaryData, reset]);
-
-    const linkedBatch = useMemo(() => {
-        if (hasHandoff || linkMode !== 'schedule' || !formPlanBatchId) return null;
-        return incompleteBatches.find((b) => b.id === formPlanBatchId) ?? null;
-    }, [hasHandoff, linkMode, formPlanBatchId, incompleteBatches]);
-
-    const linkedHandoff = linkedBatch ? toPlanBatchHandoff(linkedBatch) : null;
-    const effectiveHandoff = planBatchHandoff ?? linkedHandoff;
-
-    // Schedule batch select → prefill weight/bean. Primitives only so re-renders don't clobber edits.
-    const linkedBatchId = linkedBatch?.id ?? null;
-    const linkedBatchSizeKg = linkedBatch?.batch_size_kg ?? null;
-    const linkedBeanId = linkedBatch?.bean_id ?? null;
-    useEffect(() => {
-        if (!open || !summaryData || hasHandoff) return;
-        const patch = scheduleLinkFieldPatch({
-            prevMode: prevLinkRef.current.mode,
-            mode: linkMode,
-            batch: linkedBatchId
-                ? { id: linkedBatchId, batchSizeKg: linkedBatchSizeKg ?? 0, beanId: linkedBeanId }
-                : null,
-            prevBatchId: prevLinkRef.current.batchId,
-            base: openedBaseRef.current,
-        });
-        prevLinkRef.current = { mode: linkMode, batchId: linkMode === 'schedule' ? linkedBatchId : null };
-        if (!patch) return;
-        setValue('weightGrams', patch.weightGrams, { shouldDirty: true, shouldValidate: true });
-        setValue('beanId', patch.beanId, { shouldDirty: true, shouldValidate: true });
-        setValue('beanLabel', '', { shouldDirty: true });
-        setBeanComboboxKey((k) => k + 1);
-    }, [open, summaryData, hasHandoff, linkMode, linkedBatchId, linkedBatchSizeKg, linkedBeanId, setValue]);
 
     const showBeanPicker = !hasHandoff && linkMode === 'none';
     const showBeanReadonly = hasHandoff || (linkMode === 'schedule' && Boolean(effectiveHandoff));
@@ -417,7 +315,7 @@ export const RoastSummaryModal = ({
                                     }
                                 >
                                     <BeanCombobox
-                                        key={beanComboboxKey}
+                                        key={beanFieldEpoch}
                                         data-testid="roast-summary-bean"
                                         items={beanComboboxItems}
                                         selectedId={formBeanId ?? ''}
