@@ -1,17 +1,15 @@
-import type { ControlCapability, PidRuntime } from '@entities/machine';
+import type { ControlCapability } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
+import type { ControlCommand, ControlRole } from '../lib/controlSender';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
 import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import { isPercentUnit } from '../lib/snapPercent';
-import { useMachineControl } from '../model/useMachineControl';
-import { usePidControl } from '../model/usePidControl';
-import { type ObservationQuality, type ReplayStopReason, useReplayControl } from '../model/useReplayControl';
+import type { MachineControlComposition } from '../model/useMachineControlComposition';
 import { ChannelChip } from './ChannelChip';
 import { HeaterEventsEditor } from './HeaterEventsEditor';
 import { HeaterScale } from './HeaterScale';
@@ -28,105 +26,31 @@ const PID_DOT: Record<string, string> = {
 };
 
 interface Props {
-    sidecarConnected: boolean;
-    /** 사이드카 재연결 대기 — 실측 동결 중이라 이탈 카운트를 멈춘다 (#307) */
-    reconnecting: boolean;
+    /** Control lifetime lives in the parent. Hiding this panel must not unmount it. */
+    model: MachineControlComposition;
     liveData: { heater: number | null; fan: number; drum: number } | null;
-    pidRuntime: PidRuntime | null;
-    /** 배출·로스팅 종료 — PID 자동 해제 신호 */
-    roastFinished: boolean;
-    pidDropBehavior: 'hold' | 'zero';
-    /** 타겟 프로파일 커브 — Replay Assist 레퍼런스 (#300). 없으면 Replay 숨김 */
+    /** Curve points for the batch heat editor. Replay itself reads the same points via the model. */
     replayPoints: ReplayPoint[] | null;
-    /** 레퍼런스가 다른 기종 기록 — Replay 차단 (같은 기기만 재생) */
-    replayMachineMismatch: boolean;
-    /** 레퍼런스의 charge→drop 초 — 배출 후 기록 제외용 */
-    replayDropTime: number | null;
-    /** 프로파일 heater_events jsonb (#435) */
-    replayHeaterEvents?: unknown;
-    liveBt: number | null;
-    elapsed: number;
-    roasting: boolean;
-    /** 실기 TP 사실 — 게이트·대기 UI는 Replay 모듈/패널이 파생 (#314, R08) */
-    confirmedTurningPoint: { fallback?: boolean } | null;
-    /** R04 제어용 관측 품질 — Replay 일반 이벤트 보류 사실 (R05). null = 현재 generation 관측 없음 */
-    observationQuality: ObservationQuality | null;
-    /** Last-valid observation wall-clock for long-gap stop. null = this generation unknown */
-    lastValidReceivedAtMs: number | null;
-    nowMs: number;
-    /** 상위 합성용 — 훅을 두 번 만들지 않고 active/stop만 노출 (#529 D) */
-    onReplayControl?: (control: { active: boolean; stop: (reason?: ReplayStopReason) => void } | null) => void;
+    pidDropBehavior: 'hold' | 'zero';
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
-    /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
-    onHeaterCommitted?: (value: number, unit: string) => void;
 }
 
 /**
  * 머신 제어 묶음 — 수동 setpoint + 자동 화력(PID).
  *
  * Active roast 중간 열 (그래프 | 이 패널 | 온도 패널).
- * 접으면 얇은 레일만 남기고 차트 폭을 확보한다. 접힌 동안에도 본 트리는 유지해
- * PID/DROP 훅이 언마운트되지 않는다.
+ * 제어 수명은 useMachineControlComposition이다. 이 패널이 null을 반환하거나
+ * 접혀도 PID/Replay 훅은 언마운트되지 않는다.
  *
  * % 히터 A′: Fan/Drum 칩은 limits에 있는 채널만. 없으면 숨기고 HeaterScale이 flex-1로 채운다.
  * 0–10 기센 fader는 기존 3칸(미지원은 disabled).
  */
-export const MachineControlPanel = ({
-    sidecarConnected,
-    reconnecting,
-    liveData,
-    pidRuntime,
-    roastFinished,
-    pidDropBehavior,
-    replayPoints,
-    replayMachineMismatch,
-    replayDropTime,
-    replayHeaterEvents,
-    liveBt,
-    elapsed,
-    roasting,
-    confirmedTurningPoint,
-    observationQuality,
-    lastValidReceivedAtMs,
-    nowMs,
-    onReplayControl,
-    temperatureUnit,
-    onHeaterCommitted,
-}: Props) => {
+export const MachineControlPanel = ({ model, liveData, replayPoints, pidDropBehavior, temperatureUnit }: Props) => {
     const { t } = useTranslation();
     const entitled = useFeature(FEATURE.machineControl);
-    const heaterUnitRef = useRef('%');
-    const handleCommitted = useCallback(
-        (committed: ControlCommand) => {
-            if (committed.heater !== undefined) onHeaterCommitted?.(committed.heater, heaterUnitRef.current);
-        },
-        [onHeaterCommitted],
-    );
-    const {
-        writable,
-        limits,
-        pidCapability,
-        desired,
-        unacknowledged,
-        sending,
-        setValue,
-        commitNow,
-        cancelUnsentReplayHeater,
-    } = useMachineControl(sidecarConnected, liveData, handleCommitted);
-    useEffect(() => {
-        heaterUnitRef.current = limits.heater?.unit ?? '%';
-    }, [limits.heater?.unit]);
-    // PID 수명 훅(DROP 자동 해제 포함)은 표시 조건과 무관하게 이 컴포넌트에 산다.
-    // PidControlPanel 안에 두면 아래 가드가 null을 반환하는 순간 — capability 일시
-    // 실패 등 — 훅이 언마운트돼 배출 후에도 버너가 켜진 채 남는다(#269).
-    const pid = usePidControl({
-        sidecarConnected,
-        capability: pidCapability,
-        runtime: pidRuntime,
-        roastFinished,
-        dropBehavior: pidDropBehavior,
-    });
+    const { machine, pid, replay, pidActive, changeManual, commitManual } = model;
+    const { writable, limits, desired, unacknowledged, sending } = machine;
     const [collapsed, setCollapsed] = useState(false);
     const [heatEditorOpen, setHeatEditorOpen] = useState(false);
 
@@ -134,59 +58,10 @@ export const MachineControlPanel = ({
     const chipRoles = (['fan', 'drum'] as const).filter((role) => limits[role] != null);
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에
     // PID가 덮어써서 "슬라이더가 말을 안 듣는" 상태가 된다. 소유권을 명확히 한다.
-    const pidHoldsHeater = pidRuntime?.state === 'running' || pidRuntime?.state === 'holding';
-    const pidState = pidRuntime?.state ?? 'off';
+    const pidHoldsHeater = pid.engaged;
+    const pidState = pid.state;
     const statusDot = PID_DOT[pidState];
-    // fault 포함 — 화력이 남았을 수 있는 동안은 상태·에러가 계속 보여야 한다
-    const pidActive = pidState !== 'off';
     const anyUnacknowledged = ROLE_ORDER.some((role) => limits[role] != null && unacknowledged.has(role));
-
-    // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
-    const writeHeater = useCallback(
-        async (value: number, origin: ControlOrigin = 'replay') => {
-            setValue('heater', value);
-            const applied = await commitNow(origin);
-            return applied?.heater ?? null;
-        },
-        [setValue, commitNow],
-    );
-    const commitManual = useCallback(() => {
-        void commitNow('manual');
-    }, [commitNow]);
-    const replay = useReplayControl({
-        referencePoints: replayPoints,
-        referenceMachineMismatch: replayMachineMismatch,
-        referenceDropTime: replayDropTime,
-        profileHeaterEvents: replayHeaterEvents,
-        liveBt,
-        elapsed,
-        roasting,
-        confirmedTurningPoint,
-        heaterWritable: writable && limits.heater != null,
-        // fault 포함 — PID가 off가 아닌 동안 히터 소유권을 넘기지 않는다
-        pidEngaged: pidActive,
-        roastFinished,
-        sidecarConnected,
-        heaterUnacknowledged: unacknowledged.has('heater'),
-        // 배출 시 화력 정책은 PID와 공용 — "DROP 후 화력"은 구동 주체와 무관한 한 정책 (#316)
-        dropBehavior: pidDropBehavior,
-        // 외부 개입(지속 이탈) 감지 재료 (#307) — 실측과 "지시 미수렴" 상태
-        heaterFeedback: liveData?.heater ?? null,
-        heaterPending: desired.heater != null,
-        reconnecting,
-        observationQuality,
-        lastValidReceivedAtMs,
-        nowMs,
-        writeHeater,
-        cancelUnsentHeater: cancelUnsentReplayHeater,
-        heaterMax: limits.heater?.max,
-        heaterMin: limits.heater?.min,
-        heaterStep: numericHeaterStep((limits.heater as { step?: unknown } | undefined)?.step),
-    });
-    useEffect(() => {
-        onReplayControl?.({ active: replay.active, stop: replay.stop });
-        return () => onReplayControl?.(null);
-    }, [onReplayControl, replay.active, replay.stop]);
     const replayTpWait = resolveReplayTpWait({
         active: replay.active,
         nextEvent: replay.nextEvent,
@@ -197,16 +72,6 @@ export const MachineControlPanel = ({
     let holdLabel: string | undefined;
     if (replayChrome === 'waiting') holdLabel = t('activeRoast.replay.tp.collapsedWaiting');
     else if (replayChrome === 'fallback') holdLabel = t('activeRoast.replay.tp.collapsedFallback');
-    // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
-    // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
-    // 재생이 켜지는 경계에서 이벤트가 새면 여기가 마지막 방어선이다.
-    const handleManualChange = useCallback(
-        (role: ControlRole, value: number) => {
-            if (role === 'heater') replay.stop();
-            setValue(role, value);
-        },
-        [replay.stop, setValue],
-    );
 
     // Pro+ 전용. 게이트를 여기 한 곳에만 두는 이유: 슬라이더와 PID가 같은 쓰기 권한을
     // 공유하므로, 화력을 쓸 수 없으면 PID도 의미가 없다.
@@ -263,7 +128,7 @@ export const MachineControlPanel = ({
                     pidHoldsHeater={pidHoldsHeater}
                     replayActive={replay.active}
                     chipRoles={chipRoles}
-                    onChange={handleManualChange}
+                    onChange={changeManual}
                     onCommit={commitManual}
                 />
                 {/* fader 열은 좁아 문장이 안 들어간다 — 경고는 패널 폭 전체를 쓴다 */}
