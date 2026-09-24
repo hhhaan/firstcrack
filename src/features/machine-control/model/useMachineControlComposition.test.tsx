@@ -21,11 +21,7 @@ vi.mock('@shared/store/toast', () => ({
 
 import { sidecar } from '@shared/lib/sidecar';
 import { type MachineControlCompositionInput, useMachineControlComposition } from './useMachineControlComposition';
-import {
-    baseMachineControlInput as base,
-    replayPoints as POINTS,
-    pidRuntime as runtime,
-} from './useMachineControlComposition.fixtures';
+import { baseMachineControlInput as base, pidRuntime as runtime } from './useMachineControlComposition.fixtures';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
