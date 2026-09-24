@@ -22,6 +22,21 @@ export interface UseRoastProfileSelectionParams {
      * 기본 프로파일 초기 세팅은 이 게이트를 타지 않는다.
      */
     confirmTargetChange?: (nextId: string | null) => boolean | Promise<boolean>;
+    /**
+     * 승인 직후, 타겟 state를 바꾸기 전. Replay stop → 미전송 취소가 여기 있다.
+     * 자동 재시작은 하지 않는다.
+     */
+    commitApprovedTarget?: (nextId: string | null) => void;
+    /**
+     * Charge 전 사용자 선택만 계정 기본값으로 저장한다.
+     * 자동 초기값·pending·스케줄 핸드오프는 호출하지 않는다.
+     */
+    saveDefaultProfile?: (id: string | null) => void;
+    /**
+     * 진행 중 확인·디바운스 저장을 무효화한다 (workspace + batch/session).
+     * 바뀐 뒤에 도착한 승인이나 저장은 새 배치를 덮지 않는다.
+     */
+    selectionEpoch?: string;
 }
 
 export interface UseRoastProfileSelectionReturn {
@@ -33,8 +48,20 @@ export interface UseRoastProfileSelectionReturn {
     setUserSelectedTarget: (id: string | null) => void;
 }
 
+const DEFAULT_PROFILE_SAVE_MS = 300;
+
 export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams): UseRoastProfileSelectionReturn => {
-    const { isActive, charged, userProfile, beans = [], beansReady = false, confirmTargetChange } = params;
+    const {
+        isActive,
+        charged,
+        userProfile,
+        beans = [],
+        beansReady = false,
+        confirmTargetChange,
+        commitApprovedTarget,
+        saveDefaultProfile,
+        selectionEpoch = '',
+    } = params;
 
     const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
     const userSelectedTargetRef = useRef(false);
@@ -50,23 +77,57 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     const appliedDefaultBeanRef = useRef(Boolean(selectedBeanId));
 
     const chargedRef = useRef(charged);
-    useEffect(() => {
-        chargedRef.current = charged;
-    }, [charged]);
     const targetProfileIdRef = useRef(targetProfileId);
     const confirmTargetChangeRef = useRef(confirmTargetChange);
+    const commitApprovedTargetRef = useRef(commitApprovedTarget);
+    const saveDefaultProfileRef = useRef(saveDefaultProfile);
+    const selectionEpochRef = useRef(selectionEpoch);
+    const requestGenRef = useRef(0);
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     useLayoutEffect(() => {
+        chargedRef.current = charged;
         targetProfileIdRef.current = targetProfileId;
         confirmTargetChangeRef.current = confirmTargetChange;
-    }, [targetProfileId, confirmTargetChange]);
+        commitApprovedTargetRef.current = commitApprovedTarget;
+        saveDefaultProfileRef.current = saveDefaultProfile;
+        selectionEpochRef.current = selectionEpoch;
+    }, [charged, targetProfileId, confirmTargetChange, commitApprovedTarget, saveDefaultProfile, selectionEpoch]);
 
-    const applyTarget = useCallback(async (id: string | null, markUserSelected: boolean) => {
-        if (id === targetProfileIdRef.current) return;
-        const gate = confirmTargetChangeRef.current;
-        if (gate && !(await gate(id))) return;
-        if (markUserSelected) userSelectedTargetRef.current = true;
-        setTargetProfileId(id);
+    // Epoch is the invalidation key: a workspace/batch change drops a save approved for the previous one.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup must run when selectionEpoch changes
+    useEffect(
+        () => () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = null;
+        },
+        [selectionEpoch],
+    );
+
+    const scheduleDefaultSave = useCallback((id: string | null, epoch: string) => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            saveTimerRef.current = null;
+            if (selectionEpochRef.current !== epoch) return;
+            saveDefaultProfileRef.current?.(id);
+        }, DEFAULT_PROFILE_SAVE_MS);
     }, []);
+
+    const applyTarget = useCallback(
+        async (id: string | null, source: 'user' | 'handoff') => {
+            if (id === targetProfileIdRef.current) return;
+            const gen = ++requestGenRef.current;
+            const epoch = selectionEpochRef.current;
+            const gate = confirmTargetChangeRef.current;
+            if (gate && !(await gate(id))) return;
+            if (gen !== requestGenRef.current || selectionEpochRef.current !== epoch) return;
+            // Replay stop (and its unsent cancel) before the target the replay plan reads.
+            commitApprovedTargetRef.current?.(id);
+            userSelectedTargetRef.current = true;
+            setTargetProfileId(id);
+            if (source === 'user' && !chargedRef.current) scheduleDefaultSave(id, epoch);
+        },
+        [scheduleDefaultSave],
+    );
 
     // 로그인 후 DB에서 기본 프로파일 ID를 가져와서 targetProfileId에 세팅.
     // charged 상태(로스팅 진행 중)에서는 절대 덮어쓰면 안 됨.
@@ -97,7 +158,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         if (!pendingProfileId) return;
 
         setPendingProfile(null);
-        void applyTarget(pendingProfileId, true);
+        void applyTarget(pendingProfileId, 'handoff');
     }, [isActive, applyTarget]);
 
     // Schedule batch handoff → bean/profile on active roast
@@ -110,7 +171,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         setHandoffBeanName(planBatchHandoff.beanName || null);
         appliedDefaultBeanRef.current = true;
         if (planBatchHandoff.profileId) {
-            void applyTarget(planBatchHandoff.profileId, true);
+            void applyTarget(planBatchHandoff.profileId, 'handoff');
         }
     }, [isActive, planBatchHandoff, applyTarget]);
 
@@ -149,7 +210,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
 
     const setUserSelectedTarget = useCallback(
         (id: string | null) => {
-            void applyTarget(id, true);
+            void applyTarget(id, 'user');
         },
         [applyTarget],
     );
