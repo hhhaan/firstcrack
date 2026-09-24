@@ -34,6 +34,7 @@ export interface UseRoastLifecycleParams {
     resetStore: () => void;
     resetAutoDetectionRef: React.RefObject<() => void>;
     disableAutoChargeRef: React.RefObject<() => void>;
+    disableAutoDropRef: React.RefObject<() => void>;
     rearmAutoChargeRef: React.RefObject<() => void>;
     setLogEntries: (entries: LogEntry[]) => void;
     setLivePoints: (points: LiveRoastPoint[]) => void;
@@ -49,6 +50,12 @@ export interface UseRoastLifecycleReturn {
     resetActiveRoast: (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => void;
     confirmEndRoast: () => RoastSummaryData;
     completeDrop: (input: { livePoints: LiveRoastPoint[]; onset?: DropOnset }) => RoastSummaryData | null;
+    /** Manual and auto Drop. Re-disables detectors after reset rearms them. */
+    finishDrop: (input: {
+        livePoints: LiveRoastPoint[];
+        onset?: DropOnset;
+        commitSummary: (summary: RoastSummaryData) => void;
+    }) => RoastSummaryData | null;
     cancelDrop: () => boolean;
     recoverLiveBbp: () => void;
 }
@@ -70,6 +77,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
+        disableAutoDropRef,
         rearmAutoChargeRef,
         setLogEntries,
         setLivePoints,
@@ -287,6 +295,26 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         [logEntries, rawBT, unit, bbpEnabled, setIsRunning, roastStartTimeRef],
     );
 
+    const finishDrop = useCallback(
+        (input: {
+            livePoints: LiveRoastPoint[];
+            onset?: DropOnset;
+            commitSummary: (summary: RoastSummaryData) => void;
+        }): RoastSummaryData | null => {
+            // Stop the detector before the snapshot so a second onset in the same turn cannot enter.
+            disableAutoDropRef.current();
+            const summary = completeDrop({ livePoints: input.livePoints, onset: input.onset });
+            if (!summary) return null;
+            input.commitSummary(summary);
+            resetActiveRoast({ chargeWait: true, keepHeatHold: true });
+            // reset rearms both detectors. Charge wait must stay disarmed until the next Charge.
+            disableAutoDropRef.current();
+            disableAutoChargeRef.current();
+            return summary;
+        },
+        [completeDrop, resetActiveRoast, disableAutoDropRef, disableAutoChargeRef],
+    );
+
     const cancelDrop = useCallback((): boolean => {
         if (!isDropCancelable()) return false;
         const restore = useCompletedRoastStore.getState().restore;
@@ -332,6 +360,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         resetActiveRoast,
         confirmEndRoast,
         completeDrop,
+        finishDrop,
         cancelDrop,
         recoverLiveBbp,
     };

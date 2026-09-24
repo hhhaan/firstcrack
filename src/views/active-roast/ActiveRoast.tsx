@@ -329,6 +329,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // 라이프사이클과 하위 훅 사이 순환 의존성을 refs로 분리
     const resetAutoDetectionRef = useRef<() => void>(() => {});
     const disableAutoChargeRef = useRef<() => void>(() => {});
+    const disableAutoDropRef = useRef<() => void>(() => {});
     const rearmAutoChargeRef = useRef<() => void>(() => {});
     const triggerChargeRef = useRef<(bt?: number | null, chargeTimeMs?: number) => void>(() => {});
 
@@ -346,6 +347,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
+        disableAutoDropRef,
         rearmAutoChargeRef,
         setLogEntries,
         setLivePoints,
@@ -425,30 +427,20 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const applyDrop = useCallback(
         (onset?: { timeSec: number; bt: number }) => {
-            disableAutoDrop();
-            const summary = lifecycle.completeDrop({ livePoints, onset });
-            if (!summary) return;
-            saveFlow.confirmEndRoast({
-                ...summary,
-                selectedBeanId,
-                planBatchHandoff,
-                handoffBeanName,
+            lifecycle.finishDrop({
+                livePoints,
+                onset,
+                commitSummary: (summary) => {
+                    saveFlow.confirmEndRoast({
+                        ...summary,
+                        selectedBeanId,
+                        planBatchHandoff,
+                        handoffBeanName,
+                    });
+                },
             });
-            lifecycle.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
-            // resetActiveRoast rearms detectors; keep Charge/Drop off until the next Charge.
-            disableAutoDrop();
-            disableAutoCharge();
         },
-        [
-            disableAutoCharge,
-            disableAutoDrop,
-            lifecycle,
-            livePoints,
-            saveFlow,
-            selectedBeanId,
-            planBatchHandoff,
-            handoffBeanName,
-        ],
+        [lifecycle, livePoints, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName],
     );
     useLayoutEffect(() => {
         applyDropRef.current = applyDrop;
@@ -461,9 +453,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
         disableAutoChargeRef.current = disableAutoCharge;
+        disableAutoDropRef.current = disableAutoDrop;
         rearmAutoChargeRef.current = rearmAutoCharge;
         triggerChargeRef.current = triggerCharge;
-    }, [resetAutoDetection, disableAutoCharge, rearmAutoCharge, triggerCharge]);
+    }, [resetAutoDetection, disableAutoCharge, disableAutoDrop, rearmAutoCharge, triggerCharge]);
 
     const recoverLiveBbp = lifecycle.recoverLiveBbp;
     useEffect(() => {
