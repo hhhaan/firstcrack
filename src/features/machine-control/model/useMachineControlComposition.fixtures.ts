@@ -1,4 +1,5 @@
 import type { PidRuntime } from '@entities/machine';
+import type { sidecar } from '@shared/lib/sidecar';
 import type { ReplayPoint } from '../lib/replay';
 import type { MachineControlCompositionInput } from './useMachineControlComposition';
 
@@ -18,6 +19,19 @@ export const pidRuntime = (state: PidRuntime['state']): PidRuntime => ({
     d: 0,
     error: null,
 });
+
+export const writableHeaterStatus = {
+    control: {
+        writable: true,
+        limits: { heater: { min: 0, max: 100, unit: '%' } },
+        pid: { supported: true, sv_min: 50, sv_max: 250 },
+    },
+} as Awaited<ReturnType<typeof sidecar.getStatus>>;
+
+export const applyControl = async (cmd: Parameters<typeof sidecar.setControl>[0]) =>
+    ({ applied: cmd }) as Awaited<ReturnType<typeof sidecar.setControl>>;
+
+export const offPidResponse = { ok: true, pid: pidRuntime('off') } as Awaited<ReturnType<typeof sidecar.pidOff>>;
 
 export const baseMachineControlInput = (): MachineControlCompositionInput => ({
     sidecarConnected: true,

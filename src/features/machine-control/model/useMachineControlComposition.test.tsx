@@ -21,7 +21,13 @@ vi.mock('@shared/store/toast', () => ({
 
 import { sidecar } from '@shared/lib/sidecar';
 import { type MachineControlCompositionInput, useMachineControlComposition } from './useMachineControlComposition';
-import { baseMachineControlInput as base, pidRuntime as runtime } from './useMachineControlComposition.fixtures';
+import {
+    applyControl,
+    baseMachineControlInput as base,
+    offPidResponse,
+    pidRuntime as runtime,
+    writableHeaterStatus,
+} from './useMachineControlComposition.fixtures';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -50,17 +56,9 @@ describe('useMachineControlComposition', () => {
         getStatus.mockReset();
         setControl.mockReset();
         pidOff.mockReset();
-        getStatus.mockResolvedValue({
-            control: {
-                writable: true,
-                limits: { heater: { min: 0, max: 100, unit: '%' } },
-                pid: { supported: true, sv_min: 50, sv_max: 250 },
-            },
-        } as Awaited<ReturnType<typeof sidecar.getStatus>>);
-        setControl.mockImplementation(
-            async (cmd) => ({ applied: cmd }) as Awaited<ReturnType<typeof sidecar.setControl>>,
-        );
-        pidOff.mockResolvedValue({ ok: true, pid: runtime('off') } as Awaited<ReturnType<typeof sidecar.pidOff>>);
+        getStatus.mockResolvedValue(writableHeaterStatus);
+        setControl.mockImplementation(applyControl);
+        pidOff.mockResolvedValue(offPidResponse);
     });
     afterEach(() => {
         vi.useRealTimers();
