@@ -6,6 +6,17 @@ import { chmod, mkdir, readFile, rm, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 
+function trustedParents(bin, uid) {
+    let parent = dirname(bin);
+    for (;;) {
+        const { mode, uid: owner } = statSync(parent);
+        if ((owner !== 0 && owner !== uid) || (mode & 0o022 && !(mode & 0o1000))) return false;
+        const next = dirname(parent);
+        if (next === parent) return true;
+        parent = next;
+    }
+}
+
 export function trustedExecutable(name) {
     const uid = process.getuid();
     for (const dir of (process.env.PATH ?? '').split(delimiter)) {
@@ -15,14 +26,7 @@ export function trustedExecutable(name) {
             const file = statSync(bin);
             accessSync(bin, constants.X_OK);
             if (!file.isFile() || file.mode & 0o022 || (file.uid !== 0 && file.uid !== uid)) continue;
-            let parent = dirname(bin);
-            for (;;) {
-                const { mode, uid: owner } = statSync(parent);
-                if ((owner !== 0 && owner !== uid) || (mode & 0o022 && !(mode & 0o1000))) break;
-                const next = dirname(parent);
-                if (next === parent) return bin;
-                parent = next;
-            }
+            if (trustedParents(bin, uid)) return bin;
         } catch {
             // Try the next PATH entry.
         }

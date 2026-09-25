@@ -146,7 +146,8 @@ if (!force) {
     // ios-check is skipped when src-tauri did not change — skipped is pass.
     const notGreen = runs.filter((r) => r.conclusion !== 'success' && r.conclusion !== 'skipped');
     if (notGreen.length > 0) {
-        fail(`CI가 green이 아님: ${notGreen.map((r) => `${r.name}=${r.conclusion ?? 'pending'}`).join(', ')}`);
+        const details = notGreen.map((r) => `${r.name}=${r.conclusion ?? 'pending'}`).join(', ');
+        fail(`CI가 green이 아님: ${details}`);
     }
     process.stdout.write(`✅ 사전확인 통과 — HEAD=origin/main, CI ${runs.length}종 green, release ${version}\n`);
 }
