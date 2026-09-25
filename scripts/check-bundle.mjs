@@ -1,9 +1,10 @@
 // Production Vite bundle regression. Measures the JS/CSS Tauri ships (dist/assets),
 // not public fonts or logos. Env is fixed so a local .env cannot move the baseline.
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
 const BASELINE_PATH = 'scripts/bundle-baseline.json';
@@ -15,11 +16,14 @@ const JS_FLOOR = 80 * 1024;
 const CSS_RATIO = 0.5;
 const CSS_FLOOR = 12 * 1024;
 
+const cacheDir = resolve('node_modules', '.cache');
+mkdirSync(cacheDir, { recursive: true });
+const tempDir = mkdtempSync(join(cacheDir, 'bundle-tmp-'));
 const env = {
     PATH: process.env.PATH ?? '',
     HOME: process.env.HOME || homedir(),
     USER: process.env.USER ?? '',
-    TMPDIR: process.env.TMPDIR ?? '',
+    TMPDIR: tempDir,
     LANG: 'C.UTF-8',
     CI: 'true',
     VITE_SUPABASE_URL: 'https://example.supabase.co',
@@ -31,10 +35,16 @@ const env = {
     PUBLIC_SITE_URL: '',
 };
 
-const build = spawnSync('pnpm', ['exec', 'vite', 'build', '--outDir', OUT_DIR, '--emptyOutDir'], {
-    env,
-    stdio: 'inherit',
-});
+const vite = join(dirname(fileURLToPath(import.meta.resolve('vite/package.json'))), 'bin', 'vite.js');
+let build;
+try {
+    build = spawnSync(process.execPath, [vite, 'build', '--outDir', OUT_DIR, '--emptyOutDir'], {
+        env,
+        stdio: 'inherit',
+    });
+} finally {
+    rmSync(tempDir, { recursive: true, force: true });
+}
 if (build.status !== 0) process.exit(build.status ?? 1);
 
 const gzipFile = (file) => gzipSync(readFileSync(file)).length;
