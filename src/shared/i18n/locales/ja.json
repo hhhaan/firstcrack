@@ -656,6 +656,7 @@
             "sessionProgress": "セッション {{current}}/{{total}}",
             "deductStock": "生豆在庫を差し引く ({{kg}}kg)",
             "deductStockDisabled": "生豆が未連携のため在庫を差し引けません。",
+            "deductStockNoWeight": "生豆の投入量を入力すると在庫を差し引けます。",
             "deductSkippedAlreadyDeducted": "このバッチはスケジュールで既に在庫が差し引かれているため、重複差し引きをスキップしました。",
             "batchStatusUpdateFailed": "ローストは保存されましたが、バッチの完了ステータスの保存に失敗しました。スケジュールで完了処理してください。",
             "batchWeight": "生豆投入量",

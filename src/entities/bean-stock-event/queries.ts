@@ -1,3 +1,4 @@
+import { isOptimisticId } from '@shared/lib/optimistic-id';
 import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BeanStockEventInsert, StockSummary } from './api';
@@ -28,14 +29,14 @@ export const useBeanStockEvents = (beanId: string) =>
     useQuery({
         queryKey: stockEventKeys.byBean(beanId),
         queryFn: () => beanStockEventApi.listByBean(beanId),
-        enabled: !!beanId,
+        enabled: !!beanId && !isOptimisticId(beanId),
     });
 
 export const useBeanStockSummary = (beanId: string) =>
     useQuery({
         queryKey: stockEventKeys.summary(beanId),
         queryFn: () => beanStockEventApi.getStockSummary(beanId),
-        enabled: !!beanId,
+        enabled: !!beanId && !isOptimisticId(beanId),
     });
 
 export const useBeanStockSummaries = (userId: string) =>

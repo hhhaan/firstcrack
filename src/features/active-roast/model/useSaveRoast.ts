@@ -20,6 +20,7 @@ import {
     useEffectivePlan,
 } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
+import { persistedId } from '@shared/lib/optimistic-id';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
@@ -169,7 +170,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const beanLabelRaw = formData.beanLabel?.trim() || null;
     const inventoryBeanId =
         effectiveBatch?.beanId ?? formData.beanId ?? (beanLabelRaw ? null : payloadParams.selectedBeanId);
-    const resolvedBeanId = inventoryBeanId ?? null;
+    const resolvedBeanId = persistedId(inventoryBeanId);
     const beanLabel = resolvedBeanId || blendId ? null : beanLabelRaw;
 
     // Weight set → need inventory bean/blend or a free-text label (history display).
@@ -256,7 +257,12 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         inboundGrams: inbound?.grams ?? 0,
         inboundIsEstimate: inbound?.isEstimate ?? false,
         ...(effectiveBatch
-            ? { expectedBatch: { beanId: effectiveBatch.beanId, blendId: effectiveBatch.blendId ?? null } }
+            ? {
+                  expectedBatch: {
+                      beanId: persistedId(effectiveBatch.beanId),
+                      blendId: effectiveBatch.blendId ?? null,
+                  },
+              }
             : {}),
     }).catch((e: unknown) => {
         throw mapServerBatchGateError(e) ?? e;

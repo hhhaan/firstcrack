@@ -1,6 +1,12 @@
+import { useOptimisticBeanSelection } from '@entities/bean/model/useOptimisticBeanSelection';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
+import {
+    optimisticReplacementSource,
+    optimisticReplacementTarget,
+    subscribeOptimisticIdReplaced,
+} from '@shared/lib/optimistic-id';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -75,6 +81,28 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     });
     const [handoffBeanName, setHandoffBeanName] = useState<string | null>(null);
     const appliedDefaultBeanRef = useRef(Boolean(selectedBeanId));
+
+    useOptimisticBeanSelection(selectedBeanId, setSelectedBeanId);
+    useEffect(
+        () =>
+            subscribeOptimisticIdReplaced((from, to) => {
+                try {
+                    if (localStorage.getItem(DEFAULT_BEAN_KEY) === from) localStorage.setItem(DEFAULT_BEAN_KEY, to);
+                } catch (err) {
+                    logger.capture(err, { scope: 'roastProfileSelection.rewriteDefaultBean' });
+                }
+                const roast = useRoastingStore.getState();
+                if (roast.pendingBeanId === from) roast.setPendingBean(to, roast.pendingBeanName);
+                const session = useRoastSessionStore.getState();
+                if (session.planBatchHandoff?.beanId === from) {
+                    session.startBatch({ ...session.planBatchHandoff, beanId: to });
+                }
+                if (session.lastAdhocSave?.beanId === from) {
+                    session.recordAdhocSave({ ...session.lastAdhocSave, beanId: to });
+                }
+            }),
+        [],
+    );
 
     const chargedRef = useRef(charged);
     const targetProfileIdRef = useRef(targetProfileId);
@@ -195,10 +223,18 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
 
     // Clear deleted / other-workspace bean ids after beans load successfully (#176).
     // Never clear while loading (empty placeholder) or during schedule/inventory handoff name.
+    // A just-created lot can land in selection and the list on different renders (#567).
     useEffect(() => {
         if (!beansReady || !selectedBeanId) return;
         if (handoffBeanName) return;
         if (beans.some((b) => b.id === selectedBeanId)) return;
+        const pendingFrom = optimisticReplacementSource(selectedBeanId);
+        if (pendingFrom && beans.some((b) => b.id === pendingFrom)) return;
+        const pendingTo = optimisticReplacementTarget(selectedBeanId);
+        if (pendingTo) {
+            setSelectedBeanId(pendingTo);
+            return;
+        }
         setSelectedBeanId(null);
         try {
             localStorage.removeItem(DEFAULT_BEAN_KEY);

@@ -1,7 +1,38 @@
+import { isOptimisticId, publishOptimisticIdReplaced } from '@shared/lib/optimistic-id';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import type { Bean } from '@shared/types/database.types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { beanApi } from './api';
+
+const tempIdByInput = new WeakMap<object, string>();
+
+/** Swap the optimistic row for the server row, keeping its place in the list. */
+export const replaceOptimisticBean = (list: Bean[], real: Bean, tempId?: string): Bean[] => {
+    const drop = (bean: Bean) =>
+        bean.id === tempId ||
+        (!tempId && isOptimisticId(bean.id) && bean.name === real.name && bean.user_id === real.user_id);
+    const out: Bean[] = [];
+    let placed = false;
+    for (const bean of list) {
+        if (bean.id === real.id) continue;
+        if (drop(bean)) {
+            if (!placed) {
+                out.push(real);
+                placed = true;
+            }
+            continue;
+        }
+        out.push(bean);
+    }
+    return placed ? out : [real, ...out];
+};
+
+export const applyCreatedBeanCache = (qc: QueryClient, userId: string, real: Bean, tempId?: string) => {
+    if (tempId && tempId !== real.id) publishOptimisticIdReplaced(tempId, real.id);
+    qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) => replaceOptimisticBean(old, real, tempId));
+    qc.setQueryData(beanKeys.detail(real.id), real);
+    if (tempId) qc.removeQueries({ queryKey: beanKeys.detail(tempId) });
+};
 
 export const beanKeys = {
     all: (userId: string) => ['beans', userId] as const,
@@ -19,7 +50,7 @@ export const useBean = (id: string) =>
     useQuery({
         queryKey: beanKeys.detail(id),
         queryFn: () => beanApi.get(id),
-        enabled: !!id,
+        enabled: !!id && !isOptimisticId(id),
     });
 
 export const useCreateBean = (userId: string) => {
@@ -27,25 +58,32 @@ export const useCreateBean = (userId: string) => {
     return useMutation({
         mutationFn: beanApi.create,
         onMutate: async (newBean) => {
-            await qc.cancelQueries({ queryKey: beanKeys.all(userId) });
+            // Default revert:true restores the pre-fetch list and can drop this row before onSuccess.
+            await qc.cancelQueries({ queryKey: beanKeys.all(userId) }, { revert: false });
             const prev = qc.getQueryData<Bean[]>(beanKeys.all(userId));
             const tempId = `opt_${crypto.randomUUID()}`;
+            tempIdByInput.set(newBean, tempId);
             const optimistic = {
+                ...newBean,
                 id: tempId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-                ...newBean,
             } as Bean;
             qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) => [optimistic, ...old]);
             return { prev, tempId };
         },
-        onError: (_err, _vars, ctx) => {
+        onError: (_err, vars, ctx) => {
+            const tempId = ctx?.tempId ?? tempIdByInput.get(vars);
+            tempIdByInput.delete(vars);
             if (ctx?.prev) qc.setQueryData(beanKeys.all(userId), ctx.prev);
+            else if (tempId) {
+                qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) => old.filter((b) => b.id !== tempId));
+            }
         },
-        onSuccess: (realBean, _vars, ctx) => {
-            qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) =>
-                old.map((b) => (b.id === ctx?.tempId ? realBean : b)),
-            );
+        onSuccess: (realBean, vars, ctx) => {
+            const tempId = ctx?.tempId ?? tempIdByInput.get(vars);
+            tempIdByInput.delete(vars);
+            applyCreatedBeanCache(qc, userId, realBean, tempId);
         },
     });
 };

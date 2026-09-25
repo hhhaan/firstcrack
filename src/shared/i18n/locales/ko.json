@@ -968,6 +968,7 @@
             "sessionProgress": "세션 {{current}}/{{total}}",
             "deductStock": "생두 재고 차감 ({{kg}}kg)",
             "deductStockDisabled": "연결된 원두가 없어 재고를 차감할 수 없습니다.",
+            "deductStockNoWeight": "생두 투입량을 입력해야 재고를 차감할 수 있습니다.",
             "deductSkippedAlreadyDeducted": "이 배치는 스케줄에서 이미 재고가 차감되어 중복 차감을 건너뛰었습니다.",
             "batchStatusUpdateFailed": "로스팅은 저장됐지만 배치 완료 상태 저장에 실패했습니다. 스케줄에서 완료 처리해 주세요.",
             "roastLevel": "로스팅 레벨",

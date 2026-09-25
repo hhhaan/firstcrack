@@ -1,3 +1,4 @@
+import { useOptimisticBeanSelection } from '@entities/bean/model/useOptimisticBeanSelection';
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
 import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
@@ -80,6 +81,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const [tab, setTab] = useState<'single' | 'blend'>('single');
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    useOptimisticBeanSelection(selectedId, setSelectedId);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [modalConfig, setModalConfig] = useState<{
         tab: 'new' | 'restock' | 'edit';
