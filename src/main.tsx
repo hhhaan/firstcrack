@@ -11,6 +11,7 @@ import i18n from 'i18next';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
+import { useRoastingStore } from './features/active-roast/model/status';
 import { initI18n } from './shared/i18n';
 import { showMutationErrorToast } from './shared/lib/mutationErrorToast';
 import { bindAuthQueryClient } from './shared/store/auth';
@@ -55,13 +56,15 @@ const bootstrap = async () => {
                 if (quitPending) return;
                 quitPending = true;
                 try {
-                    const confirmed = await ask(i18n.t('common.quitConfirmMessage'), {
-                        title: i18n.t('common.quitConfirmTitle'),
-                        kind: 'warning',
-                        okLabel: i18n.t('common.quit'),
-                        cancelLabel: i18n.t('common.cancel'),
-                    });
-                    if (!confirmed) return;
+                    if (useRoastingStore.getState().isRoasting) {
+                        const confirmed = await ask(i18n.t('common.quitConfirmMessage'), {
+                            title: i18n.t('common.quitConfirmTitle'),
+                            kind: 'warning',
+                            okLabel: i18n.t('common.quit'),
+                            cancelLabel: i18n.t('common.cancel'),
+                        });
+                        if (!confirmed) return;
+                    }
                     try {
                         await flushTsv();
                     } catch (error) {
