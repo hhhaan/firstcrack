@@ -6,6 +6,26 @@ import { beanApi } from './api';
 
 const tempIdByInput = new WeakMap<object, string>();
 
+/** Created rows a list response has not echoed yet. A raced GET must not drop them. */
+const createdPinKey = (userId: string) => ['bean-created-pins', userId] as const;
+
+const pinCreatedBean = (qc: QueryClient, userId: string, bean: Bean) => {
+    qc.setQueryData<Bean[]>(createdPinKey(userId), (old = []) => [bean, ...old.filter((row) => row.id !== bean.id)]);
+};
+
+const mergePinnedCreatedBeans = (qc: QueryClient, userId: string, rows: Bean[]): Bean[] => {
+    const pins = qc.getQueryData<Bean[]>(createdPinKey(userId));
+    if (!pins?.length) return rows;
+    const have = new Set(rows.map((row) => row.id));
+    const stillMissing = pins.filter((row) => !have.has(row.id));
+    if (stillMissing.length !== pins.length) qc.setQueryData(createdPinKey(userId), stillMissing);
+    return stillMissing.length ? [...stillMissing, ...rows] : rows;
+};
+
+const unpinCreatedBean = (qc: QueryClient, userId: string, id: string) => {
+    qc.setQueryData<Bean[]>(createdPinKey(userId), (old = []) => old.filter((row) => row.id !== id));
+};
+
 /** Swap the optimistic row for the server row, keeping its place in the list. */
 export const replaceOptimisticBean = (list: Bean[], real: Bean, tempId?: string): Bean[] => {
     const drop = (bean: Bean) =>
@@ -28,6 +48,7 @@ export const replaceOptimisticBean = (list: Bean[], real: Bean, tempId?: string)
 };
 
 export const applyCreatedBeanCache = (qc: QueryClient, userId: string, real: Bean, tempId?: string) => {
+    pinCreatedBean(qc, userId, real);
     if (tempId && tempId !== real.id) publishOptimisticIdReplaced(tempId, real.id);
     qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) => replaceOptimisticBean(old, real, tempId));
     qc.setQueryData(beanKeys.detail(real.id), real);
@@ -39,12 +60,14 @@ export const beanKeys = {
     detail: (id: string) => ['beans', 'detail', id] as const,
 };
 
-export const useBeans = (userId: string) =>
-    useQuery({
+export const useBeans = (userId: string) => {
+    const qc = useQueryClient();
+    return useQuery({
         queryKey: beanKeys.all(userId),
-        queryFn: () => beanApi.list(userId),
+        queryFn: async () => mergePinnedCreatedBeans(qc, userId, await beanApi.list(userId)),
         enabled: !!userId,
     });
+};
 
 export const useBean = (id: string) =>
     useQuery({
@@ -130,6 +153,7 @@ export const useDeleteBean = (userId: string) => {
             if (ctx?.prev) qc.setQueryData(beanKeys.all(userId), ctx.prev);
         },
         onSuccess: (_data, id) => {
+            unpinCreatedBean(qc, userId, id);
             qc.removeQueries({ queryKey: beanKeys.detail(id) });
             qc.removeQueries({ queryKey: [...inventoryQueryRoots.beanStockEvents, id] });
             qc.removeQueries({ queryKey: [...inventoryQueryRoots.beanStockSummary, id] });

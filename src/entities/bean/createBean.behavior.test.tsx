@@ -167,4 +167,24 @@ describe('create bean replaces the optimistic id', () => {
         expect(latest.selected).toBe(REAL);
         expect(stockCalls.every((id) => !isOptimisticId(id))).toBe(true);
     });
+
+    it('keeps the server uuid when a list response still has only the older lots', async () => {
+        const old = { ...realBean(), id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Ethiopia' };
+        vi.spyOn(beanApi, 'list').mockResolvedValue([old]);
+        await mount();
+        await flush();
+        act(() => latest.mutate({ user_id: USER, name: 'Yirg' }));
+        await flush();
+        await act(async () => {
+            resolveCreate(realBean());
+        });
+        await flush();
+        await act(async () => {
+            await qc.refetchQueries({ queryKey: ['beans', USER] });
+        });
+        await flush();
+        expect(latest.beans.map((bean) => bean.id)).toContain(REAL);
+        expect(latest.beans.some((bean) => isOptimisticId(bean.id))).toBe(false);
+        expect(latest.beans.map((bean) => bean.id)).toContain(old.id);
+    });
 });
