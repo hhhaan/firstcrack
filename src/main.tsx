@@ -6,6 +6,7 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
+import { useRoastingStore } from './features/active-roast';
 import { initI18n } from './shared/i18n';
 import { showMutationErrorToast } from './shared/lib/mutationErrorToast';
 import { bindAuthQueryClient } from './shared/store/auth';
@@ -42,6 +43,20 @@ bindAuthQueryClient(queryClient);
 
 const bootstrap = async () => {
     await initI18n();
+
+    if ('__TAURI_INTERNALS__' in window) {
+        window.addEventListener(
+            'keydown',
+            (event) => {
+                const { phase, awaitingNextCharge } = useRoastingStore.getState();
+                if (phase !== 'roasting' && phase !== 'ended' && !awaitingNextCharge) return;
+                if (event.key === 'F5' || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'r')) {
+                    event.preventDefault();
+                }
+            },
+            true,
+        );
+    }
 
     const root = ReactDOM.createRoot(
         document.getElementById('root') as HTMLElement,
