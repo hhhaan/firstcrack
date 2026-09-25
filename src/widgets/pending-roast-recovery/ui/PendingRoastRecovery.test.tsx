@@ -237,3 +237,50 @@ describe('PendingRoastRecovery safety', () => {
         expect(host.textContent).toContain('upload offline');
     });
 });
+
+const dialogTitle = () => host.querySelector('#pending-roasts-title')?.textContent;
+
+describe('PendingRoastRecovery dialog title', () => {
+    it('does not present a saved sync-pending roast as unsaved', async () => {
+        const base = pending();
+        await mount(
+            pending({
+                db: 'saved',
+                submitted: false,
+                params: {
+                    ...base.params,
+                    handoffBeanName: null,
+                    formData: { ...base.params.formData, beanLabel: null },
+                },
+            }),
+        );
+        expect(dialogTitle()).toBe('activeRoast.recovery.syncTitle');
+        expect(host.textContent).toContain('activeRoast.recovery.syncPending');
+        expect(host.textContent).toContain('activeRoast.recovery.savedName');
+        expect(host.textContent).not.toContain('activeRoast.recovery.title');
+    });
+
+    it('keeps the unsaved title when every draft is unsaved', async () => {
+        await mount(pending({ submitted: false }));
+        expect(dialogTitle()).toBe('activeRoast.recovery.title');
+        expect(host.textContent).toContain('activeRoast.recovery.failed');
+    });
+
+    it('uses a neutral title when saved and unsaved records are mixed', async () => {
+        const base = pending();
+        writePendingRoastSave(pending({ submitted: false }));
+        writePendingRoastSave(
+            pending({
+                db: 'saved',
+                submitted: false,
+                params: { ...base.params, sessionId: OTHER_ID, handoffBeanName: 'Ethiopia' },
+            }),
+        );
+        await act(async () => root.render(<PendingRoastRecovery />));
+        await act(async () => button('pending').click());
+        expect(dialogTitle()).toBe('activeRoast.recovery.mixedTitle');
+        expect(host.textContent).toContain('activeRoast.recovery.syncPending');
+        expect(host.textContent).toContain('activeRoast.recovery.failed');
+        expect(host.textContent).not.toContain('activeRoast.recovery.title');
+    });
+});
