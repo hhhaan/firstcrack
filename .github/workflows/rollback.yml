@@ -190,7 +190,7 @@ jobs:
           fi
           copy_obj "${DEST}/${WIN_MSI_R2}" "releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
 
-          for pid in $pids; do wait $pid || fail=1; done
+          for pid in $pids; do wait "$pid" || fail=1; done
           if [ "$fail" -ne 0 ]; then
             echo "::error::One or more landing alias copies failed"
             exit 1
