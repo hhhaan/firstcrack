@@ -58,6 +58,15 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
 
         let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
 
+        const target = controlData?.heatTarget;
+        if (target && timeSec <= target.xs[target.xs.length - 1]) {
+            for (let i = target.xs.length - 1; i >= 0; i--) {
+                if (timeSec < target.xs[i]) continue;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dotted ${colors.controlHeat}"></div>Heat target: <span>${Math.round(target.values[i])}%</span></div>`;
+                break;
+            }
+        }
+
         // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
         for (const p of items as any[]) {
             const y = p.value?.[1];

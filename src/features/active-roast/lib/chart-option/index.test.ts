@@ -190,6 +190,28 @@ describe('buildRoastChartOption', () => {
         expect(series?.lineStyle?.type).toBe('dashed');
     });
 
+    it('draws the profile Heat target over the control timeline', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            controlData: {
+                xs: [0, 60],
+                drumTemp: [50, 55],
+                heatPower: [40, 45],
+                fanSpeed: [30, 35],
+                heatTarget: { xs: [0, 120, 600], values: [80, 60, 60] },
+            },
+        });
+        const target = (option.series as { name?: string; data?: number[][]; lineStyle?: { type?: string } }[]).find(
+            (series) => series.name === 'Heat target',
+        );
+        expect(target?.data).toEqual([
+            [0, 80],
+            [120, 60],
+            [600, 60],
+        ]);
+        expect(target?.lineStyle?.type).toBe('dotted');
+    });
+
     it('adds dual grid and control series when controlData present', () => {
         const option = buildRoastChartOption({
             ...baseParams(),

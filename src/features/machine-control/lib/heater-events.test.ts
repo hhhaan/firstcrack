@@ -10,6 +10,7 @@ import {
     parseFiniteNumber,
     parseHeaterEvents,
     profileHeaterBounds,
+    profileHeatTarget,
     remapReplayIndex,
     resolveHeaterBounds,
     resolveReplayPlan,
@@ -26,6 +27,21 @@ const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
     }
     return pts;
 };
+
+describe('profileHeatTarget', () => {
+    it('uses profile commands over TSV, cuts off at Drop, and holds the last value', () => {
+        const points = curve({ 0: 80, 120: 60, 300: 40 });
+        expect(profileHeatTarget(points, 240, null)).toEqual({ xs: [0, 120, 240], values: [80, 60, 60] });
+        expect(
+            profileHeatTarget(points, 240, [
+                { t: 120, bt: 110, heater: 55 },
+                { t: 0, bt: 180, heater: 70 },
+                { t: 300, bt: 155, heater: 30 },
+            ]),
+        ).toEqual({ xs: [0, 120, 240], values: [70, 55, 55] });
+        expect(profileHeatTarget(points, 240, [{ t: 0, bt: 180, heater: '' }])).toBeUndefined();
+    });
+});
 
 describe('parseHeaterEvents', () => {
     it('유효 배열만 통과하고 trigger를 보존한다', () => {

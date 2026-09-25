@@ -65,6 +65,19 @@ export const parseHeaterEvents = (raw: unknown): ReplayEvent[] | null => {
     return events;
 };
 
+/** 프로파일의 저장된 지시를 우선해 차트용 화력 목표 계단선을 만든다. */
+export const profileHeatTarget = (points: ReplayPoint[], dropTime: number | null, profileEvents: unknown) => {
+    const events =
+        profileEvents == null ? extractReplayEvents(points, dropTime)?.events : parseHeaterEvents(profileEvents);
+    const end = dropTime ?? points[points.length - 1]?.t;
+    const steps = events?.filter((event) => end != null && event.t < end).sort((a, b) => a.t - b.t);
+    if (!steps?.length || end == null) return undefined;
+    return {
+        xs: [...steps.map((event) => event.t), end],
+        values: [...steps.map((event) => event.heater), steps[steps.length - 1].heater],
+    };
+};
+
 export const heaterEventsToJson = (events: ReplayEvent[]): Json =>
     events.map((e) =>
         e.trigger ? { t: e.t, bt: e.bt, heater: e.heater, trigger: e.trigger } : { t: e.t, bt: e.bt, heater: e.heater },

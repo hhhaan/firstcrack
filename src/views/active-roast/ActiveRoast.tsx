@@ -22,6 +22,7 @@ import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
+import { profileHeatTarget } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
 import { FEATURE, useFeature } from '@shared/lib/features';
@@ -244,6 +245,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => sourceEvents.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null,
         [sourceEvents, targetProfile?.duration_sec],
     );
+    const heatTarget = useMemo(() => {
+        if (!targetProfile) return undefined;
+        return profileHeatTarget(targetCurvePoints, replayDropTime, targetProfile.heater_events);
+    }, [targetProfile, targetCurvePoints, replayDropTime]);
     const referenceFcStartSec = useMemo(
         () => sourceEvents.find((e) => e.type === 'FC Start')?.time_sec ?? null,
         [sourceEvents],
@@ -839,6 +844,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                       heatPower: chart.visibleHeatPower,
                                       fanSpeed: chart.visibleFanSpeed,
                                       heatSet: chart.visibleHeatSet,
+                                      heatTarget,
                                   }
                                 : undefined
                         }

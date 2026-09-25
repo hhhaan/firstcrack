@@ -73,6 +73,20 @@ describe('lastDrawnSampleSec', () => {
 });
 
 describe('createAxisTooltipFormatter', () => {
+    it('shows the active profile heat target between sparse step events', () => {
+        const fmt = createAxisTooltipFormatter({
+            ...formatterOpts,
+            controlData: {
+                xs: [0, 90],
+                drumTemp: [50, 50],
+                heatPower: [40, 40],
+                fanSpeed: [20, 20],
+                heatTarget: { xs: [0, 120, 600], values: [80, 60, 60] },
+            },
+        });
+        expect(fmt([{ axisValue: 90, seriesName: 'Heat', value: [90, 40] }])).toContain('Heat target: <span>80%');
+    });
+
     it('hides target-only tooltip past the drawn curve', () => {
         const fmt = createAxisTooltipFormatter({ ...formatterOpts, dataEndSec: 71 });
         expect(fmt([{ axisValue: 71, seriesName: 'BT Target', value: [71, 210.1] }])).toBe('');

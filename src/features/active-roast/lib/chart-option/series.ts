@@ -162,7 +162,7 @@ export interface ControlSeriesParams {
 
 export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     const { controlData, showControlDrum, showControlHeat, showControlFan, colors, controlGuideMarkLines } = params;
-    const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet } = controlData;
+    const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget } = controlData;
     const series: object[] = [];
 
     if (showControlDrum) {
@@ -179,6 +179,20 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다
+    if (showControlHeat && heatTarget?.xs.length) {
+        series.push({
+            name: 'Heat target',
+            type: 'line' as const,
+            color: colors.controlHeat,
+            xAxisIndex: 1,
+            yAxisIndex: 3,
+            data: heatTarget.xs.map((x, i) => [x, heatTarget.values[i]]),
+            lineStyle: { color: colors.controlHeat, width: 1.5, type: 'dotted' as const },
+            ...lineSeriesBase,
+            step: 'end' as const,
+            smooth: false,
+        });
+    }
     if (showControlHeat && heatSet?.some((v) => v != null)) {
         series.push({
             name: 'Heat set',
