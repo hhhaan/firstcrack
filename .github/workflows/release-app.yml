@@ -22,6 +22,9 @@ concurrency:
   group: release-app-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   ios:
     runs-on: macos-latest

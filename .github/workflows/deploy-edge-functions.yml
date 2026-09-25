@@ -120,7 +120,7 @@ jobs:
       - name: deno check
         if: steps.changed.outputs.functions != '[]'
         working-directory: supabase/functions
-        run: deno check --node-modules-dir=none */index.ts
+        run: deno check --node-modules-dir=none ./*/index.ts
 
       - name: Validate Supabase access token
         if: steps.changed.outputs.functions != '[]'
@@ -144,7 +144,7 @@ jobs:
           # 문서화된 절차). 여기서는 배포 커맨드 자체의 컨텍스트로 export만 해둔다.
           SENTRY_RELEASE: first-crack@${{ github.sha }}
         run: |
-          echo "$FUNCTIONS_JSON" | jq -r '.[]' | while read fn; do
+          echo "$FUNCTIONS_JSON" | jq -r '.[]' | while read -r fn; do
             echo "▶ Deploying $fn..."
             supabase functions deploy "$fn" \
               --project-ref "$PROJECT_REF" \

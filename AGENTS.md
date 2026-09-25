@@ -8,8 +8,9 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 - build: `pnpm build` (frontend) | release `pnpm build:sidecar && pnpm tauri build` | local debug (macOS) `pnpm build:debug`
 - test: `pnpm test` (vitest) | sidecar `pnpm verify:sidecar`
 - lint: `pnpm check` (biome; CI gate) | `pnpm lint` (eslint, react-refresh)
+- knip: `pnpm knip` (unused files + dependencies)
 - typecheck: `pnpm typecheck`
-- verify: `pnpm verify:all` (check + typecheck + test + lint + sidecar) — run before push
+- verify: `pnpm verify:all` (biome + i18n + registry + plan-caps + knip + typecheck + test + lint + sidecar + actionlint + dependency-cruiser) — run before push
 - fix: `pnpm check:fix` | `types:gen` after DB schema migration
 
 ## Versioning
@@ -28,9 +29,9 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 |------|-----------|-----------|
 | `git commit` | lint-staged → `biome check --write` on **staged files only** + secretlint | yes; lint-staged re-stages fixed files |
 | `git commit` (2) | migration staged w/o `database.types.ts` → block (bypass `SKIP_TYPES_GEN=1`) | no |
-| `git push` | `pnpm verify:all` | no |
+| `git push` | `pnpm verify:all` (core + lint + sidecar + actionlint + architecture) | no |
 | main push `supabase/functions/**` | EF deploy → POST probe each deployed fn (503/BOOT_ERROR = fail) | no |
-| CI | `check` (typecheck+biome+i18n+registry+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), ios-check (off until iPad: repo var `IOS_CHECK=true` enables; `src-tauri/**` only), edge-check (`deno check`) | no |
+| CI (PR and main — main direct push is still possible) | `check` (biome+i18n+registry+plan-caps+knip+typecheck+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), actionlint, zizmor, dependency-cruiser, bundle, ios-check (off until iPad: repo var `IOS_CHECK=true` enables; `src-tauri/**` only), edge-check (`deno check`) | no |
 | schedule (Mon 09:00 KST) | gitleaks (HEAD tree + last 7d history) | no |
 | `pnpm release` / `v*` tag | 3-platform build (+ sidecar `/status` smoke) → `supabase db push` → R2 publish | no |
 

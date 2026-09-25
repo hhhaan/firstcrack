@@ -107,8 +107,21 @@ if (!force) {
     }
 
     // origin/main HEAD의 CI 게이트가 green인지 (이름 = ci.yml job id).
-    // ios-check is skipped when src-tauri did not change — treat skipped as pass.
-    const gateChecks = new Set(['paths', 'check', 'test', 'sidecar', 'ios-check', 'semgrep', 'gitleaks', 'edge-check']);
+    // Keep in sync with release.yml ci-gate. paths / ios-check may be absent.
+    const requiredChecks = [
+        'check',
+        'test',
+        'sidecar',
+        'semgrep',
+        'gitleaks',
+        'edge-check',
+        'actionlint',
+        'zizmor',
+        'architecture',
+        'bundle',
+    ];
+    const optionalChecks = ['paths', 'ios-check'];
+    const gateChecks = new Set([...requiredChecks, ...optionalChecks]);
     let runs;
     try {
         runs = JSON.parse(
@@ -125,6 +138,12 @@ if (!force) {
     if (runs.length === 0) {
         fail('이 커밋에 CI check-run이 없음 (docs-only push로 CI 스킵?) — CI가 붙은 커밋에서 릴리스');
     }
+    const present = new Set(runs.map((r) => r.name));
+    const missing = requiredChecks.filter((name) => !present.has(name));
+    if (missing.length > 0) {
+        fail(`CI required check-run 없음: ${missing.join(', ')}`);
+    }
+    // ios-check is skipped when src-tauri did not change — skipped is pass.
     const notGreen = runs.filter((r) => r.conclusion !== 'success' && r.conclusion !== 'skipped');
     if (notGreen.length > 0) {
         fail(`CI가 green이 아님: ${notGreen.map((r) => `${r.name}=${r.conclusion ?? 'pending'}`).join(', ')}`);
