@@ -1,6 +1,12 @@
 import { type BbpPoint, hydrateLiveBbp, useBbpStore } from '@features/active-roast/model/bbp';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bbpTimeOriginKey, shouldResetChartOnlyPreheatOnPageRestore, shouldStartChartOnlyPreheat } from './bbp-preheat';
+import {
+    bbpTimeOriginKey,
+    noteChartOnlyPreheatMount,
+    resetChartOnlyPreheatMountsForTests,
+    shouldResetChartOnlyPreheatOnPageRestore,
+    shouldStartChartOnlyPreheat,
+} from './bbp-preheat';
 import { resolveLiveChartView } from './live-chart-view';
 
 const sample = (bt: number) => ({ bt, et: 200, heater: 50, fan: 40, drum: 60 });
@@ -20,6 +26,7 @@ const chartOf = (points: BbpPoint[]) =>
 
 describe('first-batch preheat display', () => {
     beforeEach(() => {
+        resetChartOnlyPreheatMountsForTests();
         useBbpStore.setState({
             active: false,
             recording: false,
@@ -103,9 +110,32 @@ describe('first-batch preheat display', () => {
         }
     });
 
+    it('a new Active Roast mount restarts chart-only preheat from this document', () => {
+        noteChartOnlyPreheatMount(1);
+        useBbpStore.setState({
+            active: true,
+            recording: false,
+            startMs: BOOT + 5_000,
+            points: [
+                { t: 0, ...sample(200) },
+                { t: 95, ...sample(210) },
+            ],
+        });
+        const live = useBbpStore.getState();
+        expect(shouldStartChartOnlyPreheat(live, BOOT, 1)).toBe(false);
+        expect(shouldStartChartOnlyPreheat(live, BOOT, 2)).toBe(true);
+        expect(shouldStartChartOnlyPreheat({ ...live, recording: true }, BOOT, 2)).toBe(false);
+    });
+
     it('bfcache restores chart-only preheat from zero and leaves Charge wait recorded', () => {
         expect(shouldResetChartOnlyPreheatOnPageRestore(true, { recording: false }, 'preheating', false)).toBe(true);
         expect(shouldResetChartOnlyPreheatOnPageRestore(true, { recording: true }, 'standby', true)).toBe(false);
         expect(shouldResetChartOnlyPreheatOnPageRestore(false, { recording: false }, 'preheating', false)).toBe(false);
+        expect(
+            shouldResetChartOnlyPreheatOnPageRestore(false, { recording: false }, 'preheating', false, 'reload'),
+        ).toBe(true);
+        expect(shouldResetChartOnlyPreheatOnPageRestore(false, { recording: true }, 'standby', true, 'reload')).toBe(
+            false,
+        );
     });
 });

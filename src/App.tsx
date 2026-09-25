@@ -104,6 +104,13 @@ export const App = () => {
     }, []);
 
     const [view, setView] = useState<View>('dashboard');
+    const [roastMount, setRoastMount] = useState(0);
+    useEffect(() => {
+        if (import.meta.env.VITE_E2E !== '1' && import.meta.env.VITE_E2E !== 'true') return;
+        const bridge = window.__FC_E2E__;
+        if (!bridge) return;
+        bridge.remountRoast = () => setRoastMount((n) => n + 1);
+    }, []);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
@@ -247,6 +254,7 @@ export const App = () => {
                         >
                             <ViewErrorBoundary>
                                 <ActiveRoast
+                                    key={roastMount}
                                     isActive={view === 'roast'}
                                     onOpenRoastSettings={() => openSettings('roast')}
                                     onPlanBatchComplete={handlePlanBatchComplete}

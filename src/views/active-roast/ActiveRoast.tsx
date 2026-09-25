@@ -40,8 +40,10 @@ import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import {
     bbpTimeOriginKey,
+    noteChartOnlyPreheatMount,
     shouldResetChartOnlyPreheatOnPageRestore,
     shouldStartChartOnlyPreheat,
+    takePreheatMountEpoch,
 } from './lib/bbp-preheat';
 import {
     buildEventMarkers,
@@ -74,7 +76,7 @@ interface ActiveRoastProps {
     onPlanBatchComplete?: () => void;
 }
 
-/** Chart-only preheat older than this document is not a saved Charge wait. */
+/** Chart-only preheat older than this module evaluation is not a saved Charge wait. */
 const chartOnlyPreheatBootMs = Date.now();
 
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
@@ -475,6 +477,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         triggerChargeRef.current = triggerCharge;
     }, [resetAutoDetection, disableAutoCharge, disableAutoDrop, rearmAutoCharge, triggerCharge]);
 
+    const [preheatMountEpoch] = useState(takePreheatMountEpoch);
+
     const recoverLiveBbp = lifecycle.recoverLiveBbp;
     useEffect(() => {
         recoverLiveBbp();
@@ -482,20 +486,31 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useEffect(() => {
         if (!bbpEnabled || awaitingNextCharge || (phase !== 'preheating' && phase !== 'standby')) return;
         if (useRoastingStore.getState().awaitingNextCharge) return;
-        if (!shouldStartChartOnlyPreheat(useBbpStore.getState(), chartOnlyPreheatBootMs)) return;
+        if (!shouldStartChartOnlyPreheat(useBbpStore.getState(), chartOnlyPreheatBootMs, preheatMountEpoch)) return;
         useBbpStore.getState().begin(Date.now(), [], false);
-    }, [bbpEnabled, awaitingNextCharge, phase]);
+        noteChartOnlyPreheatMount(preheatMountEpoch);
+    }, [bbpEnabled, awaitingNextCharge, phase, preheatMountEpoch]);
     useEffect(() => {
         const onPageShow = (event: PageTransitionEvent) => {
             const roast = useRoastingStore.getState();
             const bbp = useBbpStore.getState();
-            if (!shouldResetChartOnlyPreheatOnPageRestore(event.persisted, bbp, roast.phase, roast.awaitingNextCharge))
+            const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+            if (
+                !shouldResetChartOnlyPreheatOnPageRestore(
+                    event.persisted,
+                    bbp,
+                    roast.phase,
+                    roast.awaitingNextCharge,
+                    nav?.type,
+                )
+            )
                 return;
             useBbpStore.getState().begin(Date.now(), [], false);
+            noteChartOnlyPreheatMount(preheatMountEpoch);
         };
         window.addEventListener('pageshow', onPageShow);
         return () => window.removeEventListener('pageshow', onPageShow);
-    }, []);
+    }, [preheatMountEpoch]);
 
     const timeAlerts = useMemo(
         () => ({
@@ -843,6 +858,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         className="mb-6 text-xs text-secondary"
                         data-testid="bbp-target-status"
                         data-bbp-elapsed={Math.floor(bbpNowSec)}
+                        data-bbp-span={Math.floor(chartView.bbpRange?.end ?? 0)}
                     >
                         {t('bbp.live')} · {t(bbpTimeOriginKey(bbpRecording))} ·{' '}
                         {targetProfile?.name ?? t('bbp.noTarget')}
