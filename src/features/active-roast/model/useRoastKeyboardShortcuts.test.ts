@@ -1,3 +1,6 @@
+// @vitest-environment jsdom
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { describe, expect, it } from 'vitest';
 import {
     isRoastChargeShortcutEnabled,
@@ -5,6 +8,7 @@ import {
     isRoastMarkShortcutEnabled,
     isRoastRefreshBlocked,
     isRoastShortcutBaseEnabled,
+    useRoastKeyboardShortcuts,
 } from './useRoastKeyboardShortcuts';
 import shortcutsSrc from './useRoastKeyboardShortcuts.ts?raw';
 
@@ -75,6 +79,50 @@ describe('isRoastRefreshBlocked', () => {
         expect(isRoastRefreshBlocked('idle', false)).toBe(false);
         expect(isRoastRefreshBlocked('preheating', false)).toBe(false);
         expect(isRoastRefreshBlocked('standby', false)).toBe(false);
+    });
+});
+
+describe('desktop roast context menu', () => {
+    it('blocks the native menu during roasting without swallowing chart right-clicks', () => {
+        (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+        (window as Window & { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__ = {};
+        const container = document.createElement('div');
+        document.body.append(container);
+        const root = createRoot(container);
+        let chartRightClicks = 0;
+        const Chart = ({ phase }: { phase: string }) => {
+            useRoastKeyboardShortcuts({
+                isActive: true,
+                isFullscreen: false,
+                showEndRoastModal: false,
+                showSummaryModal: false,
+                phase,
+                awaitingNextCharge: false,
+                onToggleFullscreen: () => {},
+                onExitFullscreen: () => {},
+                onEnterStandby: () => {},
+                onManualCharge: () => {},
+                onMarkEvent: () => {},
+                onMarkDrop: () => {},
+            });
+            return createElement('div', { onContextMenu: () => chartRightClicks++ });
+        };
+        try {
+            act(() => root.render(createElement(Chart, { phase: 'roasting' })));
+            const blocked = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+            act(() => container.firstElementChild?.dispatchEvent(blocked));
+            expect(blocked.defaultPrevented).toBe(true);
+            expect(chartRightClicks).toBe(1);
+
+            act(() => root.render(createElement(Chart, { phase: 'standby' })));
+            const allowed = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+            act(() => container.firstElementChild?.dispatchEvent(allowed));
+            expect(allowed.defaultPrevented).toBe(false);
+        } finally {
+            act(() => root.unmount());
+            container.remove();
+            delete (window as Window & { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__;
+        }
     });
 });
 

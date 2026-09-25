@@ -127,7 +127,12 @@ export const useRoastKeyboardShortcuts = ({
             });
         };
         window.addEventListener('keydown', preventRefresh, true);
-        return () => window.removeEventListener('keydown', preventRefresh, true);
+        const preventContextMenu = (event: MouseEvent) => event.preventDefault();
+        window.addEventListener('contextmenu', preventContextMenu, true);
+        return () => {
+            window.removeEventListener('keydown', preventRefresh, true);
+            window.removeEventListener('contextmenu', preventContextMenu, true);
+        };
     }, [phase, awaitingNextCharge]);
 
     // Escape → exit fullscreen (only when fullscreen and no modal open)
