@@ -23,6 +23,19 @@ const base = {
 };
 
 describe('resolveLiveChartView', () => {
+    it('configured BBP window clips live and target curves together', () => {
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpWindowSeconds: 120,
+            bbpPoints: [bbpPt(60), bbpPt(180)],
+            bbpTarget: [roastPt(0), roastPt(60), roastPt(180)],
+        });
+        expect(view.livePoints.map((p) => p.time)).toEqual([0, 120]);
+        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 120]);
+        expect(view.bbpRange).toEqual({ start: 0, end: 120 });
+    });
     it('starts measured and target BBP at the left without joining the roast curve', () => {
         const view = resolveLiveChartView({ ...base, bbpActive: true, charged: false });
         expect(view.xMin).toBe(0);

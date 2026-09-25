@@ -2,6 +2,14 @@ import { FEATURE, planHasFeature } from '@shared/lib/features';
 import { describe, expect, it } from 'vitest';
 import { coercePollIntervalForPlan, normalizeRoastSettings } from './settings';
 
+it('BBP 설정을 복원할 때 저장 범위를 검증한다', () => {
+    expect(normalizeRoastSettings({ bbpEnabled: false, bbpWindowMinutes: 0 })).toMatchObject({
+        bbpEnabled: false,
+        bbpWindowMinutes: 1,
+    });
+    expect(normalizeRoastSettings({ bbpWindowMinutes: 100 }).bbpWindowMinutes).toBe(20);
+});
+
 describe('coercePollIntervalForPlan', () => {
     it('coerces stored 500ms to 1s when the plan lacks fast polling', () => {
         expect(coercePollIntervalForPlan(500, false)).toBe(1000);

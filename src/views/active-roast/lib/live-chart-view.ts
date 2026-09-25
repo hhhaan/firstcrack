@@ -30,6 +30,7 @@ export const resolveLiveChartView = (input: {
     roastTarget: TsvPoint[];
     bbpTarget: TsvPoint[];
     bbpTargetError: boolean;
+    bbpWindowSeconds?: number;
 }): LiveChartView => {
     if (input.charged || !input.bbpActive) {
         return {
@@ -40,13 +41,14 @@ export const resolveLiveChartView = (input: {
         };
     }
 
+    const windowSeconds = input.bbpWindowSeconds ?? BBP_MAX_SECONDS;
     const source = input.bbpTargetError ? [] : input.bbpTarget;
     const latestSavedT = sampleExtent(source).max;
-    const saved = source.filter((p) => p.t >= latestSavedT - BBP_MAX_SECONDS);
+    const saved = source.filter((p) => p.t >= latestSavedT - windowSeconds);
     const savedExtent = sampleExtent(saved);
     const targetPoints = saved.map((p) => ({ ...p, t: p.t - savedExtent.min }));
     const lastT = input.bbpPoints[input.bbpPoints.length - 1]?.t ?? 0;
-    const windowed = rebaseBbpWindow(input.bbpPoints, lastT);
+    const windowed = rebaseBbpWindow(input.bbpPoints, lastT, windowSeconds);
     const measuredStart = windowed[0]?.t ?? 0;
     const measuredEnd = (windowed[windowed.length - 1]?.t ?? measuredStart) - measuredStart;
 

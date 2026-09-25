@@ -76,7 +76,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
-    const bbpEnabled = useFeature(FEATURE.bbp);
+    const bbpEnabled = useFeature(FEATURE.bbp) && roastSettings.bbpEnabled;
     const bbpElapsed = useBbpTimer();
     const bbpTimer = bbpEnabled ? bbpElapsed : null;
     const bbpActive = useBbpStore((s) => s.active);
@@ -84,6 +84,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const awaitingNextCharge = useRoastingStore((s) => s.awaitingNextCharge);
     const heatHoldAfterDrop = useRoastingStore((s) => s.heatHoldAfterDrop);
     const bbpChargeWait = bbpActive || awaitingNextCharge;
+
+    useEffect(() => {
+        if (!roastSettings.bbpEnabled) {
+            useBbpStore.getState().abort();
+        } else if (bbpEnabled && awaitingNextCharge && !bbpActive) {
+            useBbpStore.getState().begin(Date.now());
+        }
+    }, [bbpEnabled, roastSettings.bbpEnabled, awaitingNextCharge, bbpActive]);
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -282,15 +290,26 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const chartView = useMemo(
         () =>
             resolveLiveChartView({
-                bbpActive,
+                bbpActive: bbpEnabled && bbpActive,
                 charged,
                 livePoints,
                 bbpPoints,
                 roastTarget: targetCurvePoints,
                 bbpTarget: bbpTarget.data ?? [],
                 bbpTargetError: bbpTarget.isError,
+                bbpWindowSeconds: roastSettings.bbpWindowMinutes * 60,
             }),
-        [bbpActive, bbpPoints, bbpTarget.data, bbpTarget.isError, charged, livePoints, targetCurvePoints],
+        [
+            bbpActive,
+            bbpEnabled,
+            bbpPoints,
+            bbpTarget.data,
+            bbpTarget.isError,
+            charged,
+            livePoints,
+            roastSettings.bbpWindowMinutes,
+            targetCurvePoints,
+        ],
     );
     const bbpNowSec = bbpPoints.length > 0 ? bbpPoints[bbpPoints.length - 1].t : 0;
     const waitTemps = waitingForCharge

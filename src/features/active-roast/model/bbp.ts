@@ -1,5 +1,6 @@
 import { TSV_HEADER } from '@shared/lib/tsv-writer';
 import { create } from 'zustand';
+import { getRoastSettings } from './settings';
 
 /** Rolling FIFO window (seconds) kept immediately before Charge. */
 export const BBP_MAX_SECONDS = 1200;
@@ -29,18 +30,19 @@ export interface FinalizedBbp extends BbpSummary {
 
 export type BbpResult = BbpSummary & { tsv: string };
 
-const windowOrigin = (endT: number) => Math.max(0, endT - BBP_MAX_SECONDS);
+const currentWindowSeconds = () => getRoastSettings().bbpWindowMinutes * 60;
+const windowOrigin = (endT: number, windowSeconds = BBP_MAX_SECONDS) => Math.max(0, endT - windowSeconds);
 
 /** Drop samples older than the last BBP_MAX_SECONDS before `endT`. Times stay End-relative. */
-const clipBbpWindow = (points: BbpPoint[], endT: number): BbpPoint[] => {
-    const origin = windowOrigin(endT);
+const clipBbpWindow = (points: BbpPoint[], endT: number, windowSeconds = BBP_MAX_SECONDS): BbpPoint[] => {
+    const origin = windowOrigin(endT, windowSeconds);
     return points.filter((p) => p.t >= origin && p.t <= endT);
 };
 
 /** Charge-relative copy of the kept window so stored/display t starts near 0. */
-export const rebaseBbpWindow = (points: BbpPoint[], endT: number): BbpPoint[] => {
-    const origin = windowOrigin(endT);
-    const kept = clipBbpWindow(points, endT);
+export const rebaseBbpWindow = (points: BbpPoint[], endT: number, windowSeconds = BBP_MAX_SECONDS): BbpPoint[] => {
+    const origin = windowOrigin(endT, windowSeconds);
+    const kept = clipBbpWindow(points, endT, windowSeconds);
     return origin === 0 ? kept : kept.map((p) => ({ ...p, t: p.t - origin }));
 };
 
@@ -112,7 +114,8 @@ export const useBbpStore = create<BbpState>((set, get) => ({
 
     // finalized는 건드리지 않는다 — 직전 세션이 아직 저장 전일 수 있다
     begin: (startMs, seed = []) => {
-        const points = seed.length > 0 ? clipBbpWindow(seed, seed[seed.length - 1]?.t ?? 0) : [];
+        const points =
+            seed.length > 0 ? clipBbpWindow(seed, seed[seed.length - 1]?.t ?? 0, currentWindowSeconds()) : [];
         persistLive(true, startMs, points);
         set({ active: true, startMs, points });
     },
@@ -123,7 +126,7 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const t = (nowMs - startMs) / 1000;
         if (t < 0) return;
         if (points.length > 0 && t - points[points.length - 1].t < 1) return;
-        const next = clipBbpWindow([...points, { t, ...sample }], t);
+        const next = clipBbpWindow([...points, { t, ...sample }], t, currentWindowSeconds());
         persistLive(true, startMs, next);
         set({ points: next });
     },
@@ -138,8 +141,9 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const cutoff = (chargeMs - startMs) / 1000;
         // auto-charge는 lookback으로 잡은 onset을 charge 시각으로 쓰므로 그 이후 폴링된
         // 투입 직후(BT 급락) 샘플이 섞인다 — 잘라내야 chargeTemp가 실제 투입 온도가 된다.
-        const points = rebaseBbpWindow(all, cutoff);
-        const seconds = Math.round(Math.min(Math.max(cutoff, 0), BBP_MAX_SECONDS));
+        const windowSeconds = currentWindowSeconds();
+        const points = rebaseBbpWindow(all, cutoff, windowSeconds);
+        const seconds = Math.round(Math.min(Math.max(cutoff, 0), windowSeconds));
         const valid = active && points.length >= 2 && seconds > 0;
         if (!valid) {
             persistLive(false, 0, []);
@@ -163,6 +167,11 @@ export const useBbpStore = create<BbpState>((set, get) => ({
 export const hydrateLiveBbp = (): boolean => {
     const live = readLiveBbp();
     if (!live) return false;
-    useBbpStore.setState({ active: true, startMs: live.startMs, points: live.points });
+    const endT = live.points[live.points.length - 1]?.t ?? 0;
+    useBbpStore.setState({
+        active: true,
+        startMs: live.startMs,
+        points: clipBbpWindow(live.points, endT, currentWindowSeconds()),
+    });
     return true;
 };

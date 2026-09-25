@@ -10,6 +10,7 @@ import {
     type TemperatureUnit,
     toDisplayTemp,
     updateRoastSettings,
+    useBbpStore,
     useEffectivePollIntervalMs,
     useRoastSettings,
 } from '@features/active-roast';
@@ -479,6 +480,33 @@ export const RoastSettingsTab = () => {
                         description={tk('fcDualMarkDescription')}
                         onChange={() => updateRoastSettings({ fcDualMarkEnabled: !roastSettings.fcDualMarkEnabled })}
                     />
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('bbp')} description={tk('bbpDescription')} />
+                <SectionCard.Body className="grid gap-3">
+                    <SettingsCheckRow
+                        checked={roastSettings.bbpEnabled}
+                        label={tk('bbpEnabled')}
+                        onChange={() => {
+                            if (roastSettings.bbpEnabled) useBbpStore.getState().abort();
+                            updateRoastSettings({ bbpEnabled: !roastSettings.bbpEnabled });
+                        }}
+                    />
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('bbpWindowMinutes')}</div>
+                            <div className={settingsOptionDescCls}>{tk('bbpWindowDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.bbpWindowMinutes}
+                            onChange={(v) => updateRoastSettings({ bbpWindowMinutes: v })}
+                            min={1}
+                            max={20}
+                            suffix="min"
+                        />
+                    </SettingsOptionRow>
                 </SectionCard.Body>
             </SectionCard>
 

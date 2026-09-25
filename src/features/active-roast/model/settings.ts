@@ -36,6 +36,9 @@ export type RoastSettings = {
     showPhaseBar: boolean;
     /** FC Start–End vertical band on the temp chart */
     showFcBand: boolean;
+    bbpEnabled: boolean;
+    /** Recent BBP window retained and saved, in minutes (1–20). */
+    bbpWindowMinutes: number;
     eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
     tempMaxC: number;
@@ -104,6 +107,8 @@ const DEFAULT_SETTINGS: RoastSettings = {
     controlYMax: 100,
     showPhaseBar: true,
     showFcBand: true,
+    bbpEnabled: true,
+    bbpWindowMinutes: 20,
     eventMarkerStyle: 'both',
     tempMinC: 130,
     tempMaxC: 240,
@@ -186,6 +191,8 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
         showTargetDeltaLabel: asBool(merged.showTargetDeltaLabel, DEFAULT_SETTINGS.showTargetDeltaLabel),
         showFcBand: asBool(merged.showFcBand, DEFAULT_SETTINGS.showFcBand),
+        bbpEnabled: asBool(merged.bbpEnabled, DEFAULT_SETTINGS.bbpEnabled),
+        bbpWindowMinutes: Math.round(clampNum(merged.bbpWindowMinutes, 1, 20, DEFAULT_SETTINGS.bbpWindowMinutes)),
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,
@@ -289,3 +296,5 @@ export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
 };
 
 export const useRoastSettings = () => useSyncExternalStore(_subscribe, _getSnapshot);
+
+export const getRoastSettings = _getSnapshot;
