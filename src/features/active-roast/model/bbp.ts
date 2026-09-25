@@ -46,6 +46,8 @@ export const rebaseBbpWindow = (points: BbpPoint[], endT: number, windowSeconds 
 
 interface BbpState {
     active: boolean;
+    /** First-batch preheat is chart-only; End→Charge is recorded and saved. */
+    recording: boolean;
     /** 이전 드롭 wall-clock (ms). 0 = 미기록 */
     startMs: number;
     points: BbpPoint[];
@@ -58,7 +60,7 @@ interface BbpState {
     /** Session-scoped display samples; never persisted as live session state. */
     finalizedPoints: BbpPoint[];
 
-    begin: (startMs: number, seed?: BbpPoint[]) => void;
+    begin: (startMs: number, seed?: BbpPoint[], recording?: boolean) => void;
     append: (sample: BbpSample, nowMs: number) => void;
     /** Drop cancel: clear in-progress samples, keep the previous session's finalized BBP. */
     abort: () => void;
@@ -105,36 +107,41 @@ const toTsv = bbpPointsToTsv;
 
 export const useBbpStore = create<BbpState>((set, get) => ({
     active: false,
+    recording: false,
     startMs: 0,
     points: [],
     finalized: null,
     finalizedPoints: [],
 
     // finalized는 건드리지 않는다 — 직전 세션이 아직 저장 전일 수 있다
-    begin: (startMs, seed = []) => {
+    begin: (startMs, seed = [], recording = true) => {
         const points = seed.length > 0 ? clipBbpWindow(seed, seed[seed.length - 1]?.t ?? 0) : [];
-        persistLive(true, startMs, points);
-        set({ active: true, startMs, points });
+        persistLive(recording, startMs, points);
+        set({ active: true, recording, startMs, points });
     },
 
     append: (sample, nowMs) => {
-        const { active, startMs, points } = get();
+        const { active, recording, startMs, points } = get();
         if (!active) return;
         const t = (nowMs - startMs) / 1000;
         if (t < 0) return;
         if (points.length > 0 && t - points[points.length - 1].t < 1) return;
         const next = clipBbpWindow([...points, { t, ...sample }], t);
-        persistLive(true, startMs, next);
+        if (recording) persistLive(true, startMs, next);
         set({ points: next });
     },
 
     abort: () => {
         persistLive(false, 0, []);
-        set({ active: false, startMs: 0, points: [] });
+        set({ active: false, recording: false, startMs: 0, points: [] });
     },
 
     finalize: (chargeMs, sessionId) => {
-        const { active, startMs, points: all } = get();
+        const { active, recording, startMs, points: all } = get();
+        if (!recording) {
+            get().abort();
+            return null;
+        }
         const cutoff = (chargeMs - startMs) / 1000;
         // auto-charge는 lookback으로 잡은 onset을 charge 시각으로 쓰므로 그 이후 폴링된
         // 투입 직후(BT 급락) 샘플이 섞인다 — 잘라내야 chargeTemp가 실제 투입 온도가 된다.
@@ -143,7 +150,7 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const valid = active && points.length >= 2 && seconds > 0;
         if (!valid) {
             persistLive(false, 0, []);
-            set({ active: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
+            set({ active: false, recording: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
             return null;
         }
         const chargeTemp = points[points.length - 1].bt;
@@ -151,6 +158,7 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         persistLive(false, 0, []);
         set({
             active: false,
+            recording: false,
             startMs: 0,
             points: [],
             finalized: { sessionId, seconds, chargeTemp },
@@ -166,6 +174,7 @@ export const hydrateLiveBbp = (): boolean => {
     const endT = live.points[live.points.length - 1]?.t ?? 0;
     useBbpStore.setState({
         active: true,
+        recording: true,
         startMs: live.startMs,
         points: clipBbpWindow(live.points, endT),
     });

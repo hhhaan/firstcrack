@@ -6,7 +6,14 @@ const sample = (bt: number) => ({ bt, et: 200, heater: 50, fan: 40, drum: 60 });
 
 describe('bbp store', () => {
     beforeEach(() => {
-        useBbpStore.setState({ active: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
+        useBbpStore.setState({
+            active: false,
+            recording: false,
+            startMs: 0,
+            points: [],
+            finalized: null,
+            finalizedPoints: [],
+        });
     });
 
     it('저장된 기록 범위 값은 FIFO 상한을 바꾸지 않는다', () => {
@@ -185,7 +192,7 @@ describe('bbp store', () => {
         expect(s.finalized).toEqual({ sessionId: 's1', seconds: 180, chargeTemp: 195.4 });
     });
 
-    it('persists in-progress BBP so a restart can resume Charge wait', () => {
+    it('persists Charge wait but keeps first-batch preheat chart-only', () => {
         const mem: Record<string, string> = {};
         vi.stubGlobal('localStorage', {
             getItem: (k: string) => mem[k] ?? null,
@@ -204,10 +211,19 @@ describe('bbp store', () => {
             expect(JSON.parse(mem.fc_bbp_live ?? '{}').startMs).toBe(1_000);
             useBbpStore.setState({ active: false, startMs: 0, points: [] });
             expect(hydrateLiveBbp()).toBe(true);
-            expect(useBbpStore.getState()).toMatchObject({ active: true, startMs: 1_000 });
+            expect(useBbpStore.getState()).toMatchObject({ active: true, recording: true, startMs: 1_000 });
             useBbpStore.getState().abort();
             expect(mem.fc_bbp_live).toBeUndefined();
             expect(hydrateLiveBbp()).toBe(false);
+
+            const bbp = useBbpStore.getState();
+            bbp.begin(2_000, [], false);
+            bbp.append(sample(200), 3_000);
+            bbp.append(sample(201), 4_000);
+            expect(useBbpStore.getState().points).toHaveLength(2);
+            expect(mem.fc_bbp_live).toBeUndefined();
+            expect(bbp.finalize(5_000, 'first-batch')).toBeNull();
+            expect(useBbpStore.getState()).toMatchObject({ active: false, recording: false, finalized: null });
         } finally {
             vi.unstubAllGlobals();
         }

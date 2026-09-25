@@ -80,18 +80,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const bbpElapsed = useBbpTimer();
     const bbpTimer = bbpEnabled ? bbpElapsed : null;
     const bbpActive = useBbpStore((s) => s.active);
+    const bbpRecording = useBbpStore((s) => s.recording);
     const bbpPoints = useBbpStore((s) => s.points);
     const awaitingNextCharge = useRoastingStore((s) => s.awaitingNextCharge);
     const heatHoldAfterDrop = useRoastingStore((s) => s.heatHoldAfterDrop);
-    const bbpChargeWait = bbpActive || awaitingNextCharge;
+    const bbpChargeWait = (bbpActive && bbpRecording) || awaitingNextCharge;
 
     useEffect(() => {
         if (!roastSettings.bbpEnabled) {
             useBbpStore.getState().abort();
-        } else if (bbpEnabled && awaitingNextCharge && !bbpActive) {
+        } else if (bbpEnabled && awaitingNextCharge && (!bbpActive || !bbpRecording)) {
             useBbpStore.getState().begin(Date.now());
         }
-    }, [bbpEnabled, roastSettings.bbpEnabled, awaitingNextCharge, bbpActive]);
+    }, [bbpEnabled, roastSettings.bbpEnabled, awaitingNextCharge, bbpActive, bbpRecording]);
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -470,6 +471,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useEffect(() => {
         recoverLiveBbp();
     }, [recoverLiveBbp]);
+    useEffect(() => {
+        if (!bbpEnabled || awaitingNextCharge || bbpActive || (phase !== 'preheating' && phase !== 'standby')) return;
+        if (useRoastingStore.getState().awaitingNextCharge || useBbpStore.getState().active) return;
+        useBbpStore.getState().begin(Date.now(), [], false);
+    }, [bbpEnabled, awaitingNextCharge, phase, bbpActive]);
 
     const timeAlerts = useMemo(
         () => ({
