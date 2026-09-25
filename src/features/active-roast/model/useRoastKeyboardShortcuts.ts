@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 interface UseRoastKeyboardShortcutsParams {
@@ -8,6 +9,7 @@ interface UseRoastKeyboardShortcutsParams {
     /** When true, block roast hotkeys while continue-batch modal is open. */
     showContinueModal?: boolean;
     phase: string;
+    awaitingNextCharge: boolean;
     onToggleFullscreen: () => void;
     onExitFullscreen: () => void;
     onEnterStandby: () => void;
@@ -69,6 +71,7 @@ export const useRoastKeyboardShortcuts = ({
     showSummaryModal,
     showContinueModal = false,
     phase,
+    awaitingNextCharge,
     onToggleFullscreen,
     onExitFullscreen,
     onEnterStandby,
@@ -96,6 +99,17 @@ export const useRoastKeyboardShortcuts = ({
         showContinueModal,
         phase,
     });
+
+    useEffect(() => {
+        if (phase !== 'roasting' && phase !== 'ended' && !awaitingNextCharge) return;
+        const preventRefresh = (event: KeyboardEvent) => {
+            if (event.key === 'F5' || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'r')) {
+                event.preventDefault();
+            }
+        };
+        window.addEventListener('keydown', preventRefresh, true);
+        return () => window.removeEventListener('keydown', preventRefresh, true);
+    }, [phase, awaitingNextCharge]);
 
     // Escape → exit fullscreen (only when fullscreen and no modal open)
     useHotkeys(
