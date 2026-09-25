@@ -529,8 +529,10 @@ pub fn run() {
     app.run(|_app, event| {
         #[cfg(target_os = "macos")]
         if let RunEvent::ExitRequested { code: None, api, .. } = &event {
-            api.prevent_exit();
-            let _ = _app.emit("quit-requested", ());
+            if _app.get_webview_window("main").is_some() {
+                api.prevent_exit();
+                let _ = _app.emit("quit-requested", ());
+            }
         }
 
         if let RunEvent::Exit = event {
