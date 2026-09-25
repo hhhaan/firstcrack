@@ -1,3 +1,5 @@
+import { i18n } from '@shared/i18n';
+import { message } from '@tauri-apps/plugin-dialog';
 import { useEffect } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
@@ -48,6 +50,11 @@ export function isRoastChargeShortcutEnabled(p: {
 /** Event-mark buttons + hotkeys: Yellow / FC / Drop only while roasting. */
 export function isRoastEventMarkEnabled(phase: string): boolean {
     return phase === 'roasting';
+}
+
+/** In-memory roast that a webview reload would drop. Preheat and standby stay refreshable. */
+export function isRoastRefreshBlocked(phase: string, awaitingNextCharge: boolean): boolean {
+    return phase === 'roasting' || phase === 'ended' || awaitingNextCharge;
 }
 
 /**
@@ -101,11 +108,23 @@ export const useRoastKeyboardShortcuts = ({
     });
 
     useEffect(() => {
-        if (phase !== 'roasting' && phase !== 'ended' && !awaitingNextCharge) return;
+        // `pnpm dev` in a browser keeps F5. Only the desktop webview drops the roast on reload.
+        if (!('__TAURI_INTERNALS__' in window)) return;
+        if (!isRoastRefreshBlocked(phase, awaitingNextCharge)) return;
+
+        let alertOpen = false;
         const preventRefresh = (event: KeyboardEvent) => {
-            if (event.key === 'F5' || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'r')) {
-                event.preventDefault();
-            }
+            const refresh = event.key === 'F5' || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'r');
+            if (!refresh) return;
+            event.preventDefault();
+            if (event.repeat || alertOpen) return;
+            alertOpen = true;
+            void message(i18n.t('activeRoast.dialogs.refreshBlockedMsg'), {
+                title: i18n.t('activeRoast.dialogs.refreshBlockedTitle'),
+                kind: 'warning',
+            }).finally(() => {
+                alertOpen = false;
+            });
         };
         window.addEventListener('keydown', preventRefresh, true);
         return () => window.removeEventListener('keydown', preventRefresh, true);
