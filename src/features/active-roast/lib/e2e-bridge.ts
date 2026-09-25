@@ -23,6 +23,8 @@ export type FcE2eBridge = {
     };
     /** New React tree, same document. Chart-only preheat must not keep the previous curve. */
     remountRoast?: () => void;
+    /** Saved BBP length after Charge finalize. Null until finalize runs. */
+    readFinalizedBbp: () => { seconds: number | null; span: number };
 };
 
 declare global {
@@ -63,6 +65,14 @@ export function installE2eBridge() {
                 firstT: first ? first.t : null,
                 lastT: last ? last.t : null,
             };
+        },
+        readFinalizedBbp: () => {
+            const { finalized, finalizedPoints } = useBbpStore.getState();
+            const span =
+                finalizedPoints.length >= 2
+                    ? Math.round(finalizedPoints[finalizedPoints.length - 1].t - finalizedPoints[0].t)
+                    : 0;
+            return { seconds: finalized?.seconds ?? null, span };
         },
     };
 }

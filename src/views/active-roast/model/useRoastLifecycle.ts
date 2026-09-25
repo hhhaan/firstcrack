@@ -347,9 +347,10 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
 
     const recoverLiveBbp = useCallback(() => {
         if (!bbpEnabled) return;
-        if (!hydrateLiveBbp()) return;
         const store = useRoastingStore.getState();
+        // A roast already owns the chart. Do not rehydrate a wait on top of it (#433).
         if (store.charged || store.phase === 'roasting') return;
+        if (!hydrateLiveBbp()) return;
         useRoastingStore.setState({ awaitingNextCharge: true });
         if (store.sidecarConnected && (store.phase === 'idle' || store.phase === 'preheating')) {
             store.enterPreheating();

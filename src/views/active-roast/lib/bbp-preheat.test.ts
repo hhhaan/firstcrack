@@ -84,8 +84,9 @@ describe('first-batch preheat display', () => {
     });
 
     it('does not wipe a persisted Charge wait on reload', () => {
-        const mem: Record<string, string> = {};
-        vi.stubGlobal('localStorage', {
+        const local: Record<string, string> = {};
+        const session: Record<string, string> = {};
+        const api = (mem: Record<string, string>) => ({
             getItem: (k: string) => mem[k] ?? null,
             setItem: (k: string, v: string) => {
                 mem[k] = v;
@@ -94,12 +95,14 @@ describe('first-batch preheat display', () => {
                 delete mem[k];
             },
         });
+        vi.stubGlobal('localStorage', api(local));
+        vi.stubGlobal('sessionStorage', api(session));
         try {
             useBbpStore.getState().begin(BOOT - 210_000, [
                 { t: 0, ...sample(180) },
                 { t: 210, ...sample(190) },
             ]);
-            useBbpStore.setState({ active: false, recording: false, startMs: 0, points: [] });
+            useBbpStore.setState({ active: false, recording: false, liveGeneration: '', startMs: 0, points: [] });
             expect(hydrateLiveBbp()).toBe(true);
             const restored = useBbpStore.getState();
             expect(restored.recording).toBe(true);

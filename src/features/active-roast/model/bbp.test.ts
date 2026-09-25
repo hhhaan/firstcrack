@@ -9,6 +9,7 @@ describe('bbp store', () => {
         useBbpStore.setState({
             active: false,
             recording: false,
+            liveGeneration: '',
             startMs: 0,
             points: [],
             finalized: null,
@@ -75,7 +76,7 @@ describe('bbp store', () => {
 
         const result = useBbpStore.getState().finalize(180_000, 's1');
         expect(result).not.toBeNull();
-        expect(result?.seconds).toBe(180);
+        expect(result?.seconds).toBe(1);
         expect(result?.chargeTemp).toBe(195.4); // 마지막 pre-charge 포인트 BT
         expect(result?.tsv).toBe(
             'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\n' +
@@ -83,7 +84,7 @@ describe('bbp store', () => {
                 '2.0\t195.4\t200\t\t50\t40\t60\t\n',
         );
         const s = useBbpStore.getState();
-        expect(s.finalized).toEqual({ sessionId: 's1', seconds: 180, chargeTemp: 195.4 });
+        expect(s.finalized).toEqual({ sessionId: 's1', seconds: 1, chargeTemp: 195.4 });
         expect(s.active).toBe(false);
         expect(s.points).toEqual([]);
         expect(s.finalizedPoints.map((p) => [p.t, p.bt])).toEqual([
@@ -103,7 +104,7 @@ describe('bbp store', () => {
 
         // 다음 배치 드롭 — s1은 아직 저장 전이므로 요약이 살아있어야 한다
         useBbpStore.getState().begin(500_000);
-        expect(useBbpStore.getState().finalized).toEqual({ sessionId: 's1', seconds: 180, chargeTemp: 195.4 });
+        expect(useBbpStore.getState().finalized).toEqual({ sessionId: 's1', seconds: 1, chargeTemp: 195.4 });
         expect(useBbpStore.getState().active).toBe(true);
         expect(useBbpStore.getState().finalizedPoints).toHaveLength(2);
     });
@@ -189,43 +190,145 @@ describe('bbp store', () => {
         const s = useBbpStore.getState();
         expect(s.active).toBe(false);
         expect(s.points).toEqual([]);
-        expect(s.finalized).toEqual({ sessionId: 's1', seconds: 180, chargeTemp: 195.4 });
+        expect(s.finalized).toEqual({ sessionId: 's1', seconds: 1, chargeTemp: 195.4 });
     });
 
-    it('persists Charge wait but keeps first-batch preheat chart-only', () => {
-        const mem: Record<string, string> = {};
-        vi.stubGlobal('localStorage', {
-            getItem: (k: string) => mem[k] ?? null,
-            setItem: (k: string, v: string) => {
-                mem[k] = v;
-            },
-            removeItem: (k: string) => {
-                delete mem[k];
-            },
-            clear: () => {
-                for (const k of Object.keys(mem)) delete mem[k];
-            },
-        });
+    it('finalize seconds follow the kept samples, not the window cutoff', () => {
+        const st = useBbpStore.getState();
+        st.begin(0);
+        st.append(sample(180), 47 * 60 * 1000);
+        st.append(sample(190), 48 * 60 * 1000);
+        const result = st.finalize(48 * 60 * 1000, 's-gap');
+        const kept = useBbpStore.getState().finalizedPoints;
+        expect(result?.seconds).toBe(60);
+        expect(kept[kept.length - 1].t - kept[0].t).toBe(60);
+    });
+
+    it('same-tab reload continues the current BBP; a new session does not', () => {
+        const { local, session } = installStorage();
         try {
             useBbpStore.getState().begin(1_000, [{ t: 0, ...sample(200) }]);
-            expect(JSON.parse(mem.fc_bbp_live ?? '{}').startMs).toBe(1_000);
-            useBbpStore.setState({ active: false, startMs: 0, points: [] });
+            expect(JSON.parse(local.fc_bbp_live ?? '{}').startMs).toBe(1_000);
+            expect(session.fc_bbp_live_gen).toBeTruthy();
+
+            useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [] });
             expect(hydrateLiveBbp()).toBe(true);
             expect(useBbpStore.getState()).toMatchObject({ active: true, recording: true, startMs: 1_000 });
-            useBbpStore.getState().abort();
-            expect(mem.fc_bbp_live).toBeUndefined();
-            expect(hydrateLiveBbp()).toBe(false);
 
-            const bbp = useBbpStore.getState();
-            bbp.begin(2_000, [], false);
-            bbp.append(sample(200), 3_000);
-            bbp.append(sample(201), 4_000);
+            useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [] });
+            delete session.fc_bbp_live_gen;
+            expect(hydrateLiveBbp()).toBe(false);
+            expect(useBbpStore.getState().active).toBe(false);
+            expect(local.fc_bbp_live).toBeTruthy();
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('a stale tab stops writing once another tab claims the blob', () => {
+        const { local, session } = installStorage();
+        try {
+            useBbpStore.getState().begin(1_000, [{ t: 0, ...sample(200) }]);
+            const staleGen = session.fc_bbp_live_gen ?? '';
+            const stalePoints = useBbpStore.getState().points;
+
+            delete session.fc_bbp_live_gen;
+            useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [] });
+            useBbpStore.getState().begin(9_000, [{ t: 0, ...sample(180) }]);
+            expect(JSON.parse(local.fc_bbp_live ?? '{}').startMs).toBe(9_000);
+
+            session.fc_bbp_live_gen = staleGen;
+            useBbpStore.setState({
+                active: true,
+                recording: true,
+                liveGeneration: staleGen,
+                startMs: 1_000,
+                points: stalePoints,
+            });
+            useBbpStore.getState().append(sample(210), 2_000);
+            expect(JSON.parse(local.fc_bbp_live ?? '{}').startMs).toBe(9_000);
+
+            useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [] });
+            expect(hydrateLiveBbp()).toBe(false);
+            session.fc_bbp_live_gen = JSON.parse(local.fc_bbp_live ?? '{}').generation;
+            expect(hydrateLiveBbp()).toBe(true);
+            expect(useBbpStore.getState().startMs).toBe(9_000);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('a failed setItem drops the blob so reload cannot restore it', () => {
+        const { local } = installStorage();
+        try {
+            useBbpStore.getState().begin(1_000, [{ t: 0, ...sample(200) }]);
+            expect(local.fc_bbp_live).toBeTruthy();
+            vi.stubGlobal('localStorage', {
+                getItem: (k: string) => local[k] ?? null,
+                setItem: () => {
+                    throw new Error('quota');
+                },
+                removeItem: (k: string) => {
+                    delete local[k];
+                },
+            });
+            useBbpStore.getState().append(sample(210), 2_000);
+            expect(local.fc_bbp_live).toBeUndefined();
+            useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [] });
+            expect(hydrateLiveBbp()).toBe(false);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('chart-only preheat does not claim the tab token', () => {
+        const { local, session } = installStorage();
+        try {
+            useBbpStore.getState().begin(2_000, [], false);
+            useBbpStore.getState().append(sample(200), 3_000);
+            useBbpStore.getState().append(sample(201), 4_000);
             expect(useBbpStore.getState().points).toHaveLength(2);
-            expect(mem.fc_bbp_live).toBeUndefined();
-            expect(bbp.finalize(5_000, 'first-batch')).toBeNull();
+            expect(local.fc_bbp_live).toBeUndefined();
+            expect(session.fc_bbp_live_gen).toBeUndefined();
+            expect(useBbpStore.getState().finalize(5_000, 'first-batch')).toBeNull();
             expect(useBbpStore.getState()).toMatchObject({ active: false, recording: false, finalized: null });
         } finally {
             vi.unstubAllGlobals();
         }
     });
+
+    it('drops an unscoped legacy blob instead of restoring it', () => {
+        const { local } = installStorage();
+        try {
+            local.fc_bbp_live = JSON.stringify({
+                startMs: Date.now() - (48 * 60 + 19) * 1000,
+                points: [
+                    { t: 0, ...sample(180) },
+                    { t: 60, ...sample(190) },
+                ],
+            });
+            expect(hydrateLiveBbp()).toBe(false);
+            expect(local.fc_bbp_live).toBeUndefined();
+            expect(useBbpStore.getState().active).toBe(false);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
 });
+
+const installStorage = () => {
+    const local: Record<string, string> = {};
+    const session: Record<string, string> = {};
+    const api = (mem: Record<string, string>) => ({
+        getItem: (k: string) => mem[k] ?? null,
+        setItem: (k: string, v: string) => {
+            mem[k] = v;
+        },
+        removeItem: (k: string) => {
+            delete mem[k];
+        },
+    });
+    vi.stubGlobal('localStorage', api(local));
+    vi.stubGlobal('sessionStorage', api(session));
+    return { local, session };
+};
