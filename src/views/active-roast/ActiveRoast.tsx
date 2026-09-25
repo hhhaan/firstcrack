@@ -602,6 +602,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         showSummaryModal: saveFlow.flow.summaryModal,
         showContinueModal: saveFlow.flow.continueModal,
         phase,
+        awaitingNextCharge,
         onToggleFullscreen: toggleFullscreen,
         onExitFullscreen: exitFullscreen,
         onEnterStandby: lifecycle.handleEnterStandby,

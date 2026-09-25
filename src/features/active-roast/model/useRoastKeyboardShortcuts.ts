@@ -1,3 +1,6 @@
+import { i18n } from '@shared/i18n';
+import { message } from '@tauri-apps/plugin-dialog';
+import { useEffect } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 interface UseRoastKeyboardShortcutsParams {
@@ -8,6 +11,7 @@ interface UseRoastKeyboardShortcutsParams {
     /** When true, block roast hotkeys while continue-batch modal is open. */
     showContinueModal?: boolean;
     phase: string;
+    awaitingNextCharge: boolean;
     onToggleFullscreen: () => void;
     onExitFullscreen: () => void;
     onEnterStandby: () => void;
@@ -48,6 +52,11 @@ export function isRoastEventMarkEnabled(phase: string): boolean {
     return phase === 'roasting';
 }
 
+/** In-memory roast that a webview reload would drop. Preheat and standby stay refreshable. */
+export function isRoastRefreshBlocked(phase: string, awaitingNextCharge: boolean): boolean {
+    return phase === 'roasting' || phase === 'ended' || awaitingNextCharge;
+}
+
 /**
  * Event-marking hotkeys (Yellow / FC / Drop) only while roasting.
  * Standby/preheating must not create Drop etc. (disarms alerts).
@@ -69,6 +78,7 @@ export const useRoastKeyboardShortcuts = ({
     showSummaryModal,
     showContinueModal = false,
     phase,
+    awaitingNextCharge,
     onToggleFullscreen,
     onExitFullscreen,
     onEnterStandby,
@@ -96,6 +106,29 @@ export const useRoastKeyboardShortcuts = ({
         showContinueModal,
         phase,
     });
+
+    useEffect(() => {
+        // `pnpm dev` in a browser keeps F5. Only the desktop webview drops the roast on reload.
+        if (!('__TAURI_INTERNALS__' in window)) return;
+        if (!isRoastRefreshBlocked(phase, awaitingNextCharge)) return;
+
+        let alertOpen = false;
+        const preventRefresh = (event: KeyboardEvent) => {
+            const refresh = event.key === 'F5' || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'r');
+            if (!refresh) return;
+            event.preventDefault();
+            if (event.repeat || alertOpen) return;
+            alertOpen = true;
+            void message(i18n.t('activeRoast.dialogs.refreshBlockedMsg'), {
+                title: i18n.t('activeRoast.dialogs.refreshBlockedTitle'),
+                kind: 'warning',
+            }).finally(() => {
+                alertOpen = false;
+            });
+        };
+        window.addEventListener('keydown', preventRefresh, true);
+        return () => window.removeEventListener('keydown', preventRefresh, true);
+    }, [phase, awaitingNextCharge]);
 
     // Escape → exit fullscreen (only when fullscreen and no modal open)
     useHotkeys(
