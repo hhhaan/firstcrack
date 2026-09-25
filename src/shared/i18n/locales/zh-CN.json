@@ -4,6 +4,7 @@
         "live": "实时BBP",
         "target": "BBP目标",
         "timeOrigin": "距上次End的时间",
+        "preheatTimeOrigin": "预热开始后的时间",
         "duration": "BBP时长",
         "chargeTemp": "投豆温度",
         "loading": "正在加载BBP…",
