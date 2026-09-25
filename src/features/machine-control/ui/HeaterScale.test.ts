@@ -78,18 +78,22 @@ describe('HeaterScale A′ (#436)', () => {
         unmount();
     });
 
-    it('키보드 위/아래는 5%로 스냅한 뒤 커밋한다', () => {
+    it('슬라이더 키보드 위/아래는 1단위로 커밋한다', () => {
         const { container, onChange, onCommit, unmount } = renderScale({ value: 70, feedback: 70 });
         const slider = container.querySelector('input[type="range"]') as HTMLElement;
         act(() => {
             slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
         });
-        expect(onChange).toHaveBeenCalledWith('heater', 75);
+        expect(onChange).toHaveBeenCalledWith('heater', 71);
         expect(onCommit).toHaveBeenCalledTimes(1);
+        act(() => {
+            slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        });
+        expect(onChange).toHaveBeenLastCalledWith('heater', 72);
         act(() => {
             slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
         });
-        expect(onChange).toHaveBeenLastCalledWith('heater', 70);
+        expect(onChange).toHaveBeenLastCalledWith('heater', 71);
         unmount();
     });
 
@@ -216,7 +220,7 @@ describe('HeaterScale A′ (#436)', () => {
         scale.render({ ...scale.props, value, feedback: 80 });
         const slider = scale.container.querySelector('input[type="range"]') as HTMLElement;
         act(() => slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
-        expect(scale.onChange).toHaveBeenCalledExactlyOnceWith('heater', 75);
+        expect(scale.onChange).toHaveBeenCalledExactlyOnceWith('heater', 79);
         scale.unmount();
     });
 
@@ -304,7 +308,7 @@ describe('HeaterScale A′ (#436)', () => {
         scale.unmount();
     });
 
-    it('큰 숫자 입력은 1단위이고 블러에서만 보낸다', async () => {
+    it('큰 숫자 입력은 Enter에서만 보낸다', async () => {
         const send = vi.fn(async (cmd: { heater?: number }) => cmd);
         const sender = createControlSender({ send });
         const onChange = vi.fn((role: ControlRole, value: number) => sender.queue(role, value));
@@ -314,6 +318,7 @@ describe('HeaterScale A′ (#436)', () => {
         });
         const input = scale.container.querySelector('[data-heater-input]') as HTMLInputElement;
         const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => input.focus());
         act(() => {
             setValue?.call(input, '5');
             input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -324,9 +329,49 @@ describe('HeaterScale A′ (#436)', () => {
         });
         expect(send).not.toHaveBeenCalled();
         expect(onChange).not.toHaveBeenCalled();
-        await act(async () => input.dispatchEvent(new Event('focusout', { bubbles: true })));
+        expect((scale.container.querySelector('input[type="range"]') as HTMLInputElement).value).toBe('70');
+        await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
         expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 53);
         expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 53 });
+        scale.unmount();
+    });
+
+    it('큰 숫자 입력에서 포커스를 벗어나면 전송 없이 취소한다', () => {
+        const scale = renderScale();
+        const input = scale.container.querySelector('[data-heater-input]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => input.focus());
+        act(() => {
+            setValue?.call(input, '53');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() => input.blur());
+        expect(input.value).toBe('70');
+        expect((scale.container.querySelector('input[type="range"]') as HTMLInputElement).value).toBe('70');
+        expect(scale.onChange).not.toHaveBeenCalled();
+        expect(scale.onCommit).not.toHaveBeenCalled();
+        scale.unmount();
+    });
+
+    it('큰 숫자 입력의 화살표는 1단위로 수정하고 확정 전에는 막대를 움직이지 않는다', () => {
+        const scale = renderScale();
+        const input = scale.container.querySelector('[data-heater-input]') as HTMLInputElement;
+        const slider = scale.container.querySelector('input[type="range"]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => input.focus());
+        act(() => {
+            setValue?.call(input, '58');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true })));
+        expect(input.value).toBe('59');
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
+        expect(input.value).toBe('58');
+        expect(slider.value).toBe('70');
+        expect(scale.onChange).not.toHaveBeenCalled();
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+        expect(scale.onChange).toHaveBeenCalledExactlyOnceWith('heater', 58);
+        expect(scale.onCommit).toHaveBeenCalledTimes(1);
         scale.unmount();
     });
 
@@ -344,7 +389,7 @@ describe('HeaterScale A′ (#436)', () => {
             input.dispatchEvent(new Event('input', { bubbles: true }));
         });
         expect(input.value).toBe('129');
-        await act(async () => input.dispatchEvent(new Event('focusout', { bubbles: true })));
+        await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
         expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 100 });
         scale.unmount();
     });
