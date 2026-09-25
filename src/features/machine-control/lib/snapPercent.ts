@@ -1,4 +1,4 @@
-/** Quest Bean VOC 등 % 채널 — 탭/±/키보드 모두 이 간격으로 스냅 (#436) */
+/** Quest Bean VOC 등 % 채널 — 탭/± 간격으로 스냅 (#436) */
 export const PERCENT_SNAP = 5;
 
 export const isPercentUnit = (unit?: string): boolean => unit == null || unit === '%' || unit === '';
