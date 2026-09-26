@@ -38,7 +38,7 @@ export type { DeductRoastStockParams } from './model/useDeductRoastStock';
 export { useDeductRoastStock } from './model/useDeductRoastStock';
 export { useEffectivePollIntervalMs } from './model/useEffectivePollInterval';
 export { useRoastActions } from './model/useRoastActions';
-export { useRoastKeyboardShortcuts } from './model/useRoastKeyboardShortcuts';
+export { isRoastShortcutBaseEnabled, useRoastKeyboardShortcuts } from './model/useRoastKeyboardShortcuts';
 export type { SaveRoastFormData, SaveRoastParams, SaveRoastResult } from './model/useSaveRoast';
 export { useSaveRoast } from './model/useSaveRoast';
 export { RoastTempChart } from './ui/RoastTempChart';

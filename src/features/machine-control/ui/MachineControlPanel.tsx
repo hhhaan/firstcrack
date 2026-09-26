@@ -1,6 +1,7 @@
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { isMachineControlPanelShown, MACHINE_CONTROL_CHANNEL_ROLES } from '../lib/controlPanelShown';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
@@ -20,6 +21,7 @@ interface Props {
     pidDropBehavior: 'hold' | 'zero';
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
+    hotkeysEnabled?: boolean;
 }
 
 /**
@@ -29,7 +31,14 @@ interface Props {
  * 접혀도 PID/Replay 훅은 언마운트되지 않는다. 패널을 그릴지는
  * isMachineControlPanelShown이고, 전송 허용은 model이다.
  */
-export const MachineControlPanel = ({ model, liveData, replayPoints, pidDropBehavior, temperatureUnit }: Props) => {
+export const MachineControlPanel = ({
+    model,
+    liveData,
+    replayPoints,
+    pidDropBehavior,
+    temperatureUnit,
+    hotkeysEnabled = false,
+}: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
     const { machine, pid, replay, pidActive, changeManual, commitManual } = model;
     const { writable, limits, desired, unacknowledged, sending } = machine;
@@ -37,7 +46,17 @@ export const MachineControlPanel = ({ model, liveData, replayPoints, pidDropBeha
     const [heatEditorOpen, setHeatEditorOpen] = useState(false);
 
     const hasChannel = MACHINE_CONTROL_CHANNEL_ROLES.some((role) => limits[role] != null);
-    if (!isMachineControlPanelShown({ pidActive, entitled, writable, hasChannel })) return null;
+    const panelVisible = isMachineControlPanelShown({ pidActive, entitled, writable, hasChannel });
+    useHotkeys(
+        't',
+        (e) => {
+            e.preventDefault();
+            setCollapsed((collapsed) => !collapsed);
+        },
+        { enabled: hotkeysEnabled && panelVisible },
+        [hotkeysEnabled, panelVisible],
+    );
+    if (!panelVisible) return null;
 
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에
     // PID가 덮어써서 "슬라이더가 말을 안 듣는" 상태가 된다. 소유권을 명확히 한다.
@@ -65,7 +84,8 @@ export const MachineControlPanel = ({ model, liveData, replayPoints, pidDropBeha
                     onClick={() => setCollapsed((c) => !c)}
                     aria-label={collapsed ? 'Expand machine control' : 'Collapse machine control'}
                     aria-expanded={!collapsed}
-                    title={collapsed ? 'Expand machine control' : 'Collapse machine control'}
+                    aria-keyshortcuts="t"
+                    title={collapsed ? 'Expand machine control (T)' : 'Collapse machine control (T)'}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent"
                 >
                     {collapsed ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
