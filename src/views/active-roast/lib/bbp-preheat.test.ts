@@ -219,8 +219,9 @@ describe('first-batch preheat display', () => {
     });
 
     it('hide, show, and reload keep a recorded Charge wait', () => {
-        const mem: Record<string, string> = {};
-        vi.stubGlobal('localStorage', {
+        const local: Record<string, string> = {};
+        const session: Record<string, string> = {};
+        const api = (mem: Record<string, string>) => ({
             getItem: (k: string) => mem[k] ?? null,
             setItem: (k: string, v: string) => {
                 mem[k] = v;
@@ -229,6 +230,8 @@ describe('first-batch preheat display', () => {
                 delete mem[k];
             },
         });
+        vi.stubGlobal('localStorage', api(local));
+        vi.stubGlobal('sessionStorage', api(session));
         try {
             useBbpStore.getState().begin(BOOT, [
                 { t: 0, ...sample(180) },
@@ -246,7 +249,8 @@ describe('first-batch preheat display', () => {
             applyDecision('keep', BOOT + 10_000);
             expect(useBbpStore.getState().points[1]?.t).toBe(48);
             expect(useBbpStore.getState().startMs).toBe(BOOT);
-            expect(mem.fc_bbp_live).toBeTruthy();
+            expect(local.fc_bbp_live).toBeTruthy();
+            expect(session.fc_bbp_live_gen).toBeTruthy();
         } finally {
             vi.unstubAllGlobals();
         }
