@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import type {
     Cupping,
@@ -41,6 +42,23 @@ export type CuppingSampleWithMeta = CuppingSample & {
     score_count: number;
     avg_score: number | null;
 };
+
+/** PostgREST many-to-one embed is an object; generated types sometimes say array. */
+function beanFromEmbed(beans: unknown): BeanCuppingMeta | null {
+    const row = Array.isArray(beans) ? beans[0] : beans;
+    if (!row || typeof row !== 'object') return null;
+    const o = row as Record<string, unknown>;
+    if (typeof o.name !== 'string' || !o.name) return null;
+    const str = (v: unknown) => (typeof v === 'string' ? v : null);
+    return {
+        name: o.name,
+        origin: str(o.origin),
+        region: str(o.region),
+        variety: str(o.variety),
+        process: str(o.process),
+        farm: str(o.farm),
+    };
+}
 
 /** origin · region · variety · process · farm (skips empty) */
 export function formatBeanCuppingMeta(bean: Partial<BeanCuppingMeta> | null | undefined): string {
@@ -378,9 +396,12 @@ export const cuppingApi = {
     },
 
     listSamples: async (eventId: string): Promise<CuppingSampleWithMeta[]> => {
+        // Same event_id read as listEvents. Do not embed roast_sessions/beans here:
+        // that nested select can return zero parent rows (RLS or an inner join on a
+        // missing roast/bean) while `select id, event_id` still counts the samples.
         const { data: samples, error } = await supabase
             .from('cupping_samples')
-            .select('*, roast_sessions(id, roasted_at, beans(name, origin, region, variety, process, farm))')
+            .select('*')
             .eq('event_id', eventId)
             .order('sort_order', { ascending: true })
             .order('created_at', { ascending: true });
@@ -402,6 +423,26 @@ export const cuppingApi = {
             scoresBySample.set(row.sample_id, list);
         }
 
+        const roastIds = [...new Set(samples.map((s) => s.roast_session_id).filter((id): id is string => Boolean(id)))];
+        const roastById = new Map<string, NonNullable<CuppingSampleWithMeta['roast_sessions']>>();
+        if (roastIds.length) {
+            const { data: sessions, error: rErr } = await supabase
+                .from('roast_sessions')
+                .select('id, roasted_at, beans(name, origin, region, variety, process, farm)')
+                .in('id', roastIds);
+            // Bean/roast meta is display-only. A failed embed must not hide the samples.
+            if (rErr) logger.capture(rErr, { scope: 'cupping.listSamples.roastMeta', eventId });
+            else {
+                for (const row of sessions ?? []) {
+                    roastById.set(row.id, {
+                        id: row.id,
+                        roasted_at: row.roasted_at,
+                        beans: beanFromEmbed(row.beans),
+                    });
+                }
+            }
+        }
+
         return samples.map((s) => {
             const scoreList = scoresBySample.get(s.id) ?? [];
             const avg =
@@ -410,7 +451,7 @@ export const cuppingApi = {
                     : null;
             return {
                 ...s,
-                roast_sessions: s.roast_sessions,
+                roast_sessions: s.roast_session_id ? (roastById.get(s.roast_session_id) ?? null) : null,
                 score_count: scoreList.length,
                 avg_score: avg,
             };
