@@ -43,6 +43,19 @@ export const PendingRoastRecovery = () => {
         setDiscardTarget(null);
         setDiscardError('');
     };
+    useEffect(() => {
+        if (!discardTarget) return;
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            // Capture + stop so a parent list listener cannot close underneath this confirm.
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            setDiscardTarget(null);
+            setDiscardError('');
+        };
+        document.addEventListener('keydown', onKey, true);
+        return () => document.removeEventListener('keydown', onKey, true);
+    }, [discardTarget]);
     const confirmDiscard = () => {
         if (!discardTarget) return;
         if (isPendingRoastSaveActive(discardTarget.params.userId, discardTarget.params.sessionId)) {

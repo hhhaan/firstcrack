@@ -3,6 +3,7 @@ import {
     isRoastChargeShortcutEnabled,
     isRoastEventMarkEnabled,
     isRoastMarkShortcutEnabled,
+    isRoastRefreshBlocked,
     isRoastShortcutBaseEnabled,
 } from './useRoastKeyboardShortcuts';
 import shortcutsSrc from './useRoastKeyboardShortcuts.ts?raw';
@@ -60,6 +61,20 @@ describe('isRoastChargeShortcutEnabled', () => {
 describe('Charge hotkey form tags', () => {
     it('enables mod+enter on form fields while the summary is open', () => {
         expect(shortcutsSrc).toContain('enableOnFormTags: true');
+    });
+});
+
+describe('isRoastRefreshBlocked', () => {
+    it('blocks an in-progress roast, an unsaved end, and the gap before the next charge', () => {
+        expect(isRoastRefreshBlocked('roasting', false)).toBe(true);
+        expect(isRoastRefreshBlocked('ended', false)).toBe(true);
+        expect(isRoastRefreshBlocked('idle', true)).toBe(true);
+    });
+
+    it('leaves idle, preheating, and standby refreshable', () => {
+        expect(isRoastRefreshBlocked('idle', false)).toBe(false);
+        expect(isRoastRefreshBlocked('preheating', false)).toBe(false);
+        expect(isRoastRefreshBlocked('standby', false)).toBe(false);
     });
 });
 

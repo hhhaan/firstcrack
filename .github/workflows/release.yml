@@ -50,16 +50,19 @@ jobs:
             echo "::error::Cannot determine version. Push a semver tag (v*) or supply the 'version' input."
             exit 1
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Resolved version: $VERSION"
 
   ci-gate:
     needs: setup
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       checks: read
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v7
+
       - name: Wait for CI checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,43 +70,34 @@ jobs:
           echo "Checking CI status for commit ${GITHUB_SHA}..."
 
           # Retry up to 10 minutes (20×30s). Names = ci.yml job ids.
-          # skipped (ios-check path filter) is success, not pending.
+          # Shared policy: required=success, optional paths/ios-check may be skipped or absent.
           for i in $(seq 1 20); do
             RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
-              --jq '[.check_runs[] | select(.name == "paths" or .name == "check" or .name == "test" or .name == "sidecar" or .name == "ios-check" or .name == "semgrep" or .name == "gitleaks" or .name == "edge-check")]')
-            TOTAL=$(echo "$RESPONSE" | jq 'length')
+              --jq '[.check_runs[] | {name, status, conclusion}]')
 
-            if [ "$TOTAL" -eq 0 ]; then
-              # CI check-runs appear within seconds of a push. If none exist after
-              # ~2 min, this SHA was never a push head (e.g. tag on a stacked commit
-              # pushed in a batch — v1.1.18) and checks will NEVER appear. Fail fast.
-              if [ "$i" -ge 4 ]; then
-                echo "::error::No CI check-runs on ${GITHUB_SHA} after $i attempts — this commit was likely never a push head (tag points at a stacked commit). Tag the pushed main HEAD via 'pnpm release' instead."
-                exit 1
-              fi
-              echo "::warning::No CI checks found yet (attempt $i/20). Waiting 30s..."
-              sleep 30
-              continue
-            fi
+            STATUS=$(printf '%s' "$RESPONSE" | node scripts/check-release-ci.mjs)
+            echo "$RESPONSE" | jq -r '.[] | "  \(.name): \(.conclusion // .status)"'
+            echo "CI status: $STATUS (attempt $i/20)"
 
-            FAILED=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled")] | length')
-            PENDING=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion == null or .conclusion == "neutral")] | length')
-
-            echo "CI checks found: $TOTAL (pending: $PENDING, failed: $FAILED)"
-            echo "$RESPONSE" | jq -r '.[] | "  \(.name): \(.conclusion)"'
-
-            if [ "$FAILED" -gt 0 ]; then
-              echo "::error::$FAILED CI check(s) failed. Release aborted."
+            if [ "$STATUS" = "failed" ]; then
+              echo "::error::CI check(s) failed. Release aborted."
               exit 1
             fi
 
-            if [ "$PENDING" -eq 0 ]; then
+            if [ "$STATUS" = "ok" ]; then
               echo "✅ All CI checks passed."
               exit 0
             fi
 
+            # No check-runs at all after ~2 min: this SHA was never a push head
+            # (tag on a stacked commit — v1.1.18). A partial set keeps waiting.
+            if [ "$STATUS" = "empty" ] && [ "$i" -ge 4 ]; then
+              echo "::error::No CI check-runs on ${GITHUB_SHA} after $i attempts — this commit was likely never a push head (tag points at a stacked commit). Tag the pushed main HEAD via 'pnpm release' instead."
+              exit 1
+            fi
+
             if [ "$i" -lt 20 ]; then
-              echo "⏳ $PENDING check(s) still running — waiting 30s (attempt $i/20)..."
+              echo "⏳ CI still running — waiting 30s (attempt $i/20)..."
               sleep 30
             fi
           done
@@ -266,7 +260,7 @@ jobs:
         run: bash scripts/smoke-sidecar.sh ${{ matrix.target }}
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v1
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

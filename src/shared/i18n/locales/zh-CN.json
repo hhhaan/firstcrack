@@ -13,6 +13,9 @@
     },
     "common": {
         "cancel": "取消",
+        "quit": "退出",
+        "quitConfirmTitle": "退出 First Crack？",
+        "quitConfirmMessage": "退出应用将中断正在进行的烘焙。确定退出吗？",
         "close": "关闭",
         "connected": "已连接",
         "connecting": "连接中...",
@@ -731,7 +734,9 @@
             "beanDeletedTitle": "生豆不存在",
             "beanDeletedMsg": "所选生豆已删除。请重新选择。",
             "invalidWeightTitle": "重量数值无效",
-            "invalidWeightMsg": "重量数值无效，保存失败。烘焙后重量不能超过生豆投入量。请修正后重新保存。"
+            "invalidWeightMsg": "重量数值无效，保存失败。烘焙后重量不能超过生豆投入量。请修正后重新保存。",
+            "refreshBlockedTitle": "无法刷新",
+            "refreshBlockedMsg": "当前有进行中的烘焙，已阻止刷新。"
         },
         "alerts": {
             "rorCrash": "RoR 骤降 — 火力正在衰减",

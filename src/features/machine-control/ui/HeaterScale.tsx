@@ -2,7 +2,7 @@ import type { ControlLimit } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
 import { useEffect, useRef, useState } from 'react';
 import { CONVERGE_TOLERANCE, type ControlRole } from '../lib/controlSender';
-import { percentTicks, showLiveFollow, snapPercent, stepPercent } from '../lib/snapPercent';
+import { percentTicks, showLiveFollow, stepPercent } from '../lib/snapPercent';
 import { useHoldRepeat } from '../lib/useHoldRepeat';
 
 interface Props {
@@ -22,7 +22,7 @@ const stepBtnCls =
     'flex h-8 flex-1 items-center justify-center rounded-md border border-border bg-transparent font-mono text-xs text-secondary hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed';
 
 /**
- * 숫자 버튼·±5·키보드는 5% 즉시 전송. 세로 range·큰 숫자 입력은 1단위 미리보기, 손 뗄 때 전송.
+ * 숫자 버튼·±5는 5% 즉시 전송. 키보드는 1단위, 큰 숫자 입력은 Enter로 확정할 때 전송.
  * 채움·손잡이·선택 숫자는 desired(드래그 중엔 preview). 가로선·기기 n은 커밋 뒤에만.
  */
 export const HeaterScale = ({
@@ -52,8 +52,6 @@ export const HeaterScale = ({
     const selected = Math.round(shown);
     const valueRef = useRef(current);
     const [draft, setDraft] = useState<string | null>(null);
-    const skipCommitRef = useRef(false);
-    const originRef = useRef(current);
     const maxDigits = String(Math.floor(Math.max(Math.abs(min), Math.abs(max), 1))).length;
     useEffect(() => {
         if (preview == null) valueRef.current = current;
@@ -61,9 +59,9 @@ export const HeaterScale = ({
 
     const commit = (next: number) => {
         if (blocked) return;
-        const snapped = snapPercent(next, min, max);
-        valueRef.current = snapped;
-        onChange('heater', snapped);
+        const bounded = Math.min(max, Math.max(min, Math.round(next)));
+        valueRef.current = bounded;
+        onChange('heater', bounded);
         onCommit();
     };
 
@@ -113,28 +111,12 @@ export const HeaterScale = ({
         setPreview(null);
     };
 
-    const restoreOrigin = () => {
-        valueRef.current = originRef.current;
-        setPreview(null);
-        setDraft(null);
-    };
-
-    const finishType = () => {
-        if (skipCommitRef.current) {
-            skipCommitRef.current = false;
-            restoreOrigin();
-            return;
-        }
-        if (blocked || draft == null) {
+    const commitType = () => {
+        if (blocked || !draft) {
             setDraft(null);
-            setPreview(null);
             return;
         }
-        if (draft === '') {
-            restoreOrigin();
-            return;
-        }
-        const next = preview ?? Math.min(max, Math.max(min, Math.round(Number(draft))));
+        const next = Math.min(max, Math.max(min, Math.round(Number(draft))));
         valueRef.current = next;
         onChange('heater', next);
         onCommit();
@@ -167,21 +149,23 @@ export const HeaterScale = ({
                                     if (blocked) return;
                                     const next = e.target.value.replace(/\D/g, '').slice(0, maxDigits);
                                     setDraft(next);
-                                    if (next !== '') dragTo(Number(next));
                                 }}
-                                onBlur={finishType}
+                                onBlur={() => setDraft(null)}
                                 onFocus={(e) => {
-                                    originRef.current = current;
                                     e.currentTarget.select();
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                         e.preventDefault();
+                                        commitType();
                                         e.currentTarget.blur();
                                     } else if (e.key === 'Escape') {
                                         e.preventDefault();
-                                        skipCommitRef.current = true;
                                         e.currentTarget.blur();
+                                    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                        e.preventDefault();
+                                        const next = Number(draft || current) + (e.key === 'ArrowUp' ? 1 : -1);
+                                        setDraft(String(Math.min(max, Math.max(min, next))));
                                     }
                                 }}
                                 className="w-[3.5ch] border-0 bg-transparent p-0 text-right text-[28px] font-semibold leading-tight tracking-[-1px] text-primary tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed"
@@ -286,10 +270,10 @@ export const HeaterScale = ({
                     onKeyDown={(e) => {
                         if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
                             e.preventDefault();
-                            commit(stepPercent(valueRef.current, 5, min, max));
+                            commit(valueRef.current + 1);
                         } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
                             e.preventDefault();
-                            commit(stepPercent(valueRef.current, -5, min, max));
+                            commit(valueRef.current - 1);
                         } else if (e.key === 'Home' || e.key === 'End') {
                             e.preventDefault();
                             commit(e.key === 'Home' ? min : max);
