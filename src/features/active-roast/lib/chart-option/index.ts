@@ -79,6 +79,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showET,
         showRoR,
         showRoRET,
+        showControlHeat,
         controlData,
         unitLabel,
         rorUnit,
