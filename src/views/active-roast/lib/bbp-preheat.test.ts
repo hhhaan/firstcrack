@@ -21,7 +21,6 @@ const chartOf = (points: BbpPoint[]) =>
         roastTarget: [],
         bbpTarget: [],
         bbpTargetError: false,
-        bbpWindowSeconds: 1200,
     });
 
 describe('first-batch preheat display', () => {
