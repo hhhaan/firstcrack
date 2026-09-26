@@ -9,19 +9,15 @@ describe('bbp store', () => {
         useBbpStore.setState({ active: false, startMs: 0, points: [], finalized: null, finalizedPoints: [] });
     });
 
-    it('설정한 최근 구간만 큐에 남기고 Charge 때 저장한다', () => {
-        updateRoastSettings({ bbpWindowMinutes: 5 });
-        try {
-            const bbp = useBbpStore.getState();
-            bbp.begin(1_000);
-            for (const t of [0, 60, 300, 360]) bbp.append(sample(200 + t / 60), 1_000 + t * 1_000);
+    it('저장된 기록 범위 값은 FIFO 상한을 바꾸지 않는다', () => {
+        const legacyWindow = { bbpEnabled: true, bbpWindowMinutes: 5 };
+        updateRoastSettings(legacyWindow);
+        const bbp = useBbpStore.getState();
+        bbp.begin(1_000);
+        for (const t of [0, 60, 300, 360]) bbp.append(sample(200 + t / 60), 1_000 + t * 1_000);
 
-            expect(useBbpStore.getState().points.map((p) => p.t)).toEqual([60, 300, 360]);
-            expect(bbp.finalize(361_000, 'session-1')?.seconds).toBe(300);
-            expect(useBbpStore.getState().finalizedPoints.map((p) => p.t)).toEqual([0, 240, 300]);
-        } finally {
-            updateRoastSettings({ bbpWindowMinutes: 20 });
-        }
+        expect(useBbpStore.getState().points.map((p) => p.t)).toEqual([0, 60, 300, 360]);
+        expect(bbp.finalize(361_000, 'session-1')?.seconds).toBe(360);
     });
 
     it('begin은 기록을 시작한다', () => {

@@ -224,8 +224,6 @@
                 "bbp": "BBP",
                 "bbpDescription": "Record temperatures and controls between batches.",
                 "bbpEnabled": "Record BBP",
-                "bbpWindowMinutes": "BBP recording window",
-                "bbpWindowDescription": "Save only the most recent period before the next charge, up to 20 minutes.",
                 "autoCharge": "Auto Charge Detection",
                 "autoChargeDescription": "Detects when bean temperature turns downward while waiting for Charge. Manual Charge remains available when disabled.",
                 "autoDrop": "Auto Drop Detection",

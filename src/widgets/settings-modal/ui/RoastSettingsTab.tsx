@@ -494,19 +494,6 @@ export const RoastSettingsTab = () => {
                             updateRoastSettings({ bbpEnabled: !roastSettings.bbpEnabled });
                         }}
                     />
-                    <SettingsOptionRow justify="between">
-                        <div>
-                            <div className={settingsOptionLabelCls}>{tk('bbpWindowMinutes')}</div>
-                            <div className={settingsOptionDescCls}>{tk('bbpWindowDescription')}</div>
-                        </div>
-                        <NumberInput
-                            value={roastSettings.bbpWindowMinutes}
-                            onChange={(v) => updateRoastSettings({ bbpWindowMinutes: v })}
-                            min={1}
-                            max={20}
-                            suffix="min"
-                        />
-                    </SettingsOptionRow>
                 </SectionCard.Body>
             </SectionCard>
 

@@ -224,8 +224,6 @@
                 "bbp": "BBP",
                 "bbpDescription": "记录批次之间的温度和控制值。",
                 "bbpEnabled": "记录 BBP",
-                "bbpWindowMinutes": "BBP 记录范围",
-                "bbpWindowDescription": "仅保存下次投豆前的最近时段，最多20分钟。",
                 "autoCharge": "自动 Charge 检测",
                 "autoChargeDescription": "等待投豆时检测豆温转为下降。关闭后仍可手动投豆。",
                 "autoDrop": "自动 Drop 检测",

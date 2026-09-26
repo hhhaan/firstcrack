@@ -2,12 +2,16 @@ import { FEATURE, planHasFeature } from '@shared/lib/features';
 import { describe, expect, it } from 'vitest';
 import { coercePollIntervalForPlan, normalizeRoastSettings } from './settings';
 
-it('BBP 설정을 복원할 때 저장 범위를 검증한다', () => {
-    expect(normalizeRoastSettings({ bbpEnabled: false, bbpWindowMinutes: 0 })).toMatchObject({
-        bbpEnabled: false,
-        bbpWindowMinutes: 1,
-    });
-    expect(normalizeRoastSettings({ bbpWindowMinutes: 100 }).bbpWindowMinutes).toBe(20);
+it('이전에 저장된 BBP 기록 범위는 켜기/끄기 외에 영향을 주지 않는다', () => {
+    const stored = { bbpEnabled: false, bbpWindowMinutes: 5 };
+    const zero = { bbpEnabled: true, bbpWindowMinutes: 0 };
+    const huge = { bbpEnabled: true, bbpWindowMinutes: 100 };
+    const settings = normalizeRoastSettings(stored);
+    expect(settings.bbpEnabled).toBe(false);
+    expect(settings).not.toHaveProperty('bbpWindowMinutes');
+    expect(normalizeRoastSettings(zero).bbpEnabled).toBe(true);
+    expect(normalizeRoastSettings(zero)).not.toHaveProperty('bbpWindowMinutes');
+    expect(normalizeRoastSettings(huge)).not.toHaveProperty('bbpWindowMinutes');
 });
 
 describe('coercePollIntervalForPlan', () => {

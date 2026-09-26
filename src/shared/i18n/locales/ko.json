@@ -224,8 +224,6 @@
                 "bbp": "BBP",
                 "bbpDescription": "배치 사이의 온도와 제어값을 기록합니다.",
                 "bbpEnabled": "BBP 기록",
-                "bbpWindowMinutes": "BBP 기록 범위",
-                "bbpWindowDescription": "다음 투입 직전의 최근 구간만 저장합니다. 최대 20분.",
                 "autoCharge": "자동 Charge 감지",
                 "autoChargeDescription": "투입 대기 중 원두 온도의 하강 전환을 감지합니다. 꺼도 수동 투입은 가능합니다.",
                 "autoDrop": "자동 Drop 감지",

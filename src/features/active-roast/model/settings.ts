@@ -37,8 +37,6 @@ export type RoastSettings = {
     /** FC Start–End vertical band on the temp chart */
     showFcBand: boolean;
     bbpEnabled: boolean;
-    /** Recent BBP window retained and saved, in minutes (1–20). */
-    bbpWindowMinutes: number;
     eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
     tempMaxC: number;
@@ -108,7 +106,6 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showPhaseBar: true,
     showFcBand: true,
     bbpEnabled: true,
-    bbpWindowMinutes: 20,
     eventMarkerStyle: 'both',
     tempMinC: 130,
     tempMaxC: 240,
@@ -165,8 +162,16 @@ export const coercePollIntervalForPlan = (ms: PollIntervalMs, canFastPoll: boole
     ms === 500 && !canFastPoll ? 1000 : ms;
 
 export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
-    const { autoDropDropC: _legacyDropC, ...rest } = { ...(raw ?? {}) } as Partial<RoastSettings> & {
+    const {
+        autoDropDropC: _legacyDropC,
+        bbpWindowMinutes: _legacyBbpWindow,
+        ...rest
+    } = {
+        ...(raw ?? {}),
+    } as Partial<RoastSettings> & {
         autoDropDropC?: unknown;
+        /** Removed setting. Old stores may still contain it; it must not affect the cap. */
+        bbpWindowMinutes?: unknown;
     };
     const merged = { ...DEFAULT_SETTINGS, ...rest };
     let controlYMin = clampNum(merged.controlYMin, -50, 500, DEFAULT_SETTINGS.controlYMin);
@@ -192,7 +197,6 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         showTargetDeltaLabel: asBool(merged.showTargetDeltaLabel, DEFAULT_SETTINGS.showTargetDeltaLabel),
         showFcBand: asBool(merged.showFcBand, DEFAULT_SETTINGS.showFcBand),
         bbpEnabled: asBool(merged.bbpEnabled, DEFAULT_SETTINGS.bbpEnabled),
-        bbpWindowMinutes: Math.round(clampNum(merged.bbpWindowMinutes, 1, 20, DEFAULT_SETTINGS.bbpWindowMinutes)),
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,

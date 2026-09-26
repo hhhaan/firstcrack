@@ -224,8 +224,6 @@
                 "bbp": "BBP",
                 "bbpDescription": "バッチ間の温度と制御値を記録します。",
                 "bbpEnabled": "BBPを記録",
-                "bbpWindowMinutes": "BBP記録範囲",
-                "bbpWindowDescription": "次の投入直前の範囲だけを保存します。最大20分。",
                 "autoCharge": "自動 Charge 検出",
                 "autoChargeDescription": "投入待機中に豆温度が下降に転じたことを検出します。オフでも手動投入できます。",
                 "autoDrop": "自動 Drop 検出",
