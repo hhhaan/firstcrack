@@ -8,6 +8,8 @@ export interface TooltipFormatterParams {
     showET: boolean;
     showRoR: boolean;
     showRoRET: boolean;
+    /** Heat 시리즈를 끈 상태에서는 목표 행도 숨긴다. 선과 툴팁이 같은 토글을 따른다. */
+    showControlHeat: boolean;
     controlData?: ControlData;
     unitLabel: string;
     rorUnit: string;
@@ -43,7 +45,7 @@ export const lastDrawnSampleSec = (
 };
 
 export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
-    const { showET, showRoR, showRoRET, controlData, unitLabel, rorUnit, colors, dataEndSec } = opts;
+    const { showET, showRoR, showRoRET, showControlHeat, controlData, unitLabel, rorUnit, colors, dataEndSec } = opts;
 
     // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
     return (params: any) => {
@@ -58,7 +60,7 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
 
         let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
 
-        const target = controlData?.heatTarget;
+        const target = showControlHeat ? controlData?.heatTarget : undefined;
         if (target && timeSec <= target.xs[target.xs.length - 1]) {
             for (let i = target.xs.length - 1; i >= 0; i--) {
                 if (timeSec < target.xs[i]) continue;

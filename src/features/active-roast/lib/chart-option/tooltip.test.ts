@@ -41,6 +41,7 @@ const formatterOpts = {
     showET: true,
     showRoR: true,
     showRoRET: false,
+    showControlHeat: true,
     unitLabel: '°C',
     rorUnit: '°C/min',
     colors,
@@ -85,6 +86,23 @@ describe('createAxisTooltipFormatter', () => {
             },
         });
         expect(fmt([{ axisValue: 90, seriesName: 'Heat', value: [90, 40] }])).toContain('Heat target: <span>80%');
+    });
+
+    it('hides the profile heat target when the heat series is off', () => {
+        const fmt = createAxisTooltipFormatter({
+            ...formatterOpts,
+            showControlHeat: false,
+            controlData: {
+                xs: [0, 90],
+                drumTemp: [50, 50],
+                heatPower: [40, 40],
+                fanSpeed: [20, 20],
+                heatTarget: { xs: [0, 120, 600], values: [80, 60, 60] },
+            },
+        });
+        const html = fmt([{ axisValue: 90, seriesName: 'Fan', value: [90, 20] }]);
+        expect(html).toContain('Fan:');
+        expect(html).not.toContain('Heat target');
     });
 
     it('hides target-only tooltip past the drawn curve', () => {
