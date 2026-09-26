@@ -1183,6 +1183,9 @@
     },
     "heaterEventsEditor": {
         "title": "Edit heat",
+        "chartTitle": "Heat plan",
+        "stepsTitle": "Heat steps",
+        "ruleTitle": "Add BT condition",
         "subtitleBatch": "This batch only. The profile stays unchanged.",
         "subtitleProfile": "Saved on this profile. Batches that use it replay these steps.",
         "sourceTsv": "From recorded heat",

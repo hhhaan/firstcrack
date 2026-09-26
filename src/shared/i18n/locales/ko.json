@@ -1183,6 +1183,9 @@
     },
     "heaterEventsEditor": {
         "title": "화력 편집",
+        "chartTitle": "화력 흐름",
+        "stepsTitle": "화력 스텝",
+        "ruleTitle": "BT 조건 추가",
         "subtitleBatch": "이번 배치만. 프로파일은 그대로입니다.",
         "subtitleProfile": "이 프로파일에 저장됩니다. 이 프로파일을 쓰는 배치가 이 스텝을 재생합니다.",
         "sourceTsv": "기록된 화력",

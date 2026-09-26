@@ -1183,6 +1183,9 @@
     },
     "heaterEventsEditor": {
         "title": "火力を編集",
+        "chartTitle": "火力の推移",
+        "stepsTitle": "火力ステップ",
+        "ruleTitle": "BT条件を追加",
         "subtitleBatch": "このバッチのみ。プロファイルは変わりません。",
         "subtitleProfile": "このプロファイルに保存します。使うバッチがこのステップを再生します。",
         "sourceTsv": "記録された火力",
