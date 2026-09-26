@@ -40,9 +40,9 @@ import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import {
     bbpTimeOriginKey,
+    chartOnlyPreheatDecision,
     noteChartOnlyPreheatMount,
     shouldResetChartOnlyPreheatOnPageRestore,
-    shouldStartChartOnlyPreheat,
     takePreheatMountEpoch,
 } from './lib/bbp-preheat';
 import {
@@ -478,18 +478,41 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [resetAutoDetection, disableAutoCharge, disableAutoDrop, rearmAutoCharge, triggerCharge]);
 
     const [preheatMountEpoch] = useState(takePreheatMountEpoch);
+    const wasPreheatVisibleRef = useRef(false);
+    const reloadRestartedRef = useRef(false);
+    const isActiveRef = useRef(isActive);
+    isActiveRef.current = isActive;
 
     const recoverLiveBbp = lifecycle.recoverLiveBbp;
     useEffect(() => {
         recoverLiveBbp();
     }, [recoverLiveBbp]);
     useEffect(() => {
-        if (!bbpEnabled || awaitingNextCharge || (phase !== 'preheating' && phase !== 'standby')) return;
-        if (useRoastingStore.getState().awaitingNextCharge) return;
-        if (!shouldStartChartOnlyPreheat(useBbpStore.getState(), chartOnlyPreheatBootMs, preheatMountEpoch)) return;
-        useBbpStore.getState().begin(Date.now(), [], false);
-        noteChartOnlyPreheatMount(preheatMountEpoch);
-    }, [bbpEnabled, awaitingNextCharge, phase, preheatMountEpoch]);
+        const justShown = isActive && !wasPreheatVisibleRef.current;
+        wasPreheatVisibleRef.current = isActive;
+        const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+        const decision = chartOnlyPreheatDecision({
+            visible: isActive,
+            justShown,
+            bbp: useBbpStore.getState(),
+            bootMs: chartOnlyPreheatBootMs,
+            mountEpoch: preheatMountEpoch,
+            phase,
+            awaitingNextCharge,
+            bbpEnabled,
+            navigationType: nav?.type,
+            reloadConsumed: reloadRestartedRef.current,
+        });
+        if (decision === 'abort') {
+            useBbpStore.getState().abort();
+            return;
+        }
+        if (decision === 'begin') {
+            if (nav?.type === 'reload') reloadRestartedRef.current = true;
+            useBbpStore.getState().begin(Date.now(), [], false);
+            noteChartOnlyPreheatMount(preheatMountEpoch);
+        }
+    }, [isActive, bbpEnabled, awaitingNextCharge, phase, preheatMountEpoch]);
     useEffect(() => {
         const onPageShow = (event: PageTransitionEvent) => {
             const roast = useRoastingStore.getState();
@@ -505,6 +528,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 )
             )
                 return;
+            // Hidden shell: drop the restored curve. Showing the view begins a new one.
+            if (!isActiveRef.current) {
+                useBbpStore.getState().abort();
+                return;
+            }
+            reloadRestartedRef.current = true;
             useBbpStore.getState().begin(Date.now(), [], false);
             noteChartOnlyPreheatMount(preheatMountEpoch);
         };

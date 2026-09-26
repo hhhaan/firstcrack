@@ -7,7 +7,11 @@ export const bbpTimeOriginKey = (recording: boolean): 'bbp.timeOrigin' | 'bbp.pr
  * bootMs only catches a store left over from before this module evaluated (HMR).
  * A new Active Roast mount — fresh tree, dashboard initial view, same document —
  * gets a new epoch so that curve restarts even when startMs is still newer than bootMs.
- * A recorded Charge wait is never restarted.
+ * Sidebar navigation does not remount Active Roast (the shell hides it and toggles
+ * isActive), so the epoch stays put and the poll loop keeps appending. That curve
+ * restarts when the roast view is shown again. A reload does too, even on the same
+ * epoch: chart-only samples are not stored, so a surviving JS realm would otherwise
+ * keep the old startMs. A recorded Charge wait is never restarted.
  */
 let chartOnlyMountEpoch = 0;
 let nextPreheatMountEpoch = 0;
@@ -49,4 +53,41 @@ export const shouldResetChartOnlyPreheatOnPageRestore = (
     const chartOnly = !bbp.recording && !awaitingNextCharge && (phase === 'preheating' || phase === 'standby');
     if (!chartOnly) return false;
     return persisted || navigationType === 'reload';
+};
+
+export type ChartOnlyPreheatDecision = 'begin' | 'abort' | 'keep';
+
+type ChartOnlyPreheatInput = {
+    visible: boolean;
+    /** True on the transition into the roast view. The component often stays mounted. */
+    justShown: boolean;
+    bbp: { active: boolean; recording: boolean; startMs: number };
+    bootMs: number;
+    mountEpoch?: number;
+    phase: string;
+    awaitingNextCharge: boolean;
+    bbpEnabled: boolean;
+    navigationType?: string;
+    /** This document already restarted chart-only preheat for a reload. */
+    reloadConsumed?: boolean;
+};
+
+/**
+ * Chart-only: abort while the roast view is hidden, begin when it is shown or on reload.
+ * Recorded Charge wait (recording or awaiting the next Charge) is left alone, including
+ * across hide and reload.
+ */
+export const chartOnlyPreheatDecision = (input: ChartOnlyPreheatInput): ChartOnlyPreheatDecision => {
+    const recorded = input.bbp.recording || input.awaitingNextCharge;
+    if (!input.visible) {
+        if (recorded || !input.bbp.active) return 'keep';
+        if (input.phase === 'roasting' || input.phase === 'ended') return 'keep';
+        return 'abort';
+    }
+    if (!input.bbpEnabled || recorded) return 'keep';
+    if (input.phase !== 'preheating' && input.phase !== 'standby') return 'keep';
+    if (input.justShown) return 'begin';
+    if (input.navigationType === 'reload' && !input.reloadConsumed) return 'begin';
+    if (!shouldStartChartOnlyPreheat(input.bbp, input.bootMs, input.mountEpoch)) return 'keep';
+    return 'begin';
 };
