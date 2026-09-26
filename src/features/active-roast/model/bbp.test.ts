@@ -51,20 +51,20 @@ describe('bbp store', () => {
         expect(useBbpStore.getState().points).toHaveLength(0);
     });
 
-    it('append는 20분을 넘으면 오래된 헤드를 버리고 Charge 직전 20분만 남긴다', () => {
-        expect(BBP_MAX_SECONDS).toBe(1200);
+    it('append는 15분을 넘으면 오래된 헤드를 버리고 Charge 직전 15분만 남긴다', () => {
+        expect(BBP_MAX_SECONDS).toBe(900);
         const st = useBbpStore.getState();
         st.begin(0);
         st.append(sample(210), 1_000);
         st.append(sample(208), 2_000);
         st.append(sample(200), 60_000);
         st.append(sample(199), 61_000);
-        st.append(sample(195), 1_260_000); // 21분 — 헤드 t=1,2 폐기
+        st.append(sample(195), 960_000); // 16분 — 헤드 t=1,2 폐기
 
         expect(useBbpStore.getState().points.map((p) => [p.t, p.bt])).toEqual([
             [60, 200],
             [61, 199],
-            [1260, 195],
+            [960, 195],
         ]);
     });
 
@@ -134,11 +134,11 @@ describe('bbp store', () => {
     });
 
     it.each([
-        { waitSec: 1260, label: '21분' },
+        { waitSec: 960, label: '16분' },
         { waitSec: 2940, label: '49분' },
         { waitSec: 1800, label: '구 30분 폐기 경계' },
-    ])('finalize는 Charge가 $label이어도 직전 1200초만 저장하고 null이 아니다', ({ waitSec }) => {
-        const origin = waitSec - 1200;
+    ])('finalize는 Charge가 $label이어도 직전 900초만 저장하고 null이 아니다', ({ waitSec }) => {
+        const origin = waitSec - 900;
         const st = useBbpStore.getState();
         st.begin(0);
         st.append(sample(210), 1_000);
@@ -149,21 +149,21 @@ describe('bbp store', () => {
 
         const result = useBbpStore.getState().finalize(waitSec * 1000, 's2');
         expect(result).not.toBeNull();
-        expect(result?.seconds).toBe(1200);
+        expect(result?.seconds).toBe(900);
         expect(result?.chargeTemp).toBe(195.4);
         expect(result?.tsv).toBe(
             'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\n' +
                 '0.0\t200\t200\t\t50\t40\t60\t\n' +
                 '1.0\t199\t200\t\t50\t40\t60\t\n' +
-                '1200.0\t195.4\t200\t\t50\t40\t60\t\n',
+                '900.0\t195.4\t200\t\t50\t40\t60\t\n',
         );
         expect(result?.tsv).not.toContain(String(waitSec));
         expect(useBbpStore.getState().finalized).toEqual({
             sessionId: 's2',
-            seconds: 1200,
+            seconds: 900,
             chargeTemp: 195.4,
         });
-        expect(useBbpStore.getState().finalizedPoints.map((p) => p.t)).toEqual([0, 1, 1200]);
+        expect(useBbpStore.getState().finalizedPoints.map((p) => p.t)).toEqual([0, 1, 900]);
     });
 
     it('begin은 auto Drop lookback seed를 시작점에 붙인다', () => {

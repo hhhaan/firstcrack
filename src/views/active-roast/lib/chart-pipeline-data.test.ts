@@ -64,4 +64,15 @@ describe('buildLiveChartData', () => {
         expect(rows[0].time).toBe(0);
         expect(rows[rows.length - 1].time).toBe(900);
     });
+
+    it.each([
+        ['16-min recording clipped to 15:00', 900],
+        ['49-min recording clipped to 15:00', 900],
+        ['legacy 20-min reference clipped to 15:00', 900],
+    ])('%s keeps the wait axis at 15:00 and leaves the roast fallback at 780', (_label, end) => {
+        expect(CHART_TOTAL_SECS).toBe(780);
+        const rows = buildLiveChartData([pt(0), pt(end)], 0, 0, 900);
+        expect(rows[0].time).toBe(0);
+        expect(rows[rows.length - 1].time).toBe(900);
+    });
 });

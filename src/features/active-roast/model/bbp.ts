@@ -2,7 +2,7 @@ import { TSV_HEADER } from '@shared/lib/tsv-writer';
 import { create } from 'zustand';
 
 /** Rolling FIFO window (seconds) kept immediately before Charge. */
-export const BBP_MAX_SECONDS = 1200;
+export const BBP_MAX_SECONDS = 900;
 
 export interface BbpSample {
     bt: number;
