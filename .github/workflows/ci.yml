@@ -95,6 +95,9 @@ jobs:
 
       - name: Knip
         run: pnpm knip --reporter github-actions --reporter symbols
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: ci-anon-key-not-a-secret
 
       - name: Type check
         run: pnpm typecheck
