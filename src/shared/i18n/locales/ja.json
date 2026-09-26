@@ -1044,6 +1044,10 @@
         "exportTitle": "First Crack",
         "exportOkLabel": "エクスポート",
         "exportCancelLabel": "キャンセル",
+        "exportPdf": "PDF",
+        "exportPdfConfirm": "保存先: {{path}}\nこの焙煎グラフをA4横向き1ページのPDFに書き出しますか？",
+        "exportPdfUnavailable": "書き出せるチャートがありません。",
+        "exportPdfFailed": "焙煎グラフPDFを書き出せませんでした。",
         "exportModal": {
             "title": "CSV書き出し",
             "description": "書き出す期間を選択してください。一覧のフィルターとは別に適用されます。",

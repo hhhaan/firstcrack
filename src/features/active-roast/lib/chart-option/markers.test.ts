@@ -244,6 +244,17 @@ describe('layoutCurveLabelBoxes', () => {
         expect(box.right).toBe(box.x + estimateLabelWidth(text));
     });
 
+    it('keeps edge labels inside the canvas while preserving their curve anchors', () => {
+        const boxes = layoutCurveLabelBoxes(
+            [item({ xPx: 0, timeSec: 0 }), item({ xPx: 980, timeSec: 600, text: 'Drop | 10:00 | 205.0°C' })],
+            1000,
+        );
+        expect(boxes[0].left).toBe(4);
+        expect(boxes[0].anchorX).toBe(0);
+        expect(boxes[1].right).toBe(996);
+        expect(boxes[1].anchorX).toBe(980);
+    });
+
     it('stacks same-spot labels so their boxes do not overlap', () => {
         const [first, second] = layoutCurveLabelBoxes([
             item({ timeSec: 490, text: 'FC Start | 08:10 | 185.8°C' }),

@@ -275,7 +275,8 @@ export const buildContinuousMarkerSeries = (
                 x2: x,
                 y2: hasControlSeries ? api.getHeight() - CONTROL_GRID_BOTTOM : plotY + plotHeight,
             },
-            style: { stroke: api.value(1), lineWidth: api.value(2) },
+            // Keep CSS colors outside ECharts numeric data dimensions.
+            style: { stroke: lines[params.dataIndex].color, lineWidth: lines[params.dataIndex].width },
             silent: true,
         };
     },
@@ -314,6 +315,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
                     },
                 ];
             }),
+            api.getWidth(),
         );
         // biome-ignore lint/suspicious/noExplicitAny: ECharts graphic children
         const children: any[] = [];
@@ -335,7 +337,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
                     font: '600 10px monospace',
                     textAlign: 'left',
                     textVerticalAlign: box.below ? 'top' : 'bottom',
-                    width: MARKER_LABEL_MAX_WIDTH_PX,
+                    width: Math.min(MARKER_LABEL_MAX_WIDTH_PX, api.getWidth() - 8),
                     overflow: 'truncate',
                 },
             });

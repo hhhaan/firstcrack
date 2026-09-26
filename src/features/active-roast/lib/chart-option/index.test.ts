@@ -350,13 +350,22 @@ describe('buildRoastChartOption', () => {
             }[]
         ).find((series) => series.name === 'Event marker lines');
         expect(markerSeries?.clip).toBe(false);
-        const api = { coord: () => [50, 100], value: (index: number) => [30, '#23', 0.6][index], getHeight: () => 500 };
-        expect(markerSeries?.renderItem?.({ coordSys: { x: 20, y: 10, width: 200, height: 300 } }, api)).toEqual(
-            expect.objectContaining({ shape: { x1: 50, y1: 10, x2: 50, y2: 470 } }),
+        const api = {
+            coord: () => [50, 100],
+            value: (index: number) => [30, Number.NaN, 0.6][index],
+            getHeight: () => 500,
+        };
+        expect(
+            markerSeries?.renderItem?.({ dataIndex: 0, coordSys: { x: 20, y: 10, width: 200, height: 300 } }, api),
+        ).toEqual(
+            expect.objectContaining({
+                shape: { x1: 50, y1: 10, x2: 50, y2: 470 },
+                style: { stroke: baseParams().colors.eventMark, lineWidth: 0.6 },
+            }),
         );
         expect(
             markerSeries?.renderItem?.(
-                { coordSys: { x: 60, y: 10, width: 200, height: 300 } },
+                { dataIndex: 0, coordSys: { x: 60, y: 10, width: 200, height: 300 } },
                 { ...api, coord: () => [50, 100] },
             ),
         ).toBeUndefined();
@@ -375,8 +384,8 @@ describe('buildRoastChartOption', () => {
             }[]
         ).find((series) => series.name === 'Event marker lines');
         const result = markerSeries?.renderItem?.(
-            { coordSys: { x: 20, y: 10, width: 200, height: 300 } },
-            { coord: () => [50, 100], value: (index: number) => [30, '#23', 0.6][index], getHeight: () => 500 },
+            { dataIndex: 0, coordSys: { x: 20, y: 10, width: 200, height: 300 } },
+            { coord: () => [50, 100], value: (index: number) => [30, Number.NaN, 0.6][index], getHeight: () => 500 },
         );
         expect(result?.shape.y2).toBe(310);
     });
@@ -404,7 +413,7 @@ describe('buildRoastChartOption', () => {
         expect(labelSeries?.data).toEqual([[0]]);
         const result = labelSeries?.renderItem?.(
             { dataIndex: 0, coordSys: { x: 0, y: 0, width: 400, height: 300 } },
-            { coord: (value: number[]) => [value[0] * 2, 250 - value[1]] },
+            { coord: (value: number[]) => [value[0] * 2, 250 - value[1]], getWidth: () => 440 },
         );
         const text = result?.children.find((child) => child.type === 'text');
         expect(text).toMatchObject({ type: 'text', x: 124, y: 65 });

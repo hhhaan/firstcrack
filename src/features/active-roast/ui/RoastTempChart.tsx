@@ -79,6 +79,7 @@ export interface RoastTempChartHandle {
     endMarkerDrag: (pointerId: number) => boolean;
     hitTestMarker: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
     openMarkerEdit: (event: Pick<PointerEvent, 'clientX' | 'clientY'>) => boolean;
+    getDataURL: (size?: { width: number; height: number; pixelRatio?: number }) => string | null;
 }
 
 const scalar = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
@@ -196,9 +197,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         };
     }, []);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
-    const option = useMemo(
-        () =>
+    const makeOption = useCallback(
+        (colors = getResolvedChartColors()) =>
             buildRoastChartOption({
                 xs,
                 btTarget,
@@ -236,7 +236,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 xViewMax,
                 bbpRange,
                 hideChargeLabel,
-                colors: getResolvedChartColors(),
+                colors,
             }),
         [
             xs,
@@ -267,7 +267,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             controlYMax,
             phaseSegments,
             showFcBand,
-            resolvedTheme,
             tempMinC,
             tempMaxC,
             rorYMin,
@@ -278,6 +277,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             hideChargeLabel,
         ],
     );
+
+    const option = useMemo(() => {
+        // CSS chart tokens change with the theme, although the data does not.
+        void resolvedTheme;
+        return makeOption();
+    }, [makeOption, resolvedTheme]);
 
     const structureKey = [
         charged,
@@ -399,7 +404,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     };
                 }),
             ];
-            const boxes = layoutCurveLabelBoxes(layoutInputs);
+            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth());
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
                 if (!marker?.logId || marker.event === 'Charge') return [];
@@ -516,10 +521,34 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         [findDraggableMarker, localPoint, onEventMarkerEdit],
     );
 
+    const getDataURL = useCallback(
+        (size?: { width: number; height: number; pixelRatio?: number }) => {
+            const chart = chartInstanceRef.current;
+            if (!chart) return null;
+            const opts = { type: 'png' as const, pixelRatio: 2, backgroundColor: '#ffffff' };
+            if (!size || size.width < 1 || size.height < 1) return chart.getDataURL(opts);
+
+            // Layout in CSS pixels, rasterize at print density so text and strokes scale together.
+            const pixelRatio = size.pixelRatio ?? 2;
+            const el = document.createElement('div');
+            el.style.cssText = `position:absolute;left:-9999px;top:0;width:${size.width / pixelRatio}px;height:${size.height / pixelRatio}px`;
+            document.body.appendChild(el);
+            const clone = echarts.init(el, undefined, { renderer: 'canvas', devicePixelRatio: pixelRatio });
+            try {
+                clone.setOption(makeOption(getResolvedChartColors(true)), true);
+                return clone.getDataURL({ ...opts, pixelRatio });
+            } finally {
+                if (clone !== chart) clone.dispose();
+                el.remove();
+            }
+        },
+        [makeOption],
+    );
+
     useImperativeHandle(
         ref,
-        () => ({ beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit }),
-        [beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit],
+        () => ({ beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit, getDataURL }),
+        [beginMarkerDrag, moveMarkerDrag, endMarkerDrag, hitTestMarker, openMarkerEdit, getDataURL],
     );
 
     useEffect(

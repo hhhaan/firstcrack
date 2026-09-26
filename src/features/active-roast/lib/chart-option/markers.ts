@@ -93,9 +93,9 @@ const boxesOverlap = (a: CurveLabelBox, b: CurveLabelBox) =>
     a.top < b.bottom + MARKER_LABEL_GAP_PX &&
     a.bottom + MARKER_LABEL_GAP_PX > b.top;
 
-const makeLabelBox = (item: CurveLabelLayoutInput, textY: number): CurveLabelBox => {
-    const width = estimateLabelWidth(item.text);
-    const x = item.xPx + MARKER_LABEL_X_OFFSET_PX;
+const makeLabelBox = (item: CurveLabelLayoutInput, textY: number, canvasWidth: number): CurveLabelBox => {
+    const width = Math.min(estimateLabelWidth(item.text), Math.max(0, canvasWidth - 8));
+    const x = Math.max(4, Math.min(item.xPx + MARKER_LABEL_X_OFFSET_PX, canvasWidth - 4 - width));
     const top = item.below ? textY : textY - MARKER_LABEL_STACK_PX;
     const bottom = item.below ? textY + MARKER_LABEL_STACK_PX : textY;
     return {
@@ -116,7 +116,7 @@ const makeLabelBox = (item: CurveLabelLayoutInput, textY: number): CurveLabelBox
 };
 
 /** Time-ordered greedy packing. Prefer the curve side, then flip if still blocked. */
-export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[]): CurveLabelBox[] => {
+export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[], canvasWidth = Infinity): CurveLabelBox[] => {
     const order = items
         .map((item, index) => ({ item, index }))
         .filter(({ item }) => Number.isFinite(item.xPx) && Number.isFinite(item.yPx))
@@ -125,13 +125,13 @@ export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[]): CurveLabe
     const byIndex: CurveLabelBox[] = [];
     for (const { item, index } of order) {
         let textY = item.yPx + markerLabelDy(item.below);
-        let box = makeLabelBox(item, textY);
+        let box = makeLabelBox(item, textY, canvasWidth);
         const trySteps = (dir: number) => {
             let step = 0;
             let next = box;
             while (placed.some((prior) => boxesOverlap(next, prior)) && step < 24) {
                 textY += dir * MARKER_LABEL_STACK_PX;
-                next = makeLabelBox(item, textY);
+                next = makeLabelBox(item, textY, canvasWidth);
                 step += 1;
             }
             return next;
@@ -139,7 +139,7 @@ export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[]): CurveLabe
         box = trySteps(item.below ? 1 : -1);
         if (placed.some((prior) => boxesOverlap(box, prior))) {
             textY = item.yPx + markerLabelDy(item.below);
-            box = makeLabelBox(item, textY);
+            box = makeLabelBox(item, textY, canvasWidth);
             box = trySteps(item.below ? -1 : 1);
         }
         placed.push(box);
