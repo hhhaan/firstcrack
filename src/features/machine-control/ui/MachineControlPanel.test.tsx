@@ -108,7 +108,7 @@ const panelModel = (
     } as unknown as MachineControlComposition;
 };
 
-const renderPanel = (model: MachineControlComposition) => {
+const renderPanel = (model: MachineControlComposition, hotkeysEnabled = false) => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -120,6 +120,7 @@ const renderPanel = (model: MachineControlComposition) => {
                 replayPoints: [],
                 pidDropBehavior: 'hold',
                 temperatureUnit: 'C',
+                hotkeysEnabled,
             }),
         );
     });
@@ -159,6 +160,26 @@ describe('isMachineControlPanelShown', () => {
 describe('MachineControlPanel display', () => {
     beforeEach(() => {
         flags.entitled = true;
+    });
+
+    it('toggles the visible panel with T only while roast shortcuts are enabled', () => {
+        const pressT = () => {
+            act(() => {
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 't', code: 'KeyT', bubbles: true }));
+            });
+        };
+        const disabled = renderPanel(panelModel());
+        pressT();
+        expect(disabled.host.querySelector('[aria-hidden="false"]')).not.toBeNull();
+        disabled.unmount();
+
+        const enabled = renderPanel(panelModel(), true);
+        expect(enabled.host.querySelector('[aria-keyshortcuts="t"]')).not.toBeNull();
+        pressT();
+        expect(enabled.host.querySelector('[aria-hidden="true"]')).not.toBeNull();
+        pressT();
+        expect(enabled.host.querySelector('[aria-hidden="false"]')).not.toBeNull();
+        enabled.unmount();
     });
 
     it('hides the panel when the operator cannot write and PID is off', () => {

@@ -6,6 +6,7 @@ import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from 
 import {
     computePhaseSegments,
     formatTemp,
+    isRoastShortcutBaseEnabled,
     toDisplayRoR,
     useBbpStore,
     useBbpTimer,
@@ -894,6 +895,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         replayPoints={replayPoints}
                         temperatureUnit={unit}
+                        hotkeysEnabled={isRoastShortcutBaseEnabled({
+                            isActive,
+                            showEndRoastModal: saveFlow.flow.endRoastModal,
+                            showSummaryModal: saveFlow.flow.summaryModal,
+                            showContinueModal: saveFlow.flow.continueModal,
+                        })}
                     />
 
                     <RoastSidePanel
