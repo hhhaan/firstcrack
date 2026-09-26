@@ -190,6 +190,35 @@ describe('PendingRoastRecovery safety', () => {
         expect(button('pending')).toBeDefined();
     });
 
+    it('Escape and the confirm overlay cancel discard and leave the recovery list open', async () => {
+        await mount(pending({ submitted: false }));
+        const pressEscape = (target: EventTarget = document) => {
+            target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        };
+        await act(async () => button('discard').click());
+        expect(discardModal()).toBeTruthy();
+        await act(async () => pressEscape());
+        expect(discardModal()).toBeNull();
+        expect(host.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+        expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+        expect(button('pending')).toBeDefined();
+
+        await act(async () => button('discard').click());
+        confirmDiscard().focus();
+        await act(async () => pressEscape(confirmDiscard()));
+        expect(discardModal()).toBeNull();
+        expect(host.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+        expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+
+        await act(async () => button('discard').click());
+        const overlays = host.querySelectorAll('[role="presentation"]');
+        await act(async () => (overlays[overlays.length - 1] as HTMLElement).click());
+        expect(discardModal()).toBeNull();
+        expect(host.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+        expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+        expect(button('discard')).toBeDefined();
+    });
+
     it('does not discard if recovery starts while the confirmation dialog is open', async () => {
         let release = () => {};
         mocks.access.mockImplementation(
