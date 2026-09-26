@@ -1,4 +1,4 @@
-import { formErrorCls, inputCls, modalCancelBtnCls, modalPrimaryBtnCls } from '@shared/ui/form-styles';
+import { formErrorCls, inputCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -205,50 +205,105 @@ export const HeaterEventsEditor = ({
             data-testid="heater-events-editor"
         >
             <div className="flex min-h-0 flex-1 flex-col">
-                <div className="shrink-0 border-b border-black/4 px-6 pt-5 pb-3 dark:border-[#585d61]">
+                <div className="shrink-0 border-b border-border-subtle px-7 py-5">
                     <ModalHeader
                         titleId="heater-events-editor-title"
                         title={t('heaterEventsEditor.title')}
                         subtitle={
-                            mode === 'batch'
-                                ? t('heaterEventsEditor.subtitleBatch')
-                                : t('heaterEventsEditor.subtitleProfile')
+                            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-secondary">
+                                <span>
+                                    {mode === 'batch'
+                                        ? t('heaterEventsEditor.subtitleBatch')
+                                        : t('heaterEventsEditor.subtitleProfile')}
+                                </span>
+                                <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold">
+                                    {sourceLabel}
+                                </span>
+                                {boundsNote && <span className="text-xs text-muted">{boundsNote}</span>}
+                                {source && source !== 'tsv' && (
+                                    <button
+                                        type="button"
+                                        className="cursor-pointer border-none bg-transparent text-xs font-medium text-red-600"
+                                        disabled={busy}
+                                        onClick={() => void handleApply(null)}
+                                    >
+                                        {t('heaterEventsEditor.revert')}
+                                    </button>
+                                )}
+                            </div>
                         }
                         onClose={() => {
                             if (!busy) onClose();
                         }}
                         closeLabel={t('common.close')}
-                        className="px-0 pt-0 pb-0"
                     />
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-black/5 px-6 py-2 text-xs text-muted">
-                    <span className="inline-flex h-[22px] items-center rounded-full bg-surface px-2 font-semibold text-secondary">
-                        {sourceLabel}
-                    </span>
-                    {boundsNote && <span>{boundsNote}</span>}
-                    {source && source !== 'tsv' && (
-                        <button
-                            type="button"
-                            className="ml-auto cursor-pointer border-none bg-transparent text-xs font-medium text-red-600"
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(420px,1fr)] lg:overflow-hidden">
+                    <section className="flex min-h-[500px] min-w-0 flex-col gap-3 overflow-y-auto border-b border-border-subtle px-7 py-5 lg:min-h-0 lg:border-r lg:border-b-0">
+                        <h3 className="m-0 text-sm font-semibold text-primary">{t('heaterEventsEditor.chartTitle')}</h3>
+                        <div className="h-[270px] shrink-0">
+                            <HeatStepChart
+                                events={parsed}
+                                btPoints={btPoints}
+                                unit={unit}
+                                heaterUnit={heaterUnit}
+                                heaterMax={heaterBounds.max}
+                                selected={selected}
+                                onSelect={setSelected}
+                            />
+                        </div>
+                        {rows[selected] && (
+                            <div className="w-fit rounded-lg border border-border bg-main-bg px-3 py-2 text-xs text-secondary shadow-(--shadow-elevation)">
+                                <span className="font-semibold text-primary">
+                                    #{String(selected + 1).padStart(2, '0')}
+                                </span>
+                                {' · '}
+                                {rows[selected].t} · {t('heaterEventsEditor.bt')} {rows[selected].bt}°{unit} ·{' '}
+                                {t('heaterEventsEditor.heat')} {rows[selected].heater}
+                                {heaterUnit}
+                            </div>
+                        )}
+                        <fieldset
                             disabled={busy}
-                            onClick={() => void handleApply(null)}
+                            aria-labelledby="heater-events-rule-title"
+                            className="m-0 mt-auto min-w-0 rounded-xl border border-border-subtle bg-surface-warm-solid p-4"
                         >
-                            {t('heaterEventsEditor.revert')}
-                        </button>
-                    )}
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-                    <div className="h-52 shrink-0 border-b border-border-subtle px-6 py-3">
-                        <HeatStepChart
-                            events={parsed}
-                            btPoints={btPoints}
-                            unit={unit}
-                            heaterUnit={heaterUnit}
-                            heaterMax={heaterBounds.max}
-                            selected={selected}
-                            onSelect={setSelected}
-                        />
-                    </div>
+                            <h3 id="heater-events-rule-title" className="m-0 text-sm font-semibold text-primary">
+                                {t('heaterEventsEditor.ruleTitle')}
+                            </h3>
+                            <p className="mt-1 mb-3 text-xs text-muted">{t('heaterEventsEditor.chartHint')}</p>
+                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+                                <label className="min-w-0 text-[11px] font-semibold text-muted">
+                                    {t('heaterEventsEditor.ruleWhen')} (°{unit})
+                                    <input
+                                        value={ruleBt}
+                                        onChange={(e) => setRuleBt(e.target.value)}
+                                        className={`${inputCls} mt-1 py-2 text-xs`}
+                                        inputMode="decimal"
+                                        aria-label={t('heaterEventsEditor.bt')}
+                                    />
+                                </label>
+                                <label className="min-w-0 text-[11px] font-semibold text-muted">
+                                    {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
+                                    <input
+                                        value={ruleHeater}
+                                        onChange={(e) => setRuleHeater(e.target.value)}
+                                        className={`${inputCls} mt-1 py-2 text-xs`}
+                                        inputMode="decimal"
+                                        aria-label={t('heaterEventsEditor.heat')}
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    disabled={rows.length >= MAX_EVENTS}
+                                    onClick={addBtRule}
+                                    className="cursor-pointer rounded-xl border-none bg-primary px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-black"
+                                >
+                                    {t('heaterEventsEditor.ruleAdd')}
+                                </button>
+                            </div>
+                        </fieldset>
+                    </section>
                     <HeaterEventsTable
                         unit={unit}
                         heaterUnit={heaterUnit}
@@ -256,23 +311,32 @@ export const HeaterEventsEditor = ({
                         rows={rows}
                         selected={selected}
                         lockedCount={lockedCount}
-                        error={error}
-                        ruleBt={ruleBt}
-                        ruleHeater={ruleHeater}
-                        onRuleBt={setRuleBt}
-                        onRuleHeater={setRuleHeater}
-                        onAddBtRule={addBtRule}
                         onAddStep={addStep}
                         onSelect={setSelected}
                         onUpdate={update}
                         onDelete={(key) => setRows((prev) => prev.filter((r) => r.key !== key))}
                     />
                 </div>
-                <div className="flex shrink-0 gap-3 border-t border-black/4 px-6 pt-4 pb-5 dark:border-[#585d61]">
-                    <button type="button" onClick={onClose} disabled={busy} className={modalCancelBtnCls}>
+                {error && (
+                    <p role="alert" className={`${formErrorCls} shrink-0 px-7 pb-2`}>
+                        {error}
+                    </p>
+                )}
+                <div className="flex shrink-0 justify-end gap-2 border-t border-border-subtle px-7 py-4">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={busy}
+                        className="min-w-24 cursor-pointer rounded-xl border-none bg-surface px-5 py-2.5 text-sm font-semibold text-secondary disabled:opacity-50 dark:bg-surface-elevated"
+                    >
                         {t('heaterEventsEditor.cancel')}
                     </button>
-                    <button type="button" onClick={submit} disabled={busy} className={modalPrimaryBtnCls}>
+                    <button
+                        type="button"
+                        onClick={submit}
+                        disabled={busy}
+                        className="cursor-pointer rounded-xl border-none bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50 dark:bg-black"
+                    >
                         {busy
                             ? t('heaterEventsEditor.saving')
                             : mode === 'batch'
@@ -292,12 +356,6 @@ const HeaterEventsTable = ({
     rows,
     selected,
     lockedCount,
-    error,
-    ruleBt,
-    ruleHeater,
-    onRuleBt,
-    onRuleHeater,
-    onAddBtRule,
     onAddStep,
     onSelect,
     onUpdate,
@@ -309,12 +367,6 @@ const HeaterEventsTable = ({
     rows: DraftRow[];
     selected: number;
     lockedCount: number;
-    error: string | null;
-    ruleBt: string;
-    ruleHeater: string;
-    onRuleBt: (value: string) => void;
-    onRuleHeater: (value: string) => void;
-    onAddBtRule: () => void;
     onAddStep: () => void;
     onSelect: (index: number) => void;
     onUpdate: (key: string, patch: Partial<DraftRow>) => void;
@@ -322,96 +374,94 @@ const HeaterEventsTable = ({
 }) => {
     const { t } = useTranslation();
     return (
-        <fieldset disabled={busy} className="m-0 flex min-h-[240px] min-w-0 flex-1 flex-col border-0 px-6 py-4">
-            <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl bg-surface/60 p-3">
-                <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                    {t('heaterEventsEditor.ruleWhen')} (°{unit})
-                    <input
-                        value={ruleBt}
-                        onChange={(e) => onRuleBt(e.target.value)}
-                        className={`${inputCls} mt-1 py-1.5 text-xs`}
-                        inputMode="decimal"
-                        aria-label={t('heaterEventsEditor.bt')}
-                    />
-                </label>
-                <label className="min-w-0 flex-1 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                    {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
-                    <input
-                        value={ruleHeater}
-                        onChange={(e) => onRuleHeater(e.target.value)}
-                        className={`${inputCls} mt-1 py-1.5 text-xs`}
-                        inputMode="decimal"
-                        aria-label={t('heaterEventsEditor.heat')}
-                    />
-                </label>
-                <button
-                    type="button"
-                    disabled={busy || rows.length >= MAX_EVENTS}
-                    onClick={onAddBtRule}
-                    className="mb-0.5 cursor-pointer rounded-xl border-none bg-surface px-2.5 py-2 text-xs font-medium text-primary"
-                >
-                    {t('heaterEventsEditor.ruleAdd')}
-                </button>
+        <fieldset
+            disabled={busy}
+            aria-labelledby="heater-events-steps-title"
+            className="m-0 flex min-h-[350px] min-w-0 flex-1 flex-col border-0 px-6 py-5 lg:min-h-0"
+        >
+            <div className="mb-4 flex items-center justify-between">
+                <h3 id="heater-events-steps-title" className="m-0 text-sm font-semibold text-primary">
+                    {t('heaterEventsEditor.stepsTitle')}
+                </h3>
+                <span className="text-xs text-muted">{rows.length}</span>
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
-                <table className="w-full min-w-[480px] table-fixed border-collapse text-xs">
+                <table className="w-full min-w-[420px] table-fixed border-separate border-spacing-y-1.5 text-xs">
+                    <colgroup>
+                        <col className="w-8" />
+                        <col className="w-[72px]" />
+                        <col />
+                        <col />
+                        <col className="w-[84px]" />
+                        <col className="w-8" />
+                    </colgroup>
                     <thead>
-                        <tr className="text-[11px] font-semibold tracking-wide text-muted uppercase">
-                            <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                        <tr className="text-[11px] font-semibold text-muted">
+                            <th className="sticky top-0 z-10 bg-main-bg" />
+                            <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
                                 {t('heaterEventsEditor.time')} (m:ss)
                             </th>
-                            <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                            <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
                                 {t('heaterEventsEditor.bt')} (°{unit})
                             </th>
-                            <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                            <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
                                 {t('heaterEventsEditor.heat')} ({heaterUnit})
                             </th>
-                            <th className="sticky top-0 z-10 bg-main-bg px-2 pb-2 text-left">
+                            <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
                                 {t('heaterEventsEditor.trigger')}
                             </th>
-                            <th className="sticky top-0 z-10 w-10 bg-main-bg pb-2" />
+                            <th className="sticky top-0 z-10 bg-main-bg" />
                         </tr>
                     </thead>
                     <tbody>
                         {rows.map((row, i) => {
                             const locked = i < lockedCount;
+                            const cellClass =
+                                i === selected
+                                    ? 'border-(--color-control-heat) bg-surface-warm-solid'
+                                    : 'border-border bg-main-bg';
                             return (
                                 <tr
                                     key={row.key}
-                                    className={i === selected ? 'bg-surface' : undefined}
+                                    aria-selected={i === selected}
                                     onClick={() => onSelect(i)}
                                     onFocus={() => onSelect(i)}
                                 >
-                                    <td className="py-1 pr-1">
+                                    <td
+                                        className={`${cellClass} rounded-l-xl border-y border-l py-2 pl-2 text-[11px] font-semibold text-muted`}
+                                    >
+                                        {String(i + 1).padStart(2, '0')}
+                                    </td>
+                                    <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.t}
                                             onChange={(e) => onUpdate(row.key, { t: e.target.value })}
-                                            className={`${inputCls} py-1.5 text-xs`}
+                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
                                             aria-label={t('heaterEventsEditor.time')}
                                             readOnly={locked}
                                         />
                                     </td>
-                                    <td className="py-1 pr-1">
+                                    <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.bt}
                                             onChange={(e) => onUpdate(row.key, { bt: e.target.value })}
-                                            className={`${inputCls} py-1.5 text-xs`}
+                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.bt')}
                                             readOnly={locked}
                                         />
                                     </td>
-                                    <td className="py-1 pr-1">
+                                    <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.heater}
                                             onChange={(e) => onUpdate(row.key, { heater: e.target.value })}
-                                            className={`${inputCls} py-1.5 text-xs`}
+                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.heat')}
                                             readOnly={locked}
                                         />
                                     </td>
-                                    <td className="py-1 pr-1">
+                                    <td className={`${cellClass} border-y px-1 py-2`}>
                                         <select
                                             value={row.trigger}
                                             onChange={(e) =>
@@ -419,7 +469,7 @@ const HeaterEventsTable = ({
                                                     trigger: e.target.value as ReplayTrigger,
                                                 })
                                             }
-                                            className={`${inputCls} py-1.5 pr-6 text-xs`}
+                                            className={`${inputCls} min-w-0 py-1.5 pr-5 pl-1.5 text-xs`}
                                             aria-label={t('heaterEventsEditor.trigger')}
                                             disabled={locked}
                                         >
@@ -427,7 +477,7 @@ const HeaterEventsTable = ({
                                             <option value="bt">{t('heaterEventsEditor.triggerBt')}</option>
                                         </select>
                                     </td>
-                                    <td className="py-1">
+                                    <td className={`${cellClass} rounded-r-xl border-y border-r py-2 pr-1`}>
                                         <button
                                             type="button"
                                             className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-surface hover:text-red-600"
@@ -451,23 +501,18 @@ const HeaterEventsTable = ({
                 type="button"
                 disabled={busy || rows.length >= MAX_EVENTS}
                 onClick={onAddStep}
-                className="mt-2 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent text-xs font-medium text-secondary"
+                className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-transparent py-2.5 text-xs font-semibold text-secondary disabled:cursor-not-allowed disabled:opacity-50"
             >
                 <Plus size={14} strokeWidth={2} />
                 {t('heaterEventsEditor.addStep')}
             </button>
-            {error && (
-                <p role="alert" className={formErrorCls}>
-                    {error}
-                </p>
-            )}
         </fieldset>
     );
 };
 
-const CHART_PAD = { l: 48, r: 52, t: 16, b: 28 };
-const CHART_WIDTH = 1040;
-const CHART_HEIGHT = 180;
+const CHART_PAD = { l: 48, r: 50, t: 20, b: 28 };
+const CHART_WIDTH = 680;
+const CHART_HEIGHT = 260;
 
 const HeatStepChart = ({
     events,
@@ -514,16 +559,15 @@ const HeatStepChart = ({
 
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold text-muted">
-                <span className="inline-flex items-center gap-1.5">
-                    <span className="h-0.5 w-4 bg-(--color-control-heat)" />
-                    {t('heaterEventsEditor.chartHeat')} ({heaterUnit})
-                </span>
+            <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-secondary">
                 <span className="inline-flex items-center gap-1.5">
                     <span className="h-0.5 w-4 bg-(--color-sensor-bt)" />
                     {t('heaterEventsEditor.chartBt')} (°{unit})
                 </span>
-                <span className="ml-auto font-normal">{t('heaterEventsEditor.chartHint')}</span>
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="h-0.5 w-4 bg-(--color-control-heat)" />
+                    {t('heaterEventsEditor.chartHeat')} ({heaterUnit})
+                </span>
             </div>
             <svg
                 viewBox={`0 0 ${width} ${height}`}

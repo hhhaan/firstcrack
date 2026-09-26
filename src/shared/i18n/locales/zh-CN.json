@@ -1195,6 +1195,9 @@
     },
     "heaterEventsEditor": {
         "title": "编辑火力",
+        "chartTitle": "火力走势",
+        "stepsTitle": "火力步骤",
+        "ruleTitle": "添加 BT 条件",
         "subtitleBatch": "仅本次批次。曲线档案不变。",
         "subtitleProfile": "保存到此档案。使用它的批次会重放这些步骤。",
         "sourceTsv": "记录的火力",
