@@ -13,6 +13,9 @@
     },
     "common": {
         "cancel": "취소",
+        "quit": "종료",
+        "quitConfirmTitle": "First Crack 종료?",
+        "quitConfirmMessage": "앱을 종료하면 진행 중인 로스팅이 중단됩니다. 종료하시겠습니까?",
         "close": "닫기",
         "connected": "연결됨",
         "connecting": "연결 중...",
@@ -931,6 +934,8 @@
             "beanDeletedMsg": "선택한 원두가 삭제되었습니다. 다시 선택해 주세요.",
             "invalidWeightTitle": "무게 값 오류",
             "invalidWeightMsg": "무게 값이 올바르지 않아 저장하지 못했습니다. 볶은 후 무게는 투입량보다 클 수 없습니다. 값을 수정한 뒤 다시 저장해 주세요.",
+            "refreshBlockedTitle": "새로고침할 수 없습니다",
+            "refreshBlockedMsg": "진행 중인 로스트가 있어 새로고침을 막았습니다.",
             "cancel": "취소",
             "end": "종료"
         },

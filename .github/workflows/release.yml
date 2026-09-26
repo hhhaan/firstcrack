@@ -57,9 +57,12 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       checks: read
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v7
+
       - name: Wait for CI checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,31 +70,13 @@ jobs:
           echo "Checking CI status for commit ${GITHUB_SHA}..."
 
           # Retry up to 10 minutes (20×30s). Names = ci.yml job ids.
-          # Required checks must be present on this SHA. paths / ios-check may be absent.
-          # skipped is success. Keep this list in sync with scripts/release.mjs.
-          REQUIRED='["check","test","sidecar","semgrep","gitleaks","edge-check","actionlint","zizmor","architecture","bundle"]'
-          OPTIONAL='["paths","ios-check"]'
-
+          # Shared policy: required=success, optional paths/ios-check may be skipped or absent.
           for i in $(seq 1 20); do
             RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
-              --jq '[.check_runs[] | {name, conclusion}]')
+              --jq '[.check_runs[] | {name, status, conclusion}]')
 
-            STATUS=$(echo "$RESPONSE" | jq -r --argjson req "$REQUIRED" --argjson opt "$OPTIONAL" '
-              def known: $req + $opt;
-              [.[] | select(.name as $n | known | index($n) != null)] as $runs
-              | [$req[] | select(. as $n | [$runs[].name] | index($n) | not)] as $missing
-              | [$runs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled")] as $failed
-              | [$runs[] | select(.conclusion == null or .conclusion == "neutral")] as $pending
-              | if ($failed | length) > 0 then "failed"
-                elif ($runs | length) == 0 then "empty"
-                elif ($missing | length) > 0 or ($pending | length) > 0 then "pending"
-                else "ok"
-                end
-            ')
-
-            echo "$RESPONSE" | jq -r --argjson req "$REQUIRED" --argjson opt "$OPTIONAL" '
-              .[] | select(.name as $n | ($req + $opt) | index($n) != null) | "  \(.name): \(.conclusion)"
-            '
+            STATUS=$(printf '%s' "$RESPONSE" | node scripts/check-release-ci.mjs)
+            echo "$RESPONSE" | jq -r '.[] | "  \(.name): \(.conclusion // .status)"'
             echo "CI status: $STATUS (attempt $i/20)"
 
             if [ "$STATUS" = "failed" ]; then

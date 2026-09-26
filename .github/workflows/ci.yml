@@ -69,7 +69,7 @@ jobs:
           fi
 
   # Same order as verify:core, then lint + secretlint (those two stay out of the test process).
-  # Job id is the check-run name — keep in sync with release.yml ci-gate + scripts/release.mjs.
+  # Job id is the check-run name — keep in sync with scripts/check-release-ci.mjs.
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -89,6 +89,9 @@ jobs:
 
       - name: Plan caps
         run: pnpm check:plan-caps
+
+      - name: Harness regression checks
+        run: pnpm check:harness
 
       - name: Knip
         run: pnpm knip --reporter github-actions --reporter symbols
@@ -154,7 +157,7 @@ jobs:
         working-directory: src-tauri/sidecar
 
   # Edge Function type check. _shared/*.test.ts already run under vitest (test job).
-  # Job id is the check-run name — keep in sync with release.yml ci-gate + scripts/release.mjs.
+  # Job id is the check-run name — keep in sync with scripts/check-release-ci.mjs.
   # --node-modules-dir=none: root package.json would otherwise make deno resolve npm: specifiers
   # from node_modules (byonm), which is not how the edge runtime resolves them.
   edge-check:

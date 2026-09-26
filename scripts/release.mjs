@@ -2,6 +2,8 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
+import { releaseCiStatus } from './check-release-ci.mjs';
+
 const arg = process.argv[2];
 const force = process.argv.includes('--force');
 const BUMP_KINDS = new Set(['patch', 'minor', 'major']);
@@ -106,22 +108,6 @@ if (!force) {
         );
     }
 
-    // origin/main HEAD의 CI 게이트가 green인지 (이름 = ci.yml job id).
-    // Keep in sync with release.yml ci-gate. paths / ios-check may be absent.
-    const requiredChecks = [
-        'check',
-        'test',
-        'sidecar',
-        'semgrep',
-        'gitleaks',
-        'edge-check',
-        'actionlint',
-        'zizmor',
-        'architecture',
-        'bundle',
-    ];
-    const optionalChecks = ['paths', 'ios-check'];
-    const gateChecks = new Set([...requiredChecks, ...optionalChecks]);
     let runs;
     try {
         runs = JSON.parse(
@@ -129,25 +115,15 @@ if (!force) {
                 'api',
                 `repos/{owner}/{repo}/commits/${head}/check-runs`,
                 '--jq',
-                '[.check_runs[] | {name, conclusion}]',
+                '[.check_runs[] | {name, status, conclusion}]',
             ]),
-        ).filter((r) => gateChecks.has(r.name));
+        );
     } catch {
         fail('gh api로 CI 상태 조회 실패 — gh auth 확인');
     }
-    if (runs.length === 0) {
-        fail('이 커밋에 CI check-run이 없음 (docs-only push로 CI 스킵?) — CI가 붙은 커밋에서 릴리스');
-    }
-    const present = new Set(runs.map((r) => r.name));
-    const missing = requiredChecks.filter((name) => !present.has(name));
-    if (missing.length > 0) {
-        fail(`CI required check-run 없음: ${missing.join(', ')}`);
-    }
-    // ios-check is skipped when src-tauri did not change — skipped is pass.
-    const notGreen = runs.filter((r) => r.conclusion !== 'success' && r.conclusion !== 'skipped');
-    if (notGreen.length > 0) {
-        const details = notGreen.map((r) => `${r.name}=${r.conclusion ?? 'pending'}`).join(', ');
-        fail(`CI가 green이 아님: ${details}`);
+    const status = releaseCiStatus(runs);
+    if (status !== 'ok') {
+        fail(`CI gate=${status}: ${runs.map((r) => `${r.name}=${r.conclusion ?? r.status}`).join(', ')}`);
     }
     process.stdout.write(`✅ 사전확인 통과 — HEAD=origin/main, CI ${runs.length}종 green, release ${version}\n`);
 }

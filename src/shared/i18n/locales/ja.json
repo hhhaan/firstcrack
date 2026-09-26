@@ -13,6 +13,9 @@
     },
     "common": {
         "cancel": "キャンセル",
+        "quit": "終了",
+        "quitConfirmTitle": "First Crackを終了しますか？",
+        "quitConfirmMessage": "アプリを終了すると、進行中の焙煎が中断されます。終了しますか？",
         "close": "閉じる",
         "connected": "接続済み",
         "connecting": "接続中...",
@@ -726,7 +729,9 @@
             "beanDeletedTitle": "生豆が見つかりません",
             "beanDeletedMsg": "選択した生豆は削除されています。もう一度選択してください。",
             "invalidWeightTitle": "重量が不正です",
-            "invalidWeightMsg": "重量の値が不正なため保存できませんでした。焙煎後の重量は投入量を超えられません。値を修正して再度保存してください。"
+            "invalidWeightMsg": "重量の値が不正なため保存できませんでした。焙煎後の重量は投入量を超えられません。値を修正して再度保存してください。",
+            "refreshBlockedTitle": "更新できません",
+            "refreshBlockedMsg": "進行中のローストがあるため、更新をブロックしました。"
         },
         "alerts": {
             "rorCrash": "RoRクラッシュ — 火力が落ちています",

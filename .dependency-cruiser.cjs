@@ -18,7 +18,8 @@ module.exports = {
         {
             name: 'no-circular',
             severity: 'warn',
-            comment: 'Existing barrel cycles. New cycles should not be added; promote to error once this list is empty.',
+            comment:
+                'Existing barrel cycles. New cycles should not be added; promote to error once this list is empty.',
             from: { path: '^src/', pathNot: testFile },
             to: { circular: true },
         },

@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'supabase/migrations/**'
+      - 'scripts/check-migration-rls.mjs'
+      - '.github/workflows/supabase-ci.yml'
   workflow_dispatch:
 
 concurrency:
@@ -62,20 +64,8 @@ jobs:
           # Full history so origin/main...HEAD diff works for the GRANT check.
           fetch-depth: 0
 
-      - name: Check for missing RLS policies
-        run: |
-          missing=0
-          for f in supabase/migrations/*.sql; do
-            if grep -qi 'create table' "$f" && ! grep -qi 'alter table.*enable row level security' "$f" && ! grep -qi 'create policy' "$f"; then
-              echo "::warning::$f: CREATE TABLE without ENABLE ROW LEVEL SECURITY or CREATE POLICY"
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            echo "::error::One or more migrations create tables without RLS. Add 'ALTER TABLE ... ENABLE ROW LEVEL SECURITY' and policies."
-            exit 1
-          fi
-          echo "✅ All migrations have RLS coverage"
+      - name: Check table RLS declarations (static)
+        run: node scripts/check-migration-rls.mjs
 
       # New migrations only (diff vs main) — existing files are never retroactively flagged.
       - name: Check for missing GRANTs

@@ -13,6 +13,9 @@
     },
     "common": {
         "cancel": "Cancel",
+        "quit": "Quit",
+        "quitConfirmTitle": "Quit First Crack?",
+        "quitConfirmMessage": "Closing the app will interrupt any active roast. Quit now?",
         "close": "Close",
         "connected": "Connected",
         "connecting": "Connecting...",
@@ -726,7 +729,9 @@
             "beanDeletedTitle": "Bean not found",
             "beanDeletedMsg": "The selected bean was deleted. Please choose a bean again.",
             "invalidWeightTitle": "Invalid weight",
-            "invalidWeightMsg": "The roast could not be saved because the weights are invalid. The output weight cannot exceed the green charge weight — please correct the values and save again."
+            "invalidWeightMsg": "The roast could not be saved because the weights are invalid. The output weight cannot exceed the green charge weight — please correct the values and save again.",
+            "refreshBlockedTitle": "Can't refresh",
+            "refreshBlockedMsg": "Refresh is blocked so this roast isn't lost."
         },
         "alerts": {
             "rorCrash": "RoR crash — heat is stalling",

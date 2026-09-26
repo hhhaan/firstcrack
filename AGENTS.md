@@ -10,7 +10,7 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 - lint: `pnpm check` (biome; CI gate) | `pnpm lint` (eslint, react-refresh)
 - knip: `pnpm knip` (unused files + dependencies)
 - typecheck: `pnpm typecheck`
-- verify: `pnpm verify:all` (biome + i18n + registry + plan-caps + knip + typecheck + test + lint + sidecar + actionlint + dependency-cruiser) — run before push
+- verify: `pnpm verify:all` (biome + i18n + registry + plan-caps + harness + knip + typecheck + test + lint + sidecar + actionlint + dependency-cruiser) — run before push
 - fix: `pnpm check:fix` | `types:gen` after DB schema migration
 
 ## Versioning
@@ -30,8 +30,8 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | `git commit` | lint-staged → `biome check --write` on **staged files only** + secretlint | yes; lint-staged re-stages fixed files |
 | `git commit` (2) | migration staged w/o `database.types.ts` → block (bypass `SKIP_TYPES_GEN=1`) | no |
 | `git push` | `pnpm verify:all` (core + lint + sidecar + actionlint + architecture) | no |
-| main push `supabase/functions/**` | EF deploy → POST probe each deployed fn (503/BOOT_ERROR = fail) | no |
-| CI (PR and main — main direct push is still possible) | `check` (biome+i18n+registry+plan-caps+knip+typecheck+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), actionlint, zizmor, dependency-cruiser, bundle, ios-check (off until iPad: repo var `IOS_CHECK=true` enables; `src-tauri/**` only), edge-check (`deno check`) | no |
+| main push `supabase/functions/**` | EF deploy → POST probe each deployed fn (transport errors/5xx/BOOT_ERROR = fail) | no |
+| CI (PR and main — main direct push is still possible) | `check` (biome+i18n+registry+plan-caps+harness+knip+typecheck+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), actionlint, zizmor, dependency-cruiser, bundle, ios-check (off until iPad: repo var `IOS_CHECK=true` enables; `src-tauri/**` only), edge-check (`deno check`) | no |
 | schedule (Mon 09:00 KST) | gitleaks (HEAD tree + last 7d history) | no |
 | `pnpm release` / `v*` tag | 3-platform build (+ sidecar `/status` smoke) → `supabase db push` → R2 publish | no |
 
@@ -98,7 +98,7 @@ ReactQuery+axios | NO useEffect fetch
 
 ## FSD
 Unidirectional: shared → entities → features → widgets → views → app
-- Upper → lower import: FORBIDDEN
+- Lower → upper import: FORBIDDEN
 - entities ↔ entities direct import: FORBIDDEN (route through shared)
 - features → features direct import: FORBIDDEN (compose in widgets/views)
 - views/* calling useQuery/useMutation/axios directly → move to entities or features
@@ -113,7 +113,7 @@ When "smallest possible diff" conflicts with separation of concerns, SRP, or lay
 
 
 ## Cross-Platform
-- CI: macOS arm64 only | x86_64+Windows: release-time only → don't trust CI for OS bugs
+- CI: Ubuntu for core checks; optional macOS iOS check (`IOS_CHECK=true`). Release: macOS arm64 + macOS x86_64 + Windows → CI does not prove desktop OS compatibility
 - paths: pathlib.Path (py) / Tauri app.path() (rust) | NO hardcode `/`, `~/Library/...`, string-concat
 - env: NO assume HOME exists (unset on Windows) → Path.home() / platform-safe API
 - shortcuts: Tauri `mod+` notation only | NO hardcode Cmd+/Ctrl+
