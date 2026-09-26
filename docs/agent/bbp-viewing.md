@@ -8,15 +8,17 @@ has a gray background. There is no separate BBP chart.
 
 Stored BBP keeps seconds since the previous End. History display subtracts each
 source's own BBP duration without stretching samples. The live target clips saved
-samples to the latest 20 minutes and anchors their actual kept span at Charge.
-The roast's 00:00 sample owns the
-Charge boundary, and RoR stays absent during BBP. Live waiting BBP aligns Charge
-at 00:00: target BBP (dashed) plus current temperature sit before Charge, the
-roast target dashed line continues after, and only that BBP interval is a
-translucent band so the grid stays visible. The 20-minute FIFO cap is not a
-reserved axis width (#547): no saved and no measured BBP means no BBP region,
-and a shorter recording — including samples that fill only part of the cap
-window — is drawn at that length on both the temperature and control grids. After Charge the live chart drops
+samples to the latest 15 minutes (900s) and anchors their actual kept span at Charge.
+Stored reference curves are not rewritten; only the live chart drops samples older
+than that window. The roast's 00:00 sample owns the Charge boundary, and RoR stays
+absent during BBP. Live waiting BBP is its own timeline starting at 0:00:
+the reference (dashed) and the measured curve share that axis, and only the
+measured interval is a translucent band so the grid stays visible. While waiting, the X axis is
+0:00–15:00 from the start (`xMaxFloor = BBP_MAX_SECONDS`). The gray band is
+still only the measured span (#547): the 15-minute FIFO cap is not a reserved
+background. No saved and no measured BBP means no BBP region, and a shorter
+recording — including samples that fill only part of the cap window — is drawn
+at that length on both the temperature and control grids. After Charge the live chart drops
 BBP (no negative lookback) and starts at 00:00; History keeps the combined overlay.
 
 The existing Target selector chooses a roast profile. Its `source_session_id`

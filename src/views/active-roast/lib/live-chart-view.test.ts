@@ -26,7 +26,7 @@ describe('resolveLiveChartView', () => {
     it('starts measured and target BBP at the left without joining the roast curve', () => {
         const view = resolveLiveChartView({ ...base, bbpActive: true, charged: false });
         expect(view.xMin).toBe(0);
-        expect(view.xMaxFloor).toBe(120);
+        expect(view.xMaxFloor).toBe(900);
         expect(view.bbpRange).toEqual({ start: 0, end: 59 });
         expect(view.livePoints.map((p) => p.time)).toEqual([0, 59]);
         expect(view.targetPoints.map((p) => p.t)).toEqual([0, 90]);
@@ -57,21 +57,52 @@ describe('resolveLiveChartView', () => {
         });
         expect(view.targetPoints).toEqual([]);
         expect(view.livePoints.map((p) => p.time)).toEqual([0, 181]);
-        expect(view.xMaxFloor).toBe(300);
+        expect(view.xMaxFloor).toBe(900);
         expect(view.bbpRange).toEqual({ start: 0, end: 181 });
     });
 
-    it('starts the retained 20 minute window at zero', () => {
+    it('clips a 16 minute recording to the last 15 minutes', () => {
         const view = resolveLiveChartView({
             ...base,
             bbpActive: true,
             charged: false,
-            bbpPoints: [bbpPt(1740), bbpPt(2940)],
+            bbpPoints: [bbpPt(0), bbpPt(60), bbpPt(960)],
+        });
+        expect(view.livePoints.map((p) => p.time)).toEqual([0, 900]);
+        expect(view.xMin).toBe(0);
+        expect(view.xMaxFloor).toBe(900);
+        expect(view.bbpRange).toEqual({ start: 0, end: 900 });
+    });
+
+    it('starts the retained 15 minute window at zero', () => {
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpPoints: [bbpPt(2040), bbpPt(2940)],
             bbpTarget: [roastPt(540), roastPt(900)],
         });
-        expect(view.livePoints.map((p) => p.time)).toEqual([0, 1200]);
+        expect(view.xMin).toBe(0);
+        expect(view.xMaxFloor).toBe(900);
+        expect(view.livePoints.map((p) => p.time)).toEqual([0, 900]);
         expect(view.targetPoints.map((p) => p.t)).toEqual([0, 360]);
-        expect(view.bbpRange).toEqual({ start: 0, end: 1200 });
+        expect(view.bbpRange).toEqual({ start: 0, end: 900 });
+    });
+
+    it('shows only the last 15 minutes of a legacy 20 minute reference without rewriting it', () => {
+        const stored = [roastPt(0), roastPt(300), roastPt(1200)];
+        const before = stored.map((p) => ({ ...p }));
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpPoints: [bbpPt(0)],
+            bbpTarget: stored,
+        });
+        expect(stored).toEqual(before);
+        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 900]);
+        expect(view.xMin).toBe(0);
+        expect(view.xMaxFloor).toBe(900);
     });
 
     it('starts at the left when the first retained sample is later than the window origin', () => {
@@ -79,9 +110,10 @@ describe('resolveLiveChartView', () => {
             ...base,
             bbpActive: true,
             charged: false,
-            bbpPoints: [bbpPt(1800), bbpPt(2940)],
+            bbpPoints: [bbpPt(2100), bbpPt(2940)],
         });
-        expect(view.livePoints.map((p) => p.time)).toEqual([0, 1140]);
+        expect(view.livePoints.map((p) => p.time)).toEqual([0, 840]);
+        expect(view.xMaxFloor).toBe(900);
     });
 
     it('leaves the BBP background empty until measurements arrive', () => {
@@ -89,5 +121,6 @@ describe('resolveLiveChartView', () => {
         expect(view.livePoints).toEqual([]);
         expect(view.bbpRange).toBeUndefined();
         expect(view.xMin).toBe(0);
+        expect(view.xMaxFloor).toBe(900);
     });
 });

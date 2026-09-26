@@ -54,7 +54,7 @@ export const resolveLiveChartView = (input: {
         livePoints: livePointsFromBbp(windowed.map((p) => ({ ...p, t: p.t - measuredStart }))),
         targetPoints,
         xMin: 0,
-        xMaxFloor: Math.max(60, Math.ceil(measuredEnd / 60) * 60 + 60),
+        xMaxFloor: BBP_MAX_SECONDS,
         bbpRange: measuredEnd > 0 ? { start: 0, end: measuredEnd } : undefined,
     };
 };

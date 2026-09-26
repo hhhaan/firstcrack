@@ -4,6 +4,7 @@ import { formatTemp } from '@features/active-roast/lib/temperature';
 import { BBP_INPROGRESS_ID, hydrateLiveBbp, useBbpStore } from '@features/active-roast/model/bbp';
 import { clearPendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
@@ -87,7 +88,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         roastStartTimeRef,
     } = params;
 
-    const bbpEnabled = useFeature(FEATURE.bbp);
+    const roastSettings = useRoastSettings();
+    const bbpEnabled = useFeature(FEATURE.bbp) && roastSettings.bbpEnabled;
     const canWrite = useWriteAccess();
     const quota = useBatchQuota();
 
@@ -344,15 +346,17 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     }, [roastStartTimeRef, setLogEntries, setLivePoints, setIsRunning]);
 
     const recoverLiveBbp = useCallback(() => {
-        if (!hydrateLiveBbp()) return;
+        if (!bbpEnabled) return;
         const store = useRoastingStore.getState();
+        // A roast already owns the chart. Do not rehydrate a wait on top of it (#433).
         if (store.charged || store.phase === 'roasting') return;
+        if (!hydrateLiveBbp()) return;
         useRoastingStore.setState({ awaitingNextCharge: true });
         if (store.sidecarConnected && (store.phase === 'idle' || store.phase === 'preheating')) {
             store.enterPreheating();
             store.enterStandby();
         }
-    }, []);
+    }, [bbpEnabled]);
 
     return {
         handleEnterStandby,

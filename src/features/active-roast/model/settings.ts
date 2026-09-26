@@ -36,6 +36,7 @@ export type RoastSettings = {
     showPhaseBar: boolean;
     /** FC Start–End vertical band on the temp chart */
     showFcBand: boolean;
+    bbpEnabled: boolean;
     eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
     tempMaxC: number;
@@ -104,6 +105,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     controlYMax: 100,
     showPhaseBar: true,
     showFcBand: true,
+    bbpEnabled: true,
     eventMarkerStyle: 'both',
     tempMinC: 130,
     tempMaxC: 240,
@@ -160,8 +162,16 @@ export const coercePollIntervalForPlan = (ms: PollIntervalMs, canFastPoll: boole
     ms === 500 && !canFastPoll ? 1000 : ms;
 
 export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
-    const { autoDropDropC: _legacyDropC, ...rest } = { ...(raw ?? {}) } as Partial<RoastSettings> & {
+    const {
+        autoDropDropC: _legacyDropC,
+        bbpWindowMinutes: _legacyBbpWindow,
+        ...rest
+    } = {
+        ...(raw ?? {}),
+    } as Partial<RoastSettings> & {
         autoDropDropC?: unknown;
+        /** Removed setting. Old stores may still contain it; it must not affect the cap. */
+        bbpWindowMinutes?: unknown;
     };
     const merged = { ...DEFAULT_SETTINGS, ...rest };
     let controlYMin = clampNum(merged.controlYMin, -50, 500, DEFAULT_SETTINGS.controlYMin);
@@ -186,6 +196,7 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
         showTargetDeltaLabel: asBool(merged.showTargetDeltaLabel, DEFAULT_SETTINGS.showTargetDeltaLabel),
         showFcBand: asBool(merged.showFcBand, DEFAULT_SETTINGS.showFcBand),
+        bbpEnabled: asBool(merged.bbpEnabled, DEFAULT_SETTINGS.bbpEnabled),
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,
@@ -289,3 +300,5 @@ export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
 };
 
 export const useRoastSettings = () => useSyncExternalStore(_subscribe, _getSnapshot);
+
+export const getRoastSettings = _getSnapshot;

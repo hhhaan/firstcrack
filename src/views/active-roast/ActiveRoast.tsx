@@ -41,6 +41,13 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import {
+    bbpTimeOriginKey,
+    chartOnlyPreheatDecision,
+    noteChartOnlyPreheatMount,
+    shouldResetChartOnlyPreheatOnPageRestore,
+    takePreheatMountEpoch,
+} from './lib/bbp-preheat';
+import {
     buildEventMarkers,
     buildRoastLogDisplayEntries,
     calcDelta,
@@ -71,6 +78,9 @@ interface ActiveRoastProps {
     onPlanBatchComplete?: () => void;
 }
 
+/** Chart-only preheat older than this module evaluation is not a saved Charge wait. */
+const chartOnlyPreheatBootMs = Date.now();
+
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
     const { t } = useTranslation();
     const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
@@ -78,14 +88,23 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
-    const bbpEnabled = useFeature(FEATURE.bbp);
+    const bbpEnabled = useFeature(FEATURE.bbp) && roastSettings.bbpEnabled;
     const bbpElapsed = useBbpTimer();
     const bbpTimer = bbpEnabled ? bbpElapsed : null;
     const bbpActive = useBbpStore((s) => s.active);
+    const bbpRecording = useBbpStore((s) => s.recording);
     const bbpPoints = useBbpStore((s) => s.points);
     const awaitingNextCharge = useRoastingStore((s) => s.awaitingNextCharge);
     const heatHoldAfterDrop = useRoastingStore((s) => s.heatHoldAfterDrop);
-    const bbpChargeWait = bbpActive || awaitingNextCharge;
+    const bbpChargeWait = (bbpActive && bbpRecording) || awaitingNextCharge;
+
+    useEffect(() => {
+        if (!roastSettings.bbpEnabled) {
+            useBbpStore.getState().abort();
+        } else if (bbpEnabled && awaitingNextCharge && (!bbpActive || !bbpRecording)) {
+            useBbpStore.getState().begin(Date.now());
+        }
+    }, [bbpEnabled, roastSettings.bbpEnabled, awaitingNextCharge, bbpActive, bbpRecording]);
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -288,7 +307,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const chartView = useMemo(
         () =>
             resolveLiveChartView({
-                bbpActive,
+                bbpActive: bbpEnabled && bbpActive,
                 charged,
                 livePoints,
                 bbpPoints,
@@ -296,7 +315,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 bbpTarget: bbpTarget.data ?? [],
                 bbpTargetError: bbpTarget.isError,
             }),
-        [bbpActive, bbpPoints, bbpTarget.data, bbpTarget.isError, charged, livePoints, targetCurvePoints],
+        [bbpActive, bbpEnabled, bbpPoints, bbpTarget.data, bbpTarget.isError, charged, livePoints, targetCurvePoints],
     );
     const bbpNowSec = bbpPoints.length > 0 ? bbpPoints[bbpPoints.length - 1].t : 0;
     const waitTemps = waitingForCharge
@@ -464,10 +483,69 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         triggerChargeRef.current = triggerCharge;
     }, [resetAutoDetection, disableAutoCharge, disableAutoDrop, rearmAutoCharge, triggerCharge]);
 
+    const [preheatMountEpoch] = useState(takePreheatMountEpoch);
+    const wasPreheatVisibleRef = useRef(false);
+    const reloadRestartedRef = useRef(false);
+    const isActiveRef = useRef(isActive);
+    isActiveRef.current = isActive;
+
     const recoverLiveBbp = lifecycle.recoverLiveBbp;
     useEffect(() => {
         recoverLiveBbp();
     }, [recoverLiveBbp]);
+    useEffect(() => {
+        const justShown = isActive && !wasPreheatVisibleRef.current;
+        wasPreheatVisibleRef.current = isActive;
+        const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+        const decision = chartOnlyPreheatDecision({
+            visible: isActive,
+            justShown,
+            bbp: useBbpStore.getState(),
+            bootMs: chartOnlyPreheatBootMs,
+            mountEpoch: preheatMountEpoch,
+            phase,
+            awaitingNextCharge,
+            bbpEnabled,
+            navigationType: nav?.type,
+            reloadConsumed: reloadRestartedRef.current,
+        });
+        if (decision === 'abort') {
+            useBbpStore.getState().abort();
+            return;
+        }
+        if (decision === 'begin') {
+            if (nav?.type === 'reload') reloadRestartedRef.current = true;
+            useBbpStore.getState().begin(Date.now(), [], false);
+            noteChartOnlyPreheatMount(preheatMountEpoch);
+        }
+    }, [isActive, bbpEnabled, awaitingNextCharge, phase, preheatMountEpoch]);
+    useEffect(() => {
+        const onPageShow = (event: PageTransitionEvent) => {
+            const roast = useRoastingStore.getState();
+            const bbp = useBbpStore.getState();
+            const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+            if (
+                !shouldResetChartOnlyPreheatOnPageRestore(
+                    event.persisted,
+                    bbp,
+                    roast.phase,
+                    roast.awaitingNextCharge,
+                    nav?.type,
+                )
+            )
+                return;
+            // Hidden shell: drop the restored curve. Showing the view begins a new one.
+            if (!isActiveRef.current) {
+                useBbpStore.getState().abort();
+                return;
+            }
+            reloadRestartedRef.current = true;
+            useBbpStore.getState().begin(Date.now(), [], false);
+            noteChartOnlyPreheatMount(preheatMountEpoch);
+        };
+        window.addEventListener('pageshow', onPageShow);
+        return () => window.removeEventListener('pageshow', onPageShow);
+    }, [preheatMountEpoch]);
 
     const timeAlerts = useMemo(
         () => ({
@@ -810,8 +888,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 }`}
             >
                 {bbpActive && (
-                    <p role="status" className="mb-6 text-xs text-secondary" data-testid="bbp-target-status">
-                        {t('bbp.live')} · {t('bbp.timeOrigin')} · {targetProfile?.name ?? t('bbp.noTarget')}
+                    <p
+                        role="status"
+                        className="mb-6 text-xs text-secondary"
+                        data-testid="bbp-target-status"
+                        data-bbp-elapsed={Math.floor(bbpNowSec)}
+                        data-bbp-span={Math.floor(chartView.bbpRange?.end ?? 0)}
+                    >
+                        {t('bbp.live')} · {t(bbpTimeOriginKey(bbpRecording))} ·{' '}
+                        {targetProfile?.name ?? t('bbp.noTarget')}
                         {targetProfile &&
                             (bbpTarget.isLoading
                                 ? ` · ${t('bbp.loading')}`
