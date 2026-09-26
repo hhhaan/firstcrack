@@ -524,23 +524,33 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         const win = getCurrentWindow();
         let unlisten: (() => void) | undefined;
         let active = true;
+        let prompting = false;
         void win
             .onCloseRequested(async (e) => {
                 if (!hasUnsavedRoastRef.current) return;
-                e.preventDefault();
-                const running = isRunningRef.current;
-                const ok = await ask(
-                    running
-                        ? '로스팅이 진행 중입니다. 정말 종료하시겠습니까?'
-                        : '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?',
-                    {
-                        title: '로스팅 진행 중',
-                        kind: 'warning',
-                        okLabel: '종료',
-                        cancelLabel: '취소',
-                    },
-                );
-                if (ok) {
+                // 다이얼로그가 떠 있는 동안의 재진입은 닫지 않는다.
+                if (prompting) {
+                    e.preventDefault();
+                    return;
+                }
+                prompting = true;
+                try {
+                    const running = isRunningRef.current;
+                    const ok = await ask(
+                        running
+                            ? '로스팅이 진행 중입니다. 정말 종료하시겠습니까?'
+                            : '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?',
+                        {
+                            title: '로스팅 진행 중',
+                            kind: 'warning',
+                            okLabel: '종료',
+                            cancelLabel: '취소',
+                        },
+                    );
+                    if (!ok) {
+                        e.preventDefault();
+                        return;
+                    }
                     const sid = useRoastingStore.getState().sessionId;
                     if (sid) {
                         try {
@@ -550,8 +560,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                             // flush failure must not block window close
                         }
                     }
-                    unlisten?.();
-                    void win.close();
+                    // 확인이면 preventDefault 하지 않는다. Tauri 2는 JS 리스너가 있으면
+                    // 네이티브 close를 이미 취소하고, preventDefault가 없을 때만 destroy() 한다.
+                    // close()+unlisten()은 리스너만 지워서 이후 빨간 버튼/Cmd+W가 무시된다.
+                } catch (err) {
+                    e.preventDefault();
+                    logger.capture(err, { scope: 'activeRoast.closePrompt' });
+                } finally {
+                    prompting = false;
                 }
             })
             .then((fn) => {

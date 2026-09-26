@@ -13,6 +13,9 @@
     },
     "common": {
         "cancel": "キャンセル",
+        "quit": "終了",
+        "quitConfirmTitle": "First Crackを終了しますか？",
+        "quitConfirmMessage": "アプリを終了すると、進行中の焙煎が中断されます。終了しますか？",
         "close": "閉じる",
         "connected": "接続済み",
         "connecting": "接続中...",

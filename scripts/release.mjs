@@ -2,6 +2,8 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
+import { releaseCiStatus } from './check-release-ci.mjs';
+
 const arg = process.argv[2];
 const force = process.argv.includes('--force');
 const BUMP_KINDS = new Set(['patch', 'minor', 'major']);
@@ -106,9 +108,6 @@ if (!force) {
         );
     }
 
-    // origin/main HEAD의 CI 게이트가 green인지 (이름 = ci.yml job id).
-    // ios-check is skipped when src-tauri did not change — treat skipped as pass.
-    const gateChecks = new Set(['paths', 'check', 'test', 'sidecar', 'ios-check', 'semgrep', 'gitleaks', 'edge-check']);
     let runs;
     try {
         runs = JSON.parse(
@@ -116,18 +115,15 @@ if (!force) {
                 'api',
                 `repos/{owner}/{repo}/commits/${head}/check-runs`,
                 '--jq',
-                '[.check_runs[] | {name, conclusion}]',
+                '[.check_runs[] | {name, status, conclusion}]',
             ]),
-        ).filter((r) => gateChecks.has(r.name));
+        );
     } catch {
         fail('gh api로 CI 상태 조회 실패 — gh auth 확인');
     }
-    if (runs.length === 0) {
-        fail('이 커밋에 CI check-run이 없음 (docs-only push로 CI 스킵?) — CI가 붙은 커밋에서 릴리스');
-    }
-    const notGreen = runs.filter((r) => r.conclusion !== 'success' && r.conclusion !== 'skipped');
-    if (notGreen.length > 0) {
-        fail(`CI가 green이 아님: ${notGreen.map((r) => `${r.name}=${r.conclusion ?? 'pending'}`).join(', ')}`);
+    const status = releaseCiStatus(runs);
+    if (status !== 'ok') {
+        fail(`CI gate=${status}: ${runs.map((r) => `${r.name}=${r.conclusion ?? r.status}`).join(', ')}`);
     }
     process.stdout.write(`✅ 사전확인 통과 — HEAD=origin/main, CI ${runs.length}종 green, release ${version}\n`);
 }

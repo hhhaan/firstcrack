@@ -193,7 +193,7 @@ jobs:
 
           # Wait for all Phase 1 binary uploads
           fail=0
-          for pid in $pids; do wait $pid || fail=1; done
+          for pid in $pids; do wait "$pid" || fail=1; done
           if [ "$fail" -ne 0 ]; then
             echo "ERROR: one or more binary uploads failed"
             exit 1
@@ -209,7 +209,7 @@ jobs:
           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
 
           fail=0
-          for pid in $pids; do wait $pid || fail=1; done
+          for pid in $pids; do wait "$pid" || fail=1; done
           if [ "$fail" -ne 0 ]; then
             echo "ERROR: one or more latest/landing uploads failed"
             exit 1
@@ -309,10 +309,10 @@ jobs:
               HTTP_CODE=$(echo "$RESPONSE" | tail -1)
               echo "CF purge after rollback: HTTP $HTTP_CODE"
             fi
-            echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+            echo "ROLLBACK_STATUS=success" >> "$GITHUB_ENV"
           else
             echo "::error::Rollback FAILED — latest.json may be in broken state"
-            echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+            echo "ROLLBACK_STATUS=failed" >> "$GITHUB_ENV"
           fi
 
       - name: Notify publish result

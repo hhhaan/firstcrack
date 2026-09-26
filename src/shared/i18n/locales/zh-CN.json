@@ -13,6 +13,9 @@
     },
     "common": {
         "cancel": "取消",
+        "quit": "退出",
+        "quitConfirmTitle": "退出 First Crack？",
+        "quitConfirmMessage": "退出应用将中断正在进行的烘焙。确定退出吗？",
         "close": "关闭",
         "connected": "已连接",
         "connecting": "连接中...",

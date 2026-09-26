@@ -55,7 +55,7 @@ jobs:
           shopt -s nullglob
 
           echo "=== All local migration files ==="
-          ls -1 supabase/migrations/*.sql | sort
+          find supabase/migrations -maxdepth 1 -name '*.sql' -print | sort
 
           echo ""
           echo "=== Changed vs base ($BASE_SHA) ==="

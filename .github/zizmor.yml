@@ -1,0 +1,12 @@
+# pnpm check:zizmor — high-confidence, high-severity findings fail.
+# actions/* stay on major tags (Dependabot bumps them). Every other action is a commit SHA.
+# Cooldown stays at 3 days: pnpm minimumReleaseAge is 1 day; 3 is the repo's chosen floor.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        "actions/*": ref-pin
+        "*": hash-pin
+  dependabot-cooldown:
+    config:
+      days: 3
