@@ -1,16 +1,11 @@
 {
     "bbp": {
         "history": "이 Charge 직전 BBP",
-        "live": "실측 BBP",
-        "target": "BBP 기준",
-        "timeOrigin": "이전 End 기준 시간",
-        "preheatTimeOrigin": "예열 시작 기준 시간",
         "duration": "BBP 시간",
         "chargeTemp": "Charge 온도",
         "loading": "BBP 불러오는 중…",
         "empty": "저장된 BBP 데이터 없음",
-        "failed": "BBP를 불러오지 못했습니다",
-        "noTarget": "선택한 기준 없음"
+        "failed": "BBP를 불러오지 못했습니다"
     },
     "common": {
         "cancel": "취소",

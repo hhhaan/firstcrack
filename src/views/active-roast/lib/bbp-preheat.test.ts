@@ -1,7 +1,6 @@
 import { type BbpPoint, hydrateLiveBbp, useBbpStore } from '@features/active-roast/model/bbp';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    bbpTimeOriginKey,
     chartOnlyPreheatDecision,
     noteChartOnlyPreheatMount,
     resetChartOnlyPreheatMountsForTests,
@@ -35,11 +34,6 @@ describe('first-batch preheat display', () => {
             finalized: null,
             finalizedPoints: [],
         });
-    });
-
-    it('uses a preheat title until End→Charge recording starts', () => {
-        expect(bbpTimeOriginKey(false)).toBe('bbp.preheatTimeOrigin');
-        expect(bbpTimeOriginKey(true)).toBe('bbp.timeOrigin');
     });
 
     it('reload during preheat does not restore the curve', () => {

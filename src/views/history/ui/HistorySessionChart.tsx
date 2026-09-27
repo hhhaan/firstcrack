@@ -78,7 +78,7 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                     {roast.isError && <span role="status">{t('history.expanded.chartUnavailable')}</span>}
                     {profile && (targetBbp.isLoading || targetBbp.isError) && (
                         <span role="status">
-                            {t('bbp.target')} · {t(targetBbp.isLoading ? 'bbp.loading' : 'bbp.failed')}
+                            {profile.name} · {t(targetBbp.isLoading ? 'bbp.loading' : 'bbp.failed')}
                         </span>
                     )}
                 </div>

@@ -1,7 +1,3 @@
-/** Chart caption: recorded Charge wait is since the previous End. First-batch preheat is not. */
-export const bbpTimeOriginKey = (recording: boolean): 'bbp.timeOrigin' | 'bbp.preheatTimeOrigin' =>
-    recording ? 'bbp.timeOrigin' : 'bbp.preheatTimeOrigin';
-
 /**
  * Chart-only preheat lives in the Zustand store, which outlives a React remount.
  * bootMs only catches a store left over from before this module evaluated (HMR).
