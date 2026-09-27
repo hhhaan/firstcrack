@@ -22,6 +22,8 @@ interface RoastSummaryModalProps {
     summaryData: RoastSummaryData | null;
     onClose: () => void;
     onDiscard: () => void;
+    onCancelDrop: () => void;
+    canCancelDrop: boolean;
     onSave: (data: RoastSummaryForm) => Promise<void>;
     isSaving?: boolean;
     ambientTemp?: number | null;
@@ -55,6 +57,8 @@ export const RoastSummaryModal = ({
     summaryData,
     onClose,
     onDiscard,
+    onCancelDrop,
+    canCancelDrop,
     onSave,
     isSaving = false,
     ambientTemp,
@@ -481,6 +485,17 @@ export const RoastSummaryModal = ({
                     {isSaving && <Spinner />}
                     {t('activeRoast.summary.save')}
                 </button>
+                {canCancelDrop && (
+                    <button
+                        type="button"
+                        data-testid="roast-summary-cancel-drop"
+                        onClick={onCancelDrop}
+                        disabled={isSaving}
+                        className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {t('activeRoast.unsaved.cancelDrop')}
+                    </button>
+                )}
                 <button
                     type="button"
                     onClick={async () => {

@@ -880,9 +880,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             {!saveFlow.flow.summaryModal && saveFlow.flow.summaryData && (
                 <UnsavedRoastBanner
                     timeStr={saveFlow.flow.summaryData.totalTime}
-                    cancelable={dropCancelable}
                     onReopen={saveFlow.flow.reopenSummary}
-                    onCancelDrop={handleCancelDrop}
                 />
             )}
 
@@ -1053,6 +1051,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 planBatchHandoff={saveFlow.flow.summaryData?.planBatchHandoff ?? null}
                 fallbackBeanName={saveFlow.flow.summaryData?.handoffBeanName ?? null}
                 onClose={saveFlow.flow.closeSummary}
+                canCancelDrop={dropCancelable}
+                onCancelDrop={handleCancelDrop}
                 onDiscard={() => {
                     saveFlow.discardSummary();
                 }}
