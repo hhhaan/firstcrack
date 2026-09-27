@@ -107,7 +107,7 @@ describe('RoastSidePanel live readings (#358)', () => {
             phase: 'standby',
             charged: false,
             roastEnded: false,
-            roastPhaseName: 'CHARGE WAIT',
+            roastPhaseName: 'READY',
             bbpTimer: '1:05',
             bbpChargeWait: true,
             timeStr: '8:42',
