@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { i18n } from '@shared/i18n';
+import { useToastStore } from '@shared/store/toast';
 import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -30,6 +32,7 @@ afterEach(() => {
     act(() => {
         for (const root of roots.splice(0)) root.unmount();
         useRoastingStore.getState().reset();
+        useToastStore.setState({ toasts: [] });
     });
 });
 
@@ -323,6 +326,23 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         act(() => h.result.rearmAutoCharge());
         for (let t = 33; t <= 43; t++) sample(t, 200 - 2 * Math.max(0, t - 37));
         expect(h.onAutoCharge).toHaveBeenCalledTimes(1);
+    });
+
+    it('announces the Drop cool-down once when auto Charge is on', () => {
+        const h = setup();
+        act(() => h.result.holdAutoChargeUntilRecovery());
+        act(() => h.result.holdAutoChargeUntilRecovery());
+        expect(useToastStore.getState().toasts.map(({ message, tone }) => ({ message, tone }))).toEqual([
+            { message: i18n.t('activeRoast.autoChargeHeld'), tone: 'info' },
+        ]);
+
+        const off = renderAutoDetection({
+            livePoints: [],
+            markEvent: noop,
+            autoChargeEnabled: false,
+        });
+        act(() => off.result.holdAutoChargeUntilRecovery());
+        expect(useToastStore.getState().toasts).toHaveLength(1);
     });
 
     it('ignores Drop cool-down and rearms after BT recovers for the next batch', () => {

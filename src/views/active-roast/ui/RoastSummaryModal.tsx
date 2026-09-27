@@ -148,15 +148,16 @@ export const RoastSummaryModal = ({
             onClose={onClose}
             dismissable={false}
             labelledBy="roast-summary-modal-title"
-            overlayClassName="z-[10000] pointer-events-none bg-[rgba(23,23,23,0.12)]"
-            contentClassName={`${modalPanel.sm} max-h-[min(720px,calc(100vh-64px))] !p-0 flex flex-col overflow-hidden relative pointer-events-auto`}
+            overlayClassName="z-[10000] bg-[rgba(23,23,23,0.12)]"
+            contentClassName={`${modalPanel.sm} max-h-[min(720px,calc(100vh-64px))] !p-0 flex flex-col overflow-hidden relative`}
         >
             <button
                 type="button"
                 data-testid="roast-summary-close"
-                onClick={onClose}
-                aria-label={t('common.close')}
-                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated"
+                onClick={canCancelDrop ? onCancelDrop : onClose}
+                disabled={isSaving}
+                aria-label={t(canCancelDrop ? 'activeRoast.unsaved.cancelDrop' : 'common.close')}
+                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated disabled:opacity-60 disabled:cursor-not-allowed"
             >
                 <X size={18} strokeWidth={2.3} />
             </button>

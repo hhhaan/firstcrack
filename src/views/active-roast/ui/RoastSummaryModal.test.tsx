@@ -82,6 +82,13 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
     };
 };
 
+it('keeps the overlay from passing clicks through to the roast screen', () => {
+    const { host, unmount } = renderModal();
+    const overlay = host.querySelector('[role="presentation"]');
+    expect(overlay?.className).not.toContain('pointer-events-none');
+    unmount();
+});
+
 it('shows stored TP in the summary log', () => {
     const { host, unmount } = renderModal({
         summaryData: {
@@ -200,6 +207,18 @@ it('calls onClose from the header X without discarding', () => {
     act(() => close.click());
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onDiscard).not.toHaveBeenCalled();
+    unmount();
+});
+
+it('cancels Drop from the header X while the roast can be restored', () => {
+    const onClose = vi.fn();
+    const onCancelDrop = vi.fn();
+    const { host, unmount } = renderModal({ canCancelDrop: true, onClose, onCancelDrop });
+    const close = host.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
+    expect(close.getAttribute('aria-label')).toBe('activeRoast.unsaved.cancelDrop');
+    act(() => close.click());
+    expect(onCancelDrop).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
     unmount();
 });
 

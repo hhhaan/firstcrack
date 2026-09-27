@@ -552,6 +552,7 @@
         }
     },
     "activeRoast": {
+        "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
             "noBeanSelected": "未选生豆",
             "target": "目标:",

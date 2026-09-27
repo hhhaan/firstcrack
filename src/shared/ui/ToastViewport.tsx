@@ -1,5 +1,5 @@
 import { useToastStore } from '@shared/store/toast';
-import { AlertCircle, CheckCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 /** Global feedback surface. Sits above modals (ModalShell is z-1000). */
@@ -7,33 +7,50 @@ export const ToastViewport = () => {
     const { t } = useTranslation();
     const toasts = useToastStore((s) => s.toasts);
     const dismiss = useToastStore((s) => s.dismiss);
+    const pause = useToastStore((s) => s.pause);
+    const resume = useToastStore((s) => s.resume);
 
     if (toasts.length === 0) return null;
 
     return (
-        <div
-            role="status"
-            aria-live="polite"
-            className="pointer-events-none fixed bottom-6 left-1/2 z-1100 flex w-full max-w-[440px] -translate-x-1/2 flex-col gap-2 px-4"
-        >
+        <div className="pointer-events-none fixed bottom-6 left-1/2 z-1100 flex w-full max-w-[440px] -translate-x-1/2 flex-col gap-2 px-4">
             {toasts.map((toast) => (
                 <div
                     key={toast.id}
-                    className="pointer-events-auto flex items-start gap-2.5 rounded-2xl border border-black/6 bg-[rgba(255,255,255,0.97)] px-4 py-3 shadow-[0_16px_40px_rgba(22,18,12,0.18)] backdrop-blur-[20px] dark:border-[#585d61] dark:bg-[#1a1e23]"
+                    role={toast.tone === 'error' ? 'alert' : 'status'}
+                    onPointerEnter={() => pause(toast.id)}
+                    onPointerLeave={(event) => {
+                        if (!event.currentTarget.contains(document.activeElement)) resume(toast.id);
+                    }}
+                    onFocus={() => pause(toast.id)}
+                    onBlur={(event) => {
+                        if (
+                            !event.currentTarget.contains(event.relatedTarget) &&
+                            !event.currentTarget.matches(':hover')
+                        )
+                            resume(toast.id);
+                    }}
+                    className="pointer-events-auto flex items-start gap-2.5 rounded-xl border border-border-subtle bg-main-bg px-4 py-3 shadow-(--shadow-ring)"
                 >
                     {toast.tone === 'success' ? (
                         <CheckCircle size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-palette-green" />
+                    ) : toast.tone === 'info' ? (
+                        <Info size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-palette-blue" />
                     ) : (
-                        <AlertCircle size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-[#c0392b]" />
+                        <AlertCircle
+                            size={15}
+                            strokeWidth={2}
+                            className="mt-0.5 shrink-0 text-red-600 dark:text-red-400"
+                        />
                     )}
-                    <p className="flex-1 text-[13px] leading-relaxed text-primary tracking-[0.14px] dark:text-[#e5e5e5]">
+                    <p className="min-w-0 flex-1 wrap-break-word text-[13px] leading-relaxed text-primary tracking-[0.14px]">
                         {toast.message}
                     </p>
                     <button
                         type="button"
                         onClick={() => dismiss(toast.id)}
                         aria-label={t('common.close')}
-                        className="shrink-0 cursor-pointer rounded-full border-none bg-transparent p-1 text-muted transition-colors hover:text-primary"
+                        className="-m-1 shrink-0 cursor-pointer rounded-full border-none bg-transparent p-2 text-muted transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-palette-blue"
                     >
                         <X size={14} strokeWidth={2} />
                     </button>
