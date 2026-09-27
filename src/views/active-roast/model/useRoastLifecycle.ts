@@ -51,11 +51,12 @@ export interface UseRoastLifecycleReturn {
     resetActiveRoast: (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => void;
     confirmEndRoast: () => RoastSummaryData;
     completeDrop: (input: { livePoints: LiveRoastPoint[]; onset?: DropOnset }) => RoastSummaryData | null;
-    /** Manual and auto Drop. Re-disables detectors after reset rearms them. */
+    /** Manual and auto Drop. Holds Charge through cool-down; disables Drop until Charge. */
     finishDrop: (input: {
         livePoints: LiveRoastPoint[];
         onset?: DropOnset;
         commitSummary: (summary: RoastSummaryData) => void;
+        holdAutoChargeUntilRecovery: () => void;
     }) => RoastSummaryData | null;
     cancelDrop: () => boolean;
     recoverLiveBbp: () => void;
@@ -302,6 +303,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             livePoints: LiveRoastPoint[];
             onset?: DropOnset;
             commitSummary: (summary: RoastSummaryData) => void;
+            holdAutoChargeUntilRecovery: () => void;
         }): RoastSummaryData | null => {
             // Stop the detector before the snapshot so a second onset in the same turn cannot enter.
             disableAutoDropRef.current();
@@ -309,12 +311,12 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             if (!summary) return null;
             input.commitSummary(summary);
             resetActiveRoast({ chargeWait: true, keepHeatHold: true });
-            // reset rearms both detectors. Charge wait must stay disarmed until the next Charge.
+            // Drop cool-down must finish before the next auto Charge can fire.
             disableAutoDropRef.current();
-            disableAutoChargeRef.current();
+            input.holdAutoChargeUntilRecovery();
             return summary;
         },
-        [completeDrop, resetActiveRoast, disableAutoDropRef, disableAutoChargeRef],
+        [completeDrop, resetActiveRoast, disableAutoDropRef],
     );
 
     const cancelDrop = useCallback((): boolean => {
