@@ -54,7 +54,7 @@ interface RoastChartContainerProps {
     showFcBand?: boolean;
     unit: TemperatureUnit;
     targetProfileName?: string;
-    bbpRange?: { start: number; end: number };
+    bbpRange?: { start: number; end: number; label?: string };
     onCursorIdx: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
     onEventMarkerEdit?: (logId: string, patch: { timeSec?: number; note?: string }) => void;

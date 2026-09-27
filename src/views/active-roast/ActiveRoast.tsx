@@ -907,7 +907,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             >
                 <div className="flex gap-0 flex-1 min-h-0 flex-row">
                     <RoastChartContainer
-                        bbpRange={chartView.bbpRange}
+                        bbpRange={
+                            chartView.bbpRange && {
+                                ...chartView.bbpRange,
+                                label: bbpRecording || awaitingNextCharge ? 'BBP' : 'PREHEAT',
+                            }
+                        }
                         chartAreaRef={chart.chartAreaRef}
                         mainChartHeight={chart.mainChartHeight}
                         effectiveZoomRange={chart.effectiveZoomRange}

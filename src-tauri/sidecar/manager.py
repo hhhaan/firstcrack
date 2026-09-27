@@ -914,14 +914,8 @@ class RoasterManager:
                 await self._adapter.start_roast()
 
     async def reset_roast(self) -> None:
-        """로스트 종료 후 어댑터 상태를 초기화한다 (connect() 재호출). RoR 윈도우도 클리어.
-
-        재연결 실패 시 _connected=False 를 남긴다. HTTP 200 + connected=True 로
-        끝나서는 안 된다. 연결 게이트는 두지 않는다 — 어댑터만 있으면 재시도한다.
-        """
+        """배치 계산/PID 상태를 초기화한다. 재연결을 통한 예열 복귀는 가상 머신만 한다."""
         async with self._lock:
-            self._connection_epoch += 1
-            self._last_applied = {}
             self._ror_window.clear()
             self._et_ror_window.clear()
             self._bt_ema = None
@@ -944,6 +938,12 @@ class RoasterManager:
             self._pid_task = None
             self._pid = None
 
+            # 실제 장비 연결은 배치 경계와 무관하게 유지한다.
+            if self._protocol != "virtual":
+                return
+
+            self._connection_epoch += 1
+            self._last_applied = {}
             self._resetting = True
             self._connected = False
             try:
