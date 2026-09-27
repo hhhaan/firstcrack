@@ -185,7 +185,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         eventMarkerStyle === 'both'
             ? buildContinuousMarkerSeries(continuousMarkerLines, (tempYMin + tempYMax) / 2, hasControlSeries)
             : null;
-    const curveLabelSeries = curveLabels.length > 0 ? buildCurveLabelSeries(curveLabels) : null;
+    // Always present so a zoom that culls every label still updates this series.
+    // Omitting it on merge leaves the previous frame's text on the canvas.
+    const curveLabelSeries = buildCurveLabelSeries(curveLabels);
 
     if (hasControlSeries && controlData) {
         // Grid: [0] Temp/RoR (+ phase overlay) · [1] Drum/Heat/Fan
@@ -244,7 +246,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 ...tempSeries,
                 ...controlSeries,
                 ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
-                ...(curveLabelSeries ? [curveLabelSeries] : []),
+                curveLabelSeries,
                 ...(phaseSeries ? [phaseSeries] : []),
             ],
             // Zoom/pan owned by useChartZoom — ECharts dataZoom would steal drag/wheel
@@ -290,7 +292,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             ...(bbpRange ? [bbpBackground(false)] : []),
             ...tempSeries,
             ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
-            ...(curveLabelSeries ? [curveLabelSeries] : []),
+            curveLabelSeries,
             ...(phaseSeries ? [phaseSeries] : []),
         ],
     };

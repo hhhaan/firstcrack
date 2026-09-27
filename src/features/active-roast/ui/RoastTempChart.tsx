@@ -14,6 +14,7 @@ import {
 } from '@features/active-roast/lib/chart-option';
 import {
     eventLabelText,
+    isCurveMarkerVisible,
     LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
     nearestBtAt,
@@ -358,9 +359,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const chart = chartInstanceRef.current;
             const point = localPoint(clientX, clientY);
             if (!chart || !point) return null;
+            const xMin = xViewMin ?? xs[0] ?? 0;
+            const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
                     if (hideChargeLabel && marker.event === 'Charge') return [];
+                    if (!isCurveMarkerVisible(marker.timeSec, xMin, xMax, xs, btActual)) return [];
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
                     const nearest = nearestBtAt(xs, btActual, marker.timeSec);
                     const displayY =
@@ -388,20 +392,23 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         },
                     ];
                 }),
-                ...turningPoints.map((tp) => {
+                ...turningPoints.flatMap((tp) => {
+                    if (!isCurveMarkerVisible(tp.timeSec, xMin, xMax, xs, btActual)) return [];
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, tp.timeSec));
                     const displayY = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
                     const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
-                    return {
-                        marker: null as RoastEventMarker | null,
-                        timeSec: tp.timeSec,
-                        xPx: x ?? Number.NaN,
-                        yPx: y ?? Number.NaN,
-                        text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
-                        below: true,
-                        color: '',
-                        showDot: eventMarkerStyle === 'point',
-                    };
+                    return [
+                        {
+                            marker: null as RoastEventMarker | null,
+                            timeSec: tp.timeSec,
+                            xPx: x ?? Number.NaN,
+                            yPx: y ?? Number.NaN,
+                            text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+                            below: true,
+                            color: '',
+                            showDot: eventMarkerStyle === 'point',
+                        },
+                    ];
                 }),
             ];
             const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth());
@@ -452,6 +459,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             temperatureUnit,
             turningPoints,
             xs,
+            xViewMax,
+            xViewMin,
         ],
     );
 

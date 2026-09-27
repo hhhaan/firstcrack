@@ -1,3 +1,4 @@
+import * as echarts from 'echarts';
 import { describe, expect, it } from 'vitest';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams, ResolvedChartColors } from './types';
@@ -113,8 +114,8 @@ describe('buildRoastChartOption', () => {
         const series = option.series as unknown[];
         const yAxis = option.yAxis as unknown[];
 
-        // BT Actual always present; ET + RoR with defaults → 3 series
-        expect(series).toHaveLength(3);
+        // BT Actual, ET, RoR, and the always-on event label series (clears stale zoom labels).
+        expect(series).toHaveLength(4);
         expect(yAxis).toHaveLength(2);
         expect(option.grid).toHaveLength(1);
         expect(option.dataZoom).toEqual([]);
@@ -336,8 +337,8 @@ describe('buildRoastChartOption', () => {
     it('draws both-mode marker lines through the inter-grid gap and clips x manually', () => {
         const option = buildRoastChartOption({
             ...baseParams(),
-            xs: [0, 60],
-            btActual: [100, 120],
+            xs: [0, 30, 60],
+            btActual: [100, 110, 120],
             eventMarkerStyle: 'both',
             eventMarkers: [{ timeSec: 30, event: 'Note', color: '#old', timeStr: '', temp: '', note: 'Test' }],
             controlData: { xs: [0, 60], drumTemp: [50, 55], heatPower: [40, 45], fanSpeed: [30, 35] },
@@ -418,5 +419,68 @@ describe('buildRoastChartOption', () => {
         const text = result?.children.find((child) => child.type === 'text');
         expect(text).toMatchObject({ type: 'text', x: 124, y: 65 });
         expect(result?.children.some((child) => child.type === 'circle')).toBe(false);
+    });
+
+    it('draws nothing when the anchor is outside the grid on x or y', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 60],
+            btActual: [100, 185],
+            eventMarkers: [{ timeSec: 60, event: 'FC Start', color: '#old', timeStr: '', temp: '185°C' }],
+        });
+        const renderItem = (
+            option.series as {
+                name?: string;
+                renderItem?: (params: unknown, api: unknown) => { children?: unknown[] } | undefined;
+            }[]
+        ).find((series) => series.name === 'Event curve labels')?.renderItem;
+        const grid = { dataIndex: 0, coordSys: { x: 40, y: 10, width: 400, height: 300 } };
+        expect(renderItem?.(grid, { coord: () => [-20, 80], getWidth: () => 800 })).toBeUndefined();
+        expect(renderItem?.(grid, { coord: () => [120, 400], getWidth: () => 800 })).toBeUndefined();
+    });
+
+    it('clears a label left outside the window on the next merged frame and restores it when zoom resets', () => {
+        const full = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 122, 660],
+            btActual: [100, 141.7, 197],
+            etActual: [110, 150, 200],
+            rorActual: [5, 4, 2],
+            showET: true,
+            showRoR: true,
+            showTargetCurve: true,
+            targetXs: [0, 660],
+            targetBt: [100, 197],
+            charged: true,
+            currentTimeSec: 660,
+            eventMarkerStyle: 'line',
+            turningPoints: [{ timeSec: 122, temp: 141.7 }],
+        });
+        const zoomed = buildRoastChartOption({
+            ...baseParams(),
+            xs: [600, 660],
+            btActual: [196, 197],
+            etActual: [200, 201],
+            rorActual: [2, 2],
+            showET: true,
+            showRoR: true,
+            showTargetCurve: true,
+            targetXs: [600, 660],
+            targetBt: [197, 197],
+            charged: true,
+            currentTimeSec: 660,
+            eventMarkerStyle: 'line',
+            turningPoints: [{ timeSec: 122, temp: 141.7 }],
+            xViewMin: 600,
+            xViewMax: 660,
+        });
+        const chart = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 800, height: 420 });
+        chart.setOption(full);
+        expect(chart.renderToSVGString()).toContain('TP|02:02');
+        chart.setOption(zoomed);
+        expect(chart.renderToSVGString()).not.toContain('TP|02:02');
+        chart.setOption(full);
+        expect(chart.renderToSVGString()).toContain('TP|02:02');
+        chart.dispose();
     });
 });

@@ -4,7 +4,14 @@ import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperatur
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
 
-/** 시간축에서 가장 가까운 BT 표시값 조회 */
+/**
+ * Live samples are ~0.5–1s apart. Farther than this is not this event's BT
+ * (a zoomed slice's nearest point can be minutes away).
+ * ponytail: fixed gap, not median dt — widen the constant if polls get sparser than 5s.
+ */
+export const NEAREST_BT_MAX_SEC = 5;
+
+/** 시간축에서 가장 가까운 BT 표시값 조회. 허용 거리 밖이면 null. */
 export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: number): number | null => {
     if (!xs.length) return null;
     let bestIdx = -1;
@@ -17,7 +24,20 @@ export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: 
             bestIdx = i;
         }
     }
-    return bestIdx >= 0 ? btActual[bestIdx] : null;
+    return bestIdx >= 0 && bestDist <= NEAREST_BT_MAX_SEC ? btActual[bestIdx] : null;
+};
+
+/** In-window marker with a nearby BT sample, or an in-window marker on an empty curve. */
+export const isCurveMarkerVisible = (
+    timeSec: number,
+    xMin: number,
+    xMax: number,
+    xs: number[],
+    btActual: (number | null)[],
+): boolean => {
+    if (!Number.isFinite(timeSec) || timeSec < xMin || timeSec > xMax) return false;
+    if (nearestBtAt(xs, btActual, timeSec) != null) return true;
+    return !xs.some((x, i) => Number.isFinite(x) && Number.isFinite(btActual[i]));
 };
 
 const formatMarkerTime = (timeSec: number) => {
@@ -95,7 +115,10 @@ const boxesOverlap = (a: CurveLabelBox, b: CurveLabelBox) =>
 
 const makeLabelBox = (item: CurveLabelLayoutInput, textY: number, canvasWidth: number): CurveLabelBox => {
     const width = Math.min(estimateLabelWidth(item.text), Math.max(0, canvasWidth - 8));
-    const x = Math.max(4, Math.min(item.xPx + MARKER_LABEL_X_OFFSET_PX, canvasWidth - 4 - width));
+    const rawX = item.xPx + MARKER_LABEL_X_OFFSET_PX;
+    // Clamp only anchors already on the canvas. Off-chart anchors must stay off-chart.
+    const anchorOnCanvas = item.xPx >= 0 && item.xPx <= canvasWidth;
+    const x = anchorOnCanvas ? Math.max(4, Math.min(rawX, Math.max(4, canvasWidth - 4 - width))) : rawX;
     const top = item.below ? textY : textY - MARKER_LABEL_STACK_PX;
     const bottom = item.below ? textY + MARKER_LABEL_STACK_PX : textY;
     return {
@@ -239,7 +262,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     const useContinuousLines = eventMarkerStyle === 'both';
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];
-    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge');
+    const markerVisible = (timeSec: number) => isCurveMarkerVisible(timeSec, xMin, xMax, xs, btActual);
+    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge' && markerVisible(m.timeSec));
     if (charged && Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
         const nowLineStyle = {
             color: colors.currentTimeLine,
@@ -287,7 +311,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         label: { show: false },
     }));
 
-    const tpMarkLines = turningPoints.map((tp) => ({
+    const visibleTurningPoints = turningPoints.filter((tp) => markerVisible(tp.timeSec));
+    const tpMarkLines = visibleTurningPoints.map((tp) => ({
         xAxis: tp.timeSec,
         lineStyle: {
             color: colors.eventMark,
@@ -299,7 +324,9 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     }));
 
     const showDot = eventMarkerStyle === 'point';
-    const labeledEvents = hideChargeLabel ? eventMarkers.filter((m) => m.event !== 'Charge') : eventMarkers;
+    const labeledEvents = (hideChargeLabel ? eventMarkers.filter((m) => m.event !== 'Charge') : eventMarkers).filter(
+        (m) => markerVisible(m.timeSec),
+    );
     const curveLabels: CurveLabelItem[] = [
         ...labeledEvents.map((m) => {
             const nearest = nearestBtAt(xs, btActual, m.timeSec);
@@ -317,7 +344,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                 showDot: m.event === 'Charge' ? false : showDot,
             };
         }),
-        ...turningPoints.map((tp) => ({
+        ...visibleTurningPoints.map((tp) => ({
             timeSec: tp.timeSec,
             y: nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit),
             text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
@@ -364,7 +391,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                   color: markerColor(m.event),
                   width: isControlEvent(m.event) ? 1 : 0.6,
               })),
-              ...turningPoints.map((tp) => ({ timeSec: tp.timeSec, color: colors.eventMark, width: 0.6 })),
+              ...visibleTurningPoints.map((tp) => ({ timeSec: tp.timeSec, color: colors.eventMark, width: 0.6 })),
           ]
         : [];
 
