@@ -385,7 +385,7 @@ Response:
 Behavior:
 
 - 현재 adapter에 `enter_standby()` 메서드가 있으면 호출한다.
-- virtual adapter는 이 호출 시점을 기준으로 `_BEAN_LOAD_DELAY`(기본 8초) 후 생두 투입 시뮬레이션(BT 급강하)을 시작한다.
+- virtual adapter는 이 호출 10초 후 BT를 서서히 낮춰 자동 Charge 감지를 유발한다.
 - 프론트엔드는 standby 단계 진입 시 이 엔드포인트를 호출해 자동 Charge 감지 루프를 활성화한다.
 
 ### POST /start
@@ -405,11 +405,11 @@ Behavior:
 - BT RoR window를 초기화한다.
 - ET RoR window를 초기화한다.
 - 현재 adapter에 `start_roast()` 메서드가 있으면 호출한다.
-- virtual adapter는 이 호출 시 profile 재생 시작 시간을 현재 시각으로 리셋한다.
+- virtual adapter는 현재 BT/ET에서 연속으로 로스팅 곡선을 시작한다. 화력과 배기 변경은 ET에 먼저, BT에 늦게 반영된다.
 
 ### POST /reset
 
-로스트 종료/리셋 신호다. 배치 계산/PID 상태를 초기화한다. 실제 장비 연결은 유지하고, 가상 머신만 재연결해 예열 상태로 되돌린다.
+로스트 종료/리셋 신호다. 배치 계산/PID 상태를 초기화한다. 실제 장비와 가상 머신 모두 연결을 유지하며, 가상 머신은 현재 온도에서 예열 상태로 복귀한다.
 
 Request body: 없음
 

@@ -212,83 +212,37 @@ class TestResetRoast:
         assert adapter.disconnected is True
         assert manager.status()["connected"] is False
 
-    async def test_reset_reconnect_fail_sets_connected_false(self, manager):
+    async def test_virtual_machine_stays_connected_between_roasts(self, manager):
         defaults = ROASTER_REGISTRY["virtual"]["default_params"]
         adapter = VirtualMachineAdapter(write_map=defaults["write_map"])
         await adapter.connect()
         _bind_virtual(manager, adapter)
+        adapter.connect = AsyncMock(side_effect=AssertionError("unexpected reconnect"))  # type: ignore[method-assign]
+        adapter.disconnect = AsyncMock(side_effect=AssertionError("unexpected disconnect"))  # type: ignore[method-assign]
 
-        stopped: list[tuple[str, str, bool]] = []
-
-        class _Pid:
-            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
-                stopped.append((reason, mode, manager._connected))
-
-        manager._pid = _Pid()
-
-        async def boom() -> None:
-            raise ConnectionError("Connection refused")
-
-        adapter.connect = boom  # type: ignore[method-assign]
-
-        with pytest.raises(ConnectionError):
+        for _ in range(3):
+            await manager.start_roast()
+            before = await adapter.read()
             await manager.reset_roast()
+            after = await adapter.read()
+            assert manager.status()["connected"] is True
+            assert adapter.connected is True
+            assert abs(after.bt - before.bt) <= 0.1
+            assert abs(after.et - before.et) <= 0.1
 
-        assert manager._connected is False
-        assert manager.status()["connected"] is False
-        assert manager._reconnecting()
-        assert manager.status()["reconnecting"] is True
-        assert manager._pid is None
-        assert stopped == [("reset", "zero", True)]
+        adapter.connect.assert_not_awaited()
+        adapter.disconnect.assert_not_awaited()
 
-    async def test_reset_reconnect_fail_loop_retries_connect(self, manager, monkeypatch):
-        import config
-
-        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01])
-        defaults = ROASTER_REGISTRY["virtual"]["default_params"]
-        adapter = VirtualMachineAdapter(write_map=defaults["write_map"])
-        await adapter.connect()
-        _bind_virtual(manager, adapter)
-
-        calls = {"n": 0}
-
-        async def boom() -> None:
-            calls["n"] += 1
-            raise ConnectionError("Connection refused")
-
-        adapter.connect = boom  # type: ignore[method-assign]
-
-        with pytest.raises(ConnectionError):
-            await manager.reset_roast()
-        assert calls["n"] == 1
-        assert manager._connected is False
-        assert manager._reconnecting()
-        for _ in range(50):
-            if calls["n"] >= 2:
-                break
-            await asyncio.sleep(0.01)
-        else:
-            pytest.fail("reconnect loop did not retry connect")
-
-    async def test_reset_reconnect_fail_http_matches_state(self, client):
-        defaults = ROASTER_REGISTRY["virtual"]["default_params"]
-        adapter = VirtualMachineAdapter(write_map=defaults["write_map"])
-        with patch("manager.make_adapter", return_value=adapter):
-            resp = await client.post("/connect", json={"roaster": "virtual"})
-        assert resp.status == 200
-
-        async def boom() -> None:
-            raise ConnectionError("Connection refused")
-
-        adapter.connect = boom  # type: ignore[method-assign]
-
-        resp = await client.post("/reset")
-        assert resp.status != 200
-        body = await resp.json()
-        assert body["connected"] is False
-        status = await (await client.get("/status")).json()
-        assert status["connected"] is False
-        assert status["reconnecting"] is True
+    async def test_virtual_reset_http_keeps_readings_live(self, client):
+        connected = await client.post("/connect", json={"roaster": "virtual"})
+        assert connected.status == 200
+        for _ in range(3):
+            reset = await client.post("/reset")
+            status = await (await client.get("/status")).json()
+            temperatures = await (await client.get("/temperatures")).json()
+            assert reset.status == 200
+            assert status["connected"] is True
+            assert temperatures["bt"] is not None
 
     async def test_control_rejected_during_reset(self, manager):
         defaults = ROASTER_REGISTRY["virtual"]["default_params"]
@@ -297,13 +251,13 @@ class TestResetRoast:
         _bind_virtual(manager, adapter)
 
         gate = asyncio.Event()
-        orig_connect = VirtualMachineAdapter.connect
+        orig_reset = VirtualMachineAdapter.reset_roast
 
         async def gated() -> None:
             await gate.wait()
-            await orig_connect(adapter)
+            await orig_reset(adapter)
 
-        adapter.connect = gated  # type: ignore[method-assign]
+        adapter.reset_roast = gated  # type: ignore[method-assign]
         reset_task = asyncio.create_task(manager.reset_roast())
         try:
             for _ in range(200):
@@ -321,3 +275,4 @@ class TestResetRoast:
             gate.set()
             await reset_task
         assert manager._resetting is False
+        assert manager.status()["connected"] is True

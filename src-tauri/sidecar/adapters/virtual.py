@@ -2,14 +2,13 @@
 가상 로스팅 머신 시뮬레이터 — 개발/테스트용.
 
 세 단계로 동작한다:
-  1. 예열 (connect ~ enter_standby): BT가 서서히 목표 예열 온도까지 상승
-  2. 대기 (enter_standby ~ start_roast): BT가 예열 목표에서 안정적으로 유지
-  3. 로스팅 (start_roast 이후): Charge 시점 BT에서 즉각 25°C 강하 → 로스팅 커브 재생
+  1. 예열/대기: 목표 온도에서 시작해 제어값에 따라 변한다.
+  2. Charge: 현재 BT/ET에서 연속으로 로스팅 곡선에 진입한다.
+  3. 로스팅: 화력/배기의 변화가 ET에 먼저, BT에 늦게 반영된다.
 """
 
 import dataclasses
 import math
-import random
 import time
 import logging
 from bisect import bisect_right
@@ -41,8 +40,13 @@ def _interp(x: float, xp: list[float], fp: list[float]) -> float:
 _PREHEAT_TARGET_BT = 210.0 # 예열 목표 BT (connect 즉시 도달)
 _PREHEAT_TARGET_ET = 230.0 # 예열 목표 ET (connect 즉시 도달)
 
-# Charge 시 즉각 강하량 — 실제 생두 투입 시 20~30°C 강하
-_CHARGE_DROP = 25.0
+# ponytail: 기준 곡선 + 2단 열 지연 모델. 실기 로그가 생기면 게인/시정수를 보정한다.
+_AMBIENT = 25.0
+_HEATER_GAIN = 1.5  # 기준 화력 초과 1%당 ET 평형 변화(°C)
+_FAN_GAIN = 0.3  # 배기 1% 변화당 ET 평형 변화(°C)
+_ET_TAU = 50.0  # ET 응답 시간(초)
+_BT_TAU = 110.0  # BT 응답 시간(초)
+_BT_GAIN = 0.75  # ET 변화 중 BT에 전달되는 비율
 
 
 # ── 로스팅 프로파일 ────────────────────────────────────────
@@ -104,23 +108,15 @@ def _build_roast_profile() -> dict[str, Any]:
 _ROAST_PROFILE = _build_roast_profile()
 
 
-# ── 노이즈 ────────────────────────────────────────────────
-
-
-def _noise(scale: float = 0.3) -> float:
-    """±scale °C 범위의 부드러운 노이즈."""
-    return (random.random() * 2 - 1) * scale
-
-
 # ── 어댑터 ─────────────────────────────────────────────────
 
 
 class VirtualMachineAdapter:
     """개발/테스트용 가상 머신 어댑터.
 
-    connect() → 예열 상승
-    enter_standby() → 예열 목표 온도에서 안정 유지 (강하 없음)
-    start_roast() → Charge 시점 BT 기록 후 로스팅 커브 재생
+    connect() → 예열 목표에서 시작
+    enter_standby() → auto-charge 검사용 투입 신호
+    start_roast() → 현재 온도에서 연속으로 로스팅 곡선 시작
     """
 
     def __init__(
@@ -136,22 +132,30 @@ class VirtualMachineAdapter:
         self._connect_time: float = 0.0
         self._roast_start_time: float = 0.0
         self._charge_bt: float = _PREHEAT_TARGET_BT  # Charge 시점 BT
+        self._charge_et: float = _PREHEAT_TARGET_ET
         self._standby_time: float = 0.0  # enter_standby() 호출 시각
+        self._et_offset = 0.0
+        self._bt_offset = 0.0
+        self._sim_ts = 0.0
         self._write_map = write_map or {}
         # control()로 받은 명령값. None이면 스크립트 기본값을 그대로 재생한다.
         self._cmd: dict[str, float] = {}
         # sim="thermal": duty에 반응하는 1차 지연 모델로 BT를 만든다 (PID 검증용).
-        # 기본 "scripted"는 기존 데모 커브 재생 그대로.
+        # 기본 "scripted"는 로스팅 기준 곡선에 열 지연 응답을 더한다.
         self._sim = sim
         self._clock = clock or time.monotonic
         self._model = FirstOrderThermalModel() if sim == "thermal" else None
         self._model_ts: float | None = None
 
     async def connect(self) -> None:
-        self._connect_time = time.monotonic()
+        self._connect_time = self._clock()
         self._roasting = False
         self._standby_time = 0.0
         self._charge_bt = _PREHEAT_TARGET_BT
+        self._charge_et = _PREHEAT_TARGET_ET
+        self._et_offset = 0.0
+        self._bt_offset = 0.0
+        self._sim_ts = self._connect_time
         self._connected = True
         # 모델 시각 기준을 여기서 잡는다. 첫 read에서야 잡으면 그 사이 흐른 시간이
         # 통째로 버려져 "duty를 올렸는데 온도가 그대로"인 것처럼 보인다.
@@ -165,12 +169,46 @@ class VirtualMachineAdapter:
 
     async def read(self) -> Reading:
         if not self._connected:
-            return Reading(bt=-1.0, et=-1.0, heater=None, fan=0, drum=0, timestamp=time.monotonic())
+            return Reading(bt=-1.0, et=-1.0, heater=None, fan=0, drum=0, timestamp=self._clock())
 
         if self._model is not None:
             return self._read_thermal()
         reading = self._read_preheat() if not self._roasting else self._read_roasting()
         return self._apply_cmd(reading)
+
+    def _advance_scripted(self, now: float) -> None:
+        dt = max(0.0, now - self._sim_ts)
+        start = self._sim_ts
+        self._sim_ts = now
+        if not dt:
+            return
+        steps = math.ceil(dt / 5.0)
+        step = dt / steps
+        heater = self._cmd.get("heater", 60.0)
+        cooling = max(0.0, 1.0 - heater / 60.0)
+        for i in range(steps):
+            elapsed = max(0.0, start + (i + 1) * step - self._roast_start_time)
+            if self._roasting:
+                base_bt = (
+                    _interp(elapsed, _ROAST_PROFILE["timex"], _ROAST_PROFILE["bt"])
+                    + self._charge_bt - _ROAST_PROFILE["bt"][0]
+                )
+                base_et = (
+                    _interp(elapsed, _ROAST_PROFILE["timex"], _ROAST_PROFILE["et"])
+                    + self._charge_et - _ROAST_PROFILE["et"][0]
+                )
+                default_fan = min(70.0, 30.0 + elapsed * 40.0 / 780.0)
+            else:
+                base_bt, base_et, default_fan = _PREHEAT_TARGET_BT, _PREHEAT_TARGET_ET, 20.0
+            if cooling:
+                et_target = (_AMBIENT - base_et) * cooling
+            else:
+                et_target = (heater - 60.0) * _HEATER_GAIN
+            et_target -= (self._cmd.get("fan", default_fan) - default_fan) * _FAN_GAIN
+            et_target = max(_AMBIENT - base_et, et_target)
+            self._et_offset += (et_target - self._et_offset) * (1.0 - math.exp(-step / _ET_TAU))
+            bt_target = self._et_offset * _BT_GAIN * (1.0 - cooling) + (_AMBIENT - base_bt) * cooling
+            self._bt_offset += (bt_target - self._bt_offset) * (1.0 - math.exp(-step / _BT_TAU))
 
     def _read_thermal(self) -> Reading:
         """duty에 반응하는 모델 기반 판독 — PID 루프 검증용."""
@@ -191,14 +229,16 @@ class VirtualMachineAdapter:
 
     def _read_preheat(self) -> Reading:
         """예열 + 대기 단계: standby 진입 10초 후 BT를 5°C/s로 최대 25°C 강하 → auto-charge 유발."""
+        now = self._clock()
+        self._advance_scripted(now)
         bt_base = _PREHEAT_TARGET_BT
         if self._standby_time > 0:
-            elapsed = time.monotonic() - self._standby_time - 10.0
+            elapsed = now - self._standby_time - 10.0
             if elapsed > 0:
                 bt_base -= min(elapsed * 5.0, 25.0)
 
-        bt = bt_base + _noise(0.4)
-        et = _PREHEAT_TARGET_ET + _noise(0.3)
+        bt = bt_base + self._bt_offset
+        et = _PREHEAT_TARGET_ET + self._et_offset
 
         heater = 60.0
         fan = 20.0
@@ -210,25 +250,25 @@ class VirtualMachineAdapter:
             heater=round(heater, 1),
             fan=fan,
             drum=drum,
-            timestamp=time.monotonic(),
+            timestamp=now,
         )
 
     async def enter_standby(self) -> None:
         """READY 버튼 → 10초 후 BT 강하 시작, auto-charge 감지 유발."""
-        self._standby_time = time.monotonic()
+        self._standby_time = self._clock()
         _log.info("VirtualMachine: standby entered — bean drop in 10s")
 
     def _read_roasting(self) -> Reading:
         """로스팅 단계: Charge BT 기준 오프셋 적용 후 프로파일 보간."""
-        tx = time.monotonic() - self._roast_start_time
+        now = self._clock()
+        self._advance_scripted(now)
+        tx = now - self._roast_start_time
 
         bt_profile = _interp(tx, _ROAST_PROFILE["timex"], _ROAST_PROFILE["bt"])
         et_profile = _interp(tx, _ROAST_PROFILE["timex"], _ROAST_PROFILE["et"])
 
-        # Charge 시점 실제 BT가 기준(200°C)과 다를 경우 오프셋 적용
-        bt_offset = self._charge_bt - _PREHEAT_TARGET_BT
-        bt = bt_profile + bt_offset + _noise(0.4)
-        et = et_profile + bt_offset * 0.3 + _noise(0.25)
+        bt = bt_profile + self._charge_bt - _ROAST_PROFILE["bt"][0] + self._bt_offset
+        et = et_profile + self._charge_et - _ROAST_PROFILE["et"][0] + self._et_offset
 
         # 화력은 스크립트가 건드리지 않는다 — 실기처럼 control() 명령으로만 변한다.
         # (자동 스텝다운 스크립트는 배치당 30+회의 가짜 조정 이벤트를 기록에 남겨 삭제)
@@ -242,17 +282,28 @@ class VirtualMachineAdapter:
             heater=round(heater, 1),
             fan=round(fan, 1),
             drum=drum,
-            timestamp=time.monotonic(),
+            timestamp=now,
         )
 
     async def start_roast(self) -> None:
         """Charge 시점. 현재 BT를 기록하고 로스팅 커브 재생 시작."""
         # Charge 직전 예열 온도를 캡처해 로스팅 프로파일 오프셋에 사용
         preheat = self._read_preheat()
-        self._charge_bt = preheat.bt
-        self._roast_start_time = time.monotonic()
+        self._charge_bt = preheat.bt - self._bt_offset
+        self._charge_et = preheat.et - self._et_offset
+        self._roast_start_time = self._clock()
         self._roasting = True
         _log.info("VirtualMachine: charge at BT=%.1f°C — roasting started", self._charge_bt)
+
+    async def reset_roast(self) -> None:
+        """배치 상태를 지우되 센서 연결과 실제 온도는 유지한다."""
+        if self._model is not None:
+            return
+        reading = self._read_roasting() if self._roasting else self._read_preheat()
+        self._roasting = False
+        self._standby_time = 0.0
+        self._bt_offset = reading.bt - _PREHEAT_TARGET_BT
+        self._et_offset = reading.et - _PREHEAT_TARGET_ET
 
     async def control(
         self,
@@ -260,11 +311,9 @@ class VirtualMachineAdapter:
         fan: float | None = None,
         drum: float | None = None,
     ) -> None:
-        """명령값을 저장해 이후 read()가 그 값을 되돌려준다.
-
-        실기 없이 제어 UI를 검증하기 위한 최소 동작이다. 열 반응(duty → BT)은
-        모델링하지 않는다 — PID 루프 검증용 열 모델은 별도로 붙인다.
-        """
+        """명령을 저장하고 이전 명령의 열 응답을 현재 시각까지 진행한다."""
+        if self._connected and self._model is None:
+            self._advance_scripted(self._clock())
         for role, value in (("heater", heater), ("fan", fan), ("drum", drum)):
             if value is not None:
                 self._cmd[role] = float(value)
