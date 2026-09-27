@@ -332,8 +332,8 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         const h = setup();
         act(() => h.result.holdAutoChargeUntilRecovery());
         act(() => h.result.holdAutoChargeUntilRecovery());
-        expect(useToastStore.getState().toasts.map((toast) => toast.message)).toEqual([
-            i18n.t('activeRoast.autoChargeHeld'),
+        expect(useToastStore.getState().toasts.map(({ message, tone }) => ({ message, tone }))).toEqual([
+            { message: i18n.t('activeRoast.autoChargeHeld'), tone: 'info' },
         ]);
 
         const off = renderAutoDetection({

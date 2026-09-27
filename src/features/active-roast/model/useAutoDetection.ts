@@ -273,7 +273,7 @@ export const useAutoDetection = ({
         autoChargedRef.current = true;
         chargeDetectorRef.current?.reset();
         if (!autoChargeEnabled) return;
-        useToastStore.getState().show(i18n.t('activeRoast.autoChargeHeld'));
+        useToastStore.getState().show(i18n.t('activeRoast.autoChargeHeld'), 'info');
     }, [autoChargeEnabled]);
 
     const disableAutoDrop = useCallback(() => {
