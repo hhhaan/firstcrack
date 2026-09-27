@@ -854,6 +854,7 @@
         }
     },
     "activeRoast": {
+        "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
             "noBeanSelected": "생두 미선택",
             "target": "목표:",

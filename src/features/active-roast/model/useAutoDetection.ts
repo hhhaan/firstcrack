@@ -1,5 +1,7 @@
 import type { TurningPoint } from '@features/active-roast';
 import { detectTurningPoints } from '@features/active-roast';
+import { i18n } from '@shared/i18n';
+import { useToastStore } from '@shared/store/toast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -270,7 +272,9 @@ export const useAutoDetection = ({
         chargeCooldownRef.current = { minBt: Infinity, lastTimestamp: -Infinity, recoverySamples: 0 };
         autoChargedRef.current = true;
         chargeDetectorRef.current?.reset();
-    }, []);
+        if (!autoChargeEnabled) return;
+        useToastStore.getState().show(i18n.t('activeRoast.autoChargeHeld'));
+    }, [autoChargeEnabled]);
 
     const disableAutoDrop = useCallback(() => {
         autoDroppedRef.current = true;
