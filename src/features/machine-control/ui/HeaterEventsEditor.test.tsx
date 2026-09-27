@@ -223,4 +223,55 @@ describe('HeaterEventsEditor', () => {
         expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
         await act(async () => root.unmount());
     });
+
+    it('시각 칸에 1234를 치면 12:34가 되고 커서가 콜론 뒤로 넘어간다', async () => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        await act(async () =>
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'profile',
+                    events: [{ t: 16, bt: 180, heater: 65, trigger: 'time' }],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'profile',
+                    unit: 'C',
+                    onClose: () => {},
+                    onApply: () => {},
+                }),
+            ),
+        );
+        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.time"]') as HTMLInputElement;
+        const type = async (data: string, inputType = 'insertText') => {
+            input.focus();
+            await act(async () => {
+                input.dispatchEvent(
+                    new InputEvent('beforeinput', { bubbles: true, cancelable: true, data, inputType }),
+                );
+            });
+        };
+        input.focus();
+        input.setSelectionRange(0, input.value.length);
+        await act(async () => {
+            input.setSelectionRange(0, input.value.length);
+            input.dispatchEvent(
+                new InputEvent('beforeinput', {
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: 'deleteContentBackward',
+                }),
+            );
+        });
+        expect(input.value).toBe('');
+        await type('1');
+        await type('2');
+        expect(input.value).toBe('12:');
+        expect(input.selectionStart).toBe(3);
+        await type('3');
+        await type('4');
+        expect(input.value).toBe('12:34');
+        expect(input.selectionStart).toBe(5);
+        await act(async () => root.unmount());
+    });
 });
