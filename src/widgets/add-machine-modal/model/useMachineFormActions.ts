@@ -67,7 +67,11 @@ export const useMachineFormActions = ({
 
         const assembled = assembleConnectionParams(selectedDef, params, showAddressMap, includeWriteMap);
         if (!assembled.ok) {
-            setError(t('addMachine.fieldRequired', { field: assembled.missing }));
+            setError(
+                assembled.invalid
+                    ? t('addMachine.invalidAddress', { field: assembled.invalid })
+                    : t('addMachine.fieldRequired', { field: assembled.missing }),
+            );
             return;
         }
 
@@ -112,7 +116,11 @@ export const useMachineFormActions = ({
 
         const assembled = assembleConnectionParams(selectedDef, params, showAddressMap, includeWriteMap);
         if (!assembled.ok) {
-            setError(t('addMachine.fieldRequired', { field: assembled.missing }));
+            setError(
+                assembled.invalid
+                    ? t('addMachine.invalidAddress', { field: assembled.invalid })
+                    : t('addMachine.fieldRequired', { field: assembled.missing }),
+            );
             return;
         }
 

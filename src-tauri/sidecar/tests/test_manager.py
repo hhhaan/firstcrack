@@ -8,8 +8,34 @@ import pytest
 
 import config
 from adapters.base import Reading
-from manager import RoasterManager
+from manager import RoasterManager, _merge_connect_params
+from roaster_registry import ROASTER_REGISTRY
 from tests.conftest import FakeAdapter, make_reading
+
+
+def test_supported_address_overrides_keep_other_channels_and_registry_defaults():
+    modbus_defaults = ROASTER_REGISTRY["diedrich_cr"]["default_params"]
+    merged = _merge_connect_params(modbus_defaults, {"bt_register": 123})
+    assert merged["modbus_registers"]["BT"]["register"] == 123
+    assert merged["modbus_registers"]["BT"]["func"] == modbus_defaults["modbus_registers"]["BT"]["func"]
+    assert merged["modbus_registers"]["ET"] == modbus_defaults["modbus_registers"]["ET"]
+    assert modbus_defaults["modbus_registers"]["BT"]["register"] == 0
+
+    s7_defaults = ROASTER_REGISTRY["giesen_standard"]["default_params"]
+    merged = _merge_connect_params(s7_defaults, {"bt_offset": 200, "et_db": 4})
+    channels = {channel["role"]: channel for channel in merged["channels"]}
+    defaults = {channel["role"]: channel for channel in s7_defaults["channels"]}
+    assert channels["BT"] == {**defaults["BT"], "offset": 200}
+    assert channels["ET"] == {**defaults["ET"], "db": 4}
+    assert channels["heater"] == defaults["heater"]
+    assert defaults["BT"]["offset"] != 200
+
+
+@pytest.mark.parametrize("overrides", [{"bt_register": -1}, {"bt_register": True}, {"et_register": 3}])
+def test_supported_address_overrides_reject_invalid_or_missing_channels(overrides):
+    defaults = ROASTER_REGISTRY["probat_probatone"]["default_params"]
+    with pytest.raises(ValueError):
+        _merge_connect_params(defaults, overrides)
 
 
 # ---------------------------------------------------------------------------

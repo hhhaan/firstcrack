@@ -7,6 +7,7 @@ import {
     PROTOCOLS_WITH_ADDRESS_MAP,
     ROASTER_REGISTRY,
     resolveCustomConnectKey,
+    supportedAddressFieldsForProtocol,
     writeMapFormFlags,
 } from '@entities/machine';
 import { FEATURE, useFeature } from '@shared/lib/features';
@@ -111,7 +112,9 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
 
     const protocolForAddress = selectedDef?.protocol ?? '';
     const showAddressMap = isCustom && PROTOCOLS_WITH_ADDRESS_MAP.has(protocolForAddress);
-    const addressFields = showAddressMap ? addressFormFieldsForProtocol(protocolForAddress) : [];
+    const addressFields = isCustom
+        ? addressFormFieldsForProtocol(protocolForAddress)
+        : supportedAddressFieldsForProtocol(protocolForAddress);
     const canConfigureControl = useFeature(FEATURE.customMachineControl);
     const { showWriteMap, includeWriteMap } = writeMapFormFlags({
         isCustom,
@@ -143,6 +146,8 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
 
     const setParam = useCallback((key: string, value: string) => {
         setParams((p) => ({ ...p, [key]: value }));
+        setTestState('idle');
+        setTestMessage('');
     }, []);
 
     const selectRoaster = useCallback((key: string) => {

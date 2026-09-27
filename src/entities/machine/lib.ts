@@ -4,6 +4,7 @@ import {
     flattenAddressMaps,
     nestAddressMaps,
     PROTOCOLS_WITH_ADDRESS_MAP,
+    supportedAddressFieldsForProtocol,
     validateAddressMaps,
 } from './addressMap';
 import { PROTOCOL_FORM_FIELDS } from './roasterRegistry';
@@ -14,9 +15,11 @@ export {
     addressFormFieldsForProtocol,
     CUSTOM_CONNECT_KEYS,
     flattenAddressMaps,
+    invalidSupportedAddressField,
     isCustomConnectKey,
     nestAddressMaps,
     PROTOCOLS_WITH_ADDRESS_MAP,
+    supportedAddressFieldsForProtocol,
     validateAddressMaps,
 } from './addressMap';
 
@@ -76,6 +79,10 @@ export const initRoasterFormParams = (
         if (!existing?.modbus_registers && !existing?.channels) {
             Object.assign(initial, addressDefaultsForProtocol(def.protocol));
         }
+    } else {
+        for (const field of supportedAddressFieldsForProtocol(def.protocol)) {
+            initial[field.key] = existing?.[field.key] != null ? String(existing[field.key]) : '';
+        }
     }
     return initial;
 };
@@ -95,6 +102,11 @@ export const buildTypedConnectionParams = (
     }
     if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
         Object.assign(result, nestAddressMaps(def.protocol, stringParams));
+    } else {
+        for (const field of supportedAddressFieldsForProtocol(def.protocol)) {
+            const raw = (stringParams[field.key] || '').trim();
+            if (raw) result[field.key] = Number(raw);
+        }
     }
     return result;
 };
