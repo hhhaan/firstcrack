@@ -269,7 +269,7 @@ describe('completeDrop → BBP (#484)', () => {
         }
     });
 
-    it('finishDrop keeps auto Charge armed for the next batch while auto Drop stays off', () => {
+    it('finishDrop holds auto Charge through cool-down while auto Drop stays off', () => {
         const order: string[] = [];
         const armed = { charge: false, drop: false };
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)], {
@@ -288,6 +288,10 @@ describe('completeDrop → BBP (#484)', () => {
             },
         });
         const commitSummary = vi.fn();
+        const holdAutoChargeUntilRecovery = vi.fn(() => {
+            order.push('hold-charge');
+            armed.charge = false;
+        });
         try {
             let summary: ReturnType<typeof h.result.finishDrop> | undefined;
             void act(() => {
@@ -307,12 +311,13 @@ describe('completeDrop → BBP (#484)', () => {
                     ],
                     onset: { timeSec: 600, bt: 205 },
                     commitSummary,
+                    holdAutoChargeUntilRecovery,
                 });
             });
             expect(summary?.sessionId).toBe('s-a');
             expect(commitSummary).toHaveBeenCalledTimes(1);
-            expect(order).toEqual(['disable-drop', 'reset', 'disable-drop']);
-            expect(armed).toEqual({ charge: true, drop: false });
+            expect(order).toEqual(['disable-drop', 'reset', 'disable-drop', 'hold-charge']);
+            expect(armed).toEqual({ charge: false, drop: false });
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
@@ -322,10 +327,12 @@ describe('completeDrop → BBP (#484)', () => {
                     livePoints: [],
                     onset: { timeSec: 600, bt: 205 },
                     commitSummary,
+                    holdAutoChargeUntilRecovery,
                 });
                 expect(again).toBeNull();
             });
             expect(commitSummary).toHaveBeenCalledTimes(1);
+            expect(holdAutoChargeUntilRecovery).toHaveBeenCalledTimes(1);
             expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
         } finally {
             h.unmount();

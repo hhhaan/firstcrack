@@ -65,6 +65,7 @@ export const useAutoDetection = ({
         onAutoDropRef.current = onAutoDrop;
     }, [onAutoDrop]);
     const autoChargedRef = useRef(false);
+    const chargeCooldownRef = useRef<{ minBt: number; lastTimestamp: number; recoverySamples: number } | null>(null);
     const autoDroppedRef = useRef(false);
     // 발화 완료 TP를 그대로 보관 — 폴백→실감지 승격 시 재발화 판정에 identity 비교
     const tpFiredRef = useRef<TurningPoint | null>(null);
@@ -91,6 +92,33 @@ export const useAutoDetection = ({
             ) {
                 detector.reset();
             }
+            const sample = state.rawTemperature;
+            const cooldown = chargeCooldownRef.current;
+            if (
+                cooldown &&
+                state.phase === 'standby' &&
+                state.sidecarConnected &&
+                !state.reconnecting &&
+                sample !== previous.rawTemperature &&
+                sample &&
+                Number.isFinite(sample.bt) &&
+                sample.bt > 0 &&
+                sample.bt < 400 &&
+                Number.isFinite(sample.timestamp) &&
+                sample.timestamp > cooldown.lastTimestamp
+            ) {
+                cooldown.lastTimestamp = sample.timestamp;
+                if (sample.bt >= cooldown.minBt + (autoChargeMode === 'sensitive' ? 1 : 2)) {
+                    cooldown.recoverySamples++;
+                    if (cooldown.recoverySamples >= 2) {
+                        chargeCooldownRef.current = null;
+                        autoChargedRef.current = false;
+                    }
+                } else {
+                    cooldown.minBt = Math.min(cooldown.minBt, sample.bt);
+                    cooldown.recoverySamples = 0;
+                }
+            }
             if (
                 !autoChargeEnabled ||
                 state.phase !== 'standby' ||
@@ -103,7 +131,6 @@ export const useAutoDetection = ({
                 return;
             }
             if (state.rawTemperature === previous.rawTemperature) return;
-            const sample = state.rawTemperature;
             const onset = detector.push(sample);
             if (!sample || !onset) return;
             autoChargedRef.current = true;
@@ -234,7 +261,14 @@ export const useAutoDetection = ({
 
     /** Connection check 실패 등으로 charge를 안 했을 때 auto-charge 재무장 (#174) */
     const rearmAutoCharge = useCallback(() => {
-        autoChargedRef.current = false;
+        autoChargedRef.current = chargeCooldownRef.current !== null;
+        chargeDetectorRef.current?.reset();
+    }, []);
+
+    const holdAutoChargeUntilRecovery = useCallback(() => {
+        // ponytail: BT must rebound after Drop; manual Charge covers machines without a rebound.
+        chargeCooldownRef.current = { minBt: Infinity, lastTimestamp: -Infinity, recoverySamples: 0 };
+        autoChargedRef.current = true;
         chargeDetectorRef.current?.reset();
     }, []);
 
@@ -247,6 +281,7 @@ export const useAutoDetection = ({
         chargeDetectorRef.current?.reset();
         dropDetectorRef.current?.reset();
         autoChargedRef.current = false;
+        chargeCooldownRef.current = null;
         autoDroppedRef.current = false;
         tpFiredRef.current = null;
         yellowFiredRef.current = false;
@@ -259,6 +294,7 @@ export const useAutoDetection = ({
         resetAutoDetection,
         disableAutoCharge,
         rearmAutoCharge,
+        holdAutoChargeUntilRecovery,
         disableAutoDrop,
         turningPoints,
         confirmedTP,

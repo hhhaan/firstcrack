@@ -325,6 +325,18 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         expect(h.onAutoCharge).toHaveBeenCalledTimes(1);
     });
 
+    it('ignores Drop cool-down and rearms after BT recovers for the next batch', () => {
+        const h = setup();
+        act(() => h.result.holdAutoChargeUntilRecovery());
+        for (const [i, bt] of [200, 198, 196, 193, 190, 188, 187, 186, 188, 186, 187, 188].entries()) {
+            sample(i * 0.5, bt);
+        }
+        expect(h.onAutoCharge).not.toHaveBeenCalled();
+        sample(6, 189);
+        for (let i = 13; i <= 25; i++) sample(i * 0.5, 189 - Math.max(0, i - 19));
+        expect(h.onAutoCharge).toHaveBeenCalledTimes(1);
+    });
+
     it('consumes batched identical readings and survives changing callback identities', () => {
         act(() => useRoastingStore.setState({ phase: 'standby', sidecarConnected: true }));
         const callback = vi.fn();

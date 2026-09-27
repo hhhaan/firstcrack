@@ -432,23 +432,30 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [startChargeAction],
     );
 
-    const { turningPoints, confirmedTP, resetAutoDetection, disableAutoCharge, rearmAutoCharge, disableAutoDrop } =
-        useAutoDetection({
-            livePoints,
-            onAutoCharge: triggerCharge,
-            onAutoDrop: handleAutoDrop,
-            onTurningPoint: handleTurningPoint,
-            autoChargeEnabled: roastSettings.autoChargeEnabled,
-            autoChargeMode: roastSettings.autoChargeMode,
-            pollIntervalMs,
-            autoDropEnabled: roastSettings.autoDropEnabled,
-            autoDropMode: roastSettings.autoDropMode,
-            yellowTempC: roastSettings.yellowTempC,
-            unit,
-            markEvent,
-            logEntries,
-            autoYellowEnabled: roastSettings.autoYellowEnabled,
-        });
+    const {
+        turningPoints,
+        confirmedTP,
+        resetAutoDetection,
+        disableAutoCharge,
+        rearmAutoCharge,
+        holdAutoChargeUntilRecovery,
+        disableAutoDrop,
+    } = useAutoDetection({
+        livePoints,
+        onAutoCharge: triggerCharge,
+        onAutoDrop: handleAutoDrop,
+        onTurningPoint: handleTurningPoint,
+        autoChargeEnabled: roastSettings.autoChargeEnabled,
+        autoChargeMode: roastSettings.autoChargeMode,
+        pollIntervalMs,
+        autoDropEnabled: roastSettings.autoDropEnabled,
+        autoDropMode: roastSettings.autoDropMode,
+        yellowTempC: roastSettings.yellowTempC,
+        unit,
+        markEvent,
+        logEntries,
+        autoYellowEnabled: roastSettings.autoYellowEnabled,
+    });
 
     const applyDrop = useCallback(
         (onset?: { timeSec: number; bt: number }) => {
@@ -463,9 +470,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         handoffBeanName,
                     });
                 },
+                holdAutoChargeUntilRecovery,
             });
         },
-        [lifecycle, livePoints, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName],
+        [
+            lifecycle,
+            livePoints,
+            saveFlow,
+            selectedBeanId,
+            planBatchHandoff,
+            handoffBeanName,
+            holdAutoChargeUntilRecovery,
+        ],
     );
     useLayoutEffect(() => {
         applyDropRef.current = applyDrop;
