@@ -81,7 +81,8 @@ export const initRoasterFormParams = (
         }
     } else {
         for (const field of supportedAddressFieldsForProtocol(def.protocol)) {
-            initial[field.key] = existing?.[field.key] != null ? String(existing[field.key]) : '';
+            const val = existing?.[field.key] ?? def.default_params[field.key];
+            initial[field.key] = val != null ? String(val) : '';
         }
     }
     return initial;
