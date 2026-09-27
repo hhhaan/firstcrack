@@ -309,12 +309,11 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             if (!summary) return null;
             input.commitSummary(summary);
             resetActiveRoast({ chargeWait: true, keepHeatHold: true });
-            // reset rearms both detectors. Charge wait must stay disarmed until the next Charge.
+            // Keep auto Charge armed for the next batch; auto Drop stays off until Charge.
             disableAutoDropRef.current();
-            disableAutoChargeRef.current();
             return summary;
         },
-        [completeDrop, resetActiveRoast, disableAutoDropRef, disableAutoChargeRef],
+        [completeDrop, resetActiveRoast, disableAutoDropRef],
     );
 
     const cancelDrop = useCallback((): boolean => {

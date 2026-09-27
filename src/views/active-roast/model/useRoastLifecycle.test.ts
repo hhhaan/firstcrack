@@ -269,7 +269,7 @@ describe('completeDrop → BBP (#484)', () => {
         }
     });
 
-    it('finishDrop is the manual and auto boundary: one snapshot, then detectors stay off', () => {
+    it('finishDrop keeps auto Charge armed for the next batch while auto Drop stays off', () => {
         const order: string[] = [];
         const armed = { charge: false, drop: false };
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)], {
@@ -311,8 +311,8 @@ describe('completeDrop → BBP (#484)', () => {
             });
             expect(summary?.sessionId).toBe('s-a');
             expect(commitSummary).toHaveBeenCalledTimes(1);
-            expect(order).toEqual(['disable-drop', 'reset', 'disable-drop', 'disable-charge']);
-            expect(armed).toEqual({ charge: false, drop: false });
+            expect(order).toEqual(['disable-drop', 'reset', 'disable-drop']);
+            expect(armed).toEqual({ charge: true, drop: false });
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
