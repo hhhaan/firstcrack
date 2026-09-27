@@ -1104,6 +1104,7 @@
             "default": "デフォルト",
             "setDefault": "デフォルトに設定",
             "duplicate": "複製",
+            "duplicateFailed": "プロファイルを複製できませんでした。",
             "edit": "編集",
             "more": "その他",
             "export": "CSVエクスポート",

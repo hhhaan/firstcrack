@@ -1104,6 +1104,7 @@
             "default": "기본",
             "setDefault": "기본으로 설정",
             "duplicate": "복제",
+            "duplicateFailed": "프로파일을 복제하지 못했습니다.",
             "edit": "수정",
             "more": "더보기",
             "export": "CSV 내보내기",

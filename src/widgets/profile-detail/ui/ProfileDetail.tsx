@@ -11,7 +11,7 @@ import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
 import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
-import { AlertCircle, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { profileExportBasename, profileToCsv } from '../lib/export-profile-csv';
@@ -26,6 +26,7 @@ interface ProfileDetailProps {
     chartKey: string;
     onSetDefault: (id: string) => void;
     onEdit: () => void;
+    onDuplicate: (profile: RoastProfileWithSource) => void;
     onDelete: (id: string) => void;
     onNavigate: (view: View) => void;
 }
@@ -38,6 +39,7 @@ export const ProfileDetail = ({
     chartKey,
     onSetDefault,
     onEdit,
+    onDuplicate,
     onDelete,
     onNavigate,
 }: ProfileDetailProps) => {
@@ -110,6 +112,17 @@ export const ProfileDetail = ({
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-44 p-1.5" align="end" side="bottom">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMoreOpen(false);
+                                    onDuplicate(selected);
+                                }}
+                                className={`${menuItemClass} text-primary hover:bg-surface`}
+                            >
+                                <Copy size={14} strokeWidth={2} />
+                                {t('profiles.detail.duplicate')}
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => void handleExport()}

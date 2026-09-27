@@ -1104,6 +1104,7 @@
             "default": "Default",
             "setDefault": "Set Default",
             "duplicate": "Duplicate",
+            "duplicateFailed": "Could not duplicate the profile.",
             "edit": "Edit",
             "more": "More",
             "export": "Export CSV",

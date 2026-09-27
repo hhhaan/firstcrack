@@ -18,6 +18,25 @@ export type RoastProfileWithSource = RoastProfile & {
     default_blend: { id: string; name: string } | null;
 };
 
+export const roastProfileCopyInsert = (profile: RoastProfileWithSource, name: string): RoastProfileInsert => {
+    const {
+        id: _id,
+        created_at: _createdAt,
+        updated_at: _updatedAt,
+        source_session: _sourceSession,
+        default_bean: _defaultBean,
+        default_blend: _defaultBlend,
+        ...copy
+    } = profile;
+    void _id;
+    void _createdAt;
+    void _updatedAt;
+    void _sourceSession;
+    void _defaultBean;
+    void _defaultBlend;
+    return { ...copy, name };
+};
+
 const SELECT_WITH_SOURCE =
     '*, source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 

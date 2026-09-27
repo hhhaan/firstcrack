@@ -1116,6 +1116,7 @@
             "default": "默认",
             "setDefault": "设为默认",
             "duplicate": "复制",
+            "duplicateFailed": "无法复制曲线。",
             "edit": "编辑",
             "more": "更多",
             "export": "导出 CSV",
