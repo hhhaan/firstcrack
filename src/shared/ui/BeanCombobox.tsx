@@ -71,9 +71,10 @@ export const BeanCombobox = ({
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q) return items;
+        // The input holds the selected lot's name. Opening the list is not a search for that name.
+        if (!q || (selected && q === selected.name.toLowerCase())) return items;
         return items.filter((i) => i.name.toLowerCase().includes(q));
-    }, [items, query]);
+    }, [items, query, selected]);
 
     const commitFreeOrMatch = (raw: string) => {
         const trimmed = raw.trim();
@@ -186,6 +187,7 @@ export const BeanCombobox = ({
                                     key={item.id}
                                     type="button"
                                     role="option"
+                                    data-bean-id={item.id}
                                     aria-selected={item.id === selectedId}
                                     className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13px] hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent transition-colors"
                                     onMouseDown={(e) => {

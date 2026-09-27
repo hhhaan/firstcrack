@@ -1,6 +1,9 @@
+import { isOptimisticId } from '@shared/lib/optimistic-id';
 import type { LastAdhocSave } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { RoastSummaryForm } from './roastSummarySchema';
+
+const linkedBeanId = (id: string | null | undefined) => (id && !isOptimisticId(id) ? id : null);
 
 /** 저장 폼 프리필. 우선순위: 스케줄 핸드오프 > (bean은 헤더 선택 >) 직전 애드혹 배치 > 빈값. */
 export const summaryPrefill = (
@@ -32,7 +35,7 @@ export const summaryFormInitialValues = (
         beanLabel: '',
         linkMode: handoff ? 'schedule' : 'none',
         planBatchId: handoff?.planBatchId ?? null,
-        deductStock: Boolean(handoff) || prefill.beanId != null,
+        deductStock: Boolean(handoff) || linkedBeanId(prefill.beanId) != null,
     };
 };
 
@@ -69,4 +72,20 @@ export const isDeductDisplayEligible = (input: {
     deductionKg: number;
     resolvedBeanId: string | null;
     blendId: string | null;
-}): boolean => !input.customBean && input.deductionKg > 0 && Boolean(input.resolvedBeanId || input.blendId);
+}): boolean =>
+    !input.customBean && input.deductionKg > 0 && Boolean(linkedBeanId(input.resolvedBeanId) || input.blendId);
+
+export type DeductBlockReason = 'custom' | 'no-bean' | 'no-weight';
+
+/** Why the deduct checkbox is disabled. Missing charge weight is not "no bean". */
+export const deductBlockReason = (input: {
+    customBean: boolean;
+    deductionKg: number;
+    resolvedBeanId: string | null;
+    blendId: string | null;
+}): DeductBlockReason | null => {
+    if (isDeductDisplayEligible(input)) return null;
+    if (input.customBean) return 'custom';
+    if (!(linkedBeanId(input.resolvedBeanId) || input.blendId)) return 'no-bean';
+    return 'no-weight';
+};

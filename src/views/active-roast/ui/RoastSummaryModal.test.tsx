@@ -24,10 +24,6 @@ vi.mock('@entities/plan', () => ({
     useDayBatches: () => ({ data: planMock.batches }),
 }));
 
-vi.mock('@tauri-apps/plugin-dialog', () => ({
-    ask: vi.fn(),
-}));
-
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -198,6 +194,49 @@ it('calls onClose from the header X without discarding', () => {
     act(() => close.click());
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onDiscard).not.toHaveBeenCalled();
+    unmount();
+});
+
+it('explains a missing charge weight and checks deduct once that weight is entered', () => {
+    const { host, unmount } = renderModal({ selectedBeanId: 'bean-1' });
+    const checkbox = () => host.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
+    const weight = () => host.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    expect(checkbox().disabled).toBe(true);
+    expect(host.textContent).toContain('activeRoast.summary.deductStockNoWeight');
+    expect(host.textContent).not.toContain('activeRoast.summary.deductStockDisabled');
+    expect(weight().disabled).toBe(false);
+    act(() => setInputValue(weight(), '2.5'));
+    expect(checkbox().disabled).toBe(false);
+    expect(checkbox().checked).toBe(true);
+    unmount();
+});
+
+it('checks deduct when an in-stock bean is selected in the open summary', () => {
+    useRoastSessionStore.getState().recordAdhocSave({ beanId: null, weightKg: 4, roastLevel: null });
+    const { host, unmount } = renderModal({ selectedBeanId: null });
+    const checkbox = () => host.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
+    expect(checkbox().checked).toBe(false);
+    const input = host.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
+    act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    expect(checkbox().disabled).toBe(false);
+    expect(checkbox().checked).toBe(true);
+    unmount();
+});
+
+it("Don't Save opens a confirm step and discards only after confirm", () => {
+    const onDiscard = vi.fn();
+    const { host, unmount } = renderModal({ onDiscard });
+    const discard = host.querySelector('[data-testid="roast-summary-discard"]') as HTMLButtonElement;
+    act(() => discard.click());
+    expect(onDiscard).not.toHaveBeenCalled();
+    expect(host.querySelector('[data-testid="roast-summary-discard-modal"]')).not.toBeNull();
+    act(() => (host.querySelector('[data-testid="roast-summary-discard-cancel"]') as HTMLButtonElement).click());
+    expect(onDiscard).not.toHaveBeenCalled();
+    expect(host.querySelector('[data-testid="roast-summary-discard-modal"]')).toBeNull();
+    expect(host.querySelector('[data-testid="roast-summary-save"]')).not.toBeNull();
+    act(() => discard.click());
+    act(() => (host.querySelector('[data-testid="roast-summary-discard-confirm"]') as HTMLButtonElement).click());
+    expect(onDiscard).toHaveBeenCalledTimes(1);
     unmount();
 });
 

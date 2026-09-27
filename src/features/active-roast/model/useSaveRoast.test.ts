@@ -336,6 +336,18 @@ describe('saveRoastCore', () => {
         expect(arg.deductionGrams).toBe(0);
     });
 
+    it('refuses to send an optimistic bean id', async () => {
+        const deps = makeDeps();
+        await expect(
+            saveRoastCore(deps, {
+                ...baseParams,
+                formData: { ...baseParams.formData, beanId: 'opt_temp', weightGrams: 5, deductStock: true },
+                selectedBeanId: 'opt_temp',
+            }),
+        ).rejects.toThrow(/green bean/i);
+        expect(deps.saveOp).not.toHaveBeenCalled();
+    });
+
     it('차감 중량 > 0 + 생두 없음 + 라벨 없음 → 거부', async () => {
         const deps = makeDeps();
         await expect(

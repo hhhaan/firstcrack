@@ -1,3 +1,4 @@
+import { subscribeOptimisticIdReplaced } from '@shared/lib/optimistic-id';
 import type { SaveRoastParams } from './useSaveRoast';
 
 export type PendingRoastParams = Omit<SaveRoastParams, 'roastStartTimeRef'> & { roastStartTime: number };
@@ -90,6 +91,50 @@ export const clearPendingRoastSave = (ownerId: string, sessionId: string | null)
     delete all[entryKey(ownerId, sessionId)];
     persist(all);
 };
+const swapId = (id: string | null | undefined, from: string, to: string) => (id === from ? to : id);
+
+if (typeof window !== 'undefined') {
+    subscribeOptimisticIdReplaced((from, to) => {
+        try {
+            const all = entries();
+            let changed = false;
+            for (const pending of Object.values(all)) {
+                const params = pending.params;
+                const hits =
+                    params.selectedBeanId === from ||
+                    params.formData.beanId === from ||
+                    params.planBatchHandoff?.beanId === from ||
+                    params.formData.linkedBatch?.beanId === from;
+                if (!hits) continue;
+                pending.params = {
+                    ...params,
+                    selectedBeanId: swapId(params.selectedBeanId, from, to) ?? null,
+                    planBatchHandoff: params.planBatchHandoff
+                        ? {
+                              ...params.planBatchHandoff,
+                              beanId: swapId(params.planBatchHandoff.beanId, from, to) ?? null,
+                          }
+                        : params.planBatchHandoff,
+                    formData: {
+                        ...params.formData,
+                        beanId: swapId(params.formData.beanId, from, to) ?? null,
+                        linkedBatch: params.formData.linkedBatch
+                            ? {
+                                  ...params.formData.linkedBatch,
+                                  beanId: swapId(params.formData.linkedBatch.beanId, from, to) ?? null,
+                              }
+                            : params.formData.linkedBatch,
+                    },
+                };
+                changed = true;
+            }
+            if (changed) persist(all);
+        } catch {
+            // Invalid pending storage must not block lot creation.
+        }
+    });
+}
+
 export const toSaveRoastParams = (params: PendingRoastParams): SaveRoastParams => {
     const { roastStartTime, ...rest } = params;
     return { ...rest, roastStartTimeRef: { current: roastStartTime } };

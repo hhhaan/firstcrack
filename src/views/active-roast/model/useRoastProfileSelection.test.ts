@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
+import { publishOptimisticIdReplaced } from '@shared/lib/optimistic-id';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -32,8 +33,19 @@ const session = vi.hoisted(() => ({
 }));
 
 vi.mock('@shared/store/roastSession', () => ({
-    useRoastSessionStore: (sel: (s: { planBatchHandoff: typeof session.planBatchHandoff }) => unknown) =>
-        sel({ planBatchHandoff: session.planBatchHandoff }),
+    useRoastSessionStore: Object.assign(
+        (sel: (s: { planBatchHandoff: typeof session.planBatchHandoff }) => unknown) =>
+            sel({ planBatchHandoff: session.planBatchHandoff }),
+        {
+            getState: () => ({
+                planBatchHandoff: session.planBatchHandoff,
+                lastAdhocSave: null,
+                startBatch: () => {},
+                recordAdhocSave: () => {},
+                completeBatch: () => {},
+            }),
+        },
+    ),
 }));
 
 type HookApi = ReturnType<typeof useRoastProfileSelection>;
@@ -436,6 +448,29 @@ describe('useRoastProfileSelection stale bean clear (#176)', () => {
         });
         expect(h.api.selectedBeanId).toBe('stale-bean');
         expect(localStorage.getItem(DEFAULT_BEAN_KEY)).toBe('stale-bean');
+        h.unmount();
+    });
+
+    it('replaces an optimistic selected id with the created lot id', () => {
+        localStorage.setItem(DEFAULT_BEAN_KEY, 'opt_temp');
+        const h = mountHook({
+            isActive: true,
+            charged: false,
+            userProfile: null,
+            beans: [{ id: 'opt_temp' }],
+            beansReady: true,
+        });
+        expect(h.api.selectedBeanId).toBe('opt_temp');
+        act(() => publishOptimisticIdReplaced('opt_temp', 'real-id'));
+        h.rerender({
+            isActive: true,
+            charged: false,
+            userProfile: null,
+            beans: [{ id: 'real-id' }],
+            beansReady: true,
+        });
+        expect(h.api.selectedBeanId).toBe('real-id');
+        expect(localStorage.getItem(DEFAULT_BEAN_KEY)).toBe('real-id');
         h.unmount();
     });
 

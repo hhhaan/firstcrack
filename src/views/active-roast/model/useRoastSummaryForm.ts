@@ -1,3 +1,4 @@
+import { useOptimisticBeanSelection } from '@entities/bean/model/useOptimisticBeanSelection';
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useDayBatches } from '@entities/plan';
@@ -63,9 +64,16 @@ export const useRoastSummaryForm = ({
 
     const linkMode = watch('linkMode');
     const formPlanBatchId = watch('planBatchId');
+    const watchedBeanId = watch('beanId');
 
     /** Bumped when a prefill replaces the bean field so the combobox remounts. */
     const [beanFieldEpoch, setBeanFieldEpoch] = useState(0);
+
+    useOptimisticBeanSelection(watchedBeanId, (next) => {
+        setValue('beanId', next, { shouldDirty: true, shouldValidate: true });
+        setValue('deductStock', true);
+        setBeanFieldEpoch((epoch) => epoch + 1);
+    });
 
     const selectedBeanIdRef = useRef(selectedBeanId);
     const handoffRef = useRef(planBatchHandoff);

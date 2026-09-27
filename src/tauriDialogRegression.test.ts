@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import csvFileExport from './features/export-csv/useCsvFileExport.ts?raw';
+import roastSummaryModal from './views/active-roast/ui/RoastSummaryModal.tsx?raw';
 import cuppingEventDetail from './views/cupping/ui/CuppingEventDetail.tsx?raw';
 import cuppingEventList from './views/cupping/ui/CuppingEventList.tsx?raw';
 import cuppingSampleSummary from './views/cupping/ui/CuppingSampleSummary.tsx?raw';
@@ -37,5 +38,11 @@ describe('Tauri confirmation dialogs', () => {
         expect(pendingRoastRecovery).toContain('pending-roast-discard-modal');
         expect(pendingRoastRecovery).not.toMatch(/from '@tauri-apps\/plugin-dialog'/);
         expect(pendingRoastRecovery).not.toMatch(/\bask\(/);
+    });
+
+    it('roast summary discard uses an in-app confirm, not plugin-dialog ask', () => {
+        expect(roastSummaryModal).toContain('roast-summary-discard-modal');
+        expect(roastSummaryModal).not.toMatch(/from '@tauri-apps\/plugin-dialog'/);
+        expect(roastSummaryModal).not.toMatch(/\bask\(/);
     });
 });

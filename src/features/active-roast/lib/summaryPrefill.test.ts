@@ -1,6 +1,7 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
 import {
+    deductBlockReason,
     isDeductDisplayEligible,
     scheduleLinkFieldPatch,
     summaryFormInitialValues,
@@ -91,5 +92,28 @@ describe('summary form policy', () => {
         expect(
             isDeductDisplayEligible({ customBean: false, deductionKg: 0, resolvedBeanId: 'bean-1', blendId: null }),
         ).toBe(false);
+        expect(
+            isDeductDisplayEligible({
+                customBean: false,
+                deductionKg: 5,
+                resolvedBeanId: 'opt_temp',
+                blendId: null,
+            }),
+        ).toBe(false);
+    });
+
+    it('a linked in-stock bean with no charge weight is blocked for weight, not a missing bean', () => {
+        expect(deductBlockReason({ customBean: false, deductionKg: 0, resolvedBeanId: 'bean-1', blendId: null })).toBe(
+            'no-weight',
+        );
+        expect(deductBlockReason({ customBean: false, deductionKg: 2, resolvedBeanId: 'bean-1', blendId: null })).toBe(
+            null,
+        );
+        expect(deductBlockReason({ customBean: false, deductionKg: 2, resolvedBeanId: null, blendId: null })).toBe(
+            'no-bean',
+        );
+        expect(deductBlockReason({ customBean: true, deductionKg: 2, resolvedBeanId: null, blendId: null })).toBe(
+            'custom',
+        );
     });
 });

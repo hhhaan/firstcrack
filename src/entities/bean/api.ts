@@ -1,5 +1,10 @@
+import { isOptimisticId } from '@shared/lib/optimistic-id';
 import { supabase } from '@shared/lib/supabase';
 import type { Bean, Database } from '@shared/types/database.types';
+
+const refuseOptimisticBeanId = (id: string) => {
+    if (isOptimisticId(id)) throw new Error('Refusing request for an unsaved bean id');
+};
 
 type BeanInsert = Database['public']['Tables']['beans']['Insert'];
 type BeanUpdate = { id: string } & Database['public']['Tables']['beans']['Update'];
@@ -16,6 +21,7 @@ export const beanApi = {
     },
 
     get: async (id: string): Promise<Bean> => {
+        refuseOptimisticBeanId(id);
         const { data, error } = await supabase.from('beans').select('*').eq('id', id).single();
         if (error) throw error;
         return data;
@@ -28,12 +34,14 @@ export const beanApi = {
     },
 
     update: async ({ id, ...patch }: BeanUpdate): Promise<Bean> => {
+        refuseOptimisticBeanId(id);
         const { data, error } = await supabase.from('beans').update(patch).eq('id', id).select().single();
         if (error) throw error;
         return data;
     },
 
     delete: async (id: string): Promise<void> => {
+        refuseOptimisticBeanId(id);
         const { error } = await supabase.from('beans').delete().eq('id', id);
         if (error) throw error;
     },
