@@ -244,6 +244,12 @@ describe('layoutCurveLabelBoxes', () => {
         expect(box.right).toBe(box.x + estimateLabelWidth(text));
     });
 
+    it('does not pull an off-canvas anchor back into the plot', () => {
+        const [box] = layoutCurveLabelBoxes([item({ xPx: -400, timeSec: 10 })], 1000);
+        expect(box.x).toBe(-400 + MARKER_LABEL_X_OFFSET_PX);
+        expect(box.anchorX).toBe(-400);
+    });
+
     it('keeps edge labels inside the canvas while preserving their curve anchors', () => {
         const boxes = layoutCurveLabelBoxes(
             [item({ xPx: 0, timeSec: 0 }), item({ xPx: 980, timeSec: 600, text: 'Drop | 10:00 | 205.0°C' })],
@@ -282,6 +288,108 @@ describe('layoutCurveLabelBoxes', () => {
             expect(overlap).toBe(false);
         }
         expect(drop.textY).toBeLessThan(90);
+    });
+});
+
+describe('zoom window (#599)', () => {
+    const tp = { timeSec: 122, temp: 141.7 };
+    const yellow = { timeSec: 60, event: 'Yellow', color: '#old', timeStr: '1:00', temp: '120°C' };
+    const fc = { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' };
+
+    it.each(['point', 'both', 'line'] as const)(
+        '%s: hides labels, lines, and dots outside the visible window',
+        (eventMarkerStyle) => {
+            const result = buildMarkers({
+                ...baseParams,
+                eventMarkerStyle,
+                xMin: 600,
+                xMax: 660,
+                xs: [600, 660],
+                btActual: [190, 197],
+                hasControlSeries: true,
+                currentTimeSec: 660,
+                eventMarkers: [yellow, fc],
+                turningPoints: [tp],
+            });
+            expect(result.curveLabels).toEqual([]);
+            expect(result.continuousMarkerLines).toEqual([]);
+            const xAxes = [...result.allMarkLines, ...result.controlGuideMarkLines].map(
+                (line) => (line as { xAxis?: number }).xAxis,
+            );
+            expect(xAxes).not.toContain(60);
+            expect(xAxes).not.toContain(122);
+            expect(xAxes).not.toContain(480);
+        },
+    );
+
+    it('shows an in-window label on the BT sample at that time', () => {
+        const result = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'point',
+            xMin: 100,
+            xMax: 160,
+            xs: [120, 122, 140],
+            btActual: [140, 141.7, 150],
+            eventMarkers: [],
+            turningPoints: [tp],
+        });
+        expect(result.curveLabels).toEqual([
+            expect.objectContaining({
+                timeSec: 122,
+                y: 141.7,
+                text: 'TP|02:02|141.7°C',
+                showDot: true,
+            }),
+        ]);
+        expect(result.continuousMarkerLines).toEqual([]);
+    });
+
+    it('restores labels when the window resets to the full range', () => {
+        const markers = [yellow, fc];
+        const zoomed = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'line',
+            xMin: 600,
+            xMax: 660,
+            xs: [600, 660],
+            btActual: [190, 197],
+            eventMarkers: markers,
+            turningPoints: [tp],
+        });
+        expect(zoomed.curveLabels).toEqual([]);
+
+        const reset = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'line',
+            xMin: 0,
+            xMax: 700,
+            xs: [0, 60, 122, 480, 660],
+            btActual: [100, 120, 141.7, 196, 197],
+            eventMarkers: markers,
+            turningPoints: [tp],
+        });
+        expect(reset.curveLabels.map((label) => label.timeSec)).toEqual([60, 480, 122]);
+        expect(reset.curveLabels.map((label) => label.y)).toEqual([120, 196, 141.7]);
+        expect(reset.allMarkLines.map((line) => (line as { xAxis?: number }).xAxis)).toEqual(
+            expect.arrayContaining([60, 480, 122]),
+        );
+    });
+
+    it('hides a marker when the filtered series has no finite BT near its time', () => {
+        const result = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'both',
+            xMin: 100,
+            xMax: 660,
+            xs: [400, 460, 600],
+            btActual: [190, null, 197],
+            eventMarkers: [{ timeSec: 130, event: 'Yellow', color: '#old', timeStr: '2:10', temp: '150°C' }],
+            turningPoints: [tp],
+        });
+        expect(nearestBtAt([400, 460, 600], [190, null, 197], 122)).toBeNull();
+        expect(nearestBtAt([400, 460, 600], [190, null, 197], 130)).toBeNull();
+        expect(result.curveLabels).toEqual([]);
+        expect(result.continuousMarkerLines).toEqual([]);
     });
 });
 

@@ -297,12 +297,13 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
     // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
     renderItem: (params: any, api: any) => {
         if (params.dataIndex !== 0) return;
-        const { x: plotX, width: plotWidth } = params.coordSys;
+        const { x: plotX, y: plotY, width: plotWidth, height: plotHeight } = params.coordSys;
         const laid = layoutCurveLabelBoxes(
             items.flatMap((item) => {
                 const point = api.coord([item.timeSec, item.y]) as number[];
                 if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) return [];
                 if (point[0] < plotX || point[0] > plotX + plotWidth) return [];
+                if (point[1] < plotY || point[1] > plotY + plotHeight) return [];
                 return [
                     {
                         timeSec: item.timeSec,
@@ -317,6 +318,9 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
             }),
             api.getWidth(),
         );
+        // Empty children are merged by index and leave the previous frame's text
+        // (setOption notMerge:false while zooming). Returning nothing removes it.
+        if (laid.length === 0) return;
         // biome-ignore lint/suspicious/noExplicitAny: ECharts graphic children
         const children: any[] = [];
         for (const box of laid) {
@@ -342,7 +346,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
                 },
             });
         }
-        return { type: 'group', children };
+        return { type: 'group', $mergeChildren: false, children };
     },
     data: [[0]],
 });
