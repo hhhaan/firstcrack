@@ -3,9 +3,10 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useEffectEvent, useMemo, useState } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+    applyTimeEdit,
     formatEditTime,
     type HeaterBounds,
     heaterFitsBounds,
@@ -13,6 +14,7 @@ import {
     parseEditTime,
     parseFiniteNumber,
     type ReplayPlanSource,
+    type TimeEditKind,
 } from '../lib/heater-events';
 import { eventTrigger, MAX_EVENTS, type ReplayEvent, type ReplayPoint, type ReplayTrigger } from '../lib/replay';
 
@@ -373,8 +375,81 @@ const HeaterEventsTable = ({
     onDelete: (key: string) => void;
 }) => {
     const { t } = useTranslation();
+    const timeSuppress = useRef(new WeakMap<HTMLInputElement, boolean>());
+    const pasteClaimed = useRef(new WeakMap<HTMLInputElement, boolean>());
+    const caretFix = useRef<{ el: HTMLInputElement; caret: number } | null>(null);
+    const rootRef = useRef<HTMLFieldSetElement>(null);
+    useLayoutEffect(() => {
+        const fix = caretFix.current;
+        if (!fix) return;
+        caretFix.current = null;
+        const place = () => {
+            if (fix.el.isConnected && document.activeElement === fix.el) {
+                fix.el.setSelectionRange(fix.caret, fix.caret);
+            }
+        };
+        place();
+        requestAnimationFrame(place);
+    });
+    useEffect(() => {
+        const root = rootRef.current;
+        if (!root) return;
+        const editTime = (input: HTMLInputElement, kind: TimeEditKind, text: string) => {
+            const key = input.dataset.timeKey;
+            if (!key) return;
+            const start = input.selectionStart ?? 0;
+            const end = input.selectionEnd ?? start;
+            const res = applyTimeEdit(input.value, start, end, text, kind, timeSuppress.current.get(input) ?? false);
+            timeSuppress.current.set(input, res.suppress);
+            caretFix.current = { el: input, caret: res.caret };
+            onUpdate(key, { t: res.value });
+        };
+        const claimPaste = (input: HTMLInputElement, text: string) => {
+            if (pasteClaimed.current.get(input)) return;
+            pasteClaimed.current.set(input, true);
+            queueMicrotask(() => pasteClaimed.current.set(input, false));
+            editTime(input, 'insert', text);
+        };
+        const isTimeInput = (target: EventTarget | null): target is HTMLInputElement =>
+            target instanceof HTMLInputElement && target.dataset.timeKey != null && !target.readOnly;
+        const onBefore = (event: Event) => {
+            if (!(event instanceof InputEvent) || !isTimeInput(event.target)) return;
+            const type = event.inputType;
+            if (type === 'insertFromPaste') {
+                event.preventDefault();
+                claimPaste(event.target, event.data ?? '');
+                return;
+            }
+            if (type === 'insertText' || type === 'insertReplacementText') {
+                event.preventDefault();
+                editTime(event.target, 'insert', event.data ?? '');
+                return;
+            }
+            if (type === 'deleteContentBackward') {
+                event.preventDefault();
+                editTime(event.target, 'backspace', '');
+                return;
+            }
+            if (type === 'deleteContentForward' || type === 'deleteByCut') {
+                event.preventDefault();
+                editTime(event.target, 'delete', '');
+            }
+        };
+        const onPaste = (event: Event) => {
+            if (!(event instanceof ClipboardEvent) || !isTimeInput(event.target)) return;
+            event.preventDefault();
+            claimPaste(event.target, event.clipboardData?.getData('text') ?? '');
+        };
+        root.addEventListener('beforeinput', onBefore);
+        root.addEventListener('paste', onPaste);
+        return () => {
+            root.removeEventListener('beforeinput', onBefore);
+            root.removeEventListener('paste', onPaste);
+        };
+    }, [onUpdate]);
     return (
         <fieldset
+            ref={rootRef}
             disabled={busy}
             aria-labelledby="heater-events-steps-title"
             className="m-0 flex min-h-[350px] min-w-0 flex-1 flex-col border-0 px-6 py-5 lg:min-h-0"
@@ -435,8 +510,14 @@ const HeaterEventsTable = ({
                                     <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.t}
-                                            onChange={(e) => onUpdate(row.key, { t: e.target.value })}
+                                            onChange={() => {
+                                                /* value is committed by the beforeinput listener */
+                                            }}
+                                            data-time-key={row.key}
                                             className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
+                                            inputMode="numeric"
+                                            autoComplete="off"
+                                            spellCheck={false}
                                             aria-label={t('heaterEventsEditor.time')}
                                             readOnly={locked}
                                         />

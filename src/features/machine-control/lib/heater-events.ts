@@ -2,6 +2,95 @@ import type { Json } from '@shared/types/database.types';
 import { extractReplayEvents, MAX_EVENTS, type ReplayEvent, type ReplayPlan, type ReplayPoint } from './replay';
 
 const TIME_RE = /^(\d{1,3}):([0-5]?\d|60)$/;
+const TIME_INPUT_RE = /^\d{0,3}(?::(?:[0-5]?\d?|60)?)?$/;
+
+export type TimeEditKind = 'insert' | 'backspace' | 'delete';
+
+export type TimeEdit = {
+    value: string;
+    caret: number;
+    /** 콜론을 지워 분 두 자리로 돌아온 뒤, 다음 숫자는 초가 아니라 분이다. */
+    suppress: boolean;
+};
+
+const clampIndex = (value: string, index: number) => Math.max(0, Math.min(index, value.length));
+
+const finishTimeEdit = (value: string, caret: number, suppress: boolean): TimeEdit => ({
+    value,
+    caret: clampIndex(value, caret),
+    suppress: suppress && /^\d{2}$/.test(value),
+});
+
+const insertTimeChar = (value: string, caret: number, ch: string, suppress: boolean): TimeEdit | null => {
+    if (ch === ':') {
+        if (value.includes(':')) return null;
+        const before = value.slice(0, caret);
+        const after = value.slice(caret);
+        if (!/^\d{1,3}$/.test(before)) return null;
+        const next = `${before}:${after}`;
+        if (!TIME_INPUT_RE.test(next)) return null;
+        return { value: next, caret: before.length + 1, suppress: false };
+    }
+    if (!/^\d$/.test(ch)) return null;
+    const atEnd = caret === value.length;
+    if (suppress && atEnd && /^\d{2}$/.test(value)) {
+        return { value: value + ch, caret: value.length + 1, suppress: false };
+    }
+    if (!value.includes(':') && atEnd && /^\d$/.test(value)) {
+        const minutes = value + ch;
+        return { value: `${minutes}:`, caret: minutes.length + 1, suppress: false };
+    }
+    if (!value.includes(':') && atEnd && /^\d{2,3}$/.test(value)) {
+        const next = `${value}:${ch}`;
+        if (!TIME_INPUT_RE.test(next)) return null;
+        return { value: next, caret: next.length, suppress: false };
+    }
+    const next = value.slice(0, caret) + ch + value.slice(caret);
+    if (!TIME_INPUT_RE.test(next)) return null;
+    return { value: next, caret: caret + 1, suppress: false };
+};
+
+/** 화력 스텝 시각. 분 두 자리가 차면 커서가 콜론 뒤로 넘어간다. `1234` → `12:34`. */
+export const applyTimeEdit = (
+    prev: string,
+    start: number,
+    end: number,
+    text: string,
+    kind: TimeEditKind,
+    suppress = false,
+): TimeEdit => {
+    start = clampIndex(prev, start);
+    end = clampIndex(prev, Math.max(start, end));
+    let nextSuppress = suppress;
+    if (kind === 'backspace' || kind === 'delete') {
+        if (start === end) {
+            if (kind === 'backspace') {
+                if (start === 0) return finishTimeEdit(prev, 0, false);
+                start -= 1;
+            } else if (start >= prev.length) {
+                return finishTimeEdit(prev, start, nextSuppress);
+            } else {
+                end = start + 1;
+            }
+        }
+        const next = prev.slice(0, start) + prev.slice(end);
+        if (!TIME_INPUT_RE.test(next)) return finishTimeEdit(prev, end, nextSuppress);
+        return finishTimeEdit(next, start, /^\d{2}$/.test(next));
+    }
+    const raw = text.replace(/[^\d:]/g, '');
+    if (!raw) return finishTimeEdit(prev, start, nextSuppress && start === end);
+    let value = prev.slice(0, start) + prev.slice(end);
+    let caret = start;
+    if (start !== end) nextSuppress = false;
+    for (const ch of raw) {
+        const step = insertTimeChar(value, caret, ch, nextSuppress);
+        if (!step) continue;
+        value = step.value;
+        caret = step.caret;
+        nextSuppress = step.suppress;
+    }
+    return finishTimeEdit(value, caret, nextSuppress);
+};
 
 export type ReplayPlanSource = 'batch' | 'profile' | 'tsv';
 
