@@ -949,7 +949,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                       heatPower: chart.visibleHeatPower,
                                       fanSpeed: chart.visibleFanSpeed,
                                       heatSet: chart.visibleHeatSet,
-                                      heatTarget,
+                                      heatTarget: bbpActive ? undefined : heatTarget,
                                   }
                                 : undefined
                         }
