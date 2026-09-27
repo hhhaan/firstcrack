@@ -782,7 +782,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [lifecycle, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName]);
 
     const handleCancelDrop = useCallback(() => {
-        if (!lifecycle.cancelDrop()) return;
+        if (!lifecycle.cancelDrop()) {
+            logger.capture(new Error('Roast summary Drop cancellation failed'));
+            return;
+        }
         saveFlow.flow.discardSummary();
     }, [lifecycle, saveFlow.flow]);
 

@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import { formErrorCls, inputCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -377,6 +378,7 @@ const HeaterEventsTable = ({
     const { t } = useTranslation();
     const timeSuppress = useRef(new WeakMap<HTMLInputElement, boolean>());
     const pasteClaimed = useRef(new WeakMap<HTMLInputElement, boolean>());
+    const unhandledTimeInputs = useRef(new WeakSet<HTMLInputElement>());
     const caretFix = useRef<{ el: HTMLInputElement; caret: number } | null>(null);
     const rootRef = useRef<HTMLFieldSetElement>(null);
     useLayoutEffect(() => {
@@ -510,8 +512,15 @@ const HeaterEventsTable = ({
                                     <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.t}
-                                            onChange={() => {
-                                                /* value is committed by the beforeinput listener */
+                                            onChange={(event) => {
+                                                if (event.target.value === row.t) return;
+                                                if (!unhandledTimeInputs.current.has(event.target)) {
+                                                    unhandledTimeInputs.current.add(event.target);
+                                                    logger.capture(
+                                                        new Error('Heater event time input bypassed beforeinput'),
+                                                    );
+                                                }
+                                                onUpdate(row.key, { t: event.target.value });
                                             }}
                                             data-time-key={row.key}
                                             className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}

@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import { logger } from '@shared/lib/logger';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -12,6 +14,7 @@ describe('HeaterEventsEditor', () => {
     let host: HTMLDivElement;
 
     afterEach(() => {
+        vi.restoreAllMocks();
         host?.remove();
     });
 
@@ -272,6 +275,36 @@ describe('HeaterEventsEditor', () => {
         await type('4');
         expect(input.value).toBe('12:34');
         expect(input.selectionStart).toBe(5);
+        await act(async () => root.unmount());
+    });
+
+    it('beforeinput을 건너뛴 시간 입력을 보존하고 한 번 보고한다', async () => {
+        const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        await act(async () =>
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'profile',
+                    events: [{ t: 16, bt: 180, heater: 65, trigger: 'time' }],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'profile',
+                    unit: 'C',
+                    onClose: () => {},
+                    onApply: () => {},
+                }),
+            ),
+        );
+        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.time"]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        await act(async () => {
+            setValue?.call(input, '9:00');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(input.value).toBe('9:00');
+        expect(capture).toHaveBeenCalledOnce();
         await act(async () => root.unmount());
     });
 });

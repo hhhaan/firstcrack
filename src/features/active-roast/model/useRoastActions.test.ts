@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { logger } from '@shared/lib/logger';
+import { sidecar } from '@shared/lib/sidecar';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -75,6 +77,17 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         expect(ref.current).toBe(originAfterFirst);
         expect(h.setLogEntries).toHaveBeenCalledTimes(1);
         expect(useRoastingStore.getState().sessionOwnerId).toBe('owner-A');
+    });
+
+    it('Charge 명령 실패를 Sentry 경로에 보고한다', async () => {
+        const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
+        vi.mocked(sidecar.startRoast).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+        const h = renderActions({ current: 0 });
+        await act(async () => h.result.triggerCharge(200));
+        expect(capture).toHaveBeenCalledWith(expect.objectContaining({ message: 'Roast start command failed' }), {
+            reason: 'TypeError: Failed to fetch',
+        });
+        capture.mockRestore();
     });
 });
 

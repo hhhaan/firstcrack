@@ -177,7 +177,9 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 opts?.chargeWait ?? (useBbpStore.getState().active || useRoastingStore.getState().awaitingNextCharge);
             resetStore();
             if (sidecarConnected) {
-                sidecar.resetRoast().catch(() => {});
+                sidecar.resetRoast().catch((error) => {
+                    logger.capture(new Error('Roast reset command failed'), { reason: String(error) });
+                });
                 enterPreheating();
                 // BBP: skip Roast Ready. Sidecar /standby is not called — virtual would
                 // auto-drop beans in 10s and cut the wait short. Real BT drop still

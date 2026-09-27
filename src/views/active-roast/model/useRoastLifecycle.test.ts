@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { formatRoastTsvRow, replaceSessionTsv } from '@shared/lib/tsv-writer';
 import type { LogEntry } from '@shared/types/roast';
@@ -91,7 +92,7 @@ const renderLifecycle = (
 describe('resetActiveRoast after End (#455)', () => {
     beforeEach(() => {
         feature.bbp = true;
-        vi.mocked(sidecar.resetRoast).mockClear();
+        vi.mocked(sidecar.resetRoast).mockReset().mockResolvedValue({ ok: true });
         vi.mocked(sidecar.enterStandby).mockClear();
         useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [], finalized: null });
         useRoastingStore.setState({
@@ -116,6 +117,21 @@ describe('resetActiveRoast after End (#455)', () => {
             expect(sidecar.resetRoast).toHaveBeenCalled();
             expect(sidecar.enterStandby).not.toHaveBeenCalled();
         } finally {
+            h.unmount();
+        }
+    });
+
+    it('배치 리셋 명령 실패를 Sentry 경로에 보고한다', async () => {
+        const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
+        vi.mocked(sidecar.resetRoast).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+        const h = renderLifecycle();
+        try {
+            await act(async () => h.result.resetActiveRoast());
+            expect(capture).toHaveBeenCalledWith(expect.objectContaining({ message: 'Roast reset command failed' }), {
+                reason: 'TypeError: Failed to fetch',
+            });
+        } finally {
+            capture.mockRestore();
             h.unmount();
         }
     });

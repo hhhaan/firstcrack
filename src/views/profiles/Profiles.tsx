@@ -153,7 +153,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             );
             setSelectedId(created.id);
         } catch (err) {
-            logger.capture(err, { context: 'duplicate roast profile' });
+            logger.capture(new Error('Roast profile duplication failed'), { reason: String(err) });
             useToastStore.getState().show(t('profiles.detail.duplicateFailed'));
         }
     };

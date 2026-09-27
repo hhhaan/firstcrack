@@ -1,5 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { formatElapsed } from '@shared/lib/format';
+import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback } from 'react';
@@ -41,7 +42,9 @@ export const useRoastActions = ({
         (btAtCharge?: number | null, chargeTimeMs?: number) => {
             // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
             if (useRoastingStore.getState().charged) return;
-            sidecar.startRoast().catch(() => {});
+            sidecar.startRoast().catch((error) => {
+                logger.capture(new Error('Roast start command failed'), { reason: String(error) });
+            });
             const now = Date.now();
             const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
             // Same origin for livePoints.time (ref) and elapsed (store roastStartMs)
