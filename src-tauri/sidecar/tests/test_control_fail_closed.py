@@ -16,6 +16,7 @@ from control_guard import ControlUnavailable
 from main import create_app
 from manager import RoasterManager
 from roaster_registry import ROASTER_REGISTRY
+from tests.conftest import FakeAdapter, make_reading
 
 from tests.test_s7_adapter import GIESEN_CHANNELS, GIESEN_WRITE_MAP
 
@@ -184,6 +185,33 @@ class TestConnectMapMerge:
 
 
 class TestResetRoast:
+    @pytest.mark.parametrize(
+        "roaster", ["custom_modbus", "custom_phidget", "custom_probat_ws", "kaleido", "giesen_standard"]
+    )
+    async def test_real_machine_stays_connected_between_roasts(self, manager, roaster):
+        adapter = FakeAdapter(readings=[make_reading(bt=150 + i) for i in range(3)])
+        with patch("manager.make_adapter", return_value=adapter):
+            await manager.connect(roaster, {})
+        epoch = manager._connection_epoch
+        manager._last_applied = {"heater": 70}
+
+        for i in range(3):
+            await manager.enter_standby()
+            await manager.start_roast()
+            assert (await manager.read_temperatures())["bt_raw"] == 150 + i
+            await manager.reset_roast()
+            assert manager.status()["connected"] is True
+            assert manager.status()["reconnecting"] is False
+            assert manager._connection_epoch == epoch
+            assert manager.last_applied() == {"heater": 70}
+            assert adapter.connect_call_count == 1
+            assert adapter.disconnected is False
+            assert adapter.control_calls == []
+
+        await manager.disconnect()
+        assert adapter.disconnected is True
+        assert manager.status()["connected"] is False
+
     async def test_reset_reconnect_fail_sets_connected_false(self, manager):
         defaults = ROASTER_REGISTRY["virtual"]["default_params"]
         adapter = VirtualMachineAdapter(write_map=defaults["write_map"])
