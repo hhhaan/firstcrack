@@ -987,9 +987,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         phaseSegments={bbpActive ? [] : phaseSegments}
                         showFcBand={roastSettings.showFcBand && !bbpActive}
                         unit={unit}
-                        targetProfileName={
-                            waitingForCharge ? `${t('bbp.target')} · ${targetProfile?.name ?? ''}` : targetProfile?.name
-                        }
+                        targetProfileName={targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}
                         onEventMarkerDrag={charged && !roastEnded && !bbpActive ? handleEventMarkerDrag : undefined}
                         onEventMarkerEdit={charged && !roastEnded && !bbpActive ? handleEventMarkerEdit : undefined}

@@ -2,7 +2,6 @@
     "bbp": {
         "history": "BBP before this Charge",
         "live": "Live BBP",
-        "target": "BBP target",
         "timeOrigin": "Time from previous End",
         "preheatTimeOrigin": "Time since preheat start",
         "duration": "BBP duration",

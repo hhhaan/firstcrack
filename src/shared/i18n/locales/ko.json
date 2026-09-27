@@ -2,7 +2,6 @@
     "bbp": {
         "history": "이 Charge 직전 BBP",
         "live": "실측 BBP",
-        "target": "BBP 기준",
         "timeOrigin": "이전 End 기준 시간",
         "preheatTimeOrigin": "예열 시작 기준 시간",
         "duration": "BBP 시간",

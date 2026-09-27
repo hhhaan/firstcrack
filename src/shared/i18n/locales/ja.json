@@ -2,7 +2,6 @@
     "bbp": {
         "history": "このCharge直前のBBP",
         "live": "実測BBP",
-        "target": "BBP目標",
         "timeOrigin": "前回のEndからの時間",
         "preheatTimeOrigin": "予熱開始からの時間",
         "duration": "BBP時間",
