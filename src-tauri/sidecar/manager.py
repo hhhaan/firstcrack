@@ -916,9 +916,6 @@ class RoasterManager:
     async def reset_roast(self) -> None:
         """배치 계산/PID 상태를 초기화한다. 재연결을 통한 예열 복귀는 가상 머신만 한다."""
         async with self._lock:
-            if self._protocol == "virtual":
-                self._connection_epoch += 1
-                self._last_applied = {}
             self._ror_window.clear()
             self._et_ror_window.clear()
             self._bt_ema = None
@@ -945,6 +942,8 @@ class RoasterManager:
             if self._protocol != "virtual":
                 return
 
+            self._connection_epoch += 1
+            self._last_applied = {}
             self._resetting = True
             self._connected = False
             try:
