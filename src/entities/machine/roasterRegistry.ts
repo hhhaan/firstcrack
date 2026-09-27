@@ -747,11 +747,51 @@ const REGISTRY: Record<string, RegistryEntry> = {
     },
 };
 
+// BT/ET positions from sidecar roaster_registry.py; keep in sync with its read maps.
+const SUPPORTED_ADDRESS_DEFAULTS: Record<string, Record<string, number>> = {
+    giesen_w1: { bt_db: 3, bt_offset: 118, et_db: 3, et_offset: 114 },
+    giesen_standard: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
+    giesen_w15e: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
+    giesen_w30a_pro: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
+    giesen_w140a_v2: { bt_db: 3, bt_offset: 196, et_db: 3, et_offset: 192 },
+    giesen_w6a_pro: { bt_db: 1006, bt_offset: 30, et_db: 1006, et_offset: 16 },
+    giesen_wxa: { bt_db: 2, bt_offset: 38, et_db: 2, et_offset: 36 },
+    giesen_wxa_plus: { bt_db: 4, bt_offset: 10, et_db: 4, et_offset: 6 },
+    buhler_rm20_simatic: { bt_db: 1604, bt_offset: 78, et_db: 1604, et_offset: 12 },
+    buhler_rm20_simatic_legacy: { bt_db: 1604, bt_offset: 78, et_db: 1604, et_offset: 12 },
+    buhler_rm20_playone: { bt_db: 1606, bt_offset: 214, et_db: 1606, et_offset: 240 },
+    buhler_rm60_240: { bt_db: 1630, bt_offset: 346, et_db: 84, et_offset: 100 },
+    probat_gug_s7: { bt_db: 100, bt_offset: 4, et_db: 100, et_offset: 8 },
+    probat_gug_control_s7: { bt_db: 200, bt_offset: 18, et_db: 200, et_offset: 22 },
+    probat_probatone: { bt_register: 12392 },
+    probat_probatone_7: { bt_register: 12392, et_register: 12393 },
+    diedrich_cr: { bt_register: 0, et_register: 4 },
+    diedrich_dr: { bt_register: 0, et_register: 4 },
+    easyster: { bt_register: 1000, et_register: 1000 },
+    easyster_smart: { bt_register: 3, et_register: 4 },
+    proaster: { bt_register: 1000, et_register: 1000 },
+    proaster_thcr01a: { bt_register: 0, et_register: 2 },
+    trinitas_t2: { bt_register: 1000, et_register: 1000 },
+    trinitas_t7: { bt_register: 1, et_register: 0 },
+    buja_smart_electric: { bt_register: 1000, et_register: 1000 },
+    buja_manual_hanyoung_nux: { bt_register: 0, et_register: 0 },
+    buja_manual_autonics: { bt_register: 1000, et_register: 1000 },
+    buja_smart_gas: { bt_register: 19, et_register: 20 },
+    loring_smart_roast: { bt_register: 768, et_register: 774 },
+    loring_smart_roast_auto: { bt_register: 768, et_register: 774 },
+    giesen_sample: { bt_db: 3, bt_offset: 118, et_db: 3, et_offset: 114 },
+    giesen_w30a: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
+    giesen_w45a_w60a: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
+    giesen_w140a_v1: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
+    giesen_wxa_coarse: { bt_db: 2, bt_offset: 38, et_db: 2, et_offset: 36 },
+};
+
 export const ROASTER_REGISTRY: RoastersResponse = Object.fromEntries(
     Object.entries(REGISTRY).map(([key, entry]) => [
         key,
         {
             ...entry,
+            default_params: { ...entry.default_params, ...SUPPORTED_ADDRESS_DEFAULTS[key] },
             form_fields: PROTOCOL_FORM_FIELDS[entry.protocol] ?? [],
         } satisfies RoasterDef,
     ]),

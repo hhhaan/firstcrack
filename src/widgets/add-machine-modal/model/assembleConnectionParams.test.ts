@@ -19,7 +19,8 @@ describe('supported model address overrides', () => {
     it('persists only changed Modbus registers and restores them for editing', () => {
         const def = ROASTER_REGISTRY.diedrich_cr;
         const defaults = initRoasterFormParams(def);
-        expect(defaults.bt_register).toBe('');
+        expect(defaults.bt_register).toBe('0');
+        expect(defaults.et_register).toBe('4');
         const assembled = assembleConnectionParams(
             def,
             { ...defaults, bt_register: '123', et_register: '' },
@@ -31,11 +32,18 @@ describe('supported model address overrides', () => {
         expect(assembled.typed).toMatchObject({ bt_register: 123 });
         expect(assembled.typed).not.toHaveProperty('et_register');
         expect(initRoasterFormParams(def, assembled.typed).bt_register).toBe('123');
+        expect(initRoasterFormParams(def, assembled.typed).et_register).toBe('4');
     });
 
     it('persists individual S7 fields and rejects invalid addresses', () => {
         const def = ROASTER_REGISTRY.giesen_standard;
         const params = { ...initRoasterFormParams(def), bt_offset: '200', et_db: '4' };
+        expect(initRoasterFormParams(def)).toMatchObject({
+            bt_db: '3',
+            bt_offset: '116',
+            et_db: '3',
+            et_offset: '112',
+        });
         const assembled = assembleConnectionParams(def, params, false, false);
         expect(assembled.ok).toBe(true);
         if (assembled.ok) expect(assembled.typed).toMatchObject({ bt_offset: 200, et_db: 4 });
