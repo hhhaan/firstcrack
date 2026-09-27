@@ -3,6 +3,7 @@ import { useProfile, useUpdateProfile } from '@entities/profile';
 import {
     type RoastProfileWithSource,
     resolveSourceSession,
+    roastProfileCopyInsert,
     useCreateRoastProfile,
     useDeleteRoastProfile,
     useRoastProfileCurve,
@@ -12,7 +13,9 @@ import {
 import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { formatDuration } from '@shared/lib/format';
+import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
+import { useToastStore } from '@shared/store/toast';
 import type { RoastProfile } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
@@ -141,6 +144,18 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         void _updatedAt;
         const created = await createProfile(insert);
         setSelectedId(created.id);
+    };
+
+    const handleDuplicate = async (profile: RoastProfileWithSource) => {
+        try {
+            const created = await createProfile(
+                roastProfileCopyInsert(profile, `${profile.name} (${t('profiles.detail.duplicate')})`),
+            );
+            setSelectedId(created.id);
+        } catch (err) {
+            logger.capture(err, { context: 'duplicate roast profile' });
+            useToastStore.getState().show(t('profiles.detail.duplicateFailed'));
+        }
     };
 
     const handleDelete = (id: string) => {
@@ -319,6 +334,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 chartKey={chartKey}
                                 onSetDefault={setDefault}
                                 onEdit={() => setShowEditModal(true)}
+                                onDuplicate={(profile) => void handleDuplicate(profile)}
                                 onDelete={handleDelete}
                                 onNavigate={onNavigate}
                             />

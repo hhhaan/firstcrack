@@ -1,4 +1,4 @@
-export type { RoastProfileWithSource } from './api';
+export { type RoastProfileWithSource, roastProfileCopyInsert } from './api';
 export { resolveSourceSession, type SourceSessionSnapshot } from './lib/resolve-source-session';
 export { type SessionSummary, summarizeSessionEvents } from './lib/summarize-session-events';
 export {
