@@ -80,6 +80,13 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
     };
 };
 
+it('keeps the overlay from passing clicks through to the roast screen', () => {
+    const { host, unmount } = renderModal();
+    const overlay = host.querySelector('[role="presentation"]');
+    expect(overlay?.className).not.toContain('pointer-events-none');
+    unmount();
+});
+
 it('shows stored TP in the summary log', () => {
     const { host, unmount } = renderModal({
         summaryData: {

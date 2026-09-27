@@ -144,8 +144,8 @@ export const RoastSummaryModal = ({
             onClose={onClose}
             dismissable={false}
             labelledBy="roast-summary-modal-title"
-            overlayClassName="z-[10000] pointer-events-none bg-[rgba(23,23,23,0.12)]"
-            contentClassName={`${modalPanel.sm} max-h-[min(720px,calc(100vh-64px))] !p-0 flex flex-col overflow-hidden relative pointer-events-auto`}
+            overlayClassName="z-[10000] bg-[rgba(23,23,23,0.12)]"
+            contentClassName={`${modalPanel.sm} max-h-[min(720px,calc(100vh-64px))] !p-0 flex flex-col overflow-hidden relative`}
         >
             <button
                 type="button"
