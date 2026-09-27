@@ -210,7 +210,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 logger.debug('roast-save-stage', { stage: 'resume-save', ms: Date.now() - saveStarted });
                 if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 if (saveResult.syncPending) {
-                    useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'));
+                    useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'), 'info');
                 }
 
                 const preferBatchId =

@@ -552,6 +552,7 @@
         }
     },
     "activeRoast": {
+        "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
             "noBeanSelected": "No bean selected",
             "target": "Target:",
