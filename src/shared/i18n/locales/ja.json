@@ -1,15 +1,11 @@
 {
     "bbp": {
         "history": "このCharge直前のBBP",
-        "live": "実測BBP",
-        "timeOrigin": "前回のEndからの時間",
-        "preheatTimeOrigin": "予熱開始からの時間",
         "duration": "BBP時間",
         "chargeTemp": "Charge温度",
         "loading": "BBP読み込み中…",
         "empty": "保存されたBBPデータなし",
-        "failed": "BBPを読み込めませんでした",
-        "noTarget": "目標未選択"
+        "failed": "BBPを読み込めませんでした"
     },
     "common": {
         "cancel": "キャンセル",

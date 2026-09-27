@@ -41,7 +41,6 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import {
-    bbpTimeOriginKey,
     chartOnlyPreheatDecision,
     noteChartOnlyPreheatMount,
     shouldResetChartOnlyPreheatOnPageRestore,
@@ -904,27 +903,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         ? 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-2.5'
                         : 'rounded relative z-1 pl-2.5 pr-2.5 py-[30px] flex-1 dark:border dark:border-[#585d61]'
                 }`}
+                data-testid={bbpActive ? 'bbp-target-status' : undefined}
+                data-bbp-elapsed={bbpActive ? Math.floor(bbpNowSec) : undefined}
+                data-bbp-span={bbpActive ? Math.floor(chartView.bbpRange?.end ?? 0) : undefined}
             >
-                {bbpActive && (
-                    <p
-                        role="status"
-                        className="mb-6 text-xs text-secondary"
-                        data-testid="bbp-target-status"
-                        data-bbp-elapsed={Math.floor(bbpNowSec)}
-                        data-bbp-span={Math.floor(chartView.bbpRange?.end ?? 0)}
-                    >
-                        {t('bbp.live')} · {t(bbpTimeOriginKey(bbpRecording))} ·{' '}
-                        {targetProfile?.name ?? t('bbp.noTarget')}
-                        {targetProfile &&
-                            (bbpTarget.isLoading
-                                ? ` · ${t('bbp.loading')}`
-                                : bbpTarget.isError
-                                  ? ` · ${t('bbp.failed')}`
-                                  : !bbpTarget.data?.length
-                                    ? ` · ${t('bbp.empty')}`
-                                    : '')}
-                    </p>
-                )}
                 <div className="flex gap-0 flex-1 min-h-0 flex-row">
                     <RoastChartContainer
                         bbpRange={chartView.bbpRange}

@@ -11,8 +11,8 @@ test('first-batch preheat is chart-only and reload starts the curve at zero', as
     await goNav(page, 'roast');
     const status = page.getByTestId('bbp-target-status');
     await expect(status).toBeVisible({ timeout: 20_000 });
-    await expect(status).toContainText('Time since preheat start');
-    await expect(status).not.toContainText('Time from previous End');
+    await expect(status).not.toContainText('Time since preheat start');
+    await expect(status).not.toContainText('Live BBP');
     await expect(page.getByTestId('bbp-timer')).toHaveCount(0);
     await expect(page.getByText('PREHEATING')).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('fc_bbp_live'))).toBeNull();
@@ -23,7 +23,7 @@ test('first-batch preheat is chart-only and reload starts the curve at zero', as
     await expect(page.getByTestId('app-sidebar')).toBeVisible({ timeout: 20_000 });
     await goNav(page, 'roast');
     await expect(status).toBeVisible({ timeout: 20_000 });
-    await expect(status).toContainText('Time since preheat start');
+    await expect(status).not.toContainText('Time since preheat start');
     await expect(page.getByTestId('bbp-timer')).toHaveCount(0);
     await expect(page.getByText('PREHEATING')).toBeVisible();
     await page.waitForTimeout(2_000);
@@ -51,7 +51,7 @@ test('reload during first-batch preheat restarts the curve near zero', async ({ 
     await expect(page.getByTestId('app-sidebar')).toBeVisible({ timeout: 20_000 });
     await goNav(page, 'roast');
     await expect(status).toBeVisible({ timeout: 20_000 });
-    await expect(status).toContainText('Time since preheat start');
+    await expect(status).not.toContainText('Time since preheat start');
     await expect(page.getByTestId('bbp-timer')).toHaveCount(0);
     await expect.poll(() => curveSpan(page), { timeout: 5_000 }).toBeLessThan(5);
     expect(Number(await status.getAttribute('data-bbp-elapsed'))).toBeLessThan(5);
