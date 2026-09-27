@@ -114,7 +114,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             data: showBbp
                 ? [
                       [
-                          { name: 'BBP', xAxis: Math.max(xMin, bbpRange?.start ?? 0) },
+                          { name: bbpRange?.label ?? 'BBP', xAxis: Math.max(xMin, bbpRange?.start ?? 0) },
                           { xAxis: Math.min(xMax, bbpRange?.end ?? 0) },
                       ],
                   ]

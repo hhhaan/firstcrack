@@ -69,7 +69,7 @@ interface Props {
     rorYMax?: number;
     xViewMin?: number;
     xViewMax?: number;
-    bbpRange?: { start: number; end: number };
+    bbpRange?: { start: number; end: number; label?: string };
     hideChargeLabel?: boolean;
 }
 
