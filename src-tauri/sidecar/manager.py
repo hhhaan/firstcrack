@@ -170,6 +170,40 @@ def _merge_connect_params(
             continue
         if not _has_real_map(params[key]) and key in defaults:
             merged[key] = defaults[key]
+
+    for role in ("BT", "ET"):
+        key = f"{role.lower()}_register"
+        if key in params:
+            value = params[key]
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 65535:
+                raise ValueError(f"{key} must be an integer from 0 to 65535")
+            registers = merged.get("modbus_registers")
+            channel = registers.get(role) if isinstance(registers, dict) else None
+            if not isinstance(channel, dict):
+                raise ValueError(f"{role} register is not available for this model")
+            merged["modbus_registers"] = {
+                **merged["modbus_registers"], role: {**channel, "register": value}
+            }
+
+        for field, max_value in (("db", 65535), ("offset", 2147483647)):
+            key = f"{role.lower()}_{field}"
+            if key not in params:
+                continue
+            value = params[key]
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= max_value:
+                raise ValueError(f"{key} must be an integer from 0 to {max_value}")
+            channels = merged.get("channels")
+            if not isinstance(channels, list) or not any(
+                isinstance(channel, dict) and channel.get("role") == role
+                for channel in channels
+            ):
+                raise ValueError(f"{role} channel is not available for this model")
+            merged["channels"] = [
+                {**channel, field: value}
+                if isinstance(channel, dict) and channel.get("role") == role
+                else channel
+                for channel in channels
+            ]
     return merged
 
 

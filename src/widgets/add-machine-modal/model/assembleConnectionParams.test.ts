@@ -1,4 +1,4 @@
-import { buildProtocolRoasterDef, ROASTER_REGISTRY, writeMapFormFlags } from '@entities/machine';
+import { buildProtocolRoasterDef, initRoasterFormParams, ROASTER_REGISTRY, writeMapFormFlags } from '@entities/machine';
 import { describe, expect, it } from 'vitest';
 import { assembleConnectionParams, persistConnectionParams } from './assembleConnectionParams';
 
@@ -12,6 +12,37 @@ describe('persistConnectionParams', () => {
     it('keeps write_map when includeWriteMap is true', () => {
         const typed = { host: '10.0.0.1', write_map: { heater: { db: 2 } } };
         expect(persistConnectionParams(typed, true)).toEqual(typed);
+    });
+});
+
+describe('supported model address overrides', () => {
+    it('persists only changed Modbus registers and restores them for editing', () => {
+        const def = ROASTER_REGISTRY.diedrich_cr;
+        const defaults = initRoasterFormParams(def);
+        expect(defaults.bt_register).toBe('');
+        const assembled = assembleConnectionParams(
+            def,
+            { ...defaults, bt_register: '123', et_register: '' },
+            false,
+            false,
+        );
+        expect(assembled.ok).toBe(true);
+        if (!assembled.ok) return;
+        expect(assembled.typed).toMatchObject({ bt_register: 123 });
+        expect(assembled.typed).not.toHaveProperty('et_register');
+        expect(initRoasterFormParams(def, assembled.typed).bt_register).toBe('123');
+    });
+
+    it('persists individual S7 fields and rejects invalid addresses', () => {
+        const def = ROASTER_REGISTRY.giesen_standard;
+        const params = { ...initRoasterFormParams(def), bt_offset: '200', et_db: '4' };
+        const assembled = assembleConnectionParams(def, params, false, false);
+        expect(assembled.ok).toBe(true);
+        if (assembled.ok) expect(assembled.typed).toMatchObject({ bt_offset: 200, et_db: 4 });
+        expect(assembleConnectionParams(def, { ...params, bt_offset: '-1' }, false, false)).toEqual({
+            ok: false,
+            invalid: 'BT Offset',
+        });
     });
 });
 

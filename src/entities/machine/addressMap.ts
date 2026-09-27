@@ -85,6 +85,34 @@ export const S7_ADDRESS_FORM_FIELDS: RoasterFormField[] = [
     { key: 'et_div', label: 'ET Scale', type: 'select', required: false, options: DIV_OPTIONS },
 ];
 
+/** Optional per-machine address overrides for supported models. Empty keeps the registry default. */
+export const supportedAddressFieldsForProtocol = (protocol: string): RoasterFormField[] => {
+    if (protocol === 'modbus')
+        return [
+            { key: 'bt_register', label: 'BT Register', type: 'number', required: false },
+            { key: 'et_register', label: 'ET Register', type: 'number', required: false },
+        ];
+    if (protocol === 's7')
+        return [
+            { key: 'bt_db', label: 'BT DB', type: 'number', required: false },
+            { key: 'bt_offset', label: 'BT Offset', type: 'number', required: false },
+            { key: 'et_db', label: 'ET DB', type: 'number', required: false },
+            { key: 'et_offset', label: 'ET Offset', type: 'number', required: false },
+        ];
+    return [];
+};
+
+export const invalidSupportedAddressField = (protocol: string, params: Record<string, string>): string | null => {
+    for (const field of supportedAddressFieldsForProtocol(protocol)) {
+        const raw = (params[field.key] || '').trim();
+        if (!raw) continue;
+        const value = Number(raw);
+        const max = protocol === 'modbus' || field.key.endsWith('_db') ? 65535 : 2147483647;
+        if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value > max) return field.label;
+    }
+    return null;
+};
+
 export const addressFormFieldsForProtocol = (protocol: string): RoasterFormField[] => {
     if (protocol === 'modbus') return MODBUS_ADDRESS_FORM_FIELDS;
     if (protocol === 's7') return S7_ADDRESS_FORM_FIELDS;

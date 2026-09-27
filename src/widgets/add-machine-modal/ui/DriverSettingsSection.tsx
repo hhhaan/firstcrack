@@ -3,7 +3,7 @@ import { isRoasterFieldVisible, networkScanProtocol } from '@entities/machine';
 import { Badge } from '@shared/ui/Badge';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { platform } from '@tauri-apps/plugin-os';
-import { Info, MapPin, Radio } from 'lucide-react';
+import { Info, Radio } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from './FormField';
 
@@ -146,29 +146,31 @@ export const DriverSettingsSection = ({
             )}
 
             {/* Driver settings: address map */}
-            {showAddressMap && addressFields.length > 0 && (
-                <div className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated grid grid-cols-2 gap-4">
-                    <div className="col-span-2 flex flex-col gap-1 mb-1">
-                        <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-secondary dark:!text-[#a3a3a3]" />
-                            <span className="text-[13px] font-semibold text-secondary">
-                                {t('addMachine.addressMap')}
-                            </span>
-                        </div>
-                        <p className="text-[11px] text-muted leading-relaxed m-0">{t('addMachine.addressMapHint')}</p>
+            {addressFields.length > 0 && (
+                <details
+                    open={showAddressMap}
+                    className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated"
+                >
+                    <summary className="cursor-pointer text-[13px] font-semibold text-secondary">
+                        {t('addMachine.addressMap')}
+                    </summary>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                        <p className="col-span-2 text-[11px] text-muted leading-relaxed m-0">
+                            {t(showAddressMap ? 'addMachine.addressMapHint' : 'addMachine.supportedAddressHint')}
+                        </p>
+                        {addressFields.map((field) => (
+                            <FormField
+                                key={field.key}
+                                field={field}
+                                value={params[field.key] ?? ''}
+                                onChange={(v) => setParam(field.key, v)}
+                                serialPorts={serialPorts}
+                                registryDefault=""
+                                onRefreshPorts={onRefreshPorts}
+                            />
+                        ))}
                     </div>
-                    {addressFields.map((field) => (
-                        <FormField
-                            key={field.key}
-                            field={field}
-                            value={params[field.key] ?? ''}
-                            onChange={(v) => setParam(field.key, v)}
-                            serialPorts={serialPorts}
-                            registryDefault=""
-                            onRefreshPorts={onRefreshPorts}
-                        />
-                    ))}
-                </div>
+                </details>
             )}
         </>
     );

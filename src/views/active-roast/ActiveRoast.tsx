@@ -487,7 +487,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const wasPreheatVisibleRef = useRef(false);
     const reloadRestartedRef = useRef(false);
     const isActiveRef = useRef(isActive);
-    isActiveRef.current = isActive;
+    useLayoutEffect(() => {
+        isActiveRef.current = isActive;
+    }, [isActive]);
 
     const recoverLiveBbp = lifecycle.recoverLiveBbp;
     useEffect(() => {
