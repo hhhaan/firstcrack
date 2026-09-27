@@ -27,37 +27,18 @@ describe('UnsavedRoastBanner', () => {
         container.remove();
     });
 
-    it('shows reopen and explicit Drop cancel before the next Charge', () => {
+    it('reopens the summary from the unsaved banner', () => {
         const onReopen = vi.fn();
-        const onCancelDrop = vi.fn();
         void act(() =>
             root.render(
                 createElement(UnsavedRoastBanner, {
                     timeStr: '10:00',
-                    cancelable: true,
                     onReopen,
-                    onCancelDrop,
                 }),
             ),
         );
         expect(container.querySelector('[data-testid="unsaved-roast-banner"]')?.textContent).toContain('10:00');
-        expect(container.querySelector('[data-testid="unsaved-roast-cancel-drop"]')).not.toBeNull();
         void act(() => (container.querySelector('[data-testid="unsaved-roast-reopen"]') as HTMLButtonElement).click());
         expect(onReopen).toHaveBeenCalledTimes(1);
-    });
-
-    it('hides Drop cancel after the next-Charge boundary', () => {
-        void act(() =>
-            root.render(
-                createElement(UnsavedRoastBanner, {
-                    timeStr: '10:00',
-                    cancelable: false,
-                    onReopen: () => undefined,
-                    onCancelDrop: () => undefined,
-                }),
-            ),
-        );
-        expect(container.querySelector('[data-testid="unsaved-roast-cancel-drop"]')).toBeNull();
-        expect(container.querySelector('[data-testid="unsaved-roast-reopen"]')).not.toBeNull();
     });
 });

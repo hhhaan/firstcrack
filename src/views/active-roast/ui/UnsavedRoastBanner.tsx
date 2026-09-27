@@ -2,12 +2,10 @@ import { useTranslation } from 'react-i18next';
 
 interface UnsavedRoastBannerProps {
     timeStr: string;
-    cancelable: boolean;
     onReopen: () => void;
-    onCancelDrop: () => void;
 }
 
-export const UnsavedRoastBanner = ({ timeStr, cancelable, onReopen, onCancelDrop }: UnsavedRoastBannerProps) => {
+export const UnsavedRoastBanner = ({ timeStr, onReopen }: UnsavedRoastBannerProps) => {
     const { t } = useTranslation();
     return (
         <div
@@ -25,16 +23,6 @@ export const UnsavedRoastBanner = ({ timeStr, cancelable, onReopen, onCancelDrop
                 >
                     {t('activeRoast.unsaved.reopen')}
                 </button>
-                {cancelable && (
-                    <button
-                        type="button"
-                        data-testid="unsaved-roast-cancel-drop"
-                        onClick={onCancelDrop}
-                        className="px-2.5 py-1 rounded-md border border-border-subtle text-xs font-semibold cursor-pointer bg-transparent text-secondary"
-                    >
-                        {t('activeRoast.unsaved.cancelDrop')}
-                    </button>
-                )}
             </div>
         </div>
     );

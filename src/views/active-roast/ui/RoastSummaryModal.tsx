@@ -22,6 +22,8 @@ interface RoastSummaryModalProps {
     summaryData: RoastSummaryData | null;
     onClose: () => void;
     onDiscard: () => void;
+    onCancelDrop: () => void;
+    canCancelDrop: boolean;
     onSave: (data: RoastSummaryForm) => Promise<void>;
     isSaving?: boolean;
     ambientTemp?: number | null;
@@ -55,6 +57,8 @@ export const RoastSummaryModal = ({
     summaryData,
     onClose,
     onDiscard,
+    onCancelDrop,
+    canCancelDrop,
     onSave,
     isSaving = false,
     ambientTemp,
@@ -150,9 +154,10 @@ export const RoastSummaryModal = ({
             <button
                 type="button"
                 data-testid="roast-summary-close"
-                onClick={onClose}
-                aria-label={t('common.close')}
-                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated"
+                onClick={canCancelDrop ? onCancelDrop : onClose}
+                disabled={isSaving}
+                aria-label={t(canCancelDrop ? 'activeRoast.unsaved.cancelDrop' : 'common.close')}
+                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated disabled:opacity-60 disabled:cursor-not-allowed"
             >
                 <X size={18} strokeWidth={2.3} />
             </button>
@@ -481,6 +486,17 @@ export const RoastSummaryModal = ({
                     {isSaving && <Spinner />}
                     {t('activeRoast.summary.save')}
                 </button>
+                {canCancelDrop && (
+                    <button
+                        type="button"
+                        data-testid="roast-summary-cancel-drop"
+                        onClick={onCancelDrop}
+                        disabled={isSaving}
+                        className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {t('activeRoast.unsaved.cancelDrop')}
+                    </button>
+                )}
                 <button
                     type="button"
                     onClick={async () => {

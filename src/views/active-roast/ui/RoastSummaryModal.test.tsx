@@ -58,6 +58,8 @@ const baseProps = {
     summaryData,
     onClose: () => {},
     onDiscard: () => {},
+    onCancelDrop: () => {},
+    canCancelDrop: false,
     onSave: async () => {},
 };
 
@@ -206,6 +208,32 @@ it('calls onClose from the header X without discarding', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onDiscard).not.toHaveBeenCalled();
     unmount();
+});
+
+it('cancels Drop from the header X while the roast can be restored', () => {
+    const onClose = vi.fn();
+    const onCancelDrop = vi.fn();
+    const { host, unmount } = renderModal({ canCancelDrop: true, onClose, onCancelDrop });
+    const close = host.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
+    expect(close.getAttribute('aria-label')).toBe('activeRoast.unsaved.cancelDrop');
+    act(() => close.click());
+    expect(onCancelDrop).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    unmount();
+});
+
+it('cancels Drop from the summary only while it can be restored', () => {
+    const onCancelDrop = vi.fn();
+    const { host, unmount } = renderModal({ canCancelDrop: true, onCancelDrop });
+    const cancel = host.querySelector('[data-testid="roast-summary-cancel-drop"]') as HTMLButtonElement;
+    expect(cancel.textContent).toBe('activeRoast.unsaved.cancelDrop');
+    act(() => cancel.click());
+    expect(onCancelDrop).toHaveBeenCalledTimes(1);
+    unmount();
+
+    const unavailable = renderModal({ canCancelDrop: false, onCancelDrop });
+    expect(unavailable.host.querySelector('[data-testid="roast-summary-cancel-drop"]')).toBeNull();
+    unavailable.unmount();
 });
 
 it('unchecks deductStock when a custom bean name is typed', () => {
