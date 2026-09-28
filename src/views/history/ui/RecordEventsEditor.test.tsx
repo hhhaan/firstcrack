@@ -119,4 +119,17 @@ describe('RecordEventsEditor', () => {
         ]);
         expect(onClose).toHaveBeenCalled();
     });
+    it.each([
+        ['FC Start history.edit.time', '8:0a', '8:00'],
+        ['FC Start history.edit.time', '8:61', '8:00'],
+        ['FC Start history.edit.time', '7:5', '7:5'],
+        ['Drop history.edit.temp', '21a', '210'],
+        ['Drop history.edit.temp', '-5', '210'],
+        ['Drop history.edit.temp', '210.55', '210'],
+        ['Drop history.edit.temp', '210.5', '210.5'],
+    ])('limits %s input: %s → %s', async (label, typed, expected) => {
+        await mount({});
+        await type(label, typed);
+        expect((host.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement).value).toBe(expected);
+    });
 });

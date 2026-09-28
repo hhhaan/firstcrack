@@ -1,4 +1,5 @@
 import { type TemperatureUnit, tempUnitLabel } from '@features/active-roast';
+import { isDecimalDraft, isPartialTime } from '@features/machine-control/lib/heater-events';
 import type { Json } from '@shared/types/database.types';
 import { formErrorCls, inputCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -128,7 +129,11 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                                     title={
                                                         d.type === 'Charge' ? t('history.edit.chargeFixed') : undefined
                                                     }
-                                                    onChange={(e) => update(d.index, { time: e.target.value })}
+                                                    onChange={(e) => {
+                                                        if (isPartialTime(e.target.value))
+                                                            update(d.index, { time: e.target.value });
+                                                    }}
+                                                    maxLength={6}
                                                     className={`${inputCls} px-2 py-1.5 font-mono text-xs read-only:opacity-60 ${error === 'time' || error === 'order' ? 'border-red-500' : ''}`}
                                                     inputMode="numeric"
                                                     autoComplete="off"
@@ -140,7 +145,11 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                             <td className="px-1 py-1">
                                                 <input
                                                     value={d.temp}
-                                                    onChange={(e) => update(d.index, { temp: e.target.value })}
+                                                    onChange={(e) => {
+                                                        if (isDecimalDraft(e.target.value, 1))
+                                                            update(d.index, { temp: e.target.value });
+                                                    }}
+                                                    maxLength={5}
                                                     className={`${inputCls} px-2 py-1.5 font-mono text-xs ${error === 'temp' ? 'border-red-500' : ''}`}
                                                     inputMode="decimal"
                                                     autoComplete="off"

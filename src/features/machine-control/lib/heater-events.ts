@@ -17,7 +17,7 @@ export type TimeEdit = {
 const clampIndex = (value: string, index: number) => Math.max(0, Math.min(index, value.length));
 
 /** 입력 중 부분 시각. 초는 비거나 한 자리, 00–59, 60만. */
-const isPartialTime = (value: string): boolean => {
+export const isPartialTime = (value: string): boolean => {
     const colon = value.indexOf(':');
     if (colon < 0) return MINUTES_RE.test(value);
     if (value.includes(':', colon + 1)) return false;
@@ -28,6 +28,10 @@ const isPartialTime = (value: string): boolean => {
     if (seconds.length === 1) return /^\d$/.test(seconds);
     return seconds.length === 2 && /^[0-5]\d$/.test(seconds);
 };
+
+/** 입력 중 숫자. 숫자·점 하나·소수 `decimals`자리까지, 음수 허용 시에만 선행 `-`. */
+export const isDecimalDraft = (value: string, decimals: number, negative = false): boolean =>
+    new RegExp(`^${negative ? '-?' : ''}\\d*(\\.\\d{0,${decimals}})?$`).test(value);
 
 const finishTimeEdit = (value: string, caret: number, suppress: boolean): TimeEdit => ({
     value,

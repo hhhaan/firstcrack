@@ -11,6 +11,7 @@ import {
     formatEditTime,
     type HeaterBounds,
     heaterFitsBounds,
+    isDecimalDraft,
     normalizeHeaterPlan,
     parseEditTime,
     parseFiniteNumber,
@@ -49,6 +50,10 @@ type Props = {
     onClose: () => void;
     onApply: (events: ReplayEvent[] | null) => void | Promise<void>;
 };
+
+// BT is shown at 0.1°; heater keeps two places for fractional units (kPa, 0.5 steps).
+const BT_DECIMALS = 1;
+const HEAT_DECIMALS = 2;
 
 const toDisplayBt = (c: number, unit: 'C' | 'F') => (unit === 'F' ? (c * 9) / 5 + 32 : c);
 const fromDisplayBt = (v: number, unit: 'C' | 'F') => (unit === 'F' ? ((v - 32) * 5) / 9 : v);
@@ -296,7 +301,10 @@ export const HeaterEventsEditor = ({
                                         {t('heaterEventsEditor.ruleWhen')} (°{unit})
                                         <input
                                             value={ruleBt}
-                                            onChange={(e) => setRuleBt(e.target.value)}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, BT_DECIMALS))
+                                                    setRuleBt(e.target.value);
+                                            }}
                                             className={`${inputCls} mt-1 py-2 text-xs`}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.bt')}
@@ -306,7 +314,10 @@ export const HeaterEventsEditor = ({
                                         {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
                                         <input
                                             value={ruleHeater}
-                                            onChange={(e) => setRuleHeater(e.target.value)}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, HEAT_DECIMALS, heaterBounds.min < 0))
+                                                    setRuleHeater(e.target.value);
+                                            }}
                                             className={`${inputCls} mt-1 py-2 text-xs`}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.heat')}
@@ -331,6 +342,7 @@ export const HeaterEventsEditor = ({
                         rows={rows}
                         selected={selected}
                         lockedCount={lockedCount}
+                        allowNegativeHeat={heaterBounds.min < 0}
                         onAddStep={fixedRows ? undefined : addStep}
                         onSelect={setSelected}
                         onUpdate={update}
@@ -376,6 +388,7 @@ const HeaterEventsTable = ({
     rows,
     selected,
     lockedCount,
+    allowNegativeHeat,
     onAddStep,
     onSelect,
     onUpdate,
@@ -387,6 +400,7 @@ const HeaterEventsTable = ({
     rows: DraftRow[];
     selected: number;
     lockedCount: number;
+    allowNegativeHeat: boolean;
     onAddStep?: () => void;
     onSelect: (index: number) => void;
     onUpdate: (key: string, patch: Partial<DraftRow>) => void;
@@ -551,7 +565,10 @@ const HeaterEventsTable = ({
                                     <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.bt}
-                                            onChange={(e) => onUpdate(row.key, { bt: e.target.value })}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, BT_DECIMALS))
+                                                    onUpdate(row.key, { bt: e.target.value });
+                                            }}
                                             className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.bt')}
@@ -561,7 +578,10 @@ const HeaterEventsTable = ({
                                     <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.heater}
-                                            onChange={(e) => onUpdate(row.key, { heater: e.target.value })}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, HEAT_DECIMALS, allowNegativeHeat))
+                                                    onUpdate(row.key, { heater: e.target.value });
+                                            }}
                                             className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.heat')}

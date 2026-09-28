@@ -52,7 +52,7 @@ describe('HeaterEventsEditor', () => {
         expect(payload.some((e) => e.trigger === 'bt' && e.heater === 50)).toBe(true);
         await act(async () => root.unmount());
     });
-    it.each(['', '  ', 'NaN', 'Infinity', '-5'])('rejects an invalid heater value: %s', async (value) => {
+    it.each(['', '101'])('rejects an invalid heater value: %s', async (value) => {
         host = document.createElement('div');
         document.body.appendChild(host);
         const root = createRoot(host);
@@ -364,6 +364,40 @@ describe('HeaterEventsEditor', () => {
         expect(onApply.mock.calls[0][0].map((e: { heater: number }) => e.heater)).toEqual([7, 6.5]);
         expect(host.querySelector('[role="alert"]')?.textContent).toBe('conflict');
         expect(host.querySelectorAll('tbody tr')).toHaveLength(2);
+        await act(async () => root.unmount());
+    });
+    it.each([
+        ['heat', 'NaN', '80'],
+        ['heat', '-5', '80'],
+        ['heat', '12.345', '80'],
+        ['heat', '12.5', '12.5'],
+        ['bt', '1e3', '180'],
+        ['bt', '181.25', '180'],
+        ['bt', '181.2', '181.2'],
+    ])('limits the %s field format: %s → %s', async (field, typed, expected) => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        await act(async () =>
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'batch',
+                    events: [{ t: 0, bt: 180, heater: 80, trigger: 'time' }],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'tsv',
+                    unit: 'C',
+                    onClose: () => {},
+                    onApply: vi.fn(),
+                }),
+            ),
+        );
+        const input = host.querySelector(`tbody input[aria-label="heaterEventsEditor.${field}"]`) as HTMLInputElement;
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, typed);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(input.value).toBe(expected);
         await act(async () => root.unmount());
     });
 });
