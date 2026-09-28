@@ -14,6 +14,7 @@ import { AddMachineModal } from '@widgets/add-machine-modal/ui/AddMachineModal';
 import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { disconnectMachineWithRoastGuard } from './lib/roastDisconnectConfirm';
 
 export const Machines = ({
     isActive = false,
@@ -299,7 +300,14 @@ export const Machines = ({
                                     {isSelectedConnected ? (
                                         <button
                                             type="button"
-                                            onClick={handleDisconnect}
+                                            onClick={() => {
+                                                const { phase, machineSnapshot } = useRoastingStore.getState();
+                                                void disconnectMachineWithRoastGuard({
+                                                    session: { phase, machineSnapshot },
+                                                    machine: { id: selected.id, roasterKey: selected.roasterKey },
+                                                    disconnect: handleDisconnect,
+                                                });
+                                            }}
                                             className="py-3 px-5 rounded-lg border-none bg-surface dark:bg-surface-elevated text-secondary text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
                                         >
                                             <WifiOff size={15} strokeWidth={2} />
