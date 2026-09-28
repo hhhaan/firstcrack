@@ -31,7 +31,6 @@ export interface UseRoastLifecycleParams {
     enterStandby: () => void;
     enterPreheating: (capabilities?: string[]) => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
-    setIsRunning: (running: boolean) => void;
     resetStore: () => void;
     resetAutoDetectionRef: React.RefObject<() => void>;
     disableAutoChargeRef: React.RefObject<() => void>;
@@ -75,7 +74,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         enterStandby,
         enterPreheating,
         setConnected,
-        setIsRunning,
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
@@ -171,7 +169,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => {
             roastStartTimeRef.current = 0;
             resetAutoDetectionRef.current?.();
-            setIsRunning(false);
             const keepHeatHold = opts?.keepHeatHold ?? false;
             const chargeWait =
                 opts?.chargeWait ?? (useBbpStore.getState().active || useRoastingStore.getState().awaitingNextCharge);
@@ -202,7 +199,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         [
             roastStartTimeRef,
             resetAutoDetectionRef,
-            setIsRunning,
             resetStore,
             sidecarConnected,
             enterPreheating,
@@ -248,9 +244,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         // Abnormal abort: BBP starts at confirm time (no Drop). Machine still goes to Charge wait.
         if (bbpEnabled) useBbpStore.getState().begin(Date.now());
         useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
-        setIsRunning(false);
         return summaryData;
-    }, [logEntries, timeStr, rawBT, unit, setIsRunning, bbpEnabled]);
+    }, [logEntries, timeStr, rawBT, unit, bbpEnabled]);
 
     const completeDrop = useCallback(
         (input: { livePoints: LiveRoastPoint[]; onset?: DropOnset }): RoastSummaryData | null => {
@@ -279,7 +274,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             });
             if (bbpEnabled) useBbpStore.getState().begin(planned.bbpStartMs, planned.bbpSeed);
             useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
-            setIsRunning(false);
             void replaceSessionTsv(planned.sessionId, planned.roastPoints.map(formatRoastTsvRow).join('')).catch(
                 (err) => {
                     logger.capture(err instanceof Error ? err : new Error(String(err)), {
@@ -297,7 +291,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 elapsedSec: planned.summary.elapsedSec,
             };
         },
-        [logEntries, rawBT, unit, bbpEnabled, setIsRunning, roastStartTimeRef],
+        [logEntries, rawBT, unit, bbpEnabled, roastStartTimeRef],
     );
 
     const finishDrop = useCallback(
@@ -345,9 +339,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         });
         setLogEntries(restore.logEntries.filter((e) => e.event !== 'Drop'));
         setLivePoints(restore.livePoints);
-        setIsRunning(true);
         return true;
-    }, [roastStartTimeRef, setLogEntries, setLivePoints, setIsRunning]);
+    }, [roastStartTimeRef, setLogEntries, setLivePoints]);
 
     const recoverLiveBbp = useCallback(() => {
         if (!bbpEnabled) return;

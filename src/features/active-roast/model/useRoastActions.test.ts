@@ -28,7 +28,6 @@ const renderActions = (roastStartTimeRef: { current: number }) => {
             unit: 'C',
             rawBT: 200,
             setLogEntries,
-            setIsRunning: vi.fn(),
             onDrop,
             storeStartCharge: (ms, ownerId) => useRoastingStore.getState().startCharge(ms, ownerId),
             roastStartTimeRef: roastStartTimeRef as React.MutableRefObject<number>,
