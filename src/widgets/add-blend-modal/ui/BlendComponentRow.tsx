@@ -17,10 +17,14 @@ type BlendComponentRowProps = {
 
 export const BlendComponentRow = ({ index, register, beans, canRemove, onRemove }: BlendComponentRowProps) => {
     const { t } = useTranslation();
+    // deps re-runs the array refine so errors.components.root tracks bean and ratio edits.
 
     return (
         <div className="flex gap-2 items-center">
-            <FormSelect {...register(`components.${index}.bean_id`)} wrapperClassName="min-w-0 flex-1">
+            <FormSelect
+                {...register(`components.${index}.bean_id`, { deps: ['components'] })}
+                wrapperClassName="min-w-0 flex-1"
+            >
                 <option value="">{t('beans.blend.modal.selectBean')}</option>
                 {beans.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -30,7 +34,7 @@ export const BlendComponentRow = ({ index, register, beans, canRemove, onRemove 
             </FormSelect>
             <input
                 type="number"
-                {...register(`components.${index}.ratio_pct`, { valueAsNumber: true })}
+                {...register(`components.${index}.ratio_pct`, { valueAsNumber: true, deps: ['components'] })}
                 className={cn(inputCls, 'w-20 shrink-0 text-right')}
                 placeholder="%"
                 min={1}
