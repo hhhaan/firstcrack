@@ -21,3 +21,5 @@ The script starts Postgres on port 55432 (`DB_CONTRACT_PORT` overrides), applies
 **SQL only.** Drop `supabase/tests/<name>.sql`. The runner passes psql variables `owner`, `other_owner`, and `app_payload`. Wrap the body in `BEGIN;` / `ROLLBACK;` so the next file sees the seed users and nothing else. `ASSERT` and `RAISE EXCEPTION` fail the job.
 
 **App payload shape.** `dbContractPayload.test.ts` calls `saveRoastCore` and, when `DB_CONTRACT_OUT` is set, writes JSON. The #619 case is the `save_roast_619` key: fractional `duration_seconds` (auto-drop elapsed) that `save_roast_op` must round into the integer column. Add another key in that test and read it from a new file in `supabase/tests/contract/`. `app_payload` is forwarded to every SQL file.
+
+`save_roast_integer_round.sql` does not use that JSON. It sends decimal strings for every integer column `save_roast_op` writes, plus fractional deduction and inbound grams, and asserts `round(numeric)::integer`.

@@ -1,10 +1,10 @@
-import { formatElapsed } from '@shared/lib/format';
+import { formatDuration } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import type { LogEntry } from '@shared/types/roast';
 import type { BbpPoint } from '../model/bbp';
 import type { TemperatureUnit } from '../model/settings';
 import { logEntryTimeSec } from './serialize-roast-events';
-import { formatTemp } from './temperature';
+import { formatRecordedTemp } from './temperature';
 
 /** Charge-relative curve sample used to split roast vs BBP at Drop. */
 export type DropCurvePoint = {
@@ -89,9 +89,9 @@ const ensureDropLog = (
                 e.event === 'Drop'
                     ? {
                           ...e,
-                          time: formatElapsed(dropTimeSec),
+                          time: formatDuration(dropTimeSec),
                           timeSec: dropTimeSec,
-                          temp: dropBt != null ? formatTemp(dropBt, unit) : e.temp,
+                          temp: dropBt != null ? formatRecordedTemp(dropBt, unit) : e.temp,
                           tempC: dropBt,
                           note: e.note || note,
                       }
@@ -101,10 +101,10 @@ const ensureDropLog = (
     }
     const entry: LogEntry = {
         id: crypto.randomUUID(),
-        time: formatElapsed(dropTimeSec),
+        time: formatDuration(dropTimeSec),
         timeSec: dropTimeSec,
         event: 'Drop',
-        temp: dropBt != null ? formatTemp(dropBt, unit) : '',
+        temp: dropBt != null ? formatRecordedTemp(dropBt, unit) : '',
         tempC: dropBt,
         note,
     };
@@ -123,15 +123,15 @@ export const buildDropSummary = (
         { liveElapsed: dropTimeSec },
     );
     const roastTimeStr =
-        metrics.roastDurationSec != null ? formatElapsed(metrics.roastDurationSec) : formatElapsed(dropTimeSec);
+        metrics.roastDurationSec != null ? formatDuration(metrics.roastDurationSec) : formatDuration(dropTimeSec);
     const development =
         metrics.devTimeSec != null && metrics.dtrPct != null && metrics.devTimeSec > 0
-            ? `${formatElapsed(metrics.devTimeSec)} (${Number(metrics.dtrPct.toFixed(1))}%)`
+            ? `${formatDuration(metrics.devTimeSec)} (${Number(metrics.dtrPct.toFixed(1))}%)`
             : '—';
     return {
         totalTime: roastTimeStr,
         development,
-        finalBt: formatTemp(dropBt, unit),
+        finalBt: formatRecordedTemp(dropBt, unit),
         logEntries,
         sessionId,
         elapsedSec: dropTimeSec,

@@ -1,5 +1,5 @@
 import type { SessionSummary } from '@entities/roast-profile';
-import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, useRoastSettings } from '@features/active-roast';
 import { formatDuration } from '@shared/lib/format';
 import { labelCls } from '@shared/ui/form-styles';
 import { useTranslation } from 'react-i18next';
@@ -23,11 +23,11 @@ export const ProfileCurveSummary = ({ summary }: ProfileCurveSummaryProps) => {
             <div className="grid grid-cols-2 gap-6">
                 <div>
                     <div className={labelCls}>{t('newProfileModal.chargeTemp')}</div>
-                    <div className={valueCls}>{formatTemp(summary.charge_temp_celsius, unit)}</div>
+                    <div className={valueCls}>{formatRecordedTemp(summary.charge_temp_celsius, unit)}</div>
                 </div>
                 <div>
                     <div className={labelCls}>{t('newProfileModal.dropTemp')}</div>
-                    <div className={valueCls}>{formatTemp(summary.drop_temp_celsius, unit)}</div>
+                    <div className={valueCls}>{formatRecordedTemp(summary.drop_temp_celsius, unit)}</div>
                 </div>
             </div>
 

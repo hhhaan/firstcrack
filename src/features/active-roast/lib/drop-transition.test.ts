@@ -69,7 +69,7 @@ describe('buildDropSummary', () => {
         const summary = buildDropSummary(logs, 600, 205, 'C', 's-a');
         expect(summary.totalTime).toBe('10:00');
         expect(summary.development).toBe('2:00 (20%)');
-        expect(summary.finalBt).toBe('205.0°C');
+        expect(summary.finalBt).toBe('205°C');
         expect(summary.elapsedSec).toBe(600);
         expect(summary.sessionId).toBe('s-a');
     });
@@ -99,6 +99,20 @@ describe('planDropTransition', () => {
         expect(result?.summary.totalTime).toBe('10:12');
     });
 
+    it('auto Drop label rounds 686.6s to 11:27 and 205.4°C to 205°C', () => {
+        const result = planDropTransition({
+            ...base,
+            elapsed: 690,
+            onset: { timeSec: 686.6, bt: 205.4 },
+        });
+        const drop = result?.logEntries.find((e) => e.event === 'Drop');
+        expect(drop?.time).toBe('11:27');
+        expect(drop?.timeSec).toBe(686.6);
+        expect(drop?.temp).toBe('205°C');
+        expect(result?.summary.totalTime).toBe('11:27');
+        expect(result?.summary.finalBt).toBe('205°C');
+    });
+
     it('auto Drop uses onset and folds lookback into BBP seed', () => {
         const result = planDropTransition({ ...base, onset: { timeSec: 600, bt: 205 } });
         expect(result?.dropTimeSec).toBe(600);
@@ -110,7 +124,7 @@ describe('planDropTransition', () => {
             [12, 150],
         ]);
         expect(result?.summary.totalTime).toBe('10:00');
-        expect(result?.summary.finalBt).toBe('205.0°C');
+        expect(result?.summary.finalBt).toBe('205°C');
         expect(result?.summary.development).toBe('2:00 (20%)');
     });
 

@@ -1,5 +1,5 @@
 import { useProfileConsistency } from '@entities/roast-profile';
-import { formatTemp, tempUnitLabel, toDisplayTempDelta, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, tempUnitLabel, toDisplayTempDelta, useRoastSettings } from '@features/active-roast';
 import { formatDuration } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { Sparkline } from '@shared/ui/Sparkline';
@@ -13,7 +13,7 @@ export const ConsistencyCard = ({ profileId }: { profileId: string }) => {
     const unit = useRoastSettings().temperatureUnit;
     const metricFormats: Record<string, { value: (v: number) => string; sd: (v: number) => string }> = {
         dropTemp: {
-            value: (v) => formatTemp(v, unit),
+            value: (v) => formatRecordedTemp(v, unit),
             sd: (v) => `±${toDisplayTempDelta(v, unit).toFixed(1)}${tempUnitLabel(unit)}`,
         },
         duration: { value: (v) => formatDuration(Math.round(v)), sd: (v) => `±${Math.round(v)}s` },

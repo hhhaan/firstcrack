@@ -7,11 +7,12 @@ export const formatElapsed = (secs: number): string => {
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-/** Recorded duration: round fractional seconds; null → "—". 90.6 → "1:31" */
+/** Recorded duration: round the total, then split. 90.6 → "1:31", 686.6 → "11:27", 119.6 → "2:00". */
 export const formatDuration = (seconds: number | null): string => {
     if (seconds == null) return '—';
-    const m = Math.floor(seconds / 60);
-    const s = Math.round(seconds % 60);
+    const total = Math.round(seconds);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 

@@ -10,8 +10,10 @@ export { computePhaseSegments } from './lib/phases';
 export type { ObservationQuality, SensorObservation } from './lib/sensorObservation';
 // lib
 export {
+    formatRecordedTemp,
     formatTemp,
     fromDisplayTemp,
+    recordedTempDegrees,
     rorUnitLabel,
     tempUnitLabel,
     toDisplayRoR,

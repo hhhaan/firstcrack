@@ -60,8 +60,8 @@ describe('SessionScorecard charge vs drop (#492)', () => {
         );
         expect(chargeLabel).toBeTruthy();
         const chargeBlock = chargeLabel?.parentElement;
-        expect(chargeBlock?.textContent).toContain('210.0°C');
-        expect(chargeBlock?.textContent).toContain('200.0°C');
+        expect(chargeBlock?.textContent).toContain('210°C');
+        expect(chargeBlock?.textContent).toContain('200°C');
         expect(chargeBlock?.textContent).toContain('+10.0°C');
         expect(chargeBlock?.textContent).not.toContain('208.0°C');
         expect(chargeBlock?.textContent).not.toContain('169.0°C');
@@ -70,8 +70,8 @@ describe('SessionScorecard charge vs drop (#492)', () => {
         const dropLabel = [...container.querySelectorAll('div')].find(
             (el) => el.textContent === 'history.table.dropTemp',
         );
-        expect(dropLabel?.parentElement?.textContent).toContain('208.0°C');
-        expect(dropLabel?.parentElement?.textContent).toContain('169.0°C');
+        expect(dropLabel?.parentElement?.textContent).toContain('208°C');
+        expect(dropLabel?.parentElement?.textContent).toContain('169°C');
 
         await act(async () => root.unmount());
     });

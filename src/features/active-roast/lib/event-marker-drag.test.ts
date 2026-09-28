@@ -51,7 +51,7 @@ describe('applyEventMarkerDrag', () => {
         const next = applyEventMarkerDrag(entries, 'note-b', 20, livePoints, 'C', 120);
 
         expect(next.map((e) => e.id)).toEqual(['note-b', 'note-a', 'drop']);
-        expect(next[0]).toMatchObject({ time: '0:20', timeSec: 20, temp: '160.0°C', tempC: 160, note: 'second' });
+        expect(next[0]).toMatchObject({ time: '0:20', timeSec: 20, temp: '160°C', tempC: 160, note: 'second' });
         expect(next.find((e) => e.id === 'note-a')).toBe(entries[0]);
     });
 
@@ -111,8 +111,8 @@ describe('applyEventMarkerDrag', () => {
         const c = applyEventMarkerDrag(entries, 'yellow', 30, livePoints, 'C', 60)[0];
         const f = applyEventMarkerDrag(entries, 'yellow', 30, livePoints, 'F', 60)[0];
 
-        expect(c).toMatchObject({ tempC: 160, temp: '160.0°C' });
-        expect(f).toMatchObject({ tempC: 160, temp: '320.0°F' });
+        expect(c).toMatchObject({ tempC: 160, temp: '160°C' });
+        expect(f).toMatchObject({ tempC: 160, temp: '320°F' });
     });
 });
 

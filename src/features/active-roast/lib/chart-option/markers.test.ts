@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildMarkers,
     estimateLabelWidth,
+    eventLabelText,
     getMarkerLabelGeometry,
     LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
@@ -114,6 +115,12 @@ describe('buildMarkers label position', () => {
     });
 });
 
+describe('eventLabelText', () => {
+    it('rounds a recorded Drop to 11:27', () => {
+        expect(eventLabelText('Drop', 686.6, '205°C')).toBe('Drop|11:27|205°C');
+    });
+});
+
 describe('event marker visual grammar', () => {
     it('ignores nonfinite curve samples when anchoring labels', () => {
         expect(nearestBtAt([Number.NaN, 20], [180, Number.POSITIVE_INFINITY], 10)).toBeNull();
@@ -149,13 +156,13 @@ describe('event marker visual grammar', () => {
 
         expect(result.markPointData).toEqual([]);
         expect(result.curveLabels[0]).toMatchObject({
-            text: 'Open damper|09:00|200.0°C',
+            text: 'Open damper|09:00|200°C',
             color: '#eee',
             y: 202,
             showDot: false,
         });
         expect(result.curveLabels[1]).toMatchObject({
-            text: 'Heater→50%|09:00|200.0°C',
+            text: 'Heater→50%|09:00|200°C',
             color: '#c00',
             y: 202,
             showDot: false,
@@ -337,7 +344,7 @@ describe('zoom window (#599)', () => {
             expect.objectContaining({
                 timeSec: 122,
                 y: 141.7,
-                text: 'TP|02:02|141.7°C',
+                text: 'TP|02:02|142°C',
                 showDot: true,
             }),
         ]);

@@ -1,8 +1,8 @@
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
-import { formatElapsed } from '@shared/lib/format';
+import { formatDuration } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import { logEntryTimeSec } from './serialize-roast-events';
-import { formatTemp } from './temperature';
+import { formatRecordedTemp } from './temperature';
 
 export type MarkerDragLivePoint = {
     time: number;
@@ -85,14 +85,14 @@ export function applyEventMarkerEdit(
             if (entry.id !== logId) return entry;
             const next = allowNote && nextNote != null ? { ...entry, note: nextNote } : { ...entry };
             if (!hasTime) return next;
-            const newTimeStr = formatElapsed(boundedTimeSec);
+            const newTimeStr = formatDuration(boundedTimeSec);
             const nearest = nearestLivePointAt(livePoints, boundedTimeSec);
             if (!nearest) return { ...next, time: newTimeStr, timeSec: boundedTimeSec };
             return {
                 ...next,
                 time: newTimeStr,
                 timeSec: boundedTimeSec,
-                temp: formatTemp(nearest.bt, unit),
+                temp: formatRecordedTemp(nearest.bt, unit),
                 tempC: nearest.bt,
             };
         })

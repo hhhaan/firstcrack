@@ -1,6 +1,6 @@
 import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
-import { formatTemp, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { formatDuration } from '@shared/lib/format';
@@ -67,7 +67,7 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                         BBP · {t('bbp.duration')}: {formatDuration(session.bbp_seconds)}
                     </span>
                     <span>
-                        {t('bbp.chargeTemp')}: {formatTemp(session.charge_temp_celsius, unit)}
+                        {t('bbp.chargeTemp')}: {formatRecordedTemp(session.charge_temp_celsius, unit)}
                     </span>
                     {(bbp.isLoading || bbp.isError || !bbp.data?.length) && (
                         <span role="status">

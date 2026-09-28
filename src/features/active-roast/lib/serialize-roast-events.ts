@@ -1,12 +1,12 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
-import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { formatRecordedTemp, recordedTempDegrees } from '@features/active-roast/lib/temperature';
 import { parseTimeSec } from '@features/active-roast/lib/time';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
-import { formatElapsed } from '@shared/lib/format';
+import { formatDuration } from '@shared/lib/format';
 import type { LogEntry, StoredRoastEvent } from '@shared/types/roast';
 
 const formatStoredEventTemp = (tempC: number | null | undefined, unit: TemperatureUnit): string =>
-    tempC != null && Number.isFinite(tempC) ? `${Math.round(toDisplayTemp(tempC, unit))}${tempUnitLabel(unit)}` : '—';
+    formatRecordedTemp(tempC ?? null, unit);
 
 /** Prefer stored timeSec; fall back to display "m:ss". */
 export const logEntryTimeSec = (entry: Pick<LogEntry, 'time' | 'timeSec'>): number =>
@@ -75,7 +75,7 @@ export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: Tempe
         .sort((a, b) => a.time_sec - b.time_sec)
         .map((e) => ({
             id: e.id,
-            time: formatElapsed(e.time_sec),
+            time: formatDuration(e.time_sec),
             timeSec: e.time_sec,
             event: e.type,
             temp: formatStoredEventTemp(e.temp_c, unit),
@@ -92,8 +92,8 @@ export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: Temperat
             timeSec: Math.max(0, e.time_sec),
             event: e.type,
             color: getResolvedEventColor(e.type),
-            timeStr: formatElapsed(e.time_sec),
-            temp: e.temp_c != null ? `${Math.round(toDisplayTemp(e.temp_c, unit))}` : '',
+            timeStr: formatDuration(e.time_sec),
+            temp: e.temp_c != null ? `${recordedTempDegrees(e.temp_c, unit)}` : '',
             tempC: e.temp_c ?? null,
             note: e.note ?? '',
         }));

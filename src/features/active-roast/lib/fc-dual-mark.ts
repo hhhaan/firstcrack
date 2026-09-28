@@ -1,8 +1,8 @@
-import { formatElapsed } from '@shared/lib/format';
+import { formatDuration } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import type { TemperatureUnit } from '../model/settings';
 import { logEntryTimeSec } from './serialize-roast-events';
-import { formatTemp } from './temperature';
+import { formatRecordedTemp } from './temperature';
 
 export type FcDualStage = 0 | 1 | 2;
 
@@ -26,10 +26,10 @@ export type CycleFcDualCtx = {
 
 const makeEntry = (event: string, note: string, ctx: CycleFcDualCtx): LogEntry => ({
     id: crypto.randomUUID(),
-    time: formatElapsed(ctx.elapsed),
+    time: formatDuration(ctx.elapsed),
     timeSec: ctx.elapsed,
     event,
-    temp: ctx.rawBT !== null ? formatTemp(ctx.rawBT, ctx.unit) : '',
+    temp: ctx.rawBT !== null ? formatRecordedTemp(ctx.rawBT, ctx.unit) : '',
     tempC: ctx.rawBT,
     note,
 });

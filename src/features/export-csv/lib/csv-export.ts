@@ -72,7 +72,7 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
         lossRate,
         lossBasis: measured ? 'measured' : 'estimated',
         roastLevel: s.roast_level ?? '',
-        dropTemp: s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '',
+        dropTemp: s.drop_temp_celsius != null ? `${Math.round(s.drop_temp_celsius)}°C` : '',
         duration: roastSec != null ? formatDuration(roastSec) : '',
         notes: s.notes ?? '',
     };

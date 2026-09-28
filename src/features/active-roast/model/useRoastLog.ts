@@ -1,10 +1,10 @@
-import { formatElapsed } from '@shared/lib/format';
+import { formatDuration } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import { type SetStateAction, useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
 import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
-import { formatTemp } from '../lib/temperature';
+import { formatRecordedTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
 
 export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed: number) => {
@@ -52,7 +52,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
                 ? Math.min(Math.max(Math.round(historical.timeSec), 0), Math.floor(elapsed))
                 : elapsed;
             const tempC = historical ? historical.tempC : rawBT;
-            const timeStr = formatElapsed(timeSec);
+            const timeStr = formatDuration(timeSec);
             const id = crypto.randomUUID();
 
             setLogEntries((prev) => {
@@ -65,7 +65,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
                     time: timeStr,
                     timeSec,
                     event,
-                    temp: tempC !== null ? formatTemp(tempC, unit) : '',
+                    temp: tempC !== null ? formatRecordedTemp(tempC, unit) : '',
                     tempC,
                     note: event === 'Note' ? body : note,
                 };

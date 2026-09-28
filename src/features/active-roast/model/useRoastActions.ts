@@ -1,11 +1,11 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { formatElapsed } from '@shared/lib/format';
+import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback } from 'react';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
-import { formatTemp } from '../lib/temperature';
+import { formatRecordedTemp } from '../lib/temperature';
 import type { TurningPoint } from '../lib/turningPoints';
 import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
@@ -58,7 +58,7 @@ export const useRoastActions = ({
                     time: '0:00',
                     timeSec: 0,
                     event: 'Charge',
-                    temp: formatTemp(btVal, unit),
+                    temp: formatRecordedTemp(btVal, unit),
                     tempC: btVal,
                     note: 'Bean drop detected',
                 },
@@ -83,10 +83,10 @@ export const useRoastActions = ({
                 if (idx !== -1 && tp.fallback) return prev;
                 const newEntry: LogEntry = {
                     id: idx === -1 ? crypto.randomUUID() : prev[idx].id,
-                    time: formatElapsed(tp.timeSec),
+                    time: formatDuration(tp.timeSec),
                     timeSec: tp.timeSec,
                     event: 'TP',
-                    temp: formatTemp(tp.temp, unit),
+                    temp: formatRecordedTemp(tp.temp, unit),
                     tempC: tp.temp,
                     note: tp.fallback ? 'Turning Point (fallback timeout)' : 'Turning Point detected',
                 };

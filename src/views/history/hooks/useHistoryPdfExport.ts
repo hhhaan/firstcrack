@@ -1,5 +1,5 @@
 import { sessionBeanName } from '@entities/roast';
-import { formatTemp, type TemperatureUnit } from '@features/active-roast';
+import { formatRecordedTemp, type TemperatureUnit } from '@features/active-roast';
 import { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
 import type { RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { historyPdfChartBox, historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
@@ -40,8 +40,8 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
                     bean: sessionBeanName(session) ?? '—',
                     date: formatDateShort(session.roasted_at),
                     duration: formatDuration(session.duration_seconds),
-                    charge: formatTemp(session.charge_temp_celsius, unit),
-                    drop: formatTemp(session.drop_temp_celsius, unit),
+                    charge: formatRecordedTemp(session.charge_temp_celsius, unit),
+                    drop: formatRecordedTemp(session.drop_temp_celsius, unit),
                     labels: {
                         bean: t('history.table.bean'),
                         date: t('history.table.date'),

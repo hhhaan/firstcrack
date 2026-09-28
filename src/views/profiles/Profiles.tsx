@@ -10,7 +10,7 @@ import {
     useRoastProfiles,
     useUpdateRoastProfile,
 } from '@entities/roast-profile';
-import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, useRoastSettings } from '@features/active-roast';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
@@ -248,7 +248,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     </div>
                                     <div className="text-[12px] text-muted tracking-[0.14px]">
                                         {profile.drop_temp_celsius != null
-                                            ? `${t('profiles.drop')} ${formatTemp(profile.drop_temp_celsius, unit)}`
+                                            ? `${t('profiles.drop')} ${formatRecordedTemp(profile.drop_temp_celsius, unit)}`
                                             : profile.target_level}
                                         {profile.duration_sec != null && ` · ${formatDuration(profile.duration_sec)}`}
                                     </div>
