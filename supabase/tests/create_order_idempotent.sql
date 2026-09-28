@@ -14,7 +14,7 @@ DECLARE
   product_id uuid;
   payload jsonb;
   lines jsonb;
-  order_id uuid;
+  saved_order_id uuid;
   again_id uuid;
   other_order_id uuid;
 BEGIN
@@ -38,15 +38,15 @@ BEGIN
     'unit_price', 12.5
   ));
 
-  order_id := create_order(payload, lines);
+  saved_order_id := create_order(payload, lines);
   again_id := create_order(payload, lines);
-  ASSERT again_id = order_id, 'same payload returns the existing order';
+  ASSERT again_id = saved_order_id, 'same payload returns the existing order';
   ASSERT (SELECT count(*) FROM orders WHERE user_id = owner_id AND platform_order_id = 'manual-test-key') = 1;
-  ASSERT (SELECT count(*) FROM order_lines WHERE order_id = order_id) = 1, 'retry must not insert lines again';
+  ASSERT (SELECT count(*) FROM order_lines WHERE order_id = saved_order_id) = 1, 'retry must not insert lines again';
 
   -- Same instant, different offset spelling.
   again_id := create_order(payload || jsonb_build_object('ordered_at', '2099-01-01T00:00:00+00'), lines);
-  ASSERT again_id = order_id, 'timestamptz equality, not text equality';
+  ASSERT again_id = saved_order_id, 'timestamptz equality, not text equality';
 
   BEGIN
     PERFORM create_order(payload || jsonb_build_object('buyer_name', 'Grace'), lines);
@@ -54,7 +54,7 @@ BEGIN
   EXCEPTION WHEN check_violation THEN
     IF SQLERRM <> 'order_key_payload_mismatch' THEN RAISE; END IF;
   END;
-  ASSERT (SELECT buyer_name FROM orders WHERE id = order_id) = 'Ada';
+  ASSERT (SELECT buyer_name FROM orders WHERE id = saved_order_id) = 'Ada';
   ASSERT (SELECT count(*) FROM orders WHERE platform_order_id = 'manual-test-key') = 1;
 
   BEGIN
@@ -69,10 +69,10 @@ BEGIN
   EXCEPTION WHEN check_violation THEN
     IF SQLERRM <> 'order_key_payload_mismatch' THEN RAISE; END IF;
   END;
-  ASSERT (SELECT quantity FROM order_lines WHERE order_id = order_id) = 2;
+  ASSERT (SELECT quantity FROM order_lines WHERE order_id = saved_order_id) = 2;
 
   again_id := create_order(payload || jsonb_build_object('platform_order_id', 'manual-test-key-2'), lines);
-  ASSERT again_id <> order_id;
+  ASSERT again_id <> saved_order_id;
   ASSERT (SELECT count(*) FROM orders WHERE user_id = owner_id AND platform = 'manual' AND platform_order_id LIKE 'manual-test-key%') = 2;
 
   PERFORM set_config('request.jwt.claim.sub', other_id::text, true);
@@ -84,7 +84,7 @@ BEGIN
     'ordered_at', '2099-01-01T00:00:00Z',
     'buyer_name', 'Ada'
   ), lines);
-  ASSERT other_order_id <> order_id, 'another workspace may reuse the key';
+  ASSERT other_order_id <> saved_order_id, 'another workspace may reuse the key';
 
   BEGIN
     PERFORM create_order(payload, lines);
