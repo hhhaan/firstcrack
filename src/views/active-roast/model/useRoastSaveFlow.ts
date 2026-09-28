@@ -13,7 +13,7 @@ import {
     readPendingRoastSave,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { isChargedPhase, type RoastPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
@@ -54,10 +54,11 @@ export async function resolveContinueCandidates(params: {
 
 /** Next Charge already owns the machine — A's save must not mutate it. */
 export const isLiveDetachedFromPending = (
-    live: { sessionId: string | null; charged: boolean; awaitingNextCharge: boolean },
+    live: { sessionId: string | null; phase: RoastPhase; awaitingNextCharge: boolean },
     pendingSessionId: string | null | undefined,
 ): boolean =>
-    Boolean(live.sessionId && live.sessionId !== pendingSessionId) || Boolean(live.awaitingNextCharge && !live.charged);
+    Boolean(live.sessionId && live.sessionId !== pendingSessionId) ||
+    Boolean(live.awaitingNextCharge && !isChargedPhase(live.phase));
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const {

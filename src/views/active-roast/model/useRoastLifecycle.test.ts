@@ -96,7 +96,6 @@ describe('resetActiveRoast after End (#455)', () => {
         useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [], finalized: null });
         useRoastingStore.setState({
             phase: 'ended',
-            charged: true,
             sidecarConnected: true,
             sessionId: 's1',
             roastStartMs: 0,
@@ -151,7 +150,6 @@ describe('confirmEndRoast roast metrics (#514)', () => {
         useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [], finalized: null });
         useRoastingStore.setState({
             phase: 'roasting',
-            charged: true,
             sidecarConnected: true,
             sessionId: 's1',
             roastStartMs: 0,
@@ -214,7 +212,6 @@ describe('completeDrop → BBP (#484)', () => {
         });
         useRoastingStore.setState({
             phase: 'roasting',
-            charged: true,
             sidecarConnected: true,
             sessionId: 's-a',
             sessionOwnerId: 'owner',
@@ -375,7 +372,7 @@ describe('completeDrop → BBP (#484)', () => {
                 });
                 h.result.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
             });
-            expect(useRoastingStore.getState().charged).toBe(false);
+            expect(useRoastingStore.getState().phase).toBe('standby');
             vi.setSystemTime(new Date('2026-09-21T00:12:00Z'));
             void act(() => {
                 expect(h.result.cancelDrop()).toBe(true);
@@ -554,7 +551,6 @@ describe('completeDrop → BBP (#484)', () => {
                 h.result.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
                 useRoastingStore.setState({
                     phase: 'roasting',
-                    charged: true,
                     sessionId: 's-b',
                     awaitingNextCharge: false,
                 });
@@ -575,7 +571,6 @@ describe('completeDrop → BBP (#484)', () => {
         useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [] });
         useRoastingStore.setState({
             phase: 'idle',
-            charged: false,
             sessionId: null,
             awaitingNextCharge: false,
             sidecarConnected: true,
@@ -603,7 +598,6 @@ describe('completeDrop → BBP (#484)', () => {
         sessionStorage.removeItem('fc_bbp_live_gen');
         useRoastingStore.setState({
             phase: 'idle',
-            charged: false,
             sessionId: null,
             awaitingNextCharge: false,
             sidecarConnected: true,
@@ -621,15 +615,14 @@ describe('completeDrop → BBP (#484)', () => {
         }
     });
 
-    it('does not hydrate BBP while a roast is already charged', () => {
+    it.each(['roasting', 'ended'] as const)('does not hydrate BBP while phase is %s', (phase) => {
         useBbpStore.getState().begin(5_000, [
             { t: 0, bt: 190, et: 200, heater: 50, fan: 40, drum: 60 },
             { t: 2, bt: 188, et: 200, heater: 50, fan: 40, drum: 60 },
         ]);
         useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [] });
         useRoastingStore.setState({
-            phase: 'roasting',
-            charged: true,
+            phase,
             sessionId: 's-live',
             awaitingNextCharge: false,
             sidecarConnected: true,

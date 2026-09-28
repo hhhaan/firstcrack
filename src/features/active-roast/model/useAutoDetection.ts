@@ -126,7 +126,6 @@ export const useAutoDetection = ({
                 state.phase !== 'standby' ||
                 !state.sidecarConnected ||
                 state.reconnecting ||
-                state.charged ||
                 autoChargedRef.current
             ) {
                 detector.reset();

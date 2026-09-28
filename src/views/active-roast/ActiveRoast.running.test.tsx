@@ -126,7 +126,6 @@ const seed = (patch: Partial<ReturnType<typeof useRoastingStore.getState>>) => {
     const now = Date.now();
     useRoastingStore.setState({
         phase: 'roasting',
-        charged: true,
         sidecarConnected: true,
         sessionId: 'sess-remount',
         sessionOwnerId: 'owner',
@@ -302,7 +301,6 @@ describe('ActiveRoast running clock (#627)', () => {
     it('keeps the close warning for an unsaved Charge wait and for an ended batch', async () => {
         seed({
             phase: 'standby',
-            charged: false,
             awaitingNextCharge: true,
             elapsed: 600,
             roastStartMs: 0,
@@ -323,7 +321,6 @@ describe('ActiveRoast running clock (#627)', () => {
         dialog.ask.mockClear();
         seed({
             phase: 'ended',
-            charged: true,
             awaitingNextCharge: false,
             elapsed: 600,
             roastStartMs: 0,
@@ -338,7 +335,6 @@ describe('ActiveRoast running clock (#627)', () => {
     it('does not warn on close when nothing is roasting or unsaved', async () => {
         seed({
             phase: 'idle',
-            charged: false,
             awaitingNextCharge: false,
             sessionId: null,
             elapsed: 0,

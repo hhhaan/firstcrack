@@ -637,7 +637,7 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
         act(() => root.render(createElement(Probe)));
         await flushReady();
         for (let i = 0; i < 6; i++) await act(async () => vi.advanceTimersByTimeAsync(500));
-        expect(useRoastingStore.getState().charged).toBe(true);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
         expect(points[0]).toMatchObject({ time: 0, bt: 200 });
         expect(points.filter((point) => point.time === 0)).toHaveLength(1);
         const rows = mocks.enqueueTsvRow.mock.calls;

@@ -5,7 +5,7 @@ import { BBP_INPROGRESS_ID, hydrateLiveBbp, useBbpStore } from '@features/active
 import { clearPendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastSettings } from '@features/active-roast/model/settings';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
@@ -128,7 +128,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     }, [phase, canWrite, warnReadOnly, enterStandby, quota.exceeded, warnQuotaExceeded]);
 
     const handleManualCharge = useCallback(async () => {
-        if (useRoastingStore.getState().charged) return;
+        if (isChargedPhase(useRoastingStore.getState().phase)) return;
         // UX guard only — 저장 경로는 서버 트리거가 최종 차단한다.
         if (!canWrite) {
             warnReadOnly();
@@ -150,7 +150,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             return;
         }
         // await 중 auto가 선착했으면 그대로 둔다 (triggerCharge 가드도 이중 차단)
-        if (useRoastingStore.getState().charged) return;
+        if (isChargedPhase(useRoastingStore.getState().phase)) return;
         // Bean/profile은 여기서 묻지 않는다 — 종료 시 RoastSummaryModal이 필수 검증과 함께 묻는다.
         triggerChargeRef.current?.(rawBT);
     }, [
@@ -252,7 +252,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             const store = useRoastingStore.getState();
             const planned = planDropTransition({
                 sessionId: store.sessionId,
-                charged: store.charged,
+                charged: isChargedPhase(store.phase),
                 phase: store.phase,
                 roastStartMs: roastStartTimeRef.current || store.roastStartMs,
                 elapsed: store.elapsed,
@@ -328,7 +328,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         roastStartTimeRef.current = origin;
         useRoastingStore.setState({
             phase: 'roasting',
-            charged: true,
             sessionId: restore.sessionId,
             sessionOwnerId: restore.sessionOwnerId,
             roastStartMs: origin,
@@ -345,7 +344,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         if (!bbpEnabled) return;
         const store = useRoastingStore.getState();
         // A roast already owns the chart. Do not rehydrate a wait on top of it (#433).
-        if (store.charged || store.phase === 'roasting') return;
+        if (isChargedPhase(store.phase)) return;
         if (!hydrateLiveBbp()) return;
         useRoastingStore.setState({ awaitingNextCharge: true });
         if (store.sidecarConnected && (store.phase === 'idle' || store.phase === 'preheating')) {

@@ -25,7 +25,28 @@ describe('startCharge after Drop (#484)', () => {
         useRoastingStore.getState().startCharge();
         expect(useRoastingStore.getState().awaitingNextCharge).toBe(false);
         expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(false);
-        expect(useRoastingStore.getState().charged).toBe(true);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+    });
+
+    it('refuses another Charge while roasting or ended, then allows one after reset', () => {
+        useRoastingStore.getState().startCharge();
+        const first = useRoastingStore.getState().sessionId;
+        useRoastingStore.getState().startCharge();
+        expect(useRoastingStore.getState().sessionId).toBe(first);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+
+        useRoastingStore.getState().endRoast();
+        useRoastingStore.getState().startCharge();
+        expect(useRoastingStore.getState().sessionId).toBe(first);
+        expect(useRoastingStore.getState().phase).toBe('ended');
+
+        useRoastingStore.getState().setConnected(false);
+        expect(useRoastingStore.getState().phase).toBe('ended');
+
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().startCharge();
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+        expect(useRoastingStore.getState().sessionId).not.toBe(first);
     });
 });
 
