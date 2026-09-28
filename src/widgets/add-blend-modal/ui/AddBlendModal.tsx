@@ -1,6 +1,6 @@
 import { useBeans } from '@entities/bean';
 import type { BlendWithComponents } from '@entities/blend';
-import { useCreateBlend, useUpdateBlend } from '@entities/blend';
+import { blendWriteErrorMessage, useCreateBlend, useUpdateBlend } from '@entities/blend';
 import { blendTotalRatio } from '@entities/blend/lib';
 import { useActiveWorkspace } from '@entities/organization';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +12,7 @@ import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { BlendComponentRow } from '@widgets/add-blend-modal/ui/BlendComponentRow';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { type BlendForm, blendFormSchema } from '../lib/schema';
@@ -29,6 +29,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
     const { data: beans = [] } = useBeans(userId);
     const createBlend = useCreateBlend(userId);
     const updateBlend = useUpdateBlend(userId);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     const {
         register,
@@ -56,6 +57,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
 
     useEffect(() => {
         if (!open) return;
+        setSubmitError(null);
         if (editing) {
             reset({
                 name: editing.name ?? '',
@@ -77,20 +79,31 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
     if (!open) return null;
 
     const onSubmit = async (data: BlendForm) => {
-        if (editing) {
-            await updateBlend.mutateAsync({
-                id: editing.id,
-                patch: { name: data.name.trim(), description: data.description.trim() || undefined },
-                components: data.components,
-            });
-        } else {
-            await createBlend.mutateAsync({
-                blend: { name: data.name.trim(), description: data.description.trim() || undefined, user_id: userId },
-                components: data.components,
-            });
+        setSubmitError(null);
+        try {
+            if (editing) {
+                await updateBlend.mutateAsync({
+                    id: editing.id,
+                    patch: { name: data.name.trim(), description: data.description.trim() || undefined },
+                    components: data.components,
+                });
+            } else {
+                await createBlend.mutateAsync({
+                    blend: {
+                        name: data.name.trim(),
+                        description: data.description.trim() || undefined,
+                        user_id: userId,
+                    },
+                    components: data.components,
+                });
+            }
+            onClose();
+        } catch (error) {
+            setSubmitError(blendWriteErrorMessage(error) ?? t('errors.mutationFailed'));
         }
-        onClose();
     };
+
+    const componentsError = errors.components?.root?.message ?? errors.components?.message ?? submitError;
 
     return (
         <ModalShell onClose={onClose} labelledBy="add-blend-modal-title" contentClassName={modalPanel.formMd}>
@@ -134,9 +147,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                                 {t('beans.blend.modal.totalRatio', { total: totalRatio })}
                             </span>
                         </div>
-                        {errors.components?.root && (
-                            <p className={`mb-2 ${formErrorCls}`}>{errors.components.root.message}</p>
-                        )}
+                        {componentsError && <p className={`mb-2 ${formErrorCls}`}>{componentsError}</p>}
 
                         <div className="space-y-2">
                             {fields.map((field, idx) => (

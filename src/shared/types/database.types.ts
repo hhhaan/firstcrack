@@ -2227,6 +2227,16 @@ export type Database = {
                 Returns: boolean;
             };
             run_daily_inventory_maintenance: { Args: never; Returns: undefined };
+            save_blend: {
+                Args: {
+                    p_components: Json;
+                    p_description?: string | null;
+                    p_id?: string;
+                    p_name: string;
+                    p_user_id?: string;
+                };
+                Returns: string;
+            };
             save_roast_op: {
                 Args: {
                     p_deduct: boolean;

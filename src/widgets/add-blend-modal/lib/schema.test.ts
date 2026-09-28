@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { describe, expect, it } from 'vitest';
 import { blendFormSchema } from './schema';
 
@@ -34,6 +35,40 @@ describe('blendFormSchema', () => {
         if (!result.success) {
             expect(result.error.issues.some((i) => i.message === '최소 1개의 생두가 필요합니다')).toBe(true);
         }
+    });
+
+    it('rejects the same bean twice even when the ratios sum to 100', () => {
+        const result = blendFormSchema.safeParse({
+            ...valid,
+            components: [
+                { bean_id: 'b1', ratio_pct: 50 },
+                { bean_id: 'b1', ratio_pct: 50 },
+            ],
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues.some((i) => i.message === '같은 생두를 중복으로 선택할 수 없습니다')).toBe(true);
+        }
+    });
+
+    it('shows the duplicate message on the components field', async () => {
+        const resolver = zodResolver(blendFormSchema);
+        const result = await resolver(
+            {
+                ...valid,
+                components: [
+                    { bean_id: 'b1', ratio_pct: 50 },
+                    { bean_id: 'b1', ratio_pct: 50 },
+                ],
+            },
+            undefined,
+            {
+                fields: {},
+                shouldUseNativeValidation: false,
+                names: ['name', 'description', 'components.0.bean_id', 'components.1.bean_id'],
+            },
+        );
+        expect(result.errors.components?.root?.message).toBe('같은 생두를 중복으로 선택할 수 없습니다');
     });
 
     it('rejects ratio sum not equal to 100', () => {
