@@ -10,7 +10,7 @@ ALTER TABLE auth.users DISABLE TRIGGER USER;
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
-    UPDATE cron.job SET active = false;
+    UPDATE cron.job SET active = false WHERE active;
   END IF;
 END $$;
 
@@ -34,7 +34,7 @@ INSERT INTO auth.users (
     'authenticated',
     'authenticated',
     'contract-owner@example.com',
-    '',
+    'disabled',
     now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     '{}'::jsonb,
@@ -47,7 +47,7 @@ INSERT INTO auth.users (
     'authenticated',
     'authenticated',
     'contract-other@example.com',
-    '',
+    'disabled',
     now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     '{}'::jsonb,
