@@ -3,6 +3,7 @@ import { useActiveWorkspace } from '@entities/organization';
 import { useProducts } from '@entities/product';
 import { cn } from '@shared/lib/cn';
 import { useFormEscape } from '@shared/lib/useFormEscape';
+import { useToastStore } from '@shared/store/toast';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { formErrorCls, inputCls, labelCls, modalHeaderChrome } from '@shared/ui/form-styles';
 import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
@@ -11,13 +12,21 @@ import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { canSubmitOrderLines, type OrderLineDraft, parseOrderLineQuantity } from '../lib/schema';
 
 type Props = { open: boolean; onClose: () => void };
 
 type LineDraft = OrderLineDraft & { key: string };
+
+type ManualOrderSubmission = { platformOrderId: string; orderedAt: string };
+
+/** First submit of an open form. Retries reuse it; closing or reopening the modal clears it. */
+const newManualOrderSubmission = (): ManualOrderSubmission => ({
+    platformOrderId: `manual-${crypto.randomUUID()}`,
+    orderedAt: new Date().toISOString(),
+});
 
 const emptyLine = (): LineDraft => ({ key: crypto.randomUUID(), productId: '', quantity: '1' });
 
@@ -29,10 +38,13 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
 
     const [buyer, setBuyer] = useState('');
     const [lines, setLines] = useState<LineDraft[]>(() => [emptyLine()]);
+    const submissionRef = useRef<ManualOrderSubmission | null>(null);
+    const submitLock = useRef(false);
 
     useFormEscape(open, onClose);
 
     useEffect(() => {
+        submissionRef.current = null;
         if (!open) return;
         setBuyer('');
         setLines([emptyLine()]);
@@ -43,8 +55,10 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
     const valid = canSubmitOrderLines(lines);
 
     const onSubmit = async () => {
-        if (!valid) return;
-        const now = new Date().toISOString();
+        if (!valid || submitLock.current) return;
+        submitLock.current = true;
+        submissionRef.current ??= newManualOrderSubmission();
+        const submission = submissionRef.current;
         const parsedLines = lines.flatMap((l, i) => {
             const quantity = parseOrderLineQuantity(l.quantity);
             if (!l.productId || quantity === null) return [];
@@ -58,18 +72,28 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                 },
             ];
         });
-        await createOrder.mutateAsync({
-            order: {
-                user_id: userId,
-                platform: 'manual',
-                platform_order_id: `manual-${Date.now()}`,
-                status: 'paid',
-                ordered_at: now,
-                buyer_name: buyer.trim() || null,
-            },
-            lines: parsedLines,
-        });
-        onClose();
+        try {
+            const result = await createOrder.mutateAsync({
+                order: {
+                    user_id: userId,
+                    platform: 'manual',
+                    platform_order_id: submission.platformOrderId,
+                    status: 'paid',
+                    ordered_at: submission.orderedAt,
+                    buyer_name: buyer.trim() || null,
+                },
+                lines: parsedLines,
+            });
+            if (result.refetchFailed) {
+                useToastStore.getState().show(t('orders.order.savedUnread'), 'info');
+            }
+            onClose();
+        } catch {
+            // MutationCache toasts the failure. Leave submissionRef so a retry reuses the key.
+            return;
+        } finally {
+            submitLock.current = false;
+        }
     };
 
     const setLine = (idx: number, patch: Partial<OrderLineDraft>) =>
@@ -169,7 +193,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                 onCancel={onClose}
                 cancelLabel={t('common.cancel')}
                 onPrimary={onSubmit}
-                primaryDisabled={!valid}
+                primaryDisabled={!valid || createOrder.isPending}
                 primaryLabel={t('common.add')}
             />
         </ModalShell>

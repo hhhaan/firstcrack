@@ -1553,6 +1553,7 @@
             "addLine": "+ 添加商品",
             "quantity": "数量",
             "quantityMin": "数量必须至少为 1",
+            "savedUnread": "订单已保存。正在刷新列表。",
             "fulfill": "完成",
             "fulfilled": "已完成",
             "col": {

@@ -76,6 +76,8 @@ export const useCreateOrder = (userId: string) => {
             order: OrderInsert;
             lines: Omit<OrderLineInsert, 'order_id' | 'user_id'>[];
         }) => orderApi.create(order, lines),
+        // create() resolves after a committed order even when the follow-up read failed,
+        // so the list still refreshes and the mutation is not reported as a failed save.
         onSuccess: () => {
             invalidateAfterCreateOrder(qc, userId);
         },
