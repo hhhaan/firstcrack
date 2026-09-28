@@ -33,6 +33,16 @@ BEGIN
   ASSERT (SELECT count(*) FROM roast_sessions WHERE id = session_id) = 1;
   ASSERT (SELECT count(*) FROM roast_sessions WHERE plan_batch_id = batch_id) = 1;
 
+  -- Auto-drop elapsed is fractional seconds. text::integer rejects it.
+  saved := save_roast_op(
+    (payload - 'plan_batch_id') || jsonb_build_object(
+      'id', gen_random_uuid(),
+      'duration_seconds', 686.0298693847657
+    ),
+    false, 0, 0, false
+  );
+  ASSERT saved.duration_seconds = 686, 'fractional duration_seconds rounds to whole seconds';
+
   -- Both expected null identities match this batch and preserve same-ID retries.
   saved := save_roast_op(payload || jsonb_build_object('expected_plan_bean_id', NULL,
     'expected_plan_blend_id', NULL), false, 0, 0, false);
