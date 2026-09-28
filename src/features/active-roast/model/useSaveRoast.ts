@@ -196,7 +196,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         output_weight_grams: outputWeightGrams,
         status: 'completed',
         roasted_at: roastedAt,
-        duration_seconds: payloadParams.elapsed,
+        // Auto drop onset interpolates a fractional time; save_roast_op casts to integer.
+        duration_seconds: Math.round(payloadParams.elapsed),
         // Drop log = discharge temp; End = confirmEndRoast capture; live rawBT only as last resort (#173)
         drop_temp_celsius: resolveDropTempCelsius(payloadParams.logEntries, payloadParams.rawBT),
         roast_level: formData.roastLevel,

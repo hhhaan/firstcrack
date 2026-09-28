@@ -275,6 +275,13 @@ describe('saveRoastCore', () => {
         expect(arg.session.id).toBe('11111111-1111-4111-8111-111111111111');
     });
 
+    it('fractional elapsed (auto drop onset) → integer duration_seconds (FC-1R 22P02)', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, { ...baseParams, elapsed: 686.0298693847657 });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.duration_seconds).toBe(686);
+    });
+
     it('drop_temp: Drop 로그 tempC 우선 (라이브 rawBT 무시) (#173)', async () => {
         const deps = makeDeps();
         await saveRoastCore(deps, {
