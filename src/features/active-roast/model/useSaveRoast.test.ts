@@ -62,7 +62,7 @@ const baseParams: Parameters<typeof saveRoastCore>[1] = {
     sessionId: '11111111-1111-4111-8111-111111111111',
     userId: 'user-1',
     elapsed: 600,
-    roastStartTimeRef: { current: 1750000000000 },
+    roastStartTime: 1750000000000,
     rawBT: 205.4,
     selectedBeanId: 'bean-1',
     targetProfileId: null,
@@ -116,6 +116,23 @@ describe('saveRoastCore', () => {
         });
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'trial_batch_cap' });
         expect(deps.saveOp).not.toHaveBeenCalled();
+    });
+
+    it('writes roasted_at from the frozen start time, and null when that time is 0', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, baseParams);
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({
+                session: expect.objectContaining({ roasted_at: new Date(1750000000000).toISOString() }),
+            }),
+        );
+        (deps.saveOp as ReturnType<typeof vi.fn>).mockClear();
+        await saveRoastCore(deps, { ...baseParams, roastStartTime: 0 });
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({
+                session: expect.objectContaining({ roasted_at: null }),
+            }),
+        );
     });
 
     it('trial 19회 → 저장 통과 (월 캡 미적용)', async () => {
@@ -556,7 +573,7 @@ describe('useSaveRoast workspace owner boundary', () => {
                 sessionId: '11111111-1111-4111-8111-111111111111',
                 userId: 'B',
                 elapsed: 600,
-                roastStartTimeRef: { current: 1750000000000 },
+                roastStartTime: 1750000000000,
                 rawBT: 205.4,
                 selectedBeanId: 'bean-1',
                 targetProfileId: null,

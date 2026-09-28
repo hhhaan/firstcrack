@@ -77,7 +77,8 @@ export interface SaveRoastParams {
     sessionId: string | null;
     userId: string;
     elapsed: number;
-    roastStartTimeRef: React.MutableRefObject<number>;
+    /** Charge origin in ms. Same field persisted on pending saves. 0 → roasted_at null. */
+    roastStartTime: number;
     rawBT: number | null;
     ambientTemperature?: number | null;
     ambientHumidity?: number | null;
@@ -177,10 +178,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         throw new Error('Select a green bean before saving.');
     }
 
-    const roastedAt =
-        payloadParams.roastStartTimeRef.current > 0
-            ? new Date(payloadParams.roastStartTimeRef.current).toISOString()
-            : null;
+    const roastedAt = payloadParams.roastStartTime > 0 ? new Date(payloadParams.roastStartTime).toISOString() : null;
 
     // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/무료 플랜).
     // 이 세션 것이 맞을 때만 사용 — 다른 배치 요약이 붙는 것을 막는다.
