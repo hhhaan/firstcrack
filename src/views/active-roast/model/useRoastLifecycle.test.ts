@@ -47,6 +47,7 @@ const renderLifecycle = (
         resetAutoDetection?: () => void;
         disableAutoCharge?: () => void;
         disableAutoDrop?: () => void;
+        triggerCharge?: () => void;
     } = {},
 ) => {
     const root = createRoot(document.createElement('div'));
@@ -72,7 +73,7 @@ const renderLifecycle = (
             setLivePoints: vi.fn(),
             setZoomRange: vi.fn(),
             setHoveredChartIndex: vi.fn(),
-            triggerChargeRef: { current: () => undefined },
+            triggerChargeRef: { current: detection.triggerCharge ?? (() => undefined) },
             roastStartTimeRef,
         });
         return null;
@@ -636,6 +637,41 @@ describe('completeDrop → BBP (#484)', () => {
             h.unmount();
             localStorage.removeItem('fc_bbp_live');
             sessionStorage.removeItem('fc_bbp_live_gen');
+        }
+    });
+});
+
+describe('manual Charge while ended (#630)', () => {
+    beforeEach(() => {
+        vi.mocked(sidecar.getStatus).mockReset().mockResolvedValue({
+            connected: true,
+            roaster: '',
+            display_name: '',
+            brand: '',
+            capabilities: [],
+            uptime: 0,
+            error: null,
+        });
+        useRoastingStore.setState({
+            phase: 'ended',
+            sessionId: 's-ended',
+            roastStartMs: 0,
+            sidecarConnected: true,
+        });
+    });
+
+    it('does not start a new session', async () => {
+        const triggerCharge = vi.fn();
+        const h = renderLifecycle([], { triggerCharge });
+        try {
+            await act(async () => {
+                await h.result.handleManualCharge();
+            });
+            expect(triggerCharge).not.toHaveBeenCalled();
+            expect(useRoastingStore.getState().sessionId).toBe('s-ended');
+            expect(useRoastingStore.getState().phase).toBe('ended');
+        } finally {
+            h.unmount();
         }
     });
 });
