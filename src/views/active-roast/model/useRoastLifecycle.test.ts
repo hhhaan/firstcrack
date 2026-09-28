@@ -51,7 +51,6 @@ const renderLifecycle = (
     } = {},
 ) => {
     const root = createRoot(document.createElement('div'));
-    const roastStartTimeRef = { current: 1 };
     let latest: ReturnType<typeof useRoastLifecycle>;
     const Probe = () => {
         latest = useRoastLifecycle({
@@ -74,7 +73,6 @@ const renderLifecycle = (
             setZoomRange: vi.fn(),
             setHoveredChartIndex: vi.fn(),
             triggerChargeRef: { current: detection.triggerCharge ?? (() => undefined) },
-            roastStartTimeRef,
         });
         return null;
     };
@@ -268,7 +266,8 @@ describe('completeDrop → BBP (#484)', () => {
             expect(summary?.totalTime).toBe('10:00');
             expect(summary?.sessionId).toBe('s-a');
             expect(useBbpStore.getState().active).toBe(true);
-            expect(useBbpStore.getState().startMs).toBe(1 + 600_000);
+            expect(useBbpStore.getState().startMs).toBe(1_000_000 + 600_000);
+            expect(useCompletedRoastStore.getState().restore?.roastStartMs).toBe(1_000_000);
             expect(useBbpStore.getState().points.map((p) => p.bt)).toEqual([205, 150]);
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);

@@ -15,7 +15,6 @@ import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { deleteBbpTsv, enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import { listen } from '@tauri-apps/api/event';
-import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
 import { shouldAcceptTick } from '../lib/poll-tick-gate';
@@ -48,8 +47,6 @@ interface Params {
     pollIntervalMs: number;
     enterPreheating: (capabilities?: string[]) => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
-    /** Charge 시각 (ms). 0이면 로스팅 미시작 */
-    roastStartTimeRef: MutableRefObject<number>;
     /** Charge 시 생성된 세션 UUID. null이면 미시작 */
     sessionId: string | null;
     /** Charge 로그의 온도 — 자동 감지 시 현재 BT가 아닌 소급 onset BT. */
@@ -146,7 +143,6 @@ export const useSidecarPolling = ({
     pollIntervalMs,
     enterPreheating,
     setConnected,
-    roastStartTimeRef,
     sessionId,
     chargeBt = null,
 }: Params) => {
@@ -173,9 +169,8 @@ export const useSidecarPolling = ({
     // BBP finalize + 차트 00:00 (#433). 음수 lookback 없음.
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
-            const chargeTime = roastStartTimeRef.current;
-            // BBP 확정: 요약은 스토어(finalized)에 남고 커브는 로컬 TSV로 — 저장 시 업로드
-            const bbpSessionId = useRoastingStore.getState().sessionId;
+            const { sessionId: bbpSessionId, roastStartMs } = useRoastingStore.getState();
+            const chargeTime = roastStartMs;
             const bbpResult = bbpSessionId
                 ? useBbpStore.getState().finalize(chargeTime || Date.now(), bbpSessionId)
                 : null;
@@ -219,7 +214,7 @@ export const useSidecarPolling = ({
             lastRoastPointTimeRef.current = seed ? 0 : null;
         }
         prevPhaseRef.current = phase;
-    }, [phase, roastStartTimeRef, chargeBt, livePoints]);
+    }, [phase, chargeBt, livePoints]);
 
     // Rust는 인증된 200 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
     // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (Machines와 같은 규칙).
@@ -378,7 +373,7 @@ export const useSidecarPolling = ({
                 observationTick = tick({ bt });
                 if (bt === null) return;
 
-                const currentPhase = useRoastingStore.getState().phase;
+                const { phase: currentPhase, roastStartMs, sessionId: currentSessionId } = useRoastingStore.getState();
 
                 // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
                 // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
@@ -399,9 +394,8 @@ export const useSidecarPolling = ({
                     }
                 }
 
-                if (currentPhase === 'roasting' && roastStartTimeRef.current !== 0) {
-                    // post-charge: same origin as store.roastStartMs / elapsed
-                    const t = (Date.now() - roastStartTimeRef.current) / 1000;
+                if (currentPhase === 'roasting' && roastStartMs !== 0) {
+                    const t = (Date.now() - roastStartMs) / 1000;
                     // Keep elapsed on wall-clock even if UI tick interval is throttled
                     const elapsedSec = Math.floor(t);
                     if (useRoastingStore.getState().elapsed !== elapsedSec) {
@@ -429,7 +423,6 @@ export const useSidecarPolling = ({
                         heaterSet: data.heater_set ?? null,
                     };
 
-                    const currentSessionId = useRoastingStore.getState().sessionId;
                     if (currentSessionId) {
                         const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? ''}\t${data.fan ?? 0}\t${data.drum ?? 0}\t${data.heater_set ?? ''}\n`;
                         enqueueTsvRow(currentSessionId, row);

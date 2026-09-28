@@ -78,8 +78,11 @@ const stubTemps = () =>
     });
 
 const renderProbe = (pollIntervalMs: number) => {
-    useRoastingStore.setState({ phase: 'roasting', sessionId: 'issue-308' });
-    const roastStartTimeRef = { current: Date.now() - 1000 };
+    useRoastingStore.setState({
+        phase: 'roasting',
+        sessionId: 'issue-308',
+        roastStartMs: Date.now() - 1000,
+    });
     const root = createRoot(document.createElement('div'));
     const Probe = () => {
         useSidecarPolling({
@@ -88,7 +91,6 @@ const renderProbe = (pollIntervalMs: number) => {
             pollIntervalMs,
             enterPreheating: vi.fn(),
             setConnected: vi.fn(),
-            roastStartTimeRef,
             sessionId: 'issue-308',
         });
         return null;
@@ -120,7 +122,6 @@ it('enqueues the first sample with controls while TSV initialization is pending'
         sessionId: 'issue-315',
         roastStartMs: Date.now() - 1000,
     });
-    const roastStartTimeRef = { current: Date.now() - 1000 };
     const root = createRoot(document.createElement('div'));
 
     const Probe = () => {
@@ -130,7 +131,6 @@ it('enqueues the first sample with controls while TSV initialization is pending'
             pollIntervalMs: 60_000,
             enterPreheating: vi.fn(),
             setConnected: vi.fn(),
-            roastStartTimeRef,
             sessionId: 'issue-315',
         });
         return null;
@@ -167,8 +167,11 @@ it('accepts the first sample when roast-relative time moves backwards for a new 
         drum: 60,
     });
 
-    useRoastingStore.setState({ phase: 'roasting', sessionId: 'issue-315' });
-    const roastStartTimeRef = { current: Date.now() - 100_000 };
+    useRoastingStore.setState({
+        phase: 'roasting',
+        sessionId: 'issue-315',
+        roastStartMs: Date.now() - 100_000,
+    });
     const root = createRoot(document.createElement('div'));
 
     const Probe = () => {
@@ -178,7 +181,6 @@ it('accepts the first sample when roast-relative time moves backwards for a new 
             pollIntervalMs: 500,
             enterPreheating: vi.fn(),
             setConnected: vi.fn(),
-            roastStartTimeRef,
             sessionId: 'issue-315',
         });
         return null;
@@ -189,7 +191,7 @@ it('accepts the first sample when roast-relative time moves backwards for a new 
         await flushReady();
         expect(mocks.enqueueTsvRow).toHaveBeenCalledOnce();
 
-        roastStartTimeRef.current = Date.now();
+        useRoastingStore.setState({ roastStartMs: Date.now() });
         await act(async () => {
             await vi.advanceTimersByTimeAsync(500);
         });
@@ -220,7 +222,6 @@ it('stale:true skips TSV and livePoints but still updates liveData', async () =>
         elapsed: 0,
         liveData: null,
     });
-    const roastStartTimeRef = { current: Date.now() - 1000 };
     const root = createRoot(document.createElement('div'));
     let livePoints: unknown[] = [];
 
@@ -231,7 +232,6 @@ it('stale:true skips TSV and livePoints but still updates liveData', async () =>
             pollIntervalMs: 60_000,
             enterPreheating: vi.fn(),
             setConnected: vi.fn(),
-            roastStartTimeRef,
             sessionId: 'issue-357',
         });
         livePoints = r.livePoints;
@@ -331,7 +331,6 @@ it('does not poll until waitUntilReady resolves', async () => {
 
     const setConnected = vi.fn();
     useRoastingStore.setState({ phase: 'idle' });
-    const roastStartTimeRef = { current: 0 };
     const root = createRoot(document.createElement('div'));
     const Probe = () => {
         useSidecarPolling({
@@ -340,7 +339,6 @@ it('does not poll until waitUntilReady resolves', async () => {
             pollIntervalMs: 60_000,
             enterPreheating: vi.fn(),
             setConnected,
-            roastStartTimeRef,
             sessionId: null,
         });
         return null;
@@ -371,8 +369,7 @@ it('does not promote poll unauthorized to disconnect', async () => {
     mocks.getTemperatures.mockRejectedValue(new Error('unauthorized'));
     mocks.getStatus.mockRejectedValue(new Error('unauthorized'));
     const setConnected = vi.fn();
-    useRoastingStore.setState({ phase: 'roasting', sessionId: 'issue-380' });
-    const roastStartTimeRef = { current: Date.now() - 1000 };
+    useRoastingStore.setState({ phase: 'roasting', sessionId: 'issue-380', roastStartMs: Date.now() - 1000 });
     const root = createRoot(document.createElement('div'));
     const Probe = () => {
         useSidecarPolling({
@@ -381,7 +378,6 @@ it('does not promote poll unauthorized to disconnect', async () => {
             pollIntervalMs: 60_000,
             enterPreheating: vi.fn(),
             setConnected,
-            roastStartTimeRef,
             sessionId: 'issue-380',
         });
         return null;
@@ -404,8 +400,7 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
     vi.setSystemTime(new Date('2026-09-13T12:00:00Z'));
     mocks.initSessionTsv.mockResolvedValue(undefined);
     stubTemps();
-    useRoastingStore.setState({ phase: 'standby', sessionId: 'bbp-433' });
-    const roastStartTimeRef = { current: 0 };
+    useRoastingStore.setState({ phase: 'standby', sessionId: 'bbp-433', roastStartMs: 0 });
     const root = createRoot(document.createElement('div'));
     let livePoints: ReturnType<typeof useSidecarPolling>['livePoints'] = [];
 
@@ -416,7 +411,6 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
             pollIntervalMs: 500,
             enterPreheating: vi.fn(),
             setConnected: vi.fn(),
-            roastStartTimeRef,
             sessionId: 'bbp-433',
             chargeBt: phase === 'roasting' ? 210.1 : null,
         });
@@ -440,8 +434,11 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
                 resolveReading = resolve;
             }),
         );
-        roastStartTimeRef.current = Date.now() - lagMs;
-        useRoastingStore.setState({ phase: 'roasting', sessionId: 'bbp-433' });
+        useRoastingStore.setState({
+            phase: 'roasting',
+            sessionId: 'bbp-433',
+            roastStartMs: Date.now() - lagMs,
+        });
         act(() => root.render(createElement(Probe, { phase: 'roasting' })));
         expect(livePoints).toEqual([
             {
@@ -592,8 +589,7 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
             drum: 0,
         };
     });
-    useRoastingStore.setState({ phase: 'standby', sidecarConnected: true });
-    const roastStartTimeRef = { current: 0 };
+    useRoastingStore.setState({ phase: 'standby', sidecarConnected: true, roastStartMs: 0 });
     const root = createRoot(document.createElement('div'));
     let chargeBt: number | null = null;
     let points: ReturnType<typeof useSidecarPolling>['livePoints'] = [];
@@ -606,7 +602,6 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
             pollIntervalMs: 500,
             enterPreheating: () => {},
             setConnected: useRoastingStore.getState().setConnected,
-            roastStartTimeRef,
             sessionId,
             chargeBt,
         });
@@ -615,7 +610,6 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
             livePoints: points,
             onAutoCharge: (bt, time) => {
                 chargeBt = bt;
-                roastStartTimeRef.current = time ?? Date.now();
                 useRoastingStore.getState().startCharge(time);
             },
             onAutoDrop: () => {},
