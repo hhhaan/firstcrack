@@ -698,7 +698,12 @@
             "chartUnavailable": "차트를 불러올 수 없습니다",
             "outputWeight": "배출량",
             "estimated": "추정",
-            "outputWeightInvalid": "1–{{max}}g 사이로 입력하세요 (투입량 초과 불가)."
+            "outputWeightInvalid": "1–{{max}}g 사이로 입력하세요 (투입량 초과 불가).",
+            "summary": "요약",
+            "keyEvents": "주요 이벤트",
+            "heatRecord": "화력 기록",
+            "show": "상세 보기",
+            "hide": "상세 닫기"
         },
         "scorecard": {
             "title": "vs {{name}}",

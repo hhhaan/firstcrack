@@ -115,4 +115,72 @@ test.describe('history record edit (#623)', () => {
         expect(db.tsvFiles.get(TSV_KEY)).toBe(tsv());
         expect(sidecarWrites).toEqual([]);
     });
+
+    test('keyboard: expand, open editor, Escape returns focus; actions visible without hover', async ({
+        authedPage: page,
+        db,
+    }) => {
+        seed(db);
+        await goNav(page, 'history');
+        const toggle = page.getByTestId('history-row-toggle').first();
+        await expect(toggle).toBeVisible();
+        expect(await toggle.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+        await toggle.focus();
+        await page.keyboard.press('Enter');
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        await expect(page.getByTestId('history-detail')).toBeVisible();
+
+        const edit = page.getByTestId('history-edit-events');
+        await edit.focus();
+        await page.keyboard.press('Enter');
+        const editor = page.getByTestId('record-events-editor');
+        await expect(editor).toBeVisible();
+        // Charge time is read-only, so focus lands on the first editable field (Charge temp).
+        await expect(editor.getByLabel('Charge Temp')).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(editor).toBeHidden();
+        await expect(edit).toBeFocused();
+    });
+
+    test('small window keeps detail, inputs and buttons inside the viewport', async ({ authedPage: page, db }) => {
+        await page.setViewportSize({ width: 1024, height: 680 });
+        seed(db);
+        await goNav(page, 'history');
+        await page.getByText('E2E History Bean').first().click();
+        const detail = page.getByTestId('history-detail');
+        await expect(detail).toBeVisible();
+        const vw = 1024;
+        for (const id of ['history-edit-events', 'history-edit-heat', 'history-export-pdf', 'history-row-toggle']) {
+            const box = await page.getByTestId(id).first().boundingBox();
+            expect(box, id).not.toBeNull();
+            expect(box!.x + box!.width, id).toBeLessThanOrEqual(vw);
+        }
+    });
+
+    test('compare, CSV export and save-as-profile entries still work', async ({ authedPage: page, db }) => {
+        seed(db);
+        db.seedCompletedSession({
+            beans: { name: 'E2E Second Bean', origin: 'Peru', region: null, variety: null, process: null, farm: null },
+            events: [{ id: 'c2', type: 'Charge', time_sec: 0, temp_c: 198 }],
+        });
+        await goNav(page, 'history');
+
+        await page.getByRole('button', { name: 'Compare', exact: true }).click();
+        await page.getByText('E2E History Bean').first().click();
+        await page.getByText('E2E Second Bean').first().click();
+        await expect(page.getByTestId('history-row-toggle')).toHaveCount(0);
+        await page.getByRole('button', { name: 'Compare (2)' }).click();
+        await expect(page.getByText('Compare Sessions (2)')).toBeVisible();
+        await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).first().click();
+        await page.getByRole('button', { name: 'Exit compare' }).click();
+
+        await page.getByRole('button', { name: 'Export CSV' }).click();
+        const exportModal = page.getByTestId('export-csv-modal');
+        await expect(exportModal).toBeVisible();
+        await exportModal.getByRole('button', { name: 'Cancel' }).last().click();
+        await expect(exportModal).toBeHidden();
+
+        await page.getByRole('button', { name: 'Save as profile' }).first().click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+    });
 });

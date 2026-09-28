@@ -5,7 +5,7 @@ import { formErrorCls, inputCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { applyEventDrafts, type EventDraft, type EventDraftError, toEventDrafts } from '../lib/record-edit';
 
@@ -27,8 +27,20 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
     const inFlight = useRef(false);
 
     const close = () => {
-        if (!busy) onClose();
+        if (!inFlight.current) onClose();
     };
+    const onEscape = useEffectEvent(close);
+    const formRef = useRef<HTMLFormElement>(null);
+    useEffect(() => {
+        formRef.current?.querySelector<HTMLInputElement>('input:not([readonly])')?.focus();
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
+            e.stopImmediatePropagation();
+            onEscape();
+        };
+        window.addEventListener('keydown', onKey, true);
+        return () => window.removeEventListener('keydown', onKey, true);
+    }, []);
 
     const update = (index: number, patch: Partial<EventDraft>) => {
         setDrafts((prev) => prev.map((d) => (d.index === index ? { ...d, ...patch } : d)));
@@ -76,11 +88,7 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
             contentClassName={modalPanel.formSm}
             data-testid="record-events-editor"
         >
-            <form
-                onSubmit={(e) => void submit(e)}
-                onKeyDown={(e) => e.key === 'Escape' && close()}
-                className="flex min-h-0 flex-col"
-            >
+            <form ref={formRef} onSubmit={(e) => void submit(e)} className="flex min-h-0 flex-col">
                 <div className="shrink-0 border-b border-border-subtle px-7 py-5">
                     <ModalHeader
                         titleId="record-events-editor-title"
@@ -110,7 +118,7 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                     const errorId = `record-event-error-${d.index}`;
                                     return (
                                         <tr key={d.index} className="align-top">
-                                            <td className="py-1 pr-2 text-[13px] font-medium text-primary">
+                                            <td className="py-1 pt-3 pr-2 text-[13px] font-medium text-primary">
                                                 {d.type}
                                                 {error && (
                                                     <p

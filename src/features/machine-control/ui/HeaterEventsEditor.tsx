@@ -494,14 +494,16 @@ const HeaterEventsTable = ({
                 <span className="text-xs text-muted">{rows.length}</span>
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
-                <table className="w-full min-w-[420px] table-fixed border-separate border-spacing-y-1.5 text-xs">
+                <table
+                    className={`w-full ${onDelete ? 'min-w-[420px]' : 'min-w-[380px]'} table-fixed border-separate border-spacing-y-1.5 text-xs`}
+                >
                     <colgroup>
                         <col className="w-8" />
                         <col className="w-[72px]" />
                         <col />
                         <col />
                         <col className="w-[84px]" />
-                        <col className="w-8" />
+                        <col className={onDelete ? 'w-8' : 'w-2'} />
                     </colgroup>
                     <thead>
                         <tr className="text-[11px] font-semibold text-muted">

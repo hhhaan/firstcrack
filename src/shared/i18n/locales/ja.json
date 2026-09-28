@@ -983,7 +983,12 @@
             "chartUnavailable": "チャート利用不可",
             "outputWeight": "排出量",
             "estimated": "推定",
-            "outputWeightInvalid": "1–{{max}}gの範囲で入力してください（投入量超過不可）。"
+            "outputWeightInvalid": "1–{{max}}gの範囲で入力してください（投入量超過不可）。",
+            "summary": "概要",
+            "keyEvents": "主要イベント",
+            "heatRecord": "火力記録",
+            "show": "詳細を表示",
+            "hide": "詳細を閉じる"
         },
         "scorecard": {
             "title": "vs {{name}}",

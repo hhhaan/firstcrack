@@ -983,7 +983,12 @@
             "chartUnavailable": "图表不可用",
             "outputWeight": "出豆量",
             "estimated": "估算",
-            "outputWeightInvalid": "请输入 1–{{max}}g（不能超过投入量）。"
+            "outputWeightInvalid": "请输入 1–{{max}}g（不能超过投入量）。",
+            "summary": "概要",
+            "keyEvents": "关键事件",
+            "heatRecord": "火力记录",
+            "show": "显示详情",
+            "hide": "收起详情"
         },
         "scorecard": {
             "title": "vs {{name}}",
