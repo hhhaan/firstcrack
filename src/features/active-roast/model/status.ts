@@ -56,8 +56,7 @@ export interface RoastingState {
      */
     heatHoldAfterDrop: boolean;
 
-    // derived convenience
-    isRoasting: boolean;
+    /** True after Charge until reset. `ended` stays charged; idle/preheating/standby do not. */
     charged: boolean;
 
     enterPreheating: (capabilities?: string[]) => void;
@@ -97,7 +96,6 @@ const initialState = {
     machineSnapshot: null as MachineSnapshot | null,
     awaitingNextCharge: false,
     heatHoldAfterDrop: false,
-    isRoasting: false,
     charged: false,
 };
 
@@ -125,7 +123,6 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         set({
             phase: 'roasting',
             charged: true,
-            isRoasting: true,
             sessionId: crypto.randomUUID(),
             sessionOwnerId: ownerId || null,
             roastStartMs: origin,
@@ -136,12 +133,12 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     endRoast: () => {
-        set({ phase: 'ended', isRoasting: false, roastStartMs: 0 });
+        set({ phase: 'ended', roastStartMs: 0 });
     },
 
     tick: () => {
-        const { isRoasting, roastStartMs } = get();
-        if (!isRoasting || roastStartMs <= 0) return;
+        const { phase, roastStartMs } = get();
+        if (phase !== 'roasting' || roastStartMs <= 0) return;
         set({ elapsed: Math.floor((Date.now() - roastStartMs) / 1000) });
     },
 
