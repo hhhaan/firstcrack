@@ -1,5 +1,5 @@
 import { summarizeSessionEvents, useRoastProfiles } from '@entities/roast-profile';
-import { formatTemp, tempUnitLabel, toDisplayTempDelta, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, tempUnitLabel, toDisplayTempDelta, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDuration } from '@shared/lib/format';
 import { deltaOrNull, sessionRoastMetrics } from '@shared/lib/roast-delta';
@@ -41,7 +41,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             actual: summary.charge_temp_celsius,
             target: profile.charge_temp_celsius,
             band: BANDS.chargeTemp,
-            format: (v) => formatTemp(v, unit),
+            format: (v) => formatRecordedTemp(v, unit),
             formatDelta: (d) => signed(d, `${Math.abs(toDisplayTempDelta(d, unit)).toFixed(1)}${tempUnitLabel(unit)}`),
         },
         {
@@ -50,7 +50,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             actual: session.drop_temp_celsius,
             target: profile.drop_temp_celsius,
             band: BANDS.dropTemp,
-            format: (v) => formatTemp(v, unit),
+            format: (v) => formatRecordedTemp(v, unit),
             formatDelta: (d) => signed(d, `${Math.abs(toDisplayTempDelta(d, unit)).toFixed(1)}${tempUnitLabel(unit)}`),
         },
         {

@@ -13,6 +13,13 @@ export const rorUnitLabel = (unit: TemperatureUnit): string => `${tempUnitLabel(
 export const formatTemp = (celsius: number | null, unit: TemperatureUnit): string =>
     celsius == null ? '—' : `${toDisplayTemp(celsius, unit).toFixed(1)}${tempUnitLabel(unit)}`;
 
+/** Saved charge/drop/event temperature. Round °C first so the label matches the integer column. 205.4 → "205°C". */
+export const recordedTempDegrees = (celsius: number, unit: TemperatureUnit): number =>
+    Math.round(toDisplayTemp(Math.round(celsius), unit));
+
+export const formatRecordedTemp = (celsius: number | null, unit: TemperatureUnit): string =>
+    celsius == null || !Number.isFinite(celsius) ? '—' : `${recordedTempDegrees(celsius, unit)}${tempUnitLabel(unit)}`;
+
 /** RoR는 델타 온도 단위 — °F/min = °C/min × 9/5 */
 export const toDisplayRoR = (cPerMin: number, unit: TemperatureUnit): number =>
     unit === 'F' ? (cPerMin * 9) / 5 : cPerMin;

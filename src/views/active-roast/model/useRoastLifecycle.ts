@@ -1,6 +1,6 @@
 import { type DropOnset, planDropTransition } from '@features/active-roast/lib/drop-transition';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
-import { formatTemp } from '@features/active-roast/lib/temperature';
+import { formatRecordedTemp } from '@features/active-roast/lib/temperature';
 import { BBP_INPROGRESS_ID, hydrateLiveBbp, useBbpStore } from '@features/active-roast/model/bbp';
 import { clearPendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
@@ -8,7 +8,7 @@ import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
-import { formatElapsed } from '@shared/lib/format';
+import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sidecar } from '@shared/lib/sidecar';
@@ -71,7 +71,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         rawBT,
         unit,
         logEntries,
-        timeStr,
         enterStandby,
         enterPreheating,
         setConnected,
@@ -220,10 +219,10 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             ...logEntries,
             {
                 id: crypto.randomUUID(),
-                time: timeStr,
+                time: formatDuration(endTimeSec),
                 timeSec: endTimeSec,
                 event: 'End',
-                temp: formatTemp(rawBT, unit),
+                temp: formatRecordedTemp(rawBT, unit),
                 tempC: rawBT,
                 note: 'Roast complete',
             },
@@ -232,15 +231,16 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             completedLogEntries.map((e) => ({ type: e.event, time_sec: logEntryTimeSec(e) })),
             { liveElapsed: endTimeSec },
         );
-        const roastTimeStr = metrics.roastDurationSec != null ? formatElapsed(metrics.roastDurationSec) : timeStr;
+        const roastTimeStr =
+            metrics.roastDurationSec != null ? formatDuration(metrics.roastDurationSec) : formatDuration(endTimeSec);
         const development =
             metrics.devTimeSec != null && metrics.dtrPct != null && metrics.devTimeSec > 0
-                ? `${formatElapsed(metrics.devTimeSec)} (${Number(metrics.dtrPct.toFixed(1))}%)`
+                ? `${formatDuration(metrics.devTimeSec)} (${Number(metrics.dtrPct.toFixed(1))}%)`
                 : '—';
         const summaryData: RoastSummaryData = {
             totalTime: roastTimeStr,
             development,
-            finalBt: formatTemp(rawBT, unit),
+            finalBt: formatRecordedTemp(rawBT, unit),
             logEntries: completedLogEntries,
             sessionId: useRoastingStore.getState().sessionId,
             elapsedSec: endTimeSec,
@@ -250,7 +250,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
         setIsRunning(false);
         return summaryData;
-    }, [logEntries, timeStr, rawBT, unit, setIsRunning, bbpEnabled]);
+    }, [logEntries, rawBT, unit, setIsRunning, bbpEnabled]);
 
     const completeDrop = useCallback(
         (input: { livePoints: LiveRoastPoint[]; onset?: DropOnset }): RoastSummaryData | null => {

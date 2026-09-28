@@ -1,4 +1,4 @@
-import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, useRoastSettings } from '@features/active-roast';
 import { formatDuration } from '@shared/lib/format';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { View } from '@shared/types/view';
@@ -85,7 +85,7 @@ export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSession
                                         {formatWeight(session.weight_grams)}
                                     </td>
                                     <td className="px-6 py-3 text-[13px] text-secondary font-mono whitespace-nowrap">
-                                        {formatTemp(session.drop_temp_celsius, unit)}
+                                        {formatRecordedTemp(session.drop_temp_celsius, unit)}
                                     </td>
                                     <td className="px-6 py-3 text-[13px] text-secondary font-mono whitespace-nowrap">
                                         {formatDuration(session.roastDurationSec)}

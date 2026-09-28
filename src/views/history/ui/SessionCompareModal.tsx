@@ -1,6 +1,6 @@
 import { sessionBeanName, useHistoryCharts } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
-import { computePhaseSegments, formatTemp, useRoastSettings } from '@features/active-roast';
+import { computePhaseSegments, formatRecordedTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
@@ -234,12 +234,12 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                         {
                                             key: 'charge',
                                             label: t('history.compare.chargeTemp'),
-                                            get: (it: CompareSidebarItem) => formatTemp(it.chargeBt, unit),
+                                            get: (it: CompareSidebarItem) => formatRecordedTemp(it.chargeBt, unit),
                                         },
                                         {
                                             key: 'drop',
                                             label: t('history.compare.dropTemp'),
-                                            get: (it: CompareSidebarItem) => formatTemp(it.dropBt, unit),
+                                            get: (it: CompareSidebarItem) => formatRecordedTemp(it.dropBt, unit),
                                         },
                                         {
                                             key: 'dtr',

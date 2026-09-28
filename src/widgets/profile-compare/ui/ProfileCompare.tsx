@@ -1,6 +1,6 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { ProfileDefaultBadge, resolveSourceSession, useRoastProfileCurves } from '@entities/roast-profile';
-import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, useRoastSettings } from '@features/active-roast';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { formatDuration } from '@shared/lib/format';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
@@ -170,7 +170,7 @@ export const ProfileCompare = ({
                                                 className="font-mono text-[12px] font-semibold tabular-nums"
                                                 style={{ color }}
                                             >
-                                                {formatTemp(p.drop_temp_celsius, unit)}
+                                                {formatRecordedTemp(p.drop_temp_celsius, unit)}
                                             </span>
                                         </div>
                                         <div className="flex items-baseline justify-between gap-1">
@@ -194,7 +194,7 @@ export const ProfileCompare = ({
                                                 {t('profiles.detail.chargeTemp')}
                                             </span>
                                             <span className="font-mono text-[11px] tabular-nums text-secondary">
-                                                {formatTemp(p.charge_temp_celsius, unit)}
+                                                {formatRecordedTemp(p.charge_temp_celsius, unit)}
                                             </span>
                                         </div>
                                     </div>

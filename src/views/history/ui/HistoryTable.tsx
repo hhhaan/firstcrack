@@ -1,6 +1,6 @@
 import { sessionBeanName } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
-import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
@@ -78,14 +78,14 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         width: '80px',
         sortable: false,
         render: (s) =>
-            formatTemp(summarizeSessionEvents(parseStoredRoastEvents(s.events), s).charge_temp_celsius, unit),
+            formatRecordedTemp(summarizeSessionEvents(parseStoredRoastEvents(s.events), s).charge_temp_celsius, unit),
     },
     {
         key: 'drop',
         label: 'Drop',
         width: '80px',
         sortable: true,
-        render: (s) => formatTemp(s.drop_temp_celsius, unit),
+        render: (s) => formatRecordedTemp(s.drop_temp_celsius, unit),
     },
     {
         key: 'duration',
@@ -179,7 +179,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
                         {
                             label: t('history.expanded.chargeTemp'),
-                            value: formatTemp(
+                            value: formatRecordedTemp(
                                 summarizeSessionEvents(parseStoredRoastEvents(session.events), session)
                                     .charge_temp_celsius,
                                 unit,
@@ -187,7 +187,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         },
                         {
                             label: t('history.expanded.dropTemp'),
-                            value: formatTemp(session.drop_temp_celsius, unit),
+                            value: formatRecordedTemp(session.drop_temp_celsius, unit),
                         },
                         {
                             label: t('history.expanded.duration'),

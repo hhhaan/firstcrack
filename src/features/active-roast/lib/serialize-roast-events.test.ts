@@ -200,6 +200,12 @@ describe('storedEventsToLogEntries', () => {
         ]);
     });
 
+    it('rounds a saved Drop the same way as history and CSV', () => {
+        const [row] = storedEventsToLogEntries([{ id: 'd', type: 'Drop', time_sec: 686.6, temp_c: 205.4 }], 'C');
+        expect(row.time).toBe('11:27');
+        expect(row.temp).toBe('205°C');
+    });
+
     it('converts log temps with toDisplayTemp', () => {
         const [row] = storedEventsToLogEntries([{ id: '1', type: 'Drop', time_sec: 600, temp_c: 210 }], 'F');
         expect(row.temp).toBe('410°F');

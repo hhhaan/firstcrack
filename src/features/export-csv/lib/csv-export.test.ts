@@ -29,6 +29,19 @@ describe('sessionsToCsv', () => {
         expect(csv).toContain('10:00'); // duration 600s
     });
 
+    it('rounds a fractional Drop to the same 11:27 and 205°C as history', () => {
+        const csv = sessionsToCsv([
+            session({
+                drop_temp_celsius: 205.4,
+                duration_seconds: 700,
+                events: [{ id: 'drop', type: 'Drop', time_sec: 686.6 }],
+            }),
+        ]);
+        expect(csv).toContain('11:27');
+        expect(csv).toContain('205°C');
+        expect(csv).not.toContain('11:26');
+    });
+
     it('exports Drop-first roast duration, not End-elapsed duration_seconds', () => {
         const csv = sessionsToCsv([
             session({

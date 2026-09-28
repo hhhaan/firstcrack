@@ -1,5 +1,5 @@
-import { toDisplayTemp, useRoastSettings } from '@features/active-roast';
-import { formatDuration, formatElapsed } from '@shared/lib/format';
+import { recordedTempDegrees, useRoastSettings } from '@features/active-roast';
+import { formatDuration } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -26,14 +26,13 @@ interface CompareSessionSidebarProps {
 
 const eventTime = (events: StoredRoastEvent[], type: string): string => {
     const e = events.find((x) => x.type === type);
-    return e ? formatElapsed(e.time_sec) : '—';
+    return e ? formatDuration(e.time_sec) : '—';
 };
 
 export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebarProps) => {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
-    const val = (n: number | null, digits = 1) =>
-        n != null && Number.isFinite(n) ? toDisplayTemp(n, unit).toFixed(digits) : '—';
+    const val = (n: number | null) => (n != null && Number.isFinite(n) ? String(recordedTempDegrees(n, unit)) : '—');
 
     return (
         <div className="flex h-full min-h-0 flex-col">

@@ -20,8 +20,8 @@ import {
     nearestBtAt,
 } from '@features/active-roast/lib/chart-option/markers';
 import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
-import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
-import { formatElapsed } from '@shared/lib/format';
+import { formatRecordedTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { formatDuration } from '@shared/lib/format';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
 import type React from 'react';
@@ -375,7 +375,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
                     const temp =
                         marker.tempC != null && Number.isFinite(marker.tempC)
-                            ? formatTemp(marker.tempC, temperatureUnit)
+                            ? formatRecordedTemp(marker.tempC, temperatureUnit)
                             : nearest != null
                               ? `${nearest.toFixed(1)}°${temperatureUnit}`
                               : marker.temp || '—';
@@ -403,7 +403,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             timeSec: tp.timeSec,
                             xPx: x ?? Number.NaN,
                             yPx: y ?? Number.NaN,
-                            text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+                            text: eventLabelText('TP', tp.timeSec, formatRecordedTemp(tp.temp, temperatureUnit)),
                             below: true,
                             color: '',
                             showDot: eventMarkerStyle === 'point',
@@ -521,7 +521,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 event: selected.event,
                 x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
                 y: Math.max(0, Math.min(point.y, container.clientHeight - 120)),
-                time: formatElapsed(selected.timeSec),
+                time: formatDuration(selected.timeSec),
                 note: selected.event === 'Heater' ? heater.value : (selected.note ?? ''),
                 heaterUnit: heater.unit,
             });

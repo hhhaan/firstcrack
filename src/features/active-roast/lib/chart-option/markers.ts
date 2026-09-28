@@ -1,6 +1,7 @@
 import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import { isControlEvent } from '@features/active-roast/lib/chart-config';
-import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { formatRecordedTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { formatDuration } from '@shared/lib/format';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
 
@@ -41,8 +42,8 @@ export const isCurveMarkerVisible = (
 };
 
 const formatMarkerTime = (timeSec: number) => {
-    const sec = Math.max(0, Math.floor(timeSec));
-    return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+    const [m, s] = formatDuration(Math.max(0, timeSec)).split(':');
+    return `${m.padStart(2, '0')}:${s}`;
 };
 
 export const eventLabelText = (event: string, timeSec: number, temp: string, note?: string) => {
@@ -294,7 +295,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     const markerColor = (event: string) => (isControlEvent(event) ? colors.eventControl : colors.eventMark);
     const markerLabelColor = (event: string) => (isControlEvent(event) ? colors.eventControl : colors.markerLabelColor);
     const markerTemp = (m: RoastEventMarker, nearest: number | null) => {
-        if (typeof m.tempC === 'number' && Number.isFinite(m.tempC)) return formatTemp(m.tempC, temperatureUnit);
+        if (typeof m.tempC === 'number' && Number.isFinite(m.tempC))
+            return formatRecordedTemp(m.tempC, temperatureUnit);
         if (nearest != null) return `${nearest.toFixed(1)}${unitLabel}`;
         return m.temp?.trim() || '—';
     };
@@ -347,7 +349,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         ...visibleTurningPoints.map((tp) => ({
             timeSec: tp.timeSec,
             y: nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit),
-            text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+            text: eventLabelText('TP', tp.timeSec, formatRecordedTemp(tp.temp, temperatureUnit)),
             color: colors.markerLabelColor,
             below: true,
             showDot,

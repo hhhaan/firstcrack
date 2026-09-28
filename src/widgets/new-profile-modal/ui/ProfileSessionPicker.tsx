@@ -1,4 +1,4 @@
-import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { formatRecordedTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
@@ -71,7 +71,7 @@ export const ProfileSessionPicker = ({ sessions, onSelect, onClose }: ProfileSes
                                             <span className="text-[12px] text-muted">
                                                 {fmtDate(session.roasted_at)}
                                                 {session.drop_temp_celsius != null &&
-                                                    ` · ${t('newProfileModal.drop')} ${formatTemp(session.drop_temp_celsius, unit)}`}
+                                                    ` · ${t('newProfileModal.drop')} ${formatRecordedTemp(session.drop_temp_celsius, unit)}`}
                                                 {roastDurationSec != null && ` · ${formatDuration(roastDurationSec)}`}
                                                 {session.roast_level && ` · ${session.roast_level}`}
                                             </span>
