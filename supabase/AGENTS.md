@@ -86,6 +86,8 @@ Prod apply is **automatic on desktop release** (`release.yml` → `deploy-migrat
 
 CI gate (supabase-ci `rls-check`): a **new** migration with `CREATE TABLE` must contain `GRANT ... TO authenticated` in the same file, or opt out with a `-- skip-grant-check: <reason>` comment (service_role-only tables like `sales_channel_secrets`).
 
+DB/RPC contract (`pnpm db:contract`, CI workflow `db-contract`): throwaway local Postgres, baseline + every migration, then `supabase/tests/**/*.sql`. How to add a case: `supabase/tests/README.md`. Do not point it at a hosted database.
+
 ---
 
 ## Agent invariants

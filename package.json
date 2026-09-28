@@ -24,6 +24,7 @@
         "check:bundle": "node scripts/check-bundle.mjs",
         "knip": "knip",
         "verify:sidecar": "bash scripts/verify-sidecar.sh",
+        "db:contract": "bash scripts/run-db-contracts.sh",
         "verify:all": "concurrently -g --raw \"pnpm verify:core\" \"pnpm lint\" \"pnpm verify:sidecar\" \"pnpm check:actions\" \"pnpm check:architecture\"",
         "preview": "vite preview",
         "tauri": "tauri",

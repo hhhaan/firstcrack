@@ -1,0 +1,39 @@
+name: DB contract
+
+# Local Postgres + migrations + supabase/tests SQL. No remote DB.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - 'scripts/run-db-contracts.sh'
+      - 'src/features/active-roast/**'
+      - 'src/entities/roast/**'
+      - '.github/workflows/db-contract.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: db-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  db-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520
+        with:
+          version: 2.24.3
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Run DB contract tests
+        run: bash scripts/run-db-contracts.sh
