@@ -127,6 +127,10 @@ export async function installMockSupabase(page: Page, db: MockDb) {
                 });
                 return json(route, session);
             }
+            if (fn === 'update_roast_session_record') {
+                const res = db.updateRoastRecord(body);
+                return json(route, res.body, res.status);
+            }
             if (fn === 'insert_stock_events_batch') {
                 const events = (body.p_events as Record<string, unknown>[]) ?? [];
                 for (const e of events) {
@@ -352,7 +356,22 @@ export async function installMockSupabase(page: Page, db: MockDb) {
         if (route.request().method() === 'OPTIONS') {
             return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*' } });
         }
+        if (route.request().url().includes('/get-download-url')) {
+            const key = String((route.request().postDataJSON() as { key?: unknown } | null)?.key ?? '');
+            return json(route, { url: `https://e2e.r2.local/${encodeURIComponent(key)}` });
+        }
         return json(route, {});
+    });
+
+    await page.route('**/e2e.r2.local/**', async (route) => {
+        const key = decodeURIComponent(new URL(route.request().url()).pathname.slice(1));
+        const tsv = db.tsvFiles.get(key);
+        return route.fulfill({
+            status: tsv == null ? 404 : 200,
+            headers: { 'Access-Control-Allow-Origin': '*' },
+            contentType: 'text/tab-separated-values',
+            body: tsv ?? '',
+        });
     });
 
     await page.route('**/api.open-meteo.com/**', async (route) => {

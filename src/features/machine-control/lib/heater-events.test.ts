@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     applyTimeEdit,
     carryReplayEventIds,
+    editedHeatSet,
     formatEditTime,
     heaterEventsToJson,
     heaterFitsBounds,
@@ -15,6 +16,7 @@ import {
     remapReplayIndex,
     resolveHeaterBounds,
     resolveReplayPlan,
+    withEditedHeaterLog,
 } from './heater-events';
 import { extractReplayEvents, judgeReplay, type ReplayPoint } from './replay';
 
@@ -371,5 +373,44 @@ describe('resolveReplayPlan step', () => {
         });
         expect(resolved.overrideInvalid).toBe(true);
         expect(resolved.plan).toBeNull();
+    });
+});
+
+describe('history-edited Heat set (#623)', () => {
+    const recorded = [
+        { t: -30, bt: 200, heaterSet: 90 },
+        { t: 0, bt: 200, heaterSet: 70 },
+        { t: 60, bt: 100, heaterSet: 70 },
+        { t: 120, bt: 150, heaterSet: 50 },
+        { t: 600, bt: 210, heaterSet: 50 },
+        { t: 620, bt: 205, heaterSet: 0 },
+    ];
+    const edit = [
+        { t: 0, bt: 200, heater: 65 },
+        { t: 90, bt: 120, heater: 45 },
+    ];
+
+    it('replaces Heat set inside [0, Drop) only and leaves BBP/cooldown as measured', () => {
+        expect(editedHeatSet(recorded, 600, edit)).toEqual([90, 65, 65, 45, 50, 0]);
+    });
+
+    it('no edit or an unreadable edit draws the TSV as-is', () => {
+        expect(editedHeatSet(recorded, 600, null)).toBeNull();
+        expect(editedHeatSet(recorded, 600, [{ t: 'x' }])).toBeNull();
+    });
+
+    it('edited plan replaces recorded Heater log rows and keeps every other event', () => {
+        const events = [
+            { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
+            { id: 'h', type: 'Heater', time_sec: 100, temp_c: 130, note: '50%' },
+            { id: 'n', type: 'Note', time_sec: 110, note: 'x' },
+        ];
+        expect(withEditedHeaterLog(events, null, 'kPa')).toBe(events);
+        expect(withEditedHeaterLog(events, edit, 'kPa')).toEqual([
+            { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
+            { id: 'heater-plan-0', type: 'Heater', time_sec: 0, temp_c: 200, note: '65kPa' },
+            { id: 'heater-plan-1', type: 'Heater', time_sec: 90, temp_c: 120, note: '45kPa' },
+            { id: 'n', type: 'Note', time_sec: 110, note: 'x' },
+        ]);
     });
 });

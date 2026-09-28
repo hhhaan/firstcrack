@@ -1083,6 +1083,26 @@
             "description": "Choose a date range for this export. This is separate from the list filters above.",
             "all": "All time",
             "count": "{{count}} sessions will be exported"
+        },
+        "edit": {
+            "editEvents": "Edit events",
+            "editHeat": "Edit heat",
+            "eventsTitle": "Edit key events",
+            "eventsHint": "Correct the time and temperature of saved marks. Charge stays at 0:00.",
+            "noEvents": "No key events recorded.",
+            "noHeat": "No recorded Heat set steps to edit.",
+            "event": "Event",
+            "time": "Time",
+            "temp": "Temp",
+            "chargeFixed": "Charge is the 0:00 time origin.",
+            "invalidTime": "Enter a time as m:ss.",
+            "invalidTemp": "Enter a temperature between 0 and 400°C.",
+            "invalidOrder": "Out of order with an earlier event.",
+            "save": "Save",
+            "saving": "Saving…",
+            "saveFailed": "Could not save. Your edits are kept — try again.",
+            "conflict": "This record was changed elsewhere. Close and reopen to load the latest version.",
+            "readOnly": "Editing is not available on the current plan or workspace."
         }
     },
     "profiles": {
@@ -1214,7 +1234,9 @@
         "saving": "Saving…",
         "empty": "Add a step or restore the original plan.",
         "chartHint": "Time preview · BT conditions run after TP",
-        "boundsFallback": "Device range unknown. Using 0–100%."
+        "boundsFallback": "Device range unknown. Using 0–100%.",
+        "subtitleHistory": "Saved on this roast record. Replay from this record uses these steps. The measured curve is kept.",
+        "sourceSession": "Edited record"
     },
     "beanList": {
         "searchPlaceholder": "Search beans...",

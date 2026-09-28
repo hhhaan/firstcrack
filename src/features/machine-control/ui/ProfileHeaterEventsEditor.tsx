@@ -5,6 +5,7 @@ import { liveHeaterFromStatus, profileHeaterBounds, type ReplayPlanSource } from
 import type { ReplayEvent, ReplayPoint } from '../lib/replay';
 import { HeaterEventsEditor } from './HeaterEventsEditor';
 
+/** Profile or saved roast record — both carry the machine snapshot that fixes heater bounds. */
 type Profile = { machine_id?: string | null; machine_roaster_key?: string | null };
 
 type Props = {
@@ -14,6 +15,9 @@ type Props = {
     btPoints: ReplayPoint[];
     source: ReplayPlanSource | null;
     unit: 'C' | 'F';
+    /** `history` = saved record edit (fixed rows). Never sends machine commands in either mode. */
+    mode?: 'profile' | 'history';
+    saveErrorMessage?: (error: unknown) => string | null;
     onClose: () => void;
     onApply: (events: ReplayEvent[] | null) => void | Promise<void>;
 };
@@ -25,6 +29,8 @@ export const ProfileHeaterEventsEditor = ({
     btPoints,
     source,
     unit,
+    mode = 'profile',
+    saveErrorMessage,
     onClose,
     onApply,
 }: Props) => {
@@ -36,7 +42,7 @@ export const ProfileHeaterEventsEditor = ({
     if (statusQuery.isFetching) return null;
     return (
         <HeaterEventsEditor
-            mode="profile"
+            mode={mode}
             events={events}
             tpTime={tpTime}
             btPoints={btPoints}
@@ -47,6 +53,7 @@ export const ProfileHeaterEventsEditor = ({
             heaterUnit={heater.unit}
             heaterStep={heater.step}
             boundsNote={heater.origin === 'fallback' ? t('heaterEventsEditor.boundsFallback') : undefined}
+            saveErrorMessage={saveErrorMessage}
             onClose={onClose}
             onApply={onApply}
         />

@@ -307,4 +307,63 @@ describe('HeaterEventsEditor', () => {
         expect(capture).toHaveBeenCalledOnce();
         await act(async () => root.unmount());
     });
+    it('history mode edits values of fixed rows only and surfaces the mapped save error', async () => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        const onApply = vi.fn().mockRejectedValue({ code: 'PT409' });
+        await act(async () =>
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'history',
+                    events: [
+                        { t: 0, bt: 200, heater: 7 },
+                        { t: 120, bt: 150, heater: 5 },
+                    ],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'tsv',
+                    unit: 'C',
+                    heaterMin: 0,
+                    heaterMax: 10,
+                    heaterUnit: 'kPa',
+                    heaterStep: 0.5,
+                    saveErrorMessage: () => 'conflict',
+                    onClose: () => {},
+                    onApply,
+                }),
+            ),
+        );
+        const texts = [...host.querySelectorAll('button')].map((b) => b.textContent);
+        expect(texts).not.toContain('heaterEventsEditor.addStep');
+        expect(texts).not.toContain('heaterEventsEditor.ruleAdd');
+        expect(host.querySelector('[aria-label="heaterEventsEditor.deleteRow"]')).toBeNull();
+        expect(host.textContent).toContain('heaterEventsEditor.subtitleHistory');
+
+        const setHeat = async (value: string) => {
+            const input = host.querySelectorAll(
+                'tbody input[aria-label="heaterEventsEditor.heat"]',
+            )[1] as HTMLInputElement;
+            await act(async () => {
+                Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        };
+        const save = () =>
+            act(async () =>
+                [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+            );
+
+        await setHeat('50');
+        await save();
+        expect(onApply).not.toHaveBeenCalled();
+        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+
+        await setHeat('6.5');
+        await save();
+        expect(onApply.mock.calls[0][0].map((e: { heater: number }) => e.heater)).toEqual([7, 6.5]);
+        expect(host.querySelector('[role="alert"]')?.textContent).toBe('conflict');
+        expect(host.querySelectorAll('tbody tr')).toHaveLength(2);
+        await act(async () => root.unmount());
+    });
 });

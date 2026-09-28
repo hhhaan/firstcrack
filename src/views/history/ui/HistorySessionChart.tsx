@@ -1,8 +1,10 @@
+import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import { formatTemp, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
+import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { formatDuration } from '@shared/lib/format';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
 import { useThemeStore } from '@shared/store/theme';
@@ -11,6 +13,7 @@ import { FileDown } from 'lucide-react';
 import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryPdfExport } from '../hooks/useHistoryPdfExport';
+import { sessionDropTime } from '../lib/record-heat';
 
 export function HistorySessionChart({ session }: { session: RoastSessionWithRelations }) {
     const { t } = useTranslation();
@@ -36,11 +39,20 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
         () => combineBbpCurve(targetPoints, targetBbp.isError ? [] : (targetBbp.data ?? []), source?.bbp_seconds),
         [targetPoints, targetBbp.data, targetBbp.isError, source?.bbp_seconds],
     );
+    const machines = useMachines((s) => s.machines);
+    const heaterUnit = profileHeaterBounds(session, machines, ROASTER_REGISTRY).unit;
     const eventMarkers = useMemo(() => {
         void resolvedTheme;
-        return storedEventsToMarkers(parseStoredRoastEvents(session.events), unit);
-    }, [session.events, unit, resolvedTheme]);
+        const events = withEditedHeaterLog(parseStoredRoastEvents(session.events), session.heater_events, heaterUnit);
+        return storedEventsToMarkers(events, unit);
+    }, [session.events, session.heater_events, heaterUnit, unit, resolvedTheme]);
     const { points } = actual;
+    const heatSet = useMemo(
+        () =>
+            editedHeatSet(points, sessionDropTime(session), session.heater_events) ??
+            points.map((p) => p.heaterSet ?? null),
+        [points, session],
+    );
     const hasControls = points.some((p) => p.heater != null || p.fan != null || p.drum != null);
     const bbpRange =
         actual.bbpRange || target.bbpRange
@@ -132,7 +144,7 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                                   drumTemp: points.map((p) => p.drum),
                                   heatPower: points.map((p) => p.heater),
                                   fanSpeed: points.map((p) => p.fan),
-                                  heatSet: points.map((p) => p.heaterSet ?? null),
+                                  heatSet,
                               }
                             : undefined
                     }

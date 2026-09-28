@@ -1,4 +1,4 @@
-import { dashboardKeys, inventoryQueryRoots, roastedStockKeys } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots, roastedStockKeys, roastProfileQueryRoots } from '@shared/lib/query-keys';
 import { shouldPrefetchNextPage } from '@shared/lib/shouldPrefetchNextPage';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -248,6 +248,41 @@ export const useDeleteRoastSession = (userId: string) => {
             qc.removeQueries({ queryKey: roastSessionKeys.detail(userId, id) });
         },
     });
+};
+
+export const isRoastRecordConflict = (error: unknown): boolean => {
+    const e = error as { code?: unknown; message?: unknown } | null;
+    return e?.code === 'PT409' || (typeof e?.message === 'string' && e.message.includes('roast_record_conflict'));
+};
+
+/**
+ * Event/Heat set edit of a saved record. Refreshes every roast-session read (list, pages,
+ * detail, dashboard) and profiles derived from the record. Inventory caches are untouched on purpose.
+ */
+export const useUpdateRoastRecord = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: roastSessionApi.updateRecord,
+        // Editors keep the draft open and show the failure inline.
+        meta: { silentError: true },
+        onSuccess: (updated) => {
+            qc.setQueryData<RoastSessionWithRelations>(roastSessionKeys.detail(userId, updated.id), (prev) =>
+                prev ? { ...prev, ...updated } : undefined,
+            );
+        },
+        onSettled: () => {
+            void invalidateAfterRoastRecordEdit(qc, userId);
+        },
+    });
+};
+
+/** Session reads + profiles cut from the record (summary columns, source join, source log, consistency). */
+export const invalidateAfterRoastRecordEdit = async (qc: QueryClient, userId: string) => {
+    await Promise.all([
+        invalidateRoastSessionQueries(qc, userId),
+        qc.invalidateQueries({ queryKey: roastProfileQueryRoots.profiles, refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: roastProfileQueryRoots.consistency }),
+    ]);
 };
 
 /** Atomic output weight + roasted inbound upsert. */

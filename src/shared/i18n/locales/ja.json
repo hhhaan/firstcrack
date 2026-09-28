@@ -1083,6 +1083,26 @@
             "colBy": "担当",
             "colScore": "スコア",
             "colSource": "ソース"
+        },
+        "edit": {
+            "editEvents": "イベントを編集",
+            "editHeat": "火力を編集",
+            "eventsTitle": "主要イベントの編集",
+            "eventsHint": "保存されたイベントの時間と温度を修正します。Chargeは0:00に固定されます。",
+            "noEvents": "記録された主要イベントがありません。",
+            "noHeat": "編集できる火力設定の記録がありません。",
+            "event": "イベント",
+            "time": "時間",
+            "temp": "温度",
+            "chargeFixed": "Chargeは時間軸の基準(0:00)です。",
+            "invalidTime": "時間をm:ss形式で入力してください。",
+            "invalidTemp": "0–400°Cの温度を入力してください。",
+            "invalidOrder": "前のイベントより早い時間です。",
+            "save": "保存",
+            "saving": "保存中…",
+            "saveFailed": "保存できませんでした。入力は保持されます。もう一度お試しください。",
+            "conflict": "この記録は別の場所で変更されました。閉じて開き直し、最新の内容を読み込んでください。",
+            "readOnly": "現在のプランまたはワークスペースでは編集できません。"
         }
     },
     "profiles": {
@@ -1214,7 +1234,9 @@
         "saving": "保存中…",
         "empty": "ステップを追加するか、元に戻してください。",
         "chartHint": "時間基準のプレビュー · BT条件はTP後に実行",
-        "boundsFallback": "機器の範囲が不明です。0–100%で検証します。"
+        "boundsFallback": "機器の範囲が不明です。0–100%で検証します。",
+        "subtitleHistory": "この焙煎記録に保存します。この記録を使うReplayがこのステップを使います。実測カーブは保持されます。",
+        "sourceSession": "編集済みの記録"
     },
     "beanList": {
         "searchPlaceholder": "豆を検索...",

@@ -1083,6 +1083,26 @@
             "colBy": "杯测人",
             "colScore": "评分",
             "colSource": "来源"
+        },
+        "edit": {
+            "editEvents": "编辑事件",
+            "editHeat": "编辑火力",
+            "eventsTitle": "编辑关键事件",
+            "eventsHint": "修正已保存事件的时间和温度。Charge 固定为 0:00。",
+            "noEvents": "没有记录的关键事件。",
+            "noHeat": "没有可编辑的火力设定记录。",
+            "event": "事件",
+            "time": "时间",
+            "temp": "温度",
+            "chargeFixed": "Charge 是时间轴起点(0:00)。",
+            "invalidTime": "请按 m:ss 格式输入时间。",
+            "invalidTemp": "请输入 0–400°C 之间的温度。",
+            "invalidOrder": "早于前一个事件的时间。",
+            "save": "保存",
+            "saving": "保存中…",
+            "saveFailed": "保存失败。已保留你的输入，请重试。",
+            "conflict": "此记录已在别处被修改。请关闭后重新打开以加载最新内容。",
+            "readOnly": "当前方案或工作区无法编辑。"
         }
     },
     "beanList": {
@@ -1226,7 +1246,9 @@
         "saving": "正在保存…",
         "empty": "添加步骤或恢复原始计划。",
         "chartHint": "时间预览 · BT条件在回温点后执行",
-        "boundsFallback": "未知设备范围，按 0–100% 校验。"
+        "boundsFallback": "未知设备范围，按 0–100% 校验。",
+        "subtitleHistory": "保存到此烘焙记录。使用此记录的 Replay 会使用这些步骤。实测曲线保持不变。",
+        "sourceSession": "已编辑的记录"
     },
     "addBeanModal": {
         "newTitle": "新批次",

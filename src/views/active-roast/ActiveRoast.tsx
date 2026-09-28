@@ -2,7 +2,12 @@ import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useBbpCurve } from '@entities/roast';
-import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
+import {
+    profileHeaterEvents,
+    resolveSourceSession,
+    useResolvedProfileCurve,
+    useRoastProfiles,
+} from '@entities/roast-profile';
 import {
     computePhaseSegments,
     formatTemp,
@@ -266,7 +271,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
     const heatTarget = useMemo(() => {
         if (!targetProfile) return undefined;
-        return profileHeatTarget(targetCurvePoints, replayDropTime, targetProfile.heater_events);
+        return profileHeatTarget(targetCurvePoints, replayDropTime, profileHeaterEvents(targetProfile));
     }, [targetProfile, targetCurvePoints, replayDropTime]);
     const referenceFcStartSec = useMemo(
         () => sourceEvents.find((e) => e.type === 'FC Start')?.time_sec ?? null,
@@ -830,7 +835,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayPoints,
         replayMachineMismatch,
         replayDropTime,
-        replayHeaterEvents: targetProfile?.heater_events,
+        replayHeaterEvents: profileHeaterEvents(targetProfile),
         liveBt: rawBT,
         elapsed,
         roasting: phase === 'roasting',

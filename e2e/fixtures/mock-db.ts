@@ -63,9 +63,17 @@ export type RoastSession = {
     machine_brand: string | null;
     machine_protocol: string | null;
     events: unknown;
+    heater_events?: unknown;
     created_at: string;
     updated_at: string;
-    beans?: { name: string; origin: string | null; region: string | null; variety: string | null; process: string | null; farm: string | null } | null;
+    beans?: {
+        name: string;
+        origin: string | null;
+        region: string | null;
+        variety: string | null;
+        process: string | null;
+        farm: string | null;
+    } | null;
     roast_profiles?: { name: string; target_level: string | null } | null;
 };
 
@@ -95,6 +103,8 @@ export class MockDb {
     planBatches: PlanBatch[] = [];
     dayPlans: { id: string; user_id: string; plan_date: string }[] = [];
     roastedEvents: { id: string; reference_id: string | null; delta_grams: number; event_type: string }[] = [];
+    /** R2 object key → TSV body served by the mocked get-download-url. */
+    tsvFiles = new Map<string, string>();
     /** Last save_roast_op deduct decision — asserted by F3 e2e. */
     lastSaveOpDeductApplied = false;
     lastSaveOpRequestedDeduct = false;
@@ -106,6 +116,7 @@ export class MockDb {
         this.planBatches = [];
         this.dayPlans = [];
         this.roastedEvents = [];
+        this.tsvFiles.clear();
         this.lastSaveOpDeductApplied = false;
         this.lastSaveOpRequestedDeduct = false;
     }
@@ -331,6 +342,74 @@ export class MockDb {
         }
 
         return row;
+    }
+
+    seedCompletedSession(partial: Partial<RoastSession>): RoastSession {
+        const row: RoastSession = {
+            id: uuid(),
+            user_id: E2E_USER.id,
+            weight_grams: 1000,
+            output_weight_grams: null,
+            status: 'completed',
+            roasted_at: nowIso(),
+            duration_seconds: null,
+            drop_temp_celsius: null,
+            roast_level: 'Medium',
+            scheduled_at: null,
+            notes: null,
+            ambient_temp_celsius: null,
+            ambient_humidity_pct: null,
+            bean_id: null,
+            profile_id: null,
+            tsv_path: null,
+            bbp_tsv_path: null,
+            bbp_seconds: null,
+            charge_temp_celsius: null,
+            plan_batch_id: null,
+            machine_id: null,
+            machine_name: null,
+            machine_roaster_key: null,
+            machine_brand: null,
+            machine_protocol: null,
+            events: [],
+            heater_events: null,
+            created_at: nowIso(),
+            updated_at: nowIso(),
+            beans: null,
+            roast_profiles: null,
+            ...partial,
+        };
+        this.sessions.unshift(row);
+        return row;
+    }
+
+    /** Mirrors update_roast_session_record: CAS on events/heater_events, in-place time/temp only. */
+    updateRoastRecord(body: Record<string, unknown>): { status: number; body: unknown } {
+        const s = this.sessions.find((x) => x.id === body.p_session_id);
+        if (!s) return { status: 404, body: { code: 'PT404', message: 'roast_record_not_found' } };
+        const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+        if (!same(s.events, body.p_expected_events) || !same(s.heater_events, body.p_expected_heater_events)) {
+            return { status: 409, body: { code: 'PT409', message: 'roast_record_conflict' } };
+        }
+        const strip = (e: unknown) => {
+            const { time_sec: _t, temp_c: _c, ...rest } = (e ?? {}) as Record<string, unknown>;
+            return rest;
+        };
+        const prev = (s.events as unknown[]) ?? [];
+        const next = body.p_events as unknown[];
+        if (
+            !Array.isArray(next) ||
+            next.length !== prev.length ||
+            next.some((e, i) => !same(strip(e), strip(prev[i])))
+        ) {
+            return { status: 422, body: { code: 'PT422', message: 'roast_record_invalid_events' } };
+        }
+        s.events = next;
+        s.heater_events = body.p_heater_events ?? null;
+        s.drop_temp_celsius = (body.p_drop_temp_celsius as number | null) ?? null;
+        s.duration_seconds = (body.p_duration_seconds as number | null) ?? null;
+        s.updated_at = nowIso();
+        return { status: 200, body: s };
     }
 
     createBean(body: Record<string, unknown>): BeanRow {

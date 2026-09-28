@@ -1,4 +1,5 @@
 import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { roastProfileQueryRoots } from '@shared/lib/query-keys';
 import { curveQueryConfig } from '@shared/lib/roast-curve';
 import { supabase } from '@shared/lib/supabase';
 import type { Json, RoastProfile } from '@shared/types/database.types';
@@ -12,12 +13,14 @@ export type ProfileCurveSource = 'session' | 'synthetic' | 'none';
 const resolveTsvPath = (profile: RoastProfileWithSource | null): string | null =>
     resolveSourceSession(profile?.source_session)?.tsv_path ?? null;
 
+const { profiles: profilesRoot, consistency: consistencyRoot } = roastProfileQueryRoots;
+
 export const roastProfileKeys = {
-    all: (userId: string) => ['roast_profiles', userId] as const,
-    detail: (id: string) => ['roast_profiles', 'detail', id] as const,
-    sourceEvents: (sessionId: string) => ['roast_profiles', 'source_events', sessionId] as const,
+    all: (userId: string) => [...profilesRoot, userId] as const,
+    detail: (id: string) => [...profilesRoot, 'detail', id] as const,
+    sourceEvents: (sessionId: string) => [...profilesRoot, 'source_events', sessionId] as const,
     beanHistory: (profileId: string) => ['profile-bean-history', profileId] as const,
-    consistency: (profileId: string) => ['profile-consistency', profileId] as const,
+    consistency: (profileId: string) => [...consistencyRoot, profileId] as const,
 };
 
 export const useRoastProfiles = (userId: string) =>
@@ -86,7 +89,7 @@ export const useDeleteRoastProfile = (userId: string) => {
 
 export const useRoastProfileCurve = (tsvPath: string | null | undefined) => useQuery(curveQueryConfig(tsvPath));
 
-/** ProfileDetail roast log — events are immutable after session save. */
+/** ProfileDetail roast log. History record edits invalidate it via the roast_profiles root. */
 export const useSourceSessionEvents = (sessionId: string | null) =>
     useQuery({
         queryKey: roastProfileKeys.sourceEvents(sessionId ?? ''),
