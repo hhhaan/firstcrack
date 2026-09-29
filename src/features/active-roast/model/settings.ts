@@ -54,6 +54,11 @@ export type RoastSettings = {
     autoChargeMode: AutoChargeMode;
     autoDropEnabled: boolean;
     autoDropMode: AutoDropMode;
+    /**
+     * Minutes after Charge before auto Drop may fire.
+     * The detector fires only once elapsed exceeds this value (`elapsed > minutes * 60`).
+     */
+    autoDropStartMin: number;
     preChargeDisplaySec: number;
     /** Live threshold alarms (RoR crash / BT ceiling). */
     alertsEnabled: boolean;
@@ -84,6 +89,15 @@ export type RoastSettings = {
 };
 
 export type PidDropBehavior = 'hold' | 'zero';
+
+/** Artisan autoDROP default: Charge 후 7분 초과. */
+export const AUTO_DROP_START_MIN_DEFAULT = 7;
+/**
+ * Same ceiling as the other minute NumberInputs on RoastSettingsTab (time alarms).
+ * Those inputs have no step; values are clamped into [1, 30].
+ */
+export const AUTO_DROP_START_MIN_MAX = 30;
+const AUTO_DROP_START_MIN_MIN = 1;
 
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
@@ -118,6 +132,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     autoChargeMode: 'standard',
     autoDropEnabled: true,
     autoDropMode: 'standard',
+    autoDropStartMin: AUTO_DROP_START_MIN_DEFAULT,
     preChargeDisplaySec: 60,
     alertsEnabled: true,
     alertSoundEnabled: true,
@@ -144,6 +159,19 @@ const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
+/** Positive finite minutes only. 0 / negative / NaN / Infinity / non-numeric restore `previous` (or 7). */
+const coerceAutoDropStartMin = (value: unknown, previous: number): number => {
+    const fallback =
+        typeof previous === 'number' &&
+        Number.isFinite(previous) &&
+        previous >= AUTO_DROP_START_MIN_MIN &&
+        previous <= AUTO_DROP_START_MIN_MAX
+            ? previous
+            : AUTO_DROP_START_MIN_DEFAULT;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return fallback;
+    return Math.min(AUTO_DROP_START_MIN_MAX, Math.max(AUTO_DROP_START_MIN_MIN, value));
+};
+
 const isEventMarkerStyle = (value: unknown): value is EventMarkerStyle =>
     value === 'line' || value === 'point' || value === 'both';
 
@@ -161,7 +189,10 @@ const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
 export const coercePollIntervalForPlan = (ms: PollIntervalMs, canFastPoll: boolean): PollIntervalMs =>
     ms === 500 && !canFastPoll ? 1000 : ms;
 
-export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
+export const normalizeRoastSettings = (
+    raw: Partial<RoastSettings> | null | undefined,
+    previous?: RoastSettings,
+): RoastSettings => {
     const {
         autoDropDropC: _legacyDropC,
         bbpWindowMinutes: _legacyBbpWindow,
@@ -205,6 +236,10 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',
         autoDropEnabled: asBool(merged.autoDropEnabled, DEFAULT_SETTINGS.autoDropEnabled),
         autoDropMode: merged.autoDropMode === 'sensitive' ? 'sensitive' : 'standard',
+        autoDropStartMin: coerceAutoDropStartMin(
+            merged.autoDropStartMin,
+            previous?.autoDropStartMin ?? AUTO_DROP_START_MIN_DEFAULT,
+        ),
         autoYellowEnabled,
         fcDualMarkEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
@@ -294,7 +329,7 @@ void _hydrate();
 
 export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
     _userTouched = true;
-    _settings = normalizeRoastSettings({ ..._settings, ...patch });
+    _settings = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
     _emit();
     void _flush();
 };

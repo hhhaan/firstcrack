@@ -1,5 +1,6 @@
 import {
     ALERT_SOUND_KINDS,
+    AUTO_DROP_START_MIN_MAX,
     type EventMarkerStyle,
     fromDisplayTemp,
     isAlertSoundKind,
@@ -248,6 +249,9 @@ export const RoastSettingsTab = () => {
     const effectivePollMs = useEffectivePollIntervalMs();
     const [showPollUpgradeHint, setShowPollUpgradeHint] = useState(false);
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
+    const autoDropDescription = t('settings.tabs.roast.autoDropDescription', {
+        minutes: roastSettings.autoDropStartMin,
+    });
 
     // 절대 온도 입력은 표시 단위를 따르고 저장은 항상 °C. 경계는 °C에서 합성한 뒤 한 번만 변환한다.
     // (델타/변화율 값 — alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
@@ -533,14 +537,27 @@ export const RoastSettingsTab = () => {
             </SectionCard>
 
             <SectionCard>
-                <SectionCard.Header title={tk('autoDrop')} description={tk('autoDropDescription')} />
+                <SectionCard.Header title={tk('autoDrop')} description={autoDropDescription} />
                 <SectionCard.Body className="grid gap-3">
                     <SettingsCheckRow
                         checked={roastSettings.autoDropEnabled}
                         label={tk('autoDropEnabled')}
-                        description={tk('autoDropDescription')}
+                        description={autoDropDescription}
                         onChange={() => updateRoastSettings({ autoDropEnabled: !roastSettings.autoDropEnabled })}
                     />
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('autoDropStart')}</div>
+                            <div className={settingsOptionDescCls}>{tk('autoDropStartDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.autoDropStartMin}
+                            onChange={(v) => updateRoastSettings({ autoDropStartMin: v })}
+                            min={1}
+                            max={AUTO_DROP_START_MIN_MAX}
+                            suffix={tk('autoDropStartUnit')}
+                        />
+                    </SettingsOptionRow>
                     <SettingsOptionRow justify="between">
                         <div>
                             <div className={settingsOptionLabelCls}>{tk('autoDropSensitivity')}</div>

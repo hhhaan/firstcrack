@@ -1,6 +1,13 @@
 import { FEATURE, planHasFeature } from '@shared/lib/features';
 import { describe, expect, it } from 'vitest';
-import { coercePollIntervalForPlan, normalizeRoastSettings } from './settings';
+import {
+    AUTO_DROP_START_MIN_DEFAULT,
+    AUTO_DROP_START_MIN_MAX,
+    coercePollIntervalForPlan,
+    getRoastSettings,
+    normalizeRoastSettings,
+    updateRoastSettings,
+} from './settings';
 
 it('이전에 저장된 BBP 기록 범위는 켜기/끄기 외에 영향을 주지 않는다', () => {
     const stored = { bbpEnabled: false, bbpWindowMinutes: 5 };
@@ -111,6 +118,42 @@ describe('FEATURE.fastPolling plan matrix', () => {
     it('denies free / read_only / unresolved placeholder', () => {
         for (const plan of ['free', 'read_only', '']) {
             expect(planHasFeature(plan, FEATURE.fastPolling)).toBe(false);
+        }
+    });
+});
+
+describe('normalize — auto drop start minute', () => {
+    it('reads a missing field as 7 minutes', () => {
+        expect(normalizeRoastSettings({}).autoDropStartMin).toBe(AUTO_DROP_START_MIN_DEFAULT);
+        expect(normalizeRoastSettings({ autoDropEnabled: false }).autoDropStartMin).toBe(7);
+    });
+
+    it('keeps a positive value and clamps it to 1–30 like the other minute inputs', () => {
+        expect(normalizeRoastSettings({ autoDropStartMin: 3 }).autoDropStartMin).toBe(3);
+        expect(normalizeRoastSettings({ autoDropStartMin: 3.5 }).autoDropStartMin).toBe(3.5);
+        expect(normalizeRoastSettings({ autoDropStartMin: 0.2 }).autoDropStartMin).toBe(1);
+        expect(normalizeRoastSettings({ autoDropStartMin: 99 }).autoDropStartMin).toBe(AUTO_DROP_START_MIN_MAX);
+    });
+
+    it('restores the previous valid minute, or 7, for non-positive and non-numeric values', () => {
+        const previous = normalizeRoastSettings({ autoDropStartMin: 3 });
+        for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+            expect(normalizeRoastSettings({ autoDropStartMin: bad }, previous).autoDropStartMin).toBe(3);
+        }
+        expect(normalizeRoastSettings({ autoDropStartMin: '7' } as never, previous).autoDropStartMin).toBe(3);
+        expect(normalizeRoastSettings({ autoDropStartMin: 0 }).autoDropStartMin).toBe(7);
+        expect(normalizeRoastSettings({ autoDropStartMin: Number.NaN }).autoDropStartMin).toBe(7);
+        expect(normalizeRoastSettings({ autoDropStartMin: '3' } as never).autoDropStartMin).toBe(7);
+    });
+
+    it('keeps the previous minute when an update patch is invalid', () => {
+        updateRoastSettings({ autoDropStartMin: 4 });
+        try {
+            updateRoastSettings({ autoDropStartMin: 0 });
+            updateRoastSettings({ autoDropStartMin: Number.NaN });
+            expect(getRoastSettings().autoDropStartMin).toBe(4);
+        } finally {
+            updateRoastSettings({ autoDropStartMin: AUTO_DROP_START_MIN_DEFAULT });
         }
     });
 });

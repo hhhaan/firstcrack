@@ -454,6 +454,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         pollIntervalMs,
         autoDropEnabled: roastSettings.autoDropEnabled,
         autoDropMode: roastSettings.autoDropMode,
+        autoDropStartMin: roastSettings.autoDropStartMin,
         yellowTempC: roastSettings.yellowTempC,
         unit,
         markEvent,
