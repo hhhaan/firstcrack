@@ -56,7 +56,6 @@ import {
     chargeWaitTempBand,
     cycleFcWhenEnabled,
     formatDisplayRoR,
-    isChargedPhase,
     isReplayMachineMismatch,
     isWaitingForCharge,
     latestSampleTime,
