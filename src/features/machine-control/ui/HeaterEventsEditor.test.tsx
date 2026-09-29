@@ -37,11 +37,13 @@ describe('HeaterEventsEditor', () => {
                 }),
             );
         });
-        const addBt = [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.ruleAdd');
+        const addBt = [...document.querySelectorAll('button')].find(
+            (b) => b.textContent === 'heaterEventsEditor.ruleAdd',
+        );
         await act(async () => {
             addBt?.click();
         });
-        const apply = [...host.querySelectorAll('button')].find(
+        const apply = [...document.querySelectorAll('button')].find(
             (b) => b.textContent === 'heaterEventsEditor.applyBatch',
         );
         await act(async () => {
@@ -71,18 +73,18 @@ describe('HeaterEventsEditor', () => {
                 }),
             ),
         );
-        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
         await act(async () => {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
             input.dispatchEvent(new Event('input', { bubbles: true }));
         });
         await act(async () =>
-            [...host.querySelectorAll('button')]
+            [...document.querySelectorAll('button')]
                 .find((b) => b.textContent === 'heaterEventsEditor.applyBatch')
                 ?.click(),
         );
         expect(onApply).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
         await act(async () => root.unmount());
     });
 
@@ -106,17 +108,19 @@ describe('HeaterEventsEditor', () => {
             ),
         );
         await act(async () =>
-            [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.ruleAdd')?.click(),
+            [...document.querySelectorAll('button')]
+                .find((b) => b.textContent === 'heaterEventsEditor.ruleAdd')
+                ?.click(),
         );
         await act(async () =>
-            [...host.querySelectorAll('button')]
+            [...document.querySelectorAll('button')]
                 .find((b) => b.textContent === 'heaterEventsEditor.applyBatch')
                 ?.click(),
         );
         expect(onApply.mock.calls[0][0][0].bt).toBeCloseTo(192);
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.saveFailed');
-        expect(host.querySelectorAll('tbody tr')).toHaveLength(1);
-        expect(host.querySelector('fieldset')?.disabled).toBe(false);
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.saveFailed');
+        expect(document.querySelectorAll('tbody tr')).toHaveLength(1);
+        expect(document.querySelector('fieldset')?.disabled).toBe(false);
         await act(async () => root.unmount());
     });
 
@@ -141,18 +145,18 @@ describe('HeaterEventsEditor', () => {
                 }),
             ),
         );
-        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
         await act(async () => {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '150');
             input.dispatchEvent(new Event('input', { bubbles: true }));
         });
         await act(async () =>
-            [...host.querySelectorAll('button')]
+            [...document.querySelectorAll('button')]
                 .find((b) => b.textContent === 'heaterEventsEditor.applyBatch')
                 ?.click(),
         );
         expect(onApply).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
         expect(input.value).toBe('150');
         await act(async () => root.unmount());
     });
@@ -176,16 +180,16 @@ describe('HeaterEventsEditor', () => {
                 }),
             ),
         );
-        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
         await act(async () => {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '150');
             input.dispatchEvent(new Event('input', { bubbles: true }));
         });
         await act(async () =>
-            [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+            [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
         );
         expect(onApply).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
         expect(input.value).toBe('150');
         await act(async () => root.unmount());
     });
@@ -212,18 +216,18 @@ describe('HeaterEventsEditor', () => {
                 }),
             ),
         );
-        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
         await act(async () => {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '50.5');
             input.dispatchEvent(new Event('input', { bubbles: true }));
         });
         await act(async () =>
-            [...host.querySelectorAll('button')]
+            [...document.querySelectorAll('button')]
                 .find((b) => b.textContent === 'heaterEventsEditor.applyBatch')
                 ?.click(),
         );
         expect(onApply).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
         await act(async () => root.unmount());
     });
 
@@ -245,7 +249,7 @@ describe('HeaterEventsEditor', () => {
                 }),
             ),
         );
-        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.time"]') as HTMLInputElement;
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.time"]') as HTMLInputElement;
         const type = async (data: string, inputType = 'insertText') => {
             input.focus();
             await act(async () => {
@@ -297,7 +301,7 @@ describe('HeaterEventsEditor', () => {
                 }),
             ),
         );
-        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.time"]') as HTMLInputElement;
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.time"]') as HTMLInputElement;
         const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
         await act(async () => {
             setValue?.call(input, '9:00');
@@ -334,14 +338,14 @@ describe('HeaterEventsEditor', () => {
                 }),
             ),
         );
-        const texts = [...host.querySelectorAll('button')].map((b) => b.textContent);
+        const texts = [...document.querySelectorAll('button')].map((b) => b.textContent);
         expect(texts).not.toContain('heaterEventsEditor.addStep');
         expect(texts).not.toContain('heaterEventsEditor.ruleAdd');
-        expect(host.querySelector('[aria-label="heaterEventsEditor.deleteRow"]')).toBeNull();
-        expect(host.textContent).toContain('heaterEventsEditor.subtitleHistory');
+        expect(document.querySelector('[aria-label="heaterEventsEditor.deleteRow"]')).toBeNull();
+        expect(document.body.textContent).toContain('heaterEventsEditor.subtitleHistory');
 
         const setHeat = async (value: string) => {
-            const input = host.querySelectorAll(
+            const input = document.querySelectorAll(
                 'tbody input[aria-label="heaterEventsEditor.heat"]',
             )[1] as HTMLInputElement;
             await act(async () => {
@@ -351,19 +355,21 @@ describe('HeaterEventsEditor', () => {
         };
         const save = () =>
             act(async () =>
-                [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+                [...document.querySelectorAll('button')]
+                    .find((b) => b.textContent === 'heaterEventsEditor.save')
+                    ?.click(),
             );
 
         await setHeat('50');
         await save();
         expect(onApply).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
 
         await setHeat('6.5');
         await save();
         expect(onApply.mock.calls[0][0].map((e: { heater: number }) => e.heater)).toEqual([7, 6.5]);
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('conflict');
-        expect(host.querySelectorAll('tbody tr')).toHaveLength(2);
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('conflict');
+        expect(document.querySelectorAll('tbody tr')).toHaveLength(2);
         await act(async () => root.unmount());
     });
     it.each([
@@ -392,7 +398,9 @@ describe('HeaterEventsEditor', () => {
                 }),
             ),
         );
-        const input = host.querySelector(`tbody input[aria-label="heaterEventsEditor.${field}"]`) as HTMLInputElement;
+        const input = document.querySelector(
+            `tbody input[aria-label="heaterEventsEditor.${field}"]`,
+        ) as HTMLInputElement;
         await act(async () => {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, typed);
             input.dispatchEvent(new Event('input', { bubbles: true }));

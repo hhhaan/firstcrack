@@ -51,6 +51,8 @@ type Column = {
     key: SortKey | null;
     label: string;
     width: string;
+    /** Keeps uppercase header text from compressing into the next column. */
+    minWidth?: string;
     sortable: boolean;
     hideOnMd?: boolean;
     render: (s: RoastSessionWithRelations) => ReactNode;
@@ -83,7 +85,8 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: null,
         label: 'charge',
-        width: '80px',
+        width: '160px',
+        minWidth: '160px',
         sortable: false,
         render: (s) =>
             formatTemp(summarizeSessionEvents(parseStoredRoastEvents(s.events), s).charge_temp_celsius, unit),
@@ -91,7 +94,8 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: 'drop',
         label: 'Drop',
-        width: '80px',
+        width: '184px',
+        minWidth: '184px',
         sortable: true,
         render: (s) => formatTemp(s.drop_temp_celsius, unit),
     },
@@ -321,7 +325,7 @@ export const HistoryTable = ({
                                     key={col.key || `col-${colIdx}`}
                                     onClick={() => col.sortable && col.key && onSort(col.key)}
                                     className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'} ${col.key === null && col.label === '' ? stickyActionsCls : ''}`}
-                                    style={{ width: col.width }}
+                                    style={{ width: col.width, minWidth: col.minWidth }}
                                 >
                                     <span className="flex items-center gap-1 whitespace-nowrap">
                                         {colLabel(col.key || col.label)}
@@ -379,7 +383,7 @@ export const HistoryTable = ({
                                                 key={col.key || idx}
                                                 title={cellTitle}
                                                 className={`overflow-hidden px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
-                                                style={{ width: col.width }}
+                                                style={{ width: col.width, minWidth: col.minWidth }}
                                             >
                                                 {isActions ? (
                                                     <span className="inline-flex items-center">

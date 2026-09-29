@@ -51,18 +51,20 @@ describe('ReplayProfileChangeModal', () => {
         }
     });
 
+    const dialog = () => document.querySelector('[role="dialog"]') as HTMLElement;
+
     it('확인 문구와 버튼을 보여 준다', async () => {
-        const { container, unmount } = await mount();
-        expect(container.textContent).toContain('Replay is running. Changing the profile will stop Replay.');
-        expect(container.textContent).toContain('Stop Replay and change');
-        expect(container.textContent).toContain('Cancel');
+        const { unmount } = await mount();
+        expect(dialog().textContent).toContain('Replay is running. Changing the profile will stop Replay.');
+        expect(dialog().textContent).toContain('Stop Replay and change');
+        expect(dialog().textContent).toContain('Cancel');
         unmount();
     });
 
     it('취소와 Escape는 Replay를 유지한다', async () => {
-        const { container, onCancel, onConfirm, unmount } = await mount();
+        const { onCancel, onConfirm, unmount } = await mount();
         act(() => {
-            (container.querySelector('button') as HTMLButtonElement).click();
+            (dialog().querySelector('button') as HTMLButtonElement).click();
         });
         expect(onCancel).toHaveBeenCalledTimes(1);
         expect(onConfirm).not.toHaveBeenCalled();
@@ -74,9 +76,9 @@ describe('ReplayProfileChangeModal', () => {
     });
 
     it('확인은 중단 후 변경 경로를 탄다', async () => {
-        const { container, onConfirm, unmount } = await mount();
+        const { onConfirm, unmount } = await mount();
         act(() => {
-            (container.querySelector('[data-testid="replay-profile-change-confirm"]') as HTMLButtonElement).click();
+            (dialog().querySelector('[data-testid="replay-profile-change-confirm"]') as HTMLButtonElement).click();
         });
         expect(onConfirm).toHaveBeenCalledTimes(1);
         unmount();
@@ -86,8 +88,8 @@ describe('ReplayProfileChangeModal', () => {
         const opener = document.createElement('button');
         document.body.appendChild(opener);
         opener.focus();
-        const { container, unmount } = await mount();
-        const [cancel, confirm] = container.querySelectorAll('button');
+        const { unmount } = await mount();
+        const [cancel, confirm] = dialog().querySelectorAll('button');
         expect(document.activeElement).toBe(confirm);
         for (const shiftKey of [false, false, true, true]) {
             const previous = document.activeElement;

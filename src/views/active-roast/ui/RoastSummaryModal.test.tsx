@@ -83,14 +83,14 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
 };
 
 it('keeps the overlay from passing clicks through to the roast screen', () => {
-    const { host, unmount } = renderModal();
-    const overlay = host.querySelector('[role="presentation"]');
+    const { unmount } = renderModal();
+    const overlay = document.querySelector('[role="presentation"]');
     expect(overlay?.className).not.toContain('pointer-events-none');
     unmount();
 });
 
 it('shows stored TP in the summary log', () => {
-    const { host, unmount } = renderModal({
+    const { unmount } = renderModal({
         summaryData: {
             ...summaryData,
             logEntries: [
@@ -99,22 +99,22 @@ it('shows stored TP in the summary log', () => {
             ],
         },
     });
-    expect(host.textContent).toContain('Charge');
-    expect(host.textContent).toContain('TP');
+    expect(document.body.textContent).toContain('Charge');
+    expect(document.body.textContent).toContain('TP');
     unmount();
 });
 
 it('checks deductStock when schedule handoff is present', () => {
-    const { host, unmount } = renderModal({ planBatchHandoff: handoff });
-    const checkbox = host.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
+    const { unmount } = renderModal({ planBatchHandoff: handoff });
+    const checkbox = document.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(true);
     unmount();
 });
 
 it('checks deductStock when selectedBeanId is set without handoff', () => {
     useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
-    const { host, unmount } = renderModal({ selectedBeanId: 'bean-1' });
-    const checkbox = host.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
+    const { unmount } = renderModal({ selectedBeanId: 'bean-1' });
+    const checkbox = document.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(true);
     unmount();
 });
@@ -129,8 +129,8 @@ it('keeps the opened bean and weight when a later batch selection arrives', () =
     act(() => {
         root.render(createElement(RoastSummaryModal, { ...props, selectedBeanId: 'bean-2' }));
     });
-    const weight = host.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
-    const bean = host.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
+    const weight = document.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    const bean = document.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
     expect(weight.value).toBe('5');
     expect(bean.value).toBe('Yirg');
     act(() => root.unmount());
@@ -157,16 +157,16 @@ it('applies a schedule batch, keeps a same-batch edit, and restores the opened w
             blend_id: null,
         },
     ];
-    const { host, unmount } = renderModal({ selectedBeanId: 'bean-1' });
-    const weight = () => host.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    const { unmount } = renderModal({ selectedBeanId: 'bean-1' });
+    const weight = () => document.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
     expect(weight().value).toBe('5');
     act(() => setInputValue(weight(), '6'));
 
-    const schedule = [...host.querySelectorAll('button')].find(
+    const schedule = [...document.querySelectorAll('button')].find(
         (b) => b.textContent === 'activeRoast.summary.linkSchedule',
     );
     act(() => schedule?.click());
-    const select = host.querySelector('select') as HTMLSelectElement;
+    const select = document.querySelector('select') as HTMLSelectElement;
     act(() => setInputValue(select, 'batch-9'));
     expect(weight().value).toBe('8');
 
@@ -174,7 +174,7 @@ it('applies a schedule batch, keeps a same-batch edit, and restores the opened w
     act(() => setInputValue(select, 'batch-9'));
     expect(weight().value).toBe('7');
 
-    const none = [...host.querySelectorAll('button')].find((b) => b.textContent === 'activeRoast.summary.linkNone');
+    const none = [...document.querySelectorAll('button')].find((b) => b.textContent === 'activeRoast.summary.linkNone');
     act(() => none?.click());
     expect(weight().value).toBe('5');
     unmount();
@@ -187,12 +187,12 @@ it('reopens from the opened batch after an edit', () => {
     const root = createRoot(host);
     const props = { ...baseProps, selectedBeanId: 'bean-1' as string | null };
     act(() => root.render(createElement(RoastSummaryModal, props)));
-    const weight = () => host.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    const weight = () => document.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
     act(() => setInputValue(weight(), '9'));
     act(() => root.render(createElement(RoastSummaryModal, { ...props, open: false })));
     act(() => root.render(createElement(RoastSummaryModal, props)));
     expect(weight().value).toBe('5');
-    const bean = host.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
+    const bean = document.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
     expect(bean.value).toBe('Yirg');
     act(() => root.unmount());
     host.remove();
@@ -201,8 +201,8 @@ it('reopens from the opened batch after an edit', () => {
 it('calls onClose from the header X without discarding', () => {
     const onClose = vi.fn();
     const onDiscard = vi.fn();
-    const { host, unmount } = renderModal({ onClose, onDiscard });
-    const close = host.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
+    const { unmount } = renderModal({ onClose, onDiscard });
+    const close = document.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
     expect(close).not.toBeNull();
     act(() => close.click());
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -213,8 +213,8 @@ it('calls onClose from the header X without discarding', () => {
 it('cancels Drop from the header X while the roast can be restored', () => {
     const onClose = vi.fn();
     const onCancelDrop = vi.fn();
-    const { host, unmount } = renderModal({ canCancelDrop: true, onClose, onCancelDrop });
-    const close = host.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
+    const { unmount } = renderModal({ canCancelDrop: true, onClose, onCancelDrop });
+    const close = document.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
     expect(close.getAttribute('aria-label')).toBe('activeRoast.unsaved.cancelDrop');
     act(() => close.click());
     expect(onCancelDrop).toHaveBeenCalledTimes(1);
@@ -224,29 +224,29 @@ it('cancels Drop from the header X while the roast can be restored', () => {
 
 it('cancels Drop from the summary only while it can be restored', () => {
     const onCancelDrop = vi.fn();
-    const { host, unmount } = renderModal({ canCancelDrop: true, onCancelDrop });
-    const cancel = host.querySelector('[data-testid="roast-summary-cancel-drop"]') as HTMLButtonElement;
+    const { unmount } = renderModal({ canCancelDrop: true, onCancelDrop });
+    const cancel = document.querySelector('[data-testid="roast-summary-cancel-drop"]') as HTMLButtonElement;
     expect(cancel.textContent).toBe('activeRoast.unsaved.cancelDrop');
     act(() => cancel.click());
     expect(onCancelDrop).toHaveBeenCalledTimes(1);
     unmount();
 
     const unavailable = renderModal({ canCancelDrop: false, onCancelDrop });
-    expect(unavailable.host.querySelector('[data-testid="roast-summary-cancel-drop"]')).toBeNull();
+    expect(document.querySelector('[data-testid="roast-summary-cancel-drop"]')).toBeNull();
     unavailable.unmount();
 });
 
 it('unchecks deductStock when a custom bean name is typed', () => {
     useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
-    const { host, unmount } = renderModal({ selectedBeanId: 'bean-1' });
-    const input = host.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
+    const { unmount } = renderModal({ selectedBeanId: 'bean-1' });
+    const input = document.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
     expect(input).not.toBeNull();
     act(() => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
         setter?.call(input, 'Custom Sample');
         input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    const checkbox = host.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
+    const checkbox = document.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
     unmount();
 });

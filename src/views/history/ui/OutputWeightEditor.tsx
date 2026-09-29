@@ -63,11 +63,15 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
 
     return (
         <div className="mb-2">
-            <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+            <label
+                htmlFor={`history-output-weight-${session.id}`}
+                className="mb-1 block text-[11px] font-medium uppercase tracking-[0.5px] text-muted"
+            >
                 {t('history.expanded.outputWeight')}
-            </div>
+            </label>
             <div className="flex items-center gap-2">
                 <input
+                    id={`history-output-weight-${session.id}`}
                     type="number"
                     inputMode="numeric"
                     min={1}
@@ -75,6 +79,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
                     value={draft}
                     disabled={isPending}
                     placeholder="—"
+                    aria-label={t('history.expanded.outputWeight')}
                     onChange={(e) => {
                         setDraft(e.target.value);
                         setInvalid(false);

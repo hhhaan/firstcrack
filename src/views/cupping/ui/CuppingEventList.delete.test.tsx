@@ -119,7 +119,7 @@ it('opens an in-app confirm dialog from the list trash control', () => {
         trash.click();
     });
 
-    const dialog = host.querySelector('[data-testid="cupping-delete-event-modal"]');
+    const dialog = document.querySelector('[data-testid="cupping-delete-event-modal"]');
     expect(dialog).toBeTruthy();
     expect(dialog?.textContent).toContain('cupping.deleteEventConfirm');
     expect(mutate).not.toHaveBeenCalled();
@@ -141,7 +141,7 @@ it('shows a delete failure in the confirm dialog', () => {
             }),
         ),
     );
-    const alert = host.querySelector('[role="alert"]');
+    const alert = document.querySelector('[role="alert"]');
     expect(alert?.textContent).toBe('cupping.deleteEventFailed');
     act(() => root.unmount());
     host.remove();
@@ -155,7 +155,7 @@ it('deletes the session when the in-app confirm is accepted', () => {
         trash.click();
     });
 
-    const confirmBtn = host.querySelector('[data-testid="cupping-delete-confirm"]') as HTMLButtonElement;
+    const confirmBtn = document.querySelector('[data-testid="cupping-delete-confirm"]') as HTMLButtonElement;
     expect(confirmBtn).toBeTruthy();
 
     act(() => {
@@ -188,7 +188,7 @@ it('calls onDeleted only after a successful detail delete', () => {
         deleteBtn?.click();
     });
 
-    const confirmBtn = host.querySelector('[data-testid="cupping-delete-confirm"]') as HTMLButtonElement;
+    const confirmBtn = document.querySelector('[data-testid="cupping-delete-confirm"]') as HTMLButtonElement;
     expect(confirmBtn).toBeTruthy();
     act(() => {
         confirmBtn.click();

@@ -45,22 +45,22 @@ describe('ProfileHeaterEventsEditor status query', () => {
     });
 
     const waitForEditor = async () => {
-        for (let i = 0; i < 20 && !host.querySelector('[data-testid="heater-events-editor"]'); i++) {
+        for (let i = 0; i < 20 && !document.querySelector('[data-testid="heater-events-editor"]'); i++) {
             await act(async () => {
                 await new Promise((r) => setTimeout(r, 10));
             });
         }
-        return host.querySelector('[data-testid="heater-events-editor"]');
+        return document.querySelector('[data-testid="heater-events-editor"]');
     };
 
     const saveHeater = async (value: string) => {
-        const input = host.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
         await act(async () => {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
             input.dispatchEvent(new Event('input', { bubbles: true }));
         });
         await act(async () =>
-            [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+            [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
         );
     };
 
@@ -95,7 +95,7 @@ describe('ProfileHeaterEventsEditor status query', () => {
         );
         const onApply = vi.fn();
         await renderEditor(onApply);
-        expect(host.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
+        expect(document.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
         expect(onApply).not.toHaveBeenCalled();
 
         await act(async () => {
@@ -105,7 +105,7 @@ describe('ProfileHeaterEventsEditor status query', () => {
         expect(await waitForEditor()).not.toBeNull();
         await saveHeater('50');
         expect(onApply).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
         expect(qc.getQueryState(sidecarStatusKey)?.status).toBe('success');
     });
 
@@ -123,7 +123,7 @@ describe('ProfileHeaterEventsEditor status query', () => {
         );
         const onApply = vi.fn();
         await renderEditor(onApply);
-        expect(host.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
+        expect(document.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
         expect(onApply).not.toHaveBeenCalled();
 
         await act(async () => {
@@ -133,6 +133,6 @@ describe('ProfileHeaterEventsEditor status query', () => {
         expect(await waitForEditor()).not.toBeNull();
         await saveHeater('50');
         expect(onApply).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
     });
 });

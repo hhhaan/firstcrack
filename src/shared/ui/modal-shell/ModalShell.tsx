@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalShellProps {
     children: ReactNode;
@@ -24,7 +25,7 @@ export const ModalShell = ({
     dismissable = true,
     'data-testid': testId,
 }: ModalShellProps) => {
-    return (
+    const overlay = (
         <div
             onClick={dismissable ? onClose : undefined}
             role="presentation"
@@ -42,4 +43,9 @@ export const ModalShell = ({
             </div>
         </div>
     );
+    // container-type / transform / filter ancestors become the containing block for
+    // `fixed` and clip the dialog. Body keeps it viewport-relative. No SSR in this app;
+    // the inline fallback is only for a document-less render.
+    if (typeof document === 'undefined') return overlay;
+    return createPortal(overlay, document.body);
 };
