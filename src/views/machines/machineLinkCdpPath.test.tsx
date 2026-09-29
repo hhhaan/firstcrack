@@ -138,7 +138,6 @@ const renderBoth = () => {
             pollIntervalMs: 500,
             enterPreheating: useRoastingStore.getState().enterPreheating,
             setConnected: useRoastingStore.getState().setConnected,
-            roastStartTimeRef: { current: 0 },
             sessionId: null,
         });
         api.current = useMachineSidecarConnection({

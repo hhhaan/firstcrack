@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reduceSensorObservation, sensorObservationTick } from '../lib/sensorObservation';
 import { useRoastingStore } from './status';
 
@@ -25,7 +25,71 @@ describe('startCharge after Drop (#484)', () => {
         useRoastingStore.getState().startCharge();
         expect(useRoastingStore.getState().awaitingNextCharge).toBe(false);
         expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(false);
-        expect(useRoastingStore.getState().charged).toBe(true);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+    });
+
+    it('refuses another Charge while roasting or ended, then allows one after reset', () => {
+        useRoastingStore.getState().startCharge();
+        const first = useRoastingStore.getState().sessionId;
+        useRoastingStore.getState().startCharge();
+        expect(useRoastingStore.getState().sessionId).toBe(first);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+
+        useRoastingStore.getState().endRoast();
+        useRoastingStore.getState().startCharge();
+        expect(useRoastingStore.getState().sessionId).toBe(first);
+        expect(useRoastingStore.getState().phase).toBe('ended');
+
+        useRoastingStore.getState().setConnected(false);
+        expect(useRoastingStore.getState().phase).toBe('ended');
+
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().startCharge();
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+        expect(useRoastingStore.getState().sessionId).not.toBe(first);
+    });
+});
+
+describe('tick follows phase (#628)', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('updates elapsed from the wall clock while roasting, including after disconnect, and stops after end or reset', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-28T03:00:00.000Z'));
+        useRoastingStore.getState().startCharge();
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+        expect(useRoastingStore.getState().elapsed).toBe(0);
+
+        vi.setSystemTime(Date.now() + 2_500);
+        useRoastingStore.getState().tick();
+        expect(useRoastingStore.getState().elapsed).toBe(2);
+
+        useRoastingStore.getState().setConnected(false);
+        vi.setSystemTime(Date.now() + 1_000);
+        useRoastingStore.getState().tick();
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+        expect(useRoastingStore.getState().sidecarConnected).toBe(false);
+        expect(useRoastingStore.getState().elapsed).toBe(3);
+
+        const endedElapsed = useRoastingStore.getState().elapsed;
+        useRoastingStore.getState().endRoast();
+        vi.setSystemTime(Date.now() + 5_000);
+        useRoastingStore.getState().tick();
+        expect(useRoastingStore.getState().phase).toBe('ended');
+        expect(useRoastingStore.getState().elapsed).toBe(endedElapsed);
+
+        useRoastingStore.getState().reset();
+        vi.setSystemTime(Date.now() + 4_000);
+        useRoastingStore.getState().tick();
+        expect(useRoastingStore.getState().phase).toBe('idle');
+        expect(useRoastingStore.getState().elapsed).toBe(0);
+
+        useRoastingStore.setState({ phase: 'roasting', roastStartMs: 0, elapsed: 9 });
+        vi.setSystemTime(Date.now() + 8_000);
+        useRoastingStore.getState().tick();
+        expect(useRoastingStore.getState().elapsed).toBe(9);
     });
 });
 

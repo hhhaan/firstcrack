@@ -13,7 +13,7 @@ import {
     readPendingRoastSave,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { isChargedPhase, type RoastPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
@@ -32,7 +32,6 @@ import { type RoastSummaryData, useRoastCompletionFlow } from './useRoastComplet
 export interface UseRoastSaveFlowParams {
     planBatchHandoff: PlanBatchHandoff | null;
     elapsed: number;
-    roastStartTimeRef: React.MutableRefObject<number>;
     rawBT: number | null;
     selectedBeanId: string | null;
     targetProfileId: string | null;
@@ -54,16 +53,16 @@ export async function resolveContinueCandidates(params: {
 
 /** Next Charge already owns the machine — A's save must not mutate it. */
 export const isLiveDetachedFromPending = (
-    live: { sessionId: string | null; charged: boolean; awaitingNextCharge: boolean },
+    live: { sessionId: string | null; phase: RoastPhase; awaitingNextCharge: boolean },
     pendingSessionId: string | null | undefined,
 ): boolean =>
-    Boolean(live.sessionId && live.sessionId !== pendingSessionId) || Boolean(live.awaitingNextCharge && !live.charged);
+    Boolean(live.sessionId && live.sessionId !== pendingSessionId) ||
+    Boolean(live.awaitingNextCharge && !isChargedPhase(live.phase));
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const {
         planBatchHandoff,
         elapsed,
-        roastStartTimeRef,
         rawBT,
         selectedBeanId,
         targetProfileId,
@@ -92,7 +91,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             formData,
             userId: useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
             elapsed,
-            roastStartTime: roastStartTimeRef.current,
+            roastStartTime: useRoastingStore.getState().roastStartMs,
             rawBT,
             ambientTemperature,
             ambientHumidity,
@@ -111,7 +110,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         [
             workspaceOwnerId,
             elapsed,
-            roastStartTimeRef,
             rawBT,
             ambientTemperature,
             ambientHumidity,

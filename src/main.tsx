@@ -56,7 +56,7 @@ const bootstrap = async () => {
                 if (quitPending) return;
                 quitPending = true;
                 try {
-                    if (useRoastingStore.getState().isRoasting) {
+                    if (useRoastingStore.getState().phase === 'roasting') {
                         const confirmed = await ask(i18n.t('common.quitConfirmMessage'), {
                             title: i18n.t('common.quitConfirmTitle'),
                             kind: 'warning',

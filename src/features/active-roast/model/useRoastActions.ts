@@ -8,16 +8,14 @@ import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TurningPoint } from '../lib/turningPoints';
 import type { TemperatureUnit } from './settings';
-import { useRoastingStore } from './status';
+import { isChargedPhase, useRoastingStore } from './status';
 
 interface UseRoastActionsParams {
     unit: TemperatureUnit;
     rawBT: number | null;
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
-    setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
     onDrop: (onset?: { timeSec: number; bt: number }) => void;
     storeStartCharge: (originMs?: number, ownerId?: string) => void;
-    roastStartTimeRef: React.MutableRefObject<number>;
 }
 
 interface UseRoastActionsReturn {
@@ -32,25 +30,20 @@ export const useRoastActions = ({
     unit,
     rawBT,
     setLogEntries,
-    setIsRunning,
     onDrop,
     storeStartCharge,
-    roastStartTimeRef,
 }: UseRoastActionsParams): UseRoastActionsReturn => {
     const { workspaceOwnerId } = useActiveWorkspace();
     const triggerCharge = useCallback(
         (btAtCharge?: number | null, chargeTimeMs?: number) => {
             // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
-            if (useRoastingStore.getState().charged) return;
+            if (isChargedPhase(useRoastingStore.getState().phase)) return;
             sidecar.startRoast().catch((error) => {
                 logger.capture(new Error('Roast start command failed'), { reason: String(error) });
             });
             const now = Date.now();
             const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
-            // Same origin for livePoints.time (ref) and elapsed (store roastStartMs)
-            roastStartTimeRef.current = origin;
             storeStartCharge(origin, workspaceOwnerId);
-            setIsRunning(true);
             const btVal = btAtCharge ?? rawBT;
             setLogEntries([
                 {
@@ -64,7 +57,7 @@ export const useRoastActions = ({
                 },
             ]);
         },
-        [unit, rawBT, setLogEntries, setIsRunning, storeStartCharge, roastStartTimeRef, workspaceOwnerId],
+        [unit, rawBT, setLogEntries, storeStartCharge, workspaceOwnerId],
     );
 
     const handleAutoDrop = useCallback(

@@ -96,7 +96,6 @@ const renderFlow = (patch: Partial<UseRoastSaveFlowParams> = {}) => {
         api = useRoastSaveFlow({
             planBatchHandoff: null,
             elapsed: 600,
-            roastStartTimeRef: { current: 0 },
             rawBT: 200,
             selectedBeanId: null,
             targetProfileId: null,
@@ -151,13 +150,13 @@ afterEach(() => {
 
 describe('roast save identity and Continue lifecycle', () => {
     it('treats next Charge and Charge-wait as detached from the saved batch', () => {
-        expect(isLiveDetachedFromPending({ sessionId: 's-b', charged: true, awaitingNextCharge: false }, 's-a')).toBe(
+        expect(
+            isLiveDetachedFromPending({ sessionId: 's-b', phase: 'roasting', awaitingNextCharge: false }, 's-a'),
+        ).toBe(true);
+        expect(isLiveDetachedFromPending({ sessionId: null, phase: 'standby', awaitingNextCharge: true }, 's-a')).toBe(
             true,
         );
-        expect(isLiveDetachedFromPending({ sessionId: null, charged: false, awaitingNextCharge: true }, 's-a')).toBe(
-            true,
-        );
-        expect(isLiveDetachedFromPending({ sessionId: 's-a', charged: true, awaitingNextCharge: false }, 's-a')).toBe(
+        expect(isLiveDetachedFromPending({ sessionId: 's-a', phase: 'ended', awaitingNextCharge: false }, 's-a')).toBe(
             false,
         );
     });
@@ -363,7 +362,6 @@ describe('roast save identity and Continue lifecycle', () => {
             sessionActions.startBatch(handoffB);
             useRoastingStore.setState({
                 phase: 'roasting',
-                charged: true,
                 sessionId: 's-b',
                 elapsed: 12,
                 awaitingNextCharge: false,
@@ -387,8 +385,6 @@ describe('roast save identity and Continue lifecycle', () => {
             sessionActions.startBatch(handoffB);
             useRoastingStore.setState({
                 phase: 'roasting',
-                charged: true,
-                isRoasting: true,
                 sessionId: 's-b',
                 awaitingNextCharge: false,
             });
@@ -406,10 +402,50 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(useRoastSessionStore.getState().planBatchHandoff?.planBatchId).toBe('batch-b');
     });
 
+    it('keeps batch A start time when batch B is charged before A is saved', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-01-15T00:00:00.000Z'));
+        try {
+            const startA = Date.now();
+            useRoastingStore.setState({
+                phase: 'roasting',
+                roastStartMs: startA,
+                sessionId: 's-a',
+                sessionOwnerId: 'workspace-a',
+                elapsed: 600,
+            });
+            const h = renderFlow({ sessionId: 's-a', elapsed: 600 });
+            act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a', elapsedSec: 600 }));
+            expect(listPendingRoastSaves()[0]?.params.roastStartTime).toBe(startA);
+
+            vi.setSystemTime(new Date('2026-07-01T00:00:00.000Z'));
+            useRoastingStore.getState().reset();
+            useRoastingStore.getState().startCharge();
+            const startB = useRoastingStore.getState().roastStartMs;
+            const sessionB = useRoastingStore.getState().sessionId;
+            expect(startB).toBe(Date.now());
+            expect(startB).not.toBe(startA);
+
+            await act(async () => h.api.handleSave({ ...form, beanId: 'bean-a' }));
+            expect(mocks.resumeSave.mock.calls[0][0].params.roastStartTime).toBe(startA);
+            expect(mocks.resumeSave.mock.calls[0][0].params.sessionId).toBe('s-a');
+            expect(useRoastingStore.getState().roastStartMs).toBe(startB);
+            expect(useRoastingStore.getState().sessionId).toBe(sessionB);
+
+            vi.setSystemTime(Date.now() + 60_000);
+            await act(async () => h.api.handleSave({ ...form, beanId: 'bean-a' }));
+            expect(mocks.resumeSave.mock.calls[1][0].params.roastStartTime).toBe(startA);
+            expect(useRoastingStore.getState().roastStartMs).toBe(startB);
+            expect(useRoastingStore.getState().sessionId).toBe(sessionB);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('save during Drop Charge-wait does not wipe the next-batch machine state', async () => {
         const h = renderFlow({ sessionId: 's-a' });
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
-        useRoastingStore.setState({ charged: false, sessionId: null, awaitingNextCharge: true });
+        useRoastingStore.setState({ phase: 'standby', sessionId: null, awaitingNextCharge: true });
         const completeBatch = vi.fn();
         useRoastSessionStore.setState({ completeBatch });
         await act(async () => h.api.handleSave(form));

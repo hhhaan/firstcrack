@@ -61,6 +61,8 @@ beforeEach(() => {
 });
 describe('shared durable save coordinator', () => {
     it('persists before auth and resolves before F3/RPC with the same UUID', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-28T08:00:00.000Z'));
         const d = deps();
         d.ensureAccess = vi.fn(async () => {
             expect(readPendingRoastSave('owner', ID)?.submitted).toBe(true);
@@ -69,16 +71,22 @@ describe('shared durable save coordinator', () => {
             expect(id).toBe(BATCH);
             return true;
         });
-        await resumePendingRoastSave(d);
-        expect(d.saveRoast).toHaveBeenCalledWith(
-            expect.objectContaining({
-                sessionId: ID,
-                userId: 'owner',
-                planBatchHandoff: expect.objectContaining({ planBatchId: BATCH }),
-                formData: expect.objectContaining({ deductStock: false }),
-            }),
-        );
-        expect(readPendingRoastSave('owner', ID)).toBeNull();
+        try {
+            await resumePendingRoastSave(d);
+            expect(d.saveRoast).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sessionId: ID,
+                    userId: 'owner',
+                    roastStartTime: 1234,
+                    planBatchHandoff: expect.objectContaining({ planBatchId: BATCH }),
+                    formData: expect.objectContaining({ deductStock: false }),
+                }),
+            );
+            expect(readPendingRoastSave('owner', ID)).toBeNull();
+            expect(Date.now()).not.toBe(1234);
+        } finally {
+            vi.useRealTimers();
+        }
     });
     it('refreshes caches once after save and before curve sync', async () => {
         const order: string[] = [];
