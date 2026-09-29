@@ -8,7 +8,7 @@ import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TurningPoint } from '../lib/turningPoints';
 import type { TemperatureUnit } from './settings';
-import { useRoastingStore } from './status';
+import { isChargedPhase, useRoastingStore } from './status';
 
 interface UseRoastActionsParams {
     unit: TemperatureUnit;
@@ -39,7 +39,7 @@ export const useRoastActions = ({
     const triggerCharge = useCallback(
         (btAtCharge?: number | null, chargeTimeMs?: number) => {
             // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
-            if (useRoastingStore.getState().charged) return;
+            if (isChargedPhase(useRoastingStore.getState().phase)) return;
             sidecar.startRoast().catch((error) => {
                 logger.capture(new Error('Roast start command failed'), { reason: String(error) });
             });

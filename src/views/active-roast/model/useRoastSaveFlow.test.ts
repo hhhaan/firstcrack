@@ -151,13 +151,13 @@ afterEach(() => {
 
 describe('roast save identity and Continue lifecycle', () => {
     it('treats next Charge and Charge-wait as detached from the saved batch', () => {
-        expect(isLiveDetachedFromPending({ sessionId: 's-b', charged: true, awaitingNextCharge: false }, 's-a')).toBe(
+        expect(
+            isLiveDetachedFromPending({ sessionId: 's-b', phase: 'roasting', awaitingNextCharge: false }, 's-a'),
+        ).toBe(true);
+        expect(isLiveDetachedFromPending({ sessionId: null, phase: 'standby', awaitingNextCharge: true }, 's-a')).toBe(
             true,
         );
-        expect(isLiveDetachedFromPending({ sessionId: null, charged: false, awaitingNextCharge: true }, 's-a')).toBe(
-            true,
-        );
-        expect(isLiveDetachedFromPending({ sessionId: 's-a', charged: true, awaitingNextCharge: false }, 's-a')).toBe(
+        expect(isLiveDetachedFromPending({ sessionId: 's-a', phase: 'ended', awaitingNextCharge: false }, 's-a')).toBe(
             false,
         );
     });
@@ -363,7 +363,6 @@ describe('roast save identity and Continue lifecycle', () => {
             sessionActions.startBatch(handoffB);
             useRoastingStore.setState({
                 phase: 'roasting',
-                charged: true,
                 sessionId: 's-b',
                 elapsed: 12,
                 awaitingNextCharge: false,
@@ -387,7 +386,6 @@ describe('roast save identity and Continue lifecycle', () => {
             sessionActions.startBatch(handoffB);
             useRoastingStore.setState({
                 phase: 'roasting',
-                charged: true,
                 sessionId: 's-b',
                 awaitingNextCharge: false,
             });
@@ -408,7 +406,7 @@ describe('roast save identity and Continue lifecycle', () => {
     it('save during Drop Charge-wait does not wipe the next-batch machine state', async () => {
         const h = renderFlow({ sessionId: 's-a' });
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
-        useRoastingStore.setState({ charged: false, sessionId: null, awaitingNextCharge: true });
+        useRoastingStore.setState({ phase: 'standby', sessionId: null, awaitingNextCharge: true });
         const completeBatch = vi.fn();
         useRoastSessionStore.setState({ completeBatch });
         await act(async () => h.api.handleSave(form));

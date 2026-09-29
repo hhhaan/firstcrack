@@ -5,6 +5,9 @@ import type { SensorObservation } from '../lib/sensorObservation';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
 
+/** idle / preheating / standby are not charged. roasting and ended stay charged until reset. */
+export const isChargedPhase = (phase: RoastPhase): boolean => phase === 'roasting' || phase === 'ended';
+
 type LiveData = {
     bt: number | null;
     bt_raw?: number | null;
@@ -56,9 +59,6 @@ export interface RoastingState {
      */
     heatHoldAfterDrop: boolean;
 
-    /** True after Charge until reset. `ended` stays charged; idle/preheating/standby do not. */
-    charged: boolean;
-
     enterPreheating: (capabilities?: string[]) => void;
     enterStandby: () => void;
     /** originMs: charge wall time (auto-charge onset). Defaults to Date.now(). */
@@ -96,7 +96,6 @@ const initialState = {
     machineSnapshot: null as MachineSnapshot | null,
     awaitingNextCharge: false,
     heatHoldAfterDrop: false,
-    charged: false,
 };
 
 export const useRoastingStore = create<RoastingState>((set, get) => ({
@@ -117,12 +116,11 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     startCharge: (originMs?: number, ownerId?: string) => {
-        if (get().charged) return; // sessionId 재생성 방지 — 심층 방어 (#174)
+        if (isChargedPhase(get().phase)) return; // sessionId 재생성 방지 — 심층 방어 (#174)
         const now = Date.now();
         const origin = originMs != null && originMs > 0 && originMs <= now ? originMs : now;
         set({
             phase: 'roasting',
-            charged: true,
             sessionId: crypto.randomUUID(),
             sessionOwnerId: ownerId || null,
             roastStartMs: origin,

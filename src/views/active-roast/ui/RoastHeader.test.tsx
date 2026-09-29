@@ -92,6 +92,20 @@ it('delegates a profile change and does not save the account default', () => {
     vi.useRealTimers();
 });
 
+it('locks bean change while roasting or ended and unlocks it in standby', () => {
+    useRoastingStore.setState({ phase: 'roasting' });
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastHeader, props)));
+    const beanSelect = host.querySelector('select') as HTMLSelectElement;
+    expect(beanSelect.disabled).toBe(true);
+    act(() => useRoastingStore.setState({ phase: 'ended' }));
+    expect(beanSelect.disabled).toBe(true);
+    act(() => useRoastingStore.setState({ phase: 'standby' }));
+    expect(beanSelect.disabled).toBe(false);
+    act(() => root.unmount());
+});
+
 it('hides reconnecting status when store.reconnecting is false', () => {
     useRoastingStore.setState({ reconnecting: false });
     const host = document.createElement('div');

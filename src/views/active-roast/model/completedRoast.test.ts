@@ -34,7 +34,8 @@ describe('completed roast Drop-cancel boundary', () => {
 
     it('next Charge locks cancel and does not rewind B', () => {
         useCompletedRoastStore.getState().capture(restore);
-        useRoastingStore.setState({ charged: true, sessionId: 's-b' });
+        useRoastingStore.setState({ phase: 'roasting', sessionId: 's-b' });
+        expect(isDropCancelable()).toBe(false);
         useCompletedRoastStore.getState().lockAfterCharge('s-b');
         expect(useCompletedRoastStore.getState().restore).toBeNull();
         expect(isDropCancelable()).toBe(false);

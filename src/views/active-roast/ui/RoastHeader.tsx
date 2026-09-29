@@ -3,7 +3,7 @@ import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { ChevronDown, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -82,7 +82,7 @@ export const RoastHeader = ({
 }) => {
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
-    const charged = useRoastingStore((s) => s.charged);
+    const charged = useRoastingStore((s) => isChargedPhase(s.phase));
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
     const reconnecting = useRoastingStore((s) => s.reconnecting);

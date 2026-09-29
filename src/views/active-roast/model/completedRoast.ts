@@ -1,5 +1,5 @@
 import { canCancelDrop } from '@features/active-roast/lib/drop-transition';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import type { LogEntry } from '@shared/types/roast';
 import { create } from 'zustand';
 import type { LiveRoastPoint } from './useSidecarPolling';
@@ -50,6 +50,6 @@ export const isDropCancelable = (): boolean => {
     const { restore, submitted } = useCompletedRoastStore.getState();
     if (!restore) return false;
     const live = useRoastingStore.getState();
-    const nextCharged = Boolean(live.charged && live.sessionId && live.sessionId !== restore.sessionId);
+    const nextCharged = Boolean(isChargedPhase(live.phase) && live.sessionId && live.sessionId !== restore.sessionId);
     return canCancelDrop({ nextCharged, submitted });
 };

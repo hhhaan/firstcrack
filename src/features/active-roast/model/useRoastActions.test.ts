@@ -48,7 +48,6 @@ const renderActions = (roastStartTimeRef: { current: number }) => {
 const resetStore = () => {
     useRoastingStore.setState({
         phase: 'standby',
-        charged: false,
         sessionId: null,
         roastStartMs: 0,
         elapsed: 0,
@@ -97,6 +96,15 @@ describe('startCharge 심층 방어 가드 (#174)', () => {
         const first = useRoastingStore.getState().sessionId;
         useRoastingStore.getState().startCharge();
         expect(useRoastingStore.getState().sessionId).toBe(first);
+    });
+
+    it('ended 상태에서는 Charge 로그와 session을 만들지 않는다', () => {
+        useRoastingStore.setState({ phase: 'ended', sessionId: 's-ended' });
+        const h = renderActions({ current: 0 });
+        void act(() => h.result.triggerCharge(200));
+        expect(h.setLogEntries).not.toHaveBeenCalled();
+        expect(useRoastingStore.getState().sessionId).toBe('s-ended');
+        expect(useRoastingStore.getState().phase).toBe('ended');
     });
 });
 

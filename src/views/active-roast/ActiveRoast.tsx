@@ -21,7 +21,7 @@ import {
 } from '@features/active-roast';
 import { applyEventMarkerEdit, nearestLivePointAt } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
@@ -56,7 +56,6 @@ import {
     chargeWaitTempBand,
     cycleFcWhenEnabled,
     formatDisplayRoR,
-    isChargedPhase,
     isReplayMachineMismatch,
     isWaitingForCharge,
     latestSampleTime,
