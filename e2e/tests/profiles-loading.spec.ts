@@ -19,6 +19,7 @@ test('profiles tab keeps the header and shows card skeletons, then the empty sta
         const skeleton = page.getByRole('status', { name: 'Loading…' });
         await expect(skeleton).toBeVisible();
         await expect(skeleton.locator('.animate-pulse')).toHaveCount(15);
+        await expect(page.locator('.sticky .animate-pulse')).toHaveCount(14);
         await expect(page.getByPlaceholder('Search profiles...')).toBeVisible();
         await expect(page.getByText('No profiles yet')).toHaveCount(0);
     } finally {
@@ -30,4 +31,5 @@ test('profiles tab keeps the header and shows card skeletons, then the empty sta
     await expect(page.getByRole('heading', { name: 'Roast Profiles' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'New Profile' })).toBeVisible();
     await expect(page.getByRole('status', { name: 'Loading…' })).toHaveCount(0);
+    await expect(page.locator('.sticky .animate-pulse')).toHaveCount(0);
 });

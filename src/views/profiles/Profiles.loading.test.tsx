@@ -40,6 +40,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 const PROFILE_PULSE_COUNT = 5 * 3;
+const DETAIL_PULSE_COUNT = 14;
 
 describe('Profiles loading', () => {
     let host: HTMLDivElement;
@@ -74,6 +75,7 @@ describe('Profiles loading', () => {
         expect(status?.getAttribute('aria-busy')).toBe('true');
         expect(status?.getAttribute('aria-label')).toBe('common.loading');
         expect(status?.querySelectorAll('.animate-pulse').length).toBe(PROFILE_PULSE_COUNT);
+        expect(host.querySelector('.sticky')?.querySelectorAll('.animate-pulse').length).toBe(DETAIL_PULSE_COUNT);
     });
 
     it('keeps the empty state when loading finishes with no profiles', async () => {
@@ -85,5 +87,6 @@ describe('Profiles loading', () => {
         expect(host.textContent).toContain('profiles.empty');
         expect(host.textContent).toContain('profiles.createFirst');
         expect(host.querySelector('[role="status"]')).toBeNull();
+        expect(host.querySelector('.sticky')).toBeNull();
     });
 });

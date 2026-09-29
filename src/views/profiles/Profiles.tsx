@@ -51,6 +51,34 @@ const ProfileListSkeleton = ({ label }: { label: string }) => (
     </div>
 );
 
+const ProfileDetailSkeleton = () => (
+    <div aria-hidden className="min-w-0 rounded-lg bg-main-bg px-8 py-7 dark:border dark:border-[#585d61]">
+        <div className="mb-5 flex items-start justify-between gap-3">
+            <Skeleton width={220} height={28} borderRadius="6px" />
+            <div className="flex shrink-0 gap-1.5">
+                <Skeleton width={72} height={32} borderRadius="9999px" />
+                <Skeleton width={32} height={32} borderRadius="8px" />
+                <Skeleton width={32} height={32} borderRadius="8px" />
+            </div>
+        </div>
+        <div className="mb-5">
+            <Skeleton width={96} height={12} borderRadius="4px" />
+            <div className="mt-2">
+                <Skeleton width="100%" height={160} borderRadius="8px" />
+            </div>
+        </div>
+        <div className="mb-5 grid grid-cols-3 gap-3">
+            {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} width="100%" height={58} borderRadius="8px" />
+            ))}
+        </div>
+        <div className="flex gap-2.5">
+            <Skeleton className="flex-1" height={40} borderRadius="9999px" />
+            <Skeleton width={96} height={40} borderRadius="9999px" />
+        </div>
+    </div>
+);
+
 const COMPARE_COLORS = [
     'var(--color-palette-blue)',
     'var(--color-palette-indigo)',
@@ -332,7 +360,9 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 <MasterDetailLayout
                     left={profileList}
                     detail={
-                        compareMode ? (
+                        isLoading ? (
+                            <ProfileDetailSkeleton />
+                        ) : compareMode ? (
                             <ProfileCompare
                                 compareIds={compareIds}
                                 compareProfiles={compareProfiles}
