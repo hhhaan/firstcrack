@@ -278,11 +278,13 @@ describe('MachineControlPanel display', () => {
         const { host, unmount } = renderPanel(panelModel({ stop }));
         const edit = [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.editHeat');
         act(() => edit?.click());
-        expect(host.querySelector('[data-testid="heater-events-editor"]')).not.toBeNull();
+        expect(document.querySelector('[data-testid="heater-events-editor"]')).not.toBeNull();
         expect(stop).not.toHaveBeenCalled();
-        const cancel = [...host.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.cancel');
+        const cancel = [...document.querySelectorAll('button')].find(
+            (b) => b.textContent === 'heaterEventsEditor.cancel',
+        );
         act(() => cancel?.click());
-        expect(host.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
+        expect(document.querySelector('[data-testid="heater-events-editor"]')).toBeNull();
         unmount();
     });
 });

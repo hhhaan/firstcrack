@@ -983,7 +983,12 @@
             "chartUnavailable": "Chart unavailable",
             "outputWeight": "Output Weight",
             "estimated": "est.",
-            "outputWeightInvalid": "Enter 1–{{max}}g (cannot exceed green input)."
+            "outputWeightInvalid": "Enter 1–{{max}}g (cannot exceed green input).",
+            "summary": "Summary",
+            "keyEvents": "Key events",
+            "heatRecord": "Heat record",
+            "show": "Show details",
+            "hide": "Hide details"
         },
         "scorecard": {
             "title": "vs {{name}}",

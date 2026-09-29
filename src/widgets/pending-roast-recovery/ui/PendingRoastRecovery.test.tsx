@@ -63,13 +63,15 @@ const pending = (overrides: Partial<PendingRoastSave> = {}): PendingRoastSave =>
 });
 const OTHER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const button = (name: string) => {
-    const result = [...host.querySelectorAll('button')].find((el) => el.textContent === `activeRoast.recovery.${name}`);
+    const result = [...document.querySelectorAll('button')].find(
+        (el) => el.textContent === `activeRoast.recovery.${name}`,
+    );
     if (!result) throw new Error(`Missing button: ${name}`);
     return result;
 };
-const discardModal = () => host.querySelector('[data-testid="pending-roast-discard-modal"]');
+const discardModal = () => document.querySelector('[data-testid="pending-roast-discard-modal"]');
 const confirmDiscard = () => {
-    const result = host.querySelector('[data-testid="pending-roast-discard-confirm"]') as HTMLButtonElement | null;
+    const result = document.querySelector('[data-testid="pending-roast-discard-confirm"]') as HTMLButtonElement | null;
     if (!result) throw new Error('Missing in-app discard confirm');
     return result;
 };
@@ -117,7 +119,7 @@ describe('PendingRoastRecovery safety', () => {
         await mount(pending());
         try {
             expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
-            expect(host.querySelector('fieldset')?.disabled).toBe(true);
+            expect(document.querySelector('fieldset')?.disabled).toBe(true);
             expect(button('retry').disabled).toBe(true);
             expect(button('discard').disabled).toBe(true);
             await act(async () => {
@@ -135,8 +137,8 @@ describe('PendingRoastRecovery safety', () => {
         expect(isPendingRoastSaveActive('owner', ID)).toBe(false);
         expect(button('retry').disabled).toBe(false);
         expect(button('discard').disabled).toBe(false);
-        expect(host.querySelector('fieldset')?.disabled).toBe(false);
-        expect(host.textContent).toContain('network offline');
+        expect(document.querySelector('fieldset')?.disabled).toBe(false);
+        expect(document.body.textContent).toContain('network offline');
     });
 
     it.each([false, true])(
@@ -145,8 +147,8 @@ describe('PendingRoastRecovery safety', () => {
             await mount(pending({ submitted }));
             expect(mocks.resume).toHaveBeenCalledTimes(submitted ? 1 : 0);
             expect(readPendingRoastSave('owner', ID)?.submitted).toBe(submitted);
-            await act(async () => (host.querySelector('[role="presentation"]') as HTMLElement).click());
-            expect(host.querySelector('[role="dialog"]')).toBeNull();
+            await act(async () => (document.querySelector('[role="presentation"]') as HTMLElement).click());
+            expect(document.querySelector('[role="dialog"]')).toBeNull();
             expect(readPendingRoastSave('owner', ID)).not.toBeNull();
             await act(async () => button('pending').click());
             await act(async () => button('discard').click());
@@ -177,7 +179,7 @@ describe('PendingRoastRecovery safety', () => {
         );
         await act(async () => root.render(<PendingRoastRecovery />));
         await act(async () => button('pending').click());
-        expect(host.querySelectorAll('section').length).toBe(2);
+        expect(document.querySelectorAll('section').length).toBe(2);
         await act(async () => button('discard').click());
         expect(mocks.ask).not.toHaveBeenCalled();
         expect(discardModal()).toBeTruthy();
@@ -186,7 +188,7 @@ describe('PendingRoastRecovery safety', () => {
         await act(async () => confirmDiscard().click());
         expect(readPendingRoastSave('owner', ID)).toBeNull();
         expect(readPendingRoastSave('owner', OTHER_ID)).not.toBeNull();
-        expect(host.querySelectorAll('section').length).toBe(1);
+        expect(document.querySelectorAll('section').length).toBe(1);
         expect(button('pending')).toBeDefined();
     });
 
@@ -199,7 +201,7 @@ describe('PendingRoastRecovery safety', () => {
         expect(discardModal()).toBeTruthy();
         await act(async () => pressEscape());
         expect(discardModal()).toBeNull();
-        expect(host.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
         expect(readPendingRoastSave('owner', ID)).not.toBeNull();
         expect(button('pending')).toBeDefined();
 
@@ -207,14 +209,14 @@ describe('PendingRoastRecovery safety', () => {
         confirmDiscard().focus();
         await act(async () => pressEscape(confirmDiscard()));
         expect(discardModal()).toBeNull();
-        expect(host.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
         expect(readPendingRoastSave('owner', ID)).not.toBeNull();
 
         await act(async () => button('discard').click());
-        const overlays = host.querySelectorAll('[role="presentation"]');
+        const overlays = document.querySelectorAll('[role="presentation"]');
         await act(async () => (overlays[overlays.length - 1] as HTMLElement).click());
         expect(discardModal()).toBeNull();
-        expect(host.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+        expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
         expect(readPendingRoastSave('owner', ID)).not.toBeNull();
         expect(button('discard')).toBeDefined();
     });
@@ -247,11 +249,11 @@ describe('PendingRoastRecovery safety', () => {
         mocks.find.mockResolvedValue({ id: ID, user_id: 'owner', status: 'completed', plan_batch_id: null });
         mocks.upload.mockRejectedValue(new Error('upload offline'));
         await mount(item);
-        expect(host.textContent).toContain('activeRoast.recovery.syncPending');
-        expect(host.querySelector('fieldset')).toBeNull();
-        expect(host.querySelector('select')).toBeNull();
-        expect(host.querySelector('input[type="number"]')).toBeNull();
-        await act(async () => (host.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
+        expect(document.body.textContent).toContain('activeRoast.recovery.syncPending');
+        expect(document.querySelector('fieldset')).toBeNull();
+        expect(document.querySelector('select')).toBeNull();
+        expect(document.querySelector('input[type="number"]')).toBeNull();
+        await act(async () => (document.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
         await act(async () => button('retry').click());
         expect(mocks.save).not.toHaveBeenCalled();
         expect(mocks.upload).toHaveBeenCalledWith({
@@ -263,6 +265,6 @@ describe('PendingRoastRecovery safety', () => {
         });
         expect(readPendingRoastSave('owner', ID)?.params).toEqual(item.params);
         expect(readPendingRoastSave('owner', ID)?.db).toBe('saved');
-        expect(host.textContent).toContain('upload offline');
+        expect(document.body.textContent).toContain('upload offline');
     });
 });

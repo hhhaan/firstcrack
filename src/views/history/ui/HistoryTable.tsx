@@ -14,7 +14,7 @@ import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HistorySessionChart } from './HistorySessionChart';
 import { OutputWeightEditor } from './OutputWeightEditor';
-import { RecordEditActions } from './RecordEditActions';
+import { RecordSections } from './RecordSections';
 import { SessionScorecard } from './SessionScorecard';
 
 // ── Constants ──
@@ -36,6 +36,13 @@ const levelBg: Record<string, string> = {
     'Dark-Light': 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
 };
 
+const detailTitleCls = 'm-0 mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted';
+
+/** Row actions stay visible (not hover-only) and pinned right when the table scrolls horizontally. */
+const stickyActionsCls = 'sticky right-0 z-[1] bg-main-bg text-right';
+const rowActionCls =
+    'inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-muted transition focus-visible:outline-2 focus-visible:outline-(--color-primary)';
+
 // ── Types ──
 
 export type SortKey = 'date' | 'bean' | 'duration' | 'drop' | 'level' | 'profile' | 'weight';
@@ -44,6 +51,8 @@ type Column = {
     key: SortKey | null;
     label: string;
     width: string;
+    /** Keeps uppercase header text from compressing into the next column. */
+    minWidth?: string;
     sortable: boolean;
     hideOnMd?: boolean;
     render: (s: RoastSessionWithRelations) => ReactNode;
@@ -76,7 +85,8 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: null,
         label: 'charge',
-        width: '80px',
+        width: '160px',
+        minWidth: '160px',
         sortable: false,
         render: (s) =>
             formatTemp(summarizeSessionEvents(parseStoredRoastEvents(s.events), s).charge_temp_celsius, unit),
@@ -84,7 +94,8 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: 'drop',
         label: 'Drop',
-        width: '80px',
+        width: '184px',
+        minWidth: '184px',
         sortable: true,
         render: (s) => formatTemp(s.drop_temp_celsius, unit),
     },
@@ -137,7 +148,7 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: null,
         label: '',
-        width: '80px',
+        width: '112px',
         sortable: false,
         render: () => null,
     },
@@ -174,54 +185,58 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
 
     return (
         <tr className="border-b border-border bg-surface-warm/30">
-            <td colSpan={11} className="px-4 py-4 md:px-6">
-                <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,1.5fr)] items-start gap-6 border-b border-border-subtle pb-2">
-                    {[
-                        { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
-                        {
-                            label: t('history.expanded.chargeTemp'),
-                            value: formatTemp(
-                                summarizeSessionEvents(parseStoredRoastEvents(session.events), session)
-                                    .charge_temp_celsius,
-                                unit,
-                            ),
-                        },
-                        {
-                            label: t('history.expanded.dropTemp'),
-                            value: formatTemp(session.drop_temp_celsius, unit),
-                        },
-                        {
-                            label: t('history.expanded.duration'),
-                            value: formatDuration(sessionRoastMetrics(session).roastDurationSec),
-                        },
-                    ].map(({ label, value }) => (
-                        <div key={label} className="min-w-0">
-                            <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                                {label}
+            <td colSpan={11} className="p-0">
+                {/* Pinned to the visible scroll width so detail, inputs and buttons never slide off-screen. */}
+                <div
+                    id={`history-detail-${session.id}`}
+                    data-testid="history-detail"
+                    className="sticky left-0 w-[100cqw] max-w-full px-4 py-4 md:px-6"
+                >
+                    <h3 className={detailTitleCls}>{t('history.expanded.summary')}</h3>
+                    <div className="grid grid-cols-2 items-start gap-x-6 gap-y-3 border-b border-border-subtle pb-2 @3xl:grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,1.5fr)]">
+                        {[
+                            { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
+                            {
+                                label: t('history.expanded.chargeTemp'),
+                                value: formatTemp(
+                                    summarizeSessionEvents(parseStoredRoastEvents(session.events), session)
+                                        .charge_temp_celsius,
+                                    unit,
+                                ),
+                            },
+                            {
+                                label: t('history.expanded.dropTemp'),
+                                value: formatTemp(session.drop_temp_celsius, unit),
+                            },
+                            {
+                                label: t('history.expanded.duration'),
+                                value: formatDuration(sessionRoastMetrics(session).roastDurationSec),
+                            },
+                        ].map(({ label, value }) => (
+                            <div key={label} className="min-w-0">
+                                <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                    {label}
+                                </div>
+                                <div className="break-words font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
+                                    {value}
+                                </div>
                             </div>
-                            <div className="break-words font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
-                                {value}
-                            </div>
+                        ))}
+                        <OutputWeightEditor session={session} />
+                    </div>
+
+                    <SessionScorecard session={session} />
+
+                    <HistorySessionChart session={session} />
+
+                    <RecordSections session={session} />
+
+                    <section className="mt-3 rounded-lg border border-border-subtle bg-main-bg px-4 py-3">
+                        <h3 className={detailTitleCls}>{t('history.expanded.notes')}</h3>
+                        <div className="min-w-0 whitespace-pre-wrap break-words text-[13px] leading-relaxed tracking-[0.14px] text-secondary">
+                            {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
                         </div>
-                    ))}
-                    <OutputWeightEditor session={session} />
-                </div>
-
-                <SessionScorecard session={session} />
-
-                <div className="mt-3">
-                    <RecordEditActions session={session} />
-                </div>
-
-                <HistorySessionChart session={session} />
-
-                <div className="mt-3 flex items-baseline gap-4 border-t border-border-subtle pt-3">
-                    <div className="shrink-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                        {t('history.expanded.notes')}
-                    </div>
-                    <div className="min-w-0 whitespace-pre-wrap break-words text-[13px] leading-relaxed tracking-[0.14px] text-secondary">
-                        {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
-                    </div>
+                    </section>
                 </div>
             </td>
         </tr>
@@ -298,7 +313,7 @@ export const HistoryTable = ({
     };
 
     return (
-        <div className="overflow-x-auto rounded-lg bg-main-bg dark:border dark:border-[#585d61] [-webkit-overflow-scrolling:touch]">
+        <div className="@container overflow-x-auto rounded-lg bg-main-bg dark:border dark:border-[#585d61] [-webkit-overflow-scrolling:touch]">
             <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
                 <thead>
                     <tr className="border-b border-border-subtle dark:border-[#585d61]">
@@ -309,8 +324,8 @@ export const HistoryTable = ({
                                 <th
                                     key={col.key || `col-${colIdx}`}
                                     onClick={() => col.sortable && col.key && onSort(col.key)}
-                                    className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'}`}
-                                    style={{ width: col.width }}
+                                    className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'} ${col.key === null && col.label === '' ? stickyActionsCls : ''}`}
+                                    style={{ width: col.width, minWidth: col.minWidth }}
                                 >
                                     <span className="flex items-center gap-1 whitespace-nowrap">
                                         {colLabel(col.key || col.label)}
@@ -355,7 +370,7 @@ export const HistoryTable = ({
                                     {columns.map((col, idx) => {
                                         const isActions = col.key === null && col.label === '';
                                         const cellClass = isActions
-                                            ? 'text-right'
+                                            ? stickyActionsCls
                                             : col.key === 'date'
                                               ? 'font-mono text-muted'
                                               : col.key === 'bean'
@@ -368,7 +383,7 @@ export const HistoryTable = ({
                                                 key={col.key || idx}
                                                 title={cellTitle}
                                                 className={`overflow-hidden px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
-                                                style={{ width: col.width }}
+                                                style={{ width: col.width, minWidth: col.minWidth }}
                                             >
                                                 {isActions ? (
                                                     <span className="inline-flex items-center">
@@ -378,7 +393,7 @@ export const HistoryTable = ({
                                                                 event.stopPropagation();
                                                                 onSaveAsProfile(session.id);
                                                             }}
-                                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted opacity-0 transition hover:bg-surface hover:text-primary group-hover:opacity-100 focus:opacity-100"
+                                                            className={`${rowActionCls} hover:bg-surface hover:text-primary`}
                                                             aria-label={t('history.saveAsProfile')}
                                                             title={t('history.saveAsProfile')}
                                                         >
@@ -390,11 +405,45 @@ export const HistoryTable = ({
                                                                 event.stopPropagation();
                                                                 onDeleteClick(session.id);
                                                             }}
-                                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted opacity-0 transition hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626] group-hover:opacity-100 focus:opacity-100"
+                                                            className={`${rowActionCls} hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626]`}
                                                             aria-label={t('history.delete.title')}
+                                                            title={t('history.delete.title')}
                                                         >
                                                             <Trash2 size={14} strokeWidth={2} />
                                                         </button>
+                                                        {!compareMode && (
+                                                            <button
+                                                                type="button"
+                                                                data-testid="history-row-toggle"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    onRowClick(session.id);
+                                                                }}
+                                                                className={`${rowActionCls} hover:bg-surface hover:text-primary`}
+                                                                aria-expanded={isExpanded}
+                                                                aria-controls={
+                                                                    isExpanded
+                                                                        ? `history-detail-${session.id}`
+                                                                        : undefined
+                                                                }
+                                                                aria-label={t(
+                                                                    isExpanded
+                                                                        ? 'history.expanded.hide'
+                                                                        : 'history.expanded.show',
+                                                                )}
+                                                                title={t(
+                                                                    isExpanded
+                                                                        ? 'history.expanded.hide'
+                                                                        : 'history.expanded.show',
+                                                                )}
+                                                            >
+                                                                {isExpanded ? (
+                                                                    <ChevronUp size={14} strokeWidth={2} />
+                                                                ) : (
+                                                                    <ChevronDown size={14} strokeWidth={2} />
+                                                                )}
+                                                            </button>
+                                                        )}
                                                     </span>
                                                 ) : (
                                                     col.render(session)

@@ -39,14 +39,14 @@ const mount = async (props: Partial<Parameters<typeof RecordEventsEditor>[0]>) =
 };
 
 const type = async (label: string, value: string) => {
-    const input = host.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement;
+    const input = document.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement;
     await act(async () => {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
         input.dispatchEvent(new Event('input', { bubbles: true }));
     });
 };
 
-const button = (text: string) => [...host.querySelectorAll('button')].find((b) => b.textContent === text);
+const button = (text: string) => [...document.querySelectorAll('button')].find((b) => b.textContent === text);
 
 afterEach(async () => {
     await act(async () => root?.unmount());
@@ -56,9 +56,9 @@ afterEach(async () => {
 describe('RecordEventsEditor', () => {
     it('keeps Charge time read-only', async () => {
         await mount({});
-        expect((host.querySelector('input[aria-label="Charge history.edit.time"]') as HTMLInputElement).readOnly).toBe(
-            true,
-        );
+        expect(
+            (document.querySelector('input[aria-label="Charge history.edit.time"]') as HTMLInputElement).readOnly,
+        ).toBe(true);
     });
 
     it('blocks an order inversion without saving', async () => {
@@ -67,7 +67,7 @@ describe('RecordEventsEditor', () => {
         await type('FC Start history.edit.time', '10:30');
         await act(async () => button('history.edit.save')?.click());
         expect(onSave).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('history.edit.invalidOrder');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('history.edit.invalidOrder');
     });
 
     it('cancel closes without saving', async () => {
@@ -89,21 +89,21 @@ describe('RecordEventsEditor', () => {
         );
         const onClose = await mount({ onSave, errorText: () => 'conflict' });
         await type('Drop history.edit.temp', '215');
-        const form = host.querySelector('form') as HTMLFormElement;
+        const form = document.querySelector('form') as HTMLFormElement;
         await act(async () => {
             form.requestSubmit();
             form.requestSubmit();
         });
         expect(onSave).toHaveBeenCalledTimes(1);
-        expect(host.querySelector('fieldset')?.disabled).toBe(true);
+        expect(document.querySelector('fieldset')?.disabled).toBe(true);
         expect(button('history.edit.saving')?.disabled).toBe(true);
 
         await act(async () => reject({ code: 'PT409' }));
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('conflict');
-        expect((host.querySelector('input[aria-label="Drop history.edit.temp"]') as HTMLInputElement).value).toBe(
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('conflict');
+        expect((document.querySelector('input[aria-label="Drop history.edit.temp"]') as HTMLInputElement).value).toBe(
             '215',
         );
-        expect(host.querySelector('fieldset')?.disabled).toBe(false);
+        expect(document.querySelector('fieldset')?.disabled).toBe(false);
         expect(onClose).not.toHaveBeenCalled();
     });
 
@@ -119,6 +119,42 @@ describe('RecordEventsEditor', () => {
         ]);
         expect(onClose).toHaveBeenCalled();
     });
+
+    it('ignores Escape while saving and closes on Escape after the save settles', async () => {
+        let rejectSave: (error: unknown) => void = () => {};
+        const onSave = vi.fn(
+            () =>
+                new Promise<void>((_, reject) => {
+                    rejectSave = reject;
+                }),
+        );
+        const onClose = await mount({ onSave, errorText: () => 'conflict' });
+        await type('Drop history.edit.temp', '215');
+        const form = document.querySelector('form') as HTMLFormElement;
+        const pressEscape = () =>
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        await act(async () => {
+            form.requestSubmit();
+        });
+        await act(async () => {
+            pressEscape();
+        });
+        expect(onSave).toHaveBeenCalledTimes(1);
+        expect(onClose).not.toHaveBeenCalled();
+        expect(document.querySelector('[data-testid="record-events-editor"]')).not.toBeNull();
+
+        await act(async () => {
+            rejectSave(new Error('nope'));
+        });
+        expect(onClose).not.toHaveBeenCalled();
+        expect(document.querySelector('fieldset')?.disabled).toBe(false);
+
+        await act(async () => {
+            pressEscape();
+        });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
         ['FC Start history.edit.time', '8:0a', '8:00'],
         ['FC Start history.edit.time', '8:61', '8:00'],
@@ -130,6 +166,6 @@ describe('RecordEventsEditor', () => {
     ])('limits %s input: %s → %s', async (label, typed, expected) => {
         await mount({});
         await type(label, typed);
-        expect((host.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement).value).toBe(expected);
+        expect((document.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement).value).toBe(expected);
     });
 });
