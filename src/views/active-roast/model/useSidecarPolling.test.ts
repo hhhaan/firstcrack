@@ -615,6 +615,7 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
             pollIntervalMs: 500,
             autoDropEnabled: true,
             autoDropMode: 'standard',
+            autoDropStartMin: 7,
             yellowTempC: 150,
             unit: 'C',
             logEntries: [],
