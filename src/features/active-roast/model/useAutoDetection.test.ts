@@ -19,6 +19,7 @@ type Props = {
     autoChargeMode?: 'standard' | 'sensitive';
     autoDropEnabled?: boolean;
     autoDropMode?: 'standard' | 'sensitive';
+    autoDropStartMin?: number;
     pollIntervalMs?: 500 | 1000;
     onAutoCharge?: (bt: number, timeMs?: number) => void;
     onAutoDrop?: (onset?: { timeSec: number; bt: number }) => void;
@@ -53,6 +54,7 @@ const renderAutoDetection = (initial: Props) => {
             pollIntervalMs: p.pollIntervalMs ?? 500,
             autoDropEnabled: p.autoDropEnabled ?? true,
             autoDropMode: p.autoDropMode ?? 'standard',
+            autoDropStartMin: p.autoDropStartMin ?? 7,
             yellowTempC: 150,
             unit: 'C',
             markEvent: p.markEvent,
@@ -238,12 +240,20 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
                 ),
         );
     };
-    const setup = (phase: 'standby' | 'roasting' | 'preheating' = 'standby', elapsed = 200) => {
+    const setup = (
+        phase: 'standby' | 'roasting' | 'preheating' = 'standby',
+        elapsed = 200,
+        extra: Partial<Props> = {},
+    ) => {
         act(() => useRoastingStore.setState({ phase, elapsed, roastStartMs: origin, sidecarConnected: true }));
         const onAutoCharge = vi.fn();
         const onAutoDrop = vi.fn();
-        const h = renderAutoDetection({ livePoints: [], markEvent: noop, onAutoCharge, onAutoDrop });
-        return { ...h, onAutoCharge, onAutoDrop };
+        const props: Props = { livePoints: [], markEvent: noop, onAutoCharge, onAutoDrop, ...extra };
+        const h = renderAutoDetection(props);
+        return { ...h, onAutoCharge, onAutoDrop, props };
+    };
+    const fallingDrop = (startT = 0) => {
+        for (let i = 0; i <= 16; i++) sample(startT + i, 200 - Math.max(0, i - 10));
     };
 
     it.each([0.5, 1])('detects slow charge at %ss polling with jitter and raw onset time', (interval) => {
@@ -479,6 +489,98 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         const h = setup('roasting', 430);
         act(() => h.result.disableAutoDrop());
         for (let i = 0; i <= 16; i++) sample(i, 200 - Math.max(0, i - 10));
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [7 * 60 - 1, false],
+        [7 * 60, false],
+        [7 * 60 + 1, true],
+    ] as const)('default 7 min gate: elapsed %ss fires=%s (exact minute does not)', (elapsed, fires) => {
+        const h = setup('roasting', elapsed);
+        fallingDrop();
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(fires ? 1 : 0);
+    });
+
+    it.each([
+        [3 * 60 - 1, false],
+        [3 * 60, false],
+        [3 * 60 + 1, true],
+        [5 * 60, true],
+    ] as const)('start=3 min: elapsed %ss fires=%s', (elapsed, fires) => {
+        const h = setup('roasting', elapsed, { autoDropStartMin: 3 });
+        fallingDrop();
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(fires ? 1 : 0);
+    });
+
+    it.each([
+        ['standard', 500],
+        ['standard', 1000],
+        ['sensitive', 500],
+        ['sensitive', 1000],
+    ] as const)('detects a ~5 min drop at %s / %ims when start is 3 min', (autoDropMode, pollIntervalMs) => {
+        const h = setup('roasting', 5 * 60, { autoDropStartMin: 3, autoDropMode, pollIntervalMs });
+        fallingDrop();
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
+        expect(h.onAutoDrop.mock.calls[0][0].bt).toBeGreaterThan(160);
+    });
+
+    it('does not fire a pre-gate candidate when the gate opens', () => {
+        // 1000ms detector: samples 0–5 leave a pending onset; sample 6 would confirm it.
+        const h = setup('roasting', 7 * 60, { pollIntervalMs: 1000 });
+        for (const [i, bt] of [200, 200, 200, 199, 198, 197].entries()) sample(i, bt);
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+        act(() => useRoastingStore.setState({ elapsed: 7 * 60 + 1 }));
+        sample(6, 196);
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+        fallingDrop(20);
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not replay a pre-gate drop after the start minute is lowered', () => {
+        const h = setup('roasting', 5 * 60, { autoDropStartMin: 7 });
+        fallingDrop();
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+        h.render({ ...h.props, autoDropStartMin: 3 });
+        sample(17, 193);
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+        fallingDrop(40);
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops a pending candidate when the start minute changes while the gate is already open', () => {
+        const h = setup('roasting', 400, { autoDropStartMin: 3, pollIntervalMs: 1000 });
+        for (const [i, bt] of [200, 200, 200, 199, 198, 197].entries()) sample(i, bt);
+        h.render({ ...h.props, autoDropStartMin: 4 });
+        sample(6, 196);
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+    });
+
+    it('does not duplicate Drop across toggle, disconnect, or the next batch until reset', () => {
+        const h = setup('roasting', 5 * 60, { autoDropStartMin: 3 });
+        fallingDrop();
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
+        h.render({ ...h.props, autoDropEnabled: false });
+        h.render(h.props);
+        fallingDrop(40);
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
+        act(() => {
+            useRoastingStore.getState().setConnected(false);
+            useRoastingStore.getState().setConnected(true);
+        });
+        fallingDrop(80);
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
+        act(() => h.result.resetAutoDetection());
+        fallingDrop(120);
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(2);
+    });
+
+    it('blocks auto Drop when a manual Drop is already in the log', () => {
+        const h = setup('roasting', 5 * 60, {
+            autoDropStartMin: 3,
+            logEntries: [{ time: '5:00', event: 'Drop', temp: '200', note: '' }],
+        });
+        fallingDrop();
         expect(h.onAutoDrop).not.toHaveBeenCalled();
     });
 });

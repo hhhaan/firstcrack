@@ -127,12 +127,12 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                     <span>
                         {t('bbp.chargeTemp')}: {formatTemp(session.charge_temp_celsius, unit)}
                     </span>
-                    {bbpStatus && <span role="status">{t(bbpStatus)}</span>}
-                    {roastStatus && <span role="status">{t(roastStatus)}</span>}
+                    {bbpStatus && <output>{t(bbpStatus)}</output>}
+                    {roastStatus && <output>{t(roastStatus)}</output>}
                     {referenceStatus && (
-                        <span role="status">
+                        <output>
                             {referenceStatus.name} · {t(referenceStatus.key)}
-                        </span>
+                        </output>
                     )}
                 </div>
                 <button

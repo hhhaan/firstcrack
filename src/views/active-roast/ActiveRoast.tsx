@@ -12,7 +12,6 @@ import {
     computePhaseSegments,
     formatTemp,
     isRoastShortcutBaseEnabled,
-    toDisplayRoR,
     useBbpStore,
     useBbpTimer,
     useEffectivePollIntervalMs,
@@ -46,25 +45,27 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import {
-    bbpRuntime,
-    chargedPhase,
-    chargeTempC,
-    dropCanCancel,
-    fcShortcut,
-    lastSampleSec,
-    liveChartFields,
-    machineKeyMismatch,
+    autoChargeUnavailable,
+    autoDropUnavailable,
+    batchRoastFinished,
+    bbpChargeWaitActive,
+    bbpElapsedWhenEnabled,
+    bbpFeatureEnabled,
+    buildChartFrame,
+    canCancelDrop,
+    chargeWaitTempBand,
+    cycleFcWhenEnabled,
+    formatDisplayRoR,
+    isChargedPhase,
+    isReplayMachineMismatch,
+    isWaitingForCharge,
+    latestSampleTime,
     orEmpty,
     orNull,
-    orZero,
-    replayPointsOf,
-    roastHeatHeld,
-    selectionEpoch,
-    stageChrome,
-    summaryFields,
-    waitBandTemps,
-    waitingForChargeOf,
-} from './lib/active-roast-view';
+    profileSelectionEpoch,
+    replayPointsForProfile,
+    showPendingSummary,
+} from './lib/active-roast-screen';
 import {
     chartOnlyPreheatDecision,
     noteChartOnlyPreheatMount,
@@ -87,6 +88,7 @@ import { useRoastLifecycle } from './model/useRoastLifecycle';
 import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
 import { useSidecarPolling } from './model/useSidecarPolling';
+import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
 import { ReplayProfileChangeModal } from './ui/ReplayProfileChangeModal';
@@ -94,7 +96,6 @@ import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
 import { RoastSidePanel } from './ui/RoastSidePanel';
 import { RoastSummaryModal } from './ui/RoastSummaryModal';
-import { UnsavedRoastBanner } from './ui/UnsavedRoastBanner';
 
 interface ActiveRoastProps {
     isActive: boolean;
@@ -112,24 +113,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
-    const bbpFeatureOn = useFeature(FEATURE.bbp);
+    const bbpEnabled = bbpFeatureEnabled(useFeature(FEATURE.bbp), roastSettings.bbpEnabled);
     const bbpElapsed = useBbpTimer();
+    const bbpTimer = bbpElapsedWhenEnabled(bbpEnabled, bbpElapsed);
     const bbpActive = useBbpStore((s) => s.active);
     const bbpRecording = useBbpStore((s) => s.recording);
     const bbpPoints = useBbpStore((s) => s.points);
     const awaitingNextCharge = useRoastingStore((s) => s.awaitingNextCharge);
     const heatHoldAfterDrop = useRoastingStore((s) => s.heatHoldAfterDrop);
-    const bbp = bbpRuntime({
-        featureOn: bbpFeatureOn,
-        settingOn: roastSettings.bbpEnabled,
-        elapsed: bbpElapsed,
-        active: bbpActive,
-        recording: bbpRecording,
-        awaitingNextCharge,
-    });
-    const bbpEnabled = bbp.enabled;
-    const bbpTimer = bbp.timer;
-    const bbpChargeWait = bbp.chargeWait;
+    const bbpChargeWait = bbpChargeWaitActive(bbpActive, bbpRecording, awaitingNextCharge);
 
     useEffect(() => {
         if (!roastSettings.bbpEnabled) {
@@ -176,16 +168,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setConnected,
     } = storeActions;
 
-    const charged = chargedPhase(phase);
+    const charged = isChargedPhase(phase);
     const roastEnded = phase === 'ended';
 
     // ── 유저 + DB 프로파일 ────────────────────────────────────────
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
-    const userId = orEmpty(user?.id);
-    const { data: userProfile } = useProfile(userId);
-    const { mutate: updateProfile } = useUpdateProfile(userId);
+    const { data: userProfile } = useProfile(user?.id ?? '');
+    const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
     const saveDefaultProfile = useCallback(
         (id: string | null) => {
             updateProfile({ default_roast_profile_id: id });
@@ -215,7 +206,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const commitApprovedTarget = useCallback((_id: string | null) => {
         replayStopRef.current('profileChanged');
     }, []);
-    const profileSelectionEpoch = selectionEpoch(workspaceOwnerId, sessionId);
+    const selectionEpoch = profileSelectionEpoch(workspaceOwnerId, sessionId);
     const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
         useRoastProfileSelection({
             isActive,
@@ -226,7 +217,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             confirmTargetChange,
             commitApprovedTarget,
             saveDefaultProfile,
-            selectionEpoch: profileSelectionEpoch,
+            selectionEpoch,
         });
 
     // ── UI 상태 ───────────────────────────────────────────────────
@@ -252,8 +243,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastStartTimeRef = useRef(useRoastingStore.getState().roastStartMs);
 
     // ── 도메인 훅 ─────────────────────────────────────────────────
-    const rawBT = orNull(liveData?.bt);
-    const rawET = orNull(liveData?.et);
+    const rawBT = liveData?.bt ?? null;
+    const rawET = liveData?.et ?? null;
     const timeStr = formatElapsed(elapsed);
 
     const { logEntries, pressedButtons, markEvent, cycleFc, fcDualUnwind, setLogEntries, removeLogEntry } = useRoastLog(
@@ -271,7 +262,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setConnected,
         roastStartTimeRef,
         sessionId,
-        chargeBt: chargeTempC(logEntries),
+        chargeBt: logEntries.find((entry) => entry.event === 'Charge')?.tempC ?? null,
     });
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
@@ -280,12 +271,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [dbProfiles, targetProfileId, workspaceOwnerId],
     );
     const { points: targetCurvePoints, isLoading: curveLoading } = useResolvedProfileCurve(targetProfile);
-    const replayPoints = replayPointsOf(targetProfileId, curveLoading, targetCurvePoints);
+    const replayPoints = replayPointsForProfile(targetProfileId, curveLoading, targetCurvePoints);
     const sourceSession = resolveSourceSession(targetProfile?.source_session);
-    const waitingForCharge = waitingForChargeOf(bbpActive, charged);
+    const waitingForCharge = isWaitingForCharge(bbpActive, charged);
     const bbpTarget = useBbpCurve(
         workspaceOwnerId,
-        orNull(targetProfile?.source_session_id),
+        targetProfile?.source_session_id ?? null,
         sourceSession?.bbp_tsv_path,
         waitingForCharge,
     );
@@ -309,9 +300,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
 
     // Replay는 같은 기기만 — 키가 양쪽 다 있고 다를 때만 차단(레거시 null 프로파일은 허용)
-    const referenceKey = orNull(targetProfile?.machine_roaster_key);
-    const currentKey = orNull(machineSnapshot?.machine_roaster_key);
-    const replayMachineMismatch = machineKeyMismatch(referenceKey, currentKey);
+    const referenceKey = targetProfile?.machine_roaster_key ?? null;
+    const currentKey = machineSnapshot?.machine_roaster_key ?? null;
+    const replayMachineMismatch = isReplayMachineMismatch(referenceKey, currentKey);
     // biome-ignore lint/correctness/useExhaustiveDependencies: identity for in-flight Replay profile confirm
     useEffect(() => {
         profileChangeGenRef.current += 1;
@@ -351,10 +342,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             }),
         [bbpActive, bbpEnabled, bbpPoints, bbpTarget.data, bbpTarget.isError, charged, livePoints, targetCurvePoints],
     );
-    const bbpNowSec = lastSampleSec(bbpPoints);
-    const waitTemps = waitBandTemps(waitingForCharge, bbpActive, bbpPoints, livePoints, chartView.targetPoints);
-    const bbpTempMinC = Math.floor(Math.min(roastSettings.tempMinC, ...waitTemps) / 10) * 10;
-    const bbpTempMaxC = Math.ceil(Math.max(roastSettings.tempMaxC, ...waitTemps) / 10) * 10;
+    const bbpNowSec = latestSampleTime(bbpPoints);
+    const { tempMinC: bbpTempMinC, tempMaxC: bbpTempMaxC } = chargeWaitTempBand({
+        waiting: waitingForCharge,
+        bbpActive,
+        bbpPoints,
+        livePoints,
+        targetPoints: chartView.targetPoints,
+        tempMinC: roastSettings.tempMinC,
+        tempMaxC: roastSettings.tempMaxC,
+    });
 
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
     const chart = useChartPipeline({
@@ -430,7 +427,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     });
     const completedRestore = useCompletedRoastStore((s) => s.restore);
     const completedSubmitted = useCompletedRoastStore((s) => s.submitted);
-    const dropCancelable = dropCanCancel(completedRestore, completedSubmitted, charged, sessionId);
+    const dropCancelable = canCancelDrop({
+        hasRestore: Boolean(completedRestore),
+        submitted: completedSubmitted,
+        charged,
+        sessionId,
+        restoreSessionId: completedRestore?.sessionId,
+    });
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
 
@@ -476,6 +479,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         pollIntervalMs,
         autoDropEnabled: roastSettings.autoDropEnabled,
         autoDropMode: roastSettings.autoDropMode,
+        autoDropStartMin: roastSettings.autoDropStartMin,
         yellowTempC: roastSettings.yellowTempC,
         unit,
         markEvent,
@@ -736,7 +740,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             roastSettings.showPhaseBar ? computePhaseSegments(logEntries, roastDurationSec ?? elapsed, charged) : [],
         [roastSettings.showPhaseBar, logEntries, roastDurationSec, elapsed, charged, resolvedTheme],
     );
-    const displayRoR = toDisplayRoR(orZero(liveData?.ror), unit).toFixed(1);
+    const displayRoR = formatDisplayRoR(liveData?.ror, unit);
 
     // ── 키보드 단축키 ─────────────────────────────────────────────
     useRoastKeyboardShortcuts({
@@ -754,7 +758,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             void lifecycle.handleManualCharge();
         },
         onMarkEvent: markEvent,
-        onCycleFc: fcShortcut(fcDualMarkEnabled, cycleFc),
+        onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
         onMarkDrop: markDrop,
     });
 
@@ -852,7 +856,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         reconnecting,
         liveData,
         pidRuntime,
-        roastFinished: roastHeatHeld(heatHoldAfterDrop, roastEnded, logEntries),
+        roastFinished: batchRoastFinished(
+            heatHoldAfterDrop,
+            roastEnded,
+            logEntries.some((e) => e.event === 'Drop'),
+        ),
         pidDropBehavior: roastSettings.pidDropBehavior,
         replayPoints,
         replayMachineMismatch,
@@ -893,43 +901,47 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => buildRoastLogDisplayEntries(logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit),
         [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit],
     );
-
-    const chrome = stageChrome({
+    const chartFrame = buildChartFrame({
         isFullscreen,
         bbpActive,
         bbpNowSec,
-        bbpEndSec: chartView.bbpRange?.end,
-        summaryOpen: saveFlow.flow.summaryModal,
-        summaryData: saveFlow.flow.summaryData,
-        phase,
-        autoChargeEnabled: roastSettings.autoChargeEnabled,
-        autoDropEnabled: roastSettings.autoDropEnabled,
-        hasRawTemperature,
-    });
-    const chartFields = liveChartFields({
-        settings: roastSettings,
-        targetProfileId,
-        targetPointCount: chartView.targetPoints.length,
-        targetCurveCount: targetCurvePoints.length,
-        bbpActive,
+        bbpRange: chartView.bbpRange,
         bbpRecording,
         awaitingNextCharge,
-        bbpRange: chartView.bbpRange,
-        bbpNowSec,
+        showTargetCurve: roastSettings.showTargetCurve,
+        targetProfileId,
+        targetPointCount: chartView.targetPoints.length,
+        showTargetDeltaLabel: roastSettings.showTargetDeltaLabel,
+        targetCurvePointCount: targetCurvePoints.length,
+        showControlChart: roastSettings.showControlChart,
+        showControlDrum: roastSettings.showControlDrum,
+        showControlHeat: roastSettings.showControlHeat,
+        showControlFan: roastSettings.showControlFan,
+        showProfileDrum: roastSettings.showProfileDrum,
+        showProfileHeat: roastSettings.showProfileHeat,
+        showProfileFan: roastSettings.showProfileFan,
+        controlXs: chart.visibleControlXs,
+        drumTemp: chart.visibleDrumTemp,
+        heatPower: chart.visibleHeatPower,
+        fanSpeed: chart.visibleFanSpeed,
+        heatSet: chart.visibleHeatSet,
+        heatTarget,
+        referenceXs: chart.visibleTargetXs,
+        referenceDrum: chart.visibleTargetDrum,
+        referenceHeater: chart.visibleTargetHeater,
+        referenceFan: chart.visibleTargetFan,
         elapsed,
         charged,
         roastEnded,
-        chart,
-        heatTarget,
         eventMarkers,
         turningPoints,
         phaseSegments,
+        showFcBand: roastSettings.showFcBand,
         onEventMarkerDrag: handleEventMarkerDrag,
         onEventMarkerEdit: handleEventMarkerEdit,
         onEventMarkerDelete: removeLogEntry,
         onAddNote: handleChartNote,
     });
-    const summary = summaryFields(saveFlow.flow.summaryData);
 
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
@@ -944,30 +956,29 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onOpenRoastSettings={onOpenRoastSettings}
             />
 
-            {chrome.unsavedTime != null && (
-                <UnsavedRoastBanner timeStr={chrome.unsavedTime} onReopen={saveFlow.flow.reopenSummary} />
-            )}
-
-            {chrome.showAutoCharge && (
-                <p role="status" className="text-sm text-muted-foreground">
-                    {t('settings.tabs.roast.autoChargeUnavailable')}
-                </p>
-            )}
-            {chrome.showAutoDrop && (
-                <p role="status" className="text-sm text-muted-foreground">
-                    {t('settings.tabs.roast.autoDropUnavailable')}
-                </p>
-            )}
+            <ActiveRoastSensorNotices
+                showUnsavedBanner={showPendingSummary(saveFlow.flow.summaryModal, saveFlow.flow.summaryData)}
+                unsavedTime={orEmpty(saveFlow.flow.summaryData?.totalTime)}
+                onReopenUnsaved={saveFlow.flow.reopenSummary}
+                showAutoChargeUnavailable={autoChargeUnavailable(
+                    phase,
+                    roastSettings.autoChargeEnabled,
+                    hasRawTemperature,
+                )}
+                showAutoDropUnavailable={autoDropUnavailable(phase, roastSettings.autoDropEnabled, hasRawTemperature)}
+                autoChargeMessage={t('settings.tabs.roast.autoChargeUnavailable')}
+                autoDropMessage={t('settings.tabs.roast.autoDropUnavailable')}
+            />
 
             <div
-                className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${chrome.chartClass}`}
-                data-testid={chrome.bbpTestId}
-                data-bbp-elapsed={chrome.bbpElapsed}
-                data-bbp-span={chrome.bbpSpan}
+                className={chartFrame.className}
+                data-testid={chartFrame.testId}
+                data-bbp-elapsed={chartFrame.bbpElapsed}
+                data-bbp-span={chartFrame.bbpSpan}
             >
                 <div className="flex gap-0 flex-1 min-h-0 flex-row">
                     <RoastChartContainer
-                        bbpRange={chartFields.bbpRange}
+                        bbpRange={chartFrame.bbpRange}
                         chartAreaRef={chart.chartAreaRef}
                         mainChartHeight={chart.mainChartHeight}
                         effectiveZoomRange={chart.effectiveZoomRange}
@@ -984,18 +995,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         targetBt={chart.visibleTargetBt}
                         targetEt={chart.visibleTargetEt}
                         targetRor={chart.visibleTargetRor}
-                        showTargetCurve={chartFields.showTargetCurve}
+                        showTargetCurve={chartFrame.showTargetCurve}
                         showProfileBt={roastSettings.showProfileBt}
                         showProfileEt={roastSettings.showProfileEt}
                         showProfileRor={roastSettings.showProfileRor}
                         showProfileDrum={roastSettings.showProfileDrum}
                         showProfileHeat={roastSettings.showProfileHeat}
                         showProfileFan={roastSettings.showProfileFan}
-                        showTargetDeltaLabel={chartFields.showTargetDeltaLabel}
+                        showTargetDeltaLabel={chartFrame.showTargetDeltaLabel}
                         showET={roastSettings.showET}
                         showRoR={roastSettings.showRoRChart}
                         showRoRET={roastSettings.showRoRET}
-                        controlData={chartFields.controlData}
+                        controlData={chartFrame.controlData}
                         showControlDrum={roastSettings.showControlDrum}
                         showControlHeat={roastSettings.showControlHeat}
                         showControlFan={roastSettings.showControlFan}
@@ -1006,20 +1017,20 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         tempMaxC={bbpTempMaxC}
                         rorYMin={roastSettings.rorYMin}
                         rorYMax={roastSettings.rorYMax}
-                        elapsed={chartFields.elapsed}
-                        charged={chartFields.charged}
+                        elapsed={chartFrame.elapsed}
+                        charged={chartFrame.charged}
                         eventMarkerStyle={roastSettings.eventMarkerStyle}
-                        eventMarkers={chartFields.eventMarkers}
-                        turningPoints={chartFields.turningPoints}
-                        phaseSegments={chartFields.phaseSegments}
-                        showFcBand={chartFields.showFcBand}
+                        eventMarkers={chartFrame.eventMarkers}
+                        turningPoints={chartFrame.turningPoints}
+                        phaseSegments={chartFrame.phaseSegments}
+                        showFcBand={chartFrame.showFcBand}
                         unit={unit}
                         targetProfileName={targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}
-                        onEventMarkerDrag={chartFields.onEventMarkerDrag}
-                        onEventMarkerEdit={chartFields.onEventMarkerEdit}
-                        onEventMarkerDelete={chartFields.onEventMarkerDelete}
-                        onAddNote={chartFields.onAddNote}
+                        onEventMarkerDrag={chartFrame.onEventMarkerDrag}
+                        onEventMarkerEdit={chartFrame.onEventMarkerEdit}
+                        onEventMarkerDelete={chartFrame.onEventMarkerDelete}
+                        onAddNote={chartFrame.onAddNote}
                     />
 
                     {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}
@@ -1094,9 +1105,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 isSaving={saveFlow.isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
-                selectedBeanId={summary.selectedBeanId}
-                planBatchHandoff={summary.planBatchHandoff}
-                fallbackBeanName={summary.fallbackBeanName}
+                selectedBeanId={orNull(saveFlow.flow.summaryData?.selectedBeanId)}
+                planBatchHandoff={orNull(saveFlow.flow.summaryData?.planBatchHandoff)}
+                fallbackBeanName={orNull(saveFlow.flow.summaryData?.handoffBeanName)}
                 onClose={saveFlow.flow.closeSummary}
                 canCancelDrop={dropCancelable}
                 onCancelDrop={handleCancelDrop}

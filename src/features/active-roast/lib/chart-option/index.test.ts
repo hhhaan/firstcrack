@@ -1,47 +1,8 @@
 import * as echarts from 'echarts';
 import { describe, expect, it } from 'vitest';
+import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
-import type { ChartOptionParams, ResolvedChartColors } from './types';
-
-const mockColors: ResolvedChartColors = {
-    btTarget: '#1',
-    btTargetTooltip: '#2',
-    btActual: '#3',
-    etActual: '#4',
-    etTarget: '#25',
-    rorActual: '#5',
-    rorTarget: '#26',
-    tp: '#6',
-    phaseLines: '#7',
-    currentTimeLine: '#8',
-    nowLabel: '#9',
-    gridLine: '#a',
-    gridLineMinor: '#b',
-    axisLabel: '#c',
-    axisPointerLine: '#d',
-    tooltipTimeColor: '#e',
-    tooltipBg: '#f',
-    tooltipBorder: '#10',
-    markerLabelColor: '#11',
-    phaseBarStroke: '#12',
-    phaseBarName: '#13',
-    phaseBarDuration: '#14',
-    controlDrum: '#15',
-    controlDrumTarget: '#27',
-    controlHeat: '#16',
-    controlHeatTarget: '#28',
-    controlHeatArea: '#17',
-    controlFan: '#18',
-    controlFanTarget: '#29',
-    controlFanArea: '#19',
-    eventMark: '#23',
-    eventControl: '#24',
-    fcBandFill: 'rgba(105,103,225,0.1)',
-    bbpFill: '#efeff0',
-    targetDeltaWithin: '#20',
-    targetDeltaOver: '#21',
-    targetDeltaUnder: '#22',
-};
+import type { ChartOptionParams } from './types';
 
 const baseParams = (): ChartOptionParams => ({
     xs: [],
