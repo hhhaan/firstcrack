@@ -942,7 +942,6 @@ it('toasts once when a healthy link drops, stays quiet after dismiss and remount
         sessionId: 'issue-649',
         roastStartMs: Date.now() - 1000,
     });
-    const roastStartTimeRef = { current: Date.now() - 1000 };
     const setConnected = (connected: boolean, capabilities?: string[]) => {
         useRoastingStore.getState().setConnected(connected, capabilities);
     };
@@ -953,7 +952,6 @@ it('toasts once when a healthy link drops, stays quiet after dismiss and remount
             pollIntervalMs: 1000,
             enterPreheating: vi.fn(),
             setConnected,
-            roastStartTimeRef,
             sessionId: 'issue-649',
         });
         return null;
