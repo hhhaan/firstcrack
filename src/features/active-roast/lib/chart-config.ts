@@ -20,6 +20,24 @@ export const PHASE_BAR_FONT_WEIGHT = 600;
 export const AXIS_LABEL_FONT = { fontSize: 11, fontFamily: 'monospace' as const } as const;
 export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as const } as const;
 
+// ── Curve event labels (`이름|mm:ss|온도`). Axis ticks and the phase bar stay put.
+export const MARKER_LABEL_FONT_SIZE = 12;
+export const MARKER_LABEL_FONT_WEIGHT = 600;
+export const MARKER_LABEL_FONT_FAMILY = 'monospace';
+export const MARKER_LABEL_FONT =
+    `${MARKER_LABEL_FONT_WEIGHT} ${MARKER_LABEL_FONT_SIZE}px ${MARKER_LABEL_FONT_FAMILY}` as const;
+/** Box height and same-time stack step. */
+export const MARKER_LABEL_STACK_PX = 14;
+/** Monospace advance at MARKER_LABEL_FONT_SIZE. */
+export const MARKER_LABEL_CHAR_WIDTH_PX = 7;
+export const MARKER_LABEL_MIN_WIDTH_PX = MARKER_LABEL_CHAR_WIDTH_PX;
+export const MARKER_LABEL_MAX_WIDTH_PX = 288;
+export const MARKER_LABEL_GAP_PX = 2;
+export const MARKER_LABEL_DISTANCE_PX = 0;
+/** Event line → label, and the canvas edge inset. */
+export const MARKER_LABEL_X_OFFSET_PX = 4;
+export const MARKER_LABEL_CANVAS_GUTTER_PX = MARKER_LABEL_X_OFFSET_PX * 2;
+
 // ── Temperature axis range ───────────────────────────────────────────────────
 export const TEMP_Y_MIN_C = 50;
 export const TEMP_Y_MAX_C = 250;
@@ -171,8 +189,6 @@ export const isChartEventMarker = (event: string): boolean => CHART_EVENT_MARKER
 export const PHASE_SECS = [180, 300, 630] as const;
 export const ROR_Y_MIN = -5;
 export const ROR_Y_MAX = 20;
-export const MARKER_LABEL_FONT_CSS_PX = 14;
-export const MARKER_LABEL_Y_OFFSET_CSS_PX = 16;
 
 // DrumHeatFanChart
 export const DRUM_GRID_LEFT = 36;

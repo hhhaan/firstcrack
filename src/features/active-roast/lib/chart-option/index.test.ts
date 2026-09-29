@@ -1,3 +1,4 @@
+import { MARKER_LABEL_FONT } from '@features/active-roast/lib/chart-config';
 import * as echarts from 'echarts';
 import { describe, expect, it } from 'vitest';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
@@ -373,7 +374,7 @@ describe('buildRoastChartOption', () => {
                 renderItem?: (
                     params: unknown,
                     api: unknown,
-                ) => { type: string; children: { type: string; x: number; y: number }[] };
+                ) => { type: string; children: { type: string; x: number; y: number; style?: { font?: string } }[] };
             }[]
         ).find((series) => series.name === 'Event curve labels');
         expect(labelSeries?.yAxisIndex).toBe(0);
@@ -383,7 +384,7 @@ describe('buildRoastChartOption', () => {
             { coord: (value: number[]) => [value[0] * 2, 250 - value[1]], getWidth: () => 440 },
         );
         const text = result?.children.find((child) => child.type === 'text');
-        expect(text).toMatchObject({ type: 'text', x: 124, y: 65 });
+        expect(text).toMatchObject({ type: 'text', x: 124, y: 65, style: { font: MARKER_LABEL_FONT } });
         expect(result?.children.some((child) => child.type === 'circle')).toBe(false);
     });
 

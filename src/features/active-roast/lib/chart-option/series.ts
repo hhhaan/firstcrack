@@ -1,6 +1,9 @@
 import type { PhaseSegment, TemperatureUnit } from '@features/active-roast';
 import {
     CONTROL_GRID_BOTTOM,
+    MARKER_LABEL_CANVAS_GUTTER_PX,
+    MARKER_LABEL_FONT,
+    MARKER_LABEL_MAX_WIDTH_PX,
     PHASE_BAR_FONT_FAMILY,
     PHASE_BAR_FONT_SIZE,
     PHASE_BAR_FONT_SIZE_NARROW,
@@ -14,7 +17,7 @@ import {
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
-import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes, MARKER_LABEL_MAX_WIDTH_PX } from './markers';
+import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
 // 커피 로스팅 차트에 최적화된 스무딩 설정
@@ -408,10 +411,10 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
                 style: {
                     text: box.text,
                     fill: box.color,
-                    font: '600 10px monospace',
+                    font: MARKER_LABEL_FONT,
                     textAlign: 'left',
                     textVerticalAlign: box.below ? 'top' : 'bottom',
-                    width: Math.min(MARKER_LABEL_MAX_WIDTH_PX, api.getWidth() - 8),
+                    width: Math.min(MARKER_LABEL_MAX_WIDTH_PX, api.getWidth() - MARKER_LABEL_CANVAS_GUTTER_PX),
                     overflow: 'truncate',
                 },
             });

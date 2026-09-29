@@ -1,3 +1,8 @@
+import {
+    MARKER_LABEL_GAP_PX,
+    MARKER_LABEL_STACK_PX,
+    MARKER_LABEL_X_OFFSET_PX,
+} from '@features/active-roast/lib/chart-config';
 import { describe, expect, it } from 'vitest';
 import {
     buildMarkers,
@@ -6,7 +11,6 @@ import {
     getMarkerLabelGeometry,
     LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
-    MARKER_LABEL_X_OFFSET_PX,
     NOTE_LABEL_TOP_INSET_PX,
     nearestBtAt,
 } from './markers';
@@ -252,7 +256,7 @@ describe('layoutCurveLabelBoxes', () => {
     it('keeps isolated labels on their preferred side of BT', () => {
         const [box] = layoutCurveLabelBoxes([item({})]);
         expect(box.textY).toBe(200);
-        expect(box.top).toBe(186);
+        expect(box.top).toBe(200 - MARKER_LABEL_STACK_PX);
         expect(box.bottom).toBe(200);
     });
 
@@ -286,7 +290,7 @@ describe('layoutCurveLabelBoxes', () => {
             item({ timeSec: 490, text: 'FC Start | 08:10 | 185.8°C' }),
             item({ timeSec: 490, text: 'Heater→35%|08:10|185.8°C' }),
         ]);
-        expect(second.bottom).toBeLessThanOrEqual(first.top - 2);
+        expect(second.bottom).toBeLessThanOrEqual(first.top - MARKER_LABEL_GAP_PX);
         expect(second.textY).toBeLessThan(first.textY);
     });
 
@@ -437,7 +441,7 @@ describe('zoom window (#599)', () => {
 });
 
 describe('getMarkerLabelGeometry', () => {
-    it('sits 4px right of the BT anchor and stacks 14px above the curve', () => {
+    it('sits right of the BT anchor and stacks one box per rank', () => {
         expect(
             getMarkerLabelGeometry({
                 anchorX: 900,
@@ -445,7 +449,13 @@ describe('getMarkerLabelGeometry', () => {
                 rank: 2,
                 text: 'label',
             }),
-        ).toEqual({ x: 904, y: 172, align: 'left', text: 'label', rank: 2 });
+        ).toEqual({
+            x: 900 + MARKER_LABEL_X_OFFSET_PX,
+            y: 200 - MARKER_LABEL_STACK_PX * 2,
+            align: 'left',
+            text: 'label',
+            rank: 2,
+        });
     });
 });
 

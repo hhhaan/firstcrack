@@ -1,5 +1,15 @@
 import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
-import { isControlEvent } from '@features/active-roast/lib/chart-config';
+import {
+    isControlEvent,
+    MARKER_LABEL_CANVAS_GUTTER_PX,
+    MARKER_LABEL_CHAR_WIDTH_PX,
+    MARKER_LABEL_DISTANCE_PX,
+    MARKER_LABEL_GAP_PX,
+    MARKER_LABEL_MAX_WIDTH_PX,
+    MARKER_LABEL_MIN_WIDTH_PX,
+    MARKER_LABEL_STACK_PX,
+    MARKER_LABEL_X_OFFSET_PX,
+} from '@features/active-roast/lib/chart-config';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
@@ -73,19 +83,11 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
     return `${name}|${formatMarkerTime(timeSec)}|${temp || '—'}`;
 };
 
-export const MARKER_LABEL_STACK_PX = 14;
-export const MARKER_LABEL_DISTANCE_PX = 0;
-export const MARKER_LABEL_MAX_WIDTH_PX = 240;
-export const MARKER_LABEL_CHAR_WIDTH_PX = 6;
-export const MARKER_LABEL_GAP_PX = 2;
-/** Gap from the event line to the left edge of the label. */
-export const MARKER_LABEL_X_OFFSET_PX = 4;
-
 export const markerLabelDy = (below: boolean, rank = 0) =>
     (below ? MARKER_LABEL_DISTANCE_PX : -MARKER_LABEL_DISTANCE_PX) - MARKER_LABEL_STACK_PX * rank;
 
 export const estimateLabelWidth = (text: string) =>
-    Math.min(MARKER_LABEL_MAX_WIDTH_PX, Math.max(8, text.length * MARKER_LABEL_CHAR_WIDTH_PX));
+    Math.min(MARKER_LABEL_MAX_WIDTH_PX, Math.max(MARKER_LABEL_MIN_WIDTH_PX, text.length * MARKER_LABEL_CHAR_WIDTH_PX));
 
 export interface MarkerLabelGeometry {
     x: number;
@@ -140,11 +142,16 @@ const boxesOverlap = (a: CurveLabelBox, b: CurveLabelBox) =>
     a.bottom + MARKER_LABEL_GAP_PX > b.top;
 
 const makeLabelBox = (item: CurveLabelLayoutInput, textY: number, canvasWidth: number): CurveLabelBox => {
-    const width = Math.min(estimateLabelWidth(item.text), Math.max(0, canvasWidth - 8));
+    const width = Math.min(estimateLabelWidth(item.text), Math.max(0, canvasWidth - MARKER_LABEL_CANVAS_GUTTER_PX));
     const rawX = item.xPx + MARKER_LABEL_X_OFFSET_PX;
     // Clamp only anchors already on the canvas. Off-chart anchors must stay off-chart.
     const anchorOnCanvas = item.xPx >= 0 && item.xPx <= canvasWidth;
-    const x = anchorOnCanvas ? Math.max(4, Math.min(rawX, Math.max(4, canvasWidth - 4 - width))) : rawX;
+    const x = anchorOnCanvas
+        ? Math.max(
+              MARKER_LABEL_X_OFFSET_PX,
+              Math.min(rawX, Math.max(MARKER_LABEL_X_OFFSET_PX, canvasWidth - MARKER_LABEL_X_OFFSET_PX - width)),
+          )
+        : rawX;
     const top = item.below ? textY : textY - MARKER_LABEL_STACK_PX;
     const bottom = item.below ? textY + MARKER_LABEL_STACK_PX : textY;
     return {
