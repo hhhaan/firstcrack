@@ -1,5 +1,7 @@
 import {
     ALERT_SOUND_KINDS,
+    AUTO_DETECT_CONFIRM_C_MAX,
+    AUTO_DETECT_CONFIRM_C_MIN,
     AUTO_DROP_START_MIN_MAX,
     type EventMarkerStyle,
     fromDisplayTemp,
@@ -543,6 +545,19 @@ export const RoastSettingsTab = () => {
                     />
                     <SettingsOptionRow justify="between">
                         <div>
+                            <div className={settingsOptionLabelCls}>{tk('autoDetectConfirm')}</div>
+                            <div className={settingsOptionDescCls}>{tk('autoDetectConfirmDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.autoChargeConfirmC}
+                            onChange={(v) => updateRoastSettings({ autoChargeConfirmC: v })}
+                            min={AUTO_DETECT_CONFIRM_C_MIN}
+                            max={AUTO_DETECT_CONFIRM_C_MAX}
+                            suffix={tk('autoDetectConfirmUnit')}
+                        />
+                    </SettingsOptionRow>
+                    <SettingsOptionRow justify="between">
+                        <div>
                             <div className={settingsOptionLabelCls}>{tk('autoChargeSensitivity')}</div>
                             <div className={settingsOptionDescCls}>{tk('autoChargeSensitiveDescription')}</div>
                         </div>
@@ -587,6 +602,19 @@ export const RoastSettingsTab = () => {
                             min={1}
                             max={AUTO_DROP_START_MIN_MAX}
                             suffix={tk('autoDropStartUnit')}
+                        />
+                    </SettingsOptionRow>
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('autoDetectConfirm')}</div>
+                            <div className={settingsOptionDescCls}>{tk('autoDetectConfirmDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.autoDropConfirmC}
+                            onChange={(v) => updateRoastSettings({ autoDropConfirmC: v })}
+                            min={AUTO_DETECT_CONFIRM_C_MIN}
+                            max={AUTO_DETECT_CONFIRM_C_MAX}
+                            suffix={tk('autoDetectConfirmUnit')}
                         />
                     </SettingsOptionRow>
                     <SettingsOptionRow justify="between">

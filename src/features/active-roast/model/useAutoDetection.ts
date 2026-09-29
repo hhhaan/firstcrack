@@ -27,9 +27,13 @@ export type UseAutoDetectionOptions = {
     onTurningPoint: (tp: TurningPoint) => void;
     autoChargeEnabled: boolean;
     autoChargeMode: AutoChargeMode;
+    /** °C the bend must fall before Charge. 0 marks the slope break. */
+    autoChargeConfirmC: number;
     pollIntervalMs: PollIntervalMs;
     autoDropEnabled: boolean;
     autoDropMode: AutoDropMode;
+    /** °C the bend must fall before Drop. */
+    autoDropConfirmC: number;
     /** Fire only once `elapsed` exceeds this many minutes (`elapsed > minutes * 60`). */
     autoDropStartMin: number;
     yellowTempC: number;
@@ -46,9 +50,11 @@ export const useAutoDetection = ({
     onTurningPoint,
     autoChargeEnabled,
     autoChargeMode,
+    autoChargeConfirmC,
     pollIntervalMs,
     autoDropEnabled,
     autoDropMode,
+    autoDropConfirmC,
     autoDropStartMin,
     yellowTempC,
     unit,
@@ -83,7 +89,7 @@ export const useAutoDetection = ({
 
     // Consume each raw response synchronously, independently of React rendering and display dedupe.
     useEffect(() => {
-        const detector = createAutoChargeDetector(autoChargeMode, pollIntervalMs);
+        const detector = createAutoChargeDetector(autoChargeMode, pollIntervalMs, autoChargeConfirmC);
         chargeDetectorRef.current = detector;
         const unsubscribe = useRoastingStore.subscribe((state, previous) => {
             if (
@@ -141,14 +147,14 @@ export const useAutoDetection = ({
             unsubscribe();
             detector.reset();
         };
-    }, [autoChargeEnabled, autoChargeMode, pollIntervalMs]);
+    }, [autoChargeEnabled, autoChargeMode, autoChargeConfirmC, pollIntervalMs]);
 
     useEffect(() => {
         if (logEntries.some((e) => e.event === 'Drop')) autoDroppedRef.current = true;
     }, [logEntries]);
 
     useEffect(() => {
-        const detector = createAutoDropDetector(autoDropMode, pollIntervalMs);
+        const detector = createAutoDropDetector(autoDropMode, pollIntervalMs, autoDropConfirmC);
         dropDetectorRef.current = detector;
         // Artisan autoDROP: CHARGE 후 N분 초과일 때만 발화. N=autoDropStartMin (default 7).
         const minElapsedS = autoDropStartMin * 60;
@@ -193,7 +199,7 @@ export const useAutoDetection = ({
             unsubscribe();
             detector.reset();
         };
-    }, [autoDropEnabled, autoDropMode, pollIntervalMs, autoDropStartMin]);
+    }, [autoDropEnabled, autoDropMode, autoDropConfirmC, pollIntervalMs, autoDropStartMin]);
 
     // Auto Yellow by temperature — only fire after turning point (FC is manual / dual-mark only)
     useEffect(() => {

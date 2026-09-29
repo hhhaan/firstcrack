@@ -35,10 +35,13 @@ alarm gating are separate issues.
   These use Artisan Standard's 1s reference values, not W60A measurements.
   Unlike Artisan's sampling buckets, rates here use actual time intervals;
   there is no cap that lets an already-steep steady fall become a new event.
-- Drop-only (not Artisan `BTbreak`): Standard waits one more sample and requires 2°C
-  below the bend, so a 1°C dip that recovers does not mark Drop or stop PID.
-  Sensitive only rejects a recovering next sample. A ≥8°C step that then holds
-  is a Drop even when the second post-bend leg is flat; a rejected over-rate
+- Drop-only (not Artisan `BTbreak`): the bend waits until BT is `autoDropConfirmC`
+  (default 2) below it. A later sample that is still falling keeps the candidate;
+  a stall or a 0.5°C bounce clears it, so a 1°C dip that recovers does not mark
+  Drop or stop PID. `0` confirms on the next sample that does not recover.
+  Charge uses the same wait when `autoChargeConfirmC` is above 0 (default 0
+  fires on the slope break). A step of at least `max(8, confirmC)` °C that then
+  holds is a Drop even when the second post-bend leg is flat; a rejected over-rate
   sample is kept so the following confirmed step still sees the plateau.
 - Mark the higher point bordering the bend (last plateau point on a tie).
   Convert its sensor-time lag to the current sample's reception wall clock.
@@ -50,7 +53,10 @@ alarm gating are separate issues.
 
 ## Settings
 
-`autoChargeMode` / `autoDropMode` are Standard or Sensitive. `autoDropStartMin`
+`autoChargeMode` / `autoDropMode` are Standard or Sensitive. `autoChargeConfirmC`
+(default 0) and `autoDropConfirmC` (default 2) are the minimum fall below the
+bend, in °C, clamped to 0–20. The degree applies in both modes; sensitivity
+only changes the slope limits. `autoDropStartMin`
 is whole or fractional minutes after Charge (UI min 1, max 30, no step — same
 NumberInput as the time alarms). Missing and invalid stored values
 (non-positive, NaN, Infinity, non-numeric) read as the previous valid minute,

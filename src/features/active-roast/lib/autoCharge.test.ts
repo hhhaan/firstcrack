@@ -66,6 +66,13 @@ describe('automatic Charge', () => {
         const detector = createAutoChargeDetector('sensitive', 500);
         for (let i = 0; i < 20; i++) expect(detector.push(sample(i / 2, base - Math.max(0, i - 10)))).toBeNull();
     });
+    it('waits until the configured fall below the bend', () => {
+        const detector = createAutoChargeDetector('standard', 1000, 4);
+        for (const [i, bt] of [200, 200, 200, 199, 198, 197, 196].entries()) {
+            expect(detector.push(sample(i, bt))).toBeNull();
+        }
+        expect(detector.push(sample(7, 195))).toEqual(sample(3, 199));
+    });
     it('ignores duplicate, reversed and burst timestamps without consuming the fall twice', () => {
         const detector = createAutoChargeDetector('standard', 1000);
         for (let i = 0; i <= 4; i++) detector.push(sample(i, 200));
@@ -159,6 +166,26 @@ describe('automatic Drop', () => {
         for (const [i, bt] of [200, 200, 200, 200, 199.5, 199, 200, 200].entries()) {
             expect(detector.push(sample(i, bt))).toBeNull();
         }
+    });
+    it('waits until the configured fall, then marks the bend', () => {
+        const detector = createAutoDropDetector('standard', 1000, 4);
+        for (const [i, bt] of [200, 200, 200, 199, 198, 197, 196].entries()) {
+            expect(detector.push(sample(i, bt))).toBeNull();
+        }
+        expect(detector.push(sample(7, 195))).toEqual(sample(3, 199));
+    });
+    it('drops a stall that never reaches the configured fall', () => {
+        const detector = createAutoDropDetector('standard', 1000, 4);
+        for (const [i, bt] of [200, 200, 200, 199, 198, 197, 197, 197].entries()) {
+            expect(detector.push(sample(i, bt))).toBeNull();
+        }
+    });
+    it('treats 0 °C as the next sample that does not recover', () => {
+        const detector = createAutoDropDetector('standard', 1000, 0);
+        for (const [i, bt] of [200, 200, 200, 199, 198, 197].entries()) {
+            expect(detector.push(sample(i, bt))).toBeNull();
+        }
+        expect(detector.push(sample(6, 197))).toEqual(sample(3, 199));
     });
     it('drops on a 200 to 170 step that then holds (#459)', () => {
         const detector = createAutoDropDetector('standard', 1000);

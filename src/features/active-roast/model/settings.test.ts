@@ -188,6 +188,18 @@ it('defaults legacy Charge/Drop thresholds to Standard and ignores stored °C va
         autoDropMode: 'standard',
     });
     expect((normalizeRoastSettings(legacy) as { autoDropDropC?: unknown }).autoDropDropC).toBeUndefined();
+    expect(normalizeRoastSettings({}).autoChargeConfirmC).toBe(0);
+    expect(normalizeRoastSettings({}).autoDropConfirmC).toBe(2);
+    expect(normalizeRoastSettings({ autoChargeConfirmC: 3.5, autoDropConfirmC: 8 }).autoChargeConfirmC).toBe(3.5);
+    expect(normalizeRoastSettings({ autoDropConfirmC: 8 }).autoDropConfirmC).toBe(8);
+    expect(normalizeRoastSettings({ autoChargeConfirmC: -1, autoDropConfirmC: 99 })).toMatchObject({
+        autoChargeConfirmC: 0,
+        autoDropConfirmC: 20,
+    });
+    expect(normalizeRoastSettings({ autoChargeConfirmC: '2', autoDropConfirmC: Number.NaN } as never)).toMatchObject({
+        autoChargeConfirmC: 0,
+        autoDropConfirmC: 2,
+    });
     expect(normalizeRoastSettings({ autoChargeEnabled: false, autoChargeMode: 'sensitive' })).toMatchObject({
         autoChargeEnabled: false,
         autoChargeMode: 'sensitive',

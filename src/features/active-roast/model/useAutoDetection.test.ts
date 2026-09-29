@@ -17,8 +17,10 @@ type Props = {
     autoYellowEnabled?: boolean;
     autoChargeEnabled?: boolean;
     autoChargeMode?: 'standard' | 'sensitive';
+    autoChargeConfirmC?: number;
     autoDropEnabled?: boolean;
     autoDropMode?: 'standard' | 'sensitive';
+    autoDropConfirmC?: number;
     autoDropStartMin?: number;
     pollIntervalMs?: 500 | 1000;
     onAutoCharge?: (bt: number, timeMs?: number) => void;
@@ -51,9 +53,11 @@ const renderAutoDetection = (initial: Props) => {
             onTurningPoint: p.onTurningPoint ?? noop,
             autoChargeEnabled: p.autoChargeEnabled ?? true,
             autoChargeMode: p.autoChargeMode ?? 'standard',
+            autoChargeConfirmC: p.autoChargeConfirmC ?? 0,
             pollIntervalMs: p.pollIntervalMs ?? 500,
             autoDropEnabled: p.autoDropEnabled ?? true,
             autoDropMode: p.autoDropMode ?? 'standard',
+            autoDropConfirmC: p.autoDropConfirmC ?? 2,
             autoDropStartMin: p.autoDropStartMin ?? 7,
             yellowTempC: 150,
             unit: 'C',

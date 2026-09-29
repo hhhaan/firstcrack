@@ -22,13 +22,13 @@ const OFFSET: Record<BtBreakKind, Record<AutoDetectMode, Record<PollMs, number>>
     drop: { standard: { 1000: 0.2, 500: 0.1 }, sensitive: { 1000: 0.2, 500: 0.05 } },
 };
 const MIN_BT: Record<BtBreakKind, number> = { charge: 77, drop: 160 };
-/** Standard Drop: next sample must stay this far below the bend, else treat as noise (#459). */
+/** Standard Drop default: fall this far below the bend. 0 confirms on the next sample that does not recover. */
 const DROP_CONFIRM_C = 2;
 const DROP_RECOVERY_C = 0.5;
 /** Single-sample dump that then holds — BTbreak needs two falling legs and misses this. */
 const DROP_STEP_C = 8;
 
-const checkStepHold = (points: RawTemperatureSample[]): RawTemperatureSample | null => {
+const checkStepHold = (points: RawTemperatureSample[], confirmC: number): RawTemperatureSample | null => {
     if (points.length < 4) return null;
     const a = points[points.length - 2];
     const b = points[points.length - 1];
@@ -36,11 +36,12 @@ const checkStepHold = (points: RawTemperatureSample[]): RawTemperatureSample | n
     for (let i = 1; i < points.length - 2; i++) {
         if (points[i].bt >= plateau.bt) plateau = points[i];
     }
-    if (plateau.bt - a.bt < DROP_STEP_C || plateau.bt - b.bt < DROP_STEP_C) return null;
+    const need = Math.max(DROP_STEP_C, confirmC);
+    if (plateau.bt - a.bt < need || plateau.bt - b.bt < need) return null;
     return plateau;
 };
 
-const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollIntervalMs: PollMs) => {
+const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollIntervalMs: PollMs, confirmC: number) => {
     const period = pollIntervalMs / 1000;
     const minimum = MINIMUM[kind][mode][pollIntervalMs];
     const offset = OFFSET[kind][mode][pollIntervalMs];
@@ -127,29 +128,38 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
                 candidate = null;
                 return null;
             }
-            if (kind === 'drop' && candidate) {
+            if (candidate) {
+                const fall = candidate.onset.bt - sample.bt;
                 if (sample.bt > candidate.dipBt + DROP_RECOVERY_C) candidate = null;
-                else if (mode === 'sensitive' || candidate.onset.bt - sample.bt >= DROP_CONFIRM_C) {
+                else if (confirmC <= 0 || fall >= confirmC) {
                     const onset = candidate.onset;
                     candidate = null;
                     return onset;
+                } else if (sample.bt < candidate.dipBt) {
+                    candidate = { onset: candidate.onset, dipBt: sample.bt };
+                    return null;
                 } else candidate = null;
             }
             const hit = check(1) ?? check(2);
             if (hit) {
-                if (kind === 'drop') {
+                if (kind === 'drop' || confirmC > 0) {
                     candidate = { onset: hit, dipBt: sample.bt };
                     return null;
                 }
                 return hit;
             }
-            return kind === 'drop' ? checkStepHold(history) : null;
+            return kind === 'drop' ? checkStepHold(history, confirmC) : null;
         },
     };
 };
 
-export const createAutoChargeDetector = (mode: AutoChargeMode, pollIntervalMs: PollMs) =>
-    createBtBreakDetector('charge', mode, pollIntervalMs);
+/** °C below the bend before the mark. Charge default 0 fires on the slope break. */
+export const createAutoChargeDetector = (mode: AutoChargeMode, pollIntervalMs: PollMs, confirmC = 0) =>
+    createBtBreakDetector('charge', mode, pollIntervalMs, confirmC);
 
-export const createAutoDropDetector = (mode: AutoDropMode, pollIntervalMs: PollMs) =>
-    createBtBreakDetector('drop', mode, pollIntervalMs);
+/** Omitted confirm keeps Standard at 2°C and Sensitive at the next non-recovering sample. */
+export const createAutoDropDetector = (
+    mode: AutoDropMode,
+    pollIntervalMs: PollMs,
+    confirmC = mode === 'sensitive' ? 0 : DROP_CONFIRM_C,
+) => createBtBreakDetector('drop', mode, pollIntervalMs, confirmC);

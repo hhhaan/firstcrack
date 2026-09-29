@@ -31,6 +31,8 @@ export type {
     TemperatureUnit,
 } from './model/settings';
 export {
+    AUTO_DETECT_CONFIRM_C_MAX,
+    AUTO_DETECT_CONFIRM_C_MIN,
     AUTO_DROP_START_MIN_MAX,
     coercePollIntervalForPlan,
     updateRoastSettings,
