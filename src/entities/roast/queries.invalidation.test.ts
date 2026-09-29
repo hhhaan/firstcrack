@@ -1,7 +1,12 @@
-import { dashboardKeys, roastedStockKeys } from '@shared/lib/query-keys';
+import { dashboardKeys, roastedStockKeys, roastProfileQueryRoots } from '@shared/lib/query-keys';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { applyOptimisticRoastSessionDelete, invalidateRoastSessionQueries, roastSessionKeys } from './queries';
+import {
+    applyOptimisticRoastSessionDelete,
+    invalidateAfterRoastRecordEdit,
+    invalidateRoastSessionQueries,
+    roastSessionKeys,
+} from './queries';
 
 const uid = 'user-1';
 
@@ -95,5 +100,23 @@ describe('roast session mutation invalidation', () => {
 
         expect(eventsKey).toEqual([...roastedStockKeys.byUser(uid), 'events']);
         expect(qc.getQueryState(eventsKey)?.isInvalidated).toBe(true);
+    });
+
+    it('record edit refreshes session reads and derived profile caches, never inventory', async () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+        const detailKey = roastSessionKeys.detail(uid, 's1');
+        const profileList = [...roastProfileQueryRoots.profiles, uid];
+        const sourceEvents = [...roastProfileQueryRoots.profiles, 'source_events', 's1'];
+        const consistency = [...roastProfileQueryRoots.consistency, 'p1'];
+        const stock = roastedStockKeys.byUser(uid);
+        for (const key of [detailKey, profileList, sourceEvents, consistency, stock]) qc.setQueryData(key, {});
+
+        await invalidateAfterRoastRecordEdit(qc, uid);
+
+        expect(qc.getQueryState(detailKey)?.isInvalidated).toBe(true);
+        expect(qc.getQueryState(profileList)?.isInvalidated).toBe(true);
+        expect(qc.getQueryState(sourceEvents)?.isInvalidated).toBe(true);
+        expect(qc.getQueryState(consistency)?.isInvalidated).toBe(true);
+        expect(qc.getQueryState(stock)?.isInvalidated).toBe(false);
     });
 });

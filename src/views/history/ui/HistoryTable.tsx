@@ -14,6 +14,7 @@ import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HistorySessionChart } from './HistorySessionChart';
 import { OutputWeightEditor } from './OutputWeightEditor';
+import { RecordEditActions } from './RecordEditActions';
 import { SessionScorecard } from './SessionScorecard';
 
 // ── Constants ──
@@ -207,6 +208,10 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                 </div>
 
                 <SessionScorecard session={session} />
+
+                <div className="mt-3">
+                    <RecordEditActions session={session} />
+                </div>
 
                 <HistorySessionChart session={session} />
 

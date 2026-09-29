@@ -2,6 +2,7 @@ import { sessionBeanName, useHistoryCharts } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { computePhaseSegments, formatTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
+import { withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -32,7 +33,11 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
 
     const isLoading = curveQueries.some((q) => q.isLoading);
 
-    const eventsBySession = useMemo(() => sessions.map((s) => parseStoredRoastEvents(s.events)), [sessions]);
+    // Compare draws Heater marks by time only, so the note unit is irrelevant here.
+    const eventsBySession = useMemo(
+        () => sessions.map((s) => withEditedHeaterLog(parseStoredRoastEvents(s.events), s.heater_events, '')),
+        [sessions],
+    );
 
     const items: CompareSidebarItem[] = useMemo(
         () =>

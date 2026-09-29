@@ -4,6 +4,8 @@ export type SourceSessionSnapshot = {
     bbp_seconds?: number | null;
     /** roast_sessions.events jsonb — 조인에 events를 안 실은 호출자는 생략 */
     events?: unknown;
+    /** History-edited Heat set plan; NULL = recorded TSV. */
+    heater_events?: unknown;
 };
 
 type SourceSessionJoin = SourceSessionSnapshot | SourceSessionSnapshot[] | null | undefined;
@@ -13,3 +15,8 @@ export const resolveSourceSession = (sourceSession: SourceSessionJoin): SourceSe
     if (Array.isArray(sourceSession)) return sourceSession[0] ?? null;
     return sourceSession;
 };
+
+/** Replay/heat target plan: profile override > edited source record > null (recorded TSV). */
+export const profileHeaterEvents = (
+    profile: { heater_events?: unknown; source_session?: SourceSessionJoin } | null | undefined,
+): unknown => profile?.heater_events ?? resolveSourceSession(profile?.source_session)?.heater_events ?? null;

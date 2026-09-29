@@ -13,6 +13,12 @@ export const profileKeys = {
     detail: (userId: string) => ['profile', userId] as const,
 };
 
+/** Roast profile roots — a roast record edit re-derives profiles cut from that record. */
+export const roastProfileQueryRoots = {
+    profiles: ['roast_profiles'] as const,
+    consistency: ['profile-consistency'] as const,
+};
+
 /** Inventory / stock — used by bean-stock-event, inventory-alert, roast deduct, packaging, dashboard */
 export const inventoryQueryRoots = {
     beanStockSummaries: ['bean-stock-summaries'] as const,

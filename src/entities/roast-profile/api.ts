@@ -10,6 +10,7 @@ type SourceSessionRow = {
     bbp_tsv_path?: string | null;
     bbp_seconds?: number | null;
     events: Json | null;
+    heater_events?: Json | null;
 };
 
 export type RoastProfileWithSource = RoastProfile & {
@@ -38,7 +39,7 @@ export const roastProfileCopyInsert = (profile: RoastProfileWithSource, name: st
 };
 
 const SELECT_WITH_SOURCE =
-    '*, source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+    '*, source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,heater_events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 
 export const roastProfileApi = {
     list: async (userId: string): Promise<RoastProfileWithSource[]> => {

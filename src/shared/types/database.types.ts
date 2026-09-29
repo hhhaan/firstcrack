@@ -1691,6 +1691,7 @@ export type Database = {
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
                     events: Json;
+                    heater_events: Json | null;
                     id: string;
                     machine_brand: string | null;
                     machine_id: string | null;
@@ -1723,6 +1724,7 @@ export type Database = {
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
                     events?: Json;
+                    heater_events?: Json | null;
                     id?: string;
                     machine_brand?: string | null;
                     machine_id?: string | null;
@@ -1755,6 +1757,7 @@ export type Database = {
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
                     events?: Json;
+                    heater_events?: Json | null;
                     id?: string;
                     machine_brand?: string | null;
                     machine_id?: string | null;
@@ -2247,6 +2250,7 @@ export type Database = {
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
                     events: Json;
+                    heater_events: Json | null;
                     id: string;
                     machine_brand: string | null;
                     machine_id: string | null;
@@ -2281,6 +2285,25 @@ export type Database = {
                     p_session_id: string;
                 };
                 Returns: undefined;
+            };
+            update_roast_session_record: {
+                Args: {
+                    p_drop_temp_celsius: number;
+                    p_duration_seconds: number;
+                    p_events: Json;
+                    p_expected_events: Json;
+                    p_expected_heater_events: Json;
+                    p_heater_events: Json;
+                    p_profile_summary: Json;
+                    p_session_id: string;
+                };
+                Returns: Database['public']['Tables']['roast_sessions']['Row'];
+                SetofOptions: {
+                    from: '*';
+                    to: 'roast_sessions';
+                    isOneToOne: true;
+                    isSetofReturn: false;
+                };
             };
             upsert_roasted_inbound: {
                 Args: {

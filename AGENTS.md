@@ -110,6 +110,7 @@ mismatch→move to correct segment
 ## Architecture priority
 Readability and maintainability matter more than reducing file count or line count. Do not sacrifice clear separation of concerns for a smaller diff.
 When "smallest possible diff" conflicts with separation of concerns, SRP, or layer rules — architecture wins. Split files over squashing them.
+Necessary complexity: preserve or add complexity required by current behavior, including sensor noise handling, connection recovery, data preservation, and safe machine control. Simplify redundant state and coordination; fewer lines are not a goal at the expense of correctness.
 
 
 ## Cross-Platform

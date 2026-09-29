@@ -1,10 +1,17 @@
+import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
-import { ProfileDefaultBadge, useProfileBeanHistory, useSourceSessionEvents } from '@entities/roast-profile';
+import {
+    ProfileDefaultBadge,
+    resolveSourceSession,
+    useProfileBeanHistory,
+    useSourceSessionEvents,
+} from '@entities/roast-profile';
 import { useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { useCsvFileExport } from '@features/export-csv';
+import { profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { logger } from '@shared/lib/logger';
 import type { View } from '@shared/types/view';
@@ -50,9 +57,16 @@ export const ProfileDetail = ({
     const TABLE_ROWS = useProfileTableRows('profiles.detail.totalDuration');
     const exportFile = useCsvFileExport();
     const unit = useRoastSettings().temperatureUnit;
+    const machines = useMachines((s) => s.machines);
+    const heaterUnit = profileHeaterBounds(selected, machines, ROASTER_REGISTRY).unit;
+    const sourceHeaterEvents = resolveSourceSession(selected.source_session)?.heater_events;
     const roastLogEntries = useMemo(
-        () => storedEventsToLogEntries(parseStoredRoastEvents(sourceEvents), unit),
-        [sourceEvents, unit],
+        () =>
+            storedEventsToLogEntries(
+                withEditedHeaterLog(parseStoredRoastEvents(sourceEvents), sourceHeaterEvents, heaterUnit),
+                unit,
+            ),
+        [sourceEvents, sourceHeaterEvents, heaterUnit, unit],
     );
 
     const handleExport = useCallback(async () => {

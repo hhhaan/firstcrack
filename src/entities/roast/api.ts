@@ -6,7 +6,10 @@ const SELECT_WITH_RELATIONS =
     '*, beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
 
 /** Insert payload — created_by defaults to auth.uid() in DB. */
-export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'created_by'> & {
+export type RoastSessionInsert = Omit<
+    RoastSession,
+    'id' | 'created_at' | 'updated_at' | 'created_by' | 'heater_events'
+> & {
     /** Client session uuid — save_roast_op idempotency key. Omit → server generates. */
     id?: string;
     created_by?: string | null;
@@ -215,6 +218,36 @@ export const roastSessionApi = {
     delete: async (id: string): Promise<void> => {
         const { error } = await supabase.rpc('delete_roast_session', { p_session_id: id });
         if (error) throw error;
+    },
+
+    /**
+     * History edit of a saved record (#623). Compare-and-swap on events/heater_events:
+     * a concurrent edit fails with PT409 instead of being overwritten. No stock side effects.
+     */
+    updateRecord: async (p: {
+        sessionId: string;
+        expectedEvents: Json;
+        expectedHeaterEvents: Json | null;
+        events: Json;
+        heaterEvents: Json | null;
+        dropTempCelsius: number | null;
+        durationSeconds: number | null;
+        /** Derived columns for profiles cut from this record; null = events unchanged, leave profiles. */
+        profileSummary: Json | null;
+    }): Promise<RoastSession> => {
+        // Gen types mark integer args non-null; SQL accepts null (summary unknown on legacy rows).
+        const { data, error } = await supabase.rpc('update_roast_session_record', {
+            p_session_id: p.sessionId,
+            p_expected_events: p.expectedEvents,
+            p_expected_heater_events: p.expectedHeaterEvents,
+            p_events: p.events,
+            p_heater_events: p.heaterEvents,
+            p_drop_temp_celsius: p.dropTempCelsius as number,
+            p_duration_seconds: p.durationSeconds as number,
+            p_profile_summary: p.profileSummary,
+        });
+        if (error) throw error;
+        return data;
     },
 
     /** Atomic: set output_weight_grams + upsert roasted inbound. */

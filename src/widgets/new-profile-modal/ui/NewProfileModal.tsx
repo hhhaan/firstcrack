@@ -1,5 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import {
+    profileHeaterEvents,
     type RoastProfileWithSource,
     resolveSourceSession,
     useResolvedProfileCurve,
@@ -124,13 +125,14 @@ const resolveProfileHeatEditor = (
     const dropEvents = parseStoredRoastEvents(resolveSourceSession(editingProfile.source_session)?.events);
     const dropTime = dropEvents.find((e) => e.type === 'Drop')?.time_sec ?? editingProfile.duration_sec ?? null;
     const extracted = extractReplayEvents(points, dropTime);
-    const stored = editingProfile.heater_events;
+    const stored = profileHeaterEvents(editingProfile);
     const profileEvents = stored == null ? null : parseHeaterEvents(stored);
     const storedInvalid = stored != null && profileEvents == null;
+    const storedSource = editingProfile.heater_events == null ? 'session' : 'profile';
     return {
         events: storedInvalid ? [] : (profileEvents ?? extracted?.events ?? []),
         tpTime: extracted?.tpTime ?? Number.POSITIVE_INFINITY,
-        source: profileEvents || storedInvalid ? 'profile' : extracted ? 'tsv' : null,
+        source: profileEvents || storedInvalid ? storedSource : extracted ? 'tsv' : null,
         curveReady: points.length > 0 || stored != null,
     };
 };

@@ -1,4 +1,5 @@
 import type { Json } from '@shared/types/database.types';
+import type { StoredRoastEvent } from '@shared/types/roast';
 import { extractReplayEvents, MAX_EVENTS, type ReplayEvent, type ReplayPlan, type ReplayPoint } from './replay';
 
 const TIME_RE = /^(\d{1,3}):([0-5]?\d|60)$/;
@@ -16,7 +17,7 @@ export type TimeEdit = {
 const clampIndex = (value: string, index: number) => Math.max(0, Math.min(index, value.length));
 
 /** 입력 중 부분 시각. 초는 비거나 한 자리, 00–59, 60만. */
-const isPartialTime = (value: string): boolean => {
+export const isPartialTime = (value: string): boolean => {
     const colon = value.indexOf(':');
     if (colon < 0) return MINUTES_RE.test(value);
     if (value.includes(':', colon + 1)) return false;
@@ -27,6 +28,10 @@ const isPartialTime = (value: string): boolean => {
     if (seconds.length === 1) return /^\d$/.test(seconds);
     return seconds.length === 2 && /^[0-5]\d$/.test(seconds);
 };
+
+/** 입력 중 숫자. 숫자·점 하나·소수 `decimals`자리까지, 음수 허용 시에만 선행 `-`. */
+export const isDecimalDraft = (value: string, decimals: number, negative = false): boolean =>
+    new RegExp(`^${negative ? '-?' : ''}\\d*(\\.\\d{0,${decimals}})?$`).test(value);
 
 const finishTimeEdit = (value: string, caret: number, suppress: boolean): TimeEdit => ({
     value,
@@ -122,7 +127,8 @@ export const applyTimeEdit = (
     return insertTimeText(prev, from, to, text, suppress);
 };
 
-export type ReplayPlanSource = 'batch' | 'profile' | 'tsv';
+/** `session` = History-edited record plan (roast_sessions.heater_events). */
+export type ReplayPlanSource = 'batch' | 'profile' | 'session' | 'tsv';
 
 export type HeaterBounds = {
     min: number;
@@ -195,6 +201,45 @@ export const profileHeatTarget = (points: ReplayPoint[], dropTime: number | null
         xs: [...steps.map((event) => event.t), end],
         values: [...steps.map((event) => event.heater), steps[steps.length - 1].heater],
     };
+};
+
+/**
+ * History-edited plan → Heat set per curve sample. Only [0, dropTime) is replaced;
+ * BBP/cooldown samples keep the recorded value. null = no valid edit (draw the TSV as-is).
+ */
+export const editedHeatSet = (
+    points: ReadonlyArray<{ t: number; heaterSet?: number | null }>,
+    dropTime: number | null | undefined,
+    heaterEvents: unknown,
+): (number | null)[] | null => {
+    const events = heaterEvents == null ? null : parseHeaterEvents(heaterEvents);
+    if (!events) return null;
+    const steps = [...events].sort((a, b) => a.t - b.t);
+    const end = dropTime ?? Number.POSITIVE_INFINITY;
+    return points.map((p) => {
+        if (p.t < 0 || p.t >= end) return p.heaterSet ?? null;
+        let value: number | null = null;
+        for (const s of steps) if (s.t <= p.t) value = s.heater;
+        return value ?? p.heaterSet ?? null;
+    });
+};
+
+/** Edited plan replaces the recorded Heater log rows (same `${value}${unit}` note as the live log). */
+export const withEditedHeaterLog = (
+    events: StoredRoastEvent[],
+    heaterEvents: unknown,
+    heaterUnit: string,
+): StoredRoastEvent[] => {
+    const plan = heaterEvents == null ? null : parseHeaterEvents(heaterEvents);
+    if (!plan) return events;
+    const rows: StoredRoastEvent[] = plan.map((e, i) => ({
+        id: `heater-plan-${i}`,
+        type: 'Heater',
+        time_sec: e.t,
+        temp_c: e.bt,
+        note: `${e.heater}${heaterUnit}`,
+    }));
+    return [...events.filter((e) => e.type !== 'Heater'), ...rows].sort((a, b) => a.time_sec - b.time_sec);
 };
 
 export const heaterEventsToJson = (events: ReplayEvent[]): Json =>

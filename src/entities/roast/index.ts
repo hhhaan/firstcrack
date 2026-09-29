@@ -5,6 +5,7 @@ export { useBbpCurve, useHistoryChart, useHistoryCharts } from './chart-queries'
 export {
     invalidateAfterCreateRoastSession,
     invalidateRoastSessionQueries,
+    isRoastRecordConflict,
     patchRoastSessionTsvPaths,
     roastSessionKeys,
     useCompletedMonthSessionCount,
@@ -16,5 +17,6 @@ export {
     useRoastSessions,
     useRoastSessionsPaginated,
     useSetOutputWeight,
+    useUpdateRoastRecord,
     useUpdateRoastSession,
 } from './queries';

@@ -11,6 +11,7 @@ import {
     formatEditTime,
     type HeaterBounds,
     heaterFitsBounds,
+    isDecimalDraft,
     normalizeHeaterPlan,
     parseEditTime,
     parseFiniteNumber,
@@ -27,7 +28,8 @@ type DraftRow = {
     trigger: ReplayTrigger;
 };
 
-export type HeaterEventsEditorMode = 'profile' | 'batch';
+/** `history` edits a saved record: rows are fixed (no add/delete/rule), values only. */
+export type HeaterEventsEditorMode = 'profile' | 'batch' | 'history';
 
 type Props = {
     mode: HeaterEventsEditorMode;
@@ -43,9 +45,15 @@ type Props = {
     /** ACK된 앞쪽 행. 실행 중에는 값을 바꿔도 다시 보내지 않는다. */
     lockedCount?: number;
     boundsNote?: string;
+    /** Maps an onApply rejection to a message; default is the generic save failure. */
+    saveErrorMessage?: (error: unknown) => string | null;
     onClose: () => void;
     onApply: (events: ReplayEvent[] | null) => void | Promise<void>;
 };
+
+// BT is shown at 0.1°; heater keeps two places for fractional units (kPa, 0.5 steps).
+const BT_DECIMALS = 1;
+const HEAT_DECIMALS = 2;
 
 const toDisplayBt = (c: number, unit: 'C' | 'F') => (unit === 'F' ? (c * 9) / 5 + 32 : c);
 const fromDisplayBt = (v: number, unit: 'C' | 'F') => (unit === 'F' ? ((v - 32) * 5) / 9 : v);
@@ -87,9 +95,11 @@ export const HeaterEventsEditor = ({
     heaterStep,
     lockedCount = 0,
     boundsNote,
+    saveErrorMessage,
     onClose,
     onApply,
 }: Props) => {
+    const fixedRows = mode === 'history';
     const heaterBounds: HeaterBounds = useMemo(
         () => ({
             min: heaterMin ?? 0,
@@ -105,6 +115,7 @@ export const HeaterEventsEditor = ({
     const [ruleHeater, setRuleHeater] = useState('50');
     const [selected, setSelected] = useState(0);
     const [busy, setBusy] = useState(false);
+    const inFlight = useRef(false);
 
     const onEscape = useEffectEvent(() => {
         if (!busy) onClose();
@@ -168,14 +179,17 @@ export const HeaterEventsEditor = ({
             setError(t(next.length > MAX_EVENTS ? 'heaterEventsEditor.tooMany' : 'heaterEventsEditor.invalid'));
             return;
         }
-        if (busy) return;
+        // State lags a same-tick double click; the ref blocks the second write.
+        if (inFlight.current) return;
+        inFlight.current = true;
         setError(null);
         setBusy(true);
         try {
             await onApply(next && next.length > 0 ? next : null);
-        } catch {
-            setError(t('heaterEventsEditor.saveFailed'));
+        } catch (err) {
+            setError(saveErrorMessage?.(err) ?? t('heaterEventsEditor.saveFailed'));
         } finally {
+            inFlight.current = false;
             setBusy(false);
         }
     };
@@ -194,7 +208,11 @@ export const HeaterEventsEditor = ({
             ? t('heaterEventsEditor.sourceBatch')
             : source === 'profile'
               ? t('heaterEventsEditor.sourceProfile')
-              : t('heaterEventsEditor.sourceTsv');
+              : source === 'session'
+                ? t('heaterEventsEditor.sourceSession')
+                : t('heaterEventsEditor.sourceTsv');
+    // Profile mode inherits a record edit; reverting there would be a no-op on the profile.
+    const canRevert = source != null && source !== 'tsv' && !(mode === 'profile' && source === 'session');
 
     return (
         <ModalShell
@@ -217,13 +235,15 @@ export const HeaterEventsEditor = ({
                                 <span>
                                     {mode === 'batch'
                                         ? t('heaterEventsEditor.subtitleBatch')
-                                        : t('heaterEventsEditor.subtitleProfile')}
+                                        : mode === 'history'
+                                          ? t('heaterEventsEditor.subtitleHistory')
+                                          : t('heaterEventsEditor.subtitleProfile')}
                                 </span>
                                 <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold">
                                     {sourceLabel}
                                 </span>
                                 {boundsNote && <span className="text-xs text-muted">{boundsNote}</span>}
-                                {source && source !== 'tsv' && (
+                                {canRevert && (
                                     <button
                                         type="button"
                                         className="cursor-pointer border-none bg-transparent text-xs font-medium text-red-600"
@@ -266,46 +286,54 @@ export const HeaterEventsEditor = ({
                                 {heaterUnit}
                             </div>
                         )}
-                        <fieldset
-                            disabled={busy}
-                            aria-labelledby="heater-events-rule-title"
-                            className="m-0 mt-auto min-w-0 rounded-xl border border-border-subtle bg-surface-warm-solid p-4"
-                        >
-                            <h3 id="heater-events-rule-title" className="m-0 text-sm font-semibold text-primary">
-                                {t('heaterEventsEditor.ruleTitle')}
-                            </h3>
-                            <p className="mt-1 mb-3 text-xs text-muted">{t('heaterEventsEditor.chartHint')}</p>
-                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
-                                <label className="min-w-0 text-[11px] font-semibold text-muted">
-                                    {t('heaterEventsEditor.ruleWhen')} (°{unit})
-                                    <input
-                                        value={ruleBt}
-                                        onChange={(e) => setRuleBt(e.target.value)}
-                                        className={`${inputCls} mt-1 py-2 text-xs`}
-                                        inputMode="decimal"
-                                        aria-label={t('heaterEventsEditor.bt')}
-                                    />
-                                </label>
-                                <label className="min-w-0 text-[11px] font-semibold text-muted">
-                                    {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
-                                    <input
-                                        value={ruleHeater}
-                                        onChange={(e) => setRuleHeater(e.target.value)}
-                                        className={`${inputCls} mt-1 py-2 text-xs`}
-                                        inputMode="decimal"
-                                        aria-label={t('heaterEventsEditor.heat')}
-                                    />
-                                </label>
-                                <button
-                                    type="button"
-                                    disabled={rows.length >= MAX_EVENTS}
-                                    onClick={addBtRule}
-                                    className="cursor-pointer rounded-xl border-none bg-primary px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-black"
-                                >
-                                    {t('heaterEventsEditor.ruleAdd')}
-                                </button>
-                            </div>
-                        </fieldset>
+                        {!fixedRows && (
+                            <fieldset
+                                disabled={busy}
+                                aria-labelledby="heater-events-rule-title"
+                                className="m-0 mt-auto min-w-0 rounded-xl border border-border-subtle bg-surface-warm-solid p-4"
+                            >
+                                <h3 id="heater-events-rule-title" className="m-0 text-sm font-semibold text-primary">
+                                    {t('heaterEventsEditor.ruleTitle')}
+                                </h3>
+                                <p className="mt-1 mb-3 text-xs text-muted">{t('heaterEventsEditor.chartHint')}</p>
+                                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+                                    <label className="min-w-0 text-[11px] font-semibold text-muted">
+                                        {t('heaterEventsEditor.ruleWhen')} (°{unit})
+                                        <input
+                                            value={ruleBt}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, BT_DECIMALS))
+                                                    setRuleBt(e.target.value);
+                                            }}
+                                            className={`${inputCls} mt-1 py-2 text-xs`}
+                                            inputMode="decimal"
+                                            aria-label={t('heaterEventsEditor.bt')}
+                                        />
+                                    </label>
+                                    <label className="min-w-0 text-[11px] font-semibold text-muted">
+                                        {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
+                                        <input
+                                            value={ruleHeater}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, HEAT_DECIMALS, heaterBounds.min < 0))
+                                                    setRuleHeater(e.target.value);
+                                            }}
+                                            className={`${inputCls} mt-1 py-2 text-xs`}
+                                            inputMode="decimal"
+                                            aria-label={t('heaterEventsEditor.heat')}
+                                        />
+                                    </label>
+                                    <button
+                                        type="button"
+                                        disabled={rows.length >= MAX_EVENTS}
+                                        onClick={addBtRule}
+                                        className="cursor-pointer rounded-xl border-none bg-primary px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-black"
+                                    >
+                                        {t('heaterEventsEditor.ruleAdd')}
+                                    </button>
+                                </div>
+                            </fieldset>
+                        )}
                     </section>
                     <HeaterEventsTable
                         unit={unit}
@@ -314,10 +342,11 @@ export const HeaterEventsEditor = ({
                         rows={rows}
                         selected={selected}
                         lockedCount={lockedCount}
-                        onAddStep={addStep}
+                        allowNegativeHeat={heaterBounds.min < 0}
+                        onAddStep={fixedRows ? undefined : addStep}
                         onSelect={setSelected}
                         onUpdate={update}
-                        onDelete={(key) => setRows((prev) => prev.filter((r) => r.key !== key))}
+                        onDelete={fixedRows ? undefined : (key) => setRows((prev) => prev.filter((r) => r.key !== key))}
                     />
                 </div>
                 {error && (
@@ -359,6 +388,7 @@ const HeaterEventsTable = ({
     rows,
     selected,
     lockedCount,
+    allowNegativeHeat,
     onAddStep,
     onSelect,
     onUpdate,
@@ -370,10 +400,11 @@ const HeaterEventsTable = ({
     rows: DraftRow[];
     selected: number;
     lockedCount: number;
-    onAddStep: () => void;
+    allowNegativeHeat: boolean;
+    onAddStep?: () => void;
     onSelect: (index: number) => void;
     onUpdate: (key: string, patch: Partial<DraftRow>) => void;
-    onDelete: (key: string) => void;
+    onDelete?: (key: string) => void;
 }) => {
     const { t } = useTranslation();
     const timeSuppress = useRef(new WeakMap<HTMLInputElement, boolean>());
@@ -534,7 +565,10 @@ const HeaterEventsTable = ({
                                     <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.bt}
-                                            onChange={(e) => onUpdate(row.key, { bt: e.target.value })}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, BT_DECIMALS))
+                                                    onUpdate(row.key, { bt: e.target.value });
+                                            }}
                                             className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.bt')}
@@ -544,7 +578,10 @@ const HeaterEventsTable = ({
                                     <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
                                             value={row.heater}
-                                            onChange={(e) => onUpdate(row.key, { heater: e.target.value })}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, HEAT_DECIMALS, allowNegativeHeat))
+                                                    onUpdate(row.key, { heater: e.target.value });
+                                            }}
                                             className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.heat')}
@@ -568,15 +605,17 @@ const HeaterEventsTable = ({
                                         </select>
                                     </td>
                                     <td className={`${cellClass} rounded-r-xl border-y border-r py-2 pr-1`}>
-                                        <button
-                                            type="button"
-                                            className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-surface hover:text-red-600"
-                                            aria-label={t('heaterEventsEditor.deleteRow')}
-                                            disabled={locked}
-                                            onClick={() => onDelete(row.key)}
-                                        >
-                                            <Trash2 size={14} strokeWidth={2} />
-                                        </button>
+                                        {onDelete && (
+                                            <button
+                                                type="button"
+                                                className="grid h-7 w-7 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-surface hover:text-red-600"
+                                                aria-label={t('heaterEventsEditor.deleteRow')}
+                                                disabled={locked}
+                                                onClick={() => onDelete(row.key)}
+                                            >
+                                                <Trash2 size={14} strokeWidth={2} />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             );
@@ -587,15 +626,17 @@ const HeaterEventsTable = ({
                     <p className="py-6 text-center text-sm text-muted">{t('heaterEventsEditor.empty')}</p>
                 )}
             </div>
-            <button
-                type="button"
-                disabled={busy || rows.length >= MAX_EVENTS}
-                onClick={onAddStep}
-                className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-transparent py-2.5 text-xs font-semibold text-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-                <Plus size={14} strokeWidth={2} />
-                {t('heaterEventsEditor.addStep')}
-            </button>
+            {onAddStep && (
+                <button
+                    type="button"
+                    disabled={busy || rows.length >= MAX_EVENTS}
+                    onClick={onAddStep}
+                    className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-transparent py-2.5 text-xs font-semibold text-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <Plus size={14} strokeWidth={2} />
+                    {t('heaterEventsEditor.addStep')}
+                </button>
+            )}
         </fieldset>
     );
 };
