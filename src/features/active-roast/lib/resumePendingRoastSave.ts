@@ -5,12 +5,7 @@ import { logger } from '@shared/lib/logger';
 import { bbpTsvPath } from '@shared/lib/tsv-writer';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import { BaseDirectory, exists } from '@tauri-apps/plugin-fs';
-import {
-    clearPendingRoastSave,
-    type PendingRoastSave,
-    toSaveRoastParams,
-    writePendingRoastSave,
-} from '../model/pendingRoastSave';
+import { clearPendingRoastSave, type PendingRoastSave, writePendingRoastSave } from '../model/pendingRoastSave';
 import type { SaveRoastParams, SaveRoastResult, SyncRoastCurve } from '../model/useSaveRoast';
 import { isFixablePlanBatchIdError, isPermanentSaveError } from './saveErrorClassification';
 import type { ResolveForRoastFn } from './startNextFromContinue';
@@ -124,20 +119,22 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
                     formData: { ...pending.params.formData, linkedBatch: linked },
                 },
             });
-            const prepared = toSaveRoastParams(pending.params);
+            let saveParams = pending.params;
             const batchId = handoff?.planBatchId ?? linked?.planBatchId;
-            if (prepared.formData.deductStock && batchId) {
+            if (saveParams.formData.deductStock && batchId) {
                 try {
                     const claimed = await (deps.hasBatchDeduction ?? beanStockEventApi.hasRoastDeductionForReference)(
                         batchId,
                     );
-                    if (claimed) prepared.formData = { ...prepared.formData, deductStock: false };
+                    if (claimed) {
+                        saveParams = { ...saveParams, formData: { ...saveParams.formData, deductStock: false } };
+                    }
                 } catch (err) {
                     logger.capture(err, { context: 'stockDeduct guard' });
                 }
             }
             try {
-                saved = verify((await deps.saveRoast(prepared)).savedSession);
+                saved = verify((await deps.saveRoast(saveParams)).savedSession);
             } catch (err) {
                 // INSERT may have committed despite a lost response or competing quota check.
                 saved = verify(await deps.findSession(sessionId));

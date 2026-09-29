@@ -1,6 +1,6 @@
 import type { SaveRoastParams } from './useSaveRoast';
 
-export type PendingRoastParams = Omit<SaveRoastParams, 'roastStartTimeRef'> & { roastStartTime: number };
+export type PendingRoastParams = SaveRoastParams;
 export type SyncState = 'pending' | 'synced' | 'not_required';
 export type PendingRoastSave = {
     version: 2;
@@ -89,8 +89,4 @@ export const clearPendingRoastSave = (ownerId: string, sessionId: string | null)
     const all = entries();
     delete all[entryKey(ownerId, sessionId)];
     persist(all);
-};
-export const toSaveRoastParams = (params: PendingRoastParams): SaveRoastParams => {
-    const { roastStartTime, ...rest } = params;
-    return { ...rest, roastStartTimeRef: { current: roastStartTime } };
 };
