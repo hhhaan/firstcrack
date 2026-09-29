@@ -43,6 +43,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showTargetDeltaLabel = false,
         targetXs,
         targetBt,
+        targetEt,
+        targetRor,
         showRoR,
         showRoRET,
         rorEtActual,
@@ -167,6 +169,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showTargetCurve,
         targetXs,
         targetBt,
+        targetEt,
+        targetRor,
         showET,
         showRoR,
         showRoRET,
@@ -214,6 +218,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
         const controlSeries = buildControlSeries({
             controlData,
+            showTargetCurve,
             showControlDrum,
             showControlHeat,
             showControlFan,

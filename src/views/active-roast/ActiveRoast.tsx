@@ -935,6 +935,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         rorEtActual={chart.visibleRorEtActual}
                         targetXs={chart.visibleTargetXs}
                         targetBt={chart.visibleTargetBt}
+                        targetEt={chart.visibleTargetEt}
+                        targetRor={chart.visibleTargetRor}
                         showTargetCurve={
                             roastSettings.showTargetCurve && !!targetProfileId && chartView.targetPoints.length > 0
                         }
@@ -959,6 +961,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                       fanSpeed: chart.visibleFanSpeed,
                                       heatSet: chart.visibleHeatSet,
                                       heatTarget: bbpActive ? undefined : heatTarget,
+                                      reference: chart.visibleTargetXs.length
+                                          ? {
+                                                xs: chart.visibleTargetXs,
+                                                drum: chart.visibleTargetDrum,
+                                                heater: chart.visibleTargetHeater,
+                                                fan: chart.visibleTargetFan,
+                                            }
+                                          : undefined,
                                   }
                                 : undefined
                         }

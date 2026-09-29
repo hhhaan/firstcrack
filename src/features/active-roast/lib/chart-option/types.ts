@@ -22,6 +22,13 @@ export interface ControlData {
     /** 사이드카가 쓴 heater 세트포인트 — 실측(heatPower) 위에 점선. 구 기록엔 없다 */
     heatSet?: (number | null)[];
     heatTarget?: { xs: number[]; values: number[] };
+    /** Stored reference controls. Same time axis; missing channels stay null. Not Heat target/set. */
+    reference?: {
+        xs: number[];
+        drum: (number | null)[];
+        heater: (number | null)[];
+        fan: (number | null)[];
+    };
 }
 
 export interface ChartOptionParams {
@@ -42,6 +49,9 @@ export interface ChartOptionParams {
     showTargetDeltaLabel?: boolean;
     targetXs?: number[];
     targetBt?: (number | null)[];
+    /** Stored reference ET/RoR on the same times as targetXs. Null = unstored sample, not zero. */
+    targetEt?: (number | null)[];
+    targetRor?: (number | null)[];
     showRoR: boolean;
     showRoRET: boolean;
     rorEtActual: (number | null)[];

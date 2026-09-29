@@ -161,7 +161,7 @@
                 "showET": "Env Temp (ET)",
                 "showETDescription": "Blue dashed line on the temperature chart",
                 "showTargetCurve": "Target Curve",
-                "showTargetCurveDescription": "Faded reference line for the target BT profile",
+                "showTargetCurveDescription": "Faded reference curves for the stored target profile (BT, plus ET, RoR, heater, fan, and drum when recorded)",
                 "showTargetDeltaLabel": "Target delta label",
                 "showTargetDeltaLabelDescription": "Show BT−target ° difference at the current time on the chart",
                 "showRoRChart": "BT RoR",

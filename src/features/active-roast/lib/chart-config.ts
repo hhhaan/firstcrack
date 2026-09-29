@@ -69,7 +69,9 @@ export const getResolvedChartColors = (print = false) => {
         btTargetTooltip: gv('--color-sensor-bt-target', 'rgba(0,157,76,0.55)'),
         btActual: gv('--color-sensor-bt', '#009d4c'),
         etActual: gv('--color-sensor-et', '#0091cb'),
+        etTarget: gv('--color-sensor-et-target', 'oklch(0.6 0.17 225 / 0.55)'),
         rorActual: gv('--color-sensor-ror', '#e7ae00'),
+        rorTarget: gv('--color-sensor-ror-target', 'oklch(0.78 0.18 88 / 0.55)'),
         tp: gv('--color-event-mark', '#777'),
         phaseLines: gv('--color-chart-phaseline', 'rgba(0,0,0,0.07)'),
         currentTimeLine: gv('--color-chart-current-line', 'rgba(0,0,0,0.3)'),
@@ -90,9 +92,12 @@ export const getResolvedChartColors = (print = false) => {
 
         // Control chart colors
         controlDrum: gv('--color-control-drum', '#00a36d'),
+        controlDrumTarget: gv('--color-control-drum-target', 'oklch(0.62 0.16 165 / 0.55)'),
         controlHeat: gv('--color-control-heat', '#e7ae00'),
+        controlHeatTarget: gv('--color-control-heat-target', 'oklch(0.78 0.18 88 / 0.55)'),
         controlHeatArea: gv('--color-control-heat-area', 'rgba(231,174,0,0.22)'),
         controlFan: gv('--color-control-fan', '#0091cb'),
+        controlFanTarget: gv('--color-control-fan-target', 'oklch(0.6 0.17 225 / 0.55)'),
         controlFanArea: gv('--color-control-fan-area', 'rgba(0,145,203,0.22)'),
 
         // Event marker categories (resolved for canvas)

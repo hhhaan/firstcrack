@@ -1,4 +1,10 @@
 import { CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR } from '@features/active-roast/lib/chart-config';
+import {
+    type ReferenceCurvePoint,
+    referenceCurveFromPoints,
+    referenceCurveInRange,
+    toDisplayReferenceCurve,
+} from '@features/active-roast/lib/reference-curve';
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useChartZoom } from '@features/active-roast/model/useChartZoom';
@@ -19,7 +25,7 @@ export interface UseChartPipelineParams {
 
 export interface UseChartPipelineReturn {
     chartData: LiveChartRow[];
-    targetSeries: { time: number; bt: number }[];
+    targetSeries: ReferenceCurvePoint[];
     visibleChartData: LiveChartRow[];
     chartAreaRef: React.RefObject<HTMLDivElement | null>;
     mainChartHeight: number;
@@ -32,6 +38,11 @@ export interface UseChartPipelineReturn {
     visibleRorEtActual: (number | null)[];
     visibleTargetXs: number[];
     visibleTargetBt: number[];
+    visibleTargetEt: (number | null)[];
+    visibleTargetRor: (number | null)[];
+    visibleTargetHeater: (number | null)[];
+    visibleTargetFan: (number | null)[];
+    visibleTargetDrum: (number | null)[];
     visibleControlXs: number[];
     visibleDrumTemp: (number | null)[];
     visibleHeatPower: (number | null)[];
@@ -62,7 +73,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         const profileDuration = targetCurvePoints.length > 0 ? targetCurvePoints[targetCurvePoints.length - 1].t : 0;
         return {
             chartData: buildLiveChartData(livePoints, xMin, profileDuration, xMaxFloor),
-            targetSeries: targetCurvePoints.map((p) => ({ time: p.t, bt: p.bt })),
+            targetSeries: referenceCurveFromPoints(targetCurvePoints),
         };
     }, [livePoints, targetCurvePoints, xMin, xMaxFloor]);
 
@@ -113,15 +124,10 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         };
     }, [visibleChartData, unit]);
 
-    const { visibleTargetXs, visibleTargetBt } = useMemo(() => {
-        const points = effectiveZoomRange
-            ? targetSeries.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
-            : targetSeries;
-        return {
-            visibleTargetXs: points.map((p) => p.time),
-            visibleTargetBt: points.map((p) => toDisplayTemp(p.bt, unit)),
-        };
-    }, [targetSeries, effectiveZoomRange, unit]);
+    const visibleReference = useMemo(
+        () => toDisplayReferenceCurve(referenceCurveInRange(targetSeries, effectiveZoomRange), unit),
+        [targetSeries, effectiveZoomRange, unit],
+    );
 
     const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed, visibleHeatSet } = useMemo(() => {
         const points = effectiveZoomRange
@@ -149,8 +155,13 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         visibleEtActual,
         visibleRorActual,
         visibleRorEtActual,
-        visibleTargetXs,
-        visibleTargetBt,
+        visibleTargetXs: visibleReference.xs,
+        visibleTargetBt: visibleReference.bt,
+        visibleTargetEt: visibleReference.et,
+        visibleTargetRor: visibleReference.ror,
+        visibleTargetHeater: visibleReference.heater,
+        visibleTargetFan: visibleReference.fan,
+        visibleTargetDrum: visibleReference.drum,
         visibleControlXs,
         visibleDrumTemp,
         visibleHeatPower,

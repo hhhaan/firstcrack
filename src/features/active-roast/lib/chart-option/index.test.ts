@@ -8,7 +8,9 @@ const mockColors: ResolvedChartColors = {
     btTargetTooltip: '#2',
     btActual: '#3',
     etActual: '#4',
+    etTarget: '#25',
     rorActual: '#5',
+    rorTarget: '#26',
     tp: '#6',
     phaseLines: '#7',
     currentTimeLine: '#8',
@@ -25,9 +27,12 @@ const mockColors: ResolvedChartColors = {
     phaseBarName: '#13',
     phaseBarDuration: '#14',
     controlDrum: '#15',
+    controlDrumTarget: '#27',
     controlHeat: '#16',
+    controlHeatTarget: '#28',
     controlHeatArea: '#17',
     controlFan: '#18',
+    controlFanTarget: '#29',
     controlFanArea: '#19',
     eventMark: '#23',
     eventControl: '#24',
@@ -482,5 +487,198 @@ describe('buildRoastChartOption', () => {
         chart.setOption(full);
         expect(chart.renderToSVGString()).toContain('TP|02:02');
         chart.dispose();
+    });
+
+    const fullReference = {
+        xs: [0, 60],
+        btActual: [100, 140],
+        etActual: [110, 150],
+        rorActual: [8, 6],
+        rorEtActual: [4, 3],
+        showRoRET: true,
+        targetXs: [0, 30, 60],
+        targetBt: [100, 120, 140],
+        targetEt: [110, null, 150],
+        targetRor: [8, 6, null],
+        controlData: {
+            xs: [0, 60],
+            drumTemp: [40, 45],
+            heatPower: [50, 55],
+            fanSpeed: [20, 25],
+            heatSet: [50, 55],
+            heatTarget: { xs: [0, 60], values: [70, 70] },
+            reference: {
+                xs: [0, 30, 60],
+                drum: [40, null, 42],
+                heater: [60, 60, null],
+                fan: [0, null, 12],
+            },
+        },
+    };
+
+    type NamedSeries = {
+        name?: string;
+        connectNulls?: boolean;
+        xAxisIndex?: number;
+        yAxisIndex?: number;
+        z?: number;
+        data?: unknown;
+        lineStyle?: { color?: string; width?: number; type?: string };
+    };
+    const seriesByName = (params: ChartOptionParams) => {
+        const byName: Record<string, NamedSeries> = {};
+        for (const series of buildRoastChartOption(params).series as NamedSeries[]) {
+            if (series.name) byName[series.name] = series;
+        }
+        return byName;
+    };
+
+    it('draws stored reference channels in the channel color without filling gaps', () => {
+        const byName = seriesByName({ ...baseParams(), ...fullReference });
+        expect(byName['ET Target']).toMatchObject({
+            connectNulls: false,
+            yAxisIndex: 0,
+            z: 1,
+            data: [
+                [0, 110],
+                [30, null],
+                [60, 150],
+            ],
+            lineStyle: { color: mockColors.etTarget, width: 0.8, type: 'dashed' },
+        });
+        expect(byName['RoR Target']).toMatchObject({
+            yAxisIndex: 1,
+            connectNulls: false,
+            data: [
+                [0, 8],
+                [30, 6],
+                [60, null],
+            ],
+            lineStyle: { color: mockColors.rorTarget, width: 0.8, type: 'dashed' },
+        });
+        expect(byName['BT Target']).toMatchObject({
+            lineStyle: { color: mockColors.btTarget, width: 0.8, type: 'dashed' },
+        });
+        expect(byName['Drum Target']).toMatchObject({
+            xAxisIndex: 1,
+            yAxisIndex: 2,
+            data: [
+                [0, 40],
+                [30, null],
+                [60, 42],
+            ],
+            lineStyle: { color: mockColors.controlDrumTarget, type: 'dashed' },
+        });
+        expect(byName['Heater Target']).toMatchObject({
+            yAxisIndex: 3,
+            data: [
+                [0, 60],
+                [30, 60],
+                [60, null],
+            ],
+            lineStyle: { color: mockColors.controlHeatTarget, width: 0.8, type: 'dashed' },
+        });
+        expect(byName['Fan Target']).toMatchObject({
+            data: [
+                [0, 0],
+                [30, null],
+                [60, 12],
+            ],
+            lineStyle: { color: mockColors.controlFanTarget },
+        });
+        expect(byName['Heat target']).toMatchObject({
+            data: [
+                [0, 70],
+                [60, 70],
+            ],
+            lineStyle: { type: 'dotted', color: mockColors.controlHeat },
+        });
+        expect(byName['Heat set']?.lineStyle).toMatchObject({ type: 'dashed', color: mockColors.controlHeat });
+        expect(byName['ET RoR Target']).toBeUndefined();
+        const names = Object.keys(byName);
+        expect(names.indexOf('Heater Target')).toBeLessThan(names.indexOf('Heat target'));
+        expect(names.indexOf('Heat target')).toBeLessThan(names.indexOf('Heat set'));
+        expect(names.indexOf('Heat set')).toBeLessThan(names.indexOf('Heat'));
+
+        const chart = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 800, height: 480 });
+        chart.setOption(
+            buildRoastChartOption({
+                ...baseParams(),
+                ...fullReference,
+                colors: { ...mockColors, etTarget: '#123456' },
+            }),
+        );
+        const svg = chart.renderToSVGString();
+        chart.dispose();
+        expect(svg).toContain('#123456');
+        expect(svg).toContain('stroke-dasharray');
+    });
+
+    it('omits reference channels that were not stored', () => {
+        const names = Object.keys(
+            seriesByName({
+                ...baseParams(),
+                targetXs: [0, 60],
+                targetBt: [100, 140],
+                targetEt: [null, null],
+                targetRor: [null, null],
+                controlData: {
+                    xs: [0, 60],
+                    drumTemp: [40, 45],
+                    heatPower: [50, 55],
+                    fanSpeed: [20, 25],
+                    heatTarget: { xs: [0, 60], values: [70, 70] },
+                    reference: {
+                        xs: [0, 60],
+                        drum: [null, null],
+                        heater: [null, null],
+                        fan: [null, null],
+                    },
+                },
+            }),
+        );
+        expect(names).toContain('BT Target');
+        expect(names).toContain('Heat target');
+        for (const name of ['ET Target', 'RoR Target', 'Drum Target', 'Heater Target', 'Fan Target', 'ET RoR Target']) {
+            expect(names).not.toContain(name);
+        }
+    });
+
+    it('hides every reference curve when the target toggle is off, and still applies channel toggles', () => {
+        const hidden = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showTargetCurve: false }));
+        for (const name of ['BT Target', 'ET Target', 'RoR Target', 'Drum Target', 'Heater Target', 'Fan Target']) {
+            expect(hidden).not.toContain(name);
+        }
+        expect(hidden).toContain('Heat target');
+        expect(hidden).toContain('Heat set');
+        expect(hidden).toContain('ET RoR');
+
+        const etOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showET: false }));
+        expect(etOff).not.toContain('ET Target');
+        expect(etOff).not.toContain('ET Actual');
+        expect(etOff).toContain('BT Target');
+        expect(etOff).toContain('RoR Target');
+
+        const rorOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showRoR: false }));
+        expect(rorOff).not.toContain('RoR Target');
+        expect(rorOff).not.toContain('RoR');
+        expect(rorOff).not.toContain('ET RoR');
+        expect(rorOff).toContain('ET Target');
+
+        const heatOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showControlHeat: false }));
+        expect(heatOff).not.toContain('Heater Target');
+        expect(heatOff).not.toContain('Heat target');
+        expect(heatOff).not.toContain('Heat');
+        expect(heatOff).not.toContain('Heat set');
+        expect(heatOff).toContain('Fan Target');
+        expect(heatOff).toContain('Drum Target');
+
+        const fanOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showControlFan: false }));
+        expect(fanOff).not.toContain('Fan Target');
+        expect(fanOff).toContain('Heater Target');
+
+        const drumOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showControlDrum: false }));
+        expect(drumOff).not.toContain('Drum Target');
+        expect(drumOff).toContain('Fan Target');
     });
 });

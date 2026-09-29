@@ -29,6 +29,8 @@ interface RoastChartContainerProps {
     rorEtActual: (number | null)[];
     targetXs: number[];
     targetBt: number[];
+    targetEt?: (number | null)[];
+    targetRor?: (number | null)[];
     showTargetCurve: boolean;
     showTargetDeltaLabel?: boolean;
     showET: boolean;
@@ -77,6 +79,8 @@ export const RoastChartContainer = ({
     rorEtActual,
     targetXs,
     targetBt,
+    targetEt,
+    targetRor,
     showTargetCurve,
     showTargetDeltaLabel = false,
     showET,
@@ -223,6 +227,8 @@ export const RoastChartContainer = ({
                 btTarget={[]}
                 targetXs={targetXs}
                 targetBt={targetBt}
+                targetEt={targetEt}
+                targetRor={targetRor}
                 btActual={btActual}
                 etActual={etActual}
                 rorActual={rorActual}

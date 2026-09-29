@@ -52,6 +52,8 @@ interface Props {
     showTargetDeltaLabel?: boolean;
     targetXs?: number[];
     targetBt?: (number | null)[];
+    targetEt?: (number | null)[];
+    targetRor?: (number | null)[];
     showRoR?: boolean;
     showRoRET?: boolean;
     rorEtActual?: (number | null)[];
@@ -125,6 +127,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showTargetDeltaLabel = false,
         targetXs,
         targetBt,
+        targetEt,
+        targetRor,
         showRoR = true,
         showRoRET = false,
         rorEtActual = [],
@@ -217,6 +221,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 showTargetDeltaLabel,
                 targetXs,
                 targetBt,
+                targetEt,
+                targetRor,
                 showRoR,
                 showRoRET,
                 rorEtActual,
@@ -244,6 +250,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             btTarget,
             targetXs,
             targetBt,
+            targetEt,
+            targetRor,
             btActual,
             etActual,
             rorActual,
@@ -303,6 +311,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         phaseSegments.length > 0,
         showFcBand,
         !!(targetXs?.length && targetBt?.length),
+        targetEt?.some((value) => value != null) ? 1 : 0,
+        targetRor?.some((value) => value != null) ? 1 : 0,
+        controlData?.reference?.heater.some((value) => value != null) ? 1 : 0,
+        controlData?.reference?.fan.some((value) => value != null) ? 1 : 0,
+        controlData?.reference?.drum.some((value) => value != null) ? 1 : 0,
         !!bbpRange,
         hideChargeLabel,
     ].join('|');

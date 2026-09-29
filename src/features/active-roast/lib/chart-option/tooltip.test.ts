@@ -7,7 +7,9 @@ const colors: ResolvedChartColors = {
     btTargetTooltip: '#2',
     btActual: '#3',
     etActual: '#4',
+    etTarget: '#25',
     rorActual: '#5',
+    rorTarget: '#26',
     tp: '#6',
     phaseLines: '#7',
     currentTimeLine: '#8',
@@ -24,9 +26,12 @@ const colors: ResolvedChartColors = {
     phaseBarName: '#13',
     phaseBarDuration: '#14',
     controlDrum: '#15',
+    controlDrumTarget: '#27',
     controlHeat: '#16',
+    controlHeatTarget: '#28',
     controlHeatArea: '#17',
     controlFan: '#18',
+    controlFanTarget: '#29',
     controlFanArea: '#19',
     eventMark: '#23',
     eventControl: '#24',
@@ -136,5 +141,23 @@ describe('createAxisTooltipFormatter', () => {
         expect(html).toContain('3:00');
         expect(html).toContain('Bean Temp');
         expect(html).toContain('Target BT');
+    });
+
+    it('shows stored reference channels beside a live sample and not on their own', () => {
+        const fmt = createAxisTooltipFormatter(formatterOpts);
+        expect(fmt([{ axisValue: 30, seriesName: 'ET Target', value: [30, 110] }])).toBe('');
+        const html = fmt([
+            { axisValue: 30, seriesName: 'BT Actual', value: [30, 120] },
+            { axisValue: 30, seriesName: 'ET Target', value: [30, 110] },
+            { axisValue: 30, seriesName: 'RoR Target', value: [30, 6] },
+            { axisValue: 30, seriesName: 'Heater Target', value: [30, 60] },
+            { axisValue: 30, seriesName: 'Fan Target', value: [30, 0] },
+            { axisValue: 30, seriesName: 'Drum Target', value: [30, null] },
+        ]);
+        expect(html).toContain('Target ET');
+        expect(html).toContain('Target RoR');
+        expect(html).toContain('Target Heater');
+        expect(html).toContain('Target Fan: <span>0%');
+        expect(html).not.toContain('Target Drum');
     });
 });

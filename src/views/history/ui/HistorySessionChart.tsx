@@ -2,6 +2,11 @@ import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import { formatTemp, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import {
+    referenceCurveFromPoints,
+    referenceHasControls,
+    toDisplayReferenceCurve,
+} from '@features/active-roast/lib/reference-curve';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
@@ -47,13 +52,17 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
         return storedEventsToMarkers(events, unit);
     }, [session.events, session.heater_events, heaterUnit, unit, resolvedTheme]);
     const { points } = actual;
+    const referenceCurve = useMemo(() => referenceCurveFromPoints(target.points), [target.points]);
+    const displayedTarget = useMemo(() => toDisplayReferenceCurve(referenceCurve, unit), [referenceCurve, unit]);
+    const referenceControls = referenceHasControls(referenceCurve);
     const heatSet = useMemo(
         () =>
             editedHeatSet(points, sessionDropTime(session), session.heater_events) ??
             points.map((p) => p.heaterSet ?? null),
         [points, session],
     );
-    const hasControls = points.some((p) => p.heater != null || p.fan != null || p.drum != null);
+    const sessionHasControls = points.some((p) => p.heater != null || p.fan != null || p.drum != null);
+    const hasControls = sessionHasControls || referenceControls;
     const bbpRange =
         actual.bbpRange || target.bbpRange
             ? { start: Math.min(actual.bbpRange?.start ?? 0, target.bbpRange?.start ?? 0), end: 0 }
@@ -113,8 +122,10 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                     etActual={points.map((p) => (p.et == null ? null : toDisplayTemp(p.et, unit)))}
                     rorActual={points.map((p) => (p.ror == null ? null : toDisplayRoR(p.ror, unit)))}
                     btTarget={[]}
-                    targetXs={target.points.map((p) => p.t)}
-                    targetBt={target.points.map((p) => toDisplayTemp(p.bt, unit))}
+                    targetXs={displayedTarget.xs}
+                    targetBt={displayedTarget.bt}
+                    targetEt={displayedTarget.et}
+                    targetRor={displayedTarget.ror}
                     showTargetCurve={target.points.length > 0}
                     currentTimeSec={0}
                     eventMarkerStyle={eventMarkerStyle}
@@ -145,6 +156,14 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                                   heatPower: points.map((p) => p.heater),
                                   fanSpeed: points.map((p) => p.fan),
                                   heatSet,
+                                  reference: referenceControls
+                                      ? {
+                                            xs: displayedTarget.xs,
+                                            drum: displayedTarget.drum,
+                                            heater: displayedTarget.heater,
+                                            fan: displayedTarget.fan,
+                                        }
+                                      : undefined,
                               }
                             : undefined
                     }
