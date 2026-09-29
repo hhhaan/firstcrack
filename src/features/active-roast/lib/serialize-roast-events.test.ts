@@ -9,6 +9,32 @@ import {
 } from './serialize-roast-events';
 
 describe('serializeRoastEvents', () => {
+    it('preserves separate manual values through JSON, logs and markers without parsing old text', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
+        const original: LogEntry = {
+            id: 'manual',
+            time: '0:30',
+            timeSec: 30,
+            event: 'Note',
+            temp: '',
+            note: 'color',
+            gas: '0',
+            airflow: '1.2 kPa',
+        };
+        const stored = parseStoredRoastEvents(JSON.parse(JSON.stringify(serializeRoastEvents([original]))));
+        expect(stored[0]).toMatchObject({ note: 'color', gas: '0', airflow: '1.2 kPa' });
+        expect(storedEventsToLogEntries(stored, 'C')[0]).toMatchObject({ note: 'color', gas: '0', airflow: '1.2 kPa' });
+        expect(storedEventsToMarkers(stored)[0]).toMatchObject({ note: 'color', gas: '0', airflow: '1.2 kPa' });
+        const legacy = parseStoredRoastEvents([
+            { id: 'old', type: 'Note', time_sec: 1, note: 'gas 80 fan 50%', gas: 80, airflow: {} },
+        ])[0];
+        expect(legacy.note).toBe('gas 80 fan 50%');
+        expect(legacy.gas).toBeUndefined();
+        expect(legacy.airflow).toBeUndefined();
+        vi.unstubAllGlobals();
+    });
+
     it('serializes timeSec and tempC', () => {
         const entries: LogEntry[] = [
             {

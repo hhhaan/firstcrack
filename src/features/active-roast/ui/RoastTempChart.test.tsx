@@ -294,6 +294,94 @@ describe('RoastTempChart interactions', () => {
         }
     });
 
+    it.each([
+        ['0', '', '', { gas: '0' }],
+        ['', '50%', '', { airflow: '50%' }],
+        ['1.2 kPa', '30', '색 변화 확인', { gas: '1.2 kPa', airflow: '30' }],
+    ])('keeps all fields visible and records manual values %s / %s', (gas, airflow, note, controls) => {
+        const onAddNote = vi.fn();
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, onAddNote })));
+        act(() =>
+            container
+                .querySelector('[tabindex="-1"]')
+                ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
+        );
+        const form = container.querySelector('[data-chart-note-form]') as HTMLFormElement;
+        expect(form.querySelectorAll('input')).toHaveLength(2);
+        expect(form.querySelectorAll('textarea')).toHaveLength(1);
+        expect(form.querySelectorAll('[aria-pressed]')).toHaveLength(0);
+        const setValue = (id: string, value: string) => {
+            const input = container.querySelector(id) as HTMLInputElement | HTMLTextAreaElement;
+            const proto =
+                input instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
+            act(() => {
+                Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(input, value);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        };
+        setValue('#chart-note-gas', gas);
+        setValue('#chart-note-airflow', airflow);
+        setValue('#chart-note-input', note);
+        const input = container.querySelector('#chart-note-gas') as HTMLInputElement;
+        act(() =>
+            input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', isComposing: true })),
+        );
+        expect(onAddNote).not.toHaveBeenCalled();
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
+        expect(onAddNote).toHaveBeenCalledWith(note, 9, controls);
+        expect(container.querySelector('[data-chart-note-form]')).toBeNull();
+    });
+
+    it('restores each field in the editor and clears a field without changing the others', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerEdit = vi.fn();
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'manual',
+                            event: 'Note',
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '180°C',
+                            color: '#888',
+                            note: 'color',
+                            gas: '0',
+                            airflow: '50%',
+                        },
+                    ],
+                    onEventMarkerEdit,
+                }),
+            ),
+        );
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+        });
+        const gas = container.querySelector('#chart-marker-gas') as HTMLInputElement;
+        expect(gas.value).toBe('0');
+        expect((container.querySelector('#chart-marker-airflow') as HTMLInputElement).value).toBe('50%');
+        const comment = container.querySelector('#chart-marker-note') as HTMLTextAreaElement;
+        expect(comment.value).toBe('color');
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(gas, '');
+            gas.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() => comment.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', shiftKey: true })));
+        expect(onEventMarkerEdit).not.toHaveBeenCalled();
+        act(() => comment.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', {
+            timeSec: 5,
+            note: 'color',
+            gas: '',
+            airflow: '50%',
+        });
+    });
+
     it('opens a marker editor on click and saves Heater time but not heat value', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();

@@ -1,5 +1,5 @@
 import { formatElapsed } from '@shared/lib/format';
-import type { LogEntry } from '@shared/types/roast';
+import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { type SetStateAction, useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
 import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
@@ -35,9 +35,17 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
     }, []);
 
     const markEvent = useCallback(
-        (event: string, note: string, buttonLabel?: string, historical?: { timeSec: number; tempC: number | null }) => {
+        (
+            event: string,
+            note: string,
+            buttonLabel?: string,
+            historical?: { timeSec: number; tempC: number | null },
+            controls?: RoastNoteControls,
+        ) => {
             const body = note.trim();
-            if (event === 'Note' && !body) return;
+            const gas = event === 'Note' ? controls?.gas?.trim() : undefined;
+            const airflow = event === 'Note' ? controls?.airflow?.trim() : undefined;
+            if (event === 'Note' && !body && !gas && !airflow) return;
             if (
                 historical &&
                 (!Number.isFinite(historical.timeSec) ||
@@ -68,6 +76,8 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
                     temp: tempC !== null ? formatTemp(tempC, unit) : '',
                     tempC,
                     note: event === 'Note' ? body : note,
+                    ...(gas ? { gas } : {}),
+                    ...(airflow ? { airflow } : {}),
                 };
 
                 return [...prev, newEntry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));

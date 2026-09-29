@@ -1,6 +1,6 @@
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatElapsed } from '@shared/lib/format';
-import type { LogEntry } from '@shared/types/roast';
+import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { NEAREST_BT_MAX_SEC } from './chart-option/markers';
 import { logEntryTimeSec } from './serialize-roast-events';
 import { formatTemp } from './temperature';
@@ -29,7 +29,7 @@ export function nearestLivePointAt(
     return best;
 }
 
-export type EventMarkerPatch = {
+export type EventMarkerPatch = RoastNoteControls & {
     timeSec?: number;
     note?: string;
 };
@@ -69,7 +69,8 @@ export function applyEventMarkerEdit(
     const nextNote = patch.note;
     const hasTime = nextTimeSec != null;
     const allowNote = (target.event === 'Heater' || target.event === 'Note') && nextNote != null;
-    if (!hasTime && !allowNote) return entries;
+    const allowControls = target.event === 'Note' && (patch.gas !== undefined || patch.airflow !== undefined);
+    if (!hasTime && !allowNote && !allowControls) return entries;
     if (
         hasTime &&
         (nextTimeSec == null || !Number.isFinite(nextTimeSec) || !Number.isFinite(maxTimeSec) || maxTimeSec < 0)
@@ -87,6 +88,10 @@ export function applyEventMarkerEdit(
         .map((entry) => {
             if (entry.id !== logId) return entry;
             const next = allowNote && nextNote != null ? { ...entry, note: nextNote } : { ...entry };
+            if (allowControls) {
+                if (patch.gas !== undefined) next.gas = patch.gas.trim() || undefined;
+                if (patch.airflow !== undefined) next.airflow = patch.airflow.trim() || undefined;
+            }
             if (!hasTime) return next;
             const newTimeStr = formatElapsed(boundedTimeSec);
             const nearest = nearestLivePointAt(livePoints, boundedTimeSec);

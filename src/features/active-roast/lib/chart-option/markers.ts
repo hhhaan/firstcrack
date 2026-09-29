@@ -1,5 +1,6 @@
 import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import { isControlEvent } from '@features/active-roast/lib/chart-config';
+import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
@@ -370,7 +371,12 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             return {
                 timeSec: m.timeSec,
                 y,
-                text: eventLabelText(m.event, m.timeSec, markerTemp(m, nearest), m.note),
+                text: eventLabelText(
+                    m.event,
+                    m.timeSec,
+                    markerTemp(m, nearest),
+                    m.event === 'Note' ? formatRoastNote(m) : m.note,
+                ),
                 color: markerLabelColor(m.event),
                 below: atTop || LABEL_BELOW_EVENTS.has(m.event),
                 showDot: m.event === 'Charge' ? false : showDot,

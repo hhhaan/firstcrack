@@ -1,8 +1,10 @@
 import type { ControlData, RoastEventMarker } from '@features/active-roast/lib/chart-option';
+import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import { toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import type { RoastPhase } from '@features/active-roast/model/status';
+import type { RoastNoteControls } from '@shared/types/roast';
 
 type TempSample = { bt: number | null; et: number | null };
 
@@ -182,9 +184,9 @@ export const buildChartFrame = <TTurningPoint>(input: {
     phaseSegments: PhaseSegment[];
     showFcBand: boolean;
     onEventMarkerDrag: (logId: string, newTimeSec: number) => void;
-    onEventMarkerEdit: (logId: string, patch: { timeSec?: number; note?: string }) => void;
+    onEventMarkerEdit: (logId: string, patch: EventMarkerPatch) => void;
     onEventMarkerDelete: (logId: string) => void;
-    onAddNote: (body: string, timeSec: number) => void;
+    onAddNote: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
 }) => {
     const canEdit = canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
     return {
