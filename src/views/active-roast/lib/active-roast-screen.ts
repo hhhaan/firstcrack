@@ -93,6 +93,58 @@ const listUnlessBbp = <T>(bbpActive: boolean, items: T[]): T[] => (bbpActive ? [
 const canEditChartMarkers = (charged: boolean, roastEnded: boolean, bbpActive: boolean) =>
     charged && !roastEnded && !bbpActive;
 
+const anySeriesOn = (drum: boolean, heat: boolean, fan: boolean) => drum || heat || fan;
+
+type ControlFrameInput = {
+    showControlChart: boolean;
+    showControlDrum: boolean;
+    showControlHeat: boolean;
+    showControlFan: boolean;
+    showTargetCurve: boolean;
+    targetProfileId: string | null;
+    showProfileDrum: boolean;
+    showProfileHeat: boolean;
+    showProfileFan: boolean;
+    bbpActive: boolean;
+    controlXs: number[];
+    drumTemp: (number | null)[];
+    heatPower: (number | null)[];
+    fanSpeed: (number | null)[];
+    heatSet: (number | null)[] | undefined;
+    heatTarget: ControlData['heatTarget'];
+    referenceXs: number[];
+    referenceDrum: (number | null)[];
+    referenceHeater: (number | null)[];
+    referenceFan: (number | null)[];
+};
+
+const profileControlRequested = (input: ControlFrameInput) =>
+    input.showTargetCurve &&
+    Boolean(input.targetProfileId) &&
+    anySeriesOn(input.showProfileDrum, input.showProfileHeat, input.showProfileFan);
+
+const chartControlData = (input: ControlFrameInput): ControlData | undefined => {
+    const liveOpen = anySeriesOn(input.showControlDrum, input.showControlHeat, input.showControlFan);
+    if (!input.showControlChart || (!liveOpen && !profileControlRequested(input))) return undefined;
+    return {
+        xs: input.controlXs,
+        drumTemp: input.drumTemp,
+        heatPower: input.heatPower,
+        fanSpeed: input.fanSpeed,
+        heatSet: input.heatSet,
+        heatTarget: input.bbpActive ? undefined : input.heatTarget,
+        reference:
+            input.referenceXs.length > 0
+                ? {
+                      xs: input.referenceXs,
+                      drum: input.referenceDrum,
+                      heater: input.referenceHeater,
+                      fan: input.referenceFan,
+                  }
+                : undefined,
+    };
+};
+
 export const buildChartFrame = <TTurningPoint>(input: {
     isFullscreen: boolean;
     bbpActive: boolean;
@@ -109,12 +161,19 @@ export const buildChartFrame = <TTurningPoint>(input: {
     showControlDrum: boolean;
     showControlHeat: boolean;
     showControlFan: boolean;
+    showProfileDrum: boolean;
+    showProfileHeat: boolean;
+    showProfileFan: boolean;
     controlXs: number[];
     drumTemp: (number | null)[];
     heatPower: (number | null)[];
     fanSpeed: (number | null)[];
     heatSet: (number | null)[] | undefined;
     heatTarget: ControlData['heatTarget'];
+    referenceXs: number[];
+    referenceDrum: (number | null)[];
+    referenceHeater: (number | null)[];
+    referenceFan: (number | null)[];
     elapsed: number;
     charged: boolean;
     roastEnded: boolean;
@@ -127,8 +186,6 @@ export const buildChartFrame = <TTurningPoint>(input: {
     onEventMarkerDelete: (logId: string) => void;
     onAddNote: (body: string, timeSec: number) => void;
 }) => {
-    const showControl =
-        input.showControlChart && (input.showControlDrum || input.showControlHeat || input.showControlFan);
     const canEdit = canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
     return {
         className: `bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
@@ -149,16 +206,7 @@ export const buildChartFrame = <TTurningPoint>(input: {
             input.showTargetDeltaLabel &&
             !!input.targetProfileId &&
             input.targetCurvePointCount > 0,
-        controlData: showControl
-            ? {
-                  xs: input.controlXs,
-                  drumTemp: input.drumTemp,
-                  heatPower: input.heatPower,
-                  fanSpeed: input.fanSpeed,
-                  heatSet: input.heatSet,
-                  heatTarget: input.bbpActive ? undefined : input.heatTarget,
-              }
-            : undefined,
+        controlData: chartControlData(input),
         elapsed: input.bbpActive ? input.bbpNowSec : input.elapsed,
         charged: input.charged && !input.bbpActive,
         eventMarkers: listUnlessBbp(input.bbpActive, input.eventMarkers),

@@ -41,8 +41,16 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showET,
         showTargetCurve,
         showTargetDeltaLabel = false,
+        showProfileBt,
+        showProfileEt,
+        showProfileRor,
+        showProfileDrum,
+        showProfileHeat,
+        showProfileFan,
         targetXs,
         targetBt,
+        targetEt,
+        targetRor,
         showRoR,
         showRoRET,
         rorEtActual,
@@ -123,7 +131,15 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     });
     const showBbp = bbpRange && bbpRange.start < xMax && bbpRange.end > xMin;
 
-    const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan);
+    const profileOn = (flag: boolean | undefined) => flag !== false;
+    const reference = controlData?.reference;
+    const profileControl =
+        showTargetCurve &&
+        !!reference?.xs.length &&
+        ((profileOn(showProfileDrum) && reference.drum.some((value) => value != null)) ||
+            (profileOn(showProfileHeat) && reference.heater.some((value) => value != null)) ||
+            (profileOn(showProfileFan) && reference.fan.some((value) => value != null)));
+    const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan || profileControl);
     const {
         allMarkLines,
         markPointData,
@@ -165,8 +181,13 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         rorActual,
         rorEtActual,
         showTargetCurve,
+        showProfileBt,
+        showProfileEt,
+        showProfileRor,
         targetXs,
         targetBt,
+        targetEt,
+        targetRor,
         showET,
         showRoR,
         showRoRET,
@@ -214,6 +235,10 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
         const controlSeries = buildControlSeries({
             controlData,
+            showTargetCurve,
+            showProfileDrum,
+            showProfileHeat,
+            showProfileFan,
             showControlDrum,
             showControlHeat,
             showControlFan,

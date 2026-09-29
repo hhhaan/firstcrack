@@ -1,41 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { mockChartColors as colors } from './chart-colors.fixture';
 import { createAxisTooltipFormatter, lastDrawnSampleSec } from './tooltip';
-import type { ResolvedChartColors } from './types';
-
-const colors: ResolvedChartColors = {
-    btTarget: '#1',
-    btTargetTooltip: '#2',
-    btActual: '#3',
-    etActual: '#4',
-    rorActual: '#5',
-    tp: '#6',
-    phaseLines: '#7',
-    currentTimeLine: '#8',
-    nowLabel: '#9',
-    gridLine: '#a',
-    gridLineMinor: '#b',
-    axisLabel: '#c',
-    axisPointerLine: '#d',
-    tooltipTimeColor: '#e',
-    tooltipBg: '#f',
-    tooltipBorder: '#10',
-    markerLabelColor: '#11',
-    phaseBarStroke: '#12',
-    phaseBarName: '#13',
-    phaseBarDuration: '#14',
-    controlDrum: '#15',
-    controlHeat: '#16',
-    controlHeatArea: '#17',
-    controlFan: '#18',
-    controlFanArea: '#19',
-    eventMark: '#23',
-    eventControl: '#24',
-    fcBandFill: 'rgba(105,103,225,0.1)',
-    bbpFill: '#efeff0',
-    targetDeltaWithin: '#20',
-    targetDeltaOver: '#21',
-    targetDeltaUnder: '#22',
-};
 
 const formatterOpts = {
     showET: true,
@@ -136,5 +101,23 @@ describe('createAxisTooltipFormatter', () => {
         expect(html).toContain('3:00');
         expect(html).toContain('Bean Temp');
         expect(html).toContain('Target BT');
+    });
+
+    it('shows stored reference channels beside a live sample and not on their own', () => {
+        const fmt = createAxisTooltipFormatter(formatterOpts);
+        expect(fmt([{ axisValue: 30, seriesName: 'ET Target', value: [30, 110] }])).toBe('');
+        const html = fmt([
+            { axisValue: 30, seriesName: 'BT Actual', value: [30, 120] },
+            { axisValue: 30, seriesName: 'ET Target', value: [30, 110] },
+            { axisValue: 30, seriesName: 'RoR Target', value: [30, 6] },
+            { axisValue: 30, seriesName: 'Heater Target', value: [30, 60] },
+            { axisValue: 30, seriesName: 'Fan Target', value: [30, 0] },
+            { axisValue: 30, seriesName: 'Drum Target', value: [30, null] },
+        ]);
+        expect(html).toContain('Target ET');
+        expect(html).toContain('Target RoR');
+        expect(html).toContain('Target Heater');
+        expect(html).toContain('Target Fan: <span>0%');
+        expect(html).not.toContain('Target Drum');
     });
 });

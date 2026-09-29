@@ -34,6 +34,31 @@ export const lineSeriesBase = {
     emphasis: { disabled: true },
 };
 
+const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>
+    values?.some((value) => value != null) ?? false;
+
+/** Stored reference: same channel color at the faded token, behind the live line. Gaps stay broken. */
+const referenceLineSeries = (
+    name: string,
+    xs: number[],
+    values: readonly (number | null)[],
+    color: string,
+    xAxisIndex: number,
+    yAxisIndex: number,
+) => ({
+    id: `ref-${name}`,
+    name,
+    type: 'line' as const,
+    xAxisIndex,
+    yAxisIndex,
+    z: 1,
+    data: xs.map((x, i) => [x, values[i] ?? null]),
+    connectNulls: false,
+    lineStyle: { color, width: 0.8, type: 'dashed' as const },
+    ...lineSeriesBase,
+    smooth: false,
+});
+
 export interface TempSeriesParams {
     xs: number[];
     btActual: (number | null)[];
@@ -43,6 +68,11 @@ export interface TempSeriesParams {
     showTargetCurve: boolean;
     targetXs?: number[];
     targetBt?: (number | null)[];
+    targetEt?: (number | null)[];
+    targetRor?: (number | null)[];
+    showProfileBt?: boolean;
+    showProfileEt?: boolean;
+    showProfileRor?: boolean;
     showET: boolean;
     showRoR: boolean;
     showRoRET: boolean;
@@ -63,6 +93,11 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
         showTargetCurve,
         targetXs,
         targetBt,
+        targetEt,
+        targetRor,
+        showProfileBt = true,
+        showProfileEt = true,
+        showProfileRor = true,
         showET,
         showRoR,
         showRoRET,
@@ -75,18 +110,20 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
 
     return [
         showTargetCurve &&
+            showProfileBt &&
             targetXs?.length &&
-            targetBt?.length && {
-                name: 'BT Target',
-                type: 'line',
-                xAxisIndex: 0,
-                yAxisIndex: 0,
-                z: 1,
-                data: targetXs.map((x, i) => [x, targetBt[i] ?? null]),
-                lineStyle: { color: colors.btTarget, width: 0.8, type: 'dashed' },
-                ...lineSeriesBase,
-                smooth: false,
-            },
+            hasNumericSample(targetBt) &&
+            referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.btTarget, 0, 0),
+        showTargetCurve &&
+            showProfileEt &&
+            targetXs?.length &&
+            hasNumericSample(targetEt) &&
+            referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.etTarget, 0, 0),
+        showTargetCurve &&
+            showProfileRor &&
+            targetXs?.length &&
+            hasNumericSample(targetRor) &&
+            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.rorTarget, 0, 1),
         {
             name: 'BT Actual',
             type: 'line',
@@ -153,6 +190,10 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
 
 export interface ControlSeriesParams {
     controlData: ControlData;
+    showTargetCurve: boolean;
+    showProfileDrum?: boolean;
+    showProfileHeat?: boolean;
+    showProfileFan?: boolean;
     showControlDrum: boolean;
     showControlHeat: boolean;
     showControlFan: boolean;
@@ -161,9 +202,37 @@ export interface ControlSeriesParams {
 }
 
 export const buildControlSeries = (params: ControlSeriesParams): object[] => {
-    const { controlData, showControlDrum, showControlHeat, showControlFan, colors, controlGuideMarkLines } = params;
-    const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget } = controlData;
+    const {
+        controlData,
+        showTargetCurve,
+        showProfileDrum = true,
+        showProfileHeat = true,
+        showProfileFan = true,
+        showControlDrum,
+        showControlHeat,
+        showControlFan,
+        colors,
+        controlGuideMarkLines,
+    } = params;
+    const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference } = controlData;
     const series: object[] = [];
+
+    // 참조(옅은 점선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
+    if (showTargetCurve && reference?.xs.length) {
+        if (showProfileDrum && hasNumericSample(reference.drum)) {
+            series.push(
+                referenceLineSeries('Drum Target', reference.xs, reference.drum, colors.controlDrumTarget, 1, 2),
+            );
+        }
+        if (showProfileHeat && hasNumericSample(reference.heater)) {
+            series.push(
+                referenceLineSeries('Heater Target', reference.xs, reference.heater, colors.controlHeatTarget, 1, 3),
+            );
+        }
+        if (showProfileFan && hasNumericSample(reference.fan)) {
+            series.push(referenceLineSeries('Fan Target', reference.xs, reference.fan, colors.controlFanTarget, 1, 3));
+        }
+    }
 
     if (showControlDrum) {
         series.push({

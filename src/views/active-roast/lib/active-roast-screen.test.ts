@@ -26,12 +26,19 @@ const chartInput = {
     showControlDrum: false,
     showControlHeat: true,
     showControlFan: false,
+    showProfileDrum: false,
+    showProfileHeat: false,
+    showProfileFan: false,
     controlXs: [0],
     drumTemp: [1],
     heatPower: [2],
     fanSpeed: [3],
     heatSet: [4],
     heatTarget: { xs: [0], values: [80] },
+    referenceXs: [] as number[],
+    referenceDrum: [] as (number | null)[],
+    referenceHeater: [] as (number | null)[],
+    referenceFan: [] as (number | null)[],
     elapsed: 90,
     charged: true,
     roastEnded: false,
@@ -83,6 +90,25 @@ describe('buildChartFrame', () => {
             showControlFan: false,
         });
         expect(frame.controlData).toBeUndefined();
+    });
+
+    it('keeps a stored profile control channel when the live series are hidden', () => {
+        const frame = buildChartFrame({
+            ...chartInput,
+            showControlDrum: false,
+            showControlHeat: false,
+            showControlFan: false,
+            showProfileHeat: true,
+            referenceXs: [0, 30],
+            referenceHeater: [60, null],
+        });
+        expect(frame.controlData?.reference).toEqual({
+            xs: [0, 30],
+            drum: [],
+            heater: [60, null],
+            fan: [],
+        });
+        expect(frame.controlData?.heatTarget).toEqual({ xs: [0], values: [80] });
     });
 });
 

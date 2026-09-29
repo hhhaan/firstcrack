@@ -2,6 +2,11 @@ import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import { formatTemp, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import {
+    referenceCurveFromPoints,
+    referenceHasControls,
+    toDisplayReferenceCurve,
+} from '@features/active-roast/lib/reference-curve';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
@@ -14,18 +19,41 @@ import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryPdfExport } from '../hooks/useHistoryPdfExport';
 import { sessionDropTime } from '../lib/record-heat';
+import {
+    curveStatusKey,
+    historyControls,
+    historyTargetVisible,
+    historyXView,
+    mergedBbpRange,
+    orNull,
+    profileForSession,
+    referenceStatusKey,
+    roastChartStatusKey,
+} from '../lib/session-chart-view';
 
 export function HistorySessionChart({ session }: { session: RoastSessionWithRelations }) {
     const { t } = useTranslation();
-    const { temperatureUnit: unit, eventMarkerStyle, tempMinC, tempMaxC } = useRoastSettings();
+    const {
+        temperatureUnit: unit,
+        eventMarkerStyle,
+        tempMinC,
+        tempMaxC,
+        showTargetCurve,
+        showProfileBt,
+        showProfileEt,
+        showProfileRor,
+        showProfileDrum,
+        showProfileHeat,
+        showProfileFan,
+    } = useRoastSettings();
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
-    const roast = useHistoryChart(session.tsv_path ?? null);
+    const roast = useHistoryChart(orNull(session.tsv_path));
     const bbp = useBbpCurve(session.user_id, session.id, session.bbp_tsv_path);
     const { data: profiles = [] } = useRoastProfiles(session.user_id);
-    const profile = profiles.find((p) => p.id === session.profile_id && p.user_id === session.user_id) ?? null;
+    const profile = profileForSession(profiles, session);
     const source = resolveSourceSession(profile?.source_session);
     const { points: targetPoints } = useResolvedProfileCurve(profile);
-    const targetBbp = useBbpCurve(session.user_id, profile?.source_session_id ?? null, source?.bbp_tsv_path);
+    const targetBbp = useBbpCurve(session.user_id, orNull(profile?.source_session_id), source?.bbp_tsv_path);
     const actual = useMemo(
         () =>
             combineBbpCurve(
@@ -47,17 +75,35 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
         return storedEventsToMarkers(events, unit);
     }, [session.events, session.heater_events, heaterUnit, unit, resolvedTheme]);
     const { points } = actual;
+    const referenceCurve = useMemo(() => referenceCurveFromPoints(target.points), [target.points]);
+    const displayedTarget = useMemo(() => toDisplayReferenceCurve(referenceCurve, unit), [referenceCurve, unit]);
+    const referenceControls = referenceHasControls(referenceCurve);
     const heatSet = useMemo(
         () =>
             editedHeatSet(points, sessionDropTime(session), session.heater_events) ??
             points.map((p) => p.heaterSet ?? null),
         [points, session],
     );
-    const hasControls = points.some((p) => p.heater != null || p.fan != null || p.drum != null);
-    const bbpRange =
-        actual.bbpRange || target.bbpRange
-            ? { start: Math.min(actual.bbpRange?.start ?? 0, target.bbpRange?.start ?? 0), end: 0 }
-            : undefined;
+    const { hasControls, controlData } = historyControls({
+        points,
+        heatSet,
+        referenceControls,
+        displayedTarget,
+    });
+    const bbpRange = mergedBbpRange(actual.bbpRange, target.bbpRange);
+    const xView = historyXView({
+        bbpStart: bbpRange?.start,
+        durationSec: session.duration_seconds,
+        lastT: points[points.length - 1]?.t,
+        targetT: target.points[target.points.length - 1]?.t,
+    });
+    const bbpStatus = curveStatusKey({
+        isLoading: bbp.isLoading,
+        isError: bbp.isError,
+        empty: !bbp.data?.length,
+    });
+    const roastStatus = roastChartStatusKey(roast.isLoading, roast.isError);
+    const referenceStatus = referenceStatusKey(orNull(profile?.name), targetBbp.isLoading, targetBbp.isError);
     const chartRef = useRef<RoastTempChartHandle>(null);
     const { canExport, onExportPdf } = useHistoryPdfExport({
         session,
@@ -81,17 +127,12 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                     <span>
                         {t('bbp.chargeTemp')}: {formatTemp(session.charge_temp_celsius, unit)}
                     </span>
-                    {(bbp.isLoading || bbp.isError || !bbp.data?.length) && (
-                        <span role="status">
-                            {t(bbp.isLoading ? 'bbp.loading' : bbp.isError ? 'bbp.failed' : 'bbp.empty')}
-                        </span>
-                    )}
-                    {roast.isLoading && <span role="status">{t('history.expanded.chartLoading')}</span>}
-                    {roast.isError && <span role="status">{t('history.expanded.chartUnavailable')}</span>}
-                    {profile && (targetBbp.isLoading || targetBbp.isError) && (
-                        <span role="status">
-                            {profile.name} · {t(targetBbp.isLoading ? 'bbp.loading' : 'bbp.failed')}
-                        </span>
+                    {bbpStatus && <output>{t(bbpStatus)}</output>}
+                    {roastStatus && <output>{t(roastStatus)}</output>}
+                    {referenceStatus && (
+                        <output>
+                            {referenceStatus.name} · {t(referenceStatus.key)}
+                        </output>
                     )}
                 </div>
                 <button
@@ -113,9 +154,17 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                     etActual={points.map((p) => (p.et == null ? null : toDisplayTemp(p.et, unit)))}
                     rorActual={points.map((p) => (p.ror == null ? null : toDisplayRoR(p.ror, unit)))}
                     btTarget={[]}
-                    targetXs={target.points.map((p) => p.t)}
-                    targetBt={target.points.map((p) => toDisplayTemp(p.bt, unit))}
-                    showTargetCurve={target.points.length > 0}
+                    targetXs={displayedTarget.xs}
+                    targetBt={displayedTarget.bt}
+                    targetEt={displayedTarget.et}
+                    targetRor={displayedTarget.ror}
+                    showTargetCurve={historyTargetVisible(showTargetCurve, target.points.length)}
+                    showProfileBt={showProfileBt}
+                    showProfileEt={showProfileEt}
+                    showProfileRor={showProfileRor}
+                    showProfileDrum={showProfileDrum}
+                    showProfileHeat={showProfileHeat}
+                    showProfileFan={showProfileFan}
                     currentTimeSec={0}
                     eventMarkerStyle={eventMarkerStyle}
                     eventMarkers={eventMarkers}
@@ -129,25 +178,10 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                         tempMaxC,
                         ...points.map((p) => Math.ceil(Math.max(p.bt, p.et ?? p.bt) / 10) * 10),
                     )}
-                    xViewMin={bbpRange?.start ?? 0}
-                    xViewMax={Math.max(
-                        1,
-                        session.duration_seconds ?? 0,
-                        points[points.length - 1].t,
-                        target.points[target.points.length - 1]?.t ?? 0,
-                    )}
+                    xViewMin={xView.min}
+                    xViewMax={xView.max}
                     bbpRange={bbpRange}
-                    controlData={
-                        hasControls
-                            ? {
-                                  xs: points.map((p) => p.t),
-                                  drumTemp: points.map((p) => p.drum),
-                                  heatPower: points.map((p) => p.heater),
-                                  fanSpeed: points.map((p) => p.fan),
-                                  heatSet,
-                              }
-                            : undefined
-                    }
+                    controlData={controlData}
                     height={420}
                 />
             )}

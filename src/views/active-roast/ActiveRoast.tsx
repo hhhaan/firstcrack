@@ -917,12 +917,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         showControlDrum: roastSettings.showControlDrum,
         showControlHeat: roastSettings.showControlHeat,
         showControlFan: roastSettings.showControlFan,
+        showProfileDrum: roastSettings.showProfileDrum,
+        showProfileHeat: roastSettings.showProfileHeat,
+        showProfileFan: roastSettings.showProfileFan,
         controlXs: chart.visibleControlXs,
         drumTemp: chart.visibleDrumTemp,
         heatPower: chart.visibleHeatPower,
         fanSpeed: chart.visibleFanSpeed,
         heatSet: chart.visibleHeatSet,
         heatTarget,
+        referenceXs: chart.visibleTargetXs,
+        referenceDrum: chart.visibleTargetDrum,
+        referenceHeater: chart.visibleTargetHeater,
+        referenceFan: chart.visibleTargetFan,
         elapsed,
         charged,
         roastEnded,
@@ -986,7 +993,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         rorEtActual={chart.visibleRorEtActual}
                         targetXs={chart.visibleTargetXs}
                         targetBt={chart.visibleTargetBt}
+                        targetEt={chart.visibleTargetEt}
+                        targetRor={chart.visibleTargetRor}
                         showTargetCurve={chartFrame.showTargetCurve}
+                        showProfileBt={roastSettings.showProfileBt}
+                        showProfileEt={roastSettings.showProfileEt}
+                        showProfileRor={roastSettings.showProfileRor}
+                        showProfileDrum={roastSettings.showProfileDrum}
+                        showProfileHeat={roastSettings.showProfileHeat}
+                        showProfileFan={roastSettings.showProfileFan}
                         showTargetDeltaLabel={chartFrame.showTargetDeltaLabel}
                         showET={roastSettings.showET}
                         showRoR={roastSettings.showRoRChart}
