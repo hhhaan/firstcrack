@@ -28,7 +28,7 @@ import { NewProfileModal } from '@widgets/new-profile-modal';
 import { ProfileCompare } from '@widgets/profile-compare/ui/ProfileCompare';
 import { ProfileDetail } from '@widgets/profile-detail/ui/ProfileDetail';
 import { Check, GitCompare, Plus, Search, Star } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const PROFILE_SKELETON_COUNT = 5;
@@ -225,6 +225,37 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         ? `${compareIds.join(',')}|${compareProfiles.map((p) => resolveSourceSession(p.source_session)?.tsv_path ?? '').join(',')}`
         : `${selectedId ?? ''}|${selectedRealCurve.length}`;
 
+    const renderDetail = (): ReactNode => {
+        if (isLoading) return <ProfileDetailSkeleton />;
+        if (compareMode) {
+            return (
+                <ProfileCompare
+                    compareIds={compareIds}
+                    compareProfiles={compareProfiles}
+                    defaultId={defaultId}
+                    primaryId={primaryId}
+                    chartKey={chartKey}
+                    onSetDefault={setDefault}
+                />
+            );
+        }
+        if (!selected) return null;
+        return (
+            <ProfileDetail
+                selected={selected}
+                selectedRealCurve={selectedRealCurve}
+                selectedHasReal={selectedHasReal}
+                defaultId={defaultId}
+                chartKey={chartKey}
+                onSetDefault={setDefault}
+                onEdit={() => setShowEditModal(true)}
+                onDuplicate={(profile) => void handleDuplicate(profile)}
+                onDelete={handleDelete}
+                onNavigate={onNavigate}
+            />
+        );
+    };
+
     const profileList = (
         <div>
             <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
@@ -357,36 +388,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     </PillButton>
                 </div>
             ) : (
-                <MasterDetailLayout
-                    left={profileList}
-                    detail={
-                        isLoading ? (
-                            <ProfileDetailSkeleton />
-                        ) : compareMode ? (
-                            <ProfileCompare
-                                compareIds={compareIds}
-                                compareProfiles={compareProfiles}
-                                defaultId={defaultId}
-                                primaryId={primaryId}
-                                chartKey={chartKey}
-                                onSetDefault={setDefault}
-                            />
-                        ) : selected ? (
-                            <ProfileDetail
-                                selected={selected}
-                                selectedRealCurve={selectedRealCurve}
-                                selectedHasReal={selectedHasReal}
-                                defaultId={defaultId}
-                                chartKey={chartKey}
-                                onSetDefault={setDefault}
-                                onEdit={() => setShowEditModal(true)}
-                                onDuplicate={(profile) => void handleDuplicate(profile)}
-                                onDelete={handleDelete}
-                                onNavigate={onNavigate}
-                            />
-                        ) : null
-                    }
-                />
+                <MasterDetailLayout left={profileList} detail={renderDetail()} />
             )}
 
             <NewProfileModal open={showNewModal} onClose={() => setShowNewModal(false)} onCreated={handleCreated} />
