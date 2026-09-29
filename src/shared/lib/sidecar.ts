@@ -59,6 +59,10 @@ async function request<T>(
     try {
         const token = await getSidecarToken();
         const res = await fetch(`${SIDECAR_BASE}${path}`, {
+            // Live BT/status must not be reused from the HTTP cache. A cached 200
+            // while /temperatures is blocked looks like a healthy reading and
+            // resets the unstable-link streak.
+            cache: 'no-store',
             headers: {
                 'Content-Type': 'application/json',
                 ...(token ? { [TOKEN_HEADER]: token } : {}),
