@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildMarkers,
+    clampCurveLabelY,
     estimateLabelWidth,
     getMarkerLabelGeometry,
     LABEL_BELOW_EVENTS,
@@ -231,6 +232,13 @@ describe('layoutCurveLabelBoxes', () => {
         color: '#111',
         showDot: false,
         ...overrides,
+    });
+
+    it('keeps a note whose anchor sits a fraction above the axis line', () => {
+        expect(clampCurveLabelY(39.4, 40, 200)).toBe(40);
+        expect(clampCurveLabelY(40, 40, 200)).toBe(40);
+        expect(clampCurveLabelY(38, 40, 200)).toBeNull();
+        expect(clampCurveLabelY(241, 40, 200)).toBeNull();
     });
 
     it('drops a top-pinned note below the axis by NOTE_LABEL_TOP_INSET_PX', () => {

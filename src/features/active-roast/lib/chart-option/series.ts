@@ -14,7 +14,7 @@ import {
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
-import { type CurveLabelItem, layoutCurveLabelBoxes, MARKER_LABEL_MAX_WIDTH_PX } from './markers';
+import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes, MARKER_LABEL_MAX_WIDTH_PX } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
 // 커피 로스팅 차트에 최적화된 스무딩 설정
@@ -370,14 +370,14 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
         const laid = layoutCurveLabelBoxes(
             items.flatMap((item) => {
                 const point = api.coord([item.timeSec, item.y]) as number[];
-                if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) return [];
+                const yPx = clampCurveLabelY(point[1], plotY, plotHeight);
+                if (!Number.isFinite(point[0]) || yPx == null) return [];
                 if (point[0] < plotX || point[0] > plotX + plotWidth) return [];
-                if (point[1] < plotY || point[1] > plotY + plotHeight) return [];
                 return [
                     {
                         timeSec: item.timeSec,
                         xPx: point[0],
-                        yPx: point[1],
+                        yPx,
                         text: item.text,
                         below: item.below,
                         color: item.color,

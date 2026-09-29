@@ -557,7 +557,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 marker.event === 'Note' ? formatRoastNote(marker) : marker.note,
                             ),
                             below: atTop || LABEL_BELOW_EVENTS.has(marker.event),
-                            topInsetPx: noteLabelTopInsetPx(marker.event),
+                            topInsetPx: noteLabelTopInsetPx(atTop),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
                         },

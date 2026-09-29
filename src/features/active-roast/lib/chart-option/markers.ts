@@ -41,13 +41,13 @@ export const isCurveMarkerVisible = (
     return !xs.some((x, i) => Number.isFinite(x) && Number.isFinite(btActual[i]));
 };
 
-/** Notes hang from the top of the temperature axis, inside the plot. They do not follow BT. */
+/** Comments hang from the top of the temperature axis, inside the plot. They do not follow BT. */
 export const noteAnchoredAtTop = (event: string) => event === 'Note';
 
 /** Pixels a note label sits below the top of the temperature axis. */
 export const NOTE_LABEL_TOP_INSET_PX = 8;
 
-export const noteLabelTopInsetPx = (event: string) => (noteAnchoredAtTop(event) ? NOTE_LABEL_TOP_INSET_PX : 0);
+export const noteLabelTopInsetPx = (atTop: boolean) => (atTop ? NOTE_LABEL_TOP_INSET_PX : 0);
 
 /** Notes stay on the time axis ahead of the live curve. Other events need a nearby BT sample. */
 export const isEventMarkerVisible = (
@@ -165,6 +165,16 @@ const makeLabelBox = (item: CurveLabelLayoutInput, textY: number, canvasWidth: n
 };
 
 const labelTextY = (item: CurveLabelLayoutInput) => item.yPx + markerLabelDy(item.below) + (item.topInsetPx ?? 0);
+
+/**
+ * Axis max converts to the plot top and can land a fraction above it.
+ * Keep that edge so the 8px inset is measured from the axis line, not dropped.
+ */
+export const clampCurveLabelY = (yPx: number, plotY: number, plotHeight: number): number | null => {
+    if (!Number.isFinite(yPx) || yPx > plotY + plotHeight) return null;
+    if (yPx >= plotY) return yPx;
+    return plotY - yPx <= 1 ? plotY : null;
+};
 
 /** Time-ordered greedy packing. Prefer the curve side, then flip if still blocked. */
 export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[], canvasWidth = Infinity): CurveLabelBox[] => {
@@ -380,7 +390,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                 color: markerLabelColor(m.event),
                 below: atTop || LABEL_BELOW_EVENTS.has(m.event),
                 showDot: m.event === 'Charge' ? false : showDot,
-                topInsetPx: noteLabelTopInsetPx(m.event),
+                topInsetPx: noteLabelTopInsetPx(atTop),
             };
         }),
         ...visibleTurningPoints.map((tp) => ({
