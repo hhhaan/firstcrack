@@ -33,7 +33,11 @@ interface NewProfileModalProps {
     initialSessionId?: string | null;
 }
 
-export const NewProfileModal = ({
+/** Closed callers must not evaluate form, session, or curve hooks. */
+export const NewProfileModal = (props: NewProfileModalProps) =>
+    props.open ? <NewProfileModalOpen {...props} /> : null;
+
+const NewProfileModalOpen = ({
     open,
     onClose,
     onCreated,
@@ -51,8 +55,6 @@ export const NewProfileModal = ({
         () => resolveProfileHeatEditor(editingProfile ?? null, points),
         [editingProfile, points],
     );
-
-    if (!open) return null;
 
     return (
         <>

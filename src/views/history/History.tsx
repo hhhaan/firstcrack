@@ -359,12 +359,14 @@ export const History = () => {
                 {showCompare && compareSessions.length >= 2 && (
                     <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
                 )}
-                <NewProfileModal
-                    open={promoteSessionId != null}
-                    initialSessionId={promoteSessionId}
-                    onClose={() => setPromoteSessionId(null)}
-                    onCreated={handleProfileCreated}
-                />
+                {promoteSessionId != null && (
+                    <NewProfileModal
+                        open
+                        initialSessionId={promoteSessionId}
+                        onClose={() => setPromoteSessionId(null)}
+                        onCreated={handleProfileCreated}
+                    />
+                )}
                 <DeleteSessionModal
                     open={deletingId !== null}
                     sessionName={

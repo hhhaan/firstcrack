@@ -399,17 +399,19 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 <MasterDetailLayout left={profileList} detail={renderDetail()} />
             )}
 
-            <NewProfileModal open={showNewModal} onClose={() => setShowNewModal(false)} onCreated={handleCreated} />
-            <NewProfileModal
-                open={showEditModal}
-                onClose={() => setShowEditModal(false)}
-                onCreated={() => {}}
-                editingProfile={selected}
-                onUpdated={async (updated) => {
-                    await updateRoastProfile(updated);
-                    setShowEditModal(false);
-                }}
-            />
+            {showNewModal && <NewProfileModal open onClose={() => setShowNewModal(false)} onCreated={handleCreated} />}
+            {showEditModal && selected && (
+                <NewProfileModal
+                    open
+                    onClose={() => setShowEditModal(false)}
+                    onCreated={() => {}}
+                    editingProfile={selected}
+                    onUpdated={async (updated) => {
+                        await updateRoastProfile(updated);
+                        setShowEditModal(false);
+                    }}
+                />
+            )}
         </PageLayout>
     );
 };
