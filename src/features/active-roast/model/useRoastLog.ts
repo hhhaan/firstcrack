@@ -48,9 +48,9 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
                 return;
 
             const isRemoval = TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((e) => e.event === event);
-            const timeSec = historical
-                ? Math.min(Math.max(Math.round(historical.timeSec), 0), Math.floor(elapsed))
-                : elapsed;
+            const rounded = historical ? Math.max(Math.round(historical.timeSec), 0) : elapsed;
+            // Notes can be placed ahead of the live curve. Other events stay at or before now.
+            const timeSec = historical && event !== 'Note' ? Math.min(rounded, Math.floor(elapsed)) : rounded;
             const tempC = historical ? historical.tempC : rawBT;
             const timeStr = formatElapsed(timeSec);
             const id = crypto.randomUUID();

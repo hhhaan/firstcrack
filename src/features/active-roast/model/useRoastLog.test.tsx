@@ -83,6 +83,26 @@ describe('useRoastLog markEvent', () => {
         hook.unmount();
     });
 
+    it('keeps a Note that is ahead of the live curve', async () => {
+        vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('note-id') });
+        const hook = await renderHook('C', 187.2, 14);
+
+        act(() => hook.get().markEvent('Note', 'ㅎ', undefined, { timeSec: 300, tempC: null }));
+
+        expect(hook.get().logEntries).toEqual([
+            {
+                id: 'note-id',
+                time: '5:00',
+                timeSec: 300,
+                event: 'Note',
+                temp: '',
+                tempC: null,
+                note: 'ㅎ',
+            },
+        ]);
+        hook.unmount();
+    });
+
     it('rejects invalid explicit historical values', async () => {
         vi.stubGlobal('crypto', { randomUUID: vi.fn() });
         const hook = await renderHook('C', 180, 30);

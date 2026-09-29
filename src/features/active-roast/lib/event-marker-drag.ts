@@ -1,6 +1,7 @@
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
+import { NEAREST_BT_MAX_SEC } from './chart-option/markers';
 import { logEntryTimeSec } from './serialize-roast-events';
 import { formatTemp } from './temperature';
 
@@ -77,7 +78,9 @@ export function applyEventMarkerEdit(
 
     const boundedTimeSec =
         hasTime && nextTimeSec != null
-            ? Math.min(Math.max(Math.round(nextTimeSec), 0), Math.floor(maxTimeSec))
+            ? target.event === 'Note'
+                ? Math.max(0, Math.round(nextTimeSec))
+                : Math.min(Math.max(Math.round(nextTimeSec), 0), Math.floor(maxTimeSec))
             : logEntryTimeSec(target);
 
     return entries
@@ -87,6 +90,10 @@ export function applyEventMarkerEdit(
             if (!hasTime) return next;
             const newTimeStr = formatElapsed(boundedTimeSec);
             const nearest = nearestLivePointAt(livePoints, boundedTimeSec);
+            const close = nearest != null && Math.abs(nearest.time - boundedTimeSec) <= NEAREST_BT_MAX_SEC;
+            if (target.event === 'Note' && !close) {
+                return { ...next, time: newTimeStr, timeSec: boundedTimeSec, temp: '', tempC: null };
+            }
             if (!nearest) return { ...next, time: newTimeStr, timeSec: boundedTimeSec };
             return {
                 ...next,

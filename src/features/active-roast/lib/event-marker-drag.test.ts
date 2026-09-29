@@ -51,7 +51,7 @@ describe('applyEventMarkerDrag', () => {
         const next = applyEventMarkerDrag(entries, 'note-b', 20, livePoints, 'C', 120);
 
         expect(next.map((e) => e.id)).toEqual(['note-b', 'note-a', 'drop']);
-        expect(next[0]).toMatchObject({ time: '0:20', timeSec: 20, temp: '160.0°C', tempC: 160, note: 'second' });
+        expect(next[0]).toMatchObject({ time: '0:20', timeSec: 20, temp: '', tempC: null, note: 'second' });
         expect(next.find((e) => e.id === 'note-a')).toBe(entries[0]);
     });
 
@@ -133,6 +133,12 @@ describe('applyEventMarkerEdit', () => {
         const entries = [entry('note-a', 'Note', 30, 160, 'old')];
         const next = applyEventMarkerEdit(entries, 'note-a', { timeSec: 60, note: 'damper' }, livePoints, 'C', 90);
         expect(next[0]).toMatchObject({ timeSec: 60, tempC: 200, note: 'damper' });
+    });
+
+    it('keeps a Note ahead of the curve and drops a far BT sample', () => {
+        const entries = [entry('note-a', 'Note', 14, 187.2, 'ㅎ')];
+        const next = applyEventMarkerEdit(entries, 'note-a', { timeSec: 300 }, livePoints, 'C', 14);
+        expect(next[0]).toMatchObject({ timeSec: 300, time: '5:00', tempC: null, temp: '' });
     });
 
     it('ignores note patches on phase events', () => {

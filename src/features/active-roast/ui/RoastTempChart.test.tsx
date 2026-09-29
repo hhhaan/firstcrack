@@ -214,12 +214,12 @@ describe('RoastTempChart interactions', () => {
 
         act(() => zrHandlers.get('mousemove')?.({ offsetX: 50, offsetY: 20 }));
         expect(onCursorIdx).toHaveBeenLastCalledWith(1);
-        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 1800, pointerId: 5 })).toBe(true);
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 2500, pointerId: 5 })).toBe(true);
         chart.containPixel.mockReturnValueOnce(false);
         expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 500, pointerId: 6 })).toBe(false);
     });
 
-    it('adds a frozen-time Note from chart context and rejects empty or composing Enter', () => {
+    it('records a Note at the click time even when that time is ahead of the live curve', () => {
         const onAddNote = vi.fn();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, currentTimeSec: 6, onAddNote })));
         const chartElement = container.querySelector('[tabindex="-1"]') as HTMLDivElement;
@@ -243,7 +243,39 @@ describe('RoastTempChart interactions', () => {
         );
         expect(onAddNote).not.toHaveBeenCalled();
         act(() => input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
-        expect(onAddNote).toHaveBeenCalledWith('past note', 6);
+        expect(onAddNote).toHaveBeenCalledWith('past note', 9);
+    });
+
+    it('records a Note from a right-click outside the temperature plot when x is on the time axis', () => {
+        const onAddNote = vi.fn();
+        chart.containPixel.mockReturnValue(false);
+        try {
+            act(() => root.render(createElement(RoastTempChart, { ...baseProps, currentTimeSec: 60, onAddNote })));
+            const chartElement = container.querySelector('[tabindex="-1"]') as HTMLDivElement;
+            const openAt = (clientX: number, clientY: number) => {
+                act(() =>
+                    chartElement.dispatchEvent(
+                        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX, clientY }),
+                    ),
+                );
+            };
+
+            openAt(-40, 800);
+            expect(container.querySelector('#chart-note-input')).toBeNull();
+
+            openAt(40, 800);
+            const input = container.querySelector('#chart-note-input') as HTMLTextAreaElement;
+            expect(input).not.toBeNull();
+            act(() => {
+                const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+                setter?.call(input, 'under the curve');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            act(() => input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
+            expect(onAddNote).toHaveBeenCalledWith('under the curve', 4);
+        } finally {
+            chart.containPixel.mockReturnValue(true);
+        }
     });
 
     it('opens a marker editor on click and saves Heater time but not heat value', () => {

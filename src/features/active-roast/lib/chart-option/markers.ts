@@ -40,6 +40,28 @@ export const isCurveMarkerVisible = (
     return !xs.some((x, i) => Number.isFinite(x) && Number.isFinite(btActual[i]));
 };
 
+/** Notes hang from the top of the temperature axis, inside the plot. They do not follow BT. */
+export const noteAnchoredAtTop = (event: string) => event === 'Note';
+
+/** Pixels a note label sits below the top of the temperature axis. */
+export const NOTE_LABEL_TOP_INSET_PX = 8;
+
+export const noteLabelTopInsetPx = (event: string) => (noteAnchoredAtTop(event) ? NOTE_LABEL_TOP_INSET_PX : 0);
+
+/** Notes stay on the time axis ahead of the live curve. Other events need a nearby BT sample. */
+export const isEventMarkerVisible = (
+    event: string,
+    timeSec: number,
+    xMin: number,
+    xMax: number,
+    xs: number[],
+    btActual: (number | null)[],
+): boolean => {
+    if (!Number.isFinite(timeSec) || timeSec < xMin || timeSec > xMax) return false;
+    if (event === 'Note') return true;
+    return isCurveMarkerVisible(timeSec, xMin, xMax, xs, btActual);
+};
+
 const formatMarkerTime = (timeSec: number) => {
     const sec = Math.max(0, Math.floor(timeSec));
     return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
@@ -79,6 +101,8 @@ export interface CurveLabelItem {
     color: string;
     below: boolean;
     showDot: boolean;
+    /** Extra pixels below the anchor. Notes use this to clear the top axis line. */
+    topInsetPx?: number;
 }
 
 export interface CurveLabelLayoutInput {
@@ -89,6 +113,7 @@ export interface CurveLabelLayoutInput {
     below: boolean;
     color: string;
     showDot: boolean;
+    topInsetPx?: number;
 }
 
 export interface CurveLabelBox {
@@ -138,6 +163,8 @@ const makeLabelBox = (item: CurveLabelLayoutInput, textY: number, canvasWidth: n
     };
 };
 
+const labelTextY = (item: CurveLabelLayoutInput) => item.yPx + markerLabelDy(item.below) + (item.topInsetPx ?? 0);
+
 /** Time-ordered greedy packing. Prefer the curve side, then flip if still blocked. */
 export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[], canvasWidth = Infinity): CurveLabelBox[] => {
     const order = items
@@ -147,7 +174,7 @@ export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[], canvasWidt
     const placed: CurveLabelBox[] = [];
     const byIndex: CurveLabelBox[] = [];
     for (const { item, index } of order) {
-        let textY = item.yPx + markerLabelDy(item.below);
+        let textY = labelTextY(item);
         let box = makeLabelBox(item, textY, canvasWidth);
         const trySteps = (dir: number) => {
             let step = 0;
@@ -161,7 +188,7 @@ export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[], canvasWidt
         };
         box = trySteps(item.below ? 1 : -1);
         if (placed.some((prior) => boxesOverlap(box, prior))) {
-            textY = item.yPx + markerLabelDy(item.below);
+            textY = labelTextY(item);
             box = makeLabelBox(item, textY, canvasWidth);
             box = trySteps(item.below ? -1 : 1);
         }
@@ -262,8 +289,9 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     const useContinuousLines = eventMarkerStyle === 'both';
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];
-    const markerVisible = (timeSec: number) => isCurveMarkerVisible(timeSec, xMin, xMax, xs, btActual);
-    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge' && markerVisible(m.timeSec));
+    const markerVisible = (event: string, timeSec: number) =>
+        isEventMarkerVisible(event, timeSec, xMin, xMax, xs, btActual);
+    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge' && markerVisible(m.event, m.timeSec));
     if (charged && Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
         const nowLineStyle = {
             color: colors.currentTimeLine,
@@ -311,7 +339,9 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         label: { show: false },
     }));
 
-    const visibleTurningPoints = turningPoints.filter((tp) => markerVisible(tp.timeSec));
+    const visibleTurningPoints = turningPoints.filter((tp) =>
+        isCurveMarkerVisible(tp.timeSec, xMin, xMax, xs, btActual),
+    );
     const tpMarkLines = visibleTurningPoints.map((tp) => ({
         xAxis: tp.timeSec,
         lineStyle: {
@@ -325,23 +355,26 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
 
     const showDot = eventMarkerStyle === 'point';
     const labeledEvents = (hideChargeLabel ? eventMarkers.filter((m) => m.event !== 'Charge') : eventMarkers).filter(
-        (m) => markerVisible(m.timeSec),
+        (m) => markerVisible(m.event, m.timeSec),
     );
     const curveLabels: CurveLabelItem[] = [
         ...labeledEvents.map((m) => {
             const nearest = nearestBtAt(xs, btActual, m.timeSec);
-            const y =
-                nearest ??
-                (typeof m.tempC === 'number' && Number.isFinite(m.tempC)
-                    ? toDisplayTemp(m.tempC, temperatureUnit)
-                    : tempYMax);
+            const atTop = noteAnchoredAtTop(m.event);
+            const y = atTop
+                ? tempYMax
+                : (nearest ??
+                  (typeof m.tempC === 'number' && Number.isFinite(m.tempC)
+                      ? toDisplayTemp(m.tempC, temperatureUnit)
+                      : tempYMax));
             return {
                 timeSec: m.timeSec,
                 y,
                 text: eventLabelText(m.event, m.timeSec, markerTemp(m, nearest), m.note),
                 color: markerLabelColor(m.event),
-                below: LABEL_BELOW_EVENTS.has(m.event),
+                below: atTop || LABEL_BELOW_EVENTS.has(m.event),
                 showDot: m.event === 'Charge' ? false : showDot,
+                topInsetPx: noteLabelTopInsetPx(m.event),
             };
         }),
         ...visibleTurningPoints.map((tp) => ({

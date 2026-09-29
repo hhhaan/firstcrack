@@ -20,6 +20,7 @@ import {
     useRoastKeyboardShortcuts,
     useRoastSettings,
 } from '@features/active-roast';
+import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { applyEventMarkerEdit, nearestLivePointAt } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -812,7 +813,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const handleChartNote = useCallback(
         (body: string, timeSec: number) => {
-            markEvent('Note', body, undefined, { timeSec, tempC: nearestLivePointAt(livePoints, timeSec)?.bt ?? null });
+            const nearest = nearestLivePointAt(livePoints, timeSec);
+            const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
+            markEvent('Note', body, undefined, { timeSec, tempC });
         },
         [livePoints, markEvent],
     );

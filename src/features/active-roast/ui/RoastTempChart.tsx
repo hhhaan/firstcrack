@@ -12,12 +12,16 @@ import {
     type ControlData,
     type RoastEventMarker,
 } from '@features/active-roast/lib/chart-option';
+import { computeTempYRange } from '@features/active-roast/lib/chart-option/axes';
 import {
     eventLabelText,
     isCurveMarkerVisible,
+    isEventMarkerVisible,
     LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
     nearestBtAt,
+    noteAnchoredAtTop,
+    noteLabelTopInsetPx,
 } from '@features/active-roast/lib/chart-option/markers';
 import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
@@ -84,6 +88,12 @@ export interface RoastTempChartHandle {
 }
 
 const scalar = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/** Notes can sit ahead of the live curve, up to the axis end. Other events stop at now. */
+const clampMarkerTime = (event: string, timeSec: number, nowSec: number, axisMaxSec: number) => {
+    const cap = event === 'Note' ? axisMaxSec : Math.floor(nowSec);
+    return Math.max(0, Math.min(cap, Math.round(timeSec)));
+};
 
 /** Typing: digits + optional `:ss`. Seconds 0–60. */
 const EDIT_TIME_INPUT_RE = /^\d{0,3}(?::(?:[0-5]?\d?|60)?)?$/;
@@ -361,17 +371,20 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!chart || !point) return null;
             const xMin = xViewMin ?? xs[0] ?? 0;
             const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
+            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
                     if (hideChargeLabel && marker.event === 'Charge') return [];
-                    if (!isCurveMarkerVisible(marker.timeSec, xMin, xMax, xs, btActual)) return [];
+                    if (!isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual)) return [];
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
                     const nearest = nearestBtAt(xs, btActual, marker.timeSec);
-                    const displayY =
-                        nearest ??
-                        (marker.tempC != null && Number.isFinite(marker.tempC)
-                            ? toDisplayTemp(marker.tempC, temperatureUnit)
-                            : toDisplayTemp(tempMaxC, temperatureUnit));
+                    const atTop = noteAnchoredAtTop(marker.event);
+                    const displayY = atTop
+                        ? axisTop
+                        : (nearest ??
+                          (marker.tempC != null && Number.isFinite(marker.tempC)
+                              ? toDisplayTemp(marker.tempC, temperatureUnit)
+                              : axisTop));
                     const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
                     const temp =
                         marker.tempC != null && Number.isFinite(marker.tempC)
@@ -386,7 +399,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             xPx: x ?? Number.NaN,
                             yPx: y ?? Number.NaN,
                             text: eventLabelText(marker.event, marker.timeSec, temp, marker.note),
-                            below: LABEL_BELOW_EVENTS.has(marker.event),
+                            below: atTop || LABEL_BELOW_EVENTS.has(marker.event),
+                            topInsetPx: noteLabelTopInsetPx(marker.event),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
                         },
@@ -456,6 +470,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             onEventMarkerDrag,
             onEventMarkerEdit,
             tempMaxC,
+            tempMinC,
             temperatureUnit,
             turningPoints,
             xs,
@@ -490,14 +505,16 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!chart || !point) return true;
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
             if (converted == null) return true;
-            const nextTimeSec = Math.max(0, Math.min(Math.floor(currentTimeSec), Math.round(converted)));
+            const dragged = eventMarkers.find((marker) => marker.logId === drag.logId);
+            const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
+            const nextTimeSec = clampMarkerTime(dragged?.event ?? '', converted, currentTimeSec, axisMax);
             if (nextTimeSec !== drag.timeSec) {
                 onEventMarkerDrag(drag.logId, nextTimeSec);
                 drag.timeSec = nextTimeSec;
             }
             return true;
         },
-        [currentTimeSec, localPoint, onEventMarkerDrag],
+        [currentTimeSec, eventMarkers, localPoint, onEventMarkerDrag, xs, xViewMax],
     );
 
     const endMarkerDrag = useCallback((pointerId: number) => {
@@ -599,22 +616,30 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const handleContextMenu = useCallback(
         (event: React.MouseEvent<HTMLDivElement>) => {
             if (!onAddNote) return;
-            event.preventDefault();
             const chart = chartInstanceRef.current;
             const point = localPoint(event.clientX, event.clientY);
             const container = chartRef.current;
-            if (!chart || !point || !container || !chart.containPixel({ gridIndex: 0 }, [point.x, point.y])) return;
+            if (!chart || !point || !container) return;
+            const xMin = xViewMin ?? xs[0] ?? 0;
+            const xMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
+            const axisLeft = scalar(chart.convertToPixel({ xAxisIndex: 0 }, xMin));
+            const axisRight = scalar(chart.convertToPixel({ xAxisIndex: 0 }, xMax));
+            if (axisLeft == null || axisRight == null) return;
+            const minX = Math.min(axisLeft, axisRight);
+            const maxX = Math.max(axisLeft, axisRight);
+            if (point.x < minX - 1 || point.x > maxX + 1) return;
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
             if (converted == null) return;
+            event.preventDefault();
             setNoteBody('');
             setEditForm(null);
             setNoteForm({
                 x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
                 y: Math.max(0, Math.min(point.y, container.clientHeight - 72)),
-                timeSec: Math.max(0, Math.min(Math.floor(currentTimeSec), Math.round(converted))),
+                timeSec: clampMarkerTime('Note', converted, currentTimeSec, xMax),
             });
         },
-        [currentTimeSec, localPoint, onAddNote],
+        [currentTimeSec, localPoint, onAddNote, xs, xViewMax, xViewMin],
     );
 
     const submitNote = useCallback(() => {
@@ -629,8 +654,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         if (!editForm || !onEventMarkerEdit) return;
         const timeSec = parseEditTimeSec(editForm.time);
         if (timeSec == null) return;
+        const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
         const patch: { timeSec: number; note?: string } = {
-            timeSec: Math.max(0, Math.min(Math.floor(currentTimeSec), timeSec)),
+            timeSec: clampMarkerTime(editForm.event, timeSec, currentTimeSec, axisMax),
         };
         if (editForm.event === 'Note') {
             const body = editForm.note.trim();
@@ -640,7 +666,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onEventMarkerEdit(editForm.logId, patch);
         setEditForm(null);
         chartRef.current?.focus();
-    }, [currentTimeSec, editForm, onEventMarkerEdit]);
+    }, [currentTimeSec, editForm, onEventMarkerEdit, xs, xViewMax]);
 
     const deleteEdit = useCallback(() => {
         if (!editForm || !onEventMarkerDelete || !REMOVABLE_LOG_EVENTS.has(editForm.event)) return;

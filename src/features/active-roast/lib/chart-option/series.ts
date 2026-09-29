@@ -313,6 +313,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
                         below: item.below,
                         color: item.color,
                         showDot: item.showDot,
+                        topInsetPx: item.topInsetPx,
                     },
                 ];
             }),

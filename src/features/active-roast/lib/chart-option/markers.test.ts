@@ -6,6 +6,7 @@ import {
     LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
     MARKER_LABEL_X_OFFSET_PX,
+    NOTE_LABEL_TOP_INSET_PX,
     nearestBtAt,
 } from './markers';
 import type { ResolvedChartColors } from './types';
@@ -151,7 +152,9 @@ describe('event marker visual grammar', () => {
         expect(result.curveLabels[0]).toMatchObject({
             text: 'Open damper|09:00|200.0°C',
             color: '#eee',
-            y: 202,
+            y: baseParams.tempYMax,
+            below: true,
+            topInsetPx: NOTE_LABEL_TOP_INSET_PX,
             showDot: false,
         });
         expect(result.curveLabels[1]).toMatchObject({
@@ -167,7 +170,7 @@ describe('event marker visual grammar', () => {
         ]);
     });
 
-    it('keeps an empty-curve Note visible at the plot top, still centered on BT', () => {
+    it('keeps an empty-curve Note at the top of the temperature axis', () => {
         const result = buildMarkers({
             ...baseParams,
             xMin: 500,
@@ -181,6 +184,7 @@ describe('event marker visual grammar', () => {
         expect(result.curveLabels[0]).toMatchObject({
             timeSec: 591,
             y: 250,
+            below: true,
             text: 'No sample|09:51|—',
             showDot: false,
         });
@@ -227,6 +231,14 @@ describe('layoutCurveLabelBoxes', () => {
         color: '#111',
         showDot: false,
         ...overrides,
+    });
+
+    it('drops a top-pinned note below the axis by NOTE_LABEL_TOP_INSET_PX', () => {
+        const [box] = layoutCurveLabelBoxes([
+            item({ below: true, yPx: 40, topInsetPx: NOTE_LABEL_TOP_INSET_PX, text: '하이|07:47|—' }),
+        ]);
+        expect(box.textY).toBe(40 + NOTE_LABEL_TOP_INSET_PX);
+        expect(box.top).toBe(box.textY);
     });
 
     it('keeps isolated labels on their preferred side of BT', () => {
@@ -390,6 +402,29 @@ describe('zoom window (#599)', () => {
         expect(nearestBtAt([400, 460, 600], [190, null, 197], 130)).toBeNull();
         expect(result.curveLabels).toEqual([]);
         expect(result.continuousMarkerLines).toEqual([]);
+    });
+
+    it('keeps a Note on the axis when the curve has not reached that time', () => {
+        const result = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'both',
+            xMin: 0,
+            xMax: 780,
+            currentTimeSec: 14,
+            xs: [0, 14, 780],
+            btActual: [200, 187.2, null],
+            eventMarkers: [{ timeSec: 300, event: 'Note', color: '#old', timeStr: '5:00', temp: '', note: 'ㅎ' }],
+        });
+        expect(result.curveLabels).toEqual([
+            expect.objectContaining({
+                timeSec: 300,
+                y: baseParams.tempYMax,
+                text: 'ㅎ|05:00|—',
+                below: true,
+                topInsetPx: NOTE_LABEL_TOP_INSET_PX,
+            }),
+        ]);
+        expect(result.continuousMarkerLines).toEqual([expect.objectContaining({ timeSec: 300 })]);
     });
 });
 
