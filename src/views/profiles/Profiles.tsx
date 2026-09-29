@@ -22,13 +22,62 @@ import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
+import { Skeleton } from '@shared/ui/Skeleton';
 import { Sparkline } from '@shared/ui/Sparkline';
 import { NewProfileModal } from '@widgets/new-profile-modal';
 import { ProfileCompare } from '@widgets/profile-compare/ui/ProfileCompare';
 import { ProfileDetail } from '@widgets/profile-detail/ui/ProfileDetail';
 import { Check, GitCompare, Plus, Search, Star } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+const PROFILE_SKELETON_COUNT = 5;
+
+const ProfileCardSkeleton = () => (
+    <div className="rounded-lg border border-[#E5E5E5] bg-main-bg px-4 pt-4 pb-2 dark:border-[#585d61]">
+        <Skeleton width="100%" height={44} borderRadius="6px" />
+        <div className="mt-3 flex flex-col gap-1.5">
+            <Skeleton width={132} height={13} borderRadius="4px" />
+            <Skeleton width={96} height={12} borderRadius="4px" />
+        </div>
+    </div>
+);
+
+const ProfileListSkeleton = ({ label }: { label: string }) => (
+    <div className="flex flex-col gap-2" role="status" aria-busy="true" aria-label={label}>
+        {Array.from({ length: PROFILE_SKELETON_COUNT }, (_, i) => (
+            <ProfileCardSkeleton key={i} />
+        ))}
+    </div>
+);
+
+const ProfileDetailSkeleton = () => (
+    <div aria-hidden className="min-w-0 rounded-lg bg-main-bg px-8 py-7 dark:border dark:border-[#585d61]">
+        <div className="mb-5 flex items-start justify-between gap-3">
+            <Skeleton width={220} height={28} borderRadius="6px" />
+            <div className="flex shrink-0 gap-1.5">
+                <Skeleton width={72} height={32} borderRadius="9999px" />
+                <Skeleton width={32} height={32} borderRadius="8px" />
+                <Skeleton width={32} height={32} borderRadius="8px" />
+            </div>
+        </div>
+        <div className="mb-5">
+            <Skeleton width={96} height={12} borderRadius="4px" />
+            <div className="mt-2">
+                <Skeleton width="100%" height={160} borderRadius="8px" />
+            </div>
+        </div>
+        <div className="mb-5 grid grid-cols-3 gap-3">
+            {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} width="100%" height={58} borderRadius="8px" />
+            ))}
+        </div>
+        <div className="flex gap-2.5">
+            <Skeleton className="flex-1" height={40} borderRadius="9999px" />
+            <Skeleton width={96} height={40} borderRadius="9999px" />
+        </div>
+    </div>
+);
 
 const COMPARE_COLORS = [
     'var(--color-palette-blue)',
@@ -176,6 +225,37 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         ? `${compareIds.join(',')}|${compareProfiles.map((p) => resolveSourceSession(p.source_session)?.tsv_path ?? '').join(',')}`
         : `${selectedId ?? ''}|${selectedRealCurve.length}`;
 
+    const renderDetail = (): ReactNode => {
+        if (isLoading) return <ProfileDetailSkeleton />;
+        if (compareMode) {
+            return (
+                <ProfileCompare
+                    compareIds={compareIds}
+                    compareProfiles={compareProfiles}
+                    defaultId={defaultId}
+                    primaryId={primaryId}
+                    chartKey={chartKey}
+                    onSetDefault={setDefault}
+                />
+            );
+        }
+        if (!selected) return null;
+        return (
+            <ProfileDetail
+                selected={selected}
+                selectedRealCurve={selectedRealCurve}
+                selectedHasReal={selectedHasReal}
+                defaultId={defaultId}
+                chartKey={chartKey}
+                onSetDefault={setDefault}
+                onEdit={() => setShowEditModal(true)}
+                onDuplicate={(profile) => void handleDuplicate(profile)}
+                onDelete={handleDelete}
+                onNavigate={onNavigate}
+            />
+        );
+    };
+
     const profileList = (
         <div>
             <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
@@ -187,95 +267,90 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     className="border-none bg-transparent outline-none text-[13px] text-primary font-body w-full tracking-[0.14px]"
                 />
             </div>
-            <div className="flex flex-col gap-2">
-                {compareMode && (
-                    <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
-                        {compareIds.length === 0
-                            ? t('profiles.compare.selectPrompt')
-                            : compareIds.length >= 4
-                              ? t('profiles.compare.maxSelected')
-                              : t('profiles.compare.selected', { count: compareIds.length })}
-                    </p>
-                )}
-                {sortedProfiles.map((profile) => {
-                    const isSelected = !compareMode && selectedId === profile.id;
-                    const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
-                    const isCompareSelected = compareIdx !== -1;
-                    const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
-                    const sparkColor = isCompareSelected
-                        ? COMPARE_COLORS[compareIdx]
-                        : isSelected
-                          ? 'var(--color-primary)'
-                          : '#b3b0aa';
+            {isLoading ? (
+                <ProfileListSkeleton label={t('common.loading')} />
+            ) : (
+                <div className="flex flex-col gap-2">
+                    {compareMode && (
+                        <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
+                            {compareIds.length === 0
+                                ? t('profiles.compare.selectPrompt')
+                                : compareIds.length >= 4
+                                  ? t('profiles.compare.maxSelected')
+                                  : t('profiles.compare.selected', { count: compareIds.length })}
+                        </p>
+                    )}
+                    {sortedProfiles.map((profile) => {
+                        const isSelected = !compareMode && selectedId === profile.id;
+                        const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
+                        const isCompareSelected = compareIdx !== -1;
+                        const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
+                        const sparkColor = isCompareSelected
+                            ? COMPARE_COLORS[compareIdx]
+                            : isSelected
+                              ? 'var(--color-primary)'
+                              : '#b3b0aa';
 
-                    return (
-                        <div
-                            key={profile.id}
-                            onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
-                            className={`bg-main-bg rounded-lg px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
-                        >
-                            {compareMode && (
-                                <div className="flex justify-end -mt-1 mb-1">
-                                    <div
-                                        className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
-                                        style={
-                                            isCompareSelected
-                                                ? { backgroundColor: COMPARE_COLORS[compareIdx] }
-                                                : undefined
-                                        }
-                                    >
-                                        {isCompareSelected && <Check size={9} strokeWidth={3} />}
+                        return (
+                            <div
+                                key={profile.id}
+                                onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
+                                className={`bg-main-bg rounded-lg px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
+                            >
+                                {compareMode && (
+                                    <div className="flex justify-end -mt-1 mb-1">
+                                        <div
+                                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
+                                            style={
+                                                isCompareSelected
+                                                    ? { backgroundColor: COMPARE_COLORS[compareIdx] }
+                                                    : undefined
+                                            }
+                                        >
+                                            {isCompareSelected && <Check size={9} strokeWidth={3} />}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
+                                <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
 
-                            <div className="flex items-start justify-between mt-3">
-                                <div>
-                                    <div className="flex items-center gap-1.25 mb-px">
-                                        <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
-                                            {profile.name}
-                                        </span>
-                                        {defaultId === profile.id && (
-                                            <Star
-                                                size={11}
-                                                strokeWidth={2}
-                                                fill="currentColor"
-                                                className="text-amber-400"
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="text-[12px] text-muted tracking-[0.14px]">
-                                        {profile.drop_temp_celsius != null
-                                            ? `${t('profiles.drop')} ${formatTemp(profile.drop_temp_celsius, unit)}`
-                                            : profile.target_level}
-                                        {profile.duration_sec != null && ` · ${formatDuration(profile.duration_sec)}`}
+                                <div className="flex items-start justify-between mt-3">
+                                    <div>
+                                        <div className="flex items-center gap-1.25 mb-px">
+                                            <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
+                                                {profile.name}
+                                            </span>
+                                            {defaultId === profile.id && (
+                                                <Star
+                                                    size={11}
+                                                    strokeWidth={2}
+                                                    fill="currentColor"
+                                                    className="text-amber-400"
+                                                />
+                                            )}
+                                        </div>
+                                        <div className="text-[12px] text-muted tracking-[0.14px]">
+                                            {profile.drop_temp_celsius != null
+                                                ? `${t('profiles.drop')} ${formatTemp(profile.drop_temp_celsius, unit)}`
+                                                : profile.target_level}
+                                            {profile.duration_sec != null &&
+                                                ` · ${formatDuration(profile.duration_sec)}`}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
-
-    if (isLoading) {
-        return (
-            <PageLayout>
-                <div className="flex items-center justify-center h-64 text-sm text-muted dark:text-[#e5e5e5]">
-                    {t('common.loading')}
-                </div>
-            </PageLayout>
-        );
-    }
 
     return (
         <PageLayout>
             <PageHeader
                 title={t('profiles.title')}
-                subtitle={t('profiles.subtitle', { count: profiles.length })}
+                subtitle={isLoading ? undefined : t('profiles.subtitle', { count: profiles.length })}
                 actions={
                     <div className="flex gap-2 items-center">
                         {profiles.length > 1 && (
@@ -304,7 +379,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 }
             />
 
-            {profiles.length === 0 ? (
+            {!isLoading && profiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
                     <p className="text-sm text-muted tracking-[0.14px]">{t('profiles.empty')}</p>
                     <PillButton onClick={() => setShowNewModal(true)}>
@@ -313,34 +388,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     </PillButton>
                 </div>
             ) : (
-                <MasterDetailLayout
-                    left={profileList}
-                    detail={
-                        compareMode ? (
-                            <ProfileCompare
-                                compareIds={compareIds}
-                                compareProfiles={compareProfiles}
-                                defaultId={defaultId}
-                                primaryId={primaryId}
-                                chartKey={chartKey}
-                                onSetDefault={setDefault}
-                            />
-                        ) : selected ? (
-                            <ProfileDetail
-                                selected={selected}
-                                selectedRealCurve={selectedRealCurve}
-                                selectedHasReal={selectedHasReal}
-                                defaultId={defaultId}
-                                chartKey={chartKey}
-                                onSetDefault={setDefault}
-                                onEdit={() => setShowEditModal(true)}
-                                onDuplicate={(profile) => void handleDuplicate(profile)}
-                                onDelete={handleDelete}
-                                onNavigate={onNavigate}
-                            />
-                        ) : null
-                    }
-                />
+                <MasterDetailLayout left={profileList} detail={renderDetail()} />
             )}
 
             <NewProfileModal open={showNewModal} onClose={() => setShowNewModal(false)} onCreated={handleCreated} />
