@@ -1,8 +1,10 @@
 import type { ControlData, RoastEventMarker } from '@features/active-roast/lib/chart-option';
+import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
+import type { RoastNoteControls } from '@shared/types/roast';
 import { type RefObject, useRef, useState } from 'react';
 import { ChartLegend } from './ChartLegend';
 
@@ -65,9 +67,9 @@ interface RoastChartContainerProps {
     bbpRange?: { start: number; end: number; label?: string };
     onCursorIdx: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
-    onEventMarkerEdit?: (logId: string, patch: { timeSec?: number; note?: string }) => void;
+    onEventMarkerEdit?: (logId: string, patch: EventMarkerPatch) => void;
     onEventMarkerDelete?: (logId: string) => void;
-    onAddNote?: (body: string, timeSec: number) => void;
+    onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
 }
 
 export const RoastChartContainer = ({

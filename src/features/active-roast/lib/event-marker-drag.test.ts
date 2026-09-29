@@ -141,3 +141,17 @@ describe('applyEventMarkerEdit', () => {
         expect(next[0]).toBe(entries[0]);
     });
 });
+
+it('edits manual Note fields independently and preserves them when moving time', () => {
+    const entries = [{ ...entry('manual', 'Note', 10, 150, 'color'), gas: '80', airflow: '50%' }];
+    const edited = applyEventMarkerEdit(entries, 'manual', { gas: '', airflow: ' 1.2 kPa ' }, [], 'C', 30);
+    expect(edited[0]).toMatchObject({ note: 'color', airflow: '1.2 kPa' });
+    expect(edited[0].gas).toBeUndefined();
+    expect(applyEventMarkerDrag(edited, 'manual', 20, [], 'C', 30)[0]).toMatchObject({
+        timeSec: 20,
+        note: 'color',
+        airflow: '1.2 kPa',
+    });
+    const heater = [entry('heater', 'Heater', 10, 150, '50%')];
+    expect(applyEventMarkerEdit(heater, 'heater', { gas: '80' }, [], 'C', 30)).toBe(heater);
+});

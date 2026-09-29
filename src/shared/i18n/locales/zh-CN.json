@@ -570,6 +570,18 @@
         }
     },
     "activeRoast": {
+        "noteEntry": {
+            "title": "添加记录",
+            "editTitle": "编辑记录",
+            "time": "时间",
+            "gas": "燃气",
+            "airflow": "排风",
+            "comment": "备注",
+            "gasPlaceholder": "例：80 或 1.2 kPa",
+            "airflowPlaceholder": "例：30 或 50%",
+            "commentPlaceholder": "例：观察到颜色变化",
+            "keyboardHint": "Enter 添加 · Esc 取消"
+        },
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
             "noBeanSelected": "未选生豆",

@@ -3,7 +3,7 @@ import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/tempera
 import { parseTimeSec } from '@features/active-roast/lib/time';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatElapsed } from '@shared/lib/format';
-import type { LogEntry, StoredRoastEvent } from '@shared/types/roast';
+import type { LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
 
 const formatStoredEventTemp = (tempC: number | null | undefined, unit: TemperatureUnit): string =>
     tempC != null && Number.isFinite(tempC) ? `${Math.round(toDisplayTemp(tempC, unit))}${tempUnitLabel(unit)}` : '—';
@@ -22,6 +22,8 @@ export const serializeRoastEvents = (logEntries: LogEntry[]): StoredRoastEvent[]
             time_sec: logEntryTimeSec(e),
             temp_c: e.tempC ?? null,
             note: e.note || null,
+            ...(e.gas ? { gas: e.gas } : {}),
+            ...(e.airflow ? { airflow: e.airflow } : {}),
         }))
         .sort((a, b) => a.time_sec - b.time_sec);
 
@@ -53,12 +55,14 @@ export const parseStoredRoastEvents = (raw: unknown): StoredRoastEvent[] => {
             time_sec: timeSec,
             temp_c: optionalJsonNumber(o.temp_c),
             note: optionalJsonString(o.note),
+            ...(typeof o.gas === 'string' && o.gas ? { gas: o.gas } : {}),
+            ...(typeof o.airflow === 'string' && o.airflow ? { airflow: o.airflow } : {}),
         });
     }
     return out;
 };
 
-export type HistoryEventMarker = {
+export type HistoryEventMarker = RoastNoteControls & {
     logId?: string;
     timeSec: number;
     event: string;
@@ -81,6 +85,8 @@ export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: Tempe
             temp: formatStoredEventTemp(e.temp_c, unit),
             tempC: e.temp_c ?? null,
             note: e.note ?? '',
+            ...(e.gas ? { gas: e.gas } : {}),
+            ...(e.airflow ? { airflow: e.airflow } : {}),
         }));
 
 /** Stored events → chart markers. Live TP is a `turningPoints` overlay, not an eventMarker — include it here so history can draw it. */
@@ -96,4 +102,6 @@ export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: Temperat
             temp: e.temp_c != null ? `${Math.round(toDisplayTemp(e.temp_c, unit))}` : '',
             tempC: e.temp_c ?? null,
             note: e.note ?? '',
+            ...(e.gas ? { gas: e.gas } : {}),
+            ...(e.airflow ? { airflow: e.airflow } : {}),
         }));

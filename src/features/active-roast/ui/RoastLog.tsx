@@ -1,6 +1,7 @@
 import { eventMarkerCssColor, isControlEvent } from '@features/active-roast/lib/chart-config';
 import { STATUS_COLORS } from '@features/active-roast/lib/colors';
 import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
+import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import type { LogEntry } from '@shared/types/roast';
 import { X } from 'lucide-react';
 
@@ -31,6 +32,7 @@ export const RoastLog = ({
                 </h3>
             )}
             {entries.map((entry, i, arr) => {
+                const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
                 const canRemove =
                     REMOVABLE_LOG_EVENTS.has(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
                 const categoryTextColor = entry.current
@@ -108,7 +110,7 @@ export const RoastLog = ({
                                     {entry.temp}
                                 </span>
                             </div>
-                            {entry.note && (
+                            {note && (
                                 <div
                                     style={{
                                         fontSize: isSidebar ? 11 : 12,
@@ -116,7 +118,7 @@ export const RoastLog = ({
                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
                                     }}
                                 >
-                                    {entry.note}
+                                    {note}
                                 </div>
                             )}
                         </div>

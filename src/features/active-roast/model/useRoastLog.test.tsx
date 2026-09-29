@@ -27,6 +27,18 @@ const fcButton = (hook: { get: () => ReturnType<typeof useRoastLog> }) =>
     fcDualButtonLabel(getFcDualStage(hook.get().logEntries), hook.get().fcDualUnwind);
 
 describe('useRoastLog markEvent', () => {
+    it('accepts manual values alone, including zero and arbitrary units at the selected time', async () => {
+        vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('manual') });
+        const hook = await renderHook('C', 180, 30);
+        act(() =>
+            hook
+                .get()
+                .markEvent('Note', '', undefined, { timeSec: 10, tempC: null }, { gas: ' 0 ', airflow: ' 1.2 kPa ' }),
+        );
+        expect(hook.get().logEntries[0]).toMatchObject({ timeSec: 10, note: '', gas: '0', airflow: '1.2 kPa' });
+        hook.unmount();
+    });
+
     afterEach(() => vi.unstubAllGlobals());
 
     it('keeps existing current-time callers and explicitly inserts a sorted historical Note', async () => {

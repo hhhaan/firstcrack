@@ -133,6 +133,8 @@ export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
                 temp: e.temp,
                 tempC: e.tempC,
                 note: e.note,
+                ...(e.gas ? { gas: e.gas } : {}),
+                ...(e.airflow ? { airflow: e.airflow } : {}),
             };
         });
 

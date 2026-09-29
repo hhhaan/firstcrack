@@ -570,6 +570,18 @@
         }
     },
     "activeRoast": {
+        "noteEntry": {
+            "title": "Add record",
+            "editTitle": "Edit record",
+            "time": "Time",
+            "gas": "Gas",
+            "airflow": "Airflow",
+            "comment": "Comment",
+            "gasPlaceholder": "e.g. 80 or 1.2 kPa",
+            "airflowPlaceholder": "e.g. 30 or 50%",
+            "commentPlaceholder": "e.g. Color change observed",
+            "keyboardHint": "Enter to add · Esc to cancel"
+        },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
             "noBeanSelected": "No bean selected",
