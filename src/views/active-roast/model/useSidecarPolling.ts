@@ -6,6 +6,7 @@ import { BBP_INPROGRESS_ID, bbpPointsToTsv, useBbpStore } from '@features/active
 import { useRoastingStore } from '@features/active-roast/model/status';
 import {
     captureLinkEpoch,
+    machineTemperatureQuality,
     observeRoastLink,
     setRoastLinkWatch,
 } from '@features/machine-connection/lib/machineLinkNotice';
@@ -498,12 +499,20 @@ export const useSidecarPolling = ({
                     if (!skipLinkNotice) {
                         // applyConnection writes this. Control-flow only sees the reset to null.
                         const decision = noticed.decision as { connected: boolean; reconnecting: boolean } | null;
+                        // Link recovery follows the reading, not the device-clock quality.
+                        // A repeated timestamp is still a non-stale temperature (`retransmit` in the store).
                         observeRoastLink(
                             {
                                 connected: decision?.connected,
                                 reconnecting: decision?.reconnecting,
                                 observation: observationTick
-                                    ? useRoastingStore.getState().observation?.quality
+                                    ? machineTemperatureQuality({
+                                          bt: observationTick.bt,
+                                          stale: observationTick.stale,
+                                          reconnecting: observationTick.reconnecting || decision?.reconnecting,
+                                          spike: observationTick.spikeRejected,
+                                          pollError: observationTick.pollError,
+                                      })
                                     : undefined,
                             },
                             epoch,

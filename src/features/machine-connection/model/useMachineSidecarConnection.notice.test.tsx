@@ -223,6 +223,45 @@ it('does not toast while the first connect attempt is in progress or when it fai
     }
 });
 
+it('toasts again after a live temperature recovers a fault streak', async () => {
+    vi.useFakeTimers();
+    mocks.waitUntilReady.mockResolvedValue(status({ connected: true }));
+    mocks.getStatus.mockResolvedValue(status({ connected: true }));
+    mocks.getTemperatures.mockRejectedValue(new Error('ERR_FAILED'));
+    const { root } = renderHook();
+    try {
+        await flush();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(6000);
+        });
+        expect(useToastStore.getState().toasts).toHaveLength(1);
+        act(() => {
+            for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
+        });
+
+        mocks.getTemperatures.mockResolvedValue(temps({ bt: 210, stale: false, timestamp: 10 }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(useToastStore.getState().toasts).toHaveLength(0);
+
+        mocks.getTemperatures.mockRejectedValue(new Error('ERR_FAILED'));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(useToastStore.getState().toasts).toHaveLength(0);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(useToastStore.getState().toasts).toHaveLength(1);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
 it('toasts on the third temperature failure while status stays connected', async () => {
     vi.useFakeTimers();
     mocks.waitUntilReady.mockResolvedValue(status({ connected: true }));

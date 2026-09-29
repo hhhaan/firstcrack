@@ -1085,6 +1085,44 @@ it('toasts when three null temperatures arrive while status stays connected', as
     });
 });
 
+it('toasts again after a non-stale temperature recovers a fault streak', async () => {
+    await withMutablePoll(async ({ payload }) => {
+        mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: false });
+        mocks.getTemperatures.mockRejectedValue(new Error('ERR_FAILED'));
+        for (let i = 0; i < 3; i++) {
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(1000);
+            });
+        }
+        expect(toastCount()).toBe(1);
+        act(() => {
+            for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
+        });
+
+        // Same device clock as the last good read. The chart still shows a live BT.
+        payload.bt = 210;
+        payload.bt_raw = 210;
+        payload.stale = false;
+        payload.timestamp = 10;
+        mocks.getTemperatures.mockImplementation(async () => ({ ...payload }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(useRoastingStore.getState().liveData?.bt).toBe(210);
+        expect(useRoastingStore.getState().observation?.quality).toBe('retransmit');
+        expect(toastCount()).toBe(0);
+
+        mocks.getTemperatures.mockRejectedValue(new Error('ERR_FAILED'));
+        for (let i = 0; i < 3; i++) {
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(1000);
+            });
+        }
+        expect(toastCount()).toBe(1);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+    });
+});
+
 it('does not treat unauthorized temperature polls as an unstable link', async () => {
     await withMutablePoll(async () => {
         for (let i = 0; i < 3; i++) {

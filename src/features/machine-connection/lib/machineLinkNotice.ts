@@ -5,7 +5,8 @@ import { useToastStore } from '@shared/store/toast';
  * In-app notice when a link that was already up becomes unstable.
  * Toast dedupe only lasts while the toast is visible — `faultOpen` suppresses
  * repeats across dismiss, poll retries, reconnect attempts, and screen changes.
- * Cleared only after a connected sample with a valid temperature.
+ * Cleared only after a connected sample with a non-stale temperature.
+ * A repeated device clock (`retransmit`) is still a received temperature.
  */
 
 export const LINK_FAULT_THRESHOLD = 3;
@@ -93,12 +94,20 @@ const notify = () => {
     useToastStore.getState().show(i18n.t('machines.linkUnstable'), 'error');
 };
 
+const isReconnecting = (sample: LinkSample) => Boolean(sample.reconnecting) || sample.observation === 'reconnecting';
+
+/** Connected and a received non-stale temperature. Status alone does not recover. */
+const temperatureRecovered = (sample: LinkSample) =>
+    sample.connected === true &&
+    !isReconnecting(sample) &&
+    (sample.observation === 'valid' || sample.observation === 'retransmit');
+
 const reduceLinkSample = (state: LinkState, sample: LinkSample): { state: LinkState; notify: boolean } => {
     if (state.connectAttempt) return { state, notify: false };
 
-    const reconnecting = Boolean(sample.reconnecting) || sample.observation === 'reconnecting';
+    const reconnecting = isReconnecting(sample);
 
-    if (sample.connected === true && !reconnecting && sample.observation === 'valid') {
+    if (temperatureRecovered(sample)) {
         return {
             state: { ...state, confirmed: true, faultOpen: false, consecutive: 0 },
             notify: false,
@@ -156,16 +165,22 @@ export const observeRoastLink = (sample: LinkSample, epoch?: number): void => {
 };
 
 export const observeMachineLink = (sample: LinkSample, epoch?: number): void => {
-    if (roastWatch || staleEpoch(epoch)) return;
+    if (staleEpoch(epoch)) return;
+    // Roast polling owns fault streaks. A machines-page temperature can still re-arm.
+    if (roastWatch && !temperatureRecovered(sample)) return;
     commit(sample);
 };
 
-/** Machine-screen temperatures have no spike filter. Live roast uses `sensorObservation` instead. */
+/**
+ * Link-notice quality. Unlike `sensorObservation`, a non-stale BT is `valid`
+ * even when the device clock did not advance.
+ */
 export const machineTemperatureQuality = (
-    temps: { bt: number | null; stale?: boolean; reconnecting?: boolean } | null,
+    temps: { bt: number | null; stale?: boolean; reconnecting?: boolean; spike?: boolean; pollError?: boolean } | null,
 ): LinkReadingQuality => {
-    if (!temps) return 'poll_error';
+    if (!temps || temps.pollError) return 'poll_error';
     if (temps.reconnecting) return 'reconnecting';
+    if (temps.spike) return 'spike';
     if (temps.bt == null) return 'null';
     if (temps.stale) return 'stale';
     return 'valid';

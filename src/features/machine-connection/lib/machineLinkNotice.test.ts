@@ -125,6 +125,47 @@ describe('machine link instability notice', () => {
         expect(toastCount()).toBe(1);
     });
 
+    it('re-arms on a repeated non-stale temperature and not on stale or status alone', () => {
+        arm();
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        expect(toastCount()).toBe(1);
+        clearToasts();
+
+        observeRoastLink({ connected: true, reconnecting: false, observation: 'stale' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        expect(toastCount()).toBe(0);
+
+        observeRoastLink({ connected: true, reconnecting: false, observation: 'retransmit' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        expect(toastCount()).toBe(0);
+        observeRoastLink({ connected: true, observation: 'null' });
+        expect(toastCount()).toBe(1);
+    });
+
+    it('lets a machines-page temperature re-arm while roast polling owns the streak', () => {
+        arm();
+        setRoastLinkWatch(true);
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        observeRoastLink({ connected: true, observation: 'stale' });
+        observeRoastLink({ connected: true, observation: 'null' });
+        expect(toastCount()).toBe(1);
+        clearToasts();
+
+        observeMachineLink({ connected: true, reconnecting: false, observation: 'poll_error' });
+        expect(toastCount()).toBe(0);
+        observeMachineLink({ connected: true, reconnecting: false, observation: 'valid' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        observeRoastLink({ connected: true, observation: 'poll_error' });
+        expect(toastCount()).toBe(0);
+        observeRoastLink({ connected: true, observation: 'null' });
+        expect(toastCount()).toBe(1);
+    });
+
     it('starts the streak from a connected status without a prior temperature', () => {
         observeMachineLink({ connected: true, observation: 'null' });
         observeMachineLink({ connected: true, observation: 'null' });
