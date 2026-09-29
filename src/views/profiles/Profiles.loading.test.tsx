@@ -10,6 +10,7 @@ import { Profiles } from './Profiles';
 const profilesQuery = vi.hoisted(() => ({
     data: [] as { id: string; name: string }[],
     isLoading: true,
+    isError: false,
 }));
 
 vi.mock('@entities/organization', () => ({
@@ -50,6 +51,7 @@ describe('Profiles loading', () => {
         act(() => root?.unmount());
         host?.remove();
         profilesQuery.isLoading = true;
+        profilesQuery.isError = false;
         profilesQuery.data = [];
     });
 
@@ -86,6 +88,22 @@ describe('Profiles loading', () => {
         expect(host.textContent).toContain('profiles.newProfile');
         expect(host.textContent).toContain('profiles.empty');
         expect(host.textContent).toContain('profiles.createFirst');
+        expect(host.querySelector('[role="status"]')).toBeNull();
+        expect(host.querySelector('.sticky')).toBeNull();
+        expect(host.querySelector('[role="alert"]')).toBeNull();
+    });
+
+    it('shows an error instead of the empty state when the list request fails', async () => {
+        profilesQuery.isLoading = false;
+        profilesQuery.isError = true;
+        await render();
+
+        expect(host.textContent).toContain('profiles.title');
+        expect(host.textContent).toContain('profiles.loadError');
+        expect(host.textContent).not.toContain('profiles.empty');
+        expect(host.textContent).not.toContain('profiles.createFirst');
+        expect(host.textContent).not.toContain('profiles.subtitle');
+        expect(host.querySelector('[role="alert"]')).not.toBeNull();
         expect(host.querySelector('[role="status"]')).toBeNull();
         expect(host.querySelector('.sticky')).toBeNull();
     });

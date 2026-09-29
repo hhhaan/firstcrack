@@ -1,4 +1,5 @@
 import { dashboardKeys, inventoryQueryRoots, roastedStockKeys, roastProfileQueryRoots } from '@shared/lib/query-keys';
+import { isClientRefusal } from '@shared/lib/sentry';
 import { shouldPrefetchNextPage } from '@shared/lib/shouldPrefetchNextPage';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,14 +20,19 @@ export const roastSessionKeys = {
 type PaginatedSessions = { data: RoastSessionWithRelations[]; total: number };
 
 /**
- * Shared after create/update/delete/setOutput.
+ * Shared after create/update/delete/setOutput and, through record edit, after a saved-record patch.
+ * Active Roast save calls this too (`refreshCachesAfterRoastSave`).
  * Nested keys under `all(userId)` mean one prefix invalidation covers lists, pages, counts, filterMeta, detail.
- * `refetchType: 'all'` — History/dashboard are often unmounted; default `active` left Infinity caches stale.
+ * Bean history and consistency are profile-id suffixes of shared roots, so one prefix drops every profile
+ * (a profile link change must not leave the previous profile stale).
+ * `refetchType: 'all'` — these reads are often unmounted; default `active` left Infinity caches stale.
  */
 export const invalidateRoastSessionQueries = async (qc: QueryClient, userId: string) => {
     await Promise.all([
         qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId), refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: dashboardKeys.all(userId), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: roastProfileQueryRoots.beanHistory, refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: roastProfileQueryRoots.consistency, refetchType: 'all' }),
     ]);
 };
 
@@ -144,18 +150,11 @@ export const useRoastSession = (userId: string, id: string) =>
         enabled: !!userId && !!id,
     });
 
-const is4xx = (error: unknown) => {
-    if (!error || typeof error !== 'object') return false;
-    const status =
-        (error as Record<string, unknown>).status ?? (error as { response?: { status?: unknown } }).response?.status;
-    return typeof status === 'number' && status >= 400 && status < 500;
-};
-
 export const useCreateRoastSession = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: roastSessionApi.create,
-        retry: (failureCount, error) => !is4xx(error) && failureCount < 3,
+        retry: (failureCount, error) => !isClientRefusal(error) && failureCount < 3,
         onSuccess: () => {
             void invalidateRoastSessionQueries(qc, userId);
         },
@@ -276,12 +275,11 @@ export const useUpdateRoastRecord = (userId: string) => {
     });
 };
 
-/** Session reads + profiles cut from the record (summary columns, source join, source log, consistency). */
+/** Session reads + profile rows cut from the record. Stats ride `invalidateRoastSessionQueries`. */
 export const invalidateAfterRoastRecordEdit = async (qc: QueryClient, userId: string) => {
     await Promise.all([
         invalidateRoastSessionQueries(qc, userId),
         qc.invalidateQueries({ queryKey: roastProfileQueryRoots.profiles, refetchType: 'all' }),
-        qc.invalidateQueries({ queryKey: roastProfileQueryRoots.consistency }),
     ]);
 };
 

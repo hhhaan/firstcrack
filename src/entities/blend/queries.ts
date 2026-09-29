@@ -11,11 +11,11 @@ export const blendKeys = {
     detail: (id: string) => ['blends', 'detail', id] as const,
 };
 
-export const useBlends = (userId: string) =>
+export const useBlends = (userId: string, options?: { enabled?: boolean }) =>
     useQuery({
         queryKey: blendKeys.all(userId),
         queryFn: () => blendApi.list(userId),
-        enabled: !!userId,
+        enabled: !!userId && (options?.enabled ?? true),
     });
 
 export const useBlend = (id: string) =>

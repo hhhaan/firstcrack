@@ -1133,6 +1133,7 @@
         "drop": "Drop",
         "newProfile": "New Profile",
         "empty": "No profiles yet",
+        "loadError": "Failed to load profiles. Please try again.",
         "createFirst": "Create your first profile",
         "searchPlaceholder": "Search profiles...",
         "subtitle_one": "{{count}} profile",

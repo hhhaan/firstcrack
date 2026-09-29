@@ -11,7 +11,7 @@
 import * as Sentry from '@sentry/react';
 import { isOpaqueNetworkMessage } from './errorMessage';
 import { mapServerBatchGateError } from './features/plan-matrix';
-import { httpStatusOf } from './httpStatus';
+import { httpStatusOf, isDeterministicClientError } from './httpStatus';
 
 // DSN은 클라이언트 공개값 (Rust/사이드카도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
 const SENTRY_DSN = 'https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944';
@@ -64,9 +64,15 @@ export const scrubSensitive = (value: unknown, depth = 0): unknown => {
 export const isClientRefusal = (error: unknown): boolean => {
     if ((error as { name?: unknown } | null | undefined)?.name === 'BatchLimitError') return true;
     if (mapServerBatchGateError(error)) return true;
+    // PostgREST often omits `status` and only sets SQLSTATE `code` (measured 42703).
+    if (isDeterministicClientError(error)) return true;
     const status = httpStatusOf(error);
     return status !== undefined && status >= 400 && status < 500;
 };
+
+/** Query retry: skip deterministic client/PostgREST failures; still retry transport and 5xx. */
+export const retryUnlessClientRefusal = (failureCount: number, error: unknown): boolean =>
+    !isClientRefusal(error) && failureCount < 2;
 
 const errorText = (error: unknown): string => {
     if (typeof error === 'string') return error;

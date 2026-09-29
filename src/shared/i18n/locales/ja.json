@@ -1133,6 +1133,7 @@
         "drop": "ドロップ",
         "newProfile": "新規プロファイル",
         "empty": "プロファイルがまだありません",
+        "loadError": "プロファイルの読み込みに失敗しました。もう一度お試しください。",
         "createFirst": "最初のプロファイルを作成",
         "searchPlaceholder": "プロファイルを検索...",
         "subtitle_one": "{{count}} 件のプロファイル",

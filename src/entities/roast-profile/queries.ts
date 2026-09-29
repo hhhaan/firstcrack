@@ -13,13 +13,13 @@ export type ProfileCurveSource = 'session' | 'synthetic' | 'none';
 const resolveTsvPath = (profile: RoastProfileWithSource | null): string | null =>
     resolveSourceSession(profile?.source_session)?.tsv_path ?? null;
 
-const { profiles: profilesRoot, consistency: consistencyRoot } = roastProfileQueryRoots;
+const { profiles: profilesRoot, consistency: consistencyRoot, beanHistory: beanHistoryRoot } = roastProfileQueryRoots;
 
 export const roastProfileKeys = {
     all: (userId: string) => [...profilesRoot, userId] as const,
     detail: (id: string) => [...profilesRoot, 'detail', id] as const,
     sourceEvents: (sessionId: string) => [...profilesRoot, 'source_events', sessionId] as const,
-    beanHistory: (profileId: string) => ['profile-bean-history', profileId] as const,
+    beanHistory: (profileId: string) => [...beanHistoryRoot, profileId] as const,
     consistency: (profileId: string) => [...consistencyRoot, profileId] as const,
 };
 

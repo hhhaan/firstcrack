@@ -46,7 +46,7 @@ export const NewProfileModal = ({
     const { mutateAsync: updateRoastProfile } = useUpdateRoastProfile(workspaceOwnerId);
     const unit = useRoastSettings().temperatureUnit;
     const [heatOpen, setHeatOpen] = useState(false);
-    const { points } = useResolvedProfileCurve(editingProfile ?? null);
+    const { points } = useResolvedProfileCurve(open ? (editingProfile ?? null) : null);
     const heatEditor = useMemo(
         () => resolveProfileHeatEditor(editingProfile ?? null, points),
         [editingProfile, points],

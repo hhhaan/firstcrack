@@ -85,9 +85,9 @@ export const useNewProfileForm = ({
     const nameRef = useRef<HTMLInputElement>(null);
 
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: sessions = [] } = useRoastSessions(workspaceOwnerId, 'completed');
-    const { data: beans = [] } = useBeans(workspaceOwnerId);
-    const { data: blends = [] } = useBlends(workspaceOwnerId);
+    const { data: sessions = [] } = useRoastSessions(workspaceOwnerId, 'completed', { enabled: open });
+    const { data: beans = [] } = useBeans(workspaceOwnerId, { enabled: open });
+    const { data: blends = [] } = useBlends(workspaceOwnerId, { enabled: open });
 
     // Derive initial state from props during render to avoid stale UI commits
     const [prevOpen, setPrevOpen] = useState(open);
