@@ -7,6 +7,15 @@ import { sendOsNotification } from '@shared/lib/osNotification';
 import { sidecar } from '@shared/lib/sidecar';
 import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useState } from 'react';
+import {
+    beginMachineConnectAttempt,
+    captureLinkEpoch,
+    endMachineConnectAttempt,
+    machineTemperatureQuality,
+    noteUserMachineDisconnect,
+    observeMachineLink,
+    settleUserMachineDisconnect,
+} from '../lib/machineLinkNotice';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -35,14 +44,21 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
         let cancelled = false;
         let unlisten: (() => void) | undefined;
 
-        const markReady = (status?: SidecarStatus) => {
+        const markReady = (status?: SidecarStatus, epoch?: number) => {
             if (cancelled) return;
-            if (status) setSidecarStatus(status);
+            if (status) {
+                setSidecarStatus(status);
+                observeMachineLink({ connected: status.connected, reconnecting: Boolean(status.reconnecting) }, epoch);
+            }
             setSidecarReady(true);
         };
 
         void listen<null>('sidecar-ready', () => {
-            void sidecar.waitUntilReady().then(markReady, () => null);
+            const epoch = captureLinkEpoch();
+            void sidecar.waitUntilReady().then(
+                (status) => markReady(status, epoch),
+                () => null,
+            );
         })
             .then((fn) => {
                 // 이미 정리된 이펙트면 즉시 해제 — listen resolve가 cleanup보다 늦으면 리스너가 샌다
@@ -52,7 +68,11 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
             .catch(() => null);
 
         if (!modalOpen) {
-            void sidecar.waitUntilReady().then(markReady, () => null);
+            const epoch = captureLinkEpoch();
+            void sidecar.waitUntilReady().then(
+                (status) => markReady(status, epoch),
+                () => null,
+            );
         }
 
         return () => {
@@ -69,11 +89,21 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
 
         let cancelled = false;
         const poll = async () => {
+            const epoch = captureLinkEpoch();
             const [nextTemps, nextStatus] = await Promise.all([
                 sidecar.getTemperatures().catch(() => null),
                 sidecar.getStatus().catch(() => null),
             ]);
             if (cancelled) return;
+            observeMachineLink(
+                {
+                    connected: nextStatus ? nextStatus.connected : undefined,
+                    reconnecting: Boolean(nextStatus?.reconnecting || nextTemps?.reconnecting),
+                    observation: machineTemperatureQuality(nextTemps),
+                    bt: nextTemps?.bt,
+                },
+                epoch,
+            );
             if (nextTemps) setTemps(nextTemps);
             if (nextStatus) {
                 setSidecarStatus((prev) => (isSameSidecarStatus(prev, nextStatus) ? prev : nextStatus));
@@ -97,12 +127,15 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
     }, [sidecarStatus?.connected, sidecarStatus?.roaster]);
 
     const handleConnect = useCallback(async (machine: Machine): Promise<SidecarStatus | null> => {
+        beginMachineConnectAttempt();
         setConnecting(true);
         setSidecarStatus((prev) => (prev ? { ...prev, error: null } : prev));
         try {
             const status = await sidecar.connect(machine.roasterKey, machine.connectionParams);
             setSidecarStatus(status);
+            endMachineConnectAttempt(status.connected);
             if (status.connected) {
+                observeMachineLink({ connected: true, reconnecting: Boolean(status.reconnecting) });
                 Sentry.addBreadcrumb({
                     category: 'hardware.connection',
                     message: `로스터 연결 성공: ${machine.name}`,
@@ -124,6 +157,7 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
             }
             return status;
         } catch (e) {
+            endMachineConnectAttempt(false);
             // 프론트 타임아웃(20s)이 먼저 끊겨도 사이드카는 핸드셰이크를 계속 쥐고 있다
             // (aiohttp는 peer abort에 핸들러를 취소하지 않는다). 대기 중 connect를 취소해
             // manager 락을 돌려받아야 재시도가 즉시 가능하다.
@@ -148,8 +182,10 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
     }, []);
 
     const handleDisconnect = useCallback(async () => {
+        noteUserMachineDisconnect();
         const prevStatus = sidecarStatus;
         const status = await sidecar.disconnect().catch(() => null);
+        settleUserMachineDisconnect(status?.connected === false);
         if (status) setSidecarStatus(status);
         setTemps(null);
         if (prevStatus?.connected) {

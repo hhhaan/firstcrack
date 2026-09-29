@@ -1,5 +1,9 @@
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import {
+    noteUserMachineDisconnect,
+    settleUserMachineDisconnect,
+} from '@features/machine-connection/lib/machineLinkNotice';
 import { canAddMachine, planMaxMachines, useEffectivePlan } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useState } from 'react';
@@ -60,7 +64,9 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
             const wasConnected = machine ? isThisMachineConnected(machine) : false;
             updateMachine(id, { connectionParams: params });
             if (wasConnected && !keepConnection) {
+                noteUserMachineDisconnect();
                 const status = await sidecar.disconnect().catch(() => null);
+                settleUserMachineDisconnect(status?.connected === false);
                 if (status) setSidecarStatus(status);
                 setTemps(null);
             } else if (keepConnection) {

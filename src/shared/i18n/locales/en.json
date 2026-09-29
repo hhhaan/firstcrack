@@ -420,6 +420,7 @@
         "disconnect": "Disconnect",
         "connect": "Connect",
         "sidecarStarting": "Preparing to connect...",
+        "linkUnstable": "Machine connection is unstable. Check the cable and network.",
         "startRoasting": "Start Roasting",
         "selectMachine": "Select a machine",
         "limit": {

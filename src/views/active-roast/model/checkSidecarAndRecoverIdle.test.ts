@@ -1,5 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { observeRoastLink, resetMachineLinkNotice } from '@features/machine-connection/lib/machineLinkNotice';
+import { useToastStore } from '@shared/store/toast';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { checkSidecarAndRecoverIdle } from './useSidecarPolling';
+
+afterEach(() => {
+    resetMachineLinkNotice();
+    for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
+});
 
 describe('checkSidecarAndRecoverIdle (#178)', () => {
     it('enters preheating when connected and phase is idle', async () => {
@@ -125,6 +132,23 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         expect(setConnected).not.toHaveBeenCalled();
         expect(setReconnecting).not.toHaveBeenCalled();
         expect(enterPreheating).not.toHaveBeenCalled();
+    });
+
+    it('toasts once for an idle disconnect after a confirmed link', async () => {
+        observeRoastLink({ connected: true, observation: 'valid' });
+        const disconnected = async () =>
+            checkSidecarAndRecoverIdle({
+                getStatus: async () => ({ connected: false, reconnecting: false }),
+                getPhase: () => 'idle',
+                setConnected: vi.fn(),
+                enterPreheating: vi.fn(),
+                reportLink: true,
+            });
+
+        await disconnected();
+        expect(useToastStore.getState().toasts).toHaveLength(1);
+        await disconnected();
+        expect(useToastStore.getState().toasts).toHaveLength(1);
     });
 });
 

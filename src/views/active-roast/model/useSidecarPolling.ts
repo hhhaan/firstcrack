@@ -1,9 +1,15 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import type { RawTemperatureSample } from '@features/active-roast';
-import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { reduceSensorObservation, sensorObservationTick } from '@features/active-roast/lib/sensorObservation';
 import { BBP_INPROGRESS_ID, bbpPointsToTsv, useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import {
+    captureLinkEpoch,
+    machineTemperatureQuality,
+    observeRoastLink,
+    setRoastLinkWatch,
+} from '@features/machine-connection/lib/machineLinkNotice';
+import { createBtFilter } from '@shared/lib/btFilter';
 import { errorMessage } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
@@ -85,7 +91,14 @@ export async function checkSidecarAndRecoverIdle(deps: {
     setReconnecting?: (reconnecting: boolean) => void;
     setError?: (error: string | null) => void;
     onConnectedStatus?: (status: SidecarStatusLike) => void;
+    /** Idle status loop owns the notice. Temperature polling reports for every other phase. */
+    reportLink?: boolean;
 }): Promise<void> {
+    const epoch = captureLinkEpoch();
+    const report = (connected: boolean, reconnecting: boolean) => {
+        if (!deps.reportLink) return;
+        observeRoastLink({ connected, reconnecting }, epoch);
+    };
     try {
         const s = await deps.getStatus();
         if (s.connected) {
@@ -93,6 +106,7 @@ export async function checkSidecarAndRecoverIdle(deps: {
             deps.setError?.(null);
             deps.setConnected(true, s.capabilities);
             deps.onConnectedStatus?.(s);
+            report(true, false);
             if (deps.getPhase() === 'idle') {
                 deps.enterPreheating(s.capabilities);
             }
@@ -106,12 +120,14 @@ export async function checkSidecarAndRecoverIdle(deps: {
         deps.setReconnecting?.(decision.reconnecting);
         deps.setError?.(decision.error);
         deps.setConnected(decision.connected);
+        report(decision.connected, decision.reconnecting);
         // reconnecting hold: do not enter preheating from idle until link is solid
     } catch (err) {
         if (isUnauthorizedSidecar(err)) return;
         logger.capture(err, { scope: 'sidecarPolling.status' });
         deps.setReconnecting?.(false);
         deps.setConnected(false);
+        report(false, false);
     }
 }
 
@@ -246,6 +262,8 @@ export const useSidecarPolling = ({
     useEffect(() => {
         if (!isActive || !sidecarReady) return;
 
+        const idleWatch = phase === 'idle';
+        if (idleWatch) setRoastLinkWatch(true);
         const check = () =>
             void checkSidecarAndRecoverIdle({
                 getStatus: () => sidecar.getStatus(),
@@ -254,6 +272,7 @@ export const useSidecarPolling = ({
                 enterPreheating,
                 setReconnecting: (r) => useRoastingStore.getState().setReconnecting(r),
                 setError: (err) => useRoastingStore.getState().setError(err),
+                reportLink: idleWatch,
                 onConnectedStatus: (status) => {
                     const snap = snapshotFromSidecar(status, useMachines.getState().machines);
                     if (snap) useRoastingStore.getState().rememberMachineSnapshot(snap);
@@ -261,9 +280,12 @@ export const useSidecarPolling = ({
             });
 
         check(); // ready 이후 1회 (기존 isActive 전환 동작 보존)
-        if (phase !== 'idle') return;
+        if (!idleWatch) return;
         const id = setInterval(check, IDLE_STATUS_POLL_MS);
-        return () => clearInterval(id);
+        return () => {
+            setRoastLinkWatch(false);
+            clearInterval(id);
+        };
     }, [isActive, phase, sidecarReady]);
 
     // 예열·대기·로스팅·종료 단계에서 주기적으로 온도를 폴링한다.
@@ -272,9 +294,13 @@ export const useSidecarPolling = ({
     useEffect(() => {
         if (phase === 'idle' || !sidecarReady) return;
 
+        setRoastLinkWatch(true);
         let cancelled = false;
+        // Holder so a poll can publish the decision from applyConnection without TS narrowing it to null.
+        const noticed: { decision: { connected: boolean; reconnecting: boolean } | null } = { decision: null };
         const applyConnection = (decision: ReturnType<typeof classifySidecarConnection>) => {
             if (cancelled) return;
+            noticed.decision = { connected: decision.connected, reconnecting: decision.reconnecting };
             const store = useRoastingStore.getState();
             store.setError(decision.error);
             store.setReconnecting(decision.reconnecting);
@@ -284,6 +310,9 @@ export const useSidecarPolling = ({
         const poll = async () => {
             if (pollInFlightRef.current) return;
             pollInFlightRef.current = true;
+            noticed.decision = null;
+            let skipLinkNotice = false;
+            const epoch = captureLinkEpoch();
             const generation = sidecarGenerationRef.current;
             const machine = useRoastingStore.getState().machineSnapshot;
             // First snapshot after mount (null → machine) is a generation change too.
@@ -439,14 +468,20 @@ export const useSidecarPolling = ({
                 rawSample = null;
                 logger.debug(e, 'sidecar polling error');
                 publishObservation(sensorObservationTick(Date.now(), { pollError: true }));
-                if (isUnauthorizedSidecar(e)) return;
+                if (isUnauthorizedSidecar(e)) {
+                    skipLinkNotice = true;
+                    return;
+                }
                 // Transient HTTP/timeout must not wipe reconnecting or force hard disconnect
                 // while the sidecar is still up or hardware auto-reconnect is running.
                 const status = await sidecar.getStatus().catch((statusErr: unknown) => {
                     if (isUnauthorizedSidecar(statusErr)) return 'unauthorized' as const;
                     return null;
                 });
-                if (cancelled || status === 'unauthorized') return;
+                if (cancelled || status === 'unauthorized') {
+                    if (status === 'unauthorized') skipLinkNotice = true;
+                    return;
+                }
                 applyConnection(
                     classifySidecarConnection({
                         kind: 'poll_error',
@@ -460,6 +495,29 @@ export const useSidecarPolling = ({
                     store.updateRawTemperature(rawSample);
                     if (observationTick) {
                         store.updateSensorObservation(reduceSensorObservation(store.observation, observationTick));
+                    }
+                    if (!skipLinkNotice) {
+                        // applyConnection writes this. Control-flow only sees the reset to null.
+                        const decision = noticed.decision as { connected: boolean; reconnecting: boolean } | null;
+                        // Link recovery follows the reading, not the device-clock quality.
+                        // A repeated timestamp is still a non-stale temperature (`retransmit` in the store).
+                        observeRoastLink(
+                            {
+                                connected: decision?.connected,
+                                reconnecting: decision?.reconnecting,
+                                bt: observationTick?.bt,
+                                observation: observationTick
+                                    ? machineTemperatureQuality({
+                                          bt: observationTick.bt,
+                                          stale: observationTick.stale,
+                                          reconnecting: observationTick.reconnecting || decision?.reconnecting,
+                                          spike: observationTick.spikeRejected,
+                                          pollError: observationTick.pollError,
+                                      })
+                                    : undefined,
+                            },
+                            epoch,
+                        );
                     }
                 }
             }
@@ -488,6 +546,7 @@ export const useSidecarPolling = ({
                 },
             );
             return () => {
+                setRoastLinkWatch(false);
                 cancelled = true;
                 unlisten?.();
                 if (fallbackId !== undefined) clearInterval(fallbackId);
@@ -495,6 +554,7 @@ export const useSidecarPolling = ({
         }
         const id = setInterval(() => void poll(), pollIntervalMs);
         return () => {
+            setRoastLinkWatch(false);
             cancelled = true;
             clearInterval(id);
         };
