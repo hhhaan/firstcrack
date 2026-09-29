@@ -11,7 +11,7 @@ interface DashboardHeaderProps {
 }
 
 export const DashboardHeader = ({ onNavigate }: DashboardHeaderProps) => {
-    const isRoasting = useRoastingStore((s) => s.isRoasting);
+    const isRoasting = useRoastingStore((s) => s.phase === 'roasting');
     const weather = useWeather();
     const { t } = useTranslation();
 

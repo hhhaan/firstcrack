@@ -329,7 +329,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         useRoastingStore.setState({
             phase: 'roasting',
             charged: true,
-            isRoasting: true,
             sessionId: restore.sessionId,
             sessionOwnerId: restore.sessionOwnerId,
             roastStartMs: origin,

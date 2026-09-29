@@ -49,7 +49,6 @@ const resetStore = () => {
     useRoastingStore.setState({
         phase: 'standby',
         charged: false,
-        isRoasting: false,
         sessionId: null,
         roastStartMs: 0,
         elapsed: 0,

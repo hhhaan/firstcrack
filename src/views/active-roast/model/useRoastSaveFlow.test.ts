@@ -388,7 +388,6 @@ describe('roast save identity and Continue lifecycle', () => {
             useRoastingStore.setState({
                 phase: 'roasting',
                 charged: true,
-                isRoasting: true,
                 sessionId: 's-b',
                 awaitingNextCharge: false,
             });

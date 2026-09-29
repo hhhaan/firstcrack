@@ -127,7 +127,6 @@ const seed = (patch: Partial<ReturnType<typeof useRoastingStore.getState>>) => {
     useRoastingStore.setState({
         phase: 'roasting',
         charged: true,
-        isRoasting: true,
         sidecarConnected: true,
         sessionId: 'sess-remount',
         sessionOwnerId: 'owner',
@@ -304,7 +303,6 @@ describe('ActiveRoast running clock (#627)', () => {
         seed({
             phase: 'standby',
             charged: false,
-            isRoasting: false,
             awaitingNextCharge: true,
             elapsed: 600,
             roastStartMs: 0,
@@ -326,7 +324,6 @@ describe('ActiveRoast running clock (#627)', () => {
         seed({
             phase: 'ended',
             charged: true,
-            isRoasting: false,
             awaitingNextCharge: false,
             elapsed: 600,
             roastStartMs: 0,
@@ -342,7 +339,6 @@ describe('ActiveRoast running clock (#627)', () => {
         seed({
             phase: 'idle',
             charged: false,
-            isRoasting: false,
             awaitingNextCharge: false,
             sessionId: null,
             elapsed: 0,

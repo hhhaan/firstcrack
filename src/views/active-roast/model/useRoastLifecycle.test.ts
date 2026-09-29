@@ -97,7 +97,6 @@ describe('resetActiveRoast after End (#455)', () => {
         useRoastingStore.setState({
             phase: 'ended',
             charged: true,
-            isRoasting: false,
             sidecarConnected: true,
             sessionId: 's1',
             roastStartMs: 0,
@@ -153,7 +152,6 @@ describe('confirmEndRoast roast metrics (#514)', () => {
         useRoastingStore.setState({
             phase: 'roasting',
             charged: true,
-            isRoasting: true,
             sidecarConnected: true,
             sessionId: 's1',
             roastStartMs: 0,
@@ -217,7 +215,6 @@ describe('completeDrop → BBP (#484)', () => {
         useRoastingStore.setState({
             phase: 'roasting',
             charged: true,
-            isRoasting: true,
             sidecarConnected: true,
             sessionId: 's-a',
             sessionOwnerId: 'owner',
@@ -389,6 +386,10 @@ describe('completeDrop → BBP (#484)', () => {
             expect(useRoastingStore.getState().roastStartMs).toBe(Date.now() - 600_000);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             expect(useBbpStore.getState().active).toBe(false);
+            vi.setSystemTime(new Date('2026-09-21T00:12:03Z'));
+            useRoastingStore.getState().tick();
+            expect(useRoastingStore.getState().elapsed).toBe(603);
+            expect(useRoastingStore.getState().phase).toBe('roasting');
         } finally {
             vi.useRealTimers();
             h.unmount();
@@ -554,7 +555,6 @@ describe('completeDrop → BBP (#484)', () => {
                 useRoastingStore.setState({
                     phase: 'roasting',
                     charged: true,
-                    isRoasting: true,
                     sessionId: 's-b',
                     awaitingNextCharge: false,
                 });
@@ -576,7 +576,6 @@ describe('completeDrop → BBP (#484)', () => {
         useRoastingStore.setState({
             phase: 'idle',
             charged: false,
-            isRoasting: false,
             sessionId: null,
             awaitingNextCharge: false,
             sidecarConnected: true,
@@ -605,7 +604,6 @@ describe('completeDrop → BBP (#484)', () => {
         useRoastingStore.setState({
             phase: 'idle',
             charged: false,
-            isRoasting: false,
             sessionId: null,
             awaitingNextCharge: false,
             sidecarConnected: true,
@@ -632,7 +630,6 @@ describe('completeDrop → BBP (#484)', () => {
         useRoastingStore.setState({
             phase: 'roasting',
             charged: true,
-            isRoasting: true,
             sessionId: 's-live',
             awaitingNextCharge: false,
             sidecarConnected: true,
