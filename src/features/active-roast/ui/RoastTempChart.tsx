@@ -53,9 +53,17 @@ interface Props {
     onAddNote?: (body: string, timeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
+    showProfileBt?: boolean;
+    showProfileEt?: boolean;
+    showProfileRor?: boolean;
+    showProfileDrum?: boolean;
+    showProfileHeat?: boolean;
+    showProfileFan?: boolean;
     showTargetDeltaLabel?: boolean;
     targetXs?: number[];
     targetBt?: (number | null)[];
+    targetEt?: (number | null)[];
+    targetRor?: (number | null)[];
     showRoR?: boolean;
     showRoRET?: boolean;
     rorEtActual?: (number | null)[];
@@ -110,6 +118,81 @@ const parseHeaterNote = (note: string): { value: string; unit: string } => {
     return match ? { value: match[1], unit: match[2] || '%' } : { value: '', unit: '%' };
 };
 
+/** Omitted profile flags stay on. Kept off the component so each default is not a branch there. */
+const profileShown = (flag: boolean | undefined): boolean => flag !== false;
+
+const seriesPresent = (values: readonly (number | null)[] | undefined): number =>
+    values?.some((value) => value != null) ? 1 : 0;
+
+/** Structure identity for setOption notMerge. Branches stay off the chart component. */
+const chartStructureKey = (input: {
+    charged: boolean;
+    eventMarkerStyle: string;
+    eventMarkerCount: number;
+    turningPointCount: number;
+    showET: boolean;
+    showTargetCurve: boolean;
+    showTargetDeltaLabel: boolean;
+    showRoR: boolean;
+    showRoRET: boolean;
+    hasControlData: boolean;
+    hasHeatSet: boolean;
+    showControlDrum: boolean;
+    showControlHeat: boolean;
+    showControlFan: boolean;
+    hasPhaseSegments: boolean;
+    showFcBand: boolean;
+    targetXs: number[] | undefined;
+    targetBt: (number | null)[] | undefined;
+    targetEt: (number | null)[] | undefined;
+    targetRor: (number | null)[] | undefined;
+    referenceHeater: (number | null)[] | undefined;
+    referenceFan: (number | null)[] | undefined;
+    referenceDrum: (number | null)[] | undefined;
+    hasBbpRange: boolean;
+    hideChargeLabel: boolean;
+}): string =>
+    [
+        input.charged,
+        input.eventMarkerStyle,
+        input.eventMarkerCount,
+        input.turningPointCount,
+        input.showET,
+        input.showTargetCurve,
+        input.showTargetDeltaLabel,
+        input.showRoR,
+        input.showRoRET,
+        input.hasControlData,
+        input.hasHeatSet,
+        input.showControlDrum,
+        input.showControlHeat,
+        input.showControlFan,
+        input.hasPhaseSegments,
+        input.showFcBand,
+        !!(input.targetXs?.length && input.targetBt?.length),
+        seriesPresent(input.targetEt),
+        seriesPresent(input.targetRor),
+        seriesPresent(input.referenceHeater),
+        seriesPresent(input.referenceFan),
+        seriesPresent(input.referenceDrum),
+        input.hasBbpRange,
+        input.hideChargeLabel,
+    ].join('|');
+
+const controlLegendItems = (
+    controlData: ControlData | undefined,
+    drum: boolean,
+    heat: boolean,
+    fan: boolean,
+): { color: string; label: string }[] => {
+    if (!controlData || (!drum && !heat && !fan)) return [];
+    return [
+        ...(drum ? [{ color: CONTROL_COLORS.drum, label: 'Drum' }] : []),
+        ...(heat ? [{ color: CONTROL_COLORS.heat, label: 'Heat' }] : []),
+        ...(fan ? [{ color: CONTROL_COLORS.fan, label: 'Fan' }] : []),
+    ];
+};
+
 export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function RoastTempChart(
     {
         xs,
@@ -132,9 +215,17 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         hideChargeLabel = false,
         showET = true,
         showTargetCurve = true,
+        showProfileBt,
+        showProfileEt,
+        showProfileRor,
+        showProfileDrum,
+        showProfileHeat,
+        showProfileFan,
         showTargetDeltaLabel = false,
         targetXs,
         targetBt,
+        targetEt,
+        targetRor,
         showRoR = true,
         showRoRET = false,
         rorEtActual = [],
@@ -157,6 +248,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     },
     ref,
 ) {
+    const profileBt = profileShown(showProfileBt);
+    const profileEt = profileShown(showProfileEt);
+    const profileRor = profileShown(showProfileRor);
+    const profileDrum = profileShown(showProfileDrum);
+    const profileHeat = profileShown(showProfileHeat);
+    const profileFan = profileShown(showProfileFan);
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
@@ -224,9 +321,17 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 temperatureUnit,
                 showET,
                 showTargetCurve,
+                showProfileBt: profileBt,
+                showProfileEt: profileEt,
+                showProfileRor: profileRor,
+                showProfileDrum: profileDrum,
+                showProfileHeat: profileHeat,
+                showProfileFan: profileFan,
                 showTargetDeltaLabel,
                 targetXs,
                 targetBt,
+                targetEt,
+                targetRor,
                 showRoR,
                 showRoRET,
                 rorEtActual,
@@ -254,6 +359,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             btTarget,
             targetXs,
             targetBt,
+            targetEt,
+            targetRor,
             btActual,
             etActual,
             rorActual,
@@ -265,6 +372,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             temperatureUnit,
             showET,
             showTargetCurve,
+            profileBt,
+            profileEt,
+            profileRor,
+            profileDrum,
+            profileHeat,
+            profileFan,
             showTargetDeltaLabel,
             showRoR,
             showRoRET,
@@ -295,27 +408,34 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         return makeOption();
     }, [makeOption, resolvedTheme]);
 
-    const structureKey = [
+    const structureKey = chartStructureKey({
         charged,
         eventMarkerStyle,
-        eventMarkers.length,
-        turningPoints.length,
+        eventMarkerCount: eventMarkers.length,
+        turningPointCount: turningPoints.length,
         showET,
         showTargetCurve,
         showTargetDeltaLabel,
         showRoR,
         showRoRET,
-        !!controlData,
-        !!controlData?.heatSet?.some((value) => value != null),
+        hasControlData: !!controlData,
+        hasHeatSet: !!controlData?.heatSet?.some((value) => value != null),
         showControlDrum,
         showControlHeat,
         showControlFan,
-        phaseSegments.length > 0,
+        hasPhaseSegments: phaseSegments.length > 0,
         showFcBand,
-        !!(targetXs?.length && targetBt?.length),
-        !!bbpRange,
+        targetXs,
+        targetBt,
+        targetEt,
+        targetRor,
+        referenceHeater: controlData?.reference?.heater,
+        referenceFan: controlData?.reference?.fan,
+        referenceDrum: controlData?.reference?.drum,
+        hasBbpRange: !!bbpRange,
         hideChargeLabel,
-    ].join('|');
+    });
+    const controlLegend = controlLegendItems(controlData, showControlDrum, showControlHeat, showControlFan);
     const prevStructureKey = useRef(structureKey);
     useEffect(() => {
         const chart = chartInstanceRef.current;
@@ -811,13 +931,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     </div>
                 </form>
             )}
-            {controlData && (showControlDrum || showControlHeat || showControlFan) && (
+            {controlLegend.length > 0 && (
                 <div className="absolute flex items-center gap-4" style={{ bottom: -15, left: 25 }}>
-                    {[
-                        ...(showControlDrum ? [{ color: CONTROL_COLORS.drum, label: 'Drum' }] : []),
-                        ...(showControlHeat ? [{ color: CONTROL_COLORS.heat, label: 'Heat' }] : []),
-                        ...(showControlFan ? [{ color: CONTROL_COLORS.fan, label: 'Fan' }] : []),
-                    ].map((item) => (
+                    {controlLegend.map((item) => (
                         <div key={item.label} className="flex items-center gap-1.5">
                             <div style={{ width: 16, height: 2, background: item.color }} />
                             <span className="text-[11px] text-muted tracking-[0.14px]">{item.label}</span>

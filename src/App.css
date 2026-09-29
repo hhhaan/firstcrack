@@ -67,7 +67,9 @@
     --color-sensor-bt: oklch(0.6 0.18 155);
     --color-sensor-bt-target: oklch(0.6 0.18 155 / 0.55);
     --color-sensor-et: oklch(0.6 0.17 225);
+    --color-sensor-et-target: oklch(0.6 0.17 225 / 0.55);
     --color-sensor-ror: oklch(0.78 0.18 88);
+    --color-sensor-ror-target: oklch(0.78 0.18 88 / 0.55);
     --color-chart-grid: rgba(0, 0, 0, 0.08);
     --color-chart-grid-stroke: rgba(0, 0, 0, 0.1);
     --color-chart-axis-label: #666;
@@ -110,9 +112,12 @@
 
     /* Control chart colors (light) */
     --color-control-drum: oklch(0.62 0.16 165);
+    --color-control-drum-target: oklch(0.62 0.16 165 / 0.55);
     --color-control-heat: oklch(0.78 0.18 88);
+    --color-control-heat-target: oklch(0.78 0.18 88 / 0.55);
     --color-control-heat-area: oklch(0.78 0.18 88 / 0.22);
     --color-control-fan: oklch(0.6 0.17 225);
+    --color-control-fan-target: oklch(0.6 0.17 225 / 0.55);
     --color-control-fan-area: oklch(0.6 0.17 225 / 0.22);
 
     /* Chart misc (light) */
@@ -150,7 +155,9 @@ html.dark {
     --color-sensor-bt: #4be08c;
     --color-sensor-bt-target: rgba(75, 224, 140, 0.65);
     --color-sensor-et: #beacf8;
+    --color-sensor-et-target: rgba(190, 172, 248, 0.65);
     --color-sensor-ror: #ffff54;
+    --color-sensor-ror-target: rgba(255, 255, 84, 0.65);
     --color-chart-grid: rgba(255, 255, 255, 0.1);
     --color-chart-grid-stroke: rgba(255, 255, 255, 0.12);
     --color-chart-axis-label: #888;
@@ -193,9 +200,12 @@ html.dark {
 
     /* Control chart colors (dark) */
     --color-control-drum: #72ebbc;
+    --color-control-drum-target: rgba(114, 235, 188, 0.65);
     --color-control-heat: #ffff54;
+    --color-control-heat-target: rgba(255, 255, 84, 0.65);
     --color-control-heat-area: rgba(255, 255, 84, 0.15);
     --color-control-fan: #44bffc;
+    --color-control-fan-target: rgba(68, 191, 252, 0.65);
     --color-control-fan-area: rgba(68, 191, 252, 0.15);
 
     /* Chart misc (dark) */

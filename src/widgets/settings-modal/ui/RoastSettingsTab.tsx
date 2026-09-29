@@ -7,6 +7,7 @@ import {
     type PidDropBehavior,
     type PollIntervalMs,
     playAlertSound,
+    type RoastSettings,
     type RorSpanSec,
     type TemperatureUnit,
     toDisplayTemp,
@@ -108,6 +109,45 @@ const visibilityOptions = [
         descKey: 'settings.tabs.roast.showFcBandDescription',
     },
 ];
+
+type BooleanSettingKey = {
+    [Key in keyof RoastSettings]: RoastSettings[Key] extends boolean ? Key : never;
+}[keyof RoastSettings];
+
+type RoastCheckOption = {
+    key: BooleanSettingKey;
+    labelKey: string;
+    descKey: string;
+};
+
+const profileSeriesOptions: RoastCheckOption[] = (
+    [
+        ['showProfileBt', 'profileBt'],
+        ['showProfileEt', 'profileEt'],
+        ['showProfileRor', 'profileRor'],
+        ['showProfileDrum', 'profileDrum'],
+        ['showProfileHeat', 'profileHeat'],
+        ['showProfileFan', 'profileFan'],
+    ] as const
+).map(([key, label]) => ({
+    key,
+    labelKey: `settings.tabs.roast.${label}`,
+    descKey: `settings.tabs.roast.${label}Description`,
+}));
+
+const RoastCheckRows = ({ options }: { options: readonly RoastCheckOption[] }) => {
+    const { t } = useTranslation();
+    const roastSettings = useRoastSettings();
+    return options.map(({ key, labelKey, descKey }) => (
+        <SettingsCheckRow
+            key={key}
+            checked={roastSettings[key]}
+            label={t(labelKey)}
+            description={t(descKey)}
+            onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
+        />
+    ));
+};
 
 const controlSeriesOptions = [
     {
@@ -335,15 +375,14 @@ export const RoastSettingsTab = () => {
             <SectionCard>
                 <SectionCard.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />
                 <SectionCard.Body className="grid gap-1.5">
-                    {visibilityOptions.map(({ key, labelKey, descKey }) => (
-                        <SettingsCheckRow
-                            key={key}
-                            checked={roastSettings[key]}
-                            label={t(labelKey)}
-                            description={t(descKey)}
-                            onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
-                        />
-                    ))}
+                    <RoastCheckRows options={visibilityOptions} />
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('profileSeries')} description={tk('profileSeriesDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    <RoastCheckRows options={profileSeriesOptions} />
                 </SectionCard.Body>
             </SectionCard>
 
@@ -411,15 +450,7 @@ export const RoastSettingsTab = () => {
                 <SectionCard.Header title={tk('controlChart')} description={tk('controlChartDescription')} />
                 <SectionCard.Body className="grid gap-3">
                     <div className="grid gap-1.5">
-                        {controlSeriesOptions.map(({ key, labelKey, descKey }) => (
-                            <SettingsCheckRow
-                                key={key}
-                                checked={roastSettings[key]}
-                                label={t(labelKey)}
-                                description={t(descKey)}
-                                onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
-                            />
-                        ))}
+                        <RoastCheckRows options={controlSeriesOptions} />
                     </div>
                     <SettingsOptionRow justify="between">
                         <div>

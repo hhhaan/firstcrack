@@ -74,6 +74,16 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
             const y = p.value?.[1];
             if (p.seriesName === 'BT Target' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+            if (p.seriesName === 'ET Target' && y != null)
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.etTarget}"></div>Target ET: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+            if (p.seriesName === 'RoR Target' && y != null)
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.rorTarget}"></div>Target RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
+            if (p.seriesName === 'Drum Target' && y != null)
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlDrumTarget}"></div>Target Drum: <span>${y} RPM</span></div>`;
+            if (p.seriesName === 'Heater Target' && y != null)
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlHeatTarget}"></div>Target Heater: <span>${y}%</span></div>`;
+            if (p.seriesName === 'Fan Target' && y != null)
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlFanTarget}"></div>Target Fan: <span>${y}%</span></div>`;
             if (p.seriesName === 'BT Actual' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'ET Actual' && showET && y != null)
