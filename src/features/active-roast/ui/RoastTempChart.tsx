@@ -26,10 +26,21 @@ import {
 import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
+import { logger } from '@shared/lib/logger';
+import { applyTimeEdit, parseEditTime, type TimeEditKind } from '@shared/lib/time-edit';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
 import type React from 'react';
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 
 export type { RoastEventMarker };
 
@@ -101,16 +112,6 @@ const scalar = (value: unknown): number | null => (typeof value === 'number' && 
 const clampMarkerTime = (event: string, timeSec: number, nowSec: number, axisMaxSec: number) => {
     const cap = event === 'Note' ? axisMaxSec : Math.floor(nowSec);
     return Math.max(0, Math.min(cap, Math.round(timeSec)));
-};
-
-/** Typing: digits + optional `:ss`. Seconds 0–60. */
-const EDIT_TIME_INPUT_RE = /^\d{0,3}(?::(?:[0-5]?\d?|60)?)?$/;
-const EDIT_TIME_PARSE_RE = /^(\d{1,3}):([0-5]?\d|60)$/;
-
-const parseEditTimeSec = (raw: string): number | null => {
-    const match = raw.trim().match(EDIT_TIME_PARSE_RE);
-    if (!match) return null;
-    return Number(match[1]) * 60 + Number(match[2]);
 };
 
 const parseHeaterNote = (note: string): { value: string; unit: string } => {
@@ -274,6 +275,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         heaterUnit: string;
     } | null>(null);
     const editFormRef = useRef<HTMLFormElement>(null);
+    const timeInputRef = useRef<HTMLInputElement>(null);
+    const timeSuppress = useRef(false);
+    const timeCaret = useRef<number | null>(null);
+    const timeBypassLogged = useRef(false);
 
     useEffect((): (() => void) | undefined => {
         const container = chartRef.current;
@@ -733,6 +738,78 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         return () => document.removeEventListener('pointerdown', close);
     }, [editForm, noteForm]);
 
+    useLayoutEffect(() => {
+        const input = timeInputRef.current;
+        const caret = timeCaret.current;
+        if (!input || caret == null) return;
+        timeCaret.current = null;
+        const place = () => {
+            if (input.isConnected && document.activeElement === input) input.setSelectionRange(caret, caret);
+        };
+        place();
+        requestAnimationFrame(place);
+    });
+
+    const markerLogId = editForm?.logId;
+    useEffect(() => {
+        if (!markerLogId) return;
+        const input = timeInputRef.current;
+        if (!input) return;
+        timeSuppress.current = false;
+        timeBypassLogged.current = false;
+        let pasteClaimed = false;
+        const editTime = (kind: TimeEditKind, text: string) => {
+            const start = input.selectionStart ?? 0;
+            const end = input.selectionEnd ?? start;
+            const res = applyTimeEdit(input.value, start, end, text, kind, timeSuppress.current);
+            timeSuppress.current = res.suppress;
+            timeCaret.current = res.caret;
+            setEditForm((form) => (form ? { ...form, time: res.value } : form));
+        };
+        const claimPaste = (text: string) => {
+            if (pasteClaimed) return;
+            pasteClaimed = true;
+            queueMicrotask(() => {
+                pasteClaimed = false;
+            });
+            editTime('insert', text);
+        };
+        const onBefore = (event: Event) => {
+            if (!(event instanceof InputEvent)) return;
+            const type = event.inputType;
+            if (type === 'insertFromPaste') {
+                event.preventDefault();
+                claimPaste(event.data ?? '');
+                return;
+            }
+            if (type === 'insertText' || type === 'insertReplacementText') {
+                event.preventDefault();
+                editTime('insert', event.data ?? '');
+                return;
+            }
+            if (type === 'deleteContentBackward') {
+                event.preventDefault();
+                editTime('backspace', '');
+                return;
+            }
+            if (type === 'deleteContentForward' || type === 'deleteByCut') {
+                event.preventDefault();
+                editTime('delete', '');
+            }
+        };
+        const onPaste = (event: Event) => {
+            if (!(event instanceof ClipboardEvent)) return;
+            event.preventDefault();
+            claimPaste(event.clipboardData?.getData('text') ?? '');
+        };
+        input.addEventListener('beforeinput', onBefore);
+        input.addEventListener('paste', onPaste);
+        return () => {
+            input.removeEventListener('beforeinput', onBefore);
+            input.removeEventListener('paste', onPaste);
+        };
+    }, [markerLogId]);
+
     const handleContextMenu = useCallback(
         (event: React.MouseEvent<HTMLDivElement>) => {
             if (!onAddNote) return;
@@ -772,7 +849,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
 
     const submitEdit = useCallback(() => {
         if (!editForm || !onEventMarkerEdit) return;
-        const timeSec = parseEditTimeSec(editForm.time);
+        const timeSec = parseEditTime(editForm.time);
         if (timeSec == null) return;
         const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
         const patch: { timeSec: number; note?: string } = {
@@ -864,26 +941,38 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
                         Time
                         <input
+                            ref={timeInputRef}
                             id="chart-marker-time"
                             autoFocus
                             inputMode="numeric"
+                            autoComplete="off"
+                            spellCheck={false}
                             pattern="\d{1,3}:([0-5]?\d|60)"
                             maxLength={6}
                             value={editForm.time}
                             onChange={(event) => {
-                                const next = event.target.value;
-                                if (!EDIT_TIME_INPUT_RE.test(next)) {
-                                    event.target.value = editForm.time;
-                                    return;
+                                if (event.target.value === editForm.time) return;
+                                if (!timeBypassLogged.current) {
+                                    timeBypassLogged.current = true;
+                                    logger.capture(new Error('Marker time input bypassed beforeinput'));
                                 }
-                                setEditForm({ ...editForm, time: next });
+                                setEditForm({ ...editForm, time: event.target.value });
                             }}
                             onKeyDown={(event) => {
                                 if (event.key === 'Escape') {
                                     event.preventDefault();
                                     setEditForm(null);
                                     chartRef.current?.focus();
+                                    return;
                                 }
+                                if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+                                const current = parseEditTime(editForm.time);
+                                if (current == null) return;
+                                event.preventDefault();
+                                const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
+                                const delta = event.key === 'ArrowUp' ? 1 : -1;
+                                const next = clampMarkerTime(editForm.event, current + delta, currentTimeSec, axisMax);
+                                setEditForm({ ...editForm, time: formatElapsed(next) });
                             }}
                             className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
                         />
