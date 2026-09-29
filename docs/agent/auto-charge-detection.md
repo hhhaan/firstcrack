@@ -28,7 +28,10 @@ alarm gating are separate issues.
 - Evaluate adjacent samples and every second sample (11 retained points) for
   quantized probes. Actual timestamps normalize both 500ms and 1000ms polling.
 - Charge Standard 1s: 0.67°C/s, offset 0.5°C/s, BT > 77°C, standby (Charge Wait).
-- Drop Standard 1s: 0.34°C/s, offset 0.2°C/s, BT > 160°C, roasting, Charge+7 min.
+- Drop Standard 1s: 0.34°C/s, offset 0.2°C/s, BT > 160°C, roasting, and only once
+  elapsed exceeds `autoDropStartMin` (default 7). Samples at or before that
+  minute are discarded, so a pre-gate candidate cannot fire when the gate
+  opens or the minute setting changes.
   These use Artisan Standard's 1s reference values, not W60A measurements.
   Unlike Artisan's sampling buckets, rates here use actual time intervals;
   there is no cap that lets an already-steep steady fall become a new event.
@@ -47,7 +50,12 @@ alarm gating are separate issues.
 
 ## Settings
 
-`autoChargeMode` / `autoDropMode` are Standard or Sensitive. Legacy
+`autoChargeMode` / `autoDropMode` are Standard or Sensitive. `autoDropStartMin`
+is whole or fractional minutes after Charge (UI min 1, max 30, no step — same
+NumberInput as the time alarms). Missing and invalid stored values
+(non-positive, NaN, Infinity, non-numeric) read as the previous valid minute,
+or 7. The gate is `elapsed > minutes * 60` (the exact minute does not fire).
+Legacy
 `autoChargeDropC` and `autoDropDropC` (including stored °C thresholds) are
 ignored, never interpreted as a rate. The settings UI explains the replacement
 in all four locales.
