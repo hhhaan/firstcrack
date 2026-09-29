@@ -14,7 +14,6 @@ interface UseRoastActionsParams {
     unit: TemperatureUnit;
     rawBT: number | null;
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
-    setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
     onDrop: (onset?: { timeSec: number; bt: number }) => void;
     storeStartCharge: (originMs?: number, ownerId?: string) => void;
     roastStartTimeRef: React.MutableRefObject<number>;
@@ -32,7 +31,6 @@ export const useRoastActions = ({
     unit,
     rawBT,
     setLogEntries,
-    setIsRunning,
     onDrop,
     storeStartCharge,
     roastStartTimeRef,
@@ -50,7 +48,6 @@ export const useRoastActions = ({
             // Same origin for livePoints.time (ref) and elapsed (store roastStartMs)
             roastStartTimeRef.current = origin;
             storeStartCharge(origin, workspaceOwnerId);
-            setIsRunning(true);
             const btVal = btAtCharge ?? rawBT;
             setLogEntries([
                 {
@@ -64,7 +61,7 @@ export const useRoastActions = ({
                 },
             ]);
         },
-        [unit, rawBT, setLogEntries, setIsRunning, storeStartCharge, roastStartTimeRef, workspaceOwnerId],
+        [unit, rawBT, setLogEntries, storeStartCharge, roastStartTimeRef, workspaceOwnerId],
     );
 
     const handleAutoDrop = useCallback(

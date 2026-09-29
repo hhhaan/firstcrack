@@ -221,7 +221,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         });
 
     // ── UI 상태 ───────────────────────────────────────────────────
-    const [isRunning, setIsRunning] = useState(false);
+    // 진행 중은 phase === 'roasting'. 화면 로컬 boolean을 두지 않는다.
+    const isRunning = phase === 'roasting';
     const isRunningRef = useRef(isRunning);
     useEffect(() => {
         isRunningRef.current = isRunning;
@@ -394,7 +395,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         enterStandby,
         enterPreheating,
         setConnected,
-        setIsRunning,
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
@@ -445,7 +445,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         unit,
         rawBT,
         setLogEntries,
-        setIsRunning,
         onDrop: (onset) => applyDropRef.current(onset),
         storeStartCharge,
         roastStartTimeRef,

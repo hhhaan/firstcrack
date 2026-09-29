@@ -63,7 +63,6 @@ const renderLifecycle = (
             enterStandby: () => useRoastingStore.getState().enterStandby(),
             enterPreheating: () => useRoastingStore.getState().enterPreheating(),
             setConnected: () => undefined,
-            setIsRunning: vi.fn(),
             resetStore: () => useRoastingStore.getState().reset(),
             resetAutoDetectionRef: { current: detection.resetAutoDetection ?? (() => undefined) },
             disableAutoChargeRef: { current: detection.disableAutoCharge ?? (() => undefined) },
