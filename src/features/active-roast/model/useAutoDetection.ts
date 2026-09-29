@@ -14,9 +14,6 @@ import { toDisplayTemp } from '../lib/temperature';
 import type { PollIntervalMs, TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
-/** Artisan autoDROP: CHARGE 후 7분 초과일 때만 BTbreak 발화 */
-export const AUTO_DROP_MIN_ELAPSED_S = 7 * 60;
-
 // TP 미확정이 이 시간을 넘으면 현재 시점을 TP로 강제 확정해 Yellow/FC 게이트를 연다
 // (Artisan TP_max_roasttime 동일 — 에어로스터 등 TP 골짜기가 없는 머신 대응)
 const TP_FALLBACK_S = 120;
@@ -33,6 +30,8 @@ export type UseAutoDetectionOptions = {
     pollIntervalMs: PollIntervalMs;
     autoDropEnabled: boolean;
     autoDropMode: AutoDropMode;
+    /** Fire only once `elapsed` exceeds this many minutes (`elapsed > minutes * 60`). */
+    autoDropStartMin: number;
     yellowTempC: number;
     unit: TemperatureUnit;
     markEvent?: (event: string, note: string) => void;
@@ -50,6 +49,7 @@ export const useAutoDetection = ({
     pollIntervalMs,
     autoDropEnabled,
     autoDropMode,
+    autoDropStartMin,
     yellowTempC,
     unit,
     markEvent,
@@ -151,6 +151,8 @@ export const useAutoDetection = ({
     useEffect(() => {
         const detector = createAutoDropDetector(autoDropMode, pollIntervalMs);
         dropDetectorRef.current = detector;
+        // Artisan autoDROP: CHARGE 후 N분 초과일 때만 발화. N=autoDropStartMin (default 7).
+        const minElapsedS = autoDropStartMin * 60;
         const unsubscribe = useRoastingStore.subscribe((state, previous) => {
             if (
                 state.phase !== previous.phase ||
@@ -171,9 +173,14 @@ export const useAutoDetection = ({
                 return;
             }
             if (state.rawTemperature === previous.rawTemperature) return;
+            // Samples at or before the start minute must not confirm once the gate opens.
+            if (state.elapsed <= minElapsedS) {
+                detector.reset();
+                return;
+            }
             const sample = state.rawTemperature;
             const onset = detector.push(sample);
-            if (!sample || !onset || state.elapsed <= AUTO_DROP_MIN_ELAPSED_S) return;
+            if (!sample || !onset) return;
             autoDroppedRef.current = true;
             const lagSec = sample.timestamp - onset.timestamp;
             const onsetWall = sample.receivedAtMs - lagSec * 1000;
@@ -187,7 +194,7 @@ export const useAutoDetection = ({
             unsubscribe();
             detector.reset();
         };
-    }, [autoDropEnabled, autoDropMode, pollIntervalMs]);
+    }, [autoDropEnabled, autoDropMode, pollIntervalMs, autoDropStartMin]);
 
     // Auto Yellow by temperature — only fire after turning point (FC is manual / dual-mark only)
     useEffect(() => {

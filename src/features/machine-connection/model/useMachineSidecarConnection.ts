@@ -100,6 +100,7 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
                     connected: nextStatus ? nextStatus.connected : undefined,
                     reconnecting: Boolean(nextStatus?.reconnecting || nextTemps?.reconnecting),
                     observation: machineTemperatureQuality(nextTemps),
+                    bt: nextTemps?.bt,
                 },
                 epoch,
             );

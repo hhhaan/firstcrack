@@ -1,6 +1,5 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import type { RawTemperatureSample } from '@features/active-roast';
-import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { reduceSensorObservation, sensorObservationTick } from '@features/active-roast/lib/sensorObservation';
 import { BBP_INPROGRESS_ID, bbpPointsToTsv, useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -10,6 +9,7 @@ import {
     observeRoastLink,
     setRoastLinkWatch,
 } from '@features/machine-connection/lib/machineLinkNotice';
+import { createBtFilter } from '@shared/lib/btFilter';
 import { errorMessage } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
@@ -505,6 +505,7 @@ export const useSidecarPolling = ({
                             {
                                 connected: decision?.connected,
                                 reconnecting: decision?.reconnecting,
+                                bt: observationTick?.bt,
                                 observation: observationTick
                                     ? machineTemperatureQuality({
                                           bt: observationTick.bt,

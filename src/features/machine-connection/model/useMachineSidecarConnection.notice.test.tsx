@@ -4,7 +4,7 @@ import { useToastStore } from '@shared/store/toast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { resetMachineLinkNotice } from '../lib/machineLinkNotice';
+import { observeRoastLink, resetMachineLinkNotice, setRoastLinkWatch } from '../lib/machineLinkNotice';
 import { useMachineSidecarConnection } from './useMachineSidecarConnection';
 
 const mocks = vi.hoisted(() => ({
@@ -256,6 +256,36 @@ it('toasts again after a live temperature recovers a fault streak', async () => 
         await act(async () => {
             await vi.advanceTimersByTimeAsync(3000);
         });
+        expect(useToastStore.getState().toasts).toHaveLength(1);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it.each([999, 390, 0])('does not re-arm an open roast fault from a machines-page spike (%s°C)', async (bt) => {
+    vi.useFakeTimers();
+    mocks.waitUntilReady.mockResolvedValue(status());
+    let { root } = renderHook();
+    try {
+        await flush();
+        setRoastLinkWatch(true);
+        for (let i = 0; i < 3; i++) observeRoastLink({ connected: true, observation: 'poll_error' });
+        expect(useToastStore.getState().toasts).toHaveLength(1);
+        clearToasts();
+
+        // Machines unmounts when another screen is selected; the notice baseline must survive.
+        act(() => root.unmount());
+        mocks.getTemperatures.mockResolvedValue(temps({ bt }));
+        ({ root } = renderHook());
+        await flush();
+        for (let i = 0; i < 3; i++) observeRoastLink({ connected: true, observation: 'poll_error' });
+        expect(useToastStore.getState().toasts).toHaveLength(0);
+
+        mocks.getTemperatures.mockResolvedValue(temps());
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        for (let i = 0; i < 3; i++) observeRoastLink({ connected: true, observation: 'poll_error' });
         expect(useToastStore.getState().toasts).toHaveLength(1);
     } finally {
         act(() => root.unmount());

@@ -1,4 +1,4 @@
-import { createBtFilter } from './btFilter';
+import { createBtFilter } from '@shared/lib/btFilter';
 
 export type AutoDetectMode = 'standard' | 'sensitive';
 export type AutoChargeMode = AutoDetectMode;

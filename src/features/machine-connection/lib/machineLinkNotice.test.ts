@@ -166,6 +166,21 @@ describe('machine link instability notice', () => {
         expect(toastCount()).toBe(1);
     });
 
+    it('uses the last filtered roast temperature when Machines first observes an in-range spike', () => {
+        setRoastLinkWatch(true);
+        observeRoastLink({ connected: true, observation: 'valid', bt: 200 });
+        for (let i = 0; i < 3; i++) observeRoastLink({ connected: true, observation: 'poll_error' });
+        clearToasts();
+
+        observeMachineLink({ connected: true, observation: 'valid', bt: 390 });
+        for (let i = 0; i < 3; i++) observeRoastLink({ connected: true, observation: 'poll_error' });
+        expect(toastCount()).toBe(0);
+
+        observeMachineLink({ connected: true, observation: 'valid', bt: 200 });
+        for (let i = 0; i < 3; i++) observeRoastLink({ connected: true, observation: 'poll_error' });
+        expect(toastCount()).toBe(1);
+    });
+
     it('starts the streak from a connected status without a prior temperature', () => {
         observeMachineLink({ connected: true, observation: 'null' });
         observeMachineLink({ connected: true, observation: 'null' });

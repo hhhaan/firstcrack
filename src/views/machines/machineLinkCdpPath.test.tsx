@@ -130,10 +130,10 @@ const flush = async () => {
 const renderBoth = () => {
     const api: { current: ReturnType<typeof useMachineSidecarConnection> | null } = { current: null };
     const root = createRoot(document.createElement('div'));
-    const Probe = () => {
+    const Probe = ({ roastActive }: { roastActive: boolean }) => {
         const phase = useRoastingStore((s) => s.phase);
         useSidecarPolling({
-            isActive: false,
+            isActive: roastActive,
             phase,
             pollIntervalMs: 500,
             enterPreheating: useRoastingStore.getState().enterPreheating,
@@ -142,14 +142,16 @@ const renderBoth = () => {
             sessionId: null,
         });
         api.current = useMachineSidecarConnection({
-            isActive: true,
+            isActive: !roastActive,
             modalOpen: false,
             machines: [machine],
         });
         return null;
     };
-    act(() => root.render(createElement(StrictMode, null, createElement(Probe))));
-    return { root, api };
+    const showRoast = (roastActive: boolean) =>
+        act(() => root.render(createElement(StrictMode, null, createElement(Probe, { roastActive }))));
+    showRoast(false);
+    return { root, api, showRoast };
 };
 
 it('toasts on the third temperature failure while status stays connected and the last Live BT remains, then again after a repeated clock', async () => {
@@ -200,6 +202,63 @@ it('toasts on the third temperature failure while status stays connected and the
         expect(toastCount()).toBe(0);
         await act(async () => {
             await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(toastCount()).toBe(1);
+        expect(api.current?.temps?.bt).toBe(210);
+        expect(useRoastingStore.getState().phase).toBe('preheating');
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('keeps roast polling ownership after visiting Active Roast, suppresses repeats across screens, and re-arms after recovery', async () => {
+    vi.useFakeTimers();
+    const { root, api, showRoast } = renderBoth();
+    try {
+        await flush();
+        showRoast(true);
+        await flush();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        showRoast(false);
+        await flush();
+        expect(api.current?.temps?.bt).toBe(210);
+        expect(useRoastingStore.getState().phase).toBe('preheating');
+
+        const callsAtArm = mocks.getTemperatures.mock.calls.length;
+        mocks.getTemperatures.mockRejectedValue(new TypeError('Failed to fetch'));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(0);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+        expect(mocks.getTemperatures.mock.calls.length - callsAtArm).toBe(3);
+        expect(toastCount()).toBe(1);
+
+        act(() => clearToasts());
+        showRoast(true);
+        await flush();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        showRoast(false);
+        await flush();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(toastCount()).toBe(0);
+
+        mocks.getTemperatures.mockResolvedValue(temps({ timestamp: 10 }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(toastCount()).toBe(0);
+        mocks.getTemperatures.mockRejectedValue(new TypeError('Failed to fetch'));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1500);
         });
         expect(toastCount()).toBe(1);
         expect(api.current?.temps?.bt).toBe(210);

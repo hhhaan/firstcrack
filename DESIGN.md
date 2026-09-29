@@ -87,9 +87,11 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | Token | Light | Dark | 의미 |
 |---|---|---|---|
 | `--color-sensor-bt` | `oklch(0.6 0.18 155)` | `#4be08c` | Bean Temperature |
-| `--color-sensor-bt-target` | `oklch(0.6 0.18 155 / 0.55)` | `rgba(75, 224, 140, 0.65)` | BT 목표 곡선 (초록 점선) |
+| `--color-sensor-bt-target` | `oklch(0.6 0.18 155 / 0.55)` | `rgba(75, 224, 140, 0.65)` | BT 참조 곡선 (같은 색, 낮은 알파, 점선) |
 | `--color-sensor-et` | `oklch(0.6 0.17 225)` | `#beacf8` | Environmental Temp |
+| `--color-sensor-et-target` | `oklch(0.6 0.17 225 / 0.55)` | `rgba(190, 172, 248, 0.65)` | ET 참조 곡선 |
 | `--color-sensor-ror` | `oklch(0.78 0.18 88)` | `#ffff54` | Rate of Rise |
+| `--color-sensor-ror-target` | `oklch(0.78 0.18 88 / 0.55)` | `rgba(255, 255, 84, 0.65)` | RoR 참조 곡선 |
 
 ### Phase colors
 
@@ -122,9 +124,12 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | Token | Light | Dark |
 |---|---|---|
 | `--color-control-drum` | `oklch(0.62 0.16 165)` | `#72ebbc` |
+| `--color-control-drum-target` | `oklch(0.62 0.16 165 / 0.55)` | `rgba(114, 235, 188, 0.65)` |
 | `--color-control-heat` | `oklch(0.78 0.18 88)` | `#ffff54` |
+| `--color-control-heat-target` | `oklch(0.78 0.18 88 / 0.55)` | `rgba(255, 255, 84, 0.65)` |
 | `--color-control-heat-area` | `oklch(0.78 0.18 88 / 0.22)` | `rgba(255, 255, 84, 0.15)` |
 | `--color-control-fan` | `oklch(0.6 0.17 225)` | `#44bffc` |
+| `--color-control-fan-target` | `oklch(0.6 0.17 225 / 0.55)` | `rgba(68, 191, 252, 0.65)` |
 | `--color-control-fan-area` | `oklch(0.6 0.17 225 / 0.22)` | `rgba(68, 191, 252, 0.15)` |
 
 ### Chart chrome
@@ -151,7 +156,9 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
 #### Chart visual grammar
 
-- 선 두께(px): BT `1.2`, ET/RoR/ET RoR `0.9`, 타겟 BT `0.8` 회색 실선, 제어 시리즈 `1.0`, 마킹 세로선 `0.6`, 제어 이벤트 세로선 `1.0`.
+- 선 두께(px): 라이브 BT `1.2`, ET/RoR/ET RoR `0.9`, 제어 실측·Heat set `1.0`, Heat target `1.5` dotted, 참조 곡선 `0.8` dashed, 마킹 세로선 `0.6`, 제어 이벤트 세로선 `1.0`.
+- 참조 곡선(BT·ET·RoR·Drum·Heater·Fan)은 라이브와 같은 채널 색의 `*-target` 토큰이다. 라이브보다 뒤에 그린다. 프로파일에 없는 채널과 저장되지 않은 ET RoR는 만들지 않는다. 결측 샘플은 null이며 0으로 채우거나 끊긴 구간을 잇지 않는다.
+- Heat target(프로파일 화력 지시)과 Heat set(라이브 지시)은 참조 Heater와 다른 시리즈다. 지시값을 참조 곡선으로 복제하지 않는다. 순서: 참조 제어 → Heat target → Heat set → 실측 Heat.
 - 이벤트 라벨: `이름|mm:ss|온도`; 앵커 오른쪽 `4px`에서 왼쪽 정렬. 동일 시각은 소스 순서로 `14px`씩 위로 쌓는다.
 - `eventMarkerStyle`: `point`(포인트+곡선 라벨), `line`(세로선+가장자리 라벨), `both`(곡선 라벨+제어 차트까지 관통하는 세로선). 기본은 `both`.
 

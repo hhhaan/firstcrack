@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { act, type ComponentProps } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -35,7 +36,19 @@ vi.mock('@entities/roast-profile', () => ({
 }));
 vi.mock('@features/active-roast', async () => ({
     ...(await vi.importActual('@features/active-roast/lib/temperature')),
-    useRoastSettings: () => ({ temperatureUnit: 'F', tempMinC: 100, tempMaxC: 250, eventMarkerStyle: 'both' }),
+    useRoastSettings: () => ({
+        temperatureUnit: 'F',
+        tempMinC: 100,
+        tempMaxC: 250,
+        eventMarkerStyle: 'both',
+        showTargetCurve: true,
+        showProfileBt: true,
+        showProfileEt: true,
+        showProfileRor: true,
+        showProfileDrum: true,
+        showProfileHeat: true,
+        showProfileFan: true,
+    }),
 }));
 vi.mock('@features/active-roast/lib/serialize-roast-events', () => ({
     parseStoredRoastEvents: () => [],
@@ -85,6 +98,10 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     });
     mocks.roast.points = [point(0, 185, 200), point(60, 150, 210)];
     mocks.query.data = [point(2, 210, null), point(90, 185, 90), point(92, 999, 999)];
+    mocks.target = [
+        { t: 0, bt: 100, et: 110, ror: 4, heater: 7, fan: 0, drum: 9 },
+        { t: 30, bt: 120, et: null, ror: null, heater: null, fan: null, drum: null },
+    ];
     const render = async () => {
         await act(async () => root.render(<HistorySessionChart session={session} />));
     };
@@ -118,6 +135,23 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
             xViewMax: 120,
             eventMarkers: [{ event: 'Charge', timeSec: 0 }],
             controlData: expect.objectContaining({ xs: [-90, -2, 0, 60], heatPower: [20, 20, 20, 20] }),
+        }),
+    );
+    expect(mocks.chart).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+            showTargetCurve: true,
+            targetXs: [0, 30],
+            targetBt: [toDisplayTemp(100, 'F'), toDisplayTemp(120, 'F')],
+            targetEt: [toDisplayTemp(110, 'F'), null],
+            targetRor: [toDisplayRoR(4, 'F'), null],
+            controlData: expect.objectContaining({
+                reference: {
+                    xs: [0, 30],
+                    heater: [7, null],
+                    fan: [0, null],
+                    drum: [9, null],
+                },
+            }),
         }),
     );
     mocks.query.isError = true;

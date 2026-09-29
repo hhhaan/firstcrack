@@ -1,4 +1,5 @@
 import { i18n } from '@shared/i18n';
+import { createBtFilter } from '@shared/lib/btFilter';
 import { useToastStore } from '@shared/store/toast';
 
 /**
@@ -17,6 +18,7 @@ export type LinkSample = {
     connected?: boolean;
     reconnecting?: boolean;
     observation?: LinkReadingQuality;
+    bt?: number | null;
 };
 
 type LinkState = {
@@ -36,6 +38,7 @@ const fresh = (): LinkState => ({
 });
 
 let link = fresh();
+let filterBt = createBtFilter();
 let roastWatch = false;
 /** Bumped on user disconnect / connect attempt so in-flight polls cannot re-arm. */
 let linkGeneration = 0;
@@ -52,12 +55,13 @@ const bumpGeneration = () => {
 
 export const resetMachineLinkNotice = (): void => {
     link = fresh();
+    filterBt = createBtFilter();
     roastWatch = false;
     linkGeneration = 0;
     ignoreConnected = false;
 };
 
-/** Live-roast polling is the spike-aware source. A machines spike must not reset that streak. */
+/** Live-roast polling owns spike filtering. A machines spike must not reset that streak. */
 export const setRoastLinkWatch = (active: boolean): void => {
     roastWatch = active;
 };
@@ -65,6 +69,7 @@ export const setRoastLinkWatch = (active: boolean): void => {
 export const noteUserMachineDisconnect = (): void => {
     bumpGeneration();
     link = fresh();
+    filterBt = createBtFilter();
     ignoreConnected = true;
 };
 
@@ -76,6 +81,7 @@ export const settleUserMachineDisconnect = (released: boolean): void => {
 
 export const beginMachineConnectAttempt = (): void => {
     bumpGeneration();
+    filterBt = createBtFilter();
     ignoreConnected = false;
     link = { ...link, connectAttempt: true };
 };
@@ -161,16 +167,29 @@ const commit = (sample: LinkSample) => {
 
 export const observeRoastLink = (sample: LinkSample, epoch?: number): void => {
     if (staleEpoch(epoch)) return;
+    // Roast readings are already filtered; preserve their baseline across screen changes.
+    if (!link.connectAttempt && !ignoreConnected && temperatureRecovered(sample) && sample.bt != null) {
+        filterBt = createBtFilter();
+        filterBt(sample.bt, Date.now());
+    }
     commit(sample);
 };
 
 export const observeMachineLink = (sample: LinkSample, epoch?: number): void => {
     if (staleEpoch(epoch)) return;
-    // `roastWatch` stays set after leaving Active Roast, and that loop can be stuck
-    // or slower than the 3s machines poll. Dropping those faults waits until reload
-    // clears the flag. Spikes still belong to the roast filter.
-    if (roastWatch && sample.observation === 'spike') return;
-    commit(sample);
+    const reading =
+        !link.connectAttempt &&
+        !ignoreConnected &&
+        temperatureRecovered(sample) &&
+        sample.bt != null &&
+        filterBt(sample.bt, Date.now()) === null
+            ? { ...sample, observation: 'spike' as const }
+            : sample;
+    // `roastWatch` stays set after leaving Active Roast. Dropping machines-page
+    // faults waits on that loop until a reload clears the flag. Spikes still
+    // stay with the roast baseline filter and must not re-arm.
+    if (roastWatch && reading.observation === 'spike') return;
+    commit(reading);
 };
 
 /**

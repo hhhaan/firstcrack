@@ -30,7 +30,12 @@ export type {
     RorSpanSec,
     TemperatureUnit,
 } from './model/settings';
-export { coercePollIntervalForPlan, updateRoastSettings, useRoastSettings } from './model/settings';
+export {
+    AUTO_DROP_START_MIN_MAX,
+    coercePollIntervalForPlan,
+    updateRoastSettings,
+    useRoastSettings,
+} from './model/settings';
 export type { RoastingState, RoastPhase } from './model/status';
 export { useRoastingStore } from './model/status';
 export { useBbpTimer } from './model/useBbpTimer';

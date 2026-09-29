@@ -1,11 +1,13 @@
 import {
     ALERT_SOUND_KINDS,
+    AUTO_DROP_START_MIN_MAX,
     type EventMarkerStyle,
     fromDisplayTemp,
     isAlertSoundKind,
     type PidDropBehavior,
     type PollIntervalMs,
     playAlertSound,
+    type RoastSettings,
     type RorSpanSec,
     type TemperatureUnit,
     toDisplayTemp,
@@ -107,6 +109,45 @@ const visibilityOptions = [
         descKey: 'settings.tabs.roast.showFcBandDescription',
     },
 ];
+
+type BooleanSettingKey = {
+    [Key in keyof RoastSettings]: RoastSettings[Key] extends boolean ? Key : never;
+}[keyof RoastSettings];
+
+type RoastCheckOption = {
+    key: BooleanSettingKey;
+    labelKey: string;
+    descKey: string;
+};
+
+const profileSeriesOptions: RoastCheckOption[] = (
+    [
+        ['showProfileBt', 'profileBt'],
+        ['showProfileEt', 'profileEt'],
+        ['showProfileRor', 'profileRor'],
+        ['showProfileDrum', 'profileDrum'],
+        ['showProfileHeat', 'profileHeat'],
+        ['showProfileFan', 'profileFan'],
+    ] as const
+).map(([key, label]) => ({
+    key,
+    labelKey: `settings.tabs.roast.${label}`,
+    descKey: `settings.tabs.roast.${label}Description`,
+}));
+
+const RoastCheckRows = ({ options }: { options: readonly RoastCheckOption[] }) => {
+    const { t } = useTranslation();
+    const roastSettings = useRoastSettings();
+    return options.map(({ key, labelKey, descKey }) => (
+        <SettingsCheckRow
+            key={key}
+            checked={roastSettings[key]}
+            label={t(labelKey)}
+            description={t(descKey)}
+            onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
+        />
+    ));
+};
 
 const controlSeriesOptions = [
     {
@@ -248,6 +289,9 @@ export const RoastSettingsTab = () => {
     const effectivePollMs = useEffectivePollIntervalMs();
     const [showPollUpgradeHint, setShowPollUpgradeHint] = useState(false);
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
+    const autoDropDescription = t('settings.tabs.roast.autoDropDescription', {
+        minutes: roastSettings.autoDropStartMin,
+    });
 
     // 절대 온도 입력은 표시 단위를 따르고 저장은 항상 °C. 경계는 °C에서 합성한 뒤 한 번만 변환한다.
     // (델타/변화율 값 — alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
@@ -331,15 +375,14 @@ export const RoastSettingsTab = () => {
             <SectionCard>
                 <SectionCard.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />
                 <SectionCard.Body className="grid gap-1.5">
-                    {visibilityOptions.map(({ key, labelKey, descKey }) => (
-                        <SettingsCheckRow
-                            key={key}
-                            checked={roastSettings[key]}
-                            label={t(labelKey)}
-                            description={t(descKey)}
-                            onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
-                        />
-                    ))}
+                    <RoastCheckRows options={visibilityOptions} />
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('profileSeries')} description={tk('profileSeriesDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    <RoastCheckRows options={profileSeriesOptions} />
                 </SectionCard.Body>
             </SectionCard>
 
@@ -407,15 +450,7 @@ export const RoastSettingsTab = () => {
                 <SectionCard.Header title={tk('controlChart')} description={tk('controlChartDescription')} />
                 <SectionCard.Body className="grid gap-3">
                     <div className="grid gap-1.5">
-                        {controlSeriesOptions.map(({ key, labelKey, descKey }) => (
-                            <SettingsCheckRow
-                                key={key}
-                                checked={roastSettings[key]}
-                                label={t(labelKey)}
-                                description={t(descKey)}
-                                onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
-                            />
-                        ))}
+                        <RoastCheckRows options={controlSeriesOptions} />
                     </div>
                     <SettingsOptionRow justify="between">
                         <div>
@@ -533,14 +568,27 @@ export const RoastSettingsTab = () => {
             </SectionCard>
 
             <SectionCard>
-                <SectionCard.Header title={tk('autoDrop')} description={tk('autoDropDescription')} />
+                <SectionCard.Header title={tk('autoDrop')} description={autoDropDescription} />
                 <SectionCard.Body className="grid gap-3">
                     <SettingsCheckRow
                         checked={roastSettings.autoDropEnabled}
                         label={tk('autoDropEnabled')}
-                        description={tk('autoDropDescription')}
+                        description={autoDropDescription}
                         onChange={() => updateRoastSettings({ autoDropEnabled: !roastSettings.autoDropEnabled })}
                     />
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('autoDropStart')}</div>
+                            <div className={settingsOptionDescCls}>{tk('autoDropStartDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.autoDropStartMin}
+                            onChange={(v) => updateRoastSettings({ autoDropStartMin: v })}
+                            min={1}
+                            max={AUTO_DROP_START_MIN_MAX}
+                            suffix={tk('autoDropStartUnit')}
+                        />
+                    </SettingsOptionRow>
                     <SettingsOptionRow justify="between">
                         <div>
                             <div className={settingsOptionLabelCls}>{tk('autoDropSensitivity')}</div>
