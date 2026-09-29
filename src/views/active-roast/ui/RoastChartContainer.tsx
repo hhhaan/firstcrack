@@ -32,6 +32,12 @@ interface RoastChartContainerProps {
     targetEt?: (number | null)[];
     targetRor?: (number | null)[];
     showTargetCurve: boolean;
+    showProfileBt?: boolean;
+    showProfileEt?: boolean;
+    showProfileRor?: boolean;
+    showProfileDrum?: boolean;
+    showProfileHeat?: boolean;
+    showProfileFan?: boolean;
     showTargetDeltaLabel?: boolean;
     showET: boolean;
     showRoR: boolean;
@@ -82,6 +88,12 @@ export const RoastChartContainer = ({
     targetEt,
     targetRor,
     showTargetCurve,
+    showProfileBt = true,
+    showProfileEt = true,
+    showProfileRor = true,
+    showProfileDrum = true,
+    showProfileHeat = true,
+    showProfileFan = true,
     showTargetDeltaLabel = false,
     showET,
     showRoR,
@@ -214,7 +226,7 @@ export const RoastChartContainer = ({
             ariaLabel="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         >
             <ChartLegend
-                showTarget={showTargetCurve}
+                showTarget={showTargetCurve && showProfileBt}
                 targetLabel={targetProfileName}
                 showET={showET}
                 showRoR={showRoR}
@@ -246,6 +258,12 @@ export const RoastChartContainer = ({
                 onAddNote={onAddNote}
                 showET={showET}
                 showTargetCurve={showTargetCurve}
+                showProfileBt={showProfileBt}
+                showProfileEt={showProfileEt}
+                showProfileRor={showProfileRor}
+                showProfileDrum={showProfileDrum}
+                showProfileHeat={showProfileHeat}
+                showProfileFan={showProfileFan}
                 showTargetDeltaLabel={showTargetDeltaLabel}
                 showRoR={showRoR}
                 showRoRET={showRoRET}

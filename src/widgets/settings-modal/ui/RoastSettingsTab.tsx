@@ -108,6 +108,39 @@ const visibilityOptions = [
     },
 ];
 
+const profileSeriesOptions = [
+    {
+        key: 'showProfileBt' as const,
+        labelKey: 'settings.tabs.roast.profileBt',
+        descKey: 'settings.tabs.roast.profileBtDescription',
+    },
+    {
+        key: 'showProfileEt' as const,
+        labelKey: 'settings.tabs.roast.profileEt',
+        descKey: 'settings.tabs.roast.profileEtDescription',
+    },
+    {
+        key: 'showProfileRor' as const,
+        labelKey: 'settings.tabs.roast.profileRor',
+        descKey: 'settings.tabs.roast.profileRorDescription',
+    },
+    {
+        key: 'showProfileDrum' as const,
+        labelKey: 'settings.tabs.roast.profileDrum',
+        descKey: 'settings.tabs.roast.profileDrumDescription',
+    },
+    {
+        key: 'showProfileHeat' as const,
+        labelKey: 'settings.tabs.roast.profileHeat',
+        descKey: 'settings.tabs.roast.profileHeatDescription',
+    },
+    {
+        key: 'showProfileFan' as const,
+        labelKey: 'settings.tabs.roast.profileFan',
+        descKey: 'settings.tabs.roast.profileFanDescription',
+    },
+];
+
 const controlSeriesOptions = [
     {
         key: 'showControlDrum' as const,
@@ -332,6 +365,21 @@ export const RoastSettingsTab = () => {
                 <SectionCard.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />
                 <SectionCard.Body className="grid gap-1.5">
                     {visibilityOptions.map(({ key, labelKey, descKey }) => (
+                        <SettingsCheckRow
+                            key={key}
+                            checked={roastSettings[key]}
+                            label={t(labelKey)}
+                            description={t(descKey)}
+                            onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
+                        />
+                    ))}
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('profileSeries')} description={tk('profileSeriesDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    {profileSeriesOptions.map(({ key, labelKey, descKey }) => (
                         <SettingsCheckRow
                             key={key}
                             checked={roastSettings[key]}

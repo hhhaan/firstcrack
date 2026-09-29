@@ -644,7 +644,7 @@ describe('buildRoastChartOption', () => {
         }
     });
 
-    it('hides every reference curve when the target toggle is off, and still applies channel toggles', () => {
+    it('hides reference curves from the profile channel toggles, not the live series toggles', () => {
         const hidden = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showTargetCurve: false }));
         for (const name of ['BT Target', 'ET Target', 'RoR Target', 'Drum Target', 'Heater Target', 'Fan Target']) {
             expect(hidden).not.toContain(name);
@@ -654,31 +654,44 @@ describe('buildRoastChartOption', () => {
         expect(hidden).toContain('ET RoR');
 
         const etOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showET: false }));
-        expect(etOff).not.toContain('ET Target');
+        expect(etOff).toContain('ET Target');
         expect(etOff).not.toContain('ET Actual');
-        expect(etOff).toContain('BT Target');
-        expect(etOff).toContain('RoR Target');
+
+        const profileEtOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileEt: false }));
+        expect(profileEtOff).not.toContain('ET Target');
+        expect(profileEtOff).toContain('ET Actual');
+        expect(profileEtOff).toContain('BT Target');
 
         const rorOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showRoR: false }));
-        expect(rorOff).not.toContain('RoR Target');
+        expect(rorOff).toContain('RoR Target');
         expect(rorOff).not.toContain('RoR');
         expect(rorOff).not.toContain('ET RoR');
-        expect(rorOff).toContain('ET Target');
+
+        const profileRorOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileRor: false }));
+        expect(profileRorOff).not.toContain('RoR Target');
+        expect(profileRorOff).toContain('RoR');
 
         const heatOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showControlHeat: false }));
-        expect(heatOff).not.toContain('Heater Target');
-        expect(heatOff).not.toContain('Heat target');
+        expect(heatOff).toContain('Heater Target');
         expect(heatOff).not.toContain('Heat');
         expect(heatOff).not.toContain('Heat set');
-        expect(heatOff).toContain('Fan Target');
-        expect(heatOff).toContain('Drum Target');
+        expect(heatOff).not.toContain('Heat target');
 
-        const fanOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showControlFan: false }));
+        const profileHeatOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileHeat: false }));
+        expect(profileHeatOff).not.toContain('Heater Target');
+        expect(profileHeatOff).toContain('Heat');
+        expect(profileHeatOff).toContain('Fan Target');
+
+        const fanOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileFan: false }));
         expect(fanOff).not.toContain('Fan Target');
-        expect(fanOff).toContain('Heater Target');
+        expect(fanOff).toContain('Fan');
 
-        const drumOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showControlDrum: false }));
+        const drumOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileDrum: false }));
         expect(drumOff).not.toContain('Drum Target');
-        expect(drumOff).toContain('Fan Target');
+        expect(drumOff).toContain('Drum');
+
+        const profileBtOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileBt: false }));
+        expect(profileBtOff).not.toContain('BT Target');
+        expect(profileBtOff).toContain('BT Actual');
     });
 });

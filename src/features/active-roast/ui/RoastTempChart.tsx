@@ -49,6 +49,12 @@ interface Props {
     onAddNote?: (body: string, timeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
+    showProfileBt?: boolean;
+    showProfileEt?: boolean;
+    showProfileRor?: boolean;
+    showProfileDrum?: boolean;
+    showProfileHeat?: boolean;
+    showProfileFan?: boolean;
     showTargetDeltaLabel?: boolean;
     targetXs?: number[];
     targetBt?: (number | null)[];
@@ -124,6 +130,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         hideChargeLabel = false,
         showET = true,
         showTargetCurve = true,
+        showProfileBt = true,
+        showProfileEt = true,
+        showProfileRor = true,
+        showProfileDrum = true,
+        showProfileHeat = true,
+        showProfileFan = true,
         showTargetDeltaLabel = false,
         targetXs,
         targetBt,
@@ -218,6 +230,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 temperatureUnit,
                 showET,
                 showTargetCurve,
+                showProfileBt,
+                showProfileEt,
+                showProfileRor,
+                showProfileDrum,
+                showProfileHeat,
+                showProfileFan,
                 showTargetDeltaLabel,
                 targetXs,
                 targetBt,
@@ -263,6 +281,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             temperatureUnit,
             showET,
             showTargetCurve,
+            showProfileBt,
+            showProfileEt,
+            showProfileRor,
+            showProfileDrum,
+            showProfileHeat,
+            showProfileFan,
             showTargetDeltaLabel,
             showRoR,
             showRoRET,

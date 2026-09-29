@@ -70,6 +70,9 @@ export interface TempSeriesParams {
     targetBt?: (number | null)[];
     targetEt?: (number | null)[];
     targetRor?: (number | null)[];
+    showProfileBt?: boolean;
+    showProfileEt?: boolean;
+    showProfileRor?: boolean;
     showET: boolean;
     showRoR: boolean;
     showRoRET: boolean;
@@ -92,6 +95,9 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
         targetBt,
         targetEt,
         targetRor,
+        showProfileBt = true,
+        showProfileEt = true,
+        showProfileRor = true,
         showET,
         showRoR,
         showRoRET,
@@ -104,16 +110,17 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
 
     return [
         showTargetCurve &&
+            showProfileBt &&
             targetXs?.length &&
             hasNumericSample(targetBt) &&
             referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.btTarget, 0, 0),
         showTargetCurve &&
-            showET &&
+            showProfileEt &&
             targetXs?.length &&
             hasNumericSample(targetEt) &&
             referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.etTarget, 0, 0),
         showTargetCurve &&
-            showRoR &&
+            showProfileRor &&
             targetXs?.length &&
             hasNumericSample(targetRor) &&
             referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.rorTarget, 0, 1),
@@ -184,6 +191,9 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
 export interface ControlSeriesParams {
     controlData: ControlData;
     showTargetCurve: boolean;
+    showProfileDrum?: boolean;
+    showProfileHeat?: boolean;
+    showProfileFan?: boolean;
     showControlDrum: boolean;
     showControlHeat: boolean;
     showControlFan: boolean;
@@ -195,6 +205,9 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     const {
         controlData,
         showTargetCurve,
+        showProfileDrum = true,
+        showProfileHeat = true,
+        showProfileFan = true,
         showControlDrum,
         showControlHeat,
         showControlFan,
@@ -206,17 +219,17 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
 
     // 참조(옅은 점선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
     if (showTargetCurve && reference?.xs.length) {
-        if (showControlDrum && hasNumericSample(reference.drum)) {
+        if (showProfileDrum && hasNumericSample(reference.drum)) {
             series.push(
                 referenceLineSeries('Drum Target', reference.xs, reference.drum, colors.controlDrumTarget, 1, 2),
             );
         }
-        if (showControlHeat && hasNumericSample(reference.heater)) {
+        if (showProfileHeat && hasNumericSample(reference.heater)) {
             series.push(
                 referenceLineSeries('Heater Target', reference.xs, reference.heater, colors.controlHeatTarget, 1, 3),
             );
         }
-        if (showControlFan && hasNumericSample(reference.fan)) {
+        if (showProfileFan && hasNumericSample(reference.fan)) {
             series.push(referenceLineSeries('Fan Target', reference.xs, reference.fan, colors.controlFanTarget, 1, 3));
         }
     }

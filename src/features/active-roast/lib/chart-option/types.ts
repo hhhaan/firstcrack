@@ -45,6 +45,13 @@ export interface ChartOptionParams {
     temperatureUnit: TemperatureUnit;
     showET: boolean;
     showTargetCurve: boolean;
+    /** Stored-profile channels. Omitted = shown. Independent of the live series toggles. */
+    showProfileBt?: boolean;
+    showProfileEt?: boolean;
+    showProfileRor?: boolean;
+    showProfileDrum?: boolean;
+    showProfileHeat?: boolean;
+    showProfileFan?: boolean;
     /** Current-time BT−target ° label on the temp chart */
     showTargetDeltaLabel?: boolean;
     targetXs?: number[];

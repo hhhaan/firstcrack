@@ -19,6 +19,13 @@ export type RoastSettings = {
     temperatureUnit: TemperatureUnit;
     showET: boolean;
     showTargetCurve: boolean;
+    /** Stored-profile channels. Independent of the live series toggles. */
+    showProfileBt: boolean;
+    showProfileEt: boolean;
+    showProfileRor: boolean;
+    showProfileDrum: boolean;
+    showProfileHeat: boolean;
+    showProfileFan: boolean;
     /** Current-time BT−target ° label on the temp chart */
     showTargetDeltaLabel: boolean;
     showRoRChart: boolean;
@@ -93,6 +100,12 @@ const DEFAULT_SETTINGS: RoastSettings = {
     temperatureUnit: 'C',
     showET: true,
     showTargetCurve: true,
+    showProfileBt: true,
+    showProfileEt: true,
+    showProfileRor: true,
+    showProfileDrum: true,
+    showProfileHeat: true,
+    showProfileFan: true,
     showTargetDeltaLabel: false,
     showRoRChart: true,
     showRoRET: false,
@@ -194,6 +207,12 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
+        showProfileBt: asBool(merged.showProfileBt, DEFAULT_SETTINGS.showProfileBt),
+        showProfileEt: asBool(merged.showProfileEt, DEFAULT_SETTINGS.showProfileEt),
+        showProfileRor: asBool(merged.showProfileRor, DEFAULT_SETTINGS.showProfileRor),
+        showProfileDrum: asBool(merged.showProfileDrum, DEFAULT_SETTINGS.showProfileDrum),
+        showProfileHeat: asBool(merged.showProfileHeat, DEFAULT_SETTINGS.showProfileHeat),
+        showProfileFan: asBool(merged.showProfileFan, DEFAULT_SETTINGS.showProfileFan),
         showTargetDeltaLabel: asBool(merged.showTargetDeltaLabel, DEFAULT_SETTINGS.showTargetDeltaLabel),
         showFcBand: asBool(merged.showFcBand, DEFAULT_SETTINGS.showFcBand),
         bbpEnabled: asBool(merged.bbpEnabled, DEFAULT_SETTINGS.bbpEnabled),

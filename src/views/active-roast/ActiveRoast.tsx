@@ -940,6 +940,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         showTargetCurve={
                             roastSettings.showTargetCurve && !!targetProfileId && chartView.targetPoints.length > 0
                         }
+                        showProfileBt={roastSettings.showProfileBt}
+                        showProfileEt={roastSettings.showProfileEt}
+                        showProfileRor={roastSettings.showProfileRor}
+                        showProfileDrum={roastSettings.showProfileDrum}
+                        showProfileHeat={roastSettings.showProfileHeat}
+                        showProfileFan={roastSettings.showProfileFan}
                         showTargetDeltaLabel={
                             !bbpActive &&
                             roastSettings.showTargetDeltaLabel &&
@@ -953,7 +959,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                             roastSettings.showControlChart &&
                             (roastSettings.showControlDrum ||
                                 roastSettings.showControlHeat ||
-                                roastSettings.showControlFan)
+                                roastSettings.showControlFan ||
+                                (roastSettings.showTargetCurve &&
+                                    !!targetProfileId &&
+                                    (roastSettings.showProfileDrum ||
+                                        roastSettings.showProfileHeat ||
+                                        roastSettings.showProfileFan)))
                                 ? {
                                       xs: chart.visibleControlXs,
                                       drumTemp: chart.visibleDrumTemp,

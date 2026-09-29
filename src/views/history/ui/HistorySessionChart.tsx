@@ -22,7 +22,19 @@ import { sessionDropTime } from '../lib/record-heat';
 
 export function HistorySessionChart({ session }: { session: RoastSessionWithRelations }) {
     const { t } = useTranslation();
-    const { temperatureUnit: unit, eventMarkerStyle, tempMinC, tempMaxC } = useRoastSettings();
+    const {
+        temperatureUnit: unit,
+        eventMarkerStyle,
+        tempMinC,
+        tempMaxC,
+        showTargetCurve,
+        showProfileBt,
+        showProfileEt,
+        showProfileRor,
+        showProfileDrum,
+        showProfileHeat,
+        showProfileFan,
+    } = useRoastSettings();
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
     const roast = useHistoryChart(session.tsv_path ?? null);
     const bbp = useBbpCurve(session.user_id, session.id, session.bbp_tsv_path);
@@ -126,7 +138,13 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                     targetBt={displayedTarget.bt}
                     targetEt={displayedTarget.et}
                     targetRor={displayedTarget.ror}
-                    showTargetCurve={target.points.length > 0}
+                    showTargetCurve={showTargetCurve && target.points.length > 0}
+                    showProfileBt={showProfileBt}
+                    showProfileEt={showProfileEt}
+                    showProfileRor={showProfileRor}
+                    showProfileDrum={showProfileDrum}
+                    showProfileHeat={showProfileHeat}
+                    showProfileFan={showProfileFan}
                     currentTimeSec={0}
                     eventMarkerStyle={eventMarkerStyle}
                     eventMarkers={eventMarkers}

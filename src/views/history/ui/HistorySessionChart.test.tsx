@@ -36,7 +36,19 @@ vi.mock('@entities/roast-profile', () => ({
 }));
 vi.mock('@features/active-roast', async () => ({
     ...(await vi.importActual('@features/active-roast/lib/temperature')),
-    useRoastSettings: () => ({ temperatureUnit: 'F', tempMinC: 100, tempMaxC: 250, eventMarkerStyle: 'both' }),
+    useRoastSettings: () => ({
+        temperatureUnit: 'F',
+        tempMinC: 100,
+        tempMaxC: 250,
+        eventMarkerStyle: 'both',
+        showTargetCurve: true,
+        showProfileBt: true,
+        showProfileEt: true,
+        showProfileRor: true,
+        showProfileDrum: true,
+        showProfileHeat: true,
+        showProfileFan: true,
+    }),
 }));
 vi.mock('@features/active-roast/lib/serialize-roast-events', () => ({
     parseStoredRoastEvents: () => [],

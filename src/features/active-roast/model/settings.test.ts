@@ -90,6 +90,27 @@ describe('normalize — alert sound kind', () => {
     });
 });
 
+describe('normalize — profile channels', () => {
+    it('shows every stored profile channel when the keys are missing', () => {
+        expect(normalizeRoastSettings({})).toMatchObject({
+            showProfileBt: true,
+            showProfileEt: true,
+            showProfileRor: true,
+            showProfileDrum: true,
+            showProfileHeat: true,
+            showProfileFan: true,
+        });
+    });
+
+    it('keeps a stored profile channel off', () => {
+        expect(normalizeRoastSettings({ showProfileEt: false, showProfileHeat: false })).toMatchObject({
+            showProfileEt: false,
+            showProfileHeat: false,
+            showProfileBt: true,
+        });
+    });
+});
+
 describe('normalize — event marker style', () => {
     it('defaults missing and invalid values to both', () => {
         expect(normalizeRoastSettings({}).eventMarkerStyle).toBe('both');
