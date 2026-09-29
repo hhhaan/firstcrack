@@ -10,6 +10,10 @@ import {
     supportedAddressFieldsForProtocol,
     writeMapFormFlags,
 } from '@entities/machine';
+import {
+    noteUserMachineDisconnect,
+    settleUserMachineDisconnect,
+} from '@features/machine-connection/lib/machineLinkNotice';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { useFormEscape } from '@shared/lib/useFormEscape';
@@ -130,7 +134,9 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
 
     const handleClose = useCallback(async () => {
         if (testConnectedRef.current) {
-            await sidecar.disconnect().catch(() => null);
+            noteUserMachineDisconnect();
+            const status = await sidecar.disconnect().catch(() => null);
+            settleUserMachineDisconnect(status?.connected === false);
             testConnectedRef.current = false;
         }
         onClose();

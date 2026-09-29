@@ -403,6 +403,7 @@
         "disconnect": "断开连接",
         "connect": "连接",
         "sidecarStarting": "正在准备连接...",
+        "linkUnstable": "设备连接不稳定。请检查线缆和网络状态。",
         "startRoasting": "开始烘焙",
         "selectMachine": "请选择设备",
         "limit": {

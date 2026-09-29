@@ -1,0 +1,172 @@
+import { i18n } from '@shared/i18n';
+import { useToastStore } from '@shared/store/toast';
+
+/**
+ * In-app notice when a link that was already up becomes unstable.
+ * Toast dedupe only lasts while the toast is visible — `faultOpen` suppresses
+ * repeats across dismiss, poll retries, reconnect attempts, and screen changes.
+ * Cleared only after a connected sample with a valid temperature.
+ */
+
+export const LINK_FAULT_THRESHOLD = 3;
+
+export type LinkReadingQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
+
+export type LinkSample = {
+    connected?: boolean;
+    reconnecting?: boolean;
+    observation?: LinkReadingQuality;
+};
+
+type LinkState = {
+    confirmed: boolean;
+    faultOpen: boolean;
+    consecutive: number;
+    connectAttempt: boolean;
+};
+
+const COMM_FAULT: ReadonlySet<LinkReadingQuality> = new Set(['stale', 'null', 'poll_error']);
+
+const fresh = (): LinkState => ({
+    confirmed: false,
+    faultOpen: false,
+    consecutive: 0,
+    connectAttempt: false,
+});
+
+let link = fresh();
+let roastWatch = false;
+/** Bumped on user disconnect / connect attempt so in-flight polls cannot re-arm. */
+let linkGeneration = 0;
+/** After an explicit disconnect, ignore connected samples until one reports disconnected. */
+let ignoreConnected = false;
+
+export const captureLinkEpoch = (): number => linkGeneration;
+
+const staleEpoch = (epoch?: number) => epoch != null && epoch < linkGeneration;
+
+const bumpGeneration = () => {
+    linkGeneration += 1;
+};
+
+export const resetMachineLinkNotice = (): void => {
+    link = fresh();
+    roastWatch = false;
+    linkGeneration = 0;
+    ignoreConnected = false;
+};
+
+/** Live-roast temperature polling is the spike-aware source. Machine polls must not double-count. */
+export const setRoastLinkWatch = (active: boolean): void => {
+    roastWatch = active;
+};
+
+export const noteUserMachineDisconnect = (): void => {
+    bumpGeneration();
+    link = fresh();
+    ignoreConnected = true;
+};
+
+/** Call after the disconnect request settles. Drops polls that started during it. */
+export const settleUserMachineDisconnect = (released: boolean): void => {
+    bumpGeneration();
+    if (!released) ignoreConnected = false;
+};
+
+export const beginMachineConnectAttempt = (): void => {
+    bumpGeneration();
+    ignoreConnected = false;
+    link = { ...link, connectAttempt: true };
+};
+
+export const endMachineConnectAttempt = (connected: boolean): void => {
+    bumpGeneration();
+    ignoreConnected = false;
+    link = {
+        ...link,
+        connectAttempt: false,
+        ...(connected ? {} : { confirmed: false, faultOpen: false, consecutive: 0 }),
+    };
+};
+
+const notify = () => {
+    useToastStore.getState().show(i18n.t('machines.linkUnstable'), 'error');
+};
+
+const reduceLinkSample = (state: LinkState, sample: LinkSample): { state: LinkState; notify: boolean } => {
+    if (state.connectAttempt) return { state, notify: false };
+
+    const reconnecting = Boolean(sample.reconnecting) || sample.observation === 'reconnecting';
+
+    if (sample.connected === true && !reconnecting && sample.observation === 'valid') {
+        return {
+            state: { ...state, confirmed: true, faultOpen: false, consecutive: 0 },
+            notify: false,
+        };
+    }
+
+    let current = state;
+    if (!current.confirmed) {
+        if (sample.connected !== true || reconnecting) return { state: current, notify: false };
+        current = { ...current, confirmed: true };
+        if (!sample.observation || !COMM_FAULT.has(sample.observation)) {
+            return { state: current, notify: false };
+        }
+    }
+
+    if (reconnecting || sample.connected === false) {
+        if (current.faultOpen) return { state: { ...current, consecutive: 0 }, notify: false };
+        return { state: { ...current, faultOpen: true, consecutive: 0 }, notify: true };
+    }
+
+    if (sample.observation && COMM_FAULT.has(sample.observation)) {
+        const consecutive = current.consecutive + 1;
+        const open = consecutive >= LINK_FAULT_THRESHOLD && !current.faultOpen;
+        return {
+            state: { ...current, consecutive, faultOpen: current.faultOpen || open },
+            notify: open,
+        };
+    }
+
+    // Spike / retransmit: communication worked. Breaks a streak, does not recover a fault.
+    if (
+        sample.observation &&
+        (sample.observation === 'spike' || sample.observation === 'retransmit' || sample.observation === 'valid') &&
+        !current.faultOpen
+    ) {
+        return { state: { ...current, consecutive: 0 }, notify: false };
+    }
+
+    return { state: current, notify: false };
+};
+
+const commit = (sample: LinkSample) => {
+    if (ignoreConnected) {
+        if (sample.connected !== false) return;
+        ignoreConnected = false;
+    }
+    const result = reduceLinkSample(link, sample);
+    link = result.state;
+    if (result.notify) notify();
+};
+
+export const observeRoastLink = (sample: LinkSample, epoch?: number): void => {
+    if (staleEpoch(epoch)) return;
+    commit(sample);
+};
+
+export const observeMachineLink = (sample: LinkSample, epoch?: number): void => {
+    if (roastWatch || staleEpoch(epoch)) return;
+    commit(sample);
+};
+
+/** Machine-screen temperatures have no spike filter. Live roast uses `sensorObservation` instead. */
+export const machineTemperatureQuality = (
+    temps: { bt: number | null; stale?: boolean; reconnecting?: boolean } | null,
+): LinkReadingQuality => {
+    if (!temps) return 'poll_error';
+    if (temps.reconnecting) return 'reconnecting';
+    if (temps.bt == null) return 'null';
+    if (temps.stale) return 'stale';
+    return 'valid';
+};

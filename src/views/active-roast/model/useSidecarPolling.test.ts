@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
+import { resetMachineLinkNotice } from '@features/machine-connection/lib/machineLinkNotice';
+import { useToastStore } from '@shared/store/toast';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -36,13 +38,21 @@ vi.mock('@shared/lib/tsv-writer', () => ({
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const clearToasts = () => {
+    for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
+};
+
 beforeEach(() => {
+    resetMachineLinkNotice();
+    clearToasts();
     mocks.waitUntilReady.mockResolvedValue({ connected: true });
     mocks.getStatus.mockResolvedValue({ connected: true });
     mocks.listen.mockResolvedValue(() => {});
 });
 
 afterEach(() => {
+    clearToasts();
+    resetMachineLinkNotice();
     vi.useRealTimers();
     vi.clearAllMocks();
     useRoastingStore.getState().reset();
@@ -922,4 +932,168 @@ it('ignores the old phase response even before React runs polling cleanup', asyn
     } finally {
         act(() => root.unmount());
     }
+});
+
+const toastCount = () => useToastStore.getState().toasts.length;
+
+it('toasts once when a healthy link drops, stays quiet after dismiss and remount, then toasts again after recovery', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: false });
+    mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 10 }));
+    useRoastingStore.setState({
+        phase: 'roasting',
+        sessionId: 'issue-649',
+        roastStartMs: Date.now() - 1000,
+    });
+    const roastStartTimeRef = { current: Date.now() - 1000 };
+    const setConnected = (connected: boolean, capabilities?: string[]) => {
+        useRoastingStore.getState().setConnected(connected, capabilities);
+    };
+    const Probe = () => {
+        useSidecarPolling({
+            isActive: true,
+            phase: 'roasting',
+            pollIntervalMs: 1000,
+            enterPreheating: vi.fn(),
+            setConnected,
+            roastStartTimeRef,
+            sessionId: 'issue-649',
+        });
+        return null;
+    };
+    const mount = () => {
+        const next = createRoot(document.createElement('div'));
+        act(() => next.render(createElement(Probe)));
+        return next;
+    };
+
+    let root = mount();
+    try {
+        await flushReady();
+        expect(toastCount()).toBe(0);
+
+        mocks.getTemperatures.mockResolvedValue(reading({ bt: null, bt_raw: null, timestamp: 11 }));
+        mocks.getStatus.mockResolvedValue({ connected: false, reconnecting: false });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(1);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+        expect(useRoastingStore.getState().sessionId).toBe('issue-649');
+        expect(useRoastingStore.getState().sidecarConnected).toBe(false);
+
+        act(() => {
+            const [toast] = useToastStore.getState().toasts;
+            if (toast) useToastStore.getState().dismiss(toast.id);
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(0);
+
+        act(() => root.unmount());
+        root = mount();
+        await flushReady();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(0);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+
+        mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: false });
+        mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 40, bt: 190, bt_raw: 190 }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(0);
+        expect(useRoastingStore.getState().sidecarConnected).toBe(true);
+
+        mocks.getStatus.mockResolvedValue({ connected: false, reconnecting: true });
+        mocks.getTemperatures.mockRejectedValue(new Error('timeout'));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(1);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+        expect(useRoastingStore.getState().sessionId).toBe('issue-649');
+        expect(useRoastingStore.getState().reconnecting).toBe(true);
+        expect(useRoastingStore.getState().sidecarConnected).toBe(true);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('stays silent for one communication fault or a temperature spike, and toasts on the third fault', async () => {
+    await withMutablePoll(async ({ payload }) => {
+        mocks.getTemperatures.mockRejectedValueOnce(new Error('timeout'));
+        mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: false });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(useRoastingStore.getState().observation?.quality).toBe('poll_error');
+        expect(toastCount()).toBe(0);
+
+        mocks.getTemperatures.mockImplementation(async () => ({ ...payload, bt: 1372, bt_raw: 1372, timestamp: 11 }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(useRoastingStore.getState().observation?.quality).toBe('spike');
+        expect(toastCount()).toBe(0);
+
+        payload.stale = true;
+        payload.bt = 200;
+        payload.bt_raw = 200;
+        mocks.getTemperatures.mockImplementation(async () => ({ ...payload }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(useRoastingStore.getState().observation?.quality).toBe('stale');
+        expect(toastCount()).toBe(0);
+        payload.timestamp = 12;
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(0);
+        payload.timestamp = 13;
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(1);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+    });
+});
+
+it('toasts when three null temperatures arrive while status stays connected', async () => {
+    await withMutablePoll(async () => {
+        mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: false });
+        mocks.getTemperatures.mockResolvedValue(reading({ bt: null, bt_raw: null, timestamp: 12 }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(0);
+        expect(useRoastingStore.getState().observation?.quality).toBe('null');
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(toastCount()).toBe(1);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+    });
+});
+
+it('does not treat unauthorized temperature polls as an unstable link', async () => {
+    await withMutablePoll(async () => {
+        for (let i = 0; i < 3; i++) {
+            mocks.getTemperatures.mockRejectedValueOnce(new Error('unauthorized'));
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(1000);
+            });
+        }
+        expect(toastCount()).toBe(0);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+    });
 });

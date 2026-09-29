@@ -1,4 +1,10 @@
 import type { Machine, RoasterDef } from '@entities/machine';
+import {
+    beginMachineConnectAttempt,
+    endMachineConnectAttempt,
+    noteUserMachineDisconnect,
+    settleUserMachineDisconnect,
+} from '@features/machine-connection/lib/machineLinkNotice';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { useMemo } from 'react';
@@ -83,7 +89,9 @@ export const useMachineFormActions = ({
         setError('');
         try {
             if (!keepTest && testConnectedRef.current) {
-                await sidecar.disconnect().catch(() => null);
+                noteUserMachineDisconnect();
+                const status = await sidecar.disconnect().catch(() => null);
+                settleUserMachineDisconnect(status?.connected === false);
                 testConnectedRef.current = false;
             }
             if (isSave) {
@@ -125,7 +133,9 @@ export const useMachineFormActions = ({
         }
 
         if (testConnectedRef.current) {
-            await sidecar.disconnect().catch(() => null);
+            noteUserMachineDisconnect();
+            const status = await sidecar.disconnect().catch(() => null);
+            settleUserMachineDisconnect(status?.connected === false);
             testConnectedRef.current = false;
         }
 
@@ -133,8 +143,11 @@ export const useMachineFormActions = ({
         setTestMessage('');
         setError('');
 
+        let connected = false;
+        beginMachineConnectAttempt();
         try {
             const status = await sidecar.connect(connectKey, assembled.typed);
+            connected = status.connected;
             if (status.connected) {
                 const temps = await sidecar.getTemperatures().catch(() => null);
                 setTestState('success');
@@ -151,6 +164,8 @@ export const useMachineFormActions = ({
             void sidecar.disconnect().catch(() => null);
             setTestState('failed');
             setTestMessage(e instanceof Error ? e.message : t('addMachine.connectionFailed'));
+        } finally {
+            endMachineConnectAttempt(connected);
         }
     };
 

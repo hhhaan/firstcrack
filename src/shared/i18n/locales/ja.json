@@ -403,6 +403,7 @@
         "disconnect": "切断",
         "connect": "接続",
         "sidecarStarting": "接続の準備中...",
+        "linkUnstable": "マシンの接続が不安定です。ケーブルとネットワークの状態を確認してください。",
         "startRoasting": "ローストを開始",
         "selectMachine": "マシンを選択してください",
         "limit": {
