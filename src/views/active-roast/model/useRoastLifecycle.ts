@@ -41,7 +41,6 @@ export interface UseRoastLifecycleParams {
     setZoomRange: (range: { start: number; end: number } | null) => void;
     setHoveredChartIndex: (index: number | null) => void;
     triggerChargeRef: React.RefObject<(bt?: number | null, chargeTimeMs?: number) => void>;
-    roastStartTimeRef: React.MutableRefObject<number>;
 }
 
 export interface UseRoastLifecycleReturn {
@@ -84,7 +83,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         setZoomRange,
         setHoveredChartIndex,
         triggerChargeRef,
-        roastStartTimeRef,
     } = params;
 
     const roastSettings = useRoastSettings();
@@ -167,7 +165,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
 
     const resetActiveRoast = useCallback(
         (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => {
-            roastStartTimeRef.current = 0;
             resetAutoDetectionRef.current?.();
             const keepHeatHold = opts?.keepHeatHold ?? false;
             const chargeWait =
@@ -197,7 +194,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             setHoveredChartIndex(null);
         },
         [
-            roastStartTimeRef,
             resetAutoDetectionRef,
             resetStore,
             sidecarConnected,
@@ -254,7 +250,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 sessionId: store.sessionId,
                 charged: isChargedPhase(store.phase),
                 phase: store.phase,
-                roastStartMs: roastStartTimeRef.current || store.roastStartMs,
+                roastStartMs: store.roastStartMs,
                 elapsed: store.elapsed,
                 rawBT,
                 unit,
@@ -266,7 +262,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             if (!planned) return null;
             useCompletedRoastStore.getState().capture({
                 sessionId: planned.sessionId,
-                roastStartMs: roastStartTimeRef.current || store.roastStartMs,
+                roastStartMs: store.roastStartMs,
                 elapsed: planned.dropTimeSec,
                 logEntries: planned.logEntries,
                 livePoints: planned.roastPoints as LiveRoastPoint[],
@@ -291,7 +287,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 elapsedSec: planned.summary.elapsedSec,
             };
         },
-        [logEntries, rawBT, unit, bbpEnabled, roastStartTimeRef],
+        [logEntries, rawBT, unit, bbpEnabled],
     );
 
     const finishDrop = useCallback(
@@ -325,7 +321,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         useCompletedRoastStore.getState().clear();
         const elapsed = Math.max(0, restore.elapsed);
         const origin = Date.now() - elapsed * 1000;
-        roastStartTimeRef.current = origin;
         useRoastingStore.setState({
             phase: 'roasting',
             sessionId: restore.sessionId,
@@ -338,7 +333,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         setLogEntries(restore.logEntries.filter((e) => e.event !== 'Drop'));
         setLivePoints(restore.livePoints);
         return true;
-    }, [roastStartTimeRef, setLogEntries, setLivePoints]);
+    }, [setLogEntries, setLivePoints]);
 
     const recoverLiveBbp = useCallback(() => {
         if (!bbpEnabled) return;

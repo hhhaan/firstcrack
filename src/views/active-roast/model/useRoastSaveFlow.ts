@@ -32,7 +32,6 @@ import { type RoastSummaryData, useRoastCompletionFlow } from './useRoastComplet
 export interface UseRoastSaveFlowParams {
     planBatchHandoff: PlanBatchHandoff | null;
     elapsed: number;
-    roastStartTimeRef: React.MutableRefObject<number>;
     rawBT: number | null;
     selectedBeanId: string | null;
     targetProfileId: string | null;
@@ -64,7 +63,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const {
         planBatchHandoff,
         elapsed,
-        roastStartTimeRef,
         rawBT,
         selectedBeanId,
         targetProfileId,
@@ -93,7 +91,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             formData,
             userId: useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
             elapsed,
-            roastStartTime: roastStartTimeRef.current,
+            roastStartTime: useRoastingStore.getState().roastStartMs,
             rawBT,
             ambientTemperature,
             ambientHumidity,
@@ -112,7 +110,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         [
             workspaceOwnerId,
             elapsed,
-            roastStartTimeRef,
             rawBT,
             ambientTemperature,
             ambientHumidity,

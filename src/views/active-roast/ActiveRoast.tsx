@@ -237,11 +237,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
     const exitFullscreen = useCallback(() => setIsFullscreen(false), []);
 
-    // ── 공유 ref ──────────────────────────────────────────────────
-    // 리마운트(ErrorBoundary 재시도 등) 시 스토어 roastStartMs로 재수화 —
-    // 0으로 남으면 폴링이 로스팅 분기를 영원히 건너뛴다 (#317)
-    const roastStartTimeRef = useRef(useRoastingStore.getState().roastStartMs);
-
     // ── 도메인 훅 ─────────────────────────────────────────────────
     const rawBT = liveData?.bt ?? null;
     const rawET = liveData?.et ?? null;
@@ -260,7 +255,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         pollIntervalMs,
         enterPreheating,
         setConnected,
-        roastStartTimeRef,
         sessionId,
         chargeBt: logEntries.find((entry) => entry.event === 'Charge')?.tempC ?? null,
     });
@@ -404,7 +398,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setZoomRange: chart.setZoomRange,
         setHoveredChartIndex: chart.setHoveredChartIndex,
         triggerChargeRef,
-        roastStartTimeRef,
     });
 
     // ── 날씨 데이터 ───────────────────────────────────────────────
@@ -414,7 +407,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const saveFlow = useRoastSaveFlow({
         planBatchHandoff,
         elapsed,
-        roastStartTimeRef,
         rawBT,
         selectedBeanId,
         targetProfileId,
@@ -446,7 +438,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setLogEntries,
         onDrop: (onset) => applyDropRef.current(onset),
         storeStartCharge,
-        roastStartTimeRef,
     });
 
     const triggerCharge = useCallback(

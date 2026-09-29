@@ -16,7 +16,6 @@ interface UseRoastActionsParams {
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     onDrop: (onset?: { timeSec: number; bt: number }) => void;
     storeStartCharge: (originMs?: number, ownerId?: string) => void;
-    roastStartTimeRef: React.MutableRefObject<number>;
 }
 
 interface UseRoastActionsReturn {
@@ -33,7 +32,6 @@ export const useRoastActions = ({
     setLogEntries,
     onDrop,
     storeStartCharge,
-    roastStartTimeRef,
 }: UseRoastActionsParams): UseRoastActionsReturn => {
     const { workspaceOwnerId } = useActiveWorkspace();
     const triggerCharge = useCallback(
@@ -45,8 +43,6 @@ export const useRoastActions = ({
             });
             const now = Date.now();
             const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
-            // Same origin for livePoints.time (ref) and elapsed (store roastStartMs)
-            roastStartTimeRef.current = origin;
             storeStartCharge(origin, workspaceOwnerId);
             const btVal = btAtCharge ?? rawBT;
             setLogEntries([
@@ -61,7 +57,7 @@ export const useRoastActions = ({
                 },
             ]);
         },
-        [unit, rawBT, setLogEntries, storeStartCharge, roastStartTimeRef, workspaceOwnerId],
+        [unit, rawBT, setLogEntries, storeStartCharge, workspaceOwnerId],
     );
 
     const handleAutoDrop = useCallback(
