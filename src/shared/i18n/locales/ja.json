@@ -570,6 +570,18 @@
         }
     },
     "activeRoast": {
+        "noteEntry": {
+            "title": "記録を追加",
+            "editTitle": "記録を編集",
+            "time": "時間",
+            "gas": "ガス",
+            "airflow": "排気",
+            "comment": "コメント",
+            "gasPlaceholder": "例: 80 または 1.2 kPa",
+            "airflowPlaceholder": "例: 30 または 50%",
+            "commentPlaceholder": "例: 色の変化を確認",
+            "keyboardHint": "Enterで追加 · Escで取消"
+        },
         "autoChargeHeld": "温度が回復すると自動投入されます。今すぐ始めるには Charge を押してください。",
         "header": {
             "noBeanSelected": "生豆未選択",

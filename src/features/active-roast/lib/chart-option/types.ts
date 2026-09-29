@@ -1,9 +1,11 @@
 import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import type { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
 
+import type { RoastNoteControls } from '@shared/types/roast';
+
 export type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
 
-export interface RoastEventMarker {
+export interface RoastEventMarker extends RoastNoteControls {
     logId?: string;
     timeSec: number;
     event: string;

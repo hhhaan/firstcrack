@@ -20,14 +20,31 @@ import {
     nearestBtAt,
 } from '@features/active-roast/lib/chart-option/markers';
 import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
+import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
+import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import { useThemeStore } from '@shared/store/theme';
+import type { RoastNoteControls } from '@shared/types/roast';
 import * as echarts from 'echarts';
 import type React from 'react';
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
+
+import { useTranslation } from 'react-i18next';
+import { RoastNoteFields, type RoastNoteValues } from './RoastNoteFields';
 
 export type { RoastEventMarker };
+
+const emptyNote: RoastNoteValues = { gas: '', airflow: '', note: '' };
 
 interface Props {
     xs: number[];
@@ -44,9 +61,9 @@ interface Props {
     height: number;
     onCursorIdx?: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
-    onEventMarkerEdit?: (logId: string, patch: { timeSec?: number; note?: string }) => void;
+    onEventMarkerEdit?: (logId: string, patch: EventMarkerPatch) => void;
     onEventMarkerDelete?: (logId: string) => void;
-    onAddNote?: (body: string, timeSec: number) => void;
+    onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
     showProfileBt?: boolean;
@@ -252,7 +269,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const PIXEL_THRESHOLD = 10;
     const lastChartSizeRef = useRef({ w: 0, h: 0 });
     const [noteForm, setNoteForm] = useState<{ x: number; y: number; timeSec: number } | null>(null);
-    const [noteBody, setNoteBody] = useState('');
+    const { t } = useTranslation();
+    const [noteValues, setNoteValues] = useState<RoastNoteValues>(emptyNote);
     const noteFormRef = useRef<HTMLFormElement>(null);
     const [editForm, setEditForm] = useState<{
         logId: string;
@@ -261,9 +279,27 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         y: number;
         time: string;
         note: string;
+        gas: string;
+        airflow: string;
         heaterUnit: string;
     } | null>(null);
     const editFormRef = useRef<HTMLFormElement>(null);
+
+    useLayoutEffect(() => {
+        const form = noteFormRef.current ?? editFormRef.current;
+        const position = noteForm ?? editForm;
+        const container = chartRef.current;
+        if (!form || !position || !container) return;
+        const reposition = () => {
+            form.style.left = `${Math.max(0, Math.min(position.x, container.clientWidth - form.offsetWidth))}px`;
+            form.style.top = `${Math.max(0, Math.min(position.y, container.clientHeight - form.offsetHeight))}px`;
+        };
+        reposition();
+        const observer = new ResizeObserver(reposition);
+        observer.observe(form);
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, [noteForm, editForm]);
 
     useEffect((): (() => void) | undefined => {
         const container = chartRef.current;
@@ -395,8 +431,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const option = useMemo(() => {
         // CSS chart tokens change with the theme, although the data does not.
         void resolvedTheme;
+        void t;
         return makeOption();
-    }, [makeOption, resolvedTheme]);
+    }, [makeOption, resolvedTheme, t]);
 
     const structureKey = chartStructureKey({
         charged,
@@ -505,7 +542,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             timeSec: marker.timeSec,
                             xPx: x ?? Number.NaN,
                             yPx: y ?? Number.NaN,
-                            text: eventLabelText(marker.event, marker.timeSec, temp, marker.note),
+                            text: eventLabelText(
+                                marker.event,
+                                marker.timeSec,
+                                temp,
+                                marker.event === 'Note' ? formatRoastNote(marker) : marker.note,
+                            ),
                             below: LABEL_BELOW_EVENTS.has(marker.event),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
@@ -635,7 +677,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!selected?.logId || !point || !container) return false;
             const heater = parseHeaterNote(selected.note ?? '');
             setNoteForm(null);
-            setNoteBody('');
+            setNoteValues(emptyNote);
             setEditForm({
                 logId: selected.logId,
                 event: selected.event,
@@ -643,6 +685,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 y: Math.max(0, Math.min(point.y, container.clientHeight - 120)),
                 time: formatElapsed(selected.timeSec),
                 note: selected.event === 'Heater' ? heater.value : (selected.note ?? ''),
+                gas: selected.gas ?? '',
+                airflow: selected.airflow ?? '',
                 heaterUnit: heater.unit,
             });
             return true;
@@ -694,7 +738,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     useEffect(() => {
         if (onAddNote) return;
         setNoteForm(null);
-        setNoteBody('');
+        setNoteValues(emptyNote);
     }, [onAddNote]);
 
     useEffect(() => {
@@ -708,7 +752,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const target = event.target as Node;
             if (noteFormRef.current?.contains(target) || editFormRef.current?.contains(target)) return;
             setNoteForm(null);
-            setNoteBody('');
+            setNoteValues(emptyNote);
             setEditForm(null);
             chartRef.current?.focus();
         };
@@ -726,7 +770,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!chart || !point || !container || !chart.containPixel({ gridIndex: 0 }, [point.x, point.y])) return;
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
             if (converted == null) return;
-            setNoteBody('');
+            setNoteValues(emptyNote);
             setEditForm(null);
             setNoteForm({
                 x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
@@ -738,29 +782,54 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     );
 
     const submitNote = useCallback(() => {
-        if (!noteForm || !noteBody.trim() || !onAddNote) return;
-        onAddNote(noteBody.trim(), noteForm.timeSec);
+        const note = noteValues.note.trim();
+        const gas = noteValues.gas.trim();
+        const airflow = noteValues.airflow.trim();
+        if (!noteForm || (!note && !gas && !airflow) || !onAddNote) return;
+        if (gas || airflow)
+            onAddNote(note, noteForm.timeSec, { ...(gas ? { gas } : {}), ...(airflow ? { airflow } : {}) });
+        else onAddNote(note, noteForm.timeSec);
         setNoteForm(null);
-        setNoteBody('');
+        setNoteValues(emptyNote);
         chartRef.current?.focus();
-    }, [noteBody, noteForm, onAddNote]);
+    }, [noteValues, noteForm, onAddNote]);
 
     const submitEdit = useCallback(() => {
         if (!editForm || !onEventMarkerEdit) return;
         const timeSec = parseEditTimeSec(editForm.time);
         if (timeSec == null) return;
-        const patch: { timeSec: number; note?: string } = {
+        const patch: EventMarkerPatch = {
             timeSec: Math.max(0, Math.min(Math.floor(currentTimeSec), timeSec)),
         };
         if (editForm.event === 'Note') {
             const body = editForm.note.trim();
-            if (!body) return;
+            if (!body && !editForm.gas.trim() && !editForm.airflow.trim()) return;
             patch.note = body;
+            patch.gas = editForm.gas.trim();
+            patch.airflow = editForm.airflow.trim();
         }
         onEventMarkerEdit(editForm.logId, patch);
         setEditForm(null);
         chartRef.current?.focus();
     }, [currentTimeSec, editForm, onEventMarkerEdit]);
+
+    const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>, submit: () => void) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            setNoteForm(null);
+            setEditForm(null);
+            setNoteValues(emptyNote);
+            chartRef.current?.focus();
+        } else if (
+            event.key === 'Enter' &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing &&
+            event.nativeEvent.keyCode !== 229
+        ) {
+            event.preventDefault();
+            submit();
+        }
+    };
 
     const deleteEdit = useCallback(() => {
         if (!editForm || !onEventMarkerDelete || !REMOVABLE_LOG_EVENTS.has(editForm.event)) return;
@@ -785,7 +854,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 <form
                     ref={noteFormRef}
                     data-chart-note-form
-                    className="absolute z-20 flex w-[220px] gap-1 rounded border border-(--color-border) bg-(--color-surface) p-1 shadow-md"
+                    onKeyDown={(event) => handleFormKeyDown(event, submitNote)}
+                    className="absolute z-20 flex w-[320px] max-w-full max-h-full flex-col gap-3 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-3 shadow-md"
                     style={{ left: noteForm.x, top: noteForm.y }}
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -794,38 +864,35 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     onPointerDown={(event) => event.stopPropagation()}
                     onWheel={(event) => event.stopPropagation()}
                 >
-                    <label htmlFor="chart-note-input" className="sr-only">
-                        Note
-                    </label>
-                    <textarea
-                        id="chart-note-input"
+                    <div className="flex items-center justify-between text-[14px] text-(--color-text-primary)">
+                        <span className="font-medium">{t('activeRoast.noteEntry.title')}</span>
+                        <span className="font-mono text-muted">{formatElapsed(noteForm.timeSec)}</span>
+                    </div>
+                    <RoastNoteFields
+                        values={noteValues}
+                        onChange={setNoteValues}
+                        prefix="chart-note"
+                        commentId="chart-note-input"
                         autoFocus
-                        rows={1}
-                        value={noteBody}
-                        onChange={(event) => setNoteBody(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Escape') {
-                                event.preventDefault();
-                                setNoteForm(null);
-                                setNoteBody('');
-                                chartRef.current?.focus();
-                            } else if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                                event.preventDefault();
-                                submitNote();
-                            }
-                        }}
-                        className="min-w-0 flex-1 resize-none rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none"
                     />
-                    <button type="submit" className="rounded px-2 text-xs text-(--color-text-primary)">
-                        Add
-                    </button>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                        <span className="text-[11px] text-muted">{t('activeRoast.noteEntry.keyboardHint')}</span>
+                        <button
+                            type="submit"
+                            disabled={!Object.values(noteValues).some((value) => value.trim())}
+                            className="rounded bg-(--color-text-primary) px-4 py-2 text-[13px] text-(--color-surface) disabled:opacity-40"
+                        >
+                            {t('common.add')}
+                        </button>
+                    </div>
                 </form>
             )}
             {editForm && (
                 <form
                     ref={editFormRef}
                     data-chart-marker-edit
-                    className="absolute z-20 flex w-[220px] flex-col gap-1 rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md"
+                    onKeyDown={(event) => handleFormKeyDown(event, submitEdit)}
+                    className={`absolute z-20 flex max-w-full max-h-full flex-col overflow-auto rounded border border-(--color-border) bg-(--color-surface) shadow-md ${editForm.event === 'Note' ? 'w-[320px] gap-3 p-3' : 'w-[220px] gap-1 p-1.5'}`}
                     style={{ left: editForm.x, top: editForm.y }}
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -834,9 +901,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     onPointerDown={(event) => event.stopPropagation()}
                     onWheel={(event) => event.stopPropagation()}
                 >
-                    <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">{editForm.event}</div>
+                    <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">
+                        {editForm.event === 'Note' ? t('activeRoast.noteEntry.editTitle') : editForm.event}
+                    </div>
                     <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
-                        Time
+                        {t('activeRoast.noteEntry.time')}
                         <input
                             id="chart-marker-time"
                             autoFocus
@@ -877,16 +946,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         </label>
                     )}
                     {editForm.event === 'Note' && (
-                        <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
-                            Note
-                            <textarea
-                                id="chart-marker-note"
-                                rows={1}
-                                value={editForm.note}
-                                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
-                                className="min-w-0 flex-1 resize-none rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none"
-                            />
-                        </label>
+                        <RoastNoteFields
+                            values={editForm}
+                            onChange={(values) => setEditForm({ ...editForm, ...values })}
+                            prefix="chart-marker"
+                            commentId="chart-marker-note"
+                        />
                     )}
                     <div className="flex items-center justify-end gap-1">
                         {onEventMarkerDelete && REMOVABLE_LOG_EVENTS.has(editForm.event) && (
@@ -896,11 +961,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 onClick={deleteEdit}
                                 className="rounded px-2 text-xs text-muted"
                             >
-                                Delete
+                                {t('common.delete')}
                             </button>
                         )}
                         <button type="submit" className="rounded px-2 text-xs text-(--color-text-primary)">
-                            Save
+                            {t('common.save')}
                         </button>
                     </div>
                 </form>

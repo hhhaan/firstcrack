@@ -897,6 +897,18 @@
         }
     },
     "activeRoast": {
+        "noteEntry": {
+            "title": "기록 추가",
+            "editTitle": "기록 수정",
+            "time": "시간",
+            "gas": "가스",
+            "airflow": "배기",
+            "comment": "코멘트",
+            "gasPlaceholder": "예: 80 또는 1.2 kPa",
+            "airflowPlaceholder": "예: 30 또는 50%",
+            "commentPlaceholder": "예: 색 변화 확인",
+            "keyboardHint": "Enter 추가 · Esc 취소"
+        },
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
             "noBeanSelected": "생두 미선택",

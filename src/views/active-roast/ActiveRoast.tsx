@@ -19,6 +19,7 @@ import {
     useRoastKeyboardShortcuts,
     useRoastSettings,
 } from '@features/active-roast';
+import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { applyEventMarkerEdit, nearestLivePointAt } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
@@ -38,6 +39,7 @@ import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useThemeStore } from '@shared/store/theme';
+import type { RoastNoteControls } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -819,15 +821,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
 
     const handleEventMarkerEdit = useCallback(
-        (logId: string, patch: { timeSec?: number; note?: string }) => {
+        (logId: string, patch: EventMarkerPatch) => {
             setLogEntries((prev) => applyEventMarkerEdit(prev, logId, patch, livePoints, unit, elapsed));
         },
         [setLogEntries, livePoints, unit, elapsed],
     );
 
     const handleChartNote = useCallback(
-        (body: string, timeSec: number) => {
-            markEvent('Note', body, undefined, { timeSec, tempC: nearestLivePointAt(livePoints, timeSec)?.bt ?? null });
+        (body: string, timeSec: number, controls?: RoastNoteControls) => {
+            markEvent(
+                'Note',
+                body,
+                undefined,
+                { timeSec, tempC: nearestLivePointAt(livePoints, timeSec)?.bt ?? null },
+                controls,
+            );
         },
         [livePoints, markEvent],
     );

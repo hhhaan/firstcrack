@@ -32,6 +32,18 @@ describe('RoastLog removable entries', () => {
         container.remove();
     });
 
+    it('shows gas and airflow even without a comment', () => {
+        act(() =>
+            root.render(
+                createElement(RoastLog, {
+                    variant: 'main',
+                    entries: [{ ...entry('Note', 'manual'), note: '', gas: '0', airflow: '1.2 kPa' }],
+                }),
+            ),
+        );
+        expect(container.textContent).toContain('Gas 0 · Airflow 1.2 kPa');
+    });
+
     it('deletes Heater and Note rows, not Charge', () => {
         const onRemoveEntry = vi.fn();
         act(() => {

@@ -1,5 +1,11 @@
+/** Manual observations only; never sent as machine control commands. */
+export type RoastNoteControls = {
+    gas?: string;
+    airflow?: string;
+};
+
 /** Live roast event log row (UI + in-memory). */
-export interface LogEntry {
+export interface LogEntry extends RoastNoteControls {
     id?: string;
     /** Display "m:ss" (derived). */
     time: string;
@@ -17,7 +23,7 @@ export interface LogEntry {
 }
 
 /** Persisted on roast_sessions.events jsonb. */
-export type StoredRoastEvent = {
+export type StoredRoastEvent = RoastNoteControls & {
     id: string;
     type: string;
     time_sec: number;
