@@ -70,6 +70,8 @@
         }
     },
     "settings": {
+        "search": "設定を検索",
+        "noSearchResults": "設定が見つかりません。",
         "title": "ワークスペース設定",
         "close": "設定を閉じる",
         "whyTitle": "この設定について",
@@ -89,7 +91,7 @@
                 "themeDarkDescription": "目に優しい暗い画面",
                 "themeSystem": "システム",
                 "themeSystemDescription": "OS設定に合わせる",
-                "language": "言語",
+                "language": "アプリの言語",
                 "languageDescription": "アプリの表示言語を選択します。",
                 "defaultLandingView": "既定の開始画面",
                 "temperatureUnit": "温度単位",
@@ -98,7 +100,10 @@
                 "displayDescription": "ダッシュボードとナビゲーションの動作をセッション間で一貫させます。",
                 "expandedSidebar": "既定でサイドバーを展開",
                 "liveMetricsPanel": "ライブ指標パネルを表示",
-                "compactDataCards": "コンパクトなデータカードを使用"
+                "compactDataCards": "コンパクトなデータカードを使用",
+                "stockHorizon": "在庫アラート期間",
+                "stockHorizonDescription": "生豆の不足を確認する際に、予定された焙煎の在庫を確保する期間です（初期値28日）。",
+                "days": "日"
             },
             "notifications": {
                 "label": "通知",
@@ -148,9 +153,11 @@
             "roast": {
                 "label": "焙煎",
                 "title": "焙煎設定",
-                "description": "ライブ焙煎中の更新間隔、RoR計算、表示データを設定します。",
+                "description": "温度単位、アラーム、投入・排出の検知、チャート表示を設定します。",
                 "temperatureUnit": "温度単位",
                 "temperatureUnitDescription": "温度を摂氏または華氏で表示します。",
+                "fontScale": "文字サイズ",
+                "fontScaleDescription": "グラフ内のイベントとフェーズのラベルサイズです。",
                 "updateRate": "更新レート",
                 "updateRateDescription": "ライブセッション中にマシンから温度データを取得する間隔です。",
                 "updateRateProHint": "500msの更新間隔はProプラン限定です。アップグレードすると高速ポーリングを利用できます。",
@@ -280,7 +287,7 @@
                 "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。"
             },
             "account": {
-                "label": "アカウント",
+                "label": "プロフィール",
                 "title": "アカウント",
                 "description": "プロフィール、ワークスペース名、アカウント設定を管理します。",
                 "profile": "プロフィール",
@@ -316,6 +323,19 @@
                 "title": "請求とプラン",
                 "description": "サブスクリプションプランと請求情報を管理します。",
                 "currentPlan": "現在のプラン",
+                "planCardLabel": "現在のプラン",
+                "changePlan": "プラン変更",
+                "credits": "追加使用クレジット",
+                "creditsPending": "準備中",
+                "creditsSettings": "設定",
+                "creditsBuy": "追加購入",
+                "creditsUsage": "使用量を見る",
+                "invoices": "請求書",
+                "colDate": "日付",
+                "colAmount": "金額",
+                "colType": "種類",
+                "colStatus": "状態",
+                "invoicesEmpty": "請求履歴はありません。",
                 "workspaceNote": "このワークスペースのオーナーのプランと使用量を表示しています。アップグレードはご自身のアカウントに適用されます。",
                 "current": "現在",
                 "trial": "トライアル",
@@ -394,6 +414,12 @@
                 "websiteTitle": "ウェブサイト",
                 "websiteDescription": "製品アップデート、ドキュメント、会社情報を確認します。"
             }
+        },
+        "pageTitle": "設定",
+        "groups": {
+            "workspace": "ワークスペース",
+            "account": "アカウント",
+            "application": "アプリケーション"
         }
     },
     "language": {

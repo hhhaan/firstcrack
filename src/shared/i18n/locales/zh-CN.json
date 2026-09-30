@@ -70,6 +70,8 @@
         }
     },
     "settings": {
+        "search": "搜索设置",
+        "noSearchResults": "未找到设置。",
         "title": "工作区设置",
         "close": "关闭设置",
         "whyTitle": "关于这些设置",
@@ -89,7 +91,7 @@
                 "themeDarkDescription": "护眼暗色",
                 "themeSystem": "系统",
                 "themeSystemDescription": "跟随系统设置",
-                "language": "语言",
+                "language": "应用语言",
                 "languageDescription": "选择应用显示语言。",
                 "defaultLandingView": "默认起始视图",
                 "temperatureUnit": "温度单位",
@@ -98,7 +100,10 @@
                 "displayDescription": "在不同会话之间保持仪表盘和导航行为一致。",
                 "expandedSidebar": "默认展开侧边栏",
                 "liveMetricsPanel": "显示实时指标面板",
-                "compactDataCards": "使用紧凑数据卡片"
+                "compactDataCards": "使用紧凑数据卡片",
+                "stockHorizon": "库存提醒周期",
+                "stockHorizonDescription": "检查生豆短缺时，为计划烘焙预留库存的天数（默认28天）。",
+                "days": "天"
             },
             "notifications": {
                 "label": "通知",
@@ -148,9 +153,11 @@
             "roast": {
                 "label": "烘焙",
                 "title": "烘焙设置",
-                "description": "设置烘焙中的更新频率、RoR 计算和图表数据。",
+                "description": "设置温度单位、报警、投入与排出检测，以及图表显示。",
                 "temperatureUnit": "温度单位",
                 "temperatureUnitDescription": "以摄氏或华氏显示温度。",
+                "fontScale": "字号",
+                "fontScaleDescription": "图内事件与阶段标签的大小。",
                 "updateRate": "更新频率",
                 "updateRateDescription": "实时会话中从机器轮询温度数据的间隔。",
                 "updateRateProHint": "500ms 更新频率为 Pro 套餐专享。升级后即可使用更快的轮询。",
@@ -280,7 +287,7 @@
                 "alertAfterDropDescription": "Drop 后经过该分钟数时提醒。计时器持续到结束烘焙。"
             },
             "account": {
-                "label": "账户",
+                "label": "个人资料",
                 "title": "账户",
                 "description": "管理个人资料、工作区名称和账户设置。",
                 "profile": "个人资料",
@@ -316,6 +323,19 @@
                 "title": "账单与套餐",
                 "description": "管理订阅套餐和账单信息。",
                 "currentPlan": "当前套餐",
+                "planCardLabel": "当前套餐",
+                "changePlan": "更换套餐",
+                "credits": "额外用量额度",
+                "creditsPending": "即将推出",
+                "creditsSettings": "设置",
+                "creditsBuy": "购买更多",
+                "creditsUsage": "查看用量",
+                "invoices": "账单",
+                "colDate": "日期",
+                "colAmount": "金额",
+                "colType": "类型",
+                "colStatus": "状态",
+                "invoicesEmpty": "暂无账单。",
                 "workspaceNote": "显示当前工作区所有者的套餐与用量。升级适用于你自己的账号。",
                 "current": "当前",
                 "trial": "试用",
@@ -394,6 +414,12 @@
                 "websiteTitle": "网站",
                 "websiteDescription": "查看产品更新、文档和公司信息。"
             }
+        },
+        "pageTitle": "设置",
+        "groups": {
+            "workspace": "工作区",
+            "account": "账户",
+            "application": "应用程序"
         }
     },
     "language": {

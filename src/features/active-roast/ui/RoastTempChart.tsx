@@ -27,6 +27,7 @@ import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { useRoastSettings } from '@features/active-roast/model/settings';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { applyTimeEdit, parseEditTime, type TimeEditKind } from '@shared/lib/time-edit';
@@ -159,6 +160,7 @@ const chartStructureKey = (input: {
     referenceDrum: (number | null)[] | undefined;
     hasBbpRange: boolean;
     hideChargeLabel: boolean;
+    fontScale: number;
 }): string =>
     [
         input.charged,
@@ -185,6 +187,7 @@ const chartStructureKey = (input: {
         seriesPresent(input.referenceDrum),
         input.hasBbpRange,
         input.hideChargeLabel,
+        input.fontScale,
     ].join('|');
 
 const controlLegendItems = (
@@ -265,6 +268,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+    const fontScale = useRoastSettings().fontScalePct / 100;
 
     const dragStateRef = useRef<{ pointerId: number; logId: string; timeSec: number } | null>(null);
     const PIXEL_THRESHOLD = 10;
@@ -383,6 +387,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 xViewMax,
                 bbpRange,
                 hideChargeLabel,
+                fontScale,
                 colors,
             }),
         [
@@ -430,6 +435,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             xViewMax,
             bbpRange,
             hideChargeLabel,
+            fontScale,
         ],
     );
 
@@ -466,6 +472,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         referenceDrum: controlData?.reference?.drum,
         hasBbpRange: !!bbpRange,
         hideChargeLabel,
+        fontScale,
     });
     const controlLegend = controlLegendItems(controlData, showControlDrum, showControlHeat, showControlFan);
     const prevStructureKey = useRef(structureKey);
@@ -557,7 +564,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 marker.event === 'Note' ? formatRoastNote(marker) : marker.note,
                             ),
                             below: atTop || LABEL_BELOW_EVENTS.has(marker.event),
-                            topInsetPx: noteLabelTopInsetPx(atTop),
+                            topInsetPx: noteLabelTopInsetPx(atTop, fontScale),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
                         },
@@ -582,7 +589,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ];
                 }),
             ];
-            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth());
+            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth(), fontScale);
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
                 if (!marker?.logId || marker.event === 'Charge') return [];
@@ -630,6 +637,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             tempMinC,
             temperatureUnit,
             turningPoints,
+            fontScale,
             xs,
             xViewMax,
             xViewMin,

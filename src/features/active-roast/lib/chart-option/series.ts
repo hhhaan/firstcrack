@@ -2,8 +2,8 @@ import type { PhaseSegment, TemperatureUnit } from '@features/active-roast';
 import {
     CONTROL_GRID_BOTTOM,
     MARKER_LABEL_CANVAS_GUTTER_PX,
-    MARKER_LABEL_FONT,
     MARKER_LABEL_MAX_WIDTH_PX,
+    markerLabelFont,
     PHASE_BAR_FONT_FAMILY,
     PHASE_BAR_FONT_SIZE,
     PHASE_BAR_FONT_SIZE_NARROW,
@@ -13,6 +13,7 @@ import {
     PHASE_BAR_STROKE_WIDTH,
     PHASE_BAR_TEXT_INSET,
     PHASE_BAR_WIDE_THRESHOLD,
+    scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
@@ -356,7 +357,7 @@ export const buildContinuousMarkerSeries = (
 });
 
 /** BT 축 위에 이벤트 라벨. 한 번에 배치해서 박스가 겹치면 위/아래로 밀어낸다. */
-export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
+export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
     id: 'event-curve-labels',
     name: 'Event curve labels',
     type: 'custom' as const,
@@ -390,6 +391,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
                 ];
             }),
             api.getWidth(),
+            scale,
         );
         // Empty children are merged by index and leave the previous frame's text
         // (setOption notMerge:false while zooming). Returning nothing removes it.
@@ -400,7 +402,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
             if (box.showDot) {
                 children.push({
                     type: 'circle',
-                    shape: { cx: box.anchorX, cy: box.anchorY, r: 2.5 },
+                    shape: { cx: box.anchorX, cy: box.anchorY, r: scale === 1 ? 2.5 : scaleChartPx(3, scale) },
                     style: { fill: box.color, stroke: box.color, lineWidth: 1 },
                 });
             }
@@ -411,10 +413,13 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[]) => ({
                 style: {
                     text: box.text,
                     fill: box.color,
-                    font: MARKER_LABEL_FONT,
+                    font: markerLabelFont(scale),
                     textAlign: 'left',
                     textVerticalAlign: box.below ? 'top' : 'bottom',
-                    width: Math.min(MARKER_LABEL_MAX_WIDTH_PX, api.getWidth() - MARKER_LABEL_CANVAS_GUTTER_PX),
+                    width: Math.min(
+                        scaleChartPx(MARKER_LABEL_MAX_WIDTH_PX, scale),
+                        api.getWidth() - scaleChartPx(MARKER_LABEL_CANVAS_GUTTER_PX, scale),
+                    ),
                     overflow: 'truncate',
                 },
             });
@@ -430,13 +435,21 @@ export interface PhaseSeriesParams {
     tempMaxC: number;
     temperatureUnit: TemperatureUnit;
     colors: ResolvedChartColors;
+    fontScale?: number;
 }
 
 // ── Phase bar (온도 plot 하단 오버레이) ───────────────────────────────
 // 별도 grid 없이 temp grid(x0/y0) 하단에 custom series로 그린다.
 // dataZoom/zoom 시 x는 축과 동기화, y는 coordSys 하단 고정 높이.
 export const buildPhaseSeries = (params: PhaseSeriesParams) => {
-    const { phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors } = params;
+    const { phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors, fontScale = 1 } = params;
+    const barHeight = scaleChartPx(PHASE_BAR_HEIGHT, fontScale);
+    const wideThreshold = scaleChartPx(PHASE_BAR_WIDE_THRESHOLD, fontScale);
+    const narrowThreshold = scaleChartPx(PHASE_BAR_NARROW_THRESHOLD, fontScale);
+    const textInset = scaleChartPx(PHASE_BAR_TEXT_INSET, fontScale);
+    const nameSize = scaleChartPx(PHASE_BAR_FONT_SIZE, fontScale);
+    const narrowSize = scaleChartPx(PHASE_BAR_FONT_SIZE_NARROW, fontScale);
+    const strokeWidth = fontScale === 1 ? PHASE_BAR_STROKE_WIDTH : PHASE_BAR_STROKE_WIDTH * fontScale;
     // y=0이 temp 축 min(기본 50°C) 밖일 수 있어 x 변환용 mid Y 사용
     const phaseCoordY = (toDisplayTemp(tempMinC, temperatureUnit) + toDisplayTemp(tempMaxC, temperatureUnit)) / 2;
 
@@ -450,13 +463,13 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
             const startPx = api.coord([api.value(0), phaseCoordY])[0] as number;
             const endPx = api.coord([api.value(1), phaseCoordY])[0] as number;
             const { x: csX, y: csY, width: csW, height: csH } = renderParams.coordSys;
-            const barY = csY + csH - PHASE_BAR_HEIGHT;
+            const barY = csY + csH - barHeight;
             const clipped = echarts.graphic.clipRectByRect(
                 {
                     x: startPx,
                     y: barY,
                     width: Math.max(0, endPx - startPx),
-                    height: PHASE_BAR_HEIGHT,
+                    height: barHeight,
                 },
                 { x: csX, y: csY, width: csW, height: csH },
             );
@@ -478,21 +491,21 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
                     style: {
                         fill: color,
                         stroke: colors.phaseBarStroke,
-                        lineWidth: PHASE_BAR_STROKE_WIDTH,
+                        lineWidth: strokeWidth,
                     },
                     silent: true,
                 },
             ];
 
             // width > WIDE: 단계명 좌 + 시간 우 / NARROW~WIDE: 시간만 중앙 / ≤NARROW: 생략
-            if (width > PHASE_BAR_WIDE_THRESHOLD) {
+            if (width > wideThreshold) {
                 children.push({
                     type: 'text',
                     style: {
                         text: name,
-                        x: x + PHASE_BAR_TEXT_INSET,
+                        x: x + textInset,
                         y: textY,
-                        fontSize: PHASE_BAR_FONT_SIZE,
+                        fontSize: nameSize,
                         fontFamily: PHASE_BAR_FONT_FAMILY,
                         fontWeight: PHASE_BAR_FONT_WEIGHT,
                         fill: colors.phaseBarName,
@@ -504,9 +517,9 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
                     type: 'text',
                     style: {
                         text: durLabel,
-                        x: x + width - PHASE_BAR_TEXT_INSET,
+                        x: x + width - textInset,
                         y: textY,
-                        fontSize: PHASE_BAR_FONT_SIZE,
+                        fontSize: nameSize,
                         fontFamily: PHASE_BAR_FONT_FAMILY,
                         fill: colors.phaseBarDuration,
                         textAlign: 'right',
@@ -514,14 +527,14 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
                     },
                     silent: true,
                 });
-            } else if (width > PHASE_BAR_NARROW_THRESHOLD) {
+            } else if (width > narrowThreshold) {
                 children.push({
                     type: 'text',
                     style: {
                         text: durLabel,
                         x: x + width / 2,
                         y: textY,
-                        fontSize: PHASE_BAR_FONT_SIZE_NARROW,
+                        fontSize: narrowSize,
                         fontFamily: PHASE_BAR_FONT_FAMILY,
                         fill: colors.phaseBarDuration,
                         textAlign: 'center',

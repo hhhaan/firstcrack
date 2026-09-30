@@ -21,17 +21,28 @@ export const AXIS_LABEL_FONT = { fontSize: 11, fontFamily: 'monospace' as const 
 export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as const } as const;
 
 // ── Curve event labels (`이름|mm:ss|온도`). Axis ticks and the phase bar stay put.
-export const MARKER_LABEL_FONT_SIZE = 12;
+export const MARKER_LABEL_FONT_SIZE = 10;
 export const MARKER_LABEL_FONT_WEIGHT = 600;
 export const MARKER_LABEL_FONT_FAMILY = 'monospace';
 export const MARKER_LABEL_FONT =
     `${MARKER_LABEL_FONT_WEIGHT} ${MARKER_LABEL_FONT_SIZE}px ${MARKER_LABEL_FONT_FAMILY}` as const;
+
+/** Roast font setting → chart scale. Anything else stays at 1 so layout tests keep base pixels. */
+export const chartFontScale = (scale: number | undefined): number => (scale === 1.5 || scale === 2 ? scale : 1);
+
+/** Scale 1 returns `base` unchanged. 1.5 and 2 round to whole pixels. */
+export const scaleChartPx = (base: number, scale: number) => (scale === 1 ? base : Math.round(base * scale));
+
+export const markerLabelFont = (scale: number) =>
+    scale === 1
+        ? MARKER_LABEL_FONT
+        : `${MARKER_LABEL_FONT_WEIGHT} ${scaleChartPx(MARKER_LABEL_FONT_SIZE, scale)}px ${MARKER_LABEL_FONT_FAMILY}`;
 /** Box height and same-time stack step. */
 export const MARKER_LABEL_STACK_PX = 14;
 /** Monospace advance at MARKER_LABEL_FONT_SIZE. */
-export const MARKER_LABEL_CHAR_WIDTH_PX = 7;
-export const MARKER_LABEL_MIN_WIDTH_PX = MARKER_LABEL_CHAR_WIDTH_PX;
-export const MARKER_LABEL_MAX_WIDTH_PX = 288;
+export const MARKER_LABEL_CHAR_WIDTH_PX = 6;
+export const MARKER_LABEL_MIN_WIDTH_PX = 8;
+export const MARKER_LABEL_MAX_WIDTH_PX = 240;
 export const MARKER_LABEL_GAP_PX = 2;
 export const MARKER_LABEL_DISTANCE_PX = 0;
 /** Event line → label, and the canvas edge inset. */

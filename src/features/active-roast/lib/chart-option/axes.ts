@@ -37,7 +37,10 @@ export const computeTempYRange = (tempMinC: number, tempMaxC: number, temperatur
 };
 
 export const buildAxisStyles = (colors: ResolvedChartColors) => {
-    const axisLabelStyle = { ...AXIS_LABEL_FONT, color: colors.axisLabel };
+    const axisLabelStyle = {
+        ...AXIS_LABEL_FONT,
+        color: colors.axisLabel,
+    };
     const axisNameStyle = { color: colors.axisLabel };
     const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
     return { axisLabelStyle, axisNameStyle, rightYAxisLabel };
@@ -140,7 +143,12 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
 
     const grid = [
         { left: leftMargin, right: rightMargin, top: topMargin, height: tempGridHeight },
-        { left: leftMargin, right: rightMargin, top: controlGridTop, bottom: CONTROL_GRID_BOTTOM },
+        {
+            left: leftMargin,
+            right: rightMargin,
+            top: controlGridTop,
+            bottom: CONTROL_GRID_BOTTOM,
+        },
     ];
 
     const xAxis = [
@@ -283,7 +291,14 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
         yAxisPointer,
     } = params;
 
-    const grid = [{ left: leftMargin, right: rightMargin, top: topMargin, bottom: SINGLE_GRID_BOTTOM }];
+    const grid = [
+        {
+            left: leftMargin,
+            right: rightMargin,
+            top: topMargin,
+            bottom: SINGLE_GRID_BOTTOM,
+        },
+    ];
 
     const xAxis = [
         {

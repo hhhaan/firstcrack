@@ -1,3 +1,4 @@
+import { cn } from '@shared/lib/cn';
 import type { ReactNode } from 'react';
 
 type SectionCardProps = {
@@ -13,7 +14,7 @@ type SectionCardProps = {
 export function SectionCard({ children, className = '' }: SectionCardProps) {
     return (
         <section
-            className={`flex flex-col gap-5 bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-6 ${className}`}
+            className={cn('flex min-w-0 flex-col rounded-xl border border-border-subtle bg-main-bg p-4', className)}
         >
             {children}
         </section>

@@ -70,6 +70,8 @@
         }
     },
     "settings": {
+        "search": "Search settings",
+        "noSearchResults": "No settings found.",
         "title": "Workspace settings",
         "close": "Close settings",
         "whyTitle": "About these settings",
@@ -89,7 +91,7 @@
                 "themeDarkDescription": "Easier on the eyes",
                 "themeSystem": "System",
                 "themeSystemDescription": "Match OS setting",
-                "language": "Language",
+                "language": "App language",
                 "languageDescription": "Choose the display language for the app.",
                 "defaultLandingView": "Default landing view",
                 "temperatureUnit": "Temperature unit",
@@ -98,7 +100,10 @@
                 "displayDescription": "Keep the dashboard and navigation behavior consistent between sessions.",
                 "expandedSidebar": "Expanded sidebar by default",
                 "liveMetricsPanel": "Show live metrics panel",
-                "compactDataCards": "Use compact data cards"
+                "compactDataCards": "Use compact data cards",
+                "stockHorizon": "Stock alert horizon",
+                "stockHorizonDescription": "Days ahead to reserve planned roasts when checking bean shortages (default 28).",
+                "days": "days"
             },
             "notifications": {
                 "label": "Notifications",
@@ -146,11 +151,13 @@
                 "confirmResets": "Require confirmation for resets"
             },
             "roast": {
-                "label": "Roast",
+                "label": "Roasting",
                 "title": "Roast Settings",
-                "description": "Set update rate, RoR calculation, and chart data during a live roast.",
+                "description": "Set the temperature unit, alerts, charge and drop detection, and what the chart shows.",
                 "temperatureUnit": "Temperature Unit",
                 "temperatureUnitDescription": "Display temperatures in Celsius or Fahrenheit.",
+                "fontScale": "Font size",
+                "fontScaleDescription": "Size of the event and phase labels drawn on the chart.",
                 "updateRate": "Update Rate",
                 "updateRateDescription": "How often to poll the machine for temperature data during a live session.",
                 "updateRateProHint": "The 500ms update rate requires a Pro plan. Upgrade to unlock faster polling.",
@@ -280,7 +287,7 @@
                 "alertAfterDropDescription": "Remind this many minutes after Drop. The timer keeps running until End roast."
             },
             "account": {
-                "label": "Account",
+                "label": "Profile",
                 "title": "Account",
                 "description": "Manage your profile, workspace name, and account settings.",
                 "profile": "Profile",
@@ -316,6 +323,19 @@
                 "title": "Billing & Plan",
                 "description": "Manage your subscription plan and billing information.",
                 "currentPlan": "Current Plan",
+                "planCardLabel": "Current plan",
+                "changePlan": "Change plan",
+                "credits": "Additional usage credits",
+                "creditsPending": "Coming soon",
+                "creditsSettings": "Set up",
+                "creditsBuy": "Buy more",
+                "creditsUsage": "View usage",
+                "invoices": "Invoices",
+                "colDate": "Date",
+                "colAmount": "Amount",
+                "colType": "Type",
+                "colStatus": "Status",
+                "invoicesEmpty": "No invoices yet.",
                 "workspaceNote": "Showing this workspace owner's plan and usage. Upgrades apply to your own account.",
                 "current": "Current",
                 "trial": "Trial",
@@ -394,6 +414,12 @@
                 "websiteTitle": "Website",
                 "websiteDescription": "Product updates, docs, and company information."
             }
+        },
+        "pageTitle": "Settings",
+        "groups": {
+            "workspace": "Workspace",
+            "account": "Account",
+            "application": "Application"
         }
     },
     "language": {

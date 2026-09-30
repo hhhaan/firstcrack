@@ -9,6 +9,7 @@ import {
     MARKER_LABEL_MIN_WIDTH_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
+    scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
@@ -57,7 +58,8 @@ export const noteAnchoredAtTop = (event: string) => event === 'Note';
 /** Pixels a note label sits below the top of the temperature axis. */
 export const NOTE_LABEL_TOP_INSET_PX = 8;
 
-export const noteLabelTopInsetPx = (atTop: boolean) => (atTop ? NOTE_LABEL_TOP_INSET_PX : 0);
+export const noteLabelTopInsetPx = (atTop: boolean, scale = 1) =>
+    atTop ? scaleChartPx(NOTE_LABEL_TOP_INSET_PX, scale) : 0;
 
 /** Notes stay on the time axis ahead of the live curve. Other events need a nearby BT sample. */
 export const isEventMarkerVisible = (
@@ -83,11 +85,20 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
     return `${name}|${formatMarkerTime(timeSec)}|${temp || '—'}`;
 };
 
-export const markerLabelDy = (below: boolean, rank = 0) =>
-    (below ? MARKER_LABEL_DISTANCE_PX : -MARKER_LABEL_DISTANCE_PX) - MARKER_LABEL_STACK_PX * rank;
+export const markerLabelDy = (below: boolean, rank = 0, scale = 1) => {
+    const distance = scaleChartPx(MARKER_LABEL_DISTANCE_PX, scale);
+    const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
+    return (below ? distance : -distance) - stack * rank;
+};
 
-export const estimateLabelWidth = (text: string) =>
-    Math.min(MARKER_LABEL_MAX_WIDTH_PX, Math.max(MARKER_LABEL_MIN_WIDTH_PX, text.length * MARKER_LABEL_CHAR_WIDTH_PX));
+export const estimateLabelWidth = (text: string, scale = 1) =>
+    Math.min(
+        scaleChartPx(MARKER_LABEL_MAX_WIDTH_PX, scale),
+        Math.max(
+            scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale),
+            text.length * scaleChartPx(MARKER_LABEL_CHAR_WIDTH_PX, scale),
+        ),
+    );
 
 export interface MarkerLabelGeometry {
     x: number;
@@ -135,25 +146,29 @@ export interface CurveLabelBox {
     timeSec: number;
 }
 
-const boxesOverlap = (a: CurveLabelBox, b: CurveLabelBox) =>
-    a.left < b.right + MARKER_LABEL_GAP_PX &&
-    a.right + MARKER_LABEL_GAP_PX > b.left &&
-    a.top < b.bottom + MARKER_LABEL_GAP_PX &&
-    a.bottom + MARKER_LABEL_GAP_PX > b.top;
+const boxesOverlap = (a: CurveLabelBox, b: CurveLabelBox, scale: number) => {
+    const gap = scaleChartPx(MARKER_LABEL_GAP_PX, scale);
+    return a.left < b.right + gap && a.right + gap > b.left && a.top < b.bottom + gap && a.bottom + gap > b.top;
+};
 
-const makeLabelBox = (item: CurveLabelLayoutInput, textY: number, canvasWidth: number): CurveLabelBox => {
-    const width = Math.min(estimateLabelWidth(item.text), Math.max(0, canvasWidth - MARKER_LABEL_CANVAS_GUTTER_PX));
-    const rawX = item.xPx + MARKER_LABEL_X_OFFSET_PX;
+const makeLabelBox = (
+    item: CurveLabelLayoutInput,
+    textY: number,
+    canvasWidth: number,
+    scale: number,
+): CurveLabelBox => {
+    const gutter = scaleChartPx(MARKER_LABEL_CANVAS_GUTTER_PX, scale);
+    const xOffset = scaleChartPx(MARKER_LABEL_X_OFFSET_PX, scale);
+    const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
+    const width = Math.min(estimateLabelWidth(item.text, scale), Math.max(0, canvasWidth - gutter));
+    const rawX = item.xPx + xOffset;
     // Clamp only anchors already on the canvas. Off-chart anchors must stay off-chart.
     const anchorOnCanvas = item.xPx >= 0 && item.xPx <= canvasWidth;
     const x = anchorOnCanvas
-        ? Math.max(
-              MARKER_LABEL_X_OFFSET_PX,
-              Math.min(rawX, Math.max(MARKER_LABEL_X_OFFSET_PX, canvasWidth - MARKER_LABEL_X_OFFSET_PX - width)),
-          )
+        ? Math.max(xOffset, Math.min(rawX, Math.max(xOffset, canvasWidth - xOffset - width)))
         : rawX;
-    const top = item.below ? textY : textY - MARKER_LABEL_STACK_PX;
-    const bottom = item.below ? textY + MARKER_LABEL_STACK_PX : textY;
+    const top = item.below ? textY : textY - stack;
+    const bottom = item.below ? textY + stack : textY;
     return {
         x,
         textY,
@@ -171,7 +186,8 @@ const makeLabelBox = (item: CurveLabelLayoutInput, textY: number, canvasWidth: n
     };
 };
 
-const labelTextY = (item: CurveLabelLayoutInput) => item.yPx + markerLabelDy(item.below) + (item.topInsetPx ?? 0);
+const labelTextY = (item: CurveLabelLayoutInput, scale: number) =>
+    item.yPx + markerLabelDy(item.below, 0, scale) + (item.topInsetPx ?? 0);
 
 /**
  * Axis max converts to the plot top and can land a fraction above it.
@@ -184,7 +200,12 @@ export const clampCurveLabelY = (yPx: number, plotY: number, plotHeight: number)
 };
 
 /** Time-ordered greedy packing. Prefer the curve side, then flip if still blocked. */
-export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[], canvasWidth = Infinity): CurveLabelBox[] => {
+export const layoutCurveLabelBoxes = (
+    items: CurveLabelLayoutInput[],
+    canvasWidth = Infinity,
+    scale = 1,
+): CurveLabelBox[] => {
+    const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
     const order = items
         .map((item, index) => ({ item, index }))
         .filter(({ item }) => Number.isFinite(item.xPx) && Number.isFinite(item.yPx))
@@ -192,22 +213,22 @@ export const layoutCurveLabelBoxes = (items: CurveLabelLayoutInput[], canvasWidt
     const placed: CurveLabelBox[] = [];
     const byIndex: CurveLabelBox[] = [];
     for (const { item, index } of order) {
-        let textY = labelTextY(item);
-        let box = makeLabelBox(item, textY, canvasWidth);
+        let textY = labelTextY(item, scale);
+        let box = makeLabelBox(item, textY, canvasWidth, scale);
         const trySteps = (dir: number) => {
             let step = 0;
             let next = box;
-            while (placed.some((prior) => boxesOverlap(next, prior)) && step < 24) {
-                textY += dir * MARKER_LABEL_STACK_PX;
-                next = makeLabelBox(item, textY, canvasWidth);
+            while (placed.some((prior) => boxesOverlap(next, prior, scale)) && step < 24) {
+                textY += dir * stack;
+                next = makeLabelBox(item, textY, canvasWidth, scale);
                 step += 1;
             }
             return next;
         };
         box = trySteps(item.below ? 1 : -1);
-        if (placed.some((prior) => boxesOverlap(box, prior))) {
-            textY = labelTextY(item);
-            box = makeLabelBox(item, textY, canvasWidth);
+        if (placed.some((prior) => boxesOverlap(box, prior, scale))) {
+            textY = labelTextY(item, scale);
+            box = makeLabelBox(item, textY, canvasWidth, scale);
             box = trySteps(item.below ? -1 : 1);
         }
         placed.push(box);
@@ -223,15 +244,17 @@ export const getMarkerLabelGeometry = ({
     rank,
     text,
     below = false,
+    scale = 1,
 }: {
     anchorX: number;
     anchorY: number;
     rank: number;
     text: string;
     below?: boolean;
+    scale?: number;
 }): MarkerLabelGeometry => ({
-    x: anchorX + MARKER_LABEL_X_OFFSET_PX,
-    y: anchorY + markerLabelDy(below, rank),
+    x: anchorX + scaleChartPx(MARKER_LABEL_X_OFFSET_PX, scale),
+    y: anchorY + markerLabelDy(below, rank, scale),
     align: 'left',
     text,
     rank,
@@ -264,6 +287,8 @@ export interface MarkerBuildParams {
     targetXs?: number[];
     targetBt?: (number | null)[];
     hideChargeLabel?: boolean;
+    /** 1, 1.5, or 2. Label inset and the target-delta mark use this. */
+    fontScale?: number;
 }
 
 export interface MarkerBuildResult {
@@ -299,6 +324,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         targetXs,
         targetBt,
         hideChargeLabel = false,
+        fontScale = 1,
     } = params;
 
     // Charge: t=0 = 좌단 축 (#451). 세로선 없음. 라이브는 라벨도 숨김.
@@ -397,7 +423,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                 color: markerLabelColor(m.event),
                 below: atTop || LABEL_BELOW_EVENTS.has(m.event),
                 showDot: m.event === 'Charge' ? false : showDot,
-                topInsetPx: noteLabelTopInsetPx(atTop),
+                topInsetPx: noteLabelTopInsetPx(atTop, fontScale),
             };
         }),
         ...visibleTurningPoints.map((tp) => ({
@@ -426,6 +452,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             over: colors.targetDeltaOver,
             under: colors.targetDeltaUnder,
         },
+        fontScale,
     });
     if (targetDeltaPoint) markPointData.push(targetDeltaPoint);
 

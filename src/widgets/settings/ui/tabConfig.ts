@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { CreditCard, Flame, Info, LayoutDashboard, LifeBuoy, type LucideIcon, User, Users } from 'lucide-react';
 
 export type SettingsTabId = 'general' | 'roast' | 'account' | 'billing' | 'team' | 'software' | 'support';
@@ -8,6 +9,19 @@ export interface TabConfig {
     icon: LucideIcon;
     title: string;
     description: string;
+}
+
+function searchText(value: unknown): string {
+    if (typeof value === 'string') return value;
+    return value && typeof value === 'object' ? Object.values(value).map(searchText).join(' ') : '';
+}
+
+export function getSearchTabs(t: TFunction, query: string) {
+    const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    return getTabs(t).filter((tab) => {
+        const text = searchText(t(`settings.tabs.${tab.id}`, { returnObjects: true })).toLocaleLowerCase();
+        return terms.every((term) => text.includes(term));
+    });
 }
 
 export const getTabs = (t: (key: string) => string): TabConfig[] => {

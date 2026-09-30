@@ -2,7 +2,7 @@ import { logger } from '@shared/lib/logger';
 import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
 import { useRoastSessionStore } from './shared/store/roastSession';
@@ -28,9 +28,10 @@ import { Orders } from './views/orders/Orders';
 import { Pricing } from './views/pricing/Pricing';
 import { Profiles } from './views/profiles/Profiles';
 import { Schedule } from './views/schedule/Schedule';
+import { Settings } from './views/settings/Settings';
 import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
 import { PendingRoastRecovery } from './widgets/pending-roast-recovery';
-import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
+import type { SettingsTabId } from './widgets/settings/ui/tabConfig';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 
 // VOC: restore first-run theme picker
@@ -112,8 +113,8 @@ export const App = () => {
         bridge.remountRoast = () => setRoastMount((n) => n + 1);
     }, []);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [settingsOpen, setSettingsOpen] = useState(false);
-    const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
+    const [settingsTab, setSettingsTab] = useState<SettingsTabId>('general');
+    const settingsReturnView = useRef<View>('dashboard');
     const startBatch = useRoastSessionStore((s) => s.startBatch);
     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
 
@@ -123,8 +124,9 @@ export const App = () => {
     }, [view]);
 
     const openSettings = (tab: SettingsTabId = 'general') => {
-        setSettingsInitialTab(tab);
-        setSettingsOpen(true);
+        if (view !== 'settings') settingsReturnView.current = view;
+        setSettingsTab(tab);
+        setView('settings');
     };
 
     const openComparePlans = () => {
@@ -217,24 +219,38 @@ export const App = () => {
                 {/* VOC: restore first-run theme picker — {theme === null && <ThemeSelectModal />} */}
                 <PendingRoastRecovery />
                 <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                    <Sidebar
-                        activeView={view}
-                        onNavigate={setView}
-                        collapsed={sidebarCollapsed}
-                        onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
-                        onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
-                    />
+                    {view !== 'settings' && (
+                        <Sidebar
+                            activeView={view}
+                            onNavigate={setView}
+                            collapsed={sidebarCollapsed}
+                            onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
+                            onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
+                        />
+                    )}
                     <div
                         style={{
                             flex: 1,
                             minHeight: 0,
+                            minWidth: 0,
                             display: 'flex',
                             flexDirection: 'column',
-                            overflow: view === 'roast' ? 'hidden' : 'auto',
+                            overflow: view === 'roast' || view === 'settings' ? 'hidden' : 'auto',
                             background: 'var(--color-surface)',
                         }}
                     >
-                        <InventoryAlertBanner userId={workspaceOwnerId || user.id} onNavigate={setView} />
+                        {view !== 'settings' && (
+                            <InventoryAlertBanner userId={workspaceOwnerId || user.id} onNavigate={setView} />
+                        )}
+                        {view === 'settings' && (
+                            <ViewErrorBoundary>
+                                <Settings
+                                    activeTab={settingsTab}
+                                    onTabChange={setSettingsTab}
+                                    onClose={() => setView(settingsReturnView.current)}
+                                />
+                            </ViewErrorBoundary>
+                        )}
                         {view === 'dashboard' && (
                             <ViewErrorBoundary>
                                 <Dashboard onNavigate={setView} />
@@ -303,11 +319,6 @@ export const App = () => {
                         )}
                     </div>
                 </div>
-                <SettingsModal
-                    open={settingsOpen}
-                    initialTab={settingsInitialTab}
-                    onClose={() => setSettingsOpen(false)}
-                />
 
                 {isSidecarDead && (
                     <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">

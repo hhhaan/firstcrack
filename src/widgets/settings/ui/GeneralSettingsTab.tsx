@@ -3,11 +3,11 @@ import { inventoryStore } from '@shared/lib/inventoryStore';
 import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
 // VOC: restore dark/system picker
 // import { type Theme, useThemeStore } from '@shared/store/theme';
-import { SectionCard } from '@shared/ui/SectionCard';
-import { Languages, Package } from 'lucide-react';
+import { FormSelect } from '@shared/ui/FormSelect';
+import { inputCls } from '@shared/ui/form-styles';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SettingsCheckRow } from './SettingsOptionRow';
+import { SettingsRow, SettingsSection } from './SettingsSection';
 
 /*
 VOC: restore dark/system picker — uncomment themeOptions / MiniWindow / ThemePreview
@@ -105,43 +105,50 @@ export const GeneralSettingsTab = () => {
     };
 
     return (
-        <div className="grid gap-4">
-            <SectionCard>
-                <SectionCard.Header
-                    icon={<Languages size={16} strokeWidth={1.8} />}
-                    title={t('settings.tabs.general.language')}
+        <SettingsSection>
+            <SettingsSection.Header title={t('settings.groups.workspace')} />
+            <SettingsSection.Body className="divide-y divide-border-subtle p-0">
+                <SettingsRow
+                    controlId="settings-language"
+                    label={t('settings.tabs.general.language')}
                     description={t('settings.tabs.general.languageDescription')}
-                />
-                <SectionCard.Body className="grid gap-1.5">
-                    {supportedLanguages.map((language) => (
-                        <SettingsCheckRow
-                            key={language}
-                            checked={i18n.resolvedLanguage === language}
-                            label={t(`language.${language}`)}
-                            onChange={() => void setLanguage(language)}
-                        />
-                    ))}
-                </SectionCard.Body>
-            </SectionCard>
-
-            <SectionCard>
-                <SectionCard.Header
-                    icon={<Package size={16} strokeWidth={1.8} />}
-                    title="Stock alert horizon"
-                    description="Days ahead to reserve planned roasts when checking for bean shortages (default 28)."
-                />
-                <SectionCard.Body className="flex items-center gap-3">
+                >
+                    <FormSelect
+                        id="settings-language"
+                        aria-describedby="settings-language-description"
+                        value={i18n.resolvedLanguage}
+                        onChange={(event) => {
+                            const language = supportedLanguages.find((value) => value === event.target.value);
+                            if (language) void setLanguage(language);
+                        }}
+                        wrapperClassName="w-40 max-w-full"
+                        className="rounded-lg py-1.5 text-[13px]"
+                    >
+                        {supportedLanguages.map((language) => (
+                            <option key={language} value={language}>
+                                {t(`language.${language}`)}
+                            </option>
+                        ))}
+                    </FormSelect>
+                </SettingsRow>
+                <SettingsRow
+                    controlId="settings-horizon"
+                    label={t('settings.tabs.general.stockHorizon')}
+                    description={t('settings.tabs.general.stockHorizonDescription')}
+                >
                     <input
+                        id="settings-horizon"
+                        aria-describedby="settings-horizon-description"
                         type="number"
                         min={1}
                         max={365}
                         value={horizonDays}
-                        onChange={(e) => void saveHorizon(Number(e.target.value))}
-                        className="w-24 px-3 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-sm"
+                        onChange={(event) => void saveHorizon(Number(event.target.value))}
+                        className={`${inputCls} w-20 rounded-lg py-1.5 text-[13px]`}
                     />
-                    <span className="text-sm text-[#6B7280] dark:text-[#999]">days</span>
-                </SectionCard.Body>
-            </SectionCard>
-        </div>
+                    <span className="text-[12px] text-muted">{t('settings.tabs.general.days')}</span>
+                </SettingsRow>
+            </SettingsSection.Body>
+        </SettingsSection>
     );
 };

@@ -1,9 +1,9 @@
 import { logger } from '@shared/lib/logger';
-import { SectionCard } from '@shared/ui/SectionCard';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { ExternalLink, Mail } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SettingsOptionRow, settingsOptionLabelCls } from './SettingsOptionRow';
+import { SettingsSection } from './SettingsSection';
 
 const SUPPORT_EMAIL = 'support@firstcrackiscoming.com';
 const WEBSITE_URL = 'https://firstcrackiscoming.com';
@@ -23,14 +23,14 @@ export function SupportSettingsTab() {
     const { t } = useTranslation();
 
     return (
-        <div className="grid gap-4">
-            <SectionCard>
-                <SectionCard.Header
+        <div className="grid gap-6">
+            <SettingsSection>
+                <SettingsSection.Header
                     icon={<Mail size={16} strokeWidth={1.8} />}
                     title={t('settings.tabs.support.contactTitle')}
                     description={t('settings.tabs.support.contactDescription')}
                 />
-                <SectionCard.Body className="flex flex-col gap-3">
+                <SettingsSection.Body className="flex flex-col gap-3">
                     <SettingsOptionRow tone="muted">
                         <span className={settingsOptionLabelCls}>{SUPPORT_EMAIL}</span>
                     </SettingsOptionRow>
@@ -43,16 +43,16 @@ export function SupportSettingsTab() {
                         {t('settings.tabs.support.contactAction')}
                         <ExternalLink size={13} strokeWidth={2} className="text-[#9CA3AF] dark:text-[#666] ml-auto" />
                     </button>
-                </SectionCard.Body>
-            </SectionCard>
+                </SettingsSection.Body>
+            </SettingsSection>
 
-            <SectionCard>
-                <SectionCard.Header
+            <SettingsSection>
+                <SettingsSection.Header
                     icon={<ExternalLink size={16} strokeWidth={1.8} />}
                     title={t('settings.tabs.support.websiteTitle')}
                     description={t('settings.tabs.support.websiteDescription')}
                 />
-                <SectionCard.Body>
+                <SettingsSection.Body>
                     <button
                         type="button"
                         onClick={() => void openExternal(WEBSITE_URL, 'support open website')}
@@ -65,8 +65,8 @@ export function SupportSettingsTab() {
                             className="text-[#9CA3AF] dark:text-[#666] ml-auto shrink-0"
                         />
                     </button>
-                </SectionCard.Body>
-            </SectionCard>
+                </SettingsSection.Body>
+            </SettingsSection>
         </div>
     );
 }
