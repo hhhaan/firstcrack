@@ -5,7 +5,7 @@
  */
 import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { resetMachineLinkNotice } from '@features/machine-connection/lib/machineLinkNotice';
+import { resetMachineLinkNotice, setRoastLinkWatch } from '@features/machine-connection/lib/machineLinkNotice';
 import { useMachineSidecarConnection } from '@features/machine-connection/model/useMachineSidecarConnection';
 import { useToastStore } from '@shared/store/toast';
 import { act, createElement, StrictMode } from 'react';
@@ -162,8 +162,11 @@ it('toasts on the third temperature failure while status stays connected and the
         expect(toastCount()).toBe(0);
 
         // Same handoff Machines performs after a successful connect.
+        // Opening Active Roast leaves roastWatch set after you return here.
+        // That flag must not swallow this page's 3s temperature failures.
         act(() => {
             useRoastingStore.getState().enterPreheating(['heater']);
+            setRoastLinkWatch(true);
         });
         await flush();
 

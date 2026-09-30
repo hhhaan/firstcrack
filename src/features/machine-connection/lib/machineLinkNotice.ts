@@ -61,7 +61,7 @@ export const resetMachineLinkNotice = (): void => {
     ignoreConnected = false;
 };
 
-/** Live-roast temperature polling is the spike-aware source. Machine polls must not double-count. */
+/** Live-roast polling owns spike filtering. A machines spike must not reset that streak. */
 export const setRoastLinkWatch = (active: boolean): void => {
     roastWatch = active;
 };
@@ -185,8 +185,10 @@ export const observeMachineLink = (sample: LinkSample, epoch?: number): void => 
         filterBt(sample.bt, Date.now()) === null
             ? { ...sample, observation: 'spike' as const }
             : sample;
-    // Roast polling owns fault streaks. A machines-page temperature can still re-arm.
-    if (roastWatch && !temperatureRecovered(reading)) return;
+    // `roastWatch` stays set after leaving Active Roast. Dropping machines-page
+    // faults waits on that loop until a reload clears the flag. Spikes still
+    // stay with the roast baseline filter and must not re-arm.
+    if (roastWatch && reading.observation === 'spike') return;
     commit(reading);
 };
 

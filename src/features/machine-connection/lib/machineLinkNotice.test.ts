@@ -251,17 +251,30 @@ describe('machine link instability notice', () => {
         expect(toastCount()).toBe(1);
     });
 
-    it('lets the live-roast watch own the streak so the machine poll cannot double-count', () => {
+    it('counts machines-page temperature failures while the roast watch flag is still set', () => {
         arm();
         setRoastLinkWatch(true);
         observeMachineLink({ connected: true, observation: 'poll_error' });
         observeMachineLink({ connected: true, observation: 'stale' });
+        expect(toastCount()).toBe(0);
         observeMachineLink({ connected: true, observation: 'null' });
-        expect(toastCount()).toBe(0);
+        expect(toastCount()).toBe(1);
+        clearToasts();
+        observeMachineLink({ connected: true, observation: 'poll_error' });
         observeRoastLink({ connected: true, observation: 'poll_error' });
-        observeRoastLink({ connected: true, observation: 'stale' });
         expect(toastCount()).toBe(0);
-        observeRoastLink({ connected: true, observation: 'null' });
+    });
+
+    it('does not let a machines-page spike open or reset the streak during roast watch', () => {
+        arm();
+        setRoastLinkWatch(true);
+        observeMachineLink({ connected: true, observation: 'spike' });
+        observeMachineLink({ connected: true, observation: 'spike' });
+        observeMachineLink({ connected: true, observation: 'spike' });
+        expect(toastCount()).toBe(0);
+        observeMachineLink({ connected: true, observation: 'poll_error' });
+        observeMachineLink({ connected: true, observation: 'poll_error' });
+        observeMachineLink({ connected: true, observation: 'null' });
         expect(toastCount()).toBe(1);
     });
 
