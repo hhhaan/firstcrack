@@ -13,7 +13,8 @@ import { createBtFilter } from '@shared/lib/btFilter';
 import { errorMessage } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { deleteBbpTsv, enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
+import { deleteBbpTsv, enqueueTsvRow, formatRoastTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { listen } from '@tauri-apps/api/event';
 import { useEffect, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
@@ -21,6 +22,10 @@ import { shouldAcceptTick } from '../lib/poll-tick-gate';
 
 /** 좀비 사이드카 401. ready가 아니며 연결 끊김으로 승격하지 않는다. */
 const isUnauthorizedSidecar = (err: unknown): boolean => errorMessage(err).toLowerCase() === 'unauthorized';
+
+/** 원시 온도는 유한한 값만 보관한다. ET의 -1(채널 없음)도 남긴다. */
+const finiteRawTemperature = (value: number | null | undefined): number | null =>
+    typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 /** 폴링 중 누적하는 실시간 측정 포인트 */
 export interface LiveRoastPoint {
@@ -36,6 +41,13 @@ export interface LiveRoastPoint {
     drum: number;
     /** 사이드카가 마지막으로 쓴 heater 세트포인트. 열이 생기기 전 기록·쓰기 맵 없는 머신에는 없다 */
     heaterSet?: number | null;
+    /** 평활화 전 ET. 차트는 `et`를 쓴다 */
+    etRaw?: number | null;
+    /** 평활화 전 BT. 차트는 `bt`를 쓴다 */
+    btRaw?: number | null;
+    sensorTimestamp?: number | null;
+    sensorClock?: string | null;
+    processing?: TemperatureProcessing;
 }
 
 interface Params {
@@ -187,6 +199,12 @@ export const useSidecarPolling = ({
             // 대기 커브는 지우되 Charge 로그와 같은 00:00 시작점은 보존한다 (#452).
             const lastPoint = livePoints.length > 0 ? livePoints[livePoints.length - 1] : null;
             const sample = lastPoint ?? useRoastingStore.getState().liveData;
+            const etRaw = lastPoint
+                ? (lastPoint.etRaw ?? null)
+                : (useRoastingStore.getState().liveData?.et_raw ?? null);
+            const btRaw = lastPoint
+                ? (lastPoint.btRaw ?? null)
+                : finiteRawTemperature(useRoastingStore.getState().liveData?.bt_raw);
             const seed: LiveRoastPoint | null =
                 chargeBt != null && Number.isFinite(chargeBt)
                     ? {
@@ -200,14 +218,16 @@ export const useSidecarPolling = ({
                           fan: sample?.fan ?? 0,
                           drum: sample?.drum ?? 0,
                           heaterSet: lastPoint?.heaterSet ?? null,
+                          etRaw,
+                          btRaw,
+                          sensorTimestamp: null,
+                          sensorClock: null,
+                          processing: sample?.processing,
                       }
                     : null;
             setLivePoints(seed ? [seed] : []);
             if (seed && bbpSessionId) {
-                enqueueTsvRow(
-                    bbpSessionId,
-                    `0.00\t${seed.bt}\t${seed.et ?? ''}\t\t${seed.heater ?? ''}\t${seed.fan}\t${seed.drum}\t${seed.heaterSet ?? ''}\n`,
-                );
+                enqueueTsvRow(bbpSessionId, formatRoastTsvRow(seed), seed.processing);
             }
             preChargeStartRef.current = 0;
             lastPreChargeAbsRef.current = 0;
@@ -381,6 +401,12 @@ export const useSidecarPolling = ({
                     useBbpStore.getState().append(
                         {
                             bt,
+                            btRaw: finiteRawTemperature(data.bt_raw),
+                            etRaw: finiteRawTemperature(data.et_raw),
+                            ror_et: data.ror_et ?? null,
+                            sensorTimestamp: deviceTimestamp,
+                            sensorClock: data.sensor_clock ?? null,
+                            processing: data.processing,
                             et: data.et ?? null,
                             heater: data.heater ?? null,
                             fan: data.fan ?? 0,
@@ -421,11 +447,15 @@ export const useSidecarPolling = ({
                         fan: data.fan ?? 0,
                         drum: data.drum ?? 0,
                         heaterSet: data.heater_set ?? null,
+                        etRaw: finiteRawTemperature(data.et_raw),
+                        btRaw: finiteRawTemperature(data.bt_raw),
+                        sensorTimestamp: deviceTimestamp,
+                        sensorClock: data.sensor_clock ?? null,
+                        processing: data.processing,
                     };
 
                     if (currentSessionId) {
-                        const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? ''}\t${data.fan ?? 0}\t${data.drum ?? 0}\t${data.heater_set ?? ''}\n`;
-                        enqueueTsvRow(currentSessionId, row);
+                        enqueueTsvRow(currentSessionId, formatRoastTsvRow(point), point.processing);
                     }
                     setLivePoints((prev) => [...prev, point]);
                 } else if (currentPhase === 'standby') {
@@ -454,6 +484,11 @@ export const useSidecarPolling = ({
                             fan: data.fan ?? 0,
                             drum: data.drum ?? 0,
                             heaterSet: data.heater_set ?? null,
+                            etRaw: finiteRawTemperature(data.et_raw),
+                            btRaw: finiteRawTemperature(data.bt_raw),
+                            sensorTimestamp: deviceTimestamp,
+                            sensorClock: data.sensor_clock ?? null,
+                            processing: data.processing,
                         },
                     ]);
                 }

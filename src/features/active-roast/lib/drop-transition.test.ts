@@ -38,7 +38,13 @@ describe('dropBbpStartMs', () => {
 
 describe('foldPostDropPointsToBbp', () => {
     it('moves auto-Drop lookback samples onto BBP t=0 at Drop', () => {
-        const seed = foldPostDropPointsToBbp([pt(598, 205), pt(600, 204), pt(601.5, 150), pt(603, 148)], 600);
+        const seed = foldPostDropPointsToBbp(
+            [pt(598, 205), { ...pt(600, 204), btRaw: 203.75, etRaw: 211.75, ror_et: 4 }, pt(601.5, 150), pt(603, 148)],
+            600,
+        );
+        expect(seed[0].btRaw).toBe(203.75);
+        expect(seed[0].etRaw).toBe(211.75);
+        expect(seed[0].ror_et).toBe(4);
         expect(seed.map((p) => [p.t, p.bt])).toEqual([
             [0, 204],
             [1.5, 150],

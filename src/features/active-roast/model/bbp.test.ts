@@ -1,10 +1,48 @@
+import { parseTsv } from '@shared/lib/tsv';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BBP_MAX_SECONDS, hydrateLiveBbp, useBbpStore } from './bbp';
+import { BBP_MAX_SECONDS, bbpPointsToTsv, hydrateLiveBbp, useBbpStore } from './bbp';
 import { updateRoastSettings } from './settings';
 
 const sample = (bt: number) => ({ bt, et: 200, heater: 50, fan: 40, drum: 60 });
 
 describe('bbp store', () => {
+    it('archives sensor clock and calculation settings with BBP samples', () => {
+        const processing = {
+            algorithm_version: 'ema-least-squares-v1',
+            temperature_unit: 'C',
+            ror_unit: 'C/min',
+            timestamp_clock: 'sidecar-monotonic-seconds',
+            display_ema_alpha: 0.16,
+            ror_ema_alpha: 0.2,
+            ror_window_sec: 30,
+            ror_warmup_reads: 3,
+        } as const;
+        const point = {
+            ...sample(200),
+            t: 0,
+            btRaw: 199.75,
+            etRaw: 201.25,
+            ror_et: 4,
+            sensorTimestamp: 123.456789,
+            sensorClock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+            processing,
+        };
+        const tsv = bbpPointsToTsv([point, { ...point, t: 1, etRaw: -1 }, { ...point, t: 2, etRaw: undefined }]);
+        expect(tsv.match(/# processing\t/g)).toHaveLength(1);
+        expect(parseTsv(tsv)).toMatchObject([
+            {
+                bt: 200,
+                btRaw: 199.75,
+                etRaw: 201.25,
+                rorEt: 4,
+                sensorTimestamp: 123.456789,
+                sensorClock: point.sensorClock,
+                processing,
+            },
+            { t: 1, etRaw: -1, processing },
+            { t: 2, etRaw: null, processing },
+        ]);
+    });
     beforeEach(() => {
         useBbpStore.setState({
             active: false,
@@ -79,9 +117,9 @@ describe('bbp store', () => {
         expect(result?.seconds).toBe(1);
         expect(result?.chargeTemp).toBe(195.4); // 마지막 pre-charge 포인트 BT
         expect(result?.tsv).toBe(
-            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\n' +
-                '1.0\t210\t200\t\t50\t40\t60\t\n' +
-                '2.0\t195.4\t200\t\t50\t40\t60\t\n',
+            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\n' +
+                '1.0\t210\t200\t\t50\t40\t60\t\t\t\t\t\t\n' +
+                '2.0\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\n',
         );
         const s = useBbpStore.getState();
         expect(s.finalized).toEqual({ sessionId: 's1', seconds: 1, chargeTemp: 195.4 });
@@ -152,10 +190,10 @@ describe('bbp store', () => {
         expect(result?.seconds).toBe(900);
         expect(result?.chargeTemp).toBe(195.4);
         expect(result?.tsv).toBe(
-            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\n' +
-                '0.0\t200\t200\t\t50\t40\t60\t\n' +
-                '1.0\t199\t200\t\t50\t40\t60\t\n' +
-                '900.0\t195.4\t200\t\t50\t40\t60\t\n',
+            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\n' +
+                '0.0\t200\t200\t\t50\t40\t60\t\t\t\t\t\t\n' +
+                '1.0\t199\t200\t\t50\t40\t60\t\t\t\t\t\t\n' +
+                '900.0\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\n',
         );
         expect(result?.tsv).not.toContain(String(waitSec));
         expect(useBbpStore.getState().finalized).toEqual({

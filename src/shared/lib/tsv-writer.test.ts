@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { parseTsv } from './tsv';
 import {
     _resetTsvWriterForTests,
     bbpTsvPath,
@@ -7,6 +8,7 @@ import {
     enqueueTsvRow,
     flushTsv,
     formatRoastTsvRow,
+    formatTsvRows,
     initSessionTsv,
     replaceSessionTsv,
     sessionTsvPath,
@@ -15,6 +17,16 @@ import {
 } from './tsv-writer';
 
 const loggerCapture = vi.hoisted(() => vi.fn());
+const processing = {
+    algorithm_version: 'ema-least-squares-v1',
+    temperature_unit: 'C',
+    ror_unit: 'C/min',
+    timestamp_clock: 'sidecar-monotonic-seconds',
+    display_ema_alpha: 0.16,
+    ror_ema_alpha: 0.2,
+    ror_window_sec: 30,
+    ror_warmup_reads: 3,
+} as const;
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: loggerCapture } }));
 
 describe('tsv-writer', () => {
@@ -44,21 +56,47 @@ describe('tsv-writer', () => {
         await initSessionTsv('s1');
         enqueueTsvRow(
             's1',
-            formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50 }),
+            formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50, ror_et: 4 }),
         );
         enqueueTsvRow('s1', formatRoastTsvRow({ time: 612, bt: 150, et: 210, heater: 50, fan: 40, drum: 60 }));
         await flushTsv('s1');
         await replaceSessionTsv(
             's1',
-            formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50 }),
+            formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50, ror_et: 4 }),
         );
         const file = writes
             .filter((w) => w.path === 'session_s1.tsv')
             .reduce((acc, w) => (w.append ? acc + w.contents : w.contents), '');
         expect(file).toBe(
-            `${TSV_HEADER}${formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50 })}`,
+            `${TSV_HEADER}${formatRoastTsvRow({ time: 600, bt: 205, et: 210, heater: 50, fan: 40, drum: 60, heaterSet: 50, ror_et: 4 })}`,
         );
         expect(file).not.toContain('612');
+        expect(file.split('\n')[1].split('\t')[10]).toBe('4');
+    });
+
+    it('keeps processing changes through buffered writes and Drop replacement', async () => {
+        const point = { time: 1, bt: 200, et: 210, heater: null, fan: 0, drum: 0, processing };
+        const changed = { ...processing, ror_window_sec: 45 };
+        writeDelayMs = 5;
+        const init = initSessionTsv('meta');
+        enqueueTsvRow('meta', formatRoastTsvRow(point), processing);
+        enqueueTsvRow('meta', formatRoastTsvRow({ ...point, time: 2 }), processing);
+        enqueueTsvRow('meta', formatRoastTsvRow({ ...point, time: 3 }), changed);
+        enqueueTsvRow('meta', formatRoastTsvRow({ ...point, time: 4 }));
+        await init;
+        await flushTsv('meta');
+        const contents = () =>
+            writes
+                .filter((w) => w.path === sessionTsvPath('meta'))
+                .reduce((text, w) => (w.append ? text + w.contents : w.contents), '');
+        expect(contents().match(/# processing\t/g)).toHaveLength(3);
+        expect(parseTsv(contents()).map((p) => p.processing?.ror_window_sec)).toEqual([30, 30, 45, undefined]);
+        await replaceSessionTsv('meta', formatTsvRows([point], formatRoastTsvRow));
+        enqueueTsvRow('meta', formatRoastTsvRow({ ...point, time: 2 }), processing);
+        enqueueTsvRow('meta', formatRoastTsvRow({ ...point, time: 3 }), changed);
+        await flushTsv('meta');
+        expect(contents().match(/# processing\t/g)).toHaveLength(2);
+        expect(parseTsv(contents()).map((p) => p.processing?.ror_window_sec)).toEqual([30, 30, 45]);
     });
 
     it('sessionTsvPath formats filename', () => {

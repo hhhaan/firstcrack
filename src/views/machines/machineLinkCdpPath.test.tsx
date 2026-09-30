@@ -42,7 +42,8 @@ vi.mock('@shared/lib/osNotification', () => ({
     sendOsNotification: vi.fn(),
 }));
 
-vi.mock('@shared/lib/tsv-writer', () => ({
+vi.mock('@shared/lib/tsv-writer', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@shared/lib/tsv-writer')>()),
     enqueueTsvRow: mocks.enqueueTsvRow,
     initSessionTsv: mocks.initSessionTsv,
     writeBbpTsv: vi.fn(),

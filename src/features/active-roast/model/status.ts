@@ -1,4 +1,5 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
 import type { RawTemperatureSample } from '../lib/autoCharge';
 import type { SensorObservation } from '../lib/sensorObservation';
@@ -12,9 +13,13 @@ type LiveData = {
     bt: number | null;
     bt_raw?: number | null;
     timestamp?: number;
+    sensor_clock?: string;
+    processing?: TemperatureProcessing;
     receivedAtMs?: number;
     stale?: boolean;
     et: number | null;
+    /** Unsmoothed sensor ET. Archive only; display stays on `et`. */
+    et_raw?: number | null;
     ror: number;
     ror_et: number;
     /** null = 이 머신에 화력 피드백 채널이 없다 */

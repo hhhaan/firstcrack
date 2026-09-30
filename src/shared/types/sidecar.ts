@@ -89,11 +89,24 @@ export interface SidecarStatus {
 }
 
 // GET /temperatures 응답
+export interface TemperatureProcessing {
+    algorithm_version: string;
+    temperature_unit: 'C';
+    ror_unit: 'C/min';
+    timestamp_clock: 'sidecar-monotonic-seconds';
+    display_ema_alpha: number;
+    ror_ema_alpha: number;
+    ror_window_sec: number;
+    ror_warmup_reads: number;
+}
+
 export interface TemperatureReading {
     bt: number | null;
     /** Unsmoothed sensor BT for Charge detection; absent on older sidecars. */
     bt_raw?: number | null;
     et: number | null;
+    /** Unsmoothed sensor ET for archive only. -1 means no ET channel. Absent on older sidecars. */
+    et_raw?: number | null;
     ror: number;
     ror_et: number;
     heater: number | null;
@@ -102,6 +115,10 @@ export interface TemperatureReading {
     /** 사이드카가 이 연결에서 마지막으로 쓴 heater 세트포인트(수동·Replay·PID). 쓰기 전·쓰기 맵 없음·해제 후 null */
     heater_set?: number | null;
     timestamp: number;
+    /** Sidecar instance and connection epoch. Changes across restarts/reconnects. */
+    sensor_clock?: string;
+    /** Actual sidecar calculation settings used for this sample. */
+    processing?: TemperatureProcessing;
     /** 직전 read 실패로 이전 값을 유지 중인지 (사이드카 fail-open) */
     stale?: boolean;
     /** 백그라운드 자동 재연결 진행 중인지 */

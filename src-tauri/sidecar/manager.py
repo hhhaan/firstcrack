@@ -2,6 +2,7 @@ import asyncio
 import logging
 import math
 import time
+import uuid
 from collections import deque
 from typing import Any
 
@@ -237,6 +238,7 @@ class RoasterManager:
         self._last_good: dict[str, Any] | None = None
         self._last_good_ts: float = 0.0
         self._connection_epoch: int = 0
+        self._sensor_clock_id = uuid.uuid4().hex
         # role → 이 연결에서 마지막으로 어댑터에 쓴(클램프 후) 값. /temperatures의
         # heater_set 출처. 수동·Replay·PID 쓰기가 전부 control()을 지나므로 여기서 잡힌다.
         # 본체 조작반에서 돌린 값은 모른다 — 세트포인트 셀 readback이 붙기 전까지.
@@ -575,6 +577,7 @@ class RoasterManager:
             "bt": None,
             "bt_raw": None,
             "et": None,
+            "et_raw": None,
             "ror": 0.0,
             "ror_et": 0.0,
             "heater": None,
@@ -638,6 +641,7 @@ class RoasterManager:
                     **self._last_good,
                     "stale": True,
                     "bt_raw": None,
+                    "et_raw": None,
                     "reconnecting": reconnecting,
                     "timestamp": time.monotonic(),
                 }
@@ -690,6 +694,8 @@ class RoasterManager:
         payload = {
             "bt_raw": reading.bt,
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
+            # ET는 범위 검증하지 않는다. 미장착 프로브의 -1.0도 원본으로 남긴다.
+            "et_raw": reading.et,
             "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
             "ror": ror,
             "ror_et": ror_et,
@@ -699,6 +705,17 @@ class RoasterManager:
             "fan": int(round(reading.fan)),
             "drum": round(reading.drum, 1),
             "timestamp": reading.timestamp,
+            "sensor_clock": f"{self._sensor_clock_id}:{self._connection_epoch}",
+            "processing": {
+                "algorithm_version": config.MEASUREMENT_ALGORITHM_VERSION,
+                "temperature_unit": "C",
+                "ror_unit": "C/min",
+                "timestamp_clock": "sidecar-monotonic-seconds",
+                "display_ema_alpha": config.DISPLAY_ALPHA,
+                "ror_ema_alpha": config.EMA_ALPHA,
+                "ror_window_sec": self._ror_window_secs,
+                "ror_warmup_reads": config.ROR_WARMUP_READS,
+            },
             "stale": False,
             "reconnecting": reconnecting,
         }

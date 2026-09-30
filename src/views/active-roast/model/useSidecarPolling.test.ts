@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
+
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { resetMachineLinkNotice } from '@features/machine-connection/lib/machineLinkNotice';
+import { parseTsv } from '@shared/lib/tsv';
+import { writeBbpTsv } from '@shared/lib/tsv-writer';
 import { useToastStore } from '@shared/store/toast';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -30,7 +34,8 @@ vi.mock('@shared/lib/sidecar', () => ({
     },
 }));
 
-vi.mock('@shared/lib/tsv-writer', () => ({
+vi.mock('@shared/lib/tsv-writer', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@shared/lib/tsv-writer')>()),
     enqueueTsvRow: mocks.enqueueTsvRow,
     initSessionTsv: mocks.initSessionTsv,
     writeBbpTsv: vi.fn(),
@@ -115,6 +120,10 @@ it('enqueues the first sample with controls while TSV initialization is pending'
         fan: 40,
         drum: 60,
         heater_set: 75,
+        et_raw: 212.5,
+        bt_raw: 199.25,
+        timestamp: 123.456789,
+        sensor_clock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
     });
 
     useRoastingStore.setState({
@@ -144,7 +153,7 @@ it('enqueues the first sample with controls while TSV initialization is pending'
         expect(mocks.enqueueTsvRow).toHaveBeenCalledOnce();
         const [sessionId, row] = mocks.enqueueTsvRow.mock.calls[0];
         expect(sessionId).toBe('issue-315');
-        expect(row).toMatch(/\t80\t40\t60\t75\n$/);
+        expect(row).toMatch(/\t80\t40\t60\t75\t212\.5\t199\.25\t4\t123\.456789\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1\n$/);
     } finally {
         await act(async () => {
             finishInit();
@@ -395,6 +404,35 @@ it('does not promote poll unauthorized to disconnect', async () => {
     }
 });
 
+it('records unsmoothed ET alongside BT in the BBP archive', async () => {
+    mocks.getTemperatures.mockResolvedValue(reading({ bt_raw: 199.25, et_raw: 211.75 }));
+    useRoastingStore.setState({ phase: 'standby', sessionId: null, roastStartMs: 0 });
+    useBbpStore.getState().begin(Date.now() - 1000);
+    const root = createRoot(document.createElement('div'));
+    const Probe = () => {
+        useSidecarPolling({
+            isActive: true,
+            phase: 'standby',
+            pollIntervalMs: 60_000,
+            enterPreheating: vi.fn(),
+            setConnected: vi.fn(),
+            sessionId: null,
+        });
+        return null;
+    };
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        await vi.waitFor(() => expect(writeBbpTsv).toHaveBeenCalled());
+        expect(useBbpStore.getState().points[0]).toMatchObject({ btRaw: 199.25, et: 210, etRaw: 211.75 });
+        const tsv = vi.mocked(writeBbpTsv).mock.calls[0][1];
+        expect(parseTsv(tsv)[0]).toMatchObject({ btRaw: 199.25, et: 210, etRaw: 211.75 });
+    } finally {
+        act(() => root.unmount());
+        useBbpStore.getState().abort();
+    }
+});
+
 it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag %i ms, #452)', async (lagMs) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-13T12:00:00Z'));
@@ -452,9 +490,18 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
                 fan: 40,
                 drum: 60,
                 heaterSet: null,
+                etRaw: null,
+                btRaw: null,
+                sensorTimestamp: null,
+                sensorClock: null,
+                processing: undefined,
             },
         ]);
-        expect(mocks.enqueueTsvRow).toHaveBeenCalledWith('bbp-433', '0.00\t210.1\t210\t\t80\t40\t60\t\n');
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledWith(
+            'bbp-433',
+            '0.00\t210.1\t210\t\t80\t40\t60\t\t\t\t\t\t\n',
+            undefined,
+        );
         await act(async () => {
             await vi.advanceTimersByTimeAsync(500);
             resolveReading(nextReading);

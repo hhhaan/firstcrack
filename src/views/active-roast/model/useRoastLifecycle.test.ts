@@ -3,7 +3,7 @@ import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { formatRoastTsvRow, replaceSessionTsv } from '@shared/lib/tsv-writer';
+import { formatRoastTsvRow, formatTsvRows, replaceSessionTsv } from '@shared/lib/tsv-writer';
 import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -394,6 +394,17 @@ describe('completeDrop → BBP (#484)', () => {
     });
 
     it('rewrites session TSV at Drop so lookback is not uploaded with A', () => {
+        const processing = {
+            algorithm_version: 'ema-least-squares-v1',
+            temperature_unit: 'C',
+            ror_unit: 'C/min',
+            timestamp_clock: 'sidecar-monotonic-seconds',
+            display_ema_alpha: 0.16,
+            ror_ema_alpha: 0.2,
+            ror_window_sec: 30,
+            ror_warmup_reads: 3,
+        } as const;
+
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)]);
         try {
             void act(() => {
@@ -410,6 +421,9 @@ describe('completeDrop → BBP (#484)', () => {
                             fan: 40,
                             drum: 60,
                             heaterSet: 50,
+                            sensorTimestamp: 123.456789,
+                            sensorClock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+                            processing,
                         },
                         {
                             time: 612,
@@ -429,16 +443,25 @@ describe('completeDrop → BBP (#484)', () => {
             });
             expect(replaceSessionTsv).toHaveBeenCalledWith(
                 's-a',
-                formatRoastTsvRow({
-                    time: 600,
-                    bt: 205,
-                    et: 210,
-                    ror: 1,
-                    heater: 50,
-                    fan: 40,
-                    drum: 60,
-                    heaterSet: 50,
-                }),
+                formatTsvRows(
+                    [
+                        {
+                            time: 600,
+                            bt: 205,
+                            et: 210,
+                            ror: 1,
+                            ror_et: 0,
+                            heater: 50,
+                            fan: 40,
+                            drum: 60,
+                            heaterSet: 50,
+                            sensorTimestamp: 123.456789,
+                            sensorClock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+                            processing,
+                        },
+                    ],
+                    formatRoastTsvRow,
+                ),
             );
             const written = String(vi.mocked(replaceSessionTsv).mock.calls[0]?.[1] ?? '');
             expect(written).not.toContain('612.00');

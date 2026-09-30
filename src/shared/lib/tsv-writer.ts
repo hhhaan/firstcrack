@@ -1,7 +1,28 @@
 import { logger } from '@shared/lib/logger';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { BaseDirectory, remove, writeTextFile } from '@tauri-apps/plugin-fs';
 
-export const TSV_HEADER = 'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\n';
+export const TSV_HEADER =
+    'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\n';
+
+const processingLine = (processing?: TemperatureProcessing): string =>
+    processing ? `# processing\t${JSON.stringify(processing)}\n` : '';
+
+/** Metadata applies to following samples; repeat only when calculation settings change. */
+export const formatTsvRows = <T extends { processing?: TemperatureProcessing }>(
+    points: readonly T[],
+    formatRow: (point: T) => string,
+): string => {
+    let previous = '';
+    return points
+        .map((point) => {
+            const metadata = processingLine(point.processing);
+            const prefix = metadata !== previous ? metadata || '# processing\tnull\n' : '';
+            previous = metadata;
+            return prefix + formatRow(point);
+        })
+        .join('');
+};
 
 export type TsvWriteFn = (path: string, contents: string, options: { append?: boolean }) => Promise<void>;
 export type TsvRemoveFn = (path: string) => Promise<void>;
@@ -30,6 +51,7 @@ interface SessionQueue {
     appendError: Error | null;
     /** Rows enqueued before header is ready */
     pending: string[];
+    lastProcessing: string;
 }
 
 const sessions = new Map<string, SessionQueue>();
@@ -46,6 +68,7 @@ const getQueue = (sessionId: string): SessionQueue => {
             initError: null,
             appendError: null,
             pending: [],
+            lastProcessing: '',
         };
         sessions.set(sessionId, q);
     }
@@ -113,7 +136,7 @@ export const initSessionTsv = async (sessionId: string): Promise<void> => {
     if (!settled.ready) throw settled.initError ?? new Error(`TSV initialization failed: ${sessionId}`);
 };
 
-export const formatRoastTsvRow = (p: {
+export type RoastTsvPoint = {
     time: number;
     bt: number;
     et: number | null;
@@ -122,8 +145,19 @@ export const formatRoastTsvRow = (p: {
     fan: number;
     drum: number;
     heaterSet?: number | null;
-}): string =>
-    `${p.time.toFixed(2)}\t${p.bt}\t${p.et ?? ''}\t${p.ror ?? ''}\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t${p.heaterSet ?? ''}\n`;
+    /** 평활화 전 ET. 구 기록에는 없다. -1은 ET 채널 없음 */
+    etRaw?: number | null;
+    /** 평활화 전 BT. 구 기록에는 없다 */
+    btRaw?: number | null;
+    /** 사이드카가 계산한 ET RoR. 구 기록에는 없다 */
+    ror_et?: number | null;
+    sensorTimestamp?: number | null;
+    sensorClock?: string | null;
+    processing?: TemperatureProcessing;
+};
+
+export const formatRoastTsvRow = (p: RoastTsvPoint): string =>
+    `${p.time.toFixed(2)}\t${p.bt}\t${p.et ?? ''}\t${p.ror ?? ''}\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t${p.heaterSet ?? ''}\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\n`;
 
 /** Drop clip: replace the roast file so post-Drop samples are not uploaded with A. */
 export const replaceSessionTsv = async (sessionId: string, rows: string): Promise<void> => {
@@ -138,13 +172,18 @@ export const replaceSessionTsv = async (sessionId: string, rows: string): Promis
         q.initScheduled = true;
         q.initError = null;
         q.appendError = null;
+        const lastMetadata = rows
+            .split('\n')
+            .filter((line) => line.startsWith('# processing\t'))
+            .pop();
+        q.lastProcessing = lastMetadata && lastMetadata !== '# processing\tnull' ? `${lastMetadata}\n` : '';
     });
     await q.chain;
     const settled = getQueue(sessionId);
     if (settled.appendError) throw settled.appendError;
 };
 
-export const enqueueTsvRow = (sessionId: string, row: string): void => {
+export const enqueueTsvRow = (sessionId: string, row: string, processing?: TemperatureProcessing): void => {
     const q = getQueue(sessionId);
     if (q.initError !== null && !q.initScheduled) {
         void initSessionTsv(sessionId).catch(() => {});
@@ -154,11 +193,15 @@ export const enqueueTsvRow = (sessionId: string, row: string): void => {
 
     enqueue(sessionId, async () => {
         const q = getQueue(sessionId);
+        const metadata = processingLine(processing);
+        const prefix = metadata !== q.lastProcessing ? metadata || '# processing\tnull\n' : '';
+        q.lastProcessing = metadata;
+        const contents = prefix + line;
         if (!q.ready) {
-            q.pending.push(line);
+            q.pending.push(contents);
             return;
         }
-        await writeImpl(path, line, { append: true });
+        await writeImpl(path, contents, { append: true });
     });
 };
 
