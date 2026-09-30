@@ -7,7 +7,7 @@ import {
     FONT_SCALE_PCTS,
     fromDisplayTemp,
     isAlertSoundKind,
-    type PidDropBehavior,
+    // type PidDropBehavior, // PID 배출 화력 UI 복구 시 주석 해제
     type PollIntervalMs,
     playAlertSound,
     type RoastSettings,
@@ -57,18 +57,19 @@ const eventMarkerStyleOptions: { value: EventMarkerStyle; labelKey: string; desc
     },
 ];
 
-const pidDropBehaviorOptions: { value: PidDropBehavior; labelKey: string; descKey: string }[] = [
-    {
-        value: 'hold',
-        labelKey: 'settings.tabs.roast.pidDropHold',
-        descKey: 'settings.tabs.roast.pidDropHoldDescription',
-    },
-    {
-        value: 'zero',
-        labelKey: 'settings.tabs.roast.pidDropZero',
-        descKey: 'settings.tabs.roast.pidDropZeroDescription',
-    },
-];
+// PID 미사용. 나중에 넣을 때 주석 해제.
+// const pidDropBehaviorOptions: { value: PidDropBehavior; labelKey: string; descKey: string }[] = [
+//     {
+//         value: 'hold',
+//         labelKey: 'settings.tabs.roast.pidDropHold',
+//         descKey: 'settings.tabs.roast.pidDropHoldDescription',
+//     },
+//     {
+//         value: 'zero',
+//         labelKey: 'settings.tabs.roast.pidDropZero',
+//         descKey: 'settings.tabs.roast.pidDropZeroDescription',
+//     },
+// ];
 
 const visibilityOptions = [
     {
@@ -551,6 +552,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
+            {/* PID 미사용. 나중에 넣을 때 주석 해제.
             <SettingsSection>
                 <SettingsSection.Header title={tk('pidDropBehavior')} description={tk('pidDropBehaviorDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
@@ -567,6 +569,7 @@ export const RoastSettingsTab = () => {
                     ))}
                 </SettingsSection.Body>
             </SettingsSection>
+            */}
 
             <SettingsSection>
                 <SettingsSection.Header title={tk('bbp')} description={tk('bbpDescription')} />
