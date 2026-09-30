@@ -28,21 +28,21 @@ alarm gating are separate issues.
 - Evaluate adjacent samples and every second sample (11 retained points) for
   quantized probes. Actual timestamps normalize both 500ms and 1000ms polling.
 - Charge Standard 1s: 0.67°C/s, offset 0.5°C/s, BT > 77°C, standby (Charge Wait).
-- Drop Standard 1s: 0.34°C/s, offset 0.2°C/s, BT > 160°C, roasting, and only once
-  elapsed exceeds `autoDropStartMin` (default 7). Samples at or before that
-  minute are discarded, so a pre-gate candidate cannot fire when the gate
-  opens or the minute setting changes.
+- Drop Standard: 0.34°C/s and offset 0.2°C/s at both 500ms and 1000ms, BT > 160°C,
+  roasting, and only once elapsed exceeds `autoDropStartMin` (default 7). The 500ms
+  per-sample leg limit is -0.17°C, and the rise-to-fall reversal is 0.39°C/sample,
+  so both equal the 1s rates (0.34°C/s and 0.78°C/s). Artisan's 500ms leg of -0.20
+  is 0.40°C/s and its reversal stays 0.78°C/sample, which misses those bends.
+  Samples at or before the start minute are discarded, so a pre-gate candidate cannot
+  fire when the gate opens or the minute setting changes.
   These use Artisan Standard's 1s reference values, not W60A measurements.
   Unlike Artisan's sampling buckets, rates here use actual time intervals;
   there is no cap that lets an already-steep steady fall become a new event.
-- Drop-only (not Artisan `BTbreak`): the bend waits until BT is `autoDropConfirmC`
-  (default 2) below it. A later sample that is still falling keeps the candidate;
-  a stall or a 0.5°C bounce clears it, so a 1°C dip that recovers does not mark
-  Drop or stop PID. `0` confirms on the next sample that does not recover.
-  Charge uses the same wait when `autoChargeConfirmC` is above 0 (default 0
-  fires on the slope break). A step of at least `max(8, confirmC)` °C that then
-  holds is a Drop even when the second post-bend leg is flat; a rejected over-rate
-  sample is kept so the following confirmed step still sees the plateau.
+- Drop marks the bend on the next sample that does not recover by 0.5°C, so a 1°C dip
+  that recovers does not mark Drop or stop PID. Charge fires on the slope break.
+  A step of at least 8°C that then holds is a Drop even when the second post-bend leg
+  is flat; a rejected over-rate sample is kept so the following confirmed step still
+  sees the plateau.
 - Mark the higher point bordering the bend (last plateau point on a tie).
   Convert its sensor-time lag to the current sample's reception wall clock.
   This preserves existing event/session clock semantics; it does not remove
@@ -53,18 +53,15 @@ alarm gating are separate issues.
 
 ## Settings
 
-`autoChargeMode` / `autoDropMode` are Standard or Sensitive. `autoChargeConfirmC`
-(default 0) and `autoDropConfirmC` (default 2) are the minimum fall below the
-bend, in °C, clamped to 0–20. The degree applies in both modes; sensitivity
+`autoChargeMode` / `autoDropMode` are Standard or Sensitive. Sensitivity
 only changes the slope limits. `autoDropStartMin`
 is whole or fractional minutes after Charge (UI min 1, max 30, no step — same
 NumberInput as the time alarms). Missing and invalid stored values
 (non-positive, NaN, Infinity, non-numeric) read as the previous valid minute,
 or 7. The gate is `elapsed > minutes * 60` (the exact minute does not fire).
 Legacy
-`autoChargeDropC` and `autoDropDropC` (including stored °C thresholds) are
-ignored, never interpreted as a rate. The settings UI explains the replacement
-in all four locales.
+`autoChargeDropC`, `autoDropDropC`, `autoChargeConfirmC`, and `autoDropConfirmC`
+are ignored. Stored confirm degrees are not a rate and do not delay the mark.
 
 References: [Artisan parameters](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/canvas.py)
 and [checkTop / BTbreak](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/main.py).
