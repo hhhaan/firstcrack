@@ -89,7 +89,7 @@ interface TemperatureReading {
 | `bt`        | Bean Temperature, 표시용 EMA 원두 온도. 섭씨.                                               |
 | `bt_raw`    | 평활화 전 원시 BT (°C). Charge 감지용. `stale` 또는 연결 해제 응답에서는 null이다. 이전 사이드카의 필드 누락 시 자동 Charge를 중단하고 수동 투입을 안내한다. |
 | `et`        | Environment Temperature, 표시용 EMA. 섭씨. 차트·기록의 환경/배기 온도는 이 값이다. |
-| `et_raw`    | 평활화 전 원시 ET (°C). 보관·이후 검증용이며 차트와 자동 감지에는 쓰지 않는다. `stale` 또는 연결 해제 응답에서는 null이다. ET는 범위 검증을 하지 않으므로 프로브가 없으면 -1.0이 그대로 남는다. |
+| `et_raw`    | 평활화 전 원시 ET (°C). 보관·이후 검증용이며 차트와 자동 감지에는 쓰지 않는다. `stale`, 연결 해제, `NaN`/`Inf`에서는 null이다. 프로브가 없으면 -1.0이 그대로 남는다. |
 | `ror`       | BT 기준 Rate of Rise. 최근 30초 BT window의 선형 최소제곱 기울기. 단위 `°C/min`. |
 | `ror_et`    | ET 기준 Rate of Rise. 최근 30초 ET window의 선형 최소제곱 기울기. 단위 `°C/min`. |
 | `heater`    | 히터/버너 출력 값. adapter에 따라 0-100 또는 장비 raw 값. 화력 피드백 채널이 없는 머신(Phidget, heater 미매핑 Modbus/Probat WS)은 `null`. |

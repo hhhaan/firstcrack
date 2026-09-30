@@ -1,5 +1,6 @@
 """Unit tests for RoasterManager."""
 import asyncio
+import json
 import time
 from collections import deque
 from unittest.mock import patch
@@ -261,6 +262,39 @@ class TestReadTemperatures:
         assert stale["et_raw"] is None
         assert stale["sensor_clock"] == reading["sensor_clock"]
         assert stale["processing"] == reading["processing"]
+
+    async def test_non_finite_et_is_omitted_and_absent_probe_stays(self, manager):
+        """NaN/Inf ET는 그 값만 빼고 샘플은 살린다. -1은 프로브 없음이라 남긴다."""
+        manager._adapter = FakeAdapter(readings=[
+            make_reading(bt=200.0, et=float("nan"), ts=10.0),
+            make_reading(bt=201.0, et=210.0, ts=11.0),
+            make_reading(bt=202.0, et=float("inf"), ts=12.0),
+            make_reading(bt=203.0, et=-1.0, ts=13.0),
+        ])
+        manager._connected = True
+
+        missing = await manager.read_temperatures()
+        assert missing["bt_raw"] == 200.0
+        assert missing["et_raw"] is None
+        assert missing["et"] is None
+        assert missing["stale"] is False
+        assert manager._connected is True
+        json.dumps(missing, allow_nan=False)
+
+        good = await manager.read_temperatures()
+        assert good["et_raw"] == 210.0
+        assert good["et"] == 210.0
+
+        poisoned = await manager.read_temperatures()
+        assert poisoned["bt_raw"] == 202.0
+        assert poisoned["et_raw"] is None
+        assert poisoned["et"] == 210.0
+        assert manager._connected is True
+        json.dumps(poisoned, allow_nan=False)
+
+        absent = await manager.read_temperatures()
+        assert absent["et_raw"] == -1.0
+        json.dumps(absent, allow_nan=False)
 
     async def test_sensor_clock_changes_across_connections_and_sidecar_instances(self, manager):
         other = RoasterManager()

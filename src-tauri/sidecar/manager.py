@@ -680,7 +680,7 @@ class RoasterManager:
 
         if reading.bt > 0:
             self._add_to_ror_window(reading.timestamp, reading.bt)
-        if reading.et > 0:
+        if math.isfinite(reading.et) and reading.et > 0:
             self._add_to_et_ror_window(reading.timestamp, reading.et)
 
         if self._ror_warmup > 0:
@@ -691,12 +691,14 @@ class RoasterManager:
             ror = round(self._compute_ror(), 2)
             ror_et = round(self._compute_et_ror(), 2)
 
+        # -1.0은 프로브 없음이라 남긴다. NaN/Inf만 JSON을 깨뜨리므로 그 샘플의 원본은 뺀다.
+        et_raw = reading.et if math.isfinite(reading.et) else None
+        et_display = self._et_display_ema if self._et_display_ema is not None else et_raw
         payload = {
             "bt_raw": reading.bt,
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
-            # ET는 범위 검증하지 않는다. 미장착 프로브의 -1.0도 원본으로 남긴다.
-            "et_raw": reading.et,
-            "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
+            "et_raw": et_raw,
+            "et": round(et_display, 1) if et_display is not None else None,
             "ror": ror,
             "ror_et": ror_et,
             # None = 화력 피드백 채널 없음. 0으로 바꾸면 TSV에 "측정 0"으로 남아
