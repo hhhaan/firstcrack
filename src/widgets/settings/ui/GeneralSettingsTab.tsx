@@ -5,7 +5,7 @@ import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
 // import { type Theme, useThemeStore } from '@shared/store/theme';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls } from '@shared/ui/form-styles';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsRow, SettingsSection } from './SettingsSection';
 
@@ -92,14 +92,19 @@ export const GeneralSettingsTab = () => {
     // const theme = useThemeStore((s) => s.theme);
     // const setTheme = useThemeStore((s) => s.setTheme);
     // const activeTheme = theme ?? 'system';
-    const [horizonDays, setHorizonDays] = useState(STOCK_HORIZON_DAYS);
+    const [horizonDays, setHorizonDays] = useState<number | ''>(STOCK_HORIZON_DAYS);
+    const savedHorizonRef = useRef(STOCK_HORIZON_DAYS);
 
     useEffect(() => {
-        void inventoryStore.getHorizonDays().then(setHorizonDays);
+        void inventoryStore.getHorizonDays().then((days) => {
+            savedHorizonRef.current = days;
+            setHorizonDays(days);
+        });
     }, []);
 
     const saveHorizon = async (value: number) => {
         const next = Math.max(1, Math.min(365, value));
+        savedHorizonRef.current = next;
         setHorizonDays(next);
         await inventoryStore.setHorizonDays(next);
     };
@@ -143,7 +148,19 @@ export const GeneralSettingsTab = () => {
                         min={1}
                         max={365}
                         value={horizonDays}
-                        onChange={(event) => void saveHorizon(Number(event.target.value))}
+                        onChange={(event) => {
+                            const raw = event.currentTarget.value;
+                            if (raw === '') {
+                                setHorizonDays('');
+                                return;
+                            }
+                            const next = event.currentTarget.valueAsNumber;
+                            if (!Number.isFinite(next)) return;
+                            void saveHorizon(next);
+                        }}
+                        onBlur={() => {
+                            if (horizonDays === '') setHorizonDays(savedHorizonRef.current);
+                        }}
                         className={`${inputCls} w-20 rounded-lg py-1.5 text-[13px]`}
                     />
                     <span className="text-[12px] text-muted">{t('settings.tabs.general.days')}</span>
