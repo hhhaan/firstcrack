@@ -1,12 +1,15 @@
 import * as Sentry from '@sentry/react';
+import { QueryClient } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BatchLimitError } from './features/plan-matrix';
 import {
     buildSentryOptions,
     captureActionable,
     isActionableError,
+    isClientRefusal,
     isSentryEnabled,
     reactRootOptions,
+    retryUnlessClientRefusal,
     scrubSensitive,
     setSentryIdentity,
 } from './sentry';
@@ -91,9 +94,81 @@ describe('isActionableError', () => {
         expect(isActionableError('Command plugin:dialog|confirm not allowed by ACL')).toBe(false);
     });
 
+    it('drops deterministic PostgREST errors that have no HTTP status (42703)', () => {
+        const missingColumn = {
+            code: '42703',
+            message: 'column roast_sessions_1.heater_events does not exist',
+            details: null,
+            hint: null,
+        };
+        expect(isClientRefusal(missingColumn)).toBe(true);
+        expect(isActionableError(missingColumn)).toBe(false);
+        expect(retryUnlessClientRefusal(0, missingColumn)).toBe(false);
+        expect(retryUnlessClientRefusal(1, missingColumn)).toBe(false);
+        expect(isClientRefusal({ code: '23505', message: 'duplicate key value' })).toBe(true);
+        expect(isClientRefusal({ code: '22P02', message: 'invalid input syntax' })).toBe(true);
+    });
+
     it('keeps real TypeErrors and server failures', () => {
         expect(isActionableError(new TypeError("Cannot read properties of undefined (reading 'bt')"))).toBe(true);
         expect(isActionableError(new Error('new row violates row-level security policy'))).toBe(true);
+    });
+});
+
+describe('retryUnlessClientRefusal', () => {
+    const client = () =>
+        new QueryClient({
+            defaultOptions: { queries: { retry: retryUnlessClientRefusal, retryDelay: 0 } },
+        });
+
+    it('does not repeat a status-less 42703, and still repeats transport and 5xx', async () => {
+        const missingColumn = {
+            code: '42703',
+            message: 'column roast_sessions_1.heater_events does not exist',
+        };
+        let schemaCalls = 0;
+        const schemaClient = client();
+        await expect(
+            schemaClient.fetchQuery({
+                queryKey: ['schema'],
+                queryFn: async () => {
+                    schemaCalls += 1;
+                    throw missingColumn;
+                },
+            }),
+        ).rejects.toMatchObject({ code: '42703' });
+        expect(schemaCalls).toBe(1);
+
+        let transportCalls = 0;
+        const transportClient = client();
+        await expect(
+            transportClient.fetchQuery({
+                queryKey: ['transport'],
+                queryFn: async () => {
+                    transportCalls += 1;
+                    throw new TypeError('Failed to fetch');
+                },
+            }),
+        ).rejects.toThrow('Failed to fetch');
+        expect(transportCalls).toBe(3);
+
+        let serverCalls = 0;
+        const serverClient = client();
+        await expect(
+            serverClient.fetchQuery({
+                queryKey: ['server'],
+                queryFn: async () => {
+                    serverCalls += 1;
+                    throw { status: 503, message: 'upstream unavailable' };
+                },
+            }),
+        ).rejects.toMatchObject({ status: 503 });
+        expect(serverCalls).toBe(3);
+
+        expect(retryUnlessClientRefusal(0, { code: '08006', message: 'connection failure' })).toBe(true);
+        expect(retryUnlessClientRefusal(0, { status: 500 })).toBe(true);
+        expect(retryUnlessClientRefusal(2, { status: 500 })).toBe(false);
+        expect(retryUnlessClientRefusal(0, { status: 400 })).toBe(false);
     });
 });
 

@@ -1,6 +1,6 @@
 import { logger } from '@shared/lib/logger';
 // Sentry 초기화는 이 모듈 import의 side effect다 — App보다 먼저 평가되어야 한다.
-import { captureActionable, isClientRefusal, reactRootOptions } from '@shared/lib/sentry';
+import { captureActionable, reactRootOptions, retryUnlessClientRefusal } from '@shared/lib/sentry';
 import { isSupabaseConfigured, MISSING_SUPABASE_ENV } from '@shared/lib/supabase';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,8 +17,6 @@ import { showMutationErrorToast } from './shared/lib/mutationErrorToast';
 import { bindAuthQueryClient } from './shared/store/auth';
 import { ToastViewport } from './shared/ui/ToastViewport';
 import 'uplot/dist/uPlot.min.css';
-
-const is4xx = isClientRefusal;
 
 // silentError(meta)는 토스트 표시 정책일 뿐이다 — Sentry 전송 여부와 연결하지 않는다.
 const onQueryError = (error: Error) => captureActionable(error);
@@ -39,8 +37,8 @@ const queryClient = new QueryClient({
             gcTime: Infinity,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            // 4xx는 재시도 의미 없음 (인증/권한 문제) — 서버 오류(5xx)만 최대 2회 재시도
-            retry: (failureCount, error) => !is4xx(error) && failureCount < 2,
+            // 4xx·결정적 PostgREST(42703 등, status 없어도)는 재시도하지 않는다. 네트워크·5xx만 최대 2회.
+            retry: retryUnlessClientRefusal,
         },
     },
 });

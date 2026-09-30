@@ -95,7 +95,8 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const unit = useRoastSettings().temperatureUnit;
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: profiles = [], isLoading } = useRoastProfiles(workspaceOwnerId);
+    const { data: profiles = [], isLoading, isError } = useRoastProfiles(workspaceOwnerId);
+    const listFailed = isError && !isLoading && profiles.length === 0;
     const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
     const { mutate: deleteProfile } = useDeleteRoastProfile(workspaceOwnerId);
     const { mutateAsync: updateRoastProfile } = useUpdateRoastProfile(workspaceOwnerId);
@@ -350,7 +351,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         <PageLayout>
             <PageHeader
                 title={t('profiles.title')}
-                subtitle={isLoading ? undefined : t('profiles.subtitle', { count: profiles.length })}
+                subtitle={isLoading || listFailed ? undefined : t('profiles.subtitle', { count: profiles.length })}
                 actions={
                     <div className="flex gap-2 items-center">
                         {profiles.length > 1 && (
@@ -379,7 +380,14 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 }
             />
 
-            {!isLoading && profiles.length === 0 ? (
+            {listFailed ? (
+                <div
+                    role="alert"
+                    className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted dark:border dark:border-[#585d61]"
+                >
+                    {t('profiles.loadError')}
+                </div>
+            ) : !isLoading && profiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
                     <p className="text-sm text-muted tracking-[0.14px]">{t('profiles.empty')}</p>
                     <PillButton onClick={() => setShowNewModal(true)}>
@@ -391,17 +399,19 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 <MasterDetailLayout left={profileList} detail={renderDetail()} />
             )}
 
-            <NewProfileModal open={showNewModal} onClose={() => setShowNewModal(false)} onCreated={handleCreated} />
-            <NewProfileModal
-                open={showEditModal}
-                onClose={() => setShowEditModal(false)}
-                onCreated={() => {}}
-                editingProfile={selected}
-                onUpdated={async (updated) => {
-                    await updateRoastProfile(updated);
-                    setShowEditModal(false);
-                }}
-            />
+            {showNewModal && <NewProfileModal open onClose={() => setShowNewModal(false)} onCreated={handleCreated} />}
+            {showEditModal && selected && (
+                <NewProfileModal
+                    open
+                    onClose={() => setShowEditModal(false)}
+                    onCreated={() => {}}
+                    editingProfile={selected}
+                    onUpdated={async (updated) => {
+                        await updateRoastProfile(updated);
+                        setShowEditModal(false);
+                    }}
+                />
+            )}
         </PageLayout>
     );
 };

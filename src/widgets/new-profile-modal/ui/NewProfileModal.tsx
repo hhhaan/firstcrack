@@ -33,7 +33,11 @@ interface NewProfileModalProps {
     initialSessionId?: string | null;
 }
 
-export const NewProfileModal = ({
+/** Closed callers must not evaluate form, session, or curve hooks. */
+export const NewProfileModal = (props: NewProfileModalProps) =>
+    props.open ? <NewProfileModalOpen {...props} /> : null;
+
+const NewProfileModalOpen = ({
     open,
     onClose,
     onCreated,
@@ -46,13 +50,11 @@ export const NewProfileModal = ({
     const { mutateAsync: updateRoastProfile } = useUpdateRoastProfile(workspaceOwnerId);
     const unit = useRoastSettings().temperatureUnit;
     const [heatOpen, setHeatOpen] = useState(false);
-    const { points } = useResolvedProfileCurve(editingProfile ?? null);
+    const { points } = useResolvedProfileCurve(open ? (editingProfile ?? null) : null);
     const heatEditor = useMemo(
         () => resolveProfileHeatEditor(editingProfile ?? null, points),
         [editingProfile, points],
     );
-
-    if (!open) return null;
 
     return (
         <>

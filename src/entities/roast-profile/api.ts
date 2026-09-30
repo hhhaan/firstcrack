@@ -38,18 +38,44 @@ export const roastProfileCopyInsert = (profile: RoastProfileWithSource, name: st
     return { ...copy, name };
 };
 
-const SELECT_WITH_SOURCE =
+const SELECT_WITH_SESSION_HEATER =
     '*, source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,heater_events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+
+/** Same list shape when `roast_sessions.heater_events` is not on this database. */
+const SELECT_WITHOUT_SESSION_HEATER =
+    '*, source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+
+type ProfileListSelect = typeof SELECT_WITH_SESSION_HEATER | typeof SELECT_WITHOUT_SESSION_HEATER;
+
+// ponytail: remembered until reload. A column added later is picked up on the next launch.
+let omitSessionHeaterColumn = false;
+
+export const resetRoastProfileSourceSelectForTests = () => {
+    omitSessionHeaterColumn = false;
+};
+
+const isMissingSessionHeaterColumn = (error: unknown): boolean => {
+    if (!error || typeof error !== 'object') return false;
+    const row = error as { code?: unknown; message?: unknown };
+    return row.code === '42703' && typeof row.message === 'string' && row.message.includes('heater_events');
+};
+
+const listProfiles = (userId: string, select: ProfileListSelect) =>
+    supabase.from('roast_profiles').select(select).eq('user_id', userId).order('created_at', { ascending: false });
 
 export const roastProfileApi = {
     list: async (userId: string): Promise<RoastProfileWithSource[]> => {
-        const { data, error } = await supabase
-            .from('roast_profiles')
-            .select(SELECT_WITH_SOURCE)
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
-        if (error) throw error;
-        return data ?? [];
+        const select = omitSessionHeaterColumn ? SELECT_WITHOUT_SESSION_HEATER : SELECT_WITH_SESSION_HEATER;
+        const first = await listProfiles(userId, select);
+        // One narrower query — not a retry of the same select. Do not ALTER the database from here.
+        if (first.error && !omitSessionHeaterColumn && isMissingSessionHeaterColumn(first.error)) {
+            omitSessionHeaterColumn = true;
+            const second = await listProfiles(userId, SELECT_WITHOUT_SESSION_HEATER);
+            if (second.error) throw second.error;
+            return (second.data ?? []) as RoastProfileWithSource[];
+        }
+        if (first.error) throw first.error;
+        return (first.data ?? []) as RoastProfileWithSource[];
     },
 
     create: async (profile: RoastProfileInsert): Promise<RoastProfile> => {

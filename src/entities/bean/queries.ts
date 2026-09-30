@@ -8,11 +8,11 @@ export const beanKeys = {
     detail: (id: string) => ['beans', 'detail', id] as const,
 };
 
-export const useBeans = (userId: string) =>
+export const useBeans = (userId: string, options?: { enabled?: boolean }) =>
     useQuery({
         queryKey: beanKeys.all(userId),
         queryFn: () => beanApi.list(userId),
-        enabled: !!userId,
+        enabled: !!userId && (options?.enabled ?? true),
     });
 
 export const useBean = (id: string) =>

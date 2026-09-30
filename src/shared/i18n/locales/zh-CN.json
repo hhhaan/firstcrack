@@ -1186,6 +1186,7 @@
         "drop": "下豆",
         "newProfile": "新建曲线",
         "empty": "尚无曲线",
+        "loadError": "加载曲线配置失败，请重试。",
         "createFirst": "创建第一条曲线",
         "searchPlaceholder": "搜索曲线...",
         "subtitle_one": "{{count}}条曲线",

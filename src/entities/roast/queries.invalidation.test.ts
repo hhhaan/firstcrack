@@ -46,8 +46,10 @@ describe('roast session mutation invalidation', () => {
         const refetchTypes = spy.mock.calls.map((c) => (c[0] as { refetchType?: string })?.refetchType);
         expect(keys).toContainEqual(roastSessionKeys.all(uid));
         expect(keys).toContainEqual(dashboardKeys.all(uid));
+        expect(keys).toContainEqual(roastProfileQueryRoots.beanHistory);
+        expect(keys).toContainEqual(roastProfileQueryRoots.consistency);
         expect(keys).not.toContainEqual(['roast_sessions']);
-        expect(spy).toHaveBeenCalledTimes(2);
+        expect(spy).toHaveBeenCalledTimes(4);
         expect(refetchTypes.every((t) => t === 'all')).toBe(true);
     });
 
@@ -108,8 +110,12 @@ describe('roast session mutation invalidation', () => {
         const profileList = [...roastProfileQueryRoots.profiles, uid];
         const sourceEvents = [...roastProfileQueryRoots.profiles, 'source_events', 's1'];
         const consistency = [...roastProfileQueryRoots.consistency, 'p1'];
+        const previousProfile = [...roastProfileQueryRoots.beanHistory, 'p-old'];
+        const nextProfile = [...roastProfileQueryRoots.beanHistory, 'p-new'];
         const stock = roastedStockKeys.byUser(uid);
-        for (const key of [detailKey, profileList, sourceEvents, consistency, stock]) qc.setQueryData(key, {});
+        for (const key of [detailKey, profileList, sourceEvents, consistency, previousProfile, nextProfile, stock]) {
+            qc.setQueryData(key, {});
+        }
 
         await invalidateAfterRoastRecordEdit(qc, uid);
 
@@ -117,6 +123,32 @@ describe('roast session mutation invalidation', () => {
         expect(qc.getQueryState(profileList)?.isInvalidated).toBe(true);
         expect(qc.getQueryState(sourceEvents)?.isInvalidated).toBe(true);
         expect(qc.getQueryState(consistency)?.isInvalidated).toBe(true);
+        expect(qc.getQueryState(previousProfile)?.isInvalidated).toBe(true);
+        expect(qc.getQueryState(nextProfile)?.isInvalidated).toBe(true);
         expect(qc.getQueryState(stock)?.isInvalidated).toBe(false);
+    });
+
+    it('refreshes an observed profile stat and invalidates an unobserved one, then reuses a fresh cache', async () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+        const liveKey = [...roastProfileQueryRoots.beanHistory, 'p-live'];
+        const idleKey = [...roastProfileQueryRoots.consistency, 'p-idle'];
+        let fetches = 0;
+        const queryFn = async () => {
+            fetches += 1;
+            return [{ name: 'Yirg', count: fetches, lastDate: '2026-09-01' }];
+        };
+
+        await qc.fetchQuery({ queryKey: liveKey, queryFn, staleTime: Infinity });
+        await qc.fetchQuery({ queryKey: liveKey, queryFn, staleTime: Infinity });
+        expect(fetches).toBe(1);
+
+        qc.setQueryData(idleKey, [{ weight_grams: 1000 }]);
+        await invalidateRoastSessionQueries(qc, uid);
+
+        expect(qc.getQueryState(idleKey)?.isInvalidated).toBe(true);
+        await qc.fetchQuery({ queryKey: liveKey, queryFn, staleTime: Infinity });
+        expect(fetches).toBe(2);
+        await qc.fetchQuery({ queryKey: liveKey, queryFn, staleTime: Infinity });
+        expect(fetches).toBe(2);
     });
 });

@@ -76,18 +76,19 @@ export const useNewProfileForm = ({
     onUpdated,
     initialSessionId,
 }: UseNewProfileFormArgs) => {
-    const [mode, setMode] = useState<ProfileFormMode>('session-list');
-    const [form, setForm] = useState<ProfileFormState>(INITIAL_PROFILE_FORM);
-    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-    const [defaultType, setDefaultType] = useState<ProfileDefaultType>('none');
-    const [defaultBeanId, setDefaultBeanId] = useState<string | null>(null);
-    const [defaultBlendId, setDefaultBlendId] = useState<string | null>(null);
+    const initial = resolveNewProfileFormState(open, editingProfile);
+    const [mode, setMode] = useState<ProfileFormMode>(initial.mode);
+    const [form, setForm] = useState<ProfileFormState>(initial.form);
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(initial.selectedSessionId);
+    const [defaultType, setDefaultType] = useState<ProfileDefaultType>(initial.defaultType);
+    const [defaultBeanId, setDefaultBeanId] = useState<string | null>(initial.defaultBeanId);
+    const [defaultBlendId, setDefaultBlendId] = useState<string | null>(initial.defaultBlendId);
     const nameRef = useRef<HTMLInputElement>(null);
 
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: sessions = [] } = useRoastSessions(workspaceOwnerId, 'completed');
-    const { data: beans = [] } = useBeans(workspaceOwnerId);
-    const { data: blends = [] } = useBlends(workspaceOwnerId);
+    const { data: sessions = [] } = useRoastSessions(workspaceOwnerId, 'completed', { enabled: open });
+    const { data: beans = [] } = useBeans(workspaceOwnerId, { enabled: open });
+    const { data: blends = [] } = useBlends(workspaceOwnerId, { enabled: open });
 
     // Derive initial state from props during render to avoid stale UI commits
     const [prevOpen, setPrevOpen] = useState(open);
