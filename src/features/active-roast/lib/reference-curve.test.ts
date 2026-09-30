@@ -19,7 +19,7 @@ const point = (overrides: Partial<TsvPoint> & Pick<TsvPoint, 't' | 'bt'>): TsvPo
 describe('referenceCurveFromPoints', () => {
     it('keeps stored channels, including zeros, and does not copy heaterSet or invent gaps', () => {
         const curve = referenceCurveFromPoints([
-            point({ t: 0, bt: 100, et: 110, ror: 5, heater: 40, fan: 0, drum: 50, heaterSet: 80 }),
+            point({ t: 0, bt: 100, et: 110, ror: 5, heater: 40, fan: 0, drum: 50, heaterSet: 80, etRaw: 111 }),
             point({ t: 30, bt: 120, et: null, ror: null, heater: null, fan: null, drum: null }),
             point({ t: 60, bt: 140, et: Number.NaN, ror: Number.POSITIVE_INFINITY, heater: 0, fan: 12, drum: 55 }),
         ]);
@@ -29,6 +29,7 @@ describe('referenceCurveFromPoints', () => {
             { time: 60, bt: 140, et: null, ror: null, heater: 0, fan: 12, drum: 55 },
         ]);
         expect(curve[0]).not.toHaveProperty('heaterSet');
+        expect(curve[0]).not.toHaveProperty('etRaw');
         expect(referenceHasControls(curve)).toBe(true);
     });
 

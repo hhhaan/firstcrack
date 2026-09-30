@@ -12,7 +12,7 @@ import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sidecar } from '@shared/lib/sidecar';
-import { deleteBbpTsv, formatRoastTsvRow, replaceSessionTsv } from '@shared/lib/tsv-writer';
+import { deleteBbpTsv, formatRoastTsvRow, formatTsvRows, replaceSessionTsv } from '@shared/lib/tsv-writer';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
@@ -270,7 +270,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             });
             if (bbpEnabled) useBbpStore.getState().begin(planned.bbpStartMs, planned.bbpSeed);
             useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
-            void replaceSessionTsv(planned.sessionId, planned.roastPoints.map(formatRoastTsvRow).join('')).catch(
+            void replaceSessionTsv(planned.sessionId, formatTsvRows(planned.roastPoints, formatRoastTsvRow)).catch(
                 (err) => {
                     logger.capture(err instanceof Error ? err : new Error(String(err)), {
                         context: 'drop clip session tsv',

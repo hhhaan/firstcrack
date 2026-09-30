@@ -10,6 +10,7 @@ EMA_ALPHA = 0.2            # RoR 계산용
 DISPLAY_ALPHA = 0.16       # 화면 표시용
 ROR_WINDOW_SECS = 30.0     # RoR 최소제곱 슬라이딩 윈도우 길이
 ROR_WARMUP_READS = 3       # 연결/Charge 후 RoR 표시 억제 read 횟수
+MEASUREMENT_ALGORITHM_VERSION = "ema-least-squares-v1"  # 계산 방식 변경 시 버전도 변경
 
 # ── 장애 허용 ───────────────────────────────────────────────────────────
 # read 실패 시 이전 값을 유지하는 허용 횟수 (Artisan acceptable_errors=3)

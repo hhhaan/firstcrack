@@ -2,6 +2,7 @@ import asyncio
 import logging
 import math
 import time
+import uuid
 from collections import deque
 from typing import Any
 
@@ -237,6 +238,7 @@ class RoasterManager:
         self._last_good: dict[str, Any] | None = None
         self._last_good_ts: float = 0.0
         self._connection_epoch: int = 0
+        self._sensor_clock_id = uuid.uuid4().hex
         # role → 이 연결에서 마지막으로 어댑터에 쓴(클램프 후) 값. /temperatures의
         # heater_set 출처. 수동·Replay·PID 쓰기가 전부 control()을 지나므로 여기서 잡힌다.
         # 본체 조작반에서 돌린 값은 모른다 — 세트포인트 셀 readback이 붙기 전까지.
@@ -575,6 +577,7 @@ class RoasterManager:
             "bt": None,
             "bt_raw": None,
             "et": None,
+            "et_raw": None,
             "ror": 0.0,
             "ror_et": 0.0,
             "heater": None,
@@ -638,6 +641,7 @@ class RoasterManager:
                     **self._last_good,
                     "stale": True,
                     "bt_raw": None,
+                    "et_raw": None,
                     "reconnecting": reconnecting,
                     "timestamp": time.monotonic(),
                 }
@@ -676,7 +680,7 @@ class RoasterManager:
 
         if reading.bt > 0:
             self._add_to_ror_window(reading.timestamp, reading.bt)
-        if reading.et > 0:
+        if math.isfinite(reading.et) and reading.et > 0:
             self._add_to_et_ror_window(reading.timestamp, reading.et)
 
         if self._ror_warmup > 0:
@@ -687,10 +691,14 @@ class RoasterManager:
             ror = round(self._compute_ror(), 2)
             ror_et = round(self._compute_et_ror(), 2)
 
+        # -1.0은 프로브 없음이라 남긴다. NaN/Inf만 JSON을 깨뜨리므로 그 샘플의 원본은 뺀다.
+        et_raw = reading.et if math.isfinite(reading.et) else None
+        et_display = self._et_display_ema if self._et_display_ema is not None else et_raw
         payload = {
             "bt_raw": reading.bt,
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
-            "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
+            "et_raw": et_raw,
+            "et": round(et_display, 1) if et_display is not None else None,
             "ror": ror,
             "ror_et": ror_et,
             # None = 화력 피드백 채널 없음. 0으로 바꾸면 TSV에 "측정 0"으로 남아
@@ -699,6 +707,17 @@ class RoasterManager:
             "fan": int(round(reading.fan)),
             "drum": round(reading.drum, 1),
             "timestamp": reading.timestamp,
+            "sensor_clock": f"{self._sensor_clock_id}:{self._connection_epoch}",
+            "processing": {
+                "algorithm_version": config.MEASUREMENT_ALGORITHM_VERSION,
+                "temperature_unit": "C",
+                "ror_unit": "C/min",
+                "timestamp_clock": "sidecar-monotonic-seconds",
+                "display_ema_alpha": config.DISPLAY_ALPHA,
+                "ror_ema_alpha": config.EMA_ALPHA,
+                "ror_window_sec": self._ror_window_secs,
+                "ror_warmup_reads": config.ROR_WARMUP_READS,
+            },
             "stale": False,
             "reconnecting": reconnecting,
         }

@@ -1,6 +1,7 @@
 import { formatElapsed } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import type { LogEntry } from '@shared/types/roast';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import type { BbpPoint } from '../model/bbp';
 import type { TemperatureUnit } from '../model/settings';
 import { logEntryTimeSec } from './serialize-roast-events';
@@ -14,6 +15,12 @@ export type DropCurvePoint = {
     heater: number | null;
     fan: number;
     drum: number;
+    etRaw?: number | null;
+    btRaw?: number | null;
+    ror_et?: number | null;
+    sensorTimestamp?: number | null;
+    sensorClock?: string | null;
+    processing?: TemperatureProcessing;
 };
 
 export type DropOnset = { timeSec: number; bt: number };
@@ -62,6 +69,12 @@ export const foldPostDropPointsToBbp = (livePoints: DropCurvePoint[], dropTimeSe
         .map((p) => ({
             t: p.time - dropTimeSec,
             bt: p.bt,
+            btRaw: p.btRaw ?? null,
+            etRaw: p.etRaw ?? null,
+            ror_et: p.ror_et ?? null,
+            sensorTimestamp: p.sensorTimestamp ?? null,
+            sensorClock: p.sensorClock ?? null,
+            processing: p.processing,
             et: p.et,
             heater: p.heater,
             fan: p.fan,

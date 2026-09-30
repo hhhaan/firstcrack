@@ -1,5 +1,6 @@
 """Unit tests for RoasterManager."""
 import asyncio
+import json
 import time
 from collections import deque
 from unittest.mock import patch
@@ -217,6 +218,7 @@ class TestReadTemperatures:
         assert result["bt"] is None
         assert result["bt_raw"] is None
         assert result["et"] is None
+        assert result["et_raw"] is None
         assert result["ror"] == 0.0
 
     async def test_normal_read_returns_values(self, manager):
@@ -231,18 +233,79 @@ class TestReadTemperatures:
 
     async def test_raw_bt_is_unsmoothed_and_stale_is_flagged(self, manager):
         manager._adapter = FakeAdapter(readings=[
-            make_reading(bt=200.0, ts=10.0),
-            make_reading(bt=197.25, ts=11.0),
+            make_reading(bt=200.0, et=220.0, ts=10.0),
+            make_reading(bt=197.25, et=218.5, ts=11.0),
         ])
         manager._connected = True
         await manager.read_temperatures()
+        manager.update_settings({"ror_window_sec": 45})
         reading = await manager.read_temperatures()
         assert reading["bt_raw"] == 197.25
+        assert reading["et_raw"] == 218.5
         assert 197.25 < reading["bt"] < 200
+        assert reading["et"] != reading["et_raw"]
         assert reading["timestamp"] == 11.0
+        assert reading["sensor_clock"].startswith(f"{manager._sensor_clock_id}:")
+        assert reading["processing"] == {
+            "algorithm_version": config.MEASUREMENT_ALGORITHM_VERSION,
+            "temperature_unit": "C",
+            "ror_unit": "C/min",
+            "timestamp_clock": "sidecar-monotonic-seconds",
+            "display_ema_alpha": config.DISPLAY_ALPHA,
+            "ror_ema_alpha": config.EMA_ALPHA,
+            "ror_window_sec": 45,
+            "ror_warmup_reads": config.ROR_WARMUP_READS,
+        }
         stale = await manager.read_temperatures()
         assert stale["stale"] is True
         assert stale["bt_raw"] is None
+        assert stale["et_raw"] is None
+        assert stale["sensor_clock"] == reading["sensor_clock"]
+        assert stale["processing"] == reading["processing"]
+
+    async def test_non_finite_et_is_omitted_and_absent_probe_stays(self, manager):
+        """NaN/Inf ET는 그 값만 빼고 샘플은 살린다. -1은 프로브 없음이라 남긴다."""
+        manager._adapter = FakeAdapter(readings=[
+            make_reading(bt=200.0, et=float("nan"), ts=10.0),
+            make_reading(bt=201.0, et=210.0, ts=11.0),
+            make_reading(bt=202.0, et=float("inf"), ts=12.0),
+            make_reading(bt=203.0, et=-1.0, ts=13.0),
+        ])
+        manager._connected = True
+
+        missing = await manager.read_temperatures()
+        assert missing["bt_raw"] == 200.0
+        assert missing["et_raw"] is None
+        assert missing["et"] is None
+        assert missing["stale"] is False
+        assert manager._connected is True
+        json.dumps(missing, allow_nan=False)
+
+        good = await manager.read_temperatures()
+        assert good["et_raw"] == 210.0
+        assert good["et"] == 210.0
+
+        poisoned = await manager.read_temperatures()
+        assert poisoned["bt_raw"] == 202.0
+        assert poisoned["et_raw"] is None
+        assert poisoned["et"] == 210.0
+        assert manager._connected is True
+        json.dumps(poisoned, allow_nan=False)
+
+        absent = await manager.read_temperatures()
+        assert absent["et_raw"] == -1.0
+        json.dumps(absent, allow_nan=False)
+
+    async def test_sensor_clock_changes_across_connections_and_sidecar_instances(self, manager):
+        other = RoasterManager()
+        assert manager._sensor_clock_id != other._sensor_clock_id
+        with patch("manager.make_adapter", side_effect=lambda *_: FakeAdapter(readings=[make_reading()] * 4)):
+            await manager.connect("virtual", {})
+            first = await manager.read_temperatures()
+            await manager.disconnect()
+            await manager.connect("virtual", {})
+            second = await manager.read_temperatures()
+        assert first["sensor_clock"] != second["sensor_clock"]
 
     async def test_heater_none_is_not_reported_as_zero(self, manager):
         """화력 피드백 채널이 없는 머신은 None으로 나가야 한다.

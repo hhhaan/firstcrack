@@ -1,4 +1,5 @@
-import { TSV_HEADER } from '@shared/lib/tsv-writer';
+import { formatTsvRows, TSV_HEADER } from '@shared/lib/tsv-writer';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
 
 /** Rolling FIFO window (seconds) kept immediately before Charge. */
@@ -6,6 +7,12 @@ export const BBP_MAX_SECONDS = 900;
 
 export interface BbpSample {
     bt: number;
+    btRaw?: number | null;
+    etRaw?: number | null;
+    ror_et?: number | null;
+    sensorTimestamp?: number | null;
+    sensorClock?: string | null;
+    processing?: TemperatureProcessing;
     et: number | null;
     heater: number | null;
     fan: number;
@@ -196,9 +203,11 @@ const recordedSpanSeconds = (points: BbpPoint[]): number => {
 
 export const bbpPointsToTsv = (points: BbpPoint[]): string =>
     TSV_HEADER +
-    points
-        .map((p) => `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t\n`)
-        .join('');
+    formatTsvRows(
+        points,
+        (p) =>
+            `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\n`,
+    );
 
 const toTsv = bbpPointsToTsv;
 

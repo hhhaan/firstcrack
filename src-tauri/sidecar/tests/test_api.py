@@ -136,7 +136,7 @@ class TestTemperaturesEndpoint:
     async def test_temperatures_required_keys_present(self, client):
         resp = await client.get("/temperatures")
         data = await resp.json()
-        for key in ("bt", "et", "ror", "ror_et", "heater", "heater_set", "fan", "drum", "timestamp"):
+        for key in ("bt", "bt_raw", "et", "et_raw", "ror", "ror_et", "heater", "heater_set", "fan", "drum", "timestamp"):
             assert key in data
 
     async def test_temperatures_heater_set_follows_control_writes(self, client):

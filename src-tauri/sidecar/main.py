@@ -10,7 +10,7 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   GET  /status        → 현재 연결 상태
   POST /connect       → {"roaster": "easyster", "host": "...", ...}
   POST /disconnect
-  GET  /temperatures  → {"bt", "et", "ror", "heater", "heater_set", "fan", "timestamp"}
+  GET  /temperatures  → {"bt", "bt_raw", "et", "et_raw", "ror", "heater", "heater_set", "fan", "timestamp"}
   POST /start         → Charge 버튼 연동: 가상 머신 타이머 리셋 + RoR 윈도우 초기화
 
 어댑터 추가 방법:

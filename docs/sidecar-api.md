@@ -57,7 +57,8 @@ interface SidecarStatus {
 interface TemperatureReading {
     bt: number | null; // display EMA
     bt_raw?: number | null; // validated, unsmoothed sensor BT; absent on older sidecars
-    et: number | null;
+    et: number | null; // display EMA
+    et_raw?: number | null; // unsmoothed sensor ET; absent on older sidecars
     ror: number;
     ror_et: number;
     heater: number | null;
@@ -65,6 +66,17 @@ interface TemperatureReading {
     drum: number;
     heater_set: number | null;
     timestamp: number;
+    sensor_clock?: string; // sidecar instance UUID + connection epoch
+    processing?: {
+        algorithm_version: string;
+        temperature_unit: 'C';
+        ror_unit: 'C/min';
+        timestamp_clock: 'sidecar-monotonic-seconds';
+        display_ema_alpha: number;
+        ror_ema_alpha: number;
+        ror_window_sec: number;
+        ror_warmup_reads: number;
+    };
     stale: boolean;
     reconnecting: boolean;
 }
@@ -76,7 +88,8 @@ interface TemperatureReading {
 | ----------- | -------------------------------------------------------------------------------- |
 | `bt`        | Bean Temperature, 표시용 EMA 원두 온도. 섭씨.                                               |
 | `bt_raw`    | 평활화 전 원시 BT (°C). Charge 감지용. `stale` 또는 연결 해제 응답에서는 null이다. 이전 사이드카의 필드 누락 시 자동 Charge를 중단하고 수동 투입을 안내한다. |
-| `et`        | Environment Temperature, 환경/배기 온도. 섭씨.                                   |
+| `et`        | Environment Temperature, 표시용 EMA. 섭씨. 차트·기록의 환경/배기 온도는 이 값이다. |
+| `et_raw`    | 평활화 전 원시 ET (°C). 보관·이후 검증용이며 차트와 자동 감지에는 쓰지 않는다. `stale`, 연결 해제, `NaN`/`Inf`에서는 null이다. 프로브가 없으면 -1.0이 그대로 남는다. |
 | `ror`       | BT 기준 Rate of Rise. 최근 30초 BT window의 선형 최소제곱 기울기. 단위 `°C/min`. |
 | `ror_et`    | ET 기준 Rate of Rise. 최근 30초 ET window의 선형 최소제곱 기울기. 단위 `°C/min`. |
 | `heater`    | 히터/버너 출력 값. adapter에 따라 0-100 또는 장비 raw 값. 화력 피드백 채널이 없는 머신(Phidget, heater 미매핑 Modbus/Probat WS)은 `null`. |
@@ -739,3 +752,11 @@ npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
 - 기기별 BT/ET 주소 분기는 `roaster_registry.py`의 `channels`, `modbus_registers`, `channel_nodes`, 또는 Phidget channel 설정으로 처리한다.
 - `/roasters`는 내부 주소맵을 숨기고 폼 입력에 필요한 연결 파라미터만 반환한다.
 - 연결 실패는 HTTP error로 던지지 않고 `SidecarStatus.error`에 담기는 경우가 있다.
+
+### TSV measurement archive
+
+The first line stays the column header. Columns 9–13 are `et_raw`, `bt_raw`, `ror_et`, `sensor_timestamp`, and `sensor_clock`. Missing columns in older recordings read as null. `sensor_timestamp` is the adapter read time from Python `time.monotonic()`, in seconds, not UTC or Charge-relative time. Preserve its full precision. `sensor_clock` identifies the sidecar instance and connection epoch; do not compare sample times or carry filter state across different epochs. A synthetic Charge point has no sensor timestamp or clock.
+
+`# processing\t{JSON}` lines describe the calculation settings for following samples. They are written at the first archived sample with known settings and whenever settings change, and retained during Drop clipping and BBP saving. `# processing\tnull` clears the context when a sidecar supplies no settings. The archive reader validates these records and skips malformed metadata without discarding temperature samples. External TSV readers must skip comment lines.
+
+The metadata records the actual sidecar RoR window, RoR/display EMA alpha, warmup read count, units, timestamp clock, and algorithm version. Bump `MEASUREMENT_ALGORITHM_VERSION` when changing the sidecar measurement algorithm. Recorded samples are the frontend polling subset; this metadata does not promise exact recomputation of every sidecar/PID read. ET/RoR visibility settings affect only the live chart and tooltip; collection and archive writing continue.
