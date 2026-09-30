@@ -25,7 +25,9 @@ test('settings is a responsive page and preserves existing preferences and entry
     await expect(settings.getByRole('main').getByRole('heading', { name: 'Roasting', exact: true })).toBeVisible();
     await expect(search).toBeFocused();
     await expect(settings.getByRole('main').getByRole('heading', { name: 'RoR Span', exact: true })).toBeVisible();
-    await expect(settings.getByRole('main').getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeHidden();
+    await expect(
+        settings.getByRole('main').getByRole('heading', { name: 'Temperature Unit', exact: true }),
+    ).toBeHidden();
     await page.screenshot({ path: testInfo.outputPath('settings-search.png') });
     await expect(search).toHaveValue('ror');
     await search.fill('no-such-setting');
@@ -59,13 +61,18 @@ test('settings is a responsive page and preserves existing preferences and entry
     }
     await expect(settings.getByLabel('Stock alert horizon', { exact: true })).toHaveValue('42');
     await page.screenshot({ path: testInfo.outputPath('settings-desktop.png') });
+    await navigation.getByRole('button', { name: 'Profile', exact: true }).click();
+    await page.screenshot({ path: testInfo.outputPath('settings-profile-desktop.png') });
 
     await navigation.getByRole('button', { name: 'Roasting', exact: true }).click();
     await settings.getByRole('radio', { name: '°F', exact: true }).check();
     await expect(settings.getByRole('radio', { name: '°C', exact: true })).not.toBeChecked();
     await settings.getByRole('radio', { name: '°C', exact: true }).check();
-    await settings.getByRole('button', { name: 'Data Visibility' }).click();
-    const visibilityToggle = settings.getByRole('checkbox').first();
+    const visibilityToggle = settings
+        .locator('[data-settings-section]')
+        .filter({ has: page.getByRole('heading', { name: 'Data Visibility', exact: true }) })
+        .getByRole('checkbox')
+        .first();
     const wasChecked = await visibilityToggle.isChecked();
     await visibilityToggle.focus();
     await page.keyboard.press('Space');
@@ -77,6 +84,8 @@ test('settings is a responsive page and preserves existing preferences and entry
 
     await page.setViewportSize({ width: 600, height: 700 });
     await page.screenshot({ path: testInfo.outputPath('settings-narrow.png') });
+    await navigation.getByRole('button', { name: 'Profile', exact: true }).click();
+    await page.screenshot({ path: testInfo.outputPath('settings-profile-narrow.png') });
     for (const tab of ['General', 'Roasting', 'Profile', 'Team', 'Billing', 'Software', 'Support']) {
         await navigation.getByRole('button', { name: tab, exact: true }).click();
         const main = settings.getByRole('main');

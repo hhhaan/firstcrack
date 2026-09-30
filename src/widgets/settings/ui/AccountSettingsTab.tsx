@@ -1,13 +1,18 @@
 import { normalizeDisplayName, useProfile, useUpdateProfile } from '@entities/profile';
+import { cn } from '@shared/lib/cn';
 import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { logger } from '@shared/lib/logger';
 import { weatherKeys } from '@shared/lib/query-keys';
 import { useAuthStore } from '@shared/store/auth';
-import { formErrorCls } from '@shared/ui/form-styles';
+import { formErrorCls, inputCls } from '@shared/ui/form-styles';
+import { PillButton } from '@shared/ui/PillButton';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { ExternalLink, LogOut, UserRound } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SettingsRow, SettingsSection } from './SettingsSection';
 
 type AccountSettingsTabProps = {
     onClose: () => void;
@@ -16,8 +21,10 @@ type AccountSettingsTabProps = {
 const pillBtnCls =
     'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-transparent px-3 text-[13px] font-medium text-primary transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40';
 
-const valueCls =
-    'w-full min-w-0 border-none bg-transparent p-0 text-[15px] leading-6 text-primary outline-none placeholder:text-muted';
+const valueCls = cn(
+    inputCls,
+    'min-w-0 rounded-lg py-2 text-[13px] leading-5 placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+);
 
 function FieldRow({
     label,
@@ -31,15 +38,12 @@ function FieldRow({
     trailing?: ReactNode;
 }) {
     return (
-        <div className="grid grid-cols-1 items-center gap-1 border-b border-border-subtle py-3.5 @[36rem]:col-span-2 @[36rem]:grid-cols-subgrid @[36rem]:gap-x-10">
-            <label htmlFor={htmlFor} className="text-[13px] whitespace-nowrap text-muted">
-                {label}
-            </label>
-            <div className="flex min-w-0 items-center gap-3">
-                <div className="min-w-0 flex-1">{children}</div>
+        <SettingsRow label={label} controlId={htmlFor}>
+            <div className="flex w-full min-w-0 flex-col gap-2 @[480px]:w-80">
+                {children}
                 {trailing}
             </div>
-        </div>
+        </SettingsRow>
     );
 }
 
@@ -115,108 +119,124 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const empty = '—';
 
     return (
-        <div>
-            <section data-settings-section>
-                <FieldRow label={tk('displayName')} htmlFor="account-display-name">
-                    <input
-                        id="account-display-name"
-                        value={displayName}
-                        required
-                        placeholder={tk('displayNamePlaceholder')}
-                        aria-invalid={Boolean(displayNameError)}
-                        aria-describedby={displayNameError ? 'account-display-name-error' : undefined}
-                        onChange={(event) => {
-                            setDisplayNameTouched(true);
-                            setDisplayName(event.target.value);
-                        }}
-                        className={valueCls}
-                    />
-                    {displayNameError ? (
-                        <p id="account-display-name-error" className={formErrorCls}>
-                            {displayNameError}
-                        </p>
-                    ) : null}
-                </FieldRow>
-                <FieldRow label={tk('businessName')} htmlFor="account-business-name">
-                    <input
-                        id="account-business-name"
-                        value={businessName}
-                        placeholder={tk('businessNamePlaceholder')}
-                        onChange={(event) => setBusinessName(event.target.value)}
-                        className={valueCls}
-                    />
-                </FieldRow>
-                <FieldRow label={tk('businessRegNumber')} htmlFor="account-business-reg">
-                    <input
-                        id="account-business-reg"
-                        value={businessRegNumber}
-                        inputMode="numeric"
-                        placeholder={tk('businessRegNumberPlaceholder')}
-                        onChange={(event) => setBusinessRegNumber(event.target.value)}
-                        className={`${valueCls} tabular-nums tracking-[0.02em]`}
-                    />
-                </FieldRow>
-                <FieldRow label={tk('email')} htmlFor="account-email">
-                    <p id="account-email" className="m-0 truncate text-[15px] leading-6 text-secondary">
-                        {user?.email || empty}
-                    </p>
-                </FieldRow>
-                <FieldRow
-                    label={tk('location')}
-                    htmlFor="account-location"
-                    trailing={
-                        <button type="button" onClick={() => openUrl('https://maps.google.com')} className={pillBtnCls}>
-                            {tk('copyFromGoogleMaps')}
-                        </button>
-                    }
-                >
-                    <input
-                        id="account-location"
-                        value={location}
-                        placeholder={tk('locationPlaceholder')}
-                        onChange={(event) => setLocation(event.target.value)}
-                        className={`${valueCls} tabular-nums`}
-                    />
-                </FieldRow>
-                <div className="flex items-center justify-end gap-3 pt-4">
-                    {profileSaveStatus === 'saved' && (
-                        <span className="text-[13px] font-medium text-green-600 dark:text-green-400">
-                            {tk('saved')}
-                        </span>
-                    )}
-                    {profileSaveStatus === 'error' && (
-                        <span className="text-[13px] font-medium text-red-600 dark:text-red-400">
-                            {tk('saveFailed')}
-                        </span>
-                    )}
-                    <button
-                        type="button"
-                        onClick={handleSaveProfile}
-                        disabled={updateProfile.isPending || !trimmedDisplayName}
-                        className={pillBtnCls}
+        <div className="grid gap-6">
+            <SettingsSection>
+                <SettingsSection.Header icon={<UserRound size={16} strokeWidth={1.8} />} title={tk('profile')} />
+                <SettingsSection.Body className="divide-y divide-border-subtle p-0">
+                    <FieldRow label={tk('displayName')} htmlFor="account-display-name">
+                        <input
+                            id="account-display-name"
+                            value={displayName}
+                            required
+                            placeholder={tk('displayNamePlaceholder')}
+                            aria-invalid={Boolean(displayNameError)}
+                            aria-describedby={displayNameError ? 'account-display-name-error' : undefined}
+                            onChange={(event) => {
+                                setDisplayNameTouched(true);
+                                setDisplayName(event.target.value);
+                            }}
+                            className={valueCls}
+                        />
+                        {displayNameError ? (
+                            <p id="account-display-name-error" className={formErrorCls}>
+                                {displayNameError}
+                            </p>
+                        ) : null}
+                    </FieldRow>
+                    <FieldRow label={tk('businessName')} htmlFor="account-business-name">
+                        <input
+                            id="account-business-name"
+                            value={businessName}
+                            placeholder={tk('businessNamePlaceholder')}
+                            onChange={(event) => setBusinessName(event.target.value)}
+                            className={valueCls}
+                        />
+                    </FieldRow>
+                    <FieldRow label={tk('businessRegNumber')} htmlFor="account-business-reg">
+                        <input
+                            id="account-business-reg"
+                            value={businessRegNumber}
+                            inputMode="numeric"
+                            placeholder={tk('businessRegNumberPlaceholder')}
+                            onChange={(event) => setBusinessRegNumber(event.target.value)}
+                            className={`${valueCls} tabular-nums tracking-[0.02em]`}
+                        />
+                    </FieldRow>
+                    <FieldRow label={tk('email')} htmlFor="account-email">
+                        <input
+                            id="account-email"
+                            value={user?.email || empty}
+                            readOnly
+                            className={cn(valueCls, 'border-border-subtle bg-surface/50 text-secondary shadow-none')}
+                        />
+                    </FieldRow>
+                    <FieldRow
+                        label={tk('location')}
+                        htmlFor="account-location"
+                        trailing={
+                            <SurfaceButton
+                                onClick={() => openUrl('https://maps.google.com')}
+                                icon={<ExternalLink size={13} aria-hidden />}
+                                className="max-w-full self-start text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            >
+                                {tk('copyFromGoogleMaps')}
+                            </SurfaceButton>
+                        }
                     >
-                        {updateProfile.isPending ? tk('saving') : tk('saveChanges')}
-                    </button>
-                </div>
-            </section>
-
-            <section data-settings-section className="mt-8 border-t border-border-subtle pt-4">
-                <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                        <div className="text-[13px] text-primary">{tk('session')}</div>
-                        <div className="mt-0.5 text-[12px] text-muted">{tk('sessionDescription')}</div>
+                        <input
+                            id="account-location"
+                            value={location}
+                            placeholder={tk('locationPlaceholder')}
+                            onChange={(event) => setLocation(event.target.value)}
+                            className={`${valueCls} tabular-nums`}
+                        />
+                    </FieldRow>
+                    <div className="flex flex-wrap items-center justify-end gap-3 px-4 py-3">
+                        {profileSaveStatus === 'saved' && (
+                            <span className="text-[13px] font-medium text-green-600 dark:text-green-400">
+                                {tk('saved')}
+                            </span>
+                        )}
+                        {profileSaveStatus === 'error' && (
+                            <span className="text-[13px] font-medium text-red-600 dark:text-red-400">
+                                {tk('saveFailed')}
+                            </span>
+                        )}
+                        <PillButton
+                            type="button"
+                            onClick={handleSaveProfile}
+                            disabled={updateProfile.isPending || !trimmedDisplayName}
+                            className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            {updateProfile.isPending ? tk('saving') : tk('saveChanges')}
+                        </PillButton>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            void signOut().then(() => onClose());
-                        }}
-                        className={`${pillBtnCls} text-red-600 dark:text-red-400`}
-                    >
-                        {tk('signOut')}
-                    </button>
-                </div>
-            </section>
+                </SettingsSection.Body>
+            </SettingsSection>
+
+            <SettingsSection>
+                <SettingsSection.Header
+                    icon={<LogOut size={16} strokeWidth={1.8} />}
+                    title={tk('session')}
+                    description={tk('sessionDescription')}
+                />
+                <SettingsSection.Body>
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                            <p className="m-0 truncate text-[13px] text-secondary">{user?.email || empty}</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void signOut().then(() => onClose());
+                            }}
+                            className={`${pillBtnCls} text-red-600 dark:text-red-400`}
+                        >
+                            {tk('signOut')}
+                        </button>
+                    </div>
+                </SettingsSection.Body>
+            </SettingsSection>
         </div>
     );
 }
