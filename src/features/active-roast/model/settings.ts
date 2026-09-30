@@ -66,12 +66,8 @@ export type RoastSettings = {
     fcDualMarkEnabled: boolean;
     autoChargeEnabled: boolean;
     autoChargeMode: AutoChargeMode;
-    /** °C below the bend. 0 marks the downturn itself. */
-    autoChargeConfirmC: number;
     autoDropEnabled: boolean;
     autoDropMode: AutoDropMode;
-    /** °C below the bend. 0 marks the downturn itself. Standard default is 2. */
-    autoDropConfirmC: number;
     /**
      * Minutes after Charge before auto Drop may fire.
      * The detector fires only once elapsed exceeds this value (`elapsed > minutes * 60`).
@@ -117,12 +113,6 @@ export const AUTO_DROP_START_MIN_DEFAULT = 7;
 export const AUTO_DROP_START_MIN_MAX = 30;
 const AUTO_DROP_START_MIN_MIN = 1;
 
-/** Shared range for the Charge/Drop minimum-fall inputs. 0 = slope break only. */
-export const AUTO_DETECT_CONFIRM_C_MIN = 0;
-export const AUTO_DETECT_CONFIRM_C_MAX = 20;
-const AUTO_CHARGE_CONFIRM_C_DEFAULT = 0;
-const AUTO_DROP_CONFIRM_C_DEFAULT = 2;
-
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
 const DEFAULT_SETTINGS: RoastSettings = {
@@ -161,10 +151,8 @@ const DEFAULT_SETTINGS: RoastSettings = {
     fcDualMarkEnabled: false,
     autoChargeEnabled: true,
     autoChargeMode: 'standard',
-    autoChargeConfirmC: AUTO_CHARGE_CONFIRM_C_DEFAULT,
     autoDropEnabled: true,
     autoDropMode: 'standard',
-    autoDropConfirmC: AUTO_DROP_CONFIRM_C_DEFAULT,
     autoDropStartMin: AUTO_DROP_START_MIN_DEFAULT,
     preChargeDisplaySec: 60,
     alertsEnabled: true,
@@ -227,13 +215,19 @@ export const normalizeRoastSettings = (
     previous?: RoastSettings,
 ): RoastSettings => {
     const {
+        autoChargeDropC: _legacyChargeC,
         autoDropDropC: _legacyDropC,
+        autoChargeConfirmC: _legacyChargeConfirm,
+        autoDropConfirmC: _legacyDropConfirm,
         bbpWindowMinutes: _legacyBbpWindow,
         ...rest
     } = {
         ...(raw ?? {}),
     } as Partial<RoastSettings> & {
+        autoChargeDropC?: unknown;
         autoDropDropC?: unknown;
+        autoChargeConfirmC?: unknown;
+        autoDropConfirmC?: unknown;
         /** Removed setting. Old stores may still contain it; it must not affect the cap. */
         bbpWindowMinutes?: unknown;
     };
@@ -274,20 +268,8 @@ export const normalizeRoastSettings = (
         yellowTempC,
         autoChargeEnabled: asBool(merged.autoChargeEnabled, DEFAULT_SETTINGS.autoChargeEnabled),
         autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',
-        autoChargeConfirmC: clampNum(
-            merged.autoChargeConfirmC,
-            AUTO_DETECT_CONFIRM_C_MIN,
-            AUTO_DETECT_CONFIRM_C_MAX,
-            AUTO_CHARGE_CONFIRM_C_DEFAULT,
-        ),
         autoDropEnabled: asBool(merged.autoDropEnabled, DEFAULT_SETTINGS.autoDropEnabled),
         autoDropMode: merged.autoDropMode === 'sensitive' ? 'sensitive' : 'standard',
-        autoDropConfirmC: clampNum(
-            merged.autoDropConfirmC,
-            AUTO_DETECT_CONFIRM_C_MIN,
-            AUTO_DETECT_CONFIRM_C_MAX,
-            AUTO_DROP_CONFIRM_C_DEFAULT,
-        ),
         autoDropStartMin: coerceAutoDropStartMin(
             merged.autoDropStartMin,
             previous?.autoDropStartMin ?? AUTO_DROP_START_MIN_DEFAULT,

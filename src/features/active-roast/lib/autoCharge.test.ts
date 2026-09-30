@@ -66,13 +66,6 @@ describe('automatic Charge', () => {
         const detector = createAutoChargeDetector('sensitive', 500);
         for (let i = 0; i < 20; i++) expect(detector.push(sample(i / 2, base - Math.max(0, i - 10)))).toBeNull();
     });
-    it('waits until the configured fall below the bend', () => {
-        const detector = createAutoChargeDetector('standard', 1000, 4);
-        for (const [i, bt] of [200, 200, 200, 199, 198, 197, 196].entries()) {
-            expect(detector.push(sample(i, bt))).toBeNull();
-        }
-        expect(detector.push(sample(7, 195))).toEqual(sample(3, 199));
-    });
     it('ignores duplicate, reversed and burst timestamps without consuming the fall twice', () => {
         const detector = createAutoChargeDetector('standard', 1000);
         for (let i = 0; i <= 4; i++) detector.push(sample(i, 200));
@@ -106,6 +99,17 @@ describe('automatic Charge', () => {
 });
 
 describe('automatic Drop', () => {
+    it.each([500, 1000] as const)('detects a 0.35 C/s bend at %ims', (ms) => {
+        const detector = createAutoDropDetector('standard', ms);
+        const period = ms / 1000;
+        let hit: RawTemperatureSample | null = null;
+        for (let i = 0; i < 80; i++) {
+            const t = i * period;
+            hit = detector.push(sample(t, 200 - 0.35 * Math.max(0, t - 10)));
+            if (hit) break;
+        }
+        expect(hit).toEqual(sample(10, 200));
+    });
     it.each([500, 1000] as const)('detects 1 C/s onset at %ims, marking p3', (ms) => {
         const detector = createAutoDropDetector('standard', ms);
         const period = ms / 1000;
@@ -167,21 +171,8 @@ describe('automatic Drop', () => {
             expect(detector.push(sample(i, bt))).toBeNull();
         }
     });
-    it('waits until the configured fall, then marks the bend', () => {
-        const detector = createAutoDropDetector('standard', 1000, 4);
-        for (const [i, bt] of [200, 200, 200, 199, 198, 197, 196].entries()) {
-            expect(detector.push(sample(i, bt))).toBeNull();
-        }
-        expect(detector.push(sample(7, 195))).toEqual(sample(3, 199));
-    });
-    it('drops a stall that never reaches the configured fall', () => {
-        const detector = createAutoDropDetector('standard', 1000, 4);
-        for (const [i, bt] of [200, 200, 200, 199, 198, 197, 197, 197].entries()) {
-            expect(detector.push(sample(i, bt))).toBeNull();
-        }
-    });
-    it('treats 0 °C as the next sample that does not recover', () => {
-        const detector = createAutoDropDetector('standard', 1000, 0);
+    it('confirms a flat next sample when it does not recover', () => {
+        const detector = createAutoDropDetector('standard', 1000);
         for (const [i, bt] of [200, 200, 200, 199, 198, 197].entries()) {
             expect(detector.push(sample(i, bt))).toBeNull();
         }
