@@ -8,4 +8,5 @@ export type View =
     | 'pricing'
     | 'profiles'
     | 'machines'
-    | 'schedule';
+    | 'schedule'
+    | 'settings';

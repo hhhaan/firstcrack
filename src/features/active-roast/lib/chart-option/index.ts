@@ -1,3 +1,4 @@
+import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-config';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
 import {
@@ -71,9 +72,11 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xViewMax,
         bbpRange,
         hideChargeLabel = false,
+        fontScale: fontScaleRaw,
         colors,
     } = params;
 
+    const fontScale = chartFontScale(fontScaleRaw);
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
     const { tempYMin, tempYMax } = computeTempYRange(tempMinC, tempMaxC, temperatureUnit);
     const rorYMinDisp = toDisplayRoR(rorYMin, temperatureUnit);
@@ -118,7 +121,12 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         markArea: {
             silent: true,
             itemStyle: { color: colors.bbpFill },
-            label: { show: !control, position: 'insideTopLeft' as const, color: colors.axisLabel },
+            label: {
+                show: !control,
+                position: 'insideTopLeft' as const,
+                color: colors.axisLabel,
+                fontSize: scaleChartPx(12, fontScale),
+            },
             data: showBbp
                 ? [
                       [
@@ -169,6 +177,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         targetXs,
         targetBt,
         hideChargeLabel,
+        fontScale,
     });
 
     const hasRightYAxis = showRoR || hasControlSeries;
@@ -200,7 +209,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const hasPhaseBar = phaseSegments.length > 0;
     const phaseSeries = hasPhaseBar
-        ? buildPhaseSeries({ phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors })
+        ? buildPhaseSeries({ phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors, fontScale })
         : null;
     const continuousMarkerSeries =
         eventMarkerStyle === 'both'
@@ -208,7 +217,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             : null;
     // Always present so a zoom that culls every label still updates this series.
     // Omitting it on merge leaves the previous frame's text on the canvas.
-    const curveLabelSeries = buildCurveLabelSeries(curveLabels);
+    const curveLabelSeries = buildCurveLabelSeries(curveLabels, fontScale);
 
     if (hasControlSeries && controlData) {
         // Grid: [0] Temp/RoR (+ phase overlay) · [1] Drum/Heat/Fan

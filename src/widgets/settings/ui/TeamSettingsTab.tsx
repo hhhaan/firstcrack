@@ -2,11 +2,11 @@ import { useActiveWorkspace, useMyOrganization, useRevokeOrgInvite } from '@enti
 import { useCreateInvite, useRedeemInvite, useRemoveMember } from '@features/team-invite';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
-import { SectionCard } from '@shared/ui/SectionCard';
 import { Check, Copy, Lock, Trash2, UserMinus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsOptionRow, settingsOptionLabelCls } from './SettingsOptionRow';
+import { SettingsSection } from './SettingsSection';
 
 const actionBtnCls =
     'flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262B31] text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] hover:bg-[#F9FAFB] dark:hover:bg-[#181d21] active:opacity-90 transition-all cursor-pointer disabled:opacity-50';
@@ -101,7 +101,7 @@ export function TeamSettingsTab() {
     const okMsg = successKey ? t(`settings.tabs.team.success.${successKey}`) : null;
 
     return (
-        <div className="grid gap-4">
+        <div className="grid gap-6">
             {isForeignWorkspace && (
                 <div className="text-[13px] px-3 py-2 rounded-lg bg-[#F3F4F6] dark:bg-[#262b31] text-[#6B7280] dark:text-[#999]">
                     {t('settings.tabs.team.ownOrgNote')}
@@ -119,8 +119,8 @@ export function TeamSettingsTab() {
                 </div>
             )}
 
-            <SectionCard>
-                <SectionCard.Header
+            <SettingsSection>
+                <SettingsSection.Header
                     icon={<Users size={16} strokeWidth={1.8} />}
                     title={t('settings.tabs.team.membersTitle')}
                     description={t('settings.tabs.team.membersDescription', {
@@ -128,7 +128,7 @@ export function TeamSettingsTab() {
                         limit: org?.seat_limit ?? '—',
                     })}
                 />
-                <SectionCard.Body className="flex flex-col gap-2">
+                <SettingsSection.Body className="flex flex-col gap-2">
                     {isLoading && <p className="text-[13px] text-[#6B7280] dark:text-[#999]">{t('common.loading')}</p>}
                     {!isLoading && members.length === 0 && (
                         <p className="text-[13px] text-[#6B7280] dark:text-[#999]">
@@ -183,16 +183,16 @@ export function TeamSettingsTab() {
                             </SettingsOptionRow>
                         );
                     })}
-                </SectionCard.Body>
-            </SectionCard>
+                </SettingsSection.Body>
+            </SettingsSection>
 
-            <SectionCard>
-                <SectionCard.Header
+            <SettingsSection>
+                <SettingsSection.Header
                     icon={<Copy size={16} strokeWidth={1.8} />}
                     title={t('settings.tabs.team.inviteTitle')}
                     description={t('settings.tabs.team.inviteDescription')}
                 />
-                <SectionCard.Body className="flex flex-col gap-3">
+                <SettingsSection.Body className="flex flex-col gap-3">
                     {!canHostTeam ? (
                         <div className="flex items-start gap-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#181d21] px-3 py-3">
                             <Lock size={14} className="mt-0.5 shrink-0 text-[#9CA3AF]" aria-hidden />
@@ -270,16 +270,16 @@ export function TeamSettingsTab() {
                             )}
                         </>
                     )}
-                </SectionCard.Body>
-            </SectionCard>
+                </SettingsSection.Body>
+            </SettingsSection>
 
-            <SectionCard>
-                <SectionCard.Header
+            <SettingsSection>
+                <SettingsSection.Header
                     icon={<Users size={16} strokeWidth={1.8} />}
                     title={t('settings.tabs.team.joinTitle')}
                     description={t('settings.tabs.team.joinDescription')}
                 />
-                <SectionCard.Body className="flex flex-col gap-3">
+                <SettingsSection.Body className="flex flex-col gap-3">
                     <input
                         type="text"
                         value={redeemCode}
@@ -295,8 +295,8 @@ export function TeamSettingsTab() {
                     >
                         {redeeming ? t('common.loading') : t('settings.tabs.team.redeem')}
                     </button>
-                </SectionCard.Body>
-            </SectionCard>
+                </SettingsSection.Body>
+            </SettingsSection>
         </div>
     );
 }

@@ -159,7 +159,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 - 선 두께(px): 라이브 BT `1.2`, ET/RoR/ET RoR `0.9`, 제어 실측·Heat set `1.0`, Heat target `1.5` dotted, 참조 곡선 `0.8` dashed, 마킹 세로선 `0.6`, 제어 이벤트 세로선 `1.0`.
 - 참조 곡선(BT·ET·RoR·Drum·Heater·Fan)은 라이브와 같은 채널 색의 `*-target` 토큰이다. 라이브보다 뒤에 그린다. 프로파일에 없는 채널과 저장되지 않은 ET RoR는 만들지 않는다. 결측 샘플은 null이며 0으로 채우거나 끊긴 구간을 잇지 않는다.
 - Heat target(프로파일 화력 지시)과 Heat set(라이브 지시)은 참조 Heater와 다른 시리즈다. 지시값을 참조 곡선으로 복제하지 않는다. 순서: 참조 제어 → Heat target → Heat set → 실측 Heat.
-- 이벤트 라벨: `이름|mm:ss|온도`. `600 12px monospace`. 앵커 오른쪽 `4px`에서 왼쪽 정렬. 동일 시각은 소스 순서로 `14px`씩 위로 쌓는다. 축 눈금·페이즈 바 글씨는 이 크기를 따르지 않는다.
+- 이벤트 라벨: `이름|mm:ss|온도`. `600 10px monospace`. 앵커 오른쪽 `4px`에서 왼쪽 정렬. 동일 시각은 소스 순서로 `14px`씩 위로 쌓는다. 축 눈금·페이즈 바 글씨는 이 크기를 따르지 않는다.
 - `eventMarkerStyle`: `point`(포인트+곡선 라벨), `line`(세로선+가장자리 라벨), `both`(곡선 라벨+제어 차트까지 관통하는 세로선). 기본은 `both`.
 
 ### Shadows

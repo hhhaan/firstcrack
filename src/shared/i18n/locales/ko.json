@@ -70,6 +70,8 @@
         }
     },
     "settings": {
+        "search": "설정 검색",
+        "noSearchResults": "검색 결과가 없습니다.",
         "title": "워크스페이스 설정",
         "close": "설정 닫기",
         "whyTitle": "여기에 있는 설정",
@@ -89,7 +91,7 @@
                 "themeDarkDescription": "눈이 편한 어두운 화면",
                 "themeSystem": "시스템",
                 "themeSystemDescription": "OS 설정 따르기",
-                "language": "언어",
+                "language": "앱 언어",
                 "languageDescription": "앱 표시 언어를 선택합니다.",
                 "defaultLandingView": "기본 시작 화면",
                 "temperatureUnit": "온도 단위",
@@ -98,7 +100,10 @@
                 "displayDescription": "대시보드와 내비게이션 동작을 세션 간 일관되게 유지합니다.",
                 "expandedSidebar": "기본으로 사이드바 열린 상태 유지",
                 "liveMetricsPanel": "실시간 지표 패널 표시",
-                "compactDataCards": "촘촘한 데이터 카드 사용"
+                "compactDataCards": "촘촘한 데이터 카드 사용",
+                "stockHorizon": "재고 알림 기간",
+                "stockHorizonDescription": "생두 부족을 확인할 때 예정된 로스팅을 예약 재고로 반영할 기간입니다 (기본 28일).",
+                "days": "일"
             },
             "notifications": {
                 "label": "알림",
@@ -148,9 +153,11 @@
             "roast": {
                 "label": "로스팅",
                 "title": "로스팅 설정",
-                "description": "로스팅 중 갱신 주기, RoR 계산, 차트에 표시할 데이터를 설정합니다.",
+                "description": "온도 단위, 알람, 투입·배출 감지, 차트 표시를 설정합니다.",
                 "temperatureUnit": "온도 단위",
                 "temperatureUnitDescription": "온도를 섭씨 또는 화씨로 표시합니다.",
+                "fontScale": "글자 크기",
+                "fontScaleDescription": "그래프 안에 그려지는 이벤트·페이즈 라벨 크기입니다.",
                 "updateRate": "업데이트 주기",
                 "updateRateDescription": "라이브 세션 중 머신에서 온도 데이터를 가져오는 주기입니다.",
                 "updateRateProHint": "500ms 업데이트 주기는 Pro 플랜 전용입니다. 업그레이드하면 더 빠른 폴링을 사용할 수 있습니다.",
@@ -280,7 +287,7 @@
                 "alertAfterDropDescription": "Drop 후 이 시간이 지나면 알립니다. 타이머는 로스팅 종료까지 계속 갑니다."
             },
             "account": {
-                "label": "계정",
+                "label": "프로필",
                 "title": "계정",
                 "description": "프로필, 워크스페이스 이름, 계정 설정을 관리합니다.",
                 "profile": "프로필",
@@ -316,6 +323,19 @@
                 "title": "결제 및 플랜",
                 "description": "구독 플랜과 결제 정보를 관리합니다.",
                 "currentPlan": "현재 플랜",
+                "planCardLabel": "현재 요금제",
+                "changePlan": "플랜 변경",
+                "credits": "추가 사용 크레딧",
+                "creditsPending": "준비 중",
+                "creditsSettings": "설정하기",
+                "creditsBuy": "더 구매하기",
+                "creditsUsage": "사용량 보기",
+                "invoices": "청구서",
+                "colDate": "날짜",
+                "colAmount": "금액",
+                "colType": "유형",
+                "colStatus": "상태",
+                "invoicesEmpty": "청구 내역이 없습니다.",
                 "workspaceNote": "현재 워크스페이스 소유자의 플랜과 사용량입니다. 업그레이드는 내 계정에 적용됩니다.",
                 "current": "현재",
                 "trial": "체험판",
@@ -394,6 +414,12 @@
                 "websiteTitle": "웹사이트",
                 "websiteDescription": "제품 업데이트, 문서, 회사 정보를 확인합니다."
             }
+        },
+        "pageTitle": "설정",
+        "groups": {
+            "workspace": "워크스페이스",
+            "account": "계정",
+            "application": "애플리케이션"
         }
     },
     "language": {

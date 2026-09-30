@@ -1,3 +1,4 @@
+import { scaleChartPx } from '@features/active-roast/lib/chart-config';
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { TemperatureUnit } from '../../model/settings';
 
@@ -38,6 +39,7 @@ export interface BuildTargetDeltaMarkPointParams {
     targetBt?: (number | null)[];
     temperatureUnit: TemperatureUnit;
     colors: TargetDeltaLabelColors;
+    fontScale?: number;
 }
 
 /** Format signed delta like side panel: +2.3° / −1.0° */
@@ -57,7 +59,18 @@ export const classifyTargetDelta = (deltaDisplay: number, unit: TemperatureUnit)
  * Inputs are display-unit series (same as chart). Returns null if unavailable.
  */
 export const buildTargetDeltaMarkPoint = (params: BuildTargetDeltaMarkPointParams): object | null => {
-    const { show, charged, currentTimeSec, xs, btActual, targetXs, targetBt, temperatureUnit, colors } = params;
+    const {
+        show,
+        charged,
+        currentTimeSec,
+        xs,
+        btActual,
+        targetXs,
+        targetBt,
+        temperatureUnit,
+        colors,
+        fontScale = 1,
+    } = params;
     if (!show || !charged || !targetXs?.length || !targetBt?.length) return null;
     if (!Number.isFinite(currentTimeSec)) return null;
 
@@ -99,7 +112,7 @@ export const buildTargetDeltaMarkPoint = (params: BuildTargetDeltaMarkPointParam
             position: 'right' as const,
             distance: 6,
             formatter: formatTargetDeltaLabel(deltaDisplay),
-            fontSize: 11,
+            fontSize: scaleChartPx(11, fontScale),
             fontWeight: 700 as const,
             fontFamily: 'monospace',
             color: colors[status],

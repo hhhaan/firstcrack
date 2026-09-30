@@ -1,4 +1,4 @@
-import { MARKER_LABEL_FONT } from '@features/active-roast/lib/chart-config';
+import { MARKER_LABEL_FONT, markerLabelFont } from '@features/active-roast/lib/chart-config';
 import * as echarts from 'echarts';
 import { describe, expect, it } from 'vitest';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
@@ -34,6 +34,22 @@ const baseParams = (): ChartOptionParams => ({
     rorYMin: -5,
     rorYMax: 20,
     colors: mockColors,
+});
+
+describe('buildRoastChartOption font scale', () => {
+    it('enlarges chart labels without moving the axes', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            fontScale: 2,
+            bbpRange: { start: 0, end: 60, label: 'PREHEAT' },
+        });
+        const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
+        expect(yAxis[0]?.axisLabel?.fontSize).toBe(11);
+        expect(option.grid).toMatchObject([{ left: 38, right: 32, bottom: 65 }]);
+        const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
+        expect(bbp?.markArea?.label?.fontSize).toBe(24);
+        expect(markerLabelFont(2)).toBe('600 20px monospace');
+    });
 });
 
 describe('buildRoastChartOption', () => {

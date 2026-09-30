@@ -1,10 +1,11 @@
 import type { InputHTMLAttributes, ReactNode } from 'react';
 
-const rowBase =
-    'flex gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21]';
-const checkboxCls = 'w-4 h-4 accent-[#111827] dark:accent-[#F2F2F2] shrink-0';
-const labelCls = 'text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]';
-const descCls = 'text-[12px] text-[#6B7280] dark:text-[#999] mt-0.5';
+const rowBase = 'flex min-w-0 gap-3 py-3 border-b border-border-subtle first:pt-0 last:border-b-0 last:pb-0';
+const checkboxCls = 'w-4 h-4 accent-primary shrink-0';
+const switchCls =
+    'relative h-6 w-10 shrink-0 cursor-pointer appearance-none rounded-full bg-primary/15 transition-colors checked:bg-primary before:absolute before:left-1 before:top-1 before:h-4 before:w-4 before:rounded-full before:bg-main-bg before:transition-transform checked:before:translate-x-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 forced-colors:appearance-auto';
+const labelCls = 'text-[13px] font-medium text-primary';
+const descCls = 'text-xs leading-relaxed text-secondary mt-0.5';
 
 type SettingsOptionRowProps = {
     children: ReactNode;
@@ -29,9 +30,9 @@ export function SettingsOptionRow({
     tone = 'default',
 }: SettingsOptionRowProps) {
     const Comp = as;
-    const toneCls = tone === 'muted' ? 'bg-[#F9FAFB] dark:bg-[#262B31]' : '';
+    const toneCls = tone === 'muted' ? 'text-muted' : '';
     const alignCls = align === 'start' ? 'items-start' : 'items-center';
-    const layout = justify === 'between' ? `justify-between ${alignCls}` : alignCls;
+    const layout = justify === 'between' ? `flex-col @[480px]:flex-row @[480px]:justify-between ${alignCls}` : alignCls;
 
     return (
         <Comp className={`${rowBase} ${toneCls} ${layout} ${interactive ? 'cursor-pointer' : ''} ${className}`.trim()}>
@@ -63,24 +64,24 @@ export function SettingsCheckRow({
     trailing,
 }: SettingsCheckRowProps) {
     return (
-        <SettingsOptionRow as="label" interactive align={description ? 'start' : 'center'}>
+        <SettingsOptionRow as="label" interactive>
+            {description ? (
+                <div className="min-w-0 flex-1">
+                    <div className={labelCls}>{label}</div>
+                    <div className={descCls}>{description}</div>
+                </div>
+            ) : (
+                <span className={`${labelCls} min-w-0 flex-1`}>{label}</span>
+            )}
+            {trailing ? <span className="ml-auto flex items-center gap-1.5 shrink-0">{trailing}</span> : null}
             <input
                 type={type}
                 name={name}
                 checked={checked}
                 disabled={disabled}
                 onChange={onChange}
-                className={`${checkboxCls} ${description ? 'mt-0.5' : ''}`}
+                className={type === 'checkbox' ? switchCls : checkboxCls}
             />
-            {description ? (
-                <div className="min-w-0">
-                    <div className={labelCls}>{label}</div>
-                    <div className={descCls}>{description}</div>
-                </div>
-            ) : (
-                <span className={labelCls}>{label}</span>
-            )}
-            {trailing ? <span className="ml-auto flex items-center gap-1.5 shrink-0">{trailing}</span> : null}
         </SettingsOptionRow>
     );
 }

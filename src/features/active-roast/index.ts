@@ -24,6 +24,7 @@ export type { BbpPoint, BbpSample, BbpSummary } from './model/bbp';
 export { BBP_INPROGRESS_ID, BBP_MAX_SECONDS, useBbpStore } from './model/bbp';
 export type {
     EventMarkerStyle,
+    FontScalePct,
     PidDropBehavior,
     PollIntervalMs,
     RoastSettings,
@@ -35,6 +36,7 @@ export {
     AUTO_DETECT_CONFIRM_C_MIN,
     AUTO_DROP_START_MIN_MAX,
     coercePollIntervalForPlan,
+    FONT_SCALE_PCTS,
     updateRoastSettings,
     useRoastSettings,
 } from './model/settings';

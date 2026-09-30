@@ -10,6 +10,11 @@ const STORE_KEY = 'roast.settings';
 export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
 export type TemperatureUnit = 'C' | 'F';
+/** Labels drawn inside the roast chart. */
+export const FONT_SCALE_PCTS = [100, 150, 200] as const;
+export type FontScalePct = (typeof FONT_SCALE_PCTS)[number];
+
+const isFontScalePct = (value: unknown): value is FontScalePct => value === 100 || value === 150 || value === 200;
 /** line = vertical line | point = curve label | both = curve label + full-height line */
 export type EventMarkerStyle = 'line' | 'point' | 'both';
 
@@ -17,6 +22,8 @@ export type RoastSettings = {
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
     temperatureUnit: TemperatureUnit;
+    /** 100 = default. 150 and 200 enlarge labels drawn on the chart. */
+    fontScalePct: FontScalePct;
     showET: boolean;
     showTargetCurve: boolean;
     /** Stored-profile channels. Independent of the live series toggles. */
@@ -122,6 +129,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     pollIntervalMs: 500,
     rorSpanSec: 30,
     temperatureUnit: 'C',
+    fontScalePct: 100,
     showET: true,
     showTargetCurve: true,
     showProfileBt: true,
@@ -244,6 +252,7 @@ export const normalizeRoastSettings = (
     return {
         ...merged,
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
+        fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)
             ? merged.eventMarkerStyle
             : DEFAULT_SETTINGS.eventMarkerStyle,

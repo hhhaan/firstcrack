@@ -32,6 +32,7 @@ interface SidebarProps {
     activeView: View;
     onNavigate: (view: View) => void;
     collapsed: boolean;
+    rail?: boolean;
     onToggleCollapse: () => void;
     onOpenSettings: (tab?: string) => void;
 }
@@ -54,7 +55,14 @@ const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
 /** Stable e2e selectors — view id is the product route key. */
 const navTestId = (id: View) => `nav-${id}`;
 
-export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, onOpenSettings }: SidebarProps) => {
+export const Sidebar = ({
+    activeView,
+    onNavigate,
+    collapsed,
+    rail = false,
+    onToggleCollapse,
+    onOpenSettings,
+}: SidebarProps) => {
     const { t } = useTranslation();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
     const [wsOpen, setWsOpen] = useState(false);
@@ -78,18 +86,21 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             ? myName
             : activeMembership?.owner_business_name || activeMembership?.org_name || t('sidebar.workspace');
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
+    const edgePad = collapsed ? 'px-4' : 'px-3';
 
     return (
         <aside
             data-testid="app-sidebar"
-            className="shrink-0 h-full bg-main-bg border-r border-border dark:border-[#585d61] flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
-            style={{ width: collapsed ? 68 : 240 }}
+            className={cn(
+                'shrink-0 h-full bg-main-bg border-r border-border dark:border-[#585d61] flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out',
+                rail ? 'w-[60px]' : collapsed ? 'w-[68px]' : 'w-[170px] sm:w-[200px] lg:w-[220px]',
+            )}
         >
             {/* Header */}
             <div
                 className={cn(
                     'border-b border-border-subtle dark:border-[#585d61] transition-all duration-200',
-                    collapsed ? 'px-4 pt-4 pb-3.5' : 'px-5 pt-5 pb-4',
+                    rail ? 'px-3 pt-4 pb-3.5' : collapsed ? 'px-4 pt-4 pb-3.5' : 'px-5 pt-5 pb-4',
                 )}
                 onMouseEnter={() => setIsHeaderHovered(true)}
                 onMouseLeave={() => setIsHeaderHovered(false)}
@@ -100,7 +111,9 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                             <div
                                 className={cn(
                                     'absolute inset-0 flex items-center justify-center transition-all duration-200',
-                                    isHeaderHovered ? 'opacity-0 scale-90 invisible' : 'opacity-100 scale-100 visible',
+                                    isHeaderHovered && !rail
+                                        ? 'opacity-0 scale-90 invisible'
+                                        : 'opacity-100 scale-100 visible',
                                 )}
                             >
                                 <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
@@ -112,8 +125,12 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 title={t('sidebar.expand')}
                                 className={cn(
                                     'absolute inset-0 w-9 h-9 rounded-lg border-none bg-transparent text-primary flex items-center justify-center cursor-pointer shrink-0 transition-all duration-200 hover:bg-surface hover:shadow-(--shadow-inset)',
-                                    isHeaderHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible',
+                                    isHeaderHovered && !rail
+                                        ? 'opacity-100 scale-100 visible'
+                                        : 'opacity-0 scale-90 invisible',
                                 )}
+                                disabled={rail}
+                                tabIndex={rail ? -1 : undefined}
                             >
                                 <SidePanelOpen size={18} />
                             </button>
@@ -148,7 +165,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             </div>
 
             {/* Workspace selector */}
-            <div className="px-4 pt-3 pb-2">
+            <div className={cn('pt-3 pb-2', rail ? 'px-3' : edgePad)}>
                 <Popover open={wsOpen} onOpenChange={setWsOpen}>
                     <PopoverTrigger asChild>
                         <button
@@ -229,12 +246,12 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             </div>
 
             {/* Nav */}
-            <nav className="flex-1 overflow-y-auto px-4 py-1">
+            <nav className={cn('flex-1 overflow-y-auto py-1', rail ? 'px-3' : edgePad)}>
                 <div className="mb-1">
                     <div
                         className={cn(
-                            'text-[11px] font-medium text-muted tracking-[0.7px] uppercase transition-all duration-220 overflow-hidden whitespace-nowrap',
-                            collapsed ? 'opacity-0 h-0 pt-0 pb-0 px-0' : 'opacity-100 h-7 pt-2 pb-1 px-2.5',
+                            'font-medium text-muted transition-all duration-220 overflow-hidden whitespace-nowrap',
+                            collapsed ? 'opacity-0 h-0 p-0' : 'opacity-100 mb-1.5 px-2.5 text-xs',
                         )}
                     >
                         {t('sidebar.workspace')}
@@ -252,10 +269,10 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 onClick={() => onNavigate(id)}
                                 aria-label={label}
                                 title={collapsed ? label : undefined}
-                                className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-surface/50 h-9 overflow-hidden"
+                                className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-primary/5 h-9 overflow-hidden"
                             >
                                 <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
-                                    <Icon size={18} className={isActive ? 'text-primary' : 'text-muted'} />
+                                    <Icon size={16} className={isActive ? 'text-primary' : 'text-muted'} />
                                     {showBadge && collapsed && (
                                         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
                                     )}
@@ -273,7 +290,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 >
                                     <span
                                         className={cn(
-                                            'text-[14px] tracking-[0.14px]',
+                                            'text-[13px]',
                                             isActive ? 'font-medium text-primary' : 'font-normal text-secondary',
                                         )}
                                     >
@@ -295,11 +312,12 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             </nav>
 
             {/* Footer */}
-            <div className="px-4 py-2.5 border-t border-border-subtle dark:border-[#585d61]">
+            <div className={cn('py-2.5 border-t border-border-subtle dark:border-[#585d61]', rail ? 'px-3' : edgePad)}>
                 <button
                     type="button"
                     onClick={() => onOpenSettings()}
                     aria-label={t('sidebar.settings')}
+                    aria-current={activeView === 'settings' ? 'page' : undefined}
                     title={collapsed ? t('sidebar.settings') : undefined}
                     className={cn(
                         'w-full flex items-center rounded-lg border-none cursor-pointer',

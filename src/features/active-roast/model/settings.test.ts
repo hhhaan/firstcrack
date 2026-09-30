@@ -118,6 +118,15 @@ describe('normalize — profile channels', () => {
     });
 });
 
+describe('normalize — font scale', () => {
+    it('defaults to 100% and keeps 150% and 200%', () => {
+        expect(normalizeRoastSettings({}).fontScalePct).toBe(100);
+        expect(normalizeRoastSettings({ fontScalePct: 150 }).fontScalePct).toBe(150);
+        expect(normalizeRoastSettings({ fontScalePct: 200 }).fontScalePct).toBe(200);
+        expect(normalizeRoastSettings({ fontScalePct: 125 as never }).fontScalePct).toBe(100);
+    });
+});
+
 describe('normalize — event marker style', () => {
     it('defaults missing and invalid values to both', () => {
         expect(normalizeRoastSettings({}).eventMarkerStyle).toBe('both');
