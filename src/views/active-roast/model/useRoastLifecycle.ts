@@ -171,7 +171,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 opts?.chargeWait ?? (useBbpStore.getState().active || useRoastingStore.getState().awaitingNextCharge);
             resetStore();
             if (sidecarConnected) {
-                sidecar.resetRoast().catch((error) => {
+                sidecar.resetRoast(keepHeatHold ? 'hold' : 'zero').catch((error) => {
                     logger.capture(new Error('Roast reset command failed'), { reason: String(error) });
                 });
                 enterPreheating();

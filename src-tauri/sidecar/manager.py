@@ -940,8 +940,10 @@ class RoasterManager:
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
-    async def reset_roast(self) -> None:
-        """배치 계산/PID 상태를 초기화한다. 재연결을 통한 예열 복귀는 가상 머신만 한다."""
+    async def reset_roast(self, heater_mode: str = STOP_ZERO) -> None:
+        """배치 계산/PID 리셋. hold는 연결을 유지하고 zero는 가상 머신을 재연결한다."""
+        if heater_mode not in (STOP_HOLD, STOP_ZERO):
+            raise ValueError("heater_mode must be hold or zero")
         async with self._lock:
             self._ror_window.clear()
             self._et_ror_window.clear()
@@ -951,6 +953,16 @@ class RoasterManager:
             self._et_display_ema = None
             self._ror_warmup = config.ROR_WARMUP_READS
             if self._adapter is None:
+                return
+
+            if heater_mode == STOP_HOLD:
+                # Preserve the adapter and its heater setpoint between batches.
+                # A failed hold retains FAULT PID for existing recovery safety.
+                if self._pid is not None:
+                    await self._pid.stop("reset", mode=STOP_HOLD)
+                if self._pid_task is not None and not self._pid_task.done():
+                    self._pid_task.cancel()
+                self._pid_task = None
                 return
 
             # 히터 0은 쓰기 게이트를 닫기 전에. control()은 _resetting/_connected

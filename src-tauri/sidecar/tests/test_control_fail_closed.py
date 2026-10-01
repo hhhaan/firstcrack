@@ -212,6 +212,53 @@ class TestResetRoast:
         assert adapter.disconnected is True
         assert manager.status()["connected"] is False
 
+    @pytest.mark.parametrize("mode", ["hold", "zero"])
+    async def test_virtual_reset_pid_mode_and_next_charge(self, manager, mode):
+        await manager.connect("virtual", {})
+        await manager.control(heater=70)
+        await manager.pid_start(200)
+        adapter = manager._adapter
+        epoch = manager._connection_epoch
+        with (
+            patch.object(adapter, "control", wraps=adapter.control) as control,
+            patch.object(adapter, "connect", wraps=adapter.connect) as connect,
+            patch.object(adapter, "disconnect", wraps=adapter.disconnect) as disconnect,
+        ):
+            await manager.reset_roast(heater_mode=mode)
+            if mode == "hold":
+                connect.assert_not_awaited()
+                disconnect.assert_not_awaited()
+                assert manager._connection_epoch == epoch
+                assert manager.last_applied()["heater"] == 70
+                assert manager.pid_state()["state"] == "off"
+                assert all(call.kwargs.get("heater") != 0 for call in control.await_args_list)
+            else:
+                connect.assert_awaited_once()
+                disconnect.assert_awaited_once()
+                assert any(call.kwargs.get("heater") == 0 for call in control.await_args_list)
+                assert manager.pid_state() is None
+        assert manager._pid_task is None
+        assert manager.status()["connected"] is True
+        await manager.start_roast()
+        assert (await manager.read_temperatures())["bt"] is not None
+        await manager.disconnect()
+
+    async def test_failed_hold_retains_fault_for_connection_recovery(self, manager):
+        await manager.connect("virtual", {})
+        await manager.control(heater=70)
+        await manager.pid_start(200)
+        pid = manager._pid
+        adapter = manager._adapter
+        with patch.object(adapter, "control", side_effect=ConnectionError("lost connection")):
+            with pytest.raises(ConnectionError):
+                await manager.reset_roast(heater_mode="hold")
+        assert manager._pid is pid
+        assert manager.pid_state()["state"] == "fault"
+        await manager._safety_after_reconnect()
+        assert manager.last_applied()["heater"] == 0
+        assert manager.pid_state()["state"] == "off"
+        await manager.disconnect()
+
     async def test_reset_reconnect_fail_sets_connected_false(self, manager):
         defaults = ROASTER_REGISTRY["virtual"]["default_params"]
         adapter = VirtualMachineAdapter(write_map=defaults["write_map"])

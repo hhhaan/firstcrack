@@ -125,8 +125,14 @@ export const sidecar = {
     // Charge 버튼과 연동 — 시뮬레이터 타이머 리셋 + RoR 윈도우 초기화
     startRoast: () => request<{ ok: boolean }>('/start', { method: 'POST' }, DEFAULT_TIMEOUT_MS, false),
 
-    // 로스트 종료/리셋 — 어댑터 상태를 초기화해 다음 로스트를 예열 상태에서 시작
-    resetRoast: () => request<{ ok: boolean }>('/reset', { method: 'POST' }, DEFAULT_TIMEOUT_MS, false),
+    // 배치 계산/PID 리셋 — hold는 연결·화력 유지, zero는 기존 안전 정지
+    resetRoast: (heaterMode: 'hold' | 'zero' = 'zero') =>
+        request<{ ok: boolean }>(
+            '/reset',
+            { method: 'POST', body: JSON.stringify({ heater_mode: heaterMode }) },
+            DEFAULT_TIMEOUT_MS,
+            false,
+        ),
 
     /**
      * 머신 제어값 쓰기. 사이드카가 write_map 범위로 자른 뒤 `applied`로 실제 값을 돌려준다.

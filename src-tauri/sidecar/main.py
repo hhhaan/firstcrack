@@ -208,9 +208,20 @@ async def handle_start(request: web.Request) -> web.Response:
 
 
 async def handle_reset(request: web.Request) -> web.Response:
+    body = {}
+    if request.can_read_body:
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({"error": "invalid JSON"}, status=400)
+    if not isinstance(body, dict):
+        return web.json_response({"error": "JSON object required"}, status=400)
+    mode = body.get("heater_mode", pid_runner.STOP_ZERO)
+    if mode not in (pid_runner.STOP_HOLD, pid_runner.STOP_ZERO):
+        return web.json_response({"error": "heater_mode must be hold or zero"}, status=400)
     manager: RoasterManager = request.app["manager"]
     try:
-        await manager.reset_roast()
+        await manager.reset_roast(heater_mode=mode)
     except Exception as exc:
         _log.error("reset 실패: %s", exc, exc_info=True)
         body = manager.status()

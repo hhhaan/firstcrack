@@ -355,6 +355,24 @@ class TestStartResetEndpoints:
         data = await resp.json()
         assert data["ok"] is True
 
+    @pytest.mark.parametrize("body,expected", [({}, "zero"), ({"heater_mode": "hold"}, "hold"), ({"heater_mode": "zero"}, "zero")])
+    async def test_reset_passes_mode(self, client, body, expected):
+        with patch.object(client.app["manager"], "reset_roast", new_callable=AsyncMock) as reset:
+            resp = await client.post("/reset", json=body)
+        assert resp.status == 200
+        reset.assert_awaited_once_with(heater_mode=expected)
+
+    @pytest.mark.parametrize("body", [{"heater_mode": "invalid"}, {"heater_mode": None}, {"heater_mode": []}, [], None])
+    async def test_reset_rejects_invalid_mode_or_body(self, client, body):
+        with patch.object(client.app["manager"], "reset_roast", new_callable=AsyncMock) as reset:
+            resp = await client.post("/reset", data="null" if body is None else None, json=body)
+        assert resp.status == 400
+        reset.assert_not_awaited()
+
+    async def test_reset_rejects_malformed_json(self, client):
+        resp = await client.post("/reset", data="{")
+        assert resp.status == 400
+
     async def test_reset_returns_ok(self, client):
         resp = await client.post("/reset")
         assert resp.status == 200
