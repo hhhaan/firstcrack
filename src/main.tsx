@@ -11,6 +11,7 @@ import i18n from 'i18next';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
+import { bindLiveRoastDraft, hydrateLiveRoastDraft } from './features/active-roast/model/liveRoastDraft';
 import { useRoastingStore } from './features/active-roast/model/status';
 import { initI18n } from './shared/i18n';
 import { showMutationErrorToast } from './shared/lib/mutationErrorToast';
@@ -45,6 +46,9 @@ const queryClient = new QueryClient({
 bindAuthQueryClient(queryClient);
 
 const bootstrap = async () => {
+    // Before paint, so the roast screen's first render is already charged and does not seed a new curve.
+    bindLiveRoastDraft();
+    hydrateLiveRoastDraft();
     await initI18n();
 
     if ('__TAURI_INTERNALS__' in window) {

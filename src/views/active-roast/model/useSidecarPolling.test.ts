@@ -1203,3 +1203,78 @@ it('keeps one poll loop across overlapping screen mounts and retains the curve o
     expect(useRoastingStore.getState().livePoints.slice(0, points.length)).toEqual(points);
     act(() => second.unmount());
 });
+
+it('keeps a rehydrated roast on first mount and remount: id, log, curve, start, no second TSV init', async () => {
+    const roastStartMs = Date.now() - 10_000;
+    const livePoints = [
+        {
+            time: 4.2,
+            label: '0:04',
+            bt: 190,
+            et: 210,
+            ror: 8,
+            ror_et: 4,
+            heater: 60,
+            fan: 40,
+            drum: 50,
+            sensorTimestamp: 3,
+            sensorClock: null,
+        },
+    ];
+    const logEntries = [{ time: '0:04', event: 'Yellow', temp: '190', note: 'color' }];
+    useRoastingStore.setState({
+        phase: 'roasting',
+        sessionId: 'rehydrate-1',
+        sessionOwnerId: 'owner-1',
+        roastStartMs,
+        elapsed: 4,
+        livePoints,
+        logEntries,
+        initializedTsvSessions: new Set(['rehydrate-1']),
+    });
+    mocks.initSessionTsv.mockClear();
+    mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 30, bt: 195, bt_raw: 195 }));
+    const Probe = () => {
+        const phase = useRoastingStore((state) => state.phase);
+        const sessionId = useRoastingStore((state) => state.sessionId);
+        useSidecarPolling({
+            isActive: true,
+            phase,
+            pollIntervalMs: 1000,
+            enterPreheating: () => useRoastingStore.getState().enterPreheating(),
+            setConnected: (connected: boolean, capabilities?: string[]) =>
+                useRoastingStore.getState().setConnected(connected, capabilities),
+            sessionId,
+        });
+        return null;
+    };
+    const mount = () => {
+        const next = createRoot(document.createElement('div'));
+        act(() => next.render(createElement(Probe)));
+        return next;
+    };
+    let root = mount();
+    try {
+        await flushReady();
+        const mounted = useRoastingStore.getState();
+        expect(mounted.phase).toBe('roasting');
+        expect(mounted.sessionId).toBe('rehydrate-1');
+        expect(mounted.roastStartMs).toBe(roastStartMs);
+        expect(mounted.logEntries).toEqual(logEntries);
+        expect(mounted.livePoints[0]).toEqual(livePoints[0]);
+        expect(mocks.initSessionTsv).not.toHaveBeenCalled();
+
+        act(() => root.unmount());
+        root = mount();
+        await flushReady();
+        const remounted = useRoastingStore.getState();
+        expect(remounted.sessionId).toBe('rehydrate-1');
+        expect(remounted.roastStartMs).toBe(roastStartMs);
+        expect(remounted.logEntries).toEqual(logEntries);
+        expect(remounted.livePoints[0]).toEqual(livePoints[0]);
+        expect(mocks.initSessionTsv).not.toHaveBeenCalled();
+    } finally {
+        act(() => root.unmount());
+        useRoastingStore.setState({ initializedTsvSessions: new Set() });
+    }
+});

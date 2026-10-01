@@ -18,7 +18,7 @@ Live roast logging (sidecar temps → log entries → local TSV) and durable sav
 |-------|--------|
 | Feature lib/model | `src/features/active-roast/` (`model/useSaveRoast.ts`, `useDeductRoastStock.ts`, `useRoastLog.ts`, `lib/buildRoastStockEvents.ts`, `roastedInbound.ts`, `determine-stock-deduction.ts`, `serialize-roast-events.ts`, `tsv-writer.ts`) |
 | View orchestration | `src/views/active-roast/` (`model/useRoastSaveFlow.ts`, `useRoastCompletionFlow.ts`, `useSidecarPolling.ts`, `ActiveRoast.tsx`) |
-| Runtime store | `src/features/active-roast/model/status.ts` (`useRoastingStore`; logs, curve, Charge clock, preparation/current selection, completed records and transitions; not persisted) |
+| Runtime store | `src/features/active-roast/model/status.ts` (`useRoastingStore`; logs, curve, Charge clock, preparation/current selection, completed records and transitions). The in-progress roast is also journaled in `sessionStorage` (`liveRoastDraft.ts`) and rehydrated on same-tab reload |
 | Completed slice | `src/features/active-roast/model/completed.ts` (owner/session identity, frozen save context, draft, per-batch lock, modal selection) |
 | Next-plan handoff | `src/shared/store/roastSession.ts` (consumed at Charge; not persisted) |
 | Upload | `src/features/upload-roast-profile/` → `src/shared/lib/r2.ts` → EF `get-upload-url` |
@@ -107,9 +107,13 @@ Saved events are **not** immutable: History edits key marks (time/temp) and the 
 ## Runtime and completed batch ownership (#671)
 
 `useRoastingStore` is the session lifetime source. Screen remounts retain logs,
-curve, Charge origin, current selection and completed records. The view owns I/O,
-BBP/PID/Replay effect composition and chart presentation. One polling lease and a
-shared second clock prevent duplicate polling/timers during overlapping mounts.
+curve, Charge origin, current selection and completed records. A same-tab
+document reload rehydrates the in-progress roast (session id, event log, curve,
+Charge origin) from a `sessionStorage` journal before paint, and adopts the
+existing TSV instead of rewriting its header. Drop, abort, and reset clear that
+journal. A new tab does not see it. The view owns I/O, BBP/PID/Replay effect
+composition and chart presentation. One polling lease and a shared second clock
+prevent duplicate polling/timers during overlapping mounts.
 
 - Execution phases are `idle`, `preheating`, `standby`, `roasting`. Completion has
   no execution phase. `drop`/`abort` capture the record before releasing the machine

@@ -97,6 +97,18 @@ export const _resetTsvWriterForTests = (opts?: { write?: TsvWriteFn; remove?: Ts
     removeImpl = opts?.remove ?? defaultRemove;
 };
 
+/**
+ * Adopt an existing session file after a reload. Does not rewrite the header,
+ * so a rehydrated roast appends instead of truncating the curve.
+ */
+export const resumeSessionTsv = (sessionId: string): void => {
+    const q = getQueue(sessionId);
+    if (q.ready || q.initScheduled) return;
+    q.initScheduled = true;
+    q.ready = true;
+    q.initError = null;
+};
+
 export const initSessionTsv = async (sessionId: string): Promise<void> => {
     const q = getQueue(sessionId);
     if (q.appendError) throw q.appendError;
