@@ -209,6 +209,17 @@ export const profileHeaterBounds = (
         };
     }
     const bounds = resolveHeaterBounds({ params });
+    if (key === 'giesen_w45a_w60a') {
+        const heater = writeMapHeater(params);
+        const legacy = { db: 2, offset: 14, area: 6, type: 0, div: 0, min: 1, max: 100, unit: '%' };
+        if (
+            heater &&
+            Object.keys(heater).length === Object.keys(legacy).length &&
+            Object.entries(legacy).every(([field, value]) => (heater as Record<string, unknown>)[field] === value)
+        ) {
+            bounds.min = 0;
+        }
+    }
     return { ...bounds, origin: writeMapHeater(params) ? 'saved' : 'fallback' };
 };
 

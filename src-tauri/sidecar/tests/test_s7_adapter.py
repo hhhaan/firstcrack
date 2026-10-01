@@ -113,6 +113,36 @@ class TestControlWrite:
 
 
 class TestScalingAndEncoding:
+    @pytest.mark.parametrize("requested,logical,raw", [(0, 0, 1), (10, 10, 11), (100, 100, 101), (-10, 0, 1), (110, 100, 101)])
+    async def test_w60a_logical_command_and_plc_encoding(self, adapter, requested, logical, raw):
+        from manager import RoasterManager
+        from roaster_registry import ROASTER_REGISTRY
+
+        defaults = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
+        adapter._write_map = defaults["write_map"]
+        manager = RoasterManager()
+        manager._adapter = adapter
+        manager._protocol = "s7"
+        manager._connected = True
+        manager._merged_params = defaults
+        assert await manager.control(heater=requested) == {"heater": logical}
+        assert manager.last_applied() == {"heater": logical}
+        assert manager.write_limits()["heater"]["min"] == 0
+        db, offset, payload = _written(adapter._plc)
+        assert (db, offset, get_int(payload, 0)) == (2, 14, raw)
+
+    @pytest.mark.parametrize("value_offset", [True, "1", None, float("nan"), float("inf")])
+    async def test_rejects_invalid_value_offset(self, adapter, value_offset):
+        adapter._write_map = {"heater": {**GIESEN_WRITE_MAP["heater"], "value_offset": value_offset}}
+        with pytest.raises(ValueError, match="value_offset"):
+            await adapter.control(heater=0)
+        adapter._plc.db_write.assert_not_called()
+
+    async def test_offset_is_added_after_div_scaling(self, adapter):
+        adapter._write_map = {"heater": {**GIESEN_WRITE_MAP["heater"], "div": 1, "value_offset": 1}}
+        await adapter.control(heater=10)
+        assert get_int(_written(adapter._plc)[2], 0) == 101
+
     async def test_inverts_div_scaling(self):
         """읽기가 ÷10이면 쓰기는 ×10."""
         a = S7Adapter(channels=GIESEN_CHANNELS, write_map={

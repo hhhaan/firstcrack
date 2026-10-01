@@ -86,7 +86,7 @@ def test_db2_giesen_write_map_targets_heater_setpoint(key: str) -> None:
     heater = write_map["heater"]
     assert (heater["db"], heater["offset"]) == (2, 14)
     # min=1: 0은 버너 off가 아니라 기센 AUTO 인계다 (아래 전용 테스트가 근거를 담는다)
-    assert (heater["min"], heater["max"]) == (1, 100)
+    assert (heater["min"], heater["max"]) == (0 if key == "giesen_w45a_w60a" else 1, 100)
     # 쓰기 대상이 읽기 role 어느 것과도 겹치지 않아야 한다 (피드백 덮어쓰기 방지)
     roles = _role_map(ROASTER_REGISTRY[key]["default_params"]["channels"])
     # WxA/WxA+는 fan 읽기 채널이 없다 (aset에 fan% 채널 부재) — 있는 role만 검사.
@@ -250,13 +250,36 @@ def test_classic_giesen_never_writes_zero_to_burner_setpoint() -> None:
     """
     for key in GIESEN_DB2_KEYS:
         heater = ROASTER_REGISTRY[key]["default_params"]["write_map"]["heater"]
-        assert heater["min"] == 1, f"{key}: 0을 쓰면 기센이 AUTO로 넘어간다"
+        if key == "giesen_w45a_w60a":
+            assert heater["min"] == 0
+            assert heater["value_offset"] == 1
+        else:
+            assert heater["min"] == 1, f"{key}: 0을 쓰면 기센이 AUTO로 넘어간다"
 
 
 def test_w6a_pro_keeps_zero_as_a_valid_burner_value() -> None:
     """W6A PRO는 AUTO 센티널이 -1이고 슬라이더 오프셋도 0 — 0은 정상 값이다."""
     heater = ROASTER_REGISTRY["giesen_w6a_pro"]["default_params"]["write_map"]["heater"]
     assert heater["min"] == 0
+
+
+def test_w60a_migrates_only_the_legacy_default_heater_map() -> None:
+    from copy import deepcopy
+    from manager import _merge_connect_params
+
+    defaults = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
+    legacy = deepcopy(ROASTER_REGISTRY["giesen_standard"]["default_params"]["write_map"])
+    saved = {**legacy, "fan": {"db": 2, "offset": 10}}
+    merged = _merge_connect_params(defaults, {"host": "192.168.1.2", "write_map": saved})
+    assert merged["write_map"]["heater"] == defaults["write_map"]["heater"]
+    assert merged["write_map"]["heater"]["value_offset"] == 1
+    assert merged["write_map"]["fan"] == saved["fan"]
+    assert merged["host"] == "192.168.1.2"
+    assert saved["heater"]["min"] == 1
+    assert "value_offset" not in saved["heater"]
+    custom = {"heater": {**legacy["heater"], "offset": 16}}
+    assert _merge_connect_params(defaults, {"write_map": custom})["write_map"] == custom
+    assert _merge_connect_params(defaults, {"write_map": {}})["write_map"] == defaults["write_map"]
 
 
 def test_clamp_turns_a_safe_off_zero_into_one_on_classic_giesen() -> None:
