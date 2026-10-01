@@ -7,6 +7,7 @@ import type { SetStateAction } from 'react';
 import { create } from 'zustand';
 import type { RawTemperatureSample } from '../lib/autoCharge';
 import type { SensorObservation } from '../lib/sensorObservation';
+import { type CompletedSlice, createCompletedSlice } from './completed';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
 
@@ -39,7 +40,7 @@ export interface BatchSelection {
     planBatchHandoff: PlanBatchHandoff | null;
 }
 
-export interface RoastingState {
+export interface RoastingState extends CompletedSlice {
     logEntries: LogEntry[];
     fcDualUnwind: boolean;
     livePoints: LiveRoastPoint[];
@@ -142,6 +143,7 @@ const initialState = {
 
 export const useRoastingStore = create<RoastingState>((set, get) => ({
     ...initialState,
+    ...createCompletedSlice(set, get),
 
     setLogEntries: (action) =>
         set((state) => ({ logEntries: typeof action === 'function' ? action(state.logEntries) : action })),
@@ -192,6 +194,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             heatHoldAfterDrop: false,
         });
         useRoastSessionStore.getState().completeBatch();
+        get().lockAfterCharge(get().sessionId);
     },
 
     endRoast: () => {

@@ -4,6 +4,8 @@ import { useDayBatches } from '@entities/plan';
 import { buildRoastSummarySchema, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { scheduleLinkFieldPatch, summaryFormInitialValues } from '@features/active-roast/lib/summaryPrefill';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
+import { completedKey } from '@features/active-roast/model/completed';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
@@ -37,6 +39,10 @@ export const useRoastSummaryForm = ({
     const { data: beans = [] } = useBeans(userId);
     const today = format(new Date(), 'yyyy-MM-dd');
     const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? userId : '', today);
+
+    const recordKey = summaryData?.sessionId
+        ? completedKey(summaryData.sessionOwnerId ?? userId, summaryData.sessionId)
+        : null;
 
     const hasHandoff = Boolean(planBatchHandoff);
     const incompleteBatches = useMemo(
@@ -95,10 +101,19 @@ export const useRoastSummaryForm = ({
             );
             openedBaseRef.current = { weightGrams: initial.weightGrams, beanId: initial.beanId };
             prevLinkRef.current = { mode: initial.linkMode, batchId: initial.planBatchId };
-            reset(initial);
+            const draft = recordKey ? useRoastingStore.getState().completedRecords[recordKey]?.draft : null;
+            const values = draft ?? initial;
+            prevLinkRef.current = { mode: values.linkMode, batchId: values.planBatchId };
+            reset(values);
             setBeanFieldEpoch((k) => k + 1);
         }
-    }, [open, summaryData, reset]);
+    }, [open, summaryData, reset, recordKey]);
+
+    useEffect(() => {
+        if (!open || !recordKey) return;
+        const subscription = watch(() => useRoastingStore.getState().setCompletedDraft(recordKey, form.getValues()));
+        return () => subscription.unsubscribe();
+    }, [open, recordKey, watch, form]);
 
     const linkedBatch = useMemo(() => {
         if (hasHandoff || linkMode !== 'schedule' || !formPlanBatchId) return null;

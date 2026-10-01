@@ -2,6 +2,7 @@ import { type DropOnset, planDropTransition } from '@features/active-roast/lib/d
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import { BBP_INPROGRESS_ID, hydrateLiveBbp, useBbpStore } from '@features/active-roast/model/bbp';
+import { completedKey } from '@features/active-roast/model/completed';
 import { clearPendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastSettings } from '@features/active-roast/model/settings';
@@ -56,7 +57,7 @@ export interface UseRoastLifecycleReturn {
         commitSummary: (summary: RoastSummaryData) => void;
         holdAutoChargeUntilRecovery: () => void;
     }) => RoastSummaryData | null;
-    cancelDrop: () => boolean;
+    cancelDrop: (key?: string | null) => boolean;
     recoverLiveBbp: () => void;
 }
 
@@ -267,6 +268,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 logEntries: planned.logEntries,
                 livePoints: planned.roastPoints as LiveRoastPoint[],
                 sessionOwnerId: store.sessionOwnerId,
+                currentBatch: store.currentBatch,
             });
             if (bbpEnabled) useBbpStore.getState().begin(planned.bbpStartMs, planned.bbpSeed);
             useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
@@ -311,31 +313,42 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         [completeDrop, resetActiveRoast, disableAutoDropRef],
     );
 
-    const cancelDrop = useCallback((): boolean => {
-        if (!isDropCancelable()) return false;
-        const restore = useCompletedRoastStore.getState().restore;
-        if (!restore) return false;
-        useBbpStore.getState().abort();
-        void deleteBbpTsv(BBP_INPROGRESS_ID);
-        clearPendingRoastSave(restore.sessionOwnerId ?? '', restore.sessionId);
-        useCompletedRoastStore.getState().clear();
-        const elapsed = Math.max(0, restore.elapsed);
-        const origin = Date.now() - elapsed * 1000;
-        // Phase before the curve so polling sees a same-batch resume and anchors
-        // the poll clock on this snapshot, not on the pre-charge wait (#638).
-        useRoastingStore.setState({
-            phase: 'roasting',
-            sessionId: restore.sessionId,
-            sessionOwnerId: restore.sessionOwnerId,
-            roastStartMs: origin,
-            elapsed,
-            awaitingNextCharge: false,
-            heatHoldAfterDrop: true,
-        });
-        setLogEntries(restore.logEntries.filter((e) => e.event !== 'Drop'));
-        setLivePoints(restore.livePoints);
-        return true;
-    }, [setLogEntries, setLivePoints]);
+    const cancelDrop = useCallback(
+        (targetKey?: string | null): boolean => {
+            const store = useRoastingStore.getState();
+            const key = targetKey ?? store.latestCompletedKey;
+            if (!key || !isDropCancelable(key)) return false;
+            const record = store.completedRecords[key];
+            const restore = record?.restore;
+            if (!restore) return false;
+            useBbpStore.getState().abort();
+            void deleteBbpTsv(BBP_INPROGRESS_ID);
+            clearPendingRoastSave(restore.sessionOwnerId ?? '', restore.sessionId);
+            if (!store.discardCompleted(completedKey(restore.sessionOwnerId, restore.sessionId))) return false;
+            const elapsed = Math.max(restore.elapsed, Math.floor((Date.now() - restore.roastStartMs) / 1000));
+            const origin = restore.roastStartMs;
+            const points = [...restore.livePoints, ...record.waitPoints];
+            // Phase before the curve so polling sees a same-batch resume and anchors
+            // the poll clock on this snapshot, not on the pre-charge wait (#638).
+            useRoastingStore.setState({
+                phase: 'roasting',
+                sessionId: restore.sessionId,
+                sessionOwnerId: restore.sessionOwnerId,
+                currentBatch: restore.currentBatch ?? null,
+                roastStartMs: origin,
+                elapsed,
+                awaitingNextCharge: false,
+                heatHoldAfterDrop: true,
+            });
+            setLogEntries(restore.logEntries.filter((e) => e.event !== 'Drop'));
+            setLivePoints(points);
+            void replaceSessionTsv(restore.sessionId, formatTsvRows(points, formatRoastTsvRow)).catch((err) =>
+                logger.capture(err, { context: 'cancel Drop session tsv' }),
+            );
+            return true;
+        },
+        [setLogEntries, setLivePoints],
+    );
 
     const recoverLiveBbp = useCallback(() => {
         if (!bbpEnabled) return;

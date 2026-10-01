@@ -361,6 +361,7 @@ describe('completeDrop → BBP (#484)', () => {
     it('Drop cancel restores Charge clock and does not clear heat hold', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-21T00:10:00Z'));
+        useRoastingStore.setState({ roastStartMs: Date.now() - 600_000 });
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)]);
         try {
             void act(() => {
@@ -389,13 +390,13 @@ describe('completeDrop → BBP (#484)', () => {
             });
             expect(useRoastingStore.getState().phase).toBe('roasting');
             expect(useRoastingStore.getState().sessionId).toBe('s-a');
-            expect(useRoastingStore.getState().elapsed).toBe(600);
-            expect(useRoastingStore.getState().roastStartMs).toBe(Date.now() - 600_000);
+            expect(useRoastingStore.getState().elapsed).toBe(720);
+            expect(useRoastingStore.getState().roastStartMs).toBe(Date.now() - 720_000);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             expect(useBbpStore.getState().active).toBe(false);
             vi.setSystemTime(new Date('2026-09-21T00:12:03Z'));
             useRoastingStore.getState().tick();
-            expect(useRoastingStore.getState().elapsed).toBe(603);
+            expect(useRoastingStore.getState().elapsed).toBe(723);
             expect(useRoastingStore.getState().phase).toBe('roasting');
         } finally {
             vi.useRealTimers();

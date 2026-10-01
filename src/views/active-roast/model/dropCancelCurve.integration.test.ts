@@ -232,7 +232,7 @@ const chargeAndPlant = async (harness: Harness) => {
     await flush();
     await act(async () => {
         harness.setLogs([chargeLog(200)]);
-        useRoastingStore.getState().startCharge(Date.now(), 'owner');
+        useRoastingStore.getState().startCharge(Date.now() - 8000, 'owner');
     });
     await flush();
     await act(async () => {
@@ -283,11 +283,11 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
             });
             await flush();
 
-            expect(harness.points.map((sample) => sample.bt)).toEqual([200, 150, 180]);
+            expect(harness.points.map((sample) => sample.bt)).toEqual([200, 150, 180, 210]);
             expect(harness.logs.map((entry) => entry.event)).toEqual(['Charge']);
             expect(useRoastingStore.getState().phase).toBe('roasting');
             expect(useRoastingStore.getState().sessionId).toBe(sessionId);
-            expect(useRoastingStore.getState().elapsed).toBe(8);
+            expect(useRoastingStore.getState().elapsed).toBe(9);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             expect(useRoastingStore.getState().sidecarConnected).toBe(true);
             expect(mocks.resetRoast).toHaveBeenCalledTimes(resets);
@@ -313,9 +313,9 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
                 await vi.advanceTimersByTimeAsync(1000);
             });
             expect(harness.points.map((sample) => sample.bt).slice(0, 3)).toEqual([200, 150, 180]);
-            expect(harness.points).toHaveLength(4);
-            expect(harness.points[3]?.bt).toBe(216);
-            expect(harness.points[3]?.time).toBeGreaterThan(8);
+            expect(harness.points).toHaveLength(5);
+            expect(harness.points[4]?.bt).toBe(216);
+            expect(harness.points[4]?.time).toBeGreaterThan(9);
 
             await act(async () => {
                 await flushTsv(sessionId);
@@ -328,7 +328,7 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
             act(() => {
                 harness.lifecycle.finishDrop({
                     livePoints: harness.points,
-                    onset: { timeSec: harness.points[3].time, bt: 216 },
+                    onset: { timeSec: harness.points[4].time, bt: 216 },
                     commitSummary: () => undefined,
                     holdAutoChargeUntilRecovery: () => undefined,
                 });
@@ -361,7 +361,7 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
                 expect(harness.lifecycle.cancelDrop()).toBe(true);
             });
             await flush();
-            expect(harness.points.map((sample) => sample.bt)).toEqual([200, 150, 180]);
+            expect(harness.points.map((sample) => sample.bt)).toEqual([200, 150, 180, 210]);
             expect(useBbpStore.getState().active).toBe(false);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             expect(useRoastingStore.getState().sidecarConnected).toBe(true);

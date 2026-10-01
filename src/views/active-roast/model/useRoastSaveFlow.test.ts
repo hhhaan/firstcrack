@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
+import { completedKey } from '@features/active-roast/model/completed';
 import {
     clearPendingRoastSave,
     listPendingRoastSaves,
@@ -132,6 +133,7 @@ beforeEach(() => {
         savedSession: { id: pending.params.sessionId, plan_batch_id: null },
     }));
     useRoastingStore.getState().reset();
+    useRoastingStore.getState().clear();
     useRoastingStore.setState({ sessionOwnerId: null });
     useRoastSessionStore.getState().completeBatch();
 });
@@ -434,7 +436,7 @@ describe('roast save identity and Continue lifecycle', () => {
 
             vi.setSystemTime(Date.now() + 60_000);
             await act(async () => h.api.handleSave({ ...form, beanId: 'bean-a' }));
-            expect(mocks.resumeSave.mock.calls[1][0].params.roastStartTime).toBe(startA);
+            expect(mocks.resumeSave).toHaveBeenCalledTimes(1);
             expect(useRoastingStore.getState().roastStartMs).toBe(startB);
             expect(useRoastingStore.getState().sessionId).toBe(sessionB);
         } finally {
@@ -455,3 +457,56 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(mocks.fetchQuery).not.toHaveBeenCalled();
     });
 });
+
+it.each(['success', 'failure'] as const)(
+    'keeps B summary, checkpoint, restore and lock when A resolves with %s',
+    async (outcome) => {
+        let resolveSave = (_value: unknown) => {};
+        let rejectSave = (_error: Error) => {};
+        mocks.resumeSave.mockImplementationOnce(
+            () =>
+                new Promise((resolve, reject) => {
+                    resolveSave = resolve;
+                    rejectSave = reject;
+                }),
+        );
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        let pending = Promise.resolve();
+        act(() => {
+            pending = h.api.handleSave(form);
+        });
+        const restoreB = {
+            sessionId: 's-b',
+            sessionOwnerId: 'workspace-a',
+            roastStartMs: Date.now() - 60_000,
+            elapsed: 60,
+            logEntries: [],
+            livePoints: [],
+        };
+        act(() => {
+            useRoastingStore.setState({
+                phase: 'standby',
+                sessionId: null,
+                awaitingNextCharge: true,
+                heatHoldAfterDrop: true,
+            });
+            useRoastingStore.getState().capture(restoreB);
+            h.api.confirmEndRoast({ ...summary, sessionId: 's-b', selectedBeanId: 'bean-b', elapsedSec: 60 });
+        });
+        const frozenB = h.api.flow.summaryData;
+        const recordB = useRoastingStore.getState().completedRecords[completedKey('workspace-a', 's-b')];
+        await act(async () => {
+            if (outcome === 'success')
+                resolveSave({ syncPending: false, savedSession: { id: 's-a', plan_batch_id: null } });
+            else rejectSave(new Error('A failed'));
+            await pending;
+        });
+        expect(h.api.flow.summaryData).toBe(frozenB);
+        expect(h.api.flow.summaryModal).toBe(true);
+        expect(h.api.isSaving).toBe(false);
+        expect(useRoastingStore.getState().completedRecords[completedKey('workspace-a', 's-b')]).toBe(recordB);
+        expect(listPendingRoastSaves().find((p) => p.params.sessionId === 's-b')?.params.selectedBeanId).toBe('bean-b');
+        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+    },
+);

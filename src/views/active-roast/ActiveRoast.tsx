@@ -26,6 +26,7 @@ import {
     nearestLivePointAt,
 } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { completedKey } from '@features/active-roast/model/completed';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -58,7 +59,6 @@ import {
     bbpElapsedWhenEnabled,
     bbpFeatureEnabled,
     buildChartFrame,
-    canCancelDrop,
     chargeWaitTempBand,
     cycleFcWhenEnabled,
     formatDisplayRoR,
@@ -86,7 +86,7 @@ import {
 } from './lib/display-derivatives';
 import { resolveLiveChartView } from './lib/live-chart-view';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
-import { useCompletedRoastStore } from './model/completedRoast';
+import { isDropCancelable } from './model/completedRoast';
 import { useChartKeyboard } from './model/useChartKeyboard';
 import { useChartPipeline } from './model/useChartPipeline';
 import { useRoastLifecycle } from './model/useRoastLifecycle';
@@ -424,15 +424,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         ambientHumidity: weatherData?.humidity,
         onResetActiveRoast: lifecycle.resetActiveRoast,
     });
-    const completedRestore = useCompletedRoastStore((s) => s.restore);
-    const completedSubmitted = useCompletedRoastStore((s) => s.submitted);
-    const dropCancelable = canCancelDrop({
-        hasRestore: Boolean(completedRestore),
-        submitted: completedSubmitted,
-        charged,
-        sessionId,
-        restoreSessionId: completedRestore?.sessionId,
-    });
+    const completedRecords = useRoastingStore((s) => s.completedRecords);
+    const summaryKey = saveFlow.flow.summaryData?.sessionId
+        ? completedKey(
+              saveFlow.flow.summaryData.sessionOwnerId ?? workspaceOwnerId,
+              saveFlow.flow.summaryData.sessionId,
+          )
+        : null;
+    void completedRecords;
+    const dropCancelable = summaryKey != null && isDropCancelable(summaryKey);
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
 
@@ -451,7 +451,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const triggerCharge = useCallback(
         (bt?: number | null, chargeTimeMs?: number) => {
             startChargeAction(bt, chargeTimeMs);
-            useCompletedRoastStore.getState().lockAfterCharge(useRoastingStore.getState().sessionId);
+
             // Rearm auto Drop for this batch only. Drop's reset would re-arm too early (#484).
             resetAutoDetectionRef.current?.();
         },
@@ -806,12 +806,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [lifecycle, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName]);
 
     const handleCancelDrop = useCallback(() => {
-        if (!lifecycle.cancelDrop()) {
+        if (!lifecycle.cancelDrop(summaryKey)) {
             logger.capture(new Error('Roast summary Drop cancellation failed'));
             return;
         }
         saveFlow.flow.discardSummary();
-    }, [lifecycle, saveFlow.flow]);
+    }, [lifecycle, saveFlow.flow, summaryKey]);
 
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
@@ -952,9 +952,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             />
 
             <ActiveRoastSensorNotices
-                showUnsavedBanner={showPendingSummary(saveFlow.flow.summaryModal, saveFlow.flow.summaryData)}
-                unsavedTime={orEmpty(saveFlow.flow.summaryData?.totalTime)}
-                onReopenUnsaved={saveFlow.flow.reopenSummary}
+                showUnsavedBanner={showPendingSummary(saveFlow.flow.summaryModal, saveFlow.oldestUnsaved)}
+                unsavedTime={orEmpty(saveFlow.oldestUnsaved?.summary?.totalTime)}
+                onReopenUnsaved={saveFlow.reopenOldestUnsaved}
                 showAutoChargeUnavailable={autoChargeUnavailable(
                     phase,
                     roastSettings.autoChargeEnabled,

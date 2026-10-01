@@ -1,3 +1,4 @@
+import type { PlanBatchHandoff } from './database.types';
 import type { TemperatureProcessing } from './sidecar';
 /** Manual observations only; never sent as machine control commands. */
 export type RoastNoteControls = {
@@ -52,4 +53,19 @@ export interface LiveRoastPoint {
     sensorTimestamp?: number | null;
     sensorClock?: string | null;
     processing?: TemperatureProcessing;
+}
+
+export interface RoastSummaryData {
+    totalTime: string;
+    development: string;
+    finalBt: string;
+    logEntries: LogEntry[];
+    /** Frozen at Drop/abort so late save cannot pick up the next batch's session. */
+    sessionId?: string | null;
+    sessionOwnerId?: string | null;
+    /** Charge-relative seconds locked at Drop (or abort End). */
+    elapsedSec?: number;
+    selectedBeanId?: string | null;
+    planBatchHandoff?: PlanBatchHandoff | null;
+    handoffBeanName?: string | null;
 }

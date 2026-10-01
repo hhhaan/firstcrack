@@ -1,55 +1,34 @@
 import { canCancelDrop } from '@features/active-roast/lib/drop-transition';
-import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
-import type { LogEntry } from '@shared/types/roast';
-import { create } from 'zustand';
-import type { LiveRoastPoint } from './useSidecarPolling';
+import { isChargedPhase, type RoastingState, useRoastingStore } from '@features/active-roast/model/status';
 
-export interface CompletedRoastRestore {
-    sessionId: string;
-    roastStartMs: number;
-    elapsed: number;
-    logEntries: LogEntry[];
-    livePoints: LiveRoastPoint[];
-    sessionOwnerId: string | null;
-}
+export type { CompletedRoastRestore } from '@features/active-roast/model/completed';
 
-interface CompletedRoastState {
-    restore: CompletedRoastRestore | null;
-    droppedSessionId: string | null;
-    submitted: boolean;
-    capture: (restore: CompletedRoastRestore) => void;
-    markSubmitted: (sessionId: string) => void;
-    /** Next Charge started — Drop cancel must not rewind the new batch. */
-    lockAfterCharge: (liveSessionId: string | null) => void;
-    clear: () => void;
-}
-
-const empty = {
-    restore: null as CompletedRoastRestore | null,
-    droppedSessionId: null as string | null,
-    submitted: false,
+const completedState = (state: RoastingState) => {
+    const record = state.latestCompletedKey ? state.completedRecords[state.latestCompletedKey] : null;
+    return {
+        restore: record?.restore ?? null,
+        droppedSessionId: record?.sessionId ?? null,
+        submitted: Boolean(record?.submitted || record?.saving),
+        capture: state.capture,
+        markSubmitted: state.markSubmitted,
+        lockAfterCharge: state.lockAfterCharge,
+        clear: state.clear,
+    };
 };
 
-export const useCompletedRoastStore = create<CompletedRoastState>((set, get) => ({
-    ...empty,
-    capture: (restore) => set({ restore, droppedSessionId: restore.sessionId, submitted: false }),
-    markSubmitted: (sessionId) => {
-        const { restore } = get();
-        if (restore && restore.sessionId !== sessionId) return;
-        set({ submitted: true, restore: null });
-    },
-    lockAfterCharge: (liveSessionId) => {
-        const { restore } = get();
-        if (!restore) return;
-        if (liveSessionId && liveSessionId !== restore.sessionId) set({ restore: null });
-    },
-    clear: () => set({ ...empty }),
-}));
+// Compatibility selectors; the running store owns the records and action boundary.
+export const useCompletedRoastStore = Object.assign(
+    <T>(selector: (state: ReturnType<typeof completedState>) => T): T =>
+        useRoastingStore((state) => selector(completedState(state))),
+    { getState: () => completedState(useRoastingStore.getState()) },
+);
 
-export const isDropCancelable = (): boolean => {
-    const { restore, submitted } = useCompletedRoastStore.getState();
-    if (!restore) return false;
+export const isDropCancelable = (key?: string | null): boolean => {
     const live = useRoastingStore.getState();
+    const record =
+        (key ?? live.latestCompletedKey) ? live.completedRecords[key ?? live.latestCompletedKey ?? ''] : null;
+    const restore = record?.restore;
+    if (!restore || !record.cancelable || record.saving || record.submitted) return false;
     const nextCharged = Boolean(isChargedPhase(live.phase) && live.sessionId && live.sessionId !== restore.sessionId);
-    return canCancelDrop({ nextCharged, submitted });
+    return canCancelDrop({ nextCharged, submitted: record.submitted });
 };

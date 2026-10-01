@@ -1,21 +1,9 @@
-import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
-import type { LogEntry } from '@shared/types/roast';
-import { useCallback, useReducer } from 'react';
+import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import type { RoastSummaryData } from '@shared/types/roast';
+import { useCallback } from 'react';
+import { create } from 'zustand';
 
-export interface RoastSummaryData {
-    totalTime: string;
-    development: string;
-    finalBt: string;
-    logEntries: LogEntry[];
-    /** Frozen at Drop/abort so late save cannot pick up the next batch's session. */
-    sessionId?: string | null;
-    sessionOwnerId?: string | null;
-    /** Charge-relative seconds locked at Drop (or abort End). */
-    elapsedSec?: number;
-    selectedBeanId?: string | null;
-    planBatchHandoff?: PlanBatchHandoff | null;
-    handoffBeanName?: string | null;
-}
+export type { RoastSummaryData } from '@shared/types/roast';
 
 export interface SaveFlowResult {
     sessionId?: string | null;
@@ -126,24 +114,29 @@ export interface UseRoastCompletionFlowReturn extends FlowState {
     resetFlow: () => void;
 }
 
-export const useRoastCompletionFlow = (): UseRoastCompletionFlowReturn => {
-    const [state, dispatch] = useReducer(flowReducer, INITIAL_FLOW_STATE);
+const useCompletionUi = create<{ state: FlowState; dispatch: (action: FlowAction) => void }>((set) => ({
+    state: INITIAL_FLOW_STATE,
+    dispatch: (action) => set((previous) => ({ state: flowReducer(previous.state, action) })),
+}));
 
-    const openEndRoast = useCallback(() => dispatch({ type: 'OPEN_END_ROAST' }), []);
+export const useRoastCompletionFlow = (): UseRoastCompletionFlowReturn => {
+    const { state, dispatch } = useCompletionUi();
+
+    const openEndRoast = useCallback(() => dispatch({ type: 'OPEN_END_ROAST' }), [dispatch]);
     const confirmEndRoast = useCallback(
         (summaryData: RoastSummaryData) => dispatch({ type: 'CONFIRM_END_ROAST', payload: summaryData }),
-        [],
+        [dispatch],
     );
-    const closeEndRoast = useCallback(() => dispatch({ type: 'CLOSE_END_ROAST' }), []);
-    const closeSummary = useCallback(() => dispatch({ type: 'CLOSE_SUMMARY' }), []);
-    const reopenSummary = useCallback(() => dispatch({ type: 'REOPEN_SUMMARY' }), []);
-    const discardSummary = useCallback(() => dispatch({ type: 'DISCARD_SUMMARY' }), []);
+    const closeEndRoast = useCallback(() => dispatch({ type: 'CLOSE_END_ROAST' }), [dispatch]);
+    const closeSummary = useCallback(() => dispatch({ type: 'CLOSE_SUMMARY' }), [dispatch]);
+    const reopenSummary = useCallback(() => dispatch({ type: 'REOPEN_SUMMARY' }), [dispatch]);
+    const discardSummary = useCallback(() => dispatch({ type: 'DISCARD_SUMMARY' }), [dispatch]);
     const onSaveSuccess = useCallback(
         (result: SaveFlowResult) => dispatch({ type: 'SAVE_SUCCESS', payload: result }),
-        [],
+        [dispatch],
     );
-    const dismissContinue = useCallback(() => dispatch({ type: 'DISMISS_CONTINUE' }), []);
-    const resetFlow = useCallback(() => dispatch({ type: 'RESET' }), []);
+    const dismissContinue = useCallback(() => dispatch({ type: 'DISMISS_CONTINUE' }), [dispatch]);
+    const resetFlow = useCallback(() => dispatch({ type: 'RESET' }), [dispatch]);
 
     return {
         ...state,

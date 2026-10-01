@@ -1,9 +1,11 @@
+import { useRoastingStore } from '@features/active-roast/model/status';
 // @vitest-environment jsdom
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, it, vi } from 'vitest';
+import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
 import { RoastSummaryModal } from './RoastSummaryModal';
 
 vi.mock('@entities/bean/queries', () => ({
@@ -249,4 +251,51 @@ it('unchecks deductStock when a custom bean name is typed', () => {
     const checkbox = document.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
     unmount();
+});
+
+it('keeps each batch form draft across switching summaries and remounting', () => {
+    useRoastingStore.getState().clear();
+    const a = { ...summaryData, sessionId: 'a', sessionOwnerId: 'user-1' };
+    const b = { ...summaryData, sessionId: 'b', sessionOwnerId: 'user-1' };
+    for (const summary of [a, b])
+        useRoastingStore.getState().hydrateCompleted(summary, {
+            userId: 'user-1',
+            sessionId: summary.sessionId,
+            elapsed: 600,
+            roastStartTime: 1000,
+            rawBT: 205,
+            handoffBeanName: null,
+            selectedBeanId: null,
+            targetProfileId: null,
+            planBatchHandoff: null,
+            logEntries: [],
+            formData: { notes: '', weightGrams: 0, roastLevel: null, beanId: null },
+        });
+    let summary = a;
+    const current: { api: ReturnType<typeof useRoastSummaryForm> | null } = { api: null };
+    const Probe = () => {
+        current.api = useRoastSummaryForm({
+            open: true,
+            summaryData: summary,
+            selectedBeanId: null,
+            planBatchHandoff: null,
+        });
+        return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    act(() => root.render(createElement(Probe)));
+    act(() => current.api?.form.setValue('notes', 'A draft'));
+    summary = b;
+    act(() => root.render(createElement(Probe)));
+    expect(current.api?.form.getValues('notes')).toBe('');
+    act(() => current.api?.form.setValue('notes', 'B draft'));
+    summary = a;
+    act(() => root.render(createElement(Probe)));
+    expect(current.api?.form.getValues('notes')).toBe('A draft');
+    act(() => root.unmount());
+    const remount = createRoot(document.createElement('div'));
+    act(() => remount.render(createElement(Probe)));
+    expect(current.api?.form.getValues('notes')).toBe('A draft');
+    act(() => remount.unmount());
+    useRoastingStore.getState().clear();
 });

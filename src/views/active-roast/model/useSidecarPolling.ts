@@ -146,6 +146,7 @@ export const useSidecarPolling = ({
     const lastPreChargeAbsRef = useRef(0);
     const lastRoastPointTimeRef = useRef<number | null>(livePoints[livePoints.length - 1]?.time ?? null);
     const prevPhaseRef = useRef(phase);
+    const curveOriginRef = useRef(useRoastingStore.getState().roastStartMs);
     /** Session that owns the roast curve. Kept across Drop; the next Charge replaces it. */
     const curveSessionRef = useRef<string | null>(useRoastingStore.getState().sessionId);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
@@ -167,6 +168,7 @@ export const useSidecarPolling = ({
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
             const store = useRoastingStore.getState();
+            curveOriginRef.current = store.roastStartMs;
             const sameBatchResume =
                 store.heatHoldAfterDrop &&
                 store.sessionId != null &&
@@ -396,6 +398,29 @@ export const useSidecarPolling = ({
 
                 const { phase: currentPhase, roastStartMs, sessionId: currentSessionId } = useRoastingStore.getState();
 
+                if (currentPhase !== 'roasting' && !data.stale && !data.reconnecting) {
+                    useRoastingStore.getState().appendCompletedWait(
+                        {
+                            time: 0,
+                            label: '',
+                            bt,
+                            et: data.et ?? null,
+                            ror: data.ror ?? null,
+                            ror_et: data.ror_et ?? null,
+                            heater: data.heater ?? null,
+                            fan: data.fan ?? 0,
+                            drum: data.drum ?? 0,
+                            heaterSet: data.heater_set ?? null,
+                            btRaw: finiteRawTemperature(data.bt_raw),
+                            etRaw: finiteRawTemperature(data.et_raw),
+                            sensorTimestamp: deviceTimestamp,
+                            sensorClock: data.sensor_clock ?? null,
+                            processing: data.processing,
+                        },
+                        receivedAtMs,
+                    );
+                }
+
                 // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
                 // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
                 if (currentPhase !== 'roasting' && !data.stale) {
@@ -422,6 +447,19 @@ export const useSidecarPolling = ({
                 }
 
                 if (currentPhase === 'roasting' && roastStartMs !== 0) {
+                    if (curveOriginRef.current !== roastStartMs) {
+                        curveOriginRef.current = roastStartMs;
+                        lastRoastPointTimeRef.current = null;
+                    }
+                    const lastPoint =
+                        useRoastingStore.getState().livePoints[useRoastingStore.getState().livePoints.length - 1];
+                    if (
+                        deviceTimestamp != null &&
+                        lastPoint?.sensorTimestamp != null &&
+                        lastPoint.sensorClock === (data.sensor_clock ?? null) &&
+                        deviceTimestamp <= lastPoint.sensorTimestamp
+                    )
+                        return;
                     const t = (Date.now() - roastStartMs) / 1000;
                     // Keep elapsed on wall-clock even if UI tick interval is throttled
                     const elapsedSec = Math.floor(t);
@@ -432,7 +470,7 @@ export const useSidecarPolling = ({
                     if (data.stale) return;
                     // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
                     const lastRoastPointTime = lastRoastPointTimeRef.current;
-                    if (lastRoastPointTime !== null && t >= lastRoastPointTime && t - lastRoastPointTime < 0.4) return;
+                    if (lastRoastPointTime !== null && t - lastRoastPointTime < 0.4) return;
                     lastRoastPointTimeRef.current = t;
 
                     const min = Math.floor(t / 60);
