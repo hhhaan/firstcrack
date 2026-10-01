@@ -15,6 +15,8 @@ export const PHASE_BAR_STROKE_WIDTH = 0.5;
 export const TEMP_CURVE_WIDTH = 1.8;
 /** Heat, damper, drum, and their reference curves. */
 export const CONTROL_CURVE_WIDTH = 1.5;
+/** Vertical guides for heater, roast events, notes, and turning points. */
+export const EVENT_MARK_LINE_WIDTH = 1;
 export const PHASE_BAR_FONT_SIZE = 10;
 export const PHASE_BAR_FONT_SIZE_NARROW = 9;
 export const PHASE_BAR_FONT_FAMILY = 'monospace';

@@ -1,4 +1,5 @@
 import {
+    EVENT_MARK_LINE_WIDTH,
     MARKER_LABEL_GAP_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
@@ -170,8 +171,8 @@ describe('event marker visual grammar', () => {
         });
         expect(result.allMarkLines).not.toEqual(expect.arrayContaining([expect.objectContaining({ xAxis: 540 })]));
         expect(result.continuousMarkerLines).toEqual([
-            { timeSec: 540, color: '#888', width: 0.6 },
-            { timeSec: 540, color: '#c00', width: 1 },
+            { timeSec: 540, color: '#888', width: EVENT_MARK_LINE_WIDTH },
+            { timeSec: 540, color: '#c00', width: EVENT_MARK_LINE_WIDTH },
         ]);
     });
 
@@ -217,7 +218,7 @@ describe('event marker visual grammar', () => {
             lineStyle: { color: string; width: number };
             label: { show: boolean };
         };
-        expect(eventLine.lineStyle).toMatchObject({ color: '#888', width: 0.6 });
+        expect(eventLine.lineStyle).toMatchObject({ color: '#888', width: EVENT_MARK_LINE_WIDTH });
         expect(eventLine.label).toEqual({ show: false });
         expect(result.curveLabels[0]?.text).toBe('Yellow|08:00|196.0°C');
         expect(result.controlGuideMarkLines).toEqual(

@@ -1,5 +1,6 @@
 import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
+    EVENT_MARK_LINE_WIDTH,
     isControlEvent,
     MARKER_LABEL_CANVAS_GUTTER_PX,
     MARKER_LABEL_CHAR_WIDTH_PX,
@@ -389,7 +390,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         xAxis: m.timeSec,
         lineStyle: {
             color: markerColor(m.event),
-            width: isControlEvent(m.event) ? 1 : 0.6,
+            width: EVENT_MARK_LINE_WIDTH,
             type: 'solid' as const,
             opacity: 1,
         },
@@ -403,7 +404,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         xAxis: tp.timeSec,
         lineStyle: {
             color: colors.eventMark,
-            width: 0.6,
+            width: EVENT_MARK_LINE_WIDTH,
             type: 'solid' as const,
             opacity: 1,
         },
@@ -485,9 +486,13 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
               ...lineEvents.map((m) => ({
                   timeSec: m.timeSec,
                   color: markerColor(m.event),
-                  width: isControlEvent(m.event) ? 1 : 0.6,
+                  width: EVENT_MARK_LINE_WIDTH,
               })),
-              ...visibleTurningPoints.map((tp) => ({ timeSec: tp.timeSec, color: colors.eventMark, width: 0.6 })),
+              ...visibleTurningPoints.map((tp) => ({
+                  timeSec: tp.timeSec,
+                  color: colors.eventMark,
+                  width: EVENT_MARK_LINE_WIDTH,
+              })),
           ]
         : [];
 

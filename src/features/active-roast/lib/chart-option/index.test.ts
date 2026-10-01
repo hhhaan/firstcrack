@@ -1,5 +1,6 @@
 import {
     CONTROL_CURVE_WIDTH,
+    EVENT_MARK_LINE_WIDTH,
     MARKER_LABEL_FONT,
     markerLabelFont,
     TEMP_CURVE_WIDTH,
@@ -344,7 +345,7 @@ describe('buildRoastChartOption', () => {
         expect(markerSeries?.clip).toBe(false);
         const api = {
             coord: () => [50, 100],
-            value: (index: number) => [30, Number.NaN, 0.6][index],
+            value: (index: number) => [30, Number.NaN, EVENT_MARK_LINE_WIDTH][index],
             getHeight: () => 500,
         };
         expect(
@@ -352,7 +353,7 @@ describe('buildRoastChartOption', () => {
         ).toEqual(
             expect.objectContaining({
                 shape: { x1: 50, y1: 10, x2: 50, y2: 470 },
-                style: { stroke: baseParams().colors.eventMark, lineWidth: 0.6 },
+                style: { stroke: baseParams().colors.eventMark, lineWidth: EVENT_MARK_LINE_WIDTH },
             }),
         );
         expect(
@@ -377,7 +378,11 @@ describe('buildRoastChartOption', () => {
         ).find((series) => series.name === 'Event marker lines');
         const result = markerSeries?.renderItem?.(
             { dataIndex: 0, coordSys: { x: 20, y: 10, width: 200, height: 300 } },
-            { coord: () => [50, 100], value: (index: number) => [30, Number.NaN, 0.6][index], getHeight: () => 500 },
+            {
+                coord: () => [50, 100],
+                value: (index: number) => [30, Number.NaN, EVENT_MARK_LINE_WIDTH][index],
+                getHeight: () => 500,
+            },
         );
         expect(result?.shape.y2).toBe(310);
     });
