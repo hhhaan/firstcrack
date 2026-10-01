@@ -21,10 +21,10 @@ const replayStatus = (active: boolean, observationHold: boolean) => {
     return { label: 'Off', className: 'text-muted' };
 };
 
-// 'finished'는 배치 종료라 안내하지 않는다 — 맵에 없으면 렌더 생략
+// 'finished'는 배치 종료라 안내하지 않는다. 'pid'도 켜는 UI가 없어 안내하지 않는다.
+// 맵에 없으면 렌더 생략. 중지는 useReplayControl이 그대로 한다.
 const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
     disconnected: '연결 끊김으로 재생 중지',
-    pid: 'PID 개입으로 재생 중지',
     unacknowledged: '명령 미반영으로 재생 중지',
     unwritable: '히터 제어 불가로 재생 중지',
     manual: '수동 조작으로 재생 중지',
@@ -52,7 +52,7 @@ const replayDisabledHint = (
     if (replay.missingHeatSet) return t('activeRoast.replay.missingHeatSet');
     if (!replay.available) return t('activeRoast.replay.invalidPlan');
     if (!replay.active && replay.blocked) {
-        return '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요';
+        return '지금은 켤 수 없습니다 — 배출됐거나 화력 명령이 아직 반영되지 않았습니다';
     }
     return undefined;
 };
