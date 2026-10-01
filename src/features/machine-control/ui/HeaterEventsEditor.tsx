@@ -222,7 +222,8 @@ export const HeaterEventsEditor = ({
             dismissable={false}
             labelledBy="heater-events-editor-title"
             contentClassName={`${modalPanel.compare} !h-[min(760px,calc(100dvh-48px))]`}
-            overlayClassName="!z-[1100]"
+            // 집중 모드 차트는 z-9999. 포털이 그보다 낮으면 편집창이 차트 뒤에 남는다.
+            overlayClassName="!z-[10000]"
             data-testid="heater-events-editor"
         >
             <div className="flex min-h-0 flex-1 flex-col">

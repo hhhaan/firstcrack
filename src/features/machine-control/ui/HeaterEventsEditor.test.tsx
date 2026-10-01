@@ -92,6 +92,29 @@ describe('HeaterEventsEditor', () => {
         await act(async () => root.unmount());
     });
 
+    it('집중 모드 차트(z-9999)보다 위에 연다', async () => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        await act(async () => {
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'batch',
+                    events: [],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: null,
+                    unit: 'C',
+                    onClose: () => {},
+                    onApply: () => {},
+                }),
+            );
+        });
+        const overlay = document.body.querySelector('[role="presentation"]');
+        expect(overlay?.className).toContain('z-[10000]');
+        await act(async () => root.unmount());
+    });
+
     afterEach(() => {
         vi.restoreAllMocks();
         host?.remove();
