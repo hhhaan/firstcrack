@@ -1,6 +1,6 @@
 import { i18n } from '@shared/i18n';
 import { message } from '@tauri-apps/plugin-dialog';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 interface UseRoastKeyboardShortcutsParams {
@@ -50,6 +50,21 @@ export function isRoastChargeShortcutEnabled(p: {
 /** Event-mark buttons + hotkeys: Yellow / FC / Drop only while roasting. */
 export function isRoastEventMarkEnabled(phase: string): boolean {
     return phase === 'roasting';
+}
+
+/** Second mod+D inside this window marks Drop. A held key does not. */
+export const DROP_DOUBLE_TAP_MS = 400;
+
+export function nextDropDoubleTap(
+    armedAt: number | null,
+    now: number,
+    repeat: boolean,
+): { armedAt: number | null; fire: boolean } {
+    if (repeat) return { armedAt, fire: false };
+    if (armedAt != null && now - armedAt <= DROP_DOUBLE_TAP_MS) {
+        return { armedAt: null, fire: true };
+    }
+    return { armedAt: now, fire: false };
 }
 
 /** In-memory roast that a webview reload would drop. Preheat and standby stay refreshable. */
@@ -106,6 +121,11 @@ export const useRoastKeyboardShortcuts = ({
         showContinueModal,
         phase,
     });
+    const dropArmRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (!canMark) dropArmRef.current = null;
+    }, [canMark]);
 
     useEffect(() => {
         // `pnpm dev` in a browser keeps F5. Only the desktop webview drops the roast on reload.
@@ -198,12 +218,14 @@ export const useRoastKeyboardShortcuts = ({
         [canMark, onMarkEvent],
     );
 
-    // Ctrl/Meta + D → Mark Drop (case-insensitive)
+    // Ctrl/Meta + D, D → Mark Drop. One tap arms; the second tap inside the window fires.
     useHotkeys(
         'mod+d',
         (e) => {
             e.preventDefault();
-            onMarkDrop();
+            const next = nextDropDoubleTap(dropArmRef.current, Date.now(), e.repeat);
+            dropArmRef.current = next.armedAt;
+            if (next.fire) onMarkDrop();
         },
         { enabled: canMark },
         [canMark, onMarkDrop],

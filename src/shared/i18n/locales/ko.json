@@ -1004,7 +1004,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘D"
+            "markDrop": "⌘DD"
         },
         "log": {
             "title": "로스팅 로그",

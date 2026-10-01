@@ -663,7 +663,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘D"
+            "markDrop": "⌘DD"
         },
         "sidebar": {
             "bt": "BT",

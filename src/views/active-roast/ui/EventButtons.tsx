@@ -16,6 +16,13 @@ export type EventButtonDef = {
     dualStage?: FcDualStage;
 };
 
+function eventKeyshortcuts(shortcutKey: string): string {
+    const doubled = shortcutKey.length === 2 && shortcutKey[0] === shortcutKey[1];
+    const key = doubled ? shortcutKey[0] : shortcutKey;
+    const chord = (mod: string) => (doubled ? `${mod}+${key} ${mod}+${key}` : `${mod}+${key}`);
+    return `${chord('Meta')} ${chord('Control')}`;
+}
+
 export const EventButtons = ({
     buttons,
     logEntries,
@@ -84,7 +91,7 @@ export const EventButtons = ({
                         key={shortcutKey}
                         onClick={onClick}
                         disabled={disabled}
-                        aria-keyshortcuts={`Meta+${shortcutKey} Control+${shortcutKey}`}
+                        aria-keyshortcuts={eventKeyshortcuts(shortcutKey)}
                         style={{
                             display: 'flex',
                             flexDirection: isSidebar ? 'column' : 'row',

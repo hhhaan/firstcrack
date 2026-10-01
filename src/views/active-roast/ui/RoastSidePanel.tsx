@@ -345,7 +345,7 @@ export const RoastSidePanel = ({
                         {
                             label: 'Mark Drop',
                             event: 'Drop',
-                            shortcutKey: 'D',
+                            shortcutKey: 'DD',
                             pressKey: 'Mark Drop',
                             onClick: () => {
                                 if (!canMark) return;
