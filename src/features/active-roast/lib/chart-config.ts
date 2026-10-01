@@ -28,10 +28,11 @@ export const MARKER_LABEL_FONT =
     `${MARKER_LABEL_FONT_WEIGHT} ${MARKER_LABEL_FONT_SIZE}px ${MARKER_LABEL_FONT_FAMILY}` as const;
 
 /** Roast font setting → chart scale. Anything else stays at 1 so layout tests keep base pixels. */
-export const chartFontScale = (scale: number | undefined): number => (scale === 1.5 || scale === 2 ? scale : 1);
+export const chartFontScale = (scale: number | undefined): number =>
+    typeof scale === 'number' && Number.isFinite(scale) && scale >= 1 && scale <= 2 ? scale : 1;
 
-/** Scale 1 returns `base` unchanged. 1.5 and 2 round to whole pixels. */
-export const scaleChartPx = (base: number, scale: number) => (scale === 1 ? base : Math.round(base * scale));
+/** Keep fractional pixels so each 1% step changes labels and their hit boxes together. */
+export const scaleChartPx = (base: number, scale: number) => base * scale;
 
 export const markerLabelFont = (scale: number) =>
     scale === 1

@@ -2,7 +2,6 @@ import {
     ALERT_SOUND_KINDS,
     AUTO_DROP_START_MIN_MAX,
     type EventMarkerStyle,
-    FONT_SCALE_PCTS,
     fromDisplayTemp,
     isAlertSoundKind,
     // type PidDropBehavior, // PID 배출 화력 UI 복구 시 주석 해제
@@ -287,6 +286,7 @@ const RangeRow = ({
 export const RoastSettingsTab = () => {
     const { t } = useTranslation();
     const roastSettings = useRoastSettings();
+    const fontSizePct = Math.round(((roastSettings.fontScalePct - 100) * 99) / 100) + 1;
     const canFastPoll = useFeature(FEATURE.fastPolling);
     const effectivePollMs = useEffectivePollIntervalMs();
     const [showPollUpgradeHint, setShowPollUpgradeHint] = useState(false);
@@ -634,16 +634,25 @@ export const RoastSettingsTab = () => {
             <SettingsSection>
                 <SettingsSection.Header title={tk('fontScale')} description={tk('fontScaleDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
-                    {FONT_SCALE_PCTS.map((pct) => (
-                        <SettingsCheckRow
-                            key={pct}
-                            type="radio"
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="range"
                             name="fontScalePct"
-                            checked={roastSettings.fontScalePct === pct}
-                            label={`${pct}%`}
-                            onChange={() => updateRoastSettings({ fontScalePct: pct })}
+                            min={1}
+                            max={100}
+                            step={1}
+                            value={fontSizePct}
+                            aria-label={tk('fontScale')}
+                            aria-valuetext={`${fontSizePct}%`}
+                            className="h-5 w-full accent-palette-black"
+                            onChange={(event) =>
+                                updateRoastSettings({
+                                    fontScalePct: 100 + Math.round(((Number(event.target.value) - 1) * 100) / 99),
+                                })
+                            }
                         />
-                    ))}
+                        <span className={`${settingsOptionLabelCls} min-w-10 text-right`}>{fontSizePct}%</span>
+                    </div>
                 </SettingsSection.Body>
             </SettingsSection>
 

@@ -1,5 +1,6 @@
 import { FEATURE, planHasFeature } from '@shared/lib/features';
-import { describe, expect, it } from 'vitest';
+import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import { describe, expect, it, vi } from 'vitest';
 import {
     AUTO_DROP_START_MIN_DEFAULT,
     AUTO_DROP_START_MIN_MAX,
@@ -8,6 +9,11 @@ import {
     normalizeRoastSettings,
     updateRoastSettings,
 } from './settings';
+
+vi.mock('@shared/lib/settings-store', () => ({
+    settingsGet: vi.fn().mockResolvedValue(null),
+    settingsSet: vi.fn().mockResolvedValue(undefined),
+}));
 
 it('이전에 저장된 BBP 기록 범위는 켜기/끄기 외에 영향을 주지 않는다', () => {
     const stored = { bbpEnabled: false, bbpWindowMinutes: 5 };
@@ -119,12 +125,33 @@ describe('normalize — profile channels', () => {
 });
 
 describe('normalize — font scale', () => {
-    it('defaults to 100% and keeps 150% and 200%', () => {
+    it('defaults missing and invalid values to slider 1% (1×)', () => {
         expect(normalizeRoastSettings({}).fontScalePct).toBe(100);
-        expect(normalizeRoastSettings({ fontScalePct: 150 }).fontScalePct).toBe(150);
-        expect(normalizeRoastSettings({ fontScalePct: 200 }).fontScalePct).toBe(200);
-        expect(normalizeRoastSettings({ fontScalePct: 125 as never }).fontScalePct).toBe(100);
+        for (const fontScalePct of [0, 99, 110.5, 201, Number.NaN, Number.POSITIVE_INFINITY, '125', null]) {
+            expect(normalizeRoastSettings({ fontScalePct } as never).fontScalePct).toBe(100);
+        }
     });
+
+    it('accepts every integer percentage from 100 to 200', () => {
+        for (let fontScalePct = 100; fontScalePct <= 200; fontScalePct++) {
+            expect(normalizeRoastSettings({ fontScalePct }).fontScalePct).toBe(fontScalePct);
+        }
+    });
+
+    it.each([100, 101, 113, 125, 150, 175, 199, 200])(
+        'restores and saves %s%% through roast.settings',
+        async (fontScalePct) => {
+            vi.resetModules();
+            vi.mocked(settingsGet).mockResolvedValueOnce({ fontScalePct });
+            const settings = await import('./settings');
+            expect(settings.getRoastSettings().fontScalePct).toBe(fontScalePct);
+            expect(settingsGet).toHaveBeenLastCalledWith('roast.settings');
+            settings.updateRoastSettings({ fontScalePct });
+            expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', expect.objectContaining({ fontScalePct }), {
+                debounce: true,
+            });
+        },
+    );
 });
 
 describe('normalize — event marker style', () => {

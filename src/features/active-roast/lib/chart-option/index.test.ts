@@ -37,19 +37,22 @@ const baseParams = (): ChartOptionParams => ({
 });
 
 describe('buildRoastChartOption font scale', () => {
-    it('enlarges chart labels without moving the axes', () => {
-        const option = buildRoastChartOption({
-            ...baseParams(),
-            fontScale: 2,
-            bbpRange: { start: 0, end: 60, label: 'PREHEAT' },
-        });
-        const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
-        expect(yAxis[0]?.axisLabel?.fontSize).toBe(11);
-        expect(option.grid).toMatchObject([{ left: 38, right: 32, bottom: 65 }]);
-        const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
-        expect(bbp?.markArea?.label?.fontSize).toBe(24);
-        expect(markerLabelFont(2)).toBe('600 20px monospace');
-    });
+    it.each([1, 1.01, 1.13, 1.25, 1.5, 1.75, 1.99, 2])(
+        'scales chart labels by %s without moving the axes',
+        (fontScale) => {
+            const option = buildRoastChartOption({
+                ...baseParams(),
+                fontScale,
+                bbpRange: { start: 0, end: 60, label: 'PREHEAT' },
+            });
+            const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
+            expect(yAxis[0]?.axisLabel?.fontSize).toBe(11);
+            expect(option.grid).toMatchObject([{ left: 38, right: 32, bottom: 65 }]);
+            const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
+            expect(bbp?.markArea?.label?.fontSize).toBe(12 * fontScale);
+            expect(markerLabelFont(fontScale)).toBe(`600 ${10 * fontScale}px monospace`);
+        },
+    );
 });
 
 describe('buildRoastChartOption', () => {
