@@ -5,7 +5,7 @@ import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
-import { endRoastLabel, markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
+import { endRoastLabel, markDropLabel, roastEventLabel, roastReadyLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -271,7 +271,7 @@ export const RoastSidePanel = ({
                             type="button"
                         >
                             <Play size={12} />
-                            Roast Ready
+                            {roastReadyLabel()}
                         </button>
                     )}
                     {(phase === 'standby' || chargeWait) && (

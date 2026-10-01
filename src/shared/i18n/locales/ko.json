@@ -18,6 +18,7 @@
         "markDrop": "배출",
         "end": "로스팅 종료",
         "endRoast": "로스팅 종료",
+        "roastReady": "로스팅 준비",
         "tp": "터닝 포인트"
     },
     "common": {

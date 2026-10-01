@@ -6,7 +6,7 @@ import en from './locales/en.json';
 import ja from './locales/ja.json';
 import ko from './locales/ko.json';
 import zhCN from './locales/zh-CN.json';
-import { endRoastLabel, markDropLabel, roastEventLabel } from './roast-event-label';
+import { endRoastLabel, markDropLabel, roastEventLabel, roastReadyLabel } from './roast-event-label';
 
 beforeAll(async () => {
     await i18n.init({
@@ -32,6 +32,7 @@ describe('roast event locale labels', () => {
         expect(roastEventLabel('Mystery')).toBe('Mystery');
         expect(markDropLabel()).toBe('Mark Drop');
         expect(endRoastLabel()).toBe('End Roast');
+        expect(roastReadyLabel()).toBe('Roast Ready');
         expect(eventLabelText('Note', 90, '160°C', 'check aroma')).toBe('check aroma|01:30|160°C');
         expect(eventLabelText('Heater', 30, '—', '60%')).toBe('Heater→60%|00:30|—');
     });
@@ -47,6 +48,7 @@ describe('roast event locale labels', () => {
         expect(roastEventLabel('End')).toBe('로스팅 종료');
         expect(roastEventLabel('TP')).toBe('터닝 포인트');
         expect(markDropLabel()).toBe('배출');
+        expect(roastReadyLabel()).toBe('로스팅 준비');
         expect(eventLabelText('FC Start', 480, '196.0°C')).toBe('퍼스트 크랙 시작|08:00|196.0°C');
         expect(roastEventLabel('Mystery')).toBe('Mystery');
 

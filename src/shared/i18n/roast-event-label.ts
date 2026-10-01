@@ -29,3 +29,5 @@ export const roastEventLabel = (event: string): string => {
 export const markDropLabel = (): string => localeText('roastEvent.markDrop', 'Mark Drop');
 
 export const endRoastLabel = (): string => localeText('roastEvent.endRoast', 'End Roast');
+
+export const roastReadyLabel = (): string => localeText('roastEvent.roastReady', 'Roast Ready');
