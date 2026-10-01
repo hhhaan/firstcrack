@@ -16,7 +16,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import { deleteBbpTsv, enqueueTsvRow, formatRoastTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { listen } from '@tauri-apps/api/event';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
 import { shouldAcceptTick } from '../lib/poll-tick-gate';
 
@@ -165,6 +165,8 @@ export const useSidecarPolling = ({
     const lastPreChargeAbsRef = useRef(0);
     const lastRoastPointTimeRef = useRef<number | null>(null);
     const prevPhaseRef = useRef(phase);
+    /** Session that owns the roast curve. Kept across Drop; the next Charge replaces it. */
+    const curveSessionRef = useRef<string | null>(null);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef(createBtFilter());
     const pollInFlightRef = useRef(false);
@@ -179,59 +181,77 @@ export const useSidecarPolling = ({
 
     // phase → 'roasting' 전환 감지:
     // BBP finalize + 차트 00:00 (#433). 음수 lookback 없음.
+    // Drop 취소도 roasting으로 돌아온다. heatHoldAfterDrop는 다음 Charge에서만 풀리므로
+    // 그 복귀에는 Charge 시드·BBP finalize를 하지 않는다 (#638). 커브 길이로 구분하지 않는다.
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
-            const { sessionId: bbpSessionId, roastStartMs } = useRoastingStore.getState();
-            const chargeTime = roastStartMs;
-            const bbpResult = bbpSessionId
-                ? useBbpStore.getState().finalize(chargeTime || Date.now(), bbpSessionId)
-                : null;
-            if (bbpResult && bbpSessionId) {
-                void writeBbpTsv(bbpSessionId, bbpResult.tsv)
-                    .then(() => deleteBbpTsv(BBP_INPROGRESS_ID))
-                    .catch((err) => {
-                        logger.capture(err instanceof Error ? err : new Error(String(err)), {
-                            context: 'bbp tsv write',
-                            sessionId: bbpSessionId,
-                        });
-                    });
-            }
-            // 대기 커브는 지우되 Charge 로그와 같은 00:00 시작점은 보존한다 (#452).
-            const lastPoint = livePoints.length > 0 ? livePoints[livePoints.length - 1] : null;
-            const sample = lastPoint ?? useRoastingStore.getState().liveData;
-            const etRaw = lastPoint
-                ? (lastPoint.etRaw ?? null)
-                : (useRoastingStore.getState().liveData?.et_raw ?? null);
-            const btRaw = lastPoint
-                ? (lastPoint.btRaw ?? null)
-                : finiteRawTemperature(useRoastingStore.getState().liveData?.bt_raw);
-            const seed: LiveRoastPoint | null =
-                chargeBt != null && Number.isFinite(chargeBt)
-                    ? {
-                          time: 0,
-                          label: '0:00',
-                          bt: chargeBt,
-                          et: sample?.et ?? null,
-                          ror: null,
-                          ror_et: null,
-                          heater: sample?.heater ?? null,
-                          fan: sample?.fan ?? 0,
-                          drum: sample?.drum ?? 0,
-                          heaterSet: lastPoint?.heaterSet ?? null,
-                          etRaw,
-                          btRaw,
-                          sensorTimestamp: null,
-                          sensorClock: null,
-                          processing: sample?.processing,
-                      }
+            const store = useRoastingStore.getState();
+            const sameBatchResume =
+                store.heatHoldAfterDrop &&
+                store.sessionId != null &&
+                (curveSessionRef.current == null || curveSessionRef.current === store.sessionId);
+            if (!sameBatchResume) {
+                const { sessionId: bbpSessionId, roastStartMs } = store;
+                const chargeTime = roastStartMs;
+                const bbpResult = bbpSessionId
+                    ? useBbpStore.getState().finalize(chargeTime || Date.now(), bbpSessionId)
                     : null;
-            setLivePoints(seed ? [seed] : []);
-            if (seed && bbpSessionId) {
-                enqueueTsvRow(bbpSessionId, formatRoastTsvRow(seed), seed.processing);
+                if (bbpResult && bbpSessionId) {
+                    void writeBbpTsv(bbpSessionId, bbpResult.tsv)
+                        .then(() => deleteBbpTsv(BBP_INPROGRESS_ID))
+                        .catch((err) => {
+                            logger.capture(err instanceof Error ? err : new Error(String(err)), {
+                                context: 'bbp tsv write',
+                                sessionId: bbpSessionId,
+                            });
+                        });
+                }
+                // 대기 커브는 지우되 Charge 로그와 같은 00:00 시작점은 보존한다 (#452).
+                const lastPoint = livePoints.length > 0 ? livePoints[livePoints.length - 1] : null;
+                const sample = lastPoint ?? useRoastingStore.getState().liveData;
+                const etRaw = lastPoint
+                    ? (lastPoint.etRaw ?? null)
+                    : (useRoastingStore.getState().liveData?.et_raw ?? null);
+                const btRaw = lastPoint
+                    ? (lastPoint.btRaw ?? null)
+                    : finiteRawTemperature(useRoastingStore.getState().liveData?.bt_raw);
+                const seed: LiveRoastPoint | null =
+                    chargeBt != null && Number.isFinite(chargeBt)
+                        ? {
+                              time: 0,
+                              label: '0:00',
+                              bt: chargeBt,
+                              et: sample?.et ?? null,
+                              ror: null,
+                              ror_et: null,
+                              heater: sample?.heater ?? null,
+                              fan: sample?.fan ?? 0,
+                              drum: sample?.drum ?? 0,
+                              heaterSet: lastPoint?.heaterSet ?? null,
+                              etRaw,
+                              btRaw,
+                              sensorTimestamp: null,
+                              sensorClock: null,
+                              processing: sample?.processing,
+                          }
+                        : null;
+                setLivePoints(seed ? [seed] : []);
+                if (seed && bbpSessionId) {
+                    enqueueTsvRow(bbpSessionId, formatRoastTsvRow(seed), seed.processing);
+                }
+                preChargeStartRef.current = 0;
+                lastPreChargeAbsRef.current = 0;
+                lastRoastPointTimeRef.current = seed ? 0 : null;
+            } else {
+                // 다음 대기 구간은 0부터. 로스팅 시계는 replaceLivePoints(복원 커브)가 맞춘다.
+                // 이 렌더의 livePoints는 아직 대기 커브일 수 있어 여기서 덮지 않는다.
+                preChargeStartRef.current = 0;
+                lastPreChargeAbsRef.current = 0;
             }
-            preChargeStartRef.current = 0;
-            lastPreChargeAbsRef.current = 0;
-            lastRoastPointTimeRef.current = seed ? 0 : null;
+        }
+        if (phase === 'roasting') {
+            const id = useRoastingStore.getState().sessionId;
+            if (id) curveSessionRef.current = id;
         }
         prevPhaseRef.current = phase;
     }, [phase, chargeBt, livePoints]);
@@ -588,5 +608,14 @@ export const useSidecarPolling = ({
         };
     }, [phase, pollIntervalMs, sidecarReady]);
 
-    return { livePoints, setLivePoints };
+    // Drop 취소는 phase를 먼저 roasting으로 되돌린 뒤 이 setter로 커브를 넣는다.
+    // 폴링 간격 게이트가 복원된 마지막 샘플부터 이어 붙게 시계를 맞춘다 (#638).
+    const replaceLivePoints = useCallback((points: LiveRoastPoint[]) => {
+        if (useRoastingStore.getState().phase === 'roasting') {
+            lastRoastPointTimeRef.current = points.length > 0 ? points[points.length - 1].time : null;
+        }
+        setLivePoints(points);
+    }, []);
+
+    return { livePoints, setLivePoints: replaceLivePoints };
 };
