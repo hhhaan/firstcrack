@@ -321,6 +321,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         useCompletedRoastStore.getState().clear();
         const elapsed = Math.max(0, restore.elapsed);
         const origin = Date.now() - elapsed * 1000;
+        // Phase before the curve so polling sees a same-batch resume and anchors
+        // the poll clock on this snapshot, not on the pre-charge wait (#638).
         useRoastingStore.setState({
             phase: 'roasting',
             sessionId: restore.sessionId,
