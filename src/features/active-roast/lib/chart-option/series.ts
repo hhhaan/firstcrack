@@ -1,5 +1,6 @@
 import type { PhaseSegment, TemperatureUnit } from '@features/active-roast';
 import {
+    CONTROL_CURVE_WIDTH,
     CONTROL_GRID_BOTTOM,
     MARKER_LABEL_CANVAS_GUTTER_PX,
     MARKER_LABEL_MAX_WIDTH_PX,
@@ -14,6 +15,7 @@ import {
     PHASE_BAR_TEXT_INSET,
     PHASE_BAR_WIDE_THRESHOLD,
     scaleChartPx,
+    TEMP_CURVE_WIDTH,
 } from '@features/active-roast/lib/chart-config';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
@@ -49,6 +51,7 @@ const referenceLineSeries = (
     color: string,
     xAxisIndex: number,
     yAxisIndex: number,
+    width: number,
 ) => ({
     id: `ref-${name}`,
     name,
@@ -58,7 +61,7 @@ const referenceLineSeries = (
     z: 1,
     data: xs.map((x, i) => [x, values[i] ?? null]),
     connectNulls: false,
-    lineStyle: { color, width: 0.8, type: 'dashed' as const },
+    lineStyle: { color, width, type: 'dashed' as const },
     ...lineSeriesBase,
     smooth: false,
 });
@@ -117,17 +120,17 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             showProfileBt &&
             targetXs?.length &&
             hasNumericSample(targetBt) &&
-            referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.btTarget, 0, 0),
+            referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.btTarget, 0, 0, TEMP_CURVE_WIDTH),
         showTargetCurve &&
             showProfileEt &&
             targetXs?.length &&
             hasNumericSample(targetEt) &&
-            referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.etTarget, 0, 0),
+            referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.etTarget, 0, 0, TEMP_CURVE_WIDTH),
         showTargetCurve &&
             showProfileRor &&
             targetXs?.length &&
             hasNumericSample(targetRor) &&
-            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.rorTarget, 0, 1),
+            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.rorTarget, 0, 1, TEMP_CURVE_WIDTH),
         {
             name: 'BT Actual',
             type: 'line',
@@ -135,7 +138,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             yAxisIndex: 0,
             z: 2,
             data: xs.map((x, i) => [x, btActual[i]]),
-            lineStyle: { color: colors.btActual, width: 1.2 },
+            lineStyle: { color: colors.btActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
             ...getSmoothConfig(0.4),
             markLine:
@@ -164,7 +167,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             yAxisIndex: 0,
             z: 2,
             data: xs.map((x, i) => [x, etActual[i]]),
-            lineStyle: { color: colors.etActual, width: 0.9 },
+            lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
             ...getSmoothConfig(0.35),
         },
@@ -174,7 +177,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             xAxisIndex: 0,
             yAxisIndex: 1,
             data: xs.map((x, i) => [x, rorActual[i]]),
-            lineStyle: { color: colors.rorActual, width: 0.9 },
+            lineStyle: { color: colors.rorActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
             ...getSmoothConfig(0.25),
         },
@@ -185,7 +188,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 xAxisIndex: 0,
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-                lineStyle: { color: colors.etActual, width: 0.9, type: 'dashed' },
+                lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH, type: 'dashed' },
                 ...lineSeriesBase,
                 ...getSmoothConfig(0.25),
             },
@@ -225,16 +228,42 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     if (showTargetCurve && reference?.xs.length) {
         if (showProfileDrum && hasNumericSample(reference.drum)) {
             series.push(
-                referenceLineSeries('Drum Target', reference.xs, reference.drum, colors.controlDrumTarget, 1, 2),
+                referenceLineSeries(
+                    'Drum Target',
+                    reference.xs,
+                    reference.drum,
+                    colors.controlDrumTarget,
+                    1,
+                    2,
+                    CONTROL_CURVE_WIDTH,
+                ),
             );
         }
         if (showProfileHeat && hasNumericSample(reference.heater)) {
             series.push(
-                referenceLineSeries('Heater Target', reference.xs, reference.heater, colors.controlHeatTarget, 1, 3),
+                referenceLineSeries(
+                    'Heater Target',
+                    reference.xs,
+                    reference.heater,
+                    colors.controlHeatTarget,
+                    1,
+                    3,
+                    CONTROL_CURVE_WIDTH,
+                ),
             );
         }
         if (showProfileFan && hasNumericSample(reference.fan)) {
-            series.push(referenceLineSeries('Fan Target', reference.xs, reference.fan, colors.controlFanTarget, 1, 3));
+            series.push(
+                referenceLineSeries(
+                    'Fan Target',
+                    reference.xs,
+                    reference.fan,
+                    colors.controlFanTarget,
+                    1,
+                    3,
+                    CONTROL_CURVE_WIDTH,
+                ),
+            );
         }
     }
 
@@ -246,7 +275,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: 2,
             data: cxs.map((x, i) => [x, drumTemp[i]]),
-            lineStyle: { color: colors.controlDrum, width: 1 },
+            lineStyle: { color: colors.controlDrum, width: CONTROL_CURVE_WIDTH },
             ...lineSeriesBase,
             smooth: 0.3,
         });
@@ -260,7 +289,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: 3,
             data: heatTarget.xs.map((x, i) => [x, heatTarget.values[i]]),
-            lineStyle: { color: colors.controlHeat, width: 1.5, type: 'dotted' as const },
+            lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH, type: 'dotted' as const },
             ...lineSeriesBase,
             step: 'end' as const,
             smooth: false,
@@ -274,7 +303,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: 3,
             data: cxs.map((x, i) => [x, heatSet[i]]),
-            lineStyle: { color: colors.controlHeat, width: 1, type: 'dashed' as const },
+            lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH, type: 'dashed' as const },
             ...lineSeriesBase,
             step: 'end' as const,
             smooth: false,
@@ -288,7 +317,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: 3,
             data: cxs.map((x, i) => [x, heatPower[i]]),
-            lineStyle: { color: colors.controlHeat, width: 1 },
+            lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH },
             ...lineSeriesBase,
             step: 'end' as const,
             smooth: false,
@@ -302,7 +331,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: 3,
             data: cxs.map((x, i) => [x, fanSpeed[i]]),
-            lineStyle: { color: colors.controlFan, width: 1 },
+            lineStyle: { color: colors.controlFan, width: CONTROL_CURVE_WIDTH },
             ...lineSeriesBase,
             step: 'end' as const,
             smooth: false,

@@ -1,4 +1,9 @@
-import { MARKER_LABEL_FONT, markerLabelFont } from '@features/active-roast/lib/chart-config';
+import {
+    CONTROL_CURVE_WIDTH,
+    MARKER_LABEL_FONT,
+    markerLabelFont,
+    TEMP_CURVE_WIDTH,
+} from '@features/active-roast/lib/chart-config';
 import * as echarts from 'echarts';
 import { describe, expect, it } from 'vitest';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
@@ -289,15 +294,15 @@ describe('buildRoastChartOption', () => {
                 series.lineStyle,
             ]),
         );
-        expect(byName['BT Actual']?.width).toBe(1.2);
-        expect(byName['ET Actual']?.width).toBe(0.9);
-        expect(byName.RoR?.width).toBe(0.9);
-        expect(byName['ET RoR']?.width).toBe(0.9);
-        expect(byName['BT Target']).toMatchObject({ width: 0.8, type: 'dashed' });
-        expect(byName.Drum?.width).toBe(1);
-        expect(byName.Heat?.width).toBe(1);
-        expect(byName.Fan?.width).toBe(1);
-        expect(byName['Heat set']?.width).toBe(1);
+        expect(byName['BT Actual']?.width).toBe(TEMP_CURVE_WIDTH);
+        expect(byName['ET Actual']?.width).toBe(TEMP_CURVE_WIDTH);
+        expect(byName.RoR?.width).toBe(TEMP_CURVE_WIDTH);
+        expect(byName['ET RoR']?.width).toBe(TEMP_CURVE_WIDTH);
+        expect(byName['BT Target']).toMatchObject({ width: TEMP_CURVE_WIDTH, type: 'dashed' });
+        expect(byName.Drum?.width).toBe(CONTROL_CURVE_WIDTH);
+        expect(byName.Heat?.width).toBe(CONTROL_CURVE_WIDTH);
+        expect(byName.Fan?.width).toBe(CONTROL_CURVE_WIDTH);
+        expect(byName['Heat set']?.width).toBe(CONTROL_CURVE_WIDTH);
     });
 
     it.each([
@@ -525,7 +530,7 @@ describe('buildRoastChartOption', () => {
                 [30, null],
                 [60, 150],
             ],
-            lineStyle: { color: mockColors.etTarget, width: 0.8, type: 'dashed' },
+            lineStyle: { color: mockColors.etTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
         });
         expect(byName['RoR Target']).toMatchObject({
             yAxisIndex: 1,
@@ -535,10 +540,10 @@ describe('buildRoastChartOption', () => {
                 [30, 6],
                 [60, null],
             ],
-            lineStyle: { color: mockColors.rorTarget, width: 0.8, type: 'dashed' },
+            lineStyle: { color: mockColors.rorTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
         });
         expect(byName['BT Target']).toMatchObject({
-            lineStyle: { color: mockColors.btTarget, width: 0.8, type: 'dashed' },
+            lineStyle: { color: mockColors.btTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
         });
         expect(byName['Drum Target']).toMatchObject({
             xAxisIndex: 1,
@@ -557,7 +562,7 @@ describe('buildRoastChartOption', () => {
                 [30, 60],
                 [60, null],
             ],
-            lineStyle: { color: mockColors.controlHeatTarget, width: 0.8, type: 'dashed' },
+            lineStyle: { color: mockColors.controlHeatTarget, width: CONTROL_CURVE_WIDTH, type: 'dashed' },
         });
         expect(byName['Fan Target']).toMatchObject({
             data: [

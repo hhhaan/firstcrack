@@ -11,6 +11,10 @@ export const PHASE_BAR_WIDE_THRESHOLD = 70;
 export const PHASE_BAR_NARROW_THRESHOLD = 30;
 export const PHASE_BAR_TEXT_INSET = 6;
 export const PHASE_BAR_STROKE_WIDTH = 0.5;
+/** BT, ET, RoR, and their reference curves. */
+export const TEMP_CURVE_WIDTH = 1.8;
+/** Heat, damper, drum, and their reference curves. */
+export const CONTROL_CURVE_WIDTH = 1.5;
 export const PHASE_BAR_FONT_SIZE = 10;
 export const PHASE_BAR_FONT_SIZE_NARROW = 9;
 export const PHASE_BAR_FONT_FAMILY = 'monospace';
