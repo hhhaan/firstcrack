@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { updateRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
@@ -10,6 +11,11 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCompletedRoastStore } from './completedRoast';
 import { useRoastLifecycle } from './useRoastLifecycle';
+
+vi.mock('@shared/lib/settings-store', () => ({
+    settingsGet: vi.fn().mockResolvedValue(null),
+    settingsSet: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('@shared/lib/sidecar', () => ({
     sidecar: {
@@ -90,6 +96,7 @@ const renderLifecycle = (
 describe('resetActiveRoast after End (#455)', () => {
     beforeEach(() => {
         feature.bbp = true;
+        updateRoastSettings({ pidDropBehavior: 'hold' });
         vi.mocked(sidecar.resetRoast).mockReset().mockResolvedValue({ ok: true });
         vi.mocked(sidecar.enterStandby).mockClear();
         useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [], finalized: null });
@@ -117,15 +124,24 @@ describe('resetActiveRoast after End (#455)', () => {
         }
     });
 
-    it.each([true, false])('reset forwards actual heat hold %s', (keepHeatHold) => {
-        const h = renderLifecycle();
-        try {
-            void act(() => h.result.resetActiveRoast({ keepHeatHold }));
-            expect(sidecar.resetRoast).toHaveBeenCalledWith(keepHeatHold ? 'hold' : 'zero');
-        } finally {
-            h.unmount();
-        }
-    });
+    it.each([
+        { keepHeatHold: true, pidDropBehavior: 'hold', expectedMode: 'hold' },
+        { keepHeatHold: false, pidDropBehavior: 'hold', expectedMode: 'zero' },
+        { keepHeatHold: true, pidDropBehavior: 'zero', expectedMode: 'zero' },
+        { keepHeatHold: false, pidDropBehavior: 'zero', expectedMode: 'zero' },
+    ] as const)(
+        'reset forwards configured mode $expectedMode for $pidDropBehavior, hold flag $keepHeatHold',
+        ({ keepHeatHold, pidDropBehavior, expectedMode }) => {
+            updateRoastSettings({ pidDropBehavior });
+            const h = renderLifecycle();
+            try {
+                void act(() => h.result.resetActiveRoast({ keepHeatHold }));
+                expect(sidecar.resetRoast).toHaveBeenCalledWith(expectedMode);
+            } finally {
+                h.unmount();
+            }
+        },
+    );
 
     it('배치 리셋 명령 실패를 Sentry 경로에 보고한다', async () => {
         const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
