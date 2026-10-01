@@ -422,19 +422,20 @@ Behavior:
 
 ### POST /reset
 
-로스트 종료/리셋 신호다. 배치 계산/PID 상태를 초기화한다. 실제 장비 연결은 유지하고, 가상 머신만 재연결해 예열 상태로 되돌린다.
+로스트 종료/리셋 신호다. 배치 계산/PID 상태를 초기화한다.
 
-Request body: 없음
+Request body (optional):
 
-Response:
-
-```json
-{ "ok": true }
+```ts
+{ heater_mode?: 'hold' | 'zero' }
 ```
 
-Behavior:
+Response: `{ "ok": true }`
 
-- `manager.reset_roast()`를 호출한다.
+- 생략하면 기존 `zero` 동작: PID를 히터 0으로 정지한다. 실제 장비 연결은 유지하고 가상 머신만 재연결해 예열 상태로 되돌린다.
+- `hold`: PID를 현재 화력 유지로 정지하고, 히터 0 쓰기와 연결 재초기화를 생략한다. 가상 머신도 연결·화력을 유지한다.
+- 잘못된 JSON, 객체가 아닌 바디, 잘못된 `heater_mode`는 400이다.
+- hold 마무리 쓰기 실패는 500이며 PID FAULT 상태를 보존한다. 연결 장애의 안전 정지·복구 정책은 유지한다.
 
 ### POST /settings
 

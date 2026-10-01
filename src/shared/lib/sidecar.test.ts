@@ -57,3 +57,17 @@ describe('sidecar.waitUntilReady', () => {
         expect(logger.error).toHaveBeenCalledOnce();
     });
 });
+
+describe('sidecar.resetRoast', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it.each([undefined, 'hold', 'zero'] as const)('sends reset heater mode %s', async (mode) => {
+        const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+        vi.stubGlobal('fetch', fetch);
+        await sidecar.resetRoast(mode);
+        expect(fetch).toHaveBeenCalledWith(
+            'http://127.0.0.1:9999/reset',
+            expect.objectContaining({ method: 'POST', body: JSON.stringify({ heater_mode: mode ?? 'zero' }) }),
+        );
+    });
+});

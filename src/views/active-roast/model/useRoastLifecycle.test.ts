@@ -117,6 +117,16 @@ describe('resetActiveRoast after End (#455)', () => {
         }
     });
 
+    it.each([true, false])('reset forwards actual heat hold %s', (keepHeatHold) => {
+        const h = renderLifecycle();
+        try {
+            void act(() => h.result.resetActiveRoast({ keepHeatHold }));
+            expect(sidecar.resetRoast).toHaveBeenCalledWith(keepHeatHold ? 'hold' : 'zero');
+        } finally {
+            h.unmount();
+        }
+    });
+
     it('배치 리셋 명령 실패를 Sentry 경로에 보고한다', async () => {
         const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
         vi.mocked(sidecar.resetRoast).mockRejectedValueOnce(new TypeError('Failed to fetch'));
