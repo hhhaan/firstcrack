@@ -34,6 +34,10 @@ export type {
 export {
     AUTO_DROP_START_MIN_MAX,
     coercePollIntervalForPlan,
+    FONT_SLIDER_MAX,
+    FONT_SLIDER_MIN,
+    fontScaleToSlider,
+    sliderToFontScale,
     updateRoastSettings,
     useRoastSettings,
 } from './model/settings';

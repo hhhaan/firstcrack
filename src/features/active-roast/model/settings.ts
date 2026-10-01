@@ -10,11 +10,26 @@ const STORE_KEY = 'roast.settings';
 export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
 export type TemperatureUnit = 'C' | 'F';
-/** Labels drawn inside the roast chart. */
+/** Labels drawn inside the roast chart. Stored as 100–200 (1×–2×). */
 export type FontScalePct = number;
 
+export const FONT_SCALE_MIN = 100;
+export const FONT_SCALE_MAX = 200;
+/** Settings slider. 1 is the stored minimum, 100 is the stored maximum. */
+export const FONT_SLIDER_MIN = 1;
+export const FONT_SLIDER_MAX = 100;
+
 const isFontScalePct = (value: unknown): value is FontScalePct =>
-    typeof value === 'number' && Number.isInteger(value) && value >= 100 && value <= 200;
+    typeof value === 'number' && Number.isInteger(value) && value >= FONT_SCALE_MIN && value <= FONT_SCALE_MAX;
+
+export const fontScaleToSlider = (fontScalePct: number): number =>
+    Math.round(
+        ((fontScalePct - FONT_SCALE_MIN) * (FONT_SLIDER_MAX - FONT_SLIDER_MIN)) / (FONT_SCALE_MAX - FONT_SCALE_MIN),
+    ) + FONT_SLIDER_MIN;
+
+export const sliderToFontScale = (slider: number): FontScalePct =>
+    FONT_SCALE_MIN +
+    Math.round(((slider - FONT_SLIDER_MIN) * (FONT_SCALE_MAX - FONT_SCALE_MIN)) / (FONT_SLIDER_MAX - FONT_SLIDER_MIN));
 /** line = vertical line | point = curve label | both = curve label + full-height line */
 export type EventMarkerStyle = 'line' | 'point' | 'both';
 
@@ -119,7 +134,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     pollIntervalMs: 500,
     rorSpanSec: 30,
     temperatureUnit: 'C',
-    fontScalePct: 100,
+    fontScalePct: FONT_SCALE_MIN,
     showET: true,
     showTargetCurve: true,
     showProfileBt: true,

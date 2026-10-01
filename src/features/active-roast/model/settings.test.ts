@@ -5,8 +5,10 @@ import {
     AUTO_DROP_START_MIN_DEFAULT,
     AUTO_DROP_START_MIN_MAX,
     coercePollIntervalForPlan,
+    fontScaleToSlider,
     getRoastSettings,
     normalizeRoastSettings,
+    sliderToFontScale,
     updateRoastSettings,
 } from './settings';
 
@@ -129,6 +131,16 @@ describe('normalize — font scale', () => {
         expect(normalizeRoastSettings({}).fontScalePct).toBe(100);
         for (const fontScalePct of [0, 99, 110.5, 201, Number.NaN, Number.POSITIVE_INFINITY, '125', null]) {
             expect(normalizeRoastSettings({ fontScalePct } as never).fontScalePct).toBe(100);
+        }
+    });
+
+    it('maps the 1–100 slider onto stored 100–200 and back', () => {
+        expect(fontScaleToSlider(100)).toBe(1);
+        expect(fontScaleToSlider(200)).toBe(100);
+        expect(sliderToFontScale(1)).toBe(100);
+        expect(sliderToFontScale(100)).toBe(200);
+        for (let slider = 1; slider <= 100; slider++) {
+            expect(fontScaleToSlider(sliderToFontScale(slider))).toBe(slider);
         }
     });
 

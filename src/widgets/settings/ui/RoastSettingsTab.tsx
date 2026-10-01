@@ -2,6 +2,9 @@ import {
     ALERT_SOUND_KINDS,
     AUTO_DROP_START_MIN_MAX,
     type EventMarkerStyle,
+    FONT_SLIDER_MAX,
+    FONT_SLIDER_MIN,
+    fontScaleToSlider,
     fromDisplayTemp,
     isAlertSoundKind,
     // type PidDropBehavior, // PID 배출 화력 UI 복구 시 주석 해제
@@ -9,6 +12,7 @@ import {
     playAlertSound,
     type RoastSettings,
     type RorSpanSec,
+    sliderToFontScale,
     type TemperatureUnit,
     toDisplayTemp,
     updateRoastSettings,
@@ -286,7 +290,15 @@ const RangeRow = ({
 export const RoastSettingsTab = () => {
     const { t } = useTranslation();
     const roastSettings = useRoastSettings();
-    const fontSizePct = Math.round(((roastSettings.fontScalePct - 100) * 99) / 100) + 1;
+    const committedFontPct = fontScaleToSlider(roastSettings.fontScalePct);
+    const [fontDraft, setFontDraft] = useState<number | null>(null);
+    const fontSizePct = fontDraft ?? committedFontPct;
+
+    const commitFontSlider = (slider: number) => {
+        setFontDraft(null);
+        const next = sliderToFontScale(slider);
+        if (next !== roastSettings.fontScalePct) updateRoastSettings({ fontScalePct: next });
+    };
     const canFastPoll = useFeature(FEATURE.fastPolling);
     const effectivePollMs = useEffectivePollIntervalMs();
     const [showPollUpgradeHint, setShowPollUpgradeHint] = useState(false);
@@ -638,18 +650,16 @@ export const RoastSettingsTab = () => {
                         <input
                             type="range"
                             name="fontScalePct"
-                            min={1}
-                            max={100}
+                            min={FONT_SLIDER_MIN}
+                            max={FONT_SLIDER_MAX}
                             step={1}
                             value={fontSizePct}
                             aria-label={tk('fontScale')}
                             aria-valuetext={`${fontSizePct}%`}
                             className="h-5 w-full accent-palette-black"
-                            onChange={(event) =>
-                                updateRoastSettings({
-                                    fontScalePct: 100 + Math.round(((Number(event.target.value) - 1) * 100) / 99),
-                                })
-                            }
+                            onChange={(event) => setFontDraft(Number(event.currentTarget.value))}
+                            onPointerUp={(event) => commitFontSlider(Number(event.currentTarget.value))}
+                            onKeyUp={(event) => commitFontSlider(Number(event.currentTarget.value))}
                         />
                         <span className={`${settingsOptionLabelCls} min-w-10 text-right`}>{fontSizePct}%</span>
                     </div>
