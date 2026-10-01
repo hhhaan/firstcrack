@@ -236,10 +236,12 @@ export const layoutCurveLabelBoxes = (
         let textY = labelTextY(item, scale);
         let box = makeLabelBox(item, textY, canvasWidth, scale);
         const trySteps = (dir: number) => {
+            const gap = scaleChartPx(MARKER_LABEL_GAP_PX, scale);
             let step = 0;
             let next = box;
             while (placed.some((prior) => boxesOverlap(next, prior, scale)) && step < 24) {
-                textY += dir * stack;
+                // Box is `stack` tall and overlap includes `gap`, so one stack still collides.
+                textY += dir * (stack + gap);
                 next = makeLabelBox(item, textY, canvasWidth, scale);
                 step += 1;
             }

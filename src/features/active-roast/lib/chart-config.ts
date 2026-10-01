@@ -44,7 +44,7 @@ export const markerLabelFont = (scale: number) =>
     scale === 1
         ? MARKER_LABEL_FONT
         : `${MARKER_LABEL_FONT_WEIGHT} ${scaleChartPx(MARKER_LABEL_FONT_SIZE, scale)}px ${MARKER_LABEL_FONT_FAMILY}`;
-/** Box height and same-time stack step. */
+/** Collision box height. The packer steps by this plus MARKER_LABEL_GAP_PX. */
 export const MARKER_LABEL_STACK_PX = 14;
 /** ASCII advance at MARKER_LABEL_FONT_SIZE. Hangul and other non-ASCII use the full em. */
 export const MARKER_LABEL_CHAR_WIDTH_PX = 6;

@@ -292,7 +292,7 @@ describe('layoutCurveLabelBoxes', () => {
             item({ timeSec: 490, text: 'Heater→35%|08:10|185.8°C' }),
         ]);
         expect(second.bottom).toBeLessThanOrEqual(first.top - MARKER_LABEL_GAP_PX);
-        expect(second.textY).toBeLessThan(first.textY);
+        expect(second.textY).toBe(first.textY - (MARKER_LABEL_STACK_PX + MARKER_LABEL_GAP_PX));
     });
 
     it('nudges a later Drop above the FC cluster instead of overlapping', () => {
