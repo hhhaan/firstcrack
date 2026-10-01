@@ -96,6 +96,86 @@ export type PlanBatch = {
 const uuid = () => crypto.randomUUID();
 const nowIso = () => new Date().toISOString();
 
+const ADDABLE_RECORD_EVENTS = new Set(['TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End']);
+const RECORD_EVENT_RANK: Record<string, number> = {
+    Charge: 0,
+    TP: 1,
+    Yellow: 2,
+    'FC Start': 3,
+    'FC Rolling': 4,
+    'FC End': 5,
+    Drop: 6,
+    End: 7,
+};
+
+const asEventRecord = (e: unknown): Record<string, unknown> | null =>
+    e != null && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, unknown>) : null;
+
+const eventId = (e: Record<string, unknown>): string | null => (typeof e.id === 'string' && e.id ? e.id : null);
+
+/** Mirrors update_roast_session_record: in-place time/temp, plus a missing TP/Yellow/FC mark. */
+const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
+    if (!Array.isArray(nextRaw)) return false;
+    const prev = (Array.isArray(prevRaw) ? prevRaw : []).map(asEventRecord);
+    const next = nextRaw.map(asEventRecord);
+    if (prev.some((e) => e == null) || next.some((e) => e == null)) return false;
+    const prevRows = prev.flatMap((e) => (e ? [e] : []));
+    const nextRows = next.flatMap((e) => (e ? [e] : []));
+    const prevIds = prevRows.map(eventId);
+    const nextIds = nextRows.map(eventId);
+    if (prevIds.some((id) => id == null) || nextIds.some((id) => id == null)) return false;
+    if (new Set(nextIds).size !== nextIds.length) return false;
+    const prevById = new Map(prevRows.map((e) => [eventId(e), e]));
+    if (prevIds.some((id) => !nextIds.includes(id))) return false;
+
+    const strip = (e: Record<string, unknown>) => {
+        const { time_sec: _t, temp_c: _c, ...rest } = e;
+        return rest;
+    };
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    const touched = new Set<string>();
+    const addedTypes: string[] = [];
+
+    for (const row of nextRows) {
+        const id = eventId(row);
+        if (!id) return false;
+        const time = row.time_sec;
+        const temp = row.temp_c;
+        if (typeof time !== 'number' || time < 0) return false;
+        if ('temp_c' in row && temp != null && typeof temp !== 'number') return false;
+        const old = prevById.get(id);
+        if (old) {
+            if (!same(strip(row), strip(old))) return false;
+            if (old.type === 'Charge' && time !== old.time_sec && time !== 0) return false;
+            if (time !== old.time_sec) touched.add(id);
+            const tempMoved = 'temp_c' in row && temp !== old.temp_c;
+            if (tempMoved && typeof temp === 'number' && (temp < 0 || temp > 400)) return false;
+        } else {
+            if (typeof row.type !== 'string' || !ADDABLE_RECORD_EVENTS.has(row.type)) return false;
+            if (Object.keys(row).some((key) => !['id', 'type', 'time_sec', 'temp_c'].includes(key))) return false;
+            if (time > 5999) return false;
+            if (temp != null && (typeof temp !== 'number' || temp < 0 || temp > 400)) return false;
+            if (prevRows.some((existing) => existing.type === row.type)) return false;
+            addedTypes.push(row.type);
+            touched.add(id);
+        }
+    }
+    if (new Set(addedTypes).size !== addedTypes.length) return false;
+
+    const marks = nextRows.flatMap((row) => {
+        const id = eventId(row);
+        const rank = typeof row.type === 'string' ? RECORD_EVENT_RANK[row.type] : undefined;
+        if (!id || rank == null || typeof row.time_sec !== 'number') return [];
+        return [{ rank, t: row.time_sec, touched: touched.has(id) }];
+    });
+    for (const a of marks) {
+        for (const b of marks) {
+            if (a.rank < b.rank && a.t > b.t && (a.touched || b.touched)) return false;
+        }
+    }
+    return true;
+};
+
 export class MockDb {
     beans: BeanRow[] = [];
     stockEvents: BeanStockEvent[] = [];
@@ -383,7 +463,7 @@ export class MockDb {
         return row;
     }
 
-    /** Mirrors update_roast_session_record: CAS on events/heater_events, in-place time/temp only. */
+    /** Mirrors update_roast_session_record: CAS on events/heater_events; time/temp edits plus missing FC marks. */
     updateRoastRecord(body: Record<string, unknown>): { status: number; body: unknown } {
         const s = this.sessions.find((x) => x.id === body.p_session_id);
         if (!s) return { status: 404, body: { code: 'PT404', message: 'roast_record_not_found' } };
@@ -391,17 +471,7 @@ export class MockDb {
         if (!same(s.events, body.p_expected_events) || !same(s.heater_events, body.p_expected_heater_events)) {
             return { status: 409, body: { code: 'PT409', message: 'roast_record_conflict' } };
         }
-        const strip = (e: unknown) => {
-            const { time_sec: _t, temp_c: _c, ...rest } = (e ?? {}) as Record<string, unknown>;
-            return rest;
-        };
-        const prev = (s.events as unknown[]) ?? [];
-        const next = body.p_events as unknown[];
-        if (
-            !Array.isArray(next) ||
-            next.length !== prev.length ||
-            next.some((e, i) => !same(strip(e), strip(prev[i])))
-        ) {
+        if (!recordEventsEditOk(s.events, body.p_events)) {
             return { status: 422, body: { code: 'PT422', message: 'roast_record_invalid_events' } };
         }
         s.events = next;

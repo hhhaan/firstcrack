@@ -16,12 +16,24 @@ DECLARE
   stock_before bigint;
   stock_after bigint;
   prof roast_profiles;
+  session2 uuid := gen_random_uuid();
+  open_id uuid := gen_random_uuid();
+  profile2 uuid;
+  boundary text;
+  bare jsonb := '[{"id":"c","type":"Charge","time_sec":0,"temp_c":200},{"id":"n","type":"Note","time_sec":30,"note":"keep","extra":1},{"id":"d","type":"Drop","time_sec":600,"temp_c":210},{"id":"e","type":"End","time_sec":640}]';
+  with_fc jsonb := '[{"id":"c","type":"Charge","time_sec":0,"temp_c":200},{"id":"n","type":"Note","time_sec":30,"note":"keep","extra":1},{"id":"y-new","type":"Yellow","time_sec":250,"temp_c":160},{"id":"f-new","type":"FC Start","time_sec":480,"temp_c":196},{"id":"d","type":"Drop","time_sec":600,"temp_c":212},{"id":"e","type":"End","time_sec":640}]';
 BEGIN
   UPDATE profiles SET plan = 'team' WHERE id = owner_id;
   INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, drop_temp_celsius, events)
     VALUES(session_id, owner_id, 1000, 'completed', now(), 640, 210, old_events);
   INSERT INTO roast_profiles(user_id, name, target_level, source_session_id, drop_temp_celsius, duration_sec)
     VALUES(owner_id, 'p623', 'Medium', session_id, 210, 600) RETURNING id INTO profile_id;
+  INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, drop_temp_celsius, events)
+    VALUES(session2, owner_id, 1000, 'completed', now(), 640, 210, bare);
+  INSERT INTO roast_profiles(user_id, name, target_level, source_session_id, drop_temp_celsius, duration_sec)
+    VALUES(owner_id, 'p673', 'Medium', session2, 210, 600) RETURNING id INTO profile2;
+  INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, events)
+    VALUES(open_id, owner_id, 1000, 'in_progress', now(), 640, bare);
   SELECT (SELECT count(*) FROM bean_stock_events) + (SELECT count(*) FROM roasted_stock_events) INTO stock_before;
 
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
@@ -64,6 +76,75 @@ BEGIN
   saved := update_roast_session_record(session_id, new_events, heater, new_events, NULL, 212, 640, NULL);
   ASSERT saved.heater_events IS NULL, 'heater reset';
 
+  -- #673 add Yellow + FC Start onto a roast that had neither. Drop temp moves in the same call.
+  BEGIN
+    PERFORM update_roast_session_record(open_id, bare, NULL, with_fc, NULL, 212, 640, NULL);
+    RAISE EXCEPTION 'incomplete not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  BEGIN
+    PERFORM update_roast_session_record(session2, bare, NULL, bare - 1, NULL, 210, 640, NULL);
+    RAISE EXCEPTION 'delete not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  BEGIN
+    PERFORM update_roast_session_record(session2, bare, NULL, jsonb_set(bare, '{2,id}', '"hijack"'), NULL, 210, 640, NULL);
+    RAISE EXCEPTION 'id tamper not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  BEGIN
+    PERFORM update_roast_session_record(session2, bare, NULL, jsonb_set(bare, '{0,type}', '"Yellow"'), NULL, 210, 640, NULL);
+    RAISE EXCEPTION 'type change not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  FOREACH boundary IN ARRAY ARRAY['Charge', 'Drop', 'End']
+  LOOP
+    BEGIN
+      PERFORM update_roast_session_record(session2, bare, NULL,
+        bare || jsonb_build_array(jsonb_build_object('id', 'bad-' || boundary, 'type', boundary, 'time_sec', 10, 'temp_c', 180)),
+        NULL, 210, 640, NULL);
+      RAISE EXCEPTION 'boundary % not rejected', boundary;
+    EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+    END;
+  END LOOP;
+  BEGIN
+    PERFORM update_roast_session_record(session2, bare, NULL,
+      bare || '[{"id":"f2","type":"FC Start","time_sec":700,"temp_c":196}]'::jsonb, NULL, 210, 640, NULL);
+    RAISE EXCEPTION 'order not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  BEGIN
+    PERFORM update_roast_session_record(session2, bare, NULL,
+      bare || '[{"id":"tp","type":"TP","time_sec":90,"temp_c":900}]'::jsonb, NULL, 210, 640, NULL);
+    RAISE EXCEPTION 'range not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  BEGIN
+    PERFORM update_roast_session_record(session2, bare, NULL,
+      bare || '[{"id":"tp","type":"TP","time_sec":90,"temp_c":150,"note":"nope"}]'::jsonb, NULL, 210, 640, NULL);
+    RAISE EXCEPTION 'extra field not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+
+  saved := update_roast_session_record(session2, bare, NULL, with_fc, NULL, 212, 640,
+    '{"charge_temp_celsius":200,"drop_temp_celsius":212,"duration_sec":600,"dev_time_sec":120,"dev_pct":20}');
+  ASSERT saved.events = with_fc, 'fc and yellow added';
+  ASSERT saved.events -> 1 = bare -> 1, 'note preserved';
+  ASSERT saved.drop_temp_celsius = 212, 'drop summary from the added save';
+  ASSERT saved.duration_seconds = 640, 'end did not move';
+
+  BEGIN
+    PERFORM update_roast_session_record(session2, with_fc, NULL,
+      with_fc || '[{"id":"f3","type":"FC Start","time_sec":490,"temp_c":197}]'::jsonb, NULL, 212, 640, NULL);
+    RAISE EXCEPTION 'duplicate fc not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  BEGIN
+    PERFORM update_roast_session_record(session2, bare, NULL, with_fc, NULL, 212, 640, NULL);
+    RAISE EXCEPTION 'stale add not conflict';
+  EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;
+  END;
+
   -- another account cannot see the row
   PERFORM set_config('request.jwt.claim.sub', stranger::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', stranger, 'role', 'authenticated')::text, true);
@@ -90,6 +171,9 @@ BEGIN
   RESET ROLE;
   SELECT * INTO prof FROM roast_profiles WHERE id = profile_id;
   ASSERT prof.duration_sec = 610 AND prof.dev_time_sec = 140 AND prof.charge_temp_celsius = 201, 'profile summary synced';
+  SELECT * INTO prof FROM roast_profiles WHERE id = profile2;
+  ASSERT prof.dev_time_sec = 120 AND prof.dev_pct = 20 AND prof.duration_sec = 600 AND prof.drop_temp_celsius = 212,
+    'added fc summary synced';
   SELECT (SELECT count(*) FROM bean_stock_events) + (SELECT count(*) FROM roasted_stock_events) INTO stock_after;
   ASSERT stock_after = stock_before, 'no inventory side effects';
   RAISE NOTICE 'roast_record_edit: ok';
