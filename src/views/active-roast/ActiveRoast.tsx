@@ -788,13 +788,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 이벤트 핸들러 ─────────────────────────────────────────────
     const handleEndRoastClick = useCallback(() => {
-        if (saveFlow.flow.summaryData) {
-            saveFlow.flow.reopenSummary();
-            return;
-        }
         if (!charged) return;
         saveFlow.flow.openEndRoast();
-    }, [charged, saveFlow.flow.summaryData, saveFlow.flow.reopenSummary, saveFlow.flow.openEndRoast]);
+    }, [charged, saveFlow.flow.openEndRoast]);
 
     const confirmEndRoast = useCallback(() => {
         const summaryData = lifecycle.confirmEndRoast();

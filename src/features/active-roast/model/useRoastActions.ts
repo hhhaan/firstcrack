@@ -41,9 +41,7 @@ export const useRoastActions = ({
             sidecar.startRoast().catch((error) => {
                 logger.capture(new Error('Roast start command failed'), { reason: String(error) });
             });
-            const now = Date.now();
-            const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
-            storeStartCharge(origin, workspaceOwnerId);
+            storeStartCharge(chargeTimeMs, workspaceOwnerId);
             const btVal = btAtCharge ?? rawBT;
             setLogEntries([
                 {

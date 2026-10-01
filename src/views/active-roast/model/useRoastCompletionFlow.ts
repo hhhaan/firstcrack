@@ -9,6 +9,7 @@ export interface RoastSummaryData {
     logEntries: LogEntry[];
     /** Frozen at Drop/abort so late save cannot pick up the next batch's session. */
     sessionId?: string | null;
+    sessionOwnerId?: string | null;
     /** Charge-relative seconds locked at Drop (or abort End). */
     elapsedSec?: number;
     selectedBeanId?: string | null;
@@ -17,6 +18,8 @@ export interface RoastSummaryData {
 }
 
 export interface SaveFlowResult {
+    sessionId?: string | null;
+    sessionOwnerId?: string | null;
     shouldOpenContinue: boolean;
     continueCandidates?: PlanBatchWithProgress[];
 }
@@ -76,6 +79,12 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
             return { ...INITIAL_FLOW_STATE };
 
         case 'SAVE_SUCCESS': {
+            if (
+                state.summaryData &&
+                (state.summaryData.sessionId !== action.payload.sessionId ||
+                    state.summaryData.sessionOwnerId !== action.payload.sessionOwnerId)
+            )
+                return state;
             if (action.payload.shouldOpenContinue) {
                 return {
                     ...state,

@@ -99,3 +99,29 @@ describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
         });
     });
 });
+
+describe('late save isolation', () => {
+    it('keeps B summary when A finishes in the same workspace', () => {
+        const state = { ...base, summaryData: { ...base.summaryData, sessionId: 'B', sessionOwnerId: 'owner' } };
+        expect(
+            flowReducer(state, {
+                type: 'SAVE_SUCCESS',
+                payload: {
+                    sessionId: 'A',
+                    sessionOwnerId: 'owner',
+                    shouldOpenContinue: true,
+                    continueCandidates: [row('a')],
+                },
+            }),
+        ).toBe(state);
+    });
+    it('keeps summary belonging to another owner', () => {
+        const state = { ...base, summaryData: { ...base.summaryData, sessionId: 'A', sessionOwnerId: 'other' } };
+        expect(
+            flowReducer(state, {
+                type: 'SAVE_SUCCESS',
+                payload: { sessionId: 'A', sessionOwnerId: 'owner', shouldOpenContinue: false },
+            }),
+        ).toBe(state);
+    });
+});

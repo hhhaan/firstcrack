@@ -142,7 +142,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             try {
                 const frozen = flow.summaryData;
                 const frozenId = frozen?.sessionId ?? sessionId ?? unrecordedId.current;
-                const liveOwner = useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId;
+                const liveOwner = frozen?.sessionOwnerId ?? workspaceOwnerId;
                 const existing = frozenId
                     ? (readPendingRoastSave(liveOwner, frozenId) ??
                       readPendingRoastSave(workspaceOwnerId, frozenId) ??
@@ -218,7 +218,11 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     linkedBatch?.planBatchId ??
                     null;
 
-                flow.onSaveSuccess({ shouldOpenContinue: false });
+                flow.onSaveSuccess({
+                    shouldOpenContinue: false,
+                    sessionId: pending.params.sessionId,
+                    sessionOwnerId: ownerId,
+                });
                 unrecordedId.current = null;
                 setPreparing(false);
                 useCompletedRoastStore.getState().markSubmitted(pending.params.sessionId);
@@ -261,6 +265,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 } else {
                     flow.onSaveSuccess({
                         shouldOpenContinue: true,
+                        sessionId: pending.params.sessionId,
+                        sessionOwnerId: ownerId,
                         continueCandidates,
                     });
                 }
@@ -301,6 +307,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const frozen: RoastSummaryData = {
                 ...summaryData,
                 sessionId: summaryData.sessionId ?? sessionId,
+                sessionOwnerId:
+                    summaryData.sessionOwnerId ?? useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
                 selectedBeanId: summaryData.selectedBeanId ?? selectedBeanId,
                 planBatchHandoff: summaryData.planBatchHandoff ?? planBatchHandoff,
                 handoffBeanName: summaryData.handoffBeanName ?? handoffBeanName,
@@ -319,6 +327,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                         },
                         frozen.logEntries,
                     ),
+                    userId: frozen.sessionOwnerId ?? workspaceOwnerId,
                     sessionId: frozen.sessionId ?? sessionId,
                     selectedBeanId: frozen.selectedBeanId ?? null,
                     planBatchHandoff: frozen.planBatchHandoff ?? null,
@@ -338,15 +347,23 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             }
             flow.confirmEndRoast(frozen);
         },
-        [snapshotParams, planBatchHandoff, selectedBeanId, sessionId, handoffBeanName, flow.confirmEndRoast],
+        [
+            snapshotParams,
+            planBatchHandoff,
+            selectedBeanId,
+            sessionId,
+            handoffBeanName,
+            workspaceOwnerId,
+            flow.confirmEndRoast,
+        ],
     );
 
     const discardSummary = useCallback(() => {
         const id = flow.summaryData?.sessionId ?? sessionId ?? unrecordedId.current;
-        if (id) clearPendingRoastSave(useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId, id);
+        if (id) clearPendingRoastSave(flow.summaryData?.sessionOwnerId ?? workspaceOwnerId, id);
         unrecordedId.current = null;
         flow.discardSummary();
-    }, [flow.discardSummary, flow.summaryData?.sessionId, sessionId, workspaceOwnerId]);
+    }, [flow.discardSummary, flow.summaryData, sessionId, workspaceOwnerId]);
 
     const handleStartNext = useCallback(
         async (row: PlanBatchWithProgress) => {
