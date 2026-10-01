@@ -1,13 +1,28 @@
 import { type TemperatureUnit, tempUnitLabel } from '@features/active-roast';
 import { isDecimalDraft, isPartialTime } from '@features/machine-control/lib/heater-events';
 import type { Json } from '@shared/types/database.types';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { formErrorCls, inputCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
+import { Plus } from 'lucide-react';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { applyEventDrafts, type EventDraft, type EventDraftError, toEventDrafts } from '../lib/record-edit';
+import {
+    ADDABLE_KEY_EVENTS,
+    applyEventDrafts,
+    type EventDraft,
+    type EventDraftError,
+    KEY_EVENT_ORDER,
+    nextAddableEvent,
+    toEventDrafts,
+} from '../lib/record-edit';
+
+const byRank = (a: EventDraft, b: EventDraft) =>
+    KEY_EVENT_ORDER.indexOf(a.type) - KEY_EVENT_ORDER.indexOf(b.type) || a.index - b.index;
+
+const freshIndex = (rows: EventDraft[]) => Math.min(0, ...rows.map((d) => d.index)) - 1;
 
 type Props = {
     events: Json;
@@ -17,7 +32,7 @@ type Props = {
     onClose: () => void;
 };
 
-/** Key mark time/temp of a saved record. Rows are fixed — no add/delete; Charge stays at 0:00. */
+/** Key mark time/temp of a saved record. Missing TP/Yellow/FC marks can be added. Charge stays at 0:00. */
 export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }: Props) => {
     const { t } = useTranslation();
     const [drafts, setDrafts] = useState<EventDraft[]>(() => toEventDrafts(events, unit));
@@ -43,8 +58,20 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
     }, []);
 
     const update = (index: number, patch: Partial<EventDraft>) => {
-        setDrafts((prev) => prev.map((d) => (d.index === index ? { ...d, ...patch } : d)));
+        setDrafts((prev) => {
+            const next = prev.map((d) => (d.index === index ? { ...d, ...patch } : d));
+            return patch.type ? [...next].sort(byRank) : next;
+        });
         setErrors(({ [index]: _, ...rest }) => rest);
+        setSaveError(null);
+    };
+
+    const addEvent = () => {
+        setDrafts((prev) => {
+            const type = nextAddableEvent(prev.map((d) => d.type));
+            if (!type) return prev;
+            return [...prev, { index: freshIndex(prev), type, time: '', temp: '' }].sort(byRank);
+        });
         setSaveError(null);
     };
 
@@ -78,7 +105,9 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
         time: 'history.edit.invalidTime',
         temp: 'history.edit.invalidTemp',
         order: 'history.edit.invalidOrder',
+        duplicate: 'history.edit.duplicate',
     };
+    const canAdd = nextAddableEvent(drafts.map((d) => d.type)) != null;
 
     return (
         <ModalShell
@@ -116,10 +145,34 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                 {drafts.map((d) => {
                                     const error = errors[d.index];
                                     const errorId = `record-event-error-${d.index}`;
+                                    const added = d.index < 0;
+                                    const taken = new Set(
+                                        drafts.filter((row) => row.index !== d.index).map((row) => row.type),
+                                    );
+                                    const typeOptions = ADDABLE_KEY_EVENTS.filter(
+                                        (type) => type === d.type || !taken.has(type),
+                                    );
                                     return (
                                         <tr key={d.index} className="align-top">
-                                            <td className="py-1 pt-3 pr-2 text-[13px] font-medium text-primary">
-                                                {d.type}
+                                            <td className="py-1 pr-2 text-[13px] font-medium text-primary">
+                                                {added ? (
+                                                    <FormSelect
+                                                        value={d.type}
+                                                        onChange={(e) => update(d.index, { type: e.target.value })}
+                                                        aria-label={`${d.type} ${t('history.edit.eventType')}`}
+                                                        aria-invalid={error === 'duplicate'}
+                                                        aria-describedby={error ? errorId : undefined}
+                                                        className="py-1.5 pl-2 pr-8 text-xs"
+                                                    >
+                                                        {typeOptions.map((type) => (
+                                                            <option key={type} value={type}>
+                                                                {type}
+                                                            </option>
+                                                        ))}
+                                                    </FormSelect>
+                                                ) : (
+                                                    <span className="inline-block pt-2">{d.type}</span>
+                                                )}
                                                 {error && (
                                                     <p
                                                         id={errorId}
@@ -171,6 +224,17 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                 })}
                             </tbody>
                         </table>
+                    )}
+                    {canAdd && (
+                        <button
+                            type="button"
+                            data-testid="record-events-add"
+                            onClick={addEvent}
+                            className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-subtle bg-surface px-3 py-1.5 text-xs font-semibold text-secondary dark:bg-surface-elevated"
+                        >
+                            <Plus size={13} strokeWidth={2} />
+                            {t('history.edit.addEvent')}
+                        </button>
                     )}
                 </fieldset>
                 {saveError && (
