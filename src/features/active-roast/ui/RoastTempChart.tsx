@@ -956,7 +956,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ref={noteFormRef}
                     data-chart-note-form
                     onKeyDown={(event) => handleFormKeyDown(event, submitNote)}
-                    className="absolute z-20 flex w-[320px] max-w-full max-h-full flex-col gap-3 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-3 shadow-md"
+                    className="absolute z-20 flex w-[260px] max-w-full max-h-full flex-col gap-1 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md"
                     style={{ left: noteForm.x, top: noteForm.y }}
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -965,7 +965,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     onPointerDown={(event) => event.stopPropagation()}
                     onWheel={(event) => event.stopPropagation()}
                 >
-                    <div className="flex items-center justify-between text-[14px] text-(--color-text-primary)">
+                    <div className="flex items-center justify-between px-1 text-[11px] text-(--color-text-primary)">
                         <span className="font-medium">{t('activeRoast.noteEntry.title')}</span>
                         <span className="font-mono text-muted">{formatElapsed(noteForm.timeSec)}</span>
                     </div>
@@ -976,12 +976,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         commentId="chart-note-input"
                         autoFocus
                     />
-                    <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center justify-between gap-1 px-1">
                         <span className="text-[11px] text-muted">{t('activeRoast.noteEntry.keyboardHint')}</span>
                         <button
                             type="submit"
                             disabled={!Object.values(noteValues).some((value) => value.trim())}
-                            className="rounded bg-(--color-text-primary) px-4 py-2 text-[13px] text-(--color-surface) disabled:opacity-40"
+                            className="rounded px-2 text-xs text-(--color-text-primary) disabled:opacity-40"
                         >
                             {t('common.add')}
                         </button>
@@ -993,7 +993,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ref={editFormRef}
                     data-chart-marker-edit
                     onKeyDown={(event) => handleFormKeyDown(event, submitEdit)}
-                    className={`absolute z-20 flex max-w-full max-h-full flex-col overflow-auto rounded border border-(--color-border) bg-(--color-surface) shadow-md ${editForm.event === 'Note' ? 'w-[320px] gap-3 p-3' : 'w-[220px] gap-1 p-1.5'}`}
+                    className={`absolute z-20 flex max-w-full max-h-full flex-col gap-1 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md ${editForm.event === 'Note' ? 'w-[260px]' : 'w-[220px]'}`}
                     style={{ left: editForm.x, top: editForm.y }}
                     onSubmit={(event) => {
                         event.preventDefault();
