@@ -83,6 +83,11 @@ const formatMarkerTime = (timeSec: number) => {
     return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 };
 
+const hasMarkerTemp = (temp: string) => {
+    const value = temp.trim();
+    return value !== '' && value !== '—' && value !== '-' && value !== '–';
+};
+
 export const eventLabelText = (event: string, timeSec: number, temp: string, note?: string) => {
     const name =
         event === 'Note'
@@ -90,7 +95,8 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
             : event === 'Heater' && note
               ? `${event}→${note}`
               : roastEventLabel(event);
-    return `${name}|${formatMarkerTime(timeSec)}|${temp || '—'}`;
+    const time = formatMarkerTime(timeSec);
+    return hasMarkerTemp(temp) ? `${name}|${time}|${temp}` : `${name}|${time}`;
 };
 
 export const markerLabelDy = (below: boolean, rank = 0, scale = 1) => {

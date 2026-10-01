@@ -34,7 +34,8 @@ describe('roast event locale labels', () => {
         expect(endRoastLabel()).toBe('End Roast');
         expect(roastReadyLabel()).toBe('Roast Ready');
         expect(eventLabelText('Note', 90, '160°C', 'check aroma')).toBe('check aroma|01:30|160°C');
-        expect(eventLabelText('Heater', 30, '—', '60%')).toBe('Heater→60%|00:30|—');
+        expect(eventLabelText('Heater', 30, '—', '60%')).toBe('Heater→60%|00:30');
+        expect(eventLabelText('Note', 483, '', '가스 메모')).toBe('가스 메모|08:03');
     });
 
     it('switches the same stored ids to the active locale', async () => {

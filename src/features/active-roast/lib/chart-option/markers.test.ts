@@ -191,7 +191,7 @@ describe('event marker visual grammar', () => {
             timeSec: 591,
             y: 250,
             below: true,
-            text: 'No sample|09:51|—',
+            text: 'No sample|09:51',
             showDot: false,
         });
     });
@@ -432,7 +432,7 @@ describe('zoom window (#599)', () => {
             expect.objectContaining({
                 timeSec: 300,
                 y: baseParams.tempYMax,
-                text: 'ㅎ|05:00|—',
+                text: 'ㅎ|05:00',
                 below: true,
                 topInsetPx: NOTE_LABEL_TOP_INSET_PX,
             }),
