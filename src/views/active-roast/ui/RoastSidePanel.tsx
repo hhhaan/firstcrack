@@ -5,6 +5,7 @@ import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
+import { endRoastLabel, markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -282,14 +283,14 @@ export const RoastSidePanel = ({
                             type="button"
                         >
                             <Play size={12} />
-                            Charge
+                            {roastEventLabel('Charge')}
                         </button>
                     )}
                     <button
                         data-testid="roast-end"
                         onClick={onEndRoast}
                         disabled={endDisabled}
-                        aria-label="End roast"
+                        aria-label={endRoastLabel()}
                         type="button"
                         className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
                             endDisabled
@@ -301,7 +302,7 @@ export const RoastSidePanel = ({
                         }
                     >
                         <Square size={12} />
-                        End Roast
+                        {endRoastLabel()}
                     </button>
                 </div>
                 <EventButtons
@@ -311,7 +312,7 @@ export const RoastSidePanel = ({
                     disabled={!canMark}
                     buttons={[
                         {
-                            label: 'Yellow',
+                            label: roastEventLabel('Yellow'),
                             event: 'Yellow',
                             shortcutKey: '1',
                             pressKey: 'Mark Yellow',
@@ -321,7 +322,9 @@ export const RoastSidePanel = ({
                             },
                         },
                         {
-                            label: fcDualStage != null ? fcDualButtonLabel(fcDualStage, fcDualUnwind) : 'FC Start',
+                            label: roastEventLabel(
+                                fcDualStage != null ? fcDualButtonLabel(fcDualStage, fcDualUnwind) : 'FC Start',
+                            ),
                             event: 'FC Start',
                             shortcutKey: '2',
                             pressKey: 'Mark FC Start',
@@ -333,7 +336,7 @@ export const RoastSidePanel = ({
                             dualStage: fcDualStage,
                         },
                         {
-                            label: 'FC End',
+                            label: roastEventLabel('FC End'),
                             event: 'FC End',
                             shortcutKey: '3',
                             pressKey: 'Mark FC End',
@@ -343,7 +346,7 @@ export const RoastSidePanel = ({
                             },
                         },
                         {
-                            label: 'Mark Drop',
+                            label: markDropLabel(),
                             event: 'Drop',
                             shortcutKey: 'DD',
                             pressKey: 'Mark Drop',

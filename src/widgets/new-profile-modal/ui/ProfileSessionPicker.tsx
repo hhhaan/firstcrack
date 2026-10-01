@@ -1,5 +1,6 @@
 import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import type { Json } from '@shared/types/database.types';
@@ -25,10 +26,13 @@ type ProfileSessionPickerProps = {
     onClose: () => void;
 };
 
-/** "FC · DROP" — which marks the session carries; without FC the profile has no dev time and no time alarms. */
+/** Locale names for FC Start and Drop. Without FC Start the profile has no dev time. */
 const marksLabel = (events: Json | null): string | null => {
     const types = new Set(parseStoredRoastEvents(events).map((e) => e.type));
-    const marks = [types.has('FC Start') ? 'FC' : null, types.has('Drop') ? 'DROP' : null].filter(Boolean);
+    const marks = [
+        types.has('FC Start') ? roastEventLabel('FC Start') : null,
+        types.has('Drop') ? roastEventLabel('Drop') : null,
+    ].filter(Boolean);
     return marks.length > 0 ? marks.join(' · ') : null;
 };
 

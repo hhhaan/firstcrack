@@ -7,6 +7,19 @@
         "empty": "保存されたBBPデータなし",
         "failed": "BBPを読み込めませんでした"
     },
+    "roastEvent": {
+        "charge": "Charge",
+        "yellow": "Yellow",
+        "fcStart": "FC Start",
+        "fcRolling": "FC Rolling",
+        "fcEnd": "FC End",
+        "firstCrack": "First Crack",
+        "drop": "Drop",
+        "markDrop": "Mark Drop",
+        "end": "End",
+        "endRoast": "End Roast",
+        "tp": "TP"
+    },
     "common": {
         "cancel": "キャンセル",
         "quit": "終了",

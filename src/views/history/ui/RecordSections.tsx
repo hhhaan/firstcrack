@@ -2,6 +2,7 @@ import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useHistoryChart } from '@entities/roast';
 import { tempUnitLabel, useRoastSettings } from '@features/active-roast';
 import { formatEditTime, profileHeaterBounds } from '@features/machine-control/lib/heater-events';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Flame, Pencil } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
@@ -81,7 +82,7 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                     <ul className="m-0 list-none p-0">
                         {marks.map((m) => (
                             <li key={m.index} className={rowCls}>
-                                <span className="text-[13px] font-medium text-primary">{m.type}</span>
+                                <span className="text-[13px] font-medium text-primary">{roastEventLabel(m.type)}</span>
                                 <span className="font-mono text-[12px] text-secondary">
                                     {m.time}
                                     <span className="text-muted"> · </span>

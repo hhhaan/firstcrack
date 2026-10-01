@@ -7,6 +7,19 @@
         "empty": "저장된 BBP 데이터 없음",
         "failed": "BBP를 불러오지 못했습니다"
     },
+    "roastEvent": {
+        "charge": "투입",
+        "yellow": "옐로잉",
+        "fcStart": "퍼스트 크랙 시작",
+        "fcRolling": "퍼스크크랙롤링",
+        "fcEnd": "퍼스트 크랙 종료",
+        "firstCrack": "퍼스트 크랙",
+        "drop": "배출",
+        "markDrop": "배출",
+        "end": "로스팅 종료",
+        "endRoast": "로스팅 종료",
+        "tp": "터닝 포인트"
+    },
     "common": {
         "cancel": "취소",
         "quit": "종료",
@@ -772,7 +785,7 @@
             "phaseMaillard": "Maillard",
             "phaseDevelopment": "Development",
             "sidebarTitle": "{{count}}개 선택",
-            "charge": "Charge",
+            "charge": "투입",
             "date": "Date",
             "profile": "Profile",
             "duration": "Duration",
@@ -989,10 +1002,10 @@
         "actions": {
             "charge": "투입",
             "yellow": "옐로잉",
-            "fcStart": "FC 시작",
-            "fcEnd": "FC 종료",
-            "markDrop": "배출 표시",
-            "end": "종료",
+            "fcStart": "퍼스트 크랙 시작",
+            "fcEnd": "퍼스트 크랙 종료",
+            "markDrop": "배출",
+            "end": "로스팅 종료",
             "endRoast": "로스팅 종료",
             "roastReady": "로스팅 준비",
             "roastComplete": "로스팅 완료",
@@ -1171,7 +1184,7 @@
     },
     "profiles": {
         "title": "Profiles",
-        "drop": "드롭",
+        "drop": "배출",
         "newProfile": "새 프로파일",
         "empty": "아직 프로파일이 없습니다.",
         "loadError": "프로파일을 불러오지 못했습니다. 다시 시도해주세요.",
@@ -1251,7 +1264,7 @@
         "saveProfile": "프로파일 저장",
         "createProfile": "프로파일 생성",
         "noSessions": "완료된 로스팅 세션이 없습니다.",
-        "drop": "Drop",
+        "drop": "배출",
         "roastLevel": {
             "Light": "라이트",
             "Medium-Light": "미디엄 라이트",
@@ -1260,7 +1273,7 @@
             "Dark": "다크"
         },
         "dropTime": "배출 시각",
-        "fcTime": "1차 크랙",
+        "fcTime": "퍼스트 크랙",
         "computedHint": "세션 이벤트에서 계산됩니다. 값을 바꾸려면 로스팅 기록을 수정하세요.",
         "noMarks": "마킹 없음",
         "editHeat": "화력 편집"

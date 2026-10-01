@@ -4,6 +4,7 @@ import {
     MARKER_LABEL_CANVAS_GUTTER_PX,
     MARKER_LABEL_CHAR_WIDTH_PX,
     MARKER_LABEL_DISTANCE_PX,
+    MARKER_LABEL_FONT_SIZE,
     MARKER_LABEL_GAP_PX,
     MARKER_LABEL_MAX_WIDTH_PX,
     MARKER_LABEL_MIN_WIDTH_PX,
@@ -13,6 +14,7 @@ import {
 } from '@features/active-roast/lib/chart-config';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
 
@@ -81,7 +83,12 @@ const formatMarkerTime = (timeSec: number) => {
 };
 
 export const eventLabelText = (event: string, timeSec: number, temp: string, note?: string) => {
-    const name = event === 'Note' ? note?.trim() || event : event === 'Heater' && note ? `${event}→${note}` : event;
+    const name =
+        event === 'Note'
+            ? note?.trim() || event
+            : event === 'Heater' && note
+              ? `${event}→${note}`
+              : roastEventLabel(event);
     return `${name}|${formatMarkerTime(timeSec)}|${temp || '—'}`;
 };
 
@@ -91,13 +98,19 @@ export const markerLabelDy = (below: boolean, rank = 0, scale = 1) => {
     return (below ? distance : -distance) - stack * rank;
 };
 
+/** ASCII is 6px; Hangul and other non-ASCII are one em so the hit box matches the canvas glyph. */
+const markerLabelAdvance = (text: string) => {
+    let px = 0;
+    for (const ch of text) {
+        px += (ch.codePointAt(0) ?? 0) > 0xff ? MARKER_LABEL_FONT_SIZE : MARKER_LABEL_CHAR_WIDTH_PX;
+    }
+    return px;
+};
+
 export const estimateLabelWidth = (text: string, scale = 1) =>
     Math.min(
         scaleChartPx(MARKER_LABEL_MAX_WIDTH_PX, scale),
-        Math.max(
-            scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale),
-            text.length * scaleChartPx(MARKER_LABEL_CHAR_WIDTH_PX, scale),
-        ),
+        Math.max(scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale), scaleChartPx(markerLabelAdvance(text), scale)),
     );
 
 export interface MarkerLabelGeometry {

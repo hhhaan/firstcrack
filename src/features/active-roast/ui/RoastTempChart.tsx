@@ -28,6 +28,7 @@ import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-d
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { useRoastSettings } from '@features/active-roast/model/settings';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { applyTimeEdit, parseEditTime, type TimeEditKind } from '@shared/lib/time-edit';
@@ -1003,7 +1004,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     onWheel={(event) => event.stopPropagation()}
                 >
                     <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">
-                        {editForm.event === 'Note' ? t('activeRoast.noteEntry.editTitle') : editForm.event}
+                        {editForm.event === 'Note'
+                            ? t('activeRoast.noteEntry.editTitle')
+                            : roastEventLabel(editForm.event)}
                     </div>
                     <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
                         {t('activeRoast.noteEntry.time')}

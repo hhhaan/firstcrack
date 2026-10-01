@@ -98,7 +98,7 @@ export const EventButtons = ({
                             alignItems: 'center',
                             justifyContent: isSidebar ? 'center' : 'space-between',
                             gap: isSidebar ? 2 : 0,
-                            padding: isSidebar ? '10px 6px' : '9px 12px',
+                            padding: isSidebar ? '8px 4px' : '9px 12px',
                             borderRadius: 6,
                             border,
                             background,
@@ -126,7 +126,19 @@ export const EventButtons = ({
                             }
                         }}
                     >
-                        <span>{label}</span>
+                        <span
+                            style={{
+                                display: 'block',
+                                width: '100%',
+                                textAlign: 'center',
+                                lineHeight: 1.25,
+                                wordBreak: 'keep-all',
+                                textWrap: 'balance',
+                                fontSize: isSidebar ? 11 : undefined,
+                            }}
+                        >
+                            {label}
+                        </span>
                         <span
                             style={{
                                 display: 'inline-flex',

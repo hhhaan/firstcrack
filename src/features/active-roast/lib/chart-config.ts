@@ -44,7 +44,7 @@ export const markerLabelFont = (scale: number) =>
         : `${MARKER_LABEL_FONT_WEIGHT} ${scaleChartPx(MARKER_LABEL_FONT_SIZE, scale)}px ${MARKER_LABEL_FONT_FAMILY}`;
 /** Box height and same-time stack step. */
 export const MARKER_LABEL_STACK_PX = 14;
-/** Monospace advance at MARKER_LABEL_FONT_SIZE. */
+/** ASCII advance at MARKER_LABEL_FONT_SIZE. Hangul and other non-ASCII use the full em. */
 export const MARKER_LABEL_CHAR_WIDTH_PX = 6;
 export const MARKER_LABEL_MIN_WIDTH_PX = 8;
 export const MARKER_LABEL_MAX_WIDTH_PX = 240;

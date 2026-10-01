@@ -1,4 +1,5 @@
 import { toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatDuration, formatElapsed } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
@@ -138,11 +139,11 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                                 style={{ color }}
                             >
                                 <div className="flex justify-between gap-2 opacity-90">
-                                    <span className="text-muted">FC</span>
+                                    <span className="text-muted">{roastEventLabel('FC Start')}</span>
                                     <span className="font-mono tabular-nums">{eventTime(events, 'FC Start')}</span>
                                 </div>
                                 <div className="flex justify-between gap-2 opacity-90">
-                                    <span className="text-muted">Drop</span>
+                                    <span className="text-muted">{roastEventLabel('Drop')}</span>
                                     <span className="font-mono tabular-nums">{eventTime(events, 'Drop')}</span>
                                 </div>
                                 {s.weight_grams != null && (
