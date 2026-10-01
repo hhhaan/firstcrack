@@ -4,6 +4,7 @@ import { logger } from '@shared/lib/logger';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { heaterEventsToJson, parseHeaterEvents } from '../lib/heater-events';
 import { HeaterEventsEditor } from './HeaterEventsEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -12,6 +13,84 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 
 describe('HeaterEventsEditor', () => {
     let host: HTMLDivElement;
+
+    it.each(['time', 'bt'] as const)('applies an 80 to 0 OFF plan with %s trigger', async (trigger) => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        const onApply = vi.fn();
+        const events = [{ t: 0, bt: 100, heater: 80, trigger: 'time' as const }];
+        await act(async () => {
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'profile',
+                    events,
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'profile',
+                    unit: 'C',
+                    heaterMin: 0,
+                    heaterMax: 100,
+                    onClose: () => {},
+                    onApply,
+                }),
+            );
+        });
+        if (trigger === 'time') {
+            await act(async () => {
+                [...document.querySelectorAll('button')]
+                    .find((b) => b.textContent === 'heaterEventsEditor.addStep')
+                    ?.click();
+            });
+        }
+        const heatInputs = document.querySelectorAll<HTMLInputElement>(
+            trigger === 'bt'
+                ? '[aria-labelledby="heater-events-rule-title"] input[aria-label="heaterEventsEditor.heat"]'
+                : 'tbody input[aria-label="heaterEventsEditor.heat"]',
+        );
+        const heat = heatInputs[heatInputs.length - 1];
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(heat, '0');
+            heat.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        if (trigger === 'bt') {
+            await act(async () => {
+                [...document.querySelectorAll('button')]
+                    .find((b) => b.textContent === 'heaterEventsEditor.ruleAdd')
+                    ?.click();
+            });
+        }
+        const apply = [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save');
+        expect(apply).toBeDefined();
+        await act(async () => apply?.click());
+        expect(onApply).toHaveBeenCalledOnce();
+        const saved = parseHeaterEvents(heaterEventsToJson(onApply.mock.calls[0][0]));
+        expect(saved?.map((e) => e.heater)).toEqual([80, 0]);
+        expect(saved?.[1].trigger).toBe(trigger);
+        await act(async () => {
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    key: 'reopened',
+                    mode: 'profile',
+                    events: saved ?? [],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'profile',
+                    unit: 'C',
+                    heaterMin: 0,
+                    heaterMax: 100,
+                    onClose: () => {},
+                    onApply,
+                }),
+            );
+        });
+        expect(
+            [...document.querySelectorAll<HTMLInputElement>('tbody input[aria-label="heaterEventsEditor.heat"]')].map(
+                (input) => input.value,
+            ),
+        ).toEqual(['80', '0']);
+        await act(async () => root.unmount());
+    });
 
     afterEach(() => {
         vi.restoreAllMocks();

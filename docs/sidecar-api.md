@@ -503,7 +503,11 @@ Notes:
 
 - 상태 코드: `400` 형식 오류(JSON이 객체가 아님, 비수치, NaN/Inf), `409` 미연결·쓰기 미지원.
   값이 없는 빈 요청 `{}`만 연결 여부와 무관하게 `200` no-op이다.
-- 응답의 `applied`는 클램프 **이후** 실제로 쓴 값이다 — 요청값과 다를 수 있다.
+- 응답의 `applied`는 클램프 이후의 논리값이다 — PLC 인코딩 값과 구분한다.
+- W45A/W60A (`giesen_w45a_w60a`)는 논리 화력 0~100%를 사용하며,
+  S7 쓰기 경계에서 `value_offset=1`을 더해 DB2.14에 1~101을 전송한다.
+  0%는 raw 1이고 raw 0(AUTO)은 보내지 않는다. `applied`/`heater_set`은 논리 0%를 유지한다.
+  `value_offset`은 byte 주소 `offset`과 별개이며, 생략 시 0이다. 실측 피드백에는 적용하지 않는다.
 - 성공한 쓰기의 `applied`는 role별로 기억돼 `GET /temperatures`의 `heater_set`으로 나간다(해제 시 초기화).
 - **쓰기는 `write_map`이 있는 로스터에서만 일어난다.** `write_map`은 레지스트리
   `default_params` 안에 있고, 읽기용 `channels`와 **셀이 다르다**. Giesen을 예로 들면
@@ -513,7 +517,7 @@ Notes:
   현재 쓰기 맵이 있는 것은 Giesen S7 계열(db2 계열 `DB2.14`, W6A PRO `DB1001.42`)의
   `heater`와 가상 머신뿐이다. fan/drum은 모델마다 slidermin/max가 달라(fan 250~280,
   drum 34~60Hz) 레지스트리 키 분리가 선행돼야 한다.
-- 어댑터 쓰기 순서: `min`/`max` 클램프 → `div` 역스케일(읽기의 ÷10/÷100 반대) →
+- 어댑터 쓰기 순서: `min`/`max` 클램프 → `div` 역스케일(읽기의 ÷10/÷100 반대) → `value_offset` 추가 →
   INT16 반올림·범위 검사 → `db_write`. 유한하지 않은 값(NaN/Inf)과 INT16 초과는
   `ValueError`로 거부한다.
 - S7은 읽기와 쓰기가 같은 snap7 클라이언트를 쓰므로 어댑터 내부 스레드 락으로 직렬화한다.

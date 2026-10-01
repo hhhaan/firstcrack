@@ -318,7 +318,7 @@ class S7Adapter:
     def _write_channel_sync(
         self, role: str, spec: dict[str, Any], value: float, plc: Any
     ) -> int | float:
-        """스레드에서 실행. clamp → div 역스케일 → INT/REAL 인코딩 → db_write.
+        """스레드에서 실행. clamp → div 역스케일 → value_offset → 인코딩 → db_write.
 
         읽기의 역순이다(읽기는 ÷10/÷100, 쓰기는 ×10/×100).
         반환값은 PLC에 실제로 쓴 raw 값.
@@ -340,7 +340,14 @@ class S7Adapter:
         if hi is not None:
             value = min(float(hi), value)
 
-        scaled = value * (10.0 if div == 1 else 100.0 if div == 2 else 1.0)
+        value_offset = spec.get("value_offset", 0)
+        if (
+            isinstance(value_offset, bool)
+            or not isinstance(value_offset, (int, float))
+            or not math.isfinite(value_offset)
+        ):
+            raise ValueError(f"Invalid value_offset: role={role} value_offset={value_offset}")
+        scaled = value * (10.0 if div == 1 else 100.0 if div == 2 else 1.0) + value_offset
 
         raw: int | float
         if ch_type == 1:

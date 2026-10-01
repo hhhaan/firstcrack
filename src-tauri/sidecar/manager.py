@@ -166,6 +166,14 @@ def _merge_connect_params(
     알려진 머신의 주소 맵을 통째로 지우지 않게 레지스트리 값을 유지한다 (#270).
     """
     merged = {**defaults, **params}
+    # Upgrade only an exact saved legacy heater map; retain custom maps and other roles.
+    default_heater = (defaults.get("write_map") or {}).get("heater", {})
+    saved_map = params.get("write_map")
+    if default_heater.get("value_offset") == 1 and isinstance(saved_map, dict):
+        legacy_heater = {k: v for k, v in default_heater.items() if k != "value_offset"}
+        legacy_heater["min"] = 1
+        if saved_map.get("heater") == legacy_heater:
+            merged["write_map"] = {**saved_map, "heater": dict(default_heater)}
     for key in _MAP_KEYS:
         if key not in params:
             continue
@@ -551,7 +559,7 @@ class RoasterManager:
         """Reconnect must not leave FAULT PID or last heater duty stuck (#205)."""
         # PID를 켠 적 없거나 껐다 둔 수동/Replay 로스팅의 화력을 덮어쓰면 안 된다 (#317).
         # pid_stop은 _pid를 지우지 않으므로 객체 유무만 보면 "켰다 끈 세션"이 순단마다
-        # heater 0(클래식 Giesen은 1%)을 맞는다 — running/holding/fault만 정지 대상이다.
+        # heater 0 안전 정지를 맞는다 — running/holding/fault만 정지 대상이다.
         if self._pid is None or self._pid.state_name == "off":
             return
         try:

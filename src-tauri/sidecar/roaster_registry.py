@@ -1785,6 +1785,10 @@ ROASTER_REGISTRY.update({
     "giesen_w45a_w60a": _giesen_variant(
         "giesen_standard", display_name="Giesen W45A / W60A",
         models=["W45A", "W60A"], host="172.30.30.90",
+        # Artisan W60A: logical 0..100 -> DB2.14 raw 1..101.
+        write_map={
+            "heater": {**_GIESEN_DB2_WRITE_MAP["heater"], "min": 0, "value_offset": 1},
+        },
     ),
     "giesen_w140a_v1": _giesen_variant(
         "giesen_w15e", display_name="Giesen W140A (v1)", models=["W140A v1"], host="172.30.30.110",
