@@ -12,6 +12,7 @@ interface UseRoastKeyboardShortcutsParams {
     showContinueModal?: boolean;
     phase: string;
     awaitingNextCharge: boolean;
+    hasUnsavedCompleted?: boolean;
     onToggleFullscreen: () => void;
     onExitFullscreen: () => void;
     onEnterStandby: () => void;
@@ -53,8 +54,12 @@ export function isRoastEventMarkEnabled(phase: string): boolean {
 }
 
 /** In-memory roast that a webview reload would drop. Preheat and standby stay refreshable. */
-export function isRoastRefreshBlocked(phase: string, awaitingNextCharge: boolean): boolean {
-    return phase === 'roasting' || phase === 'ended' || awaitingNextCharge;
+export function isRoastRefreshBlocked(
+    phase: string,
+    awaitingNextCharge: boolean,
+    hasUnsavedCompleted = false,
+): boolean {
+    return phase === 'roasting' || awaitingNextCharge || hasUnsavedCompleted;
 }
 
 /**
@@ -79,6 +84,7 @@ export const useRoastKeyboardShortcuts = ({
     showContinueModal = false,
     phase,
     awaitingNextCharge,
+    hasUnsavedCompleted = false,
     onToggleFullscreen,
     onExitFullscreen,
     onEnterStandby,
@@ -110,7 +116,7 @@ export const useRoastKeyboardShortcuts = ({
     useEffect(() => {
         // `pnpm dev` in a browser keeps F5. Only the desktop webview drops the roast on reload.
         if (!('__TAURI_INTERNALS__' in window)) return;
-        if (!isRoastRefreshBlocked(phase, awaitingNextCharge)) return;
+        if (!isRoastRefreshBlocked(phase, awaitingNextCharge, hasUnsavedCompleted)) return;
 
         let alertOpen = false;
         const preventRefresh = (event: KeyboardEvent) => {
@@ -128,7 +134,7 @@ export const useRoastKeyboardShortcuts = ({
         };
         window.addEventListener('keydown', preventRefresh, true);
         return () => window.removeEventListener('keydown', preventRefresh, true);
-    }, [phase, awaitingNextCharge]);
+    }, [phase, awaitingNextCharge, hasUnsavedCompleted]);
 
     // Escape → exit fullscreen (only when fullscreen and no modal open)
     useHotkeys(

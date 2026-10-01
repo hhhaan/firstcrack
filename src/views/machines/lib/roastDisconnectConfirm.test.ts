@@ -97,7 +97,7 @@ describe('disconnectMachineWithRoastGuard', () => {
         const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
         const disconnect = vi.fn().mockResolvedValue(undefined);
 
-        for (const phase of ['idle', 'preheating', 'standby', 'ended'] as const) {
+        for (const phase of ['idle', 'preheating', 'standby'] as const) {
             disconnect.mockClear();
             ask.mockClear();
             confirm.mockClear();

@@ -22,7 +22,7 @@ export const bbpElapsedWhenEnabled = <T>(enabled: boolean, elapsed: T): T | null
 export const bbpChargeWaitActive = (bbpActive: boolean, bbpRecording: boolean, awaitingNextCharge: boolean) =>
     (bbpActive && bbpRecording) || awaitingNextCharge;
 
-export const isChargedPhase = (phase: RoastPhase) => phase === 'roasting' || phase === 'ended';
+export { isChargedPhase } from '@features/active-roast/model/status';
 
 export const profileSelectionEpoch = (
     workspaceOwnerId: string | null | undefined,

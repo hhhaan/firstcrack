@@ -4,12 +4,14 @@ import { useDayBatches } from '@entities/plan';
 import { isPendingRoastSaveActive } from '@features/active-roast/lib/resumePendingRoastSave';
 import { formatRoastSaveError } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
+import { completedKey } from '@features/active-roast/model/completed';
 import {
     clearPendingRoastSave,
     listPendingRoastSaves,
     type PendingRoastSave,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { inputCls } from '@shared/ui/form-styles';
@@ -37,6 +39,25 @@ export const PendingRoastRecovery = () => {
     const [discardError, setDiscardError] = useState('');
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
     const { resumeSave } = useSaveRoast(null, syncRoastCurve);
+    const resumeCompletedSave = useCallback(
+        async (pending: PendingRoastSave) => {
+            const key = pending.params.sessionId ? completedKey(pending.params.userId, pending.params.sessionId) : null;
+            const store = useRoastingStore.getState();
+            const record = key ? store.completedRecords[key] : null;
+            // A live submit already owns the record; the durable procedure coalesces its promise.
+            const ownsLock = Boolean(
+                key && record && !record.saving && !record.submitted && store.beginCompletedSave(key),
+            );
+            try {
+                const result = await resumeSave(pending);
+                if (ownsLock && key) useRoastingStore.getState().saveSucceeded(key);
+                return result;
+            } finally {
+                if (ownsLock && key) useRoastingStore.getState().finishCompletedSave(key);
+            }
+        },
+        [resumeSave],
+    );
     const attempted = useRef(new Set<string>());
     const refresh = useCallback(() => setState(load()), []);
     const closeDiscard = () => {
@@ -63,7 +84,13 @@ export const PendingRoastRecovery = () => {
             return;
         }
         try {
+            const key = discardTarget.params.sessionId
+                ? completedKey(discardTarget.params.userId, discardTarget.params.sessionId)
+                : null;
+            if (key && useRoastingStore.getState().completedRecords[key]?.saving) return;
             clearPendingRoastSave(discardTarget.params.userId, discardTarget.params.sessionId);
+            if (key && useRoastingStore.getState().completedRecords[key])
+                useRoastingStore.getState().discardCompleted(key);
             closeDiscard();
             refresh();
         } catch (err) {
@@ -90,11 +117,11 @@ export const PendingRoastRecovery = () => {
             )
                 continue;
             attempted.current.add(key);
-            void resumeSave(pending)
+            void resumeCompletedSave(pending)
                 .catch(() => {})
                 .finally(refresh);
         }
-    }, [state.items, isWorkspaceReady, workspaceOwnerId, resumeSave, refresh]);
+    }, [state.items, isWorkspaceReady, workspaceOwnerId, resumeCompletedSave, refresh]);
     const items = state.items.filter((p) => p.params.userId === workspaceOwnerId);
     if (!state.error && items.length === 0) return null;
     return (
@@ -122,7 +149,7 @@ export const PendingRoastRecovery = () => {
                             <RecoveryItem
                                 key={`${pending.params.userId}:${pending.params.sessionId}`}
                                 pending={pending}
-                                retry={resumeSave}
+                                retry={resumeCompletedSave}
                                 refresh={refresh}
                                 onRequestDiscard={() => {
                                     if (isPendingRoastSaveActive(pending.params.userId, pending.params.sessionId))

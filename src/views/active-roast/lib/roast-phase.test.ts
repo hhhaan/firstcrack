@@ -9,11 +9,11 @@ describe('waitPhaseAfterRoastReset', () => {
 });
 
 describe('getRoastPhaseName', () => {
-    it('BBP 대기(reset 후)는 READY, ended는 ENDED (#484)', () => {
+    it('BBP 대기(reset 후)는 READY, 완료 후에는 READY (#484)', () => {
         expect(getRoastPhaseName(false, 'preheating', 0, [], true)).toBe('READY');
         expect(getRoastPhaseName(false, 'standby', 0, [], true)).toBe('READY');
-        expect(getRoastPhaseName(true, 'ended', 480, [], true)).toBe('ENDED');
-        expect(getRoastPhaseName(true, 'ended', 480, [])).toBe('ENDED');
+        expect(getRoastPhaseName(false, 'standby', 0, [], true)).toBe('READY');
+        expect(getRoastPhaseName(false, 'standby', 0, [])).toBe('READY');
     });
 
     it('첫 배치 예열은 PREHEATING/READY를 유지한다', () => {
@@ -27,8 +27,7 @@ describe('getRoastPhaseColor', () => {
         expect(getRoastPhaseColor(true, 'READY')).toBe(getRoastPhaseColor(false, 'READY'));
     });
 
-    it('ENDED uses development color, not READY', () => {
-        expect(getRoastPhaseColor(true, 'ENDED')).toBe(getRoastPhaseColor(true, 'Development'));
-        expect(getRoastPhaseColor(true, 'ENDED')).not.toBe(getRoastPhaseColor(true, 'READY'));
+    it('completed standby uses ready color', () => {
+        expect(getRoastPhaseColor(false, 'READY')).toBe(getRoastPhaseColor(false, 'IDLE'));
     });
 });

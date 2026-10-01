@@ -16,8 +16,6 @@ export const getRoastPhaseName = (
     logEntries: LogEntry[],
     bbpActive = false,
 ): string => {
-    // Unsaved ended is not the next-batch wait. Post-drop standby uses the same READY label.
-    if (phase === 'ended') return 'ENDED';
     if (bbpActive) return 'READY';
     if (!charged) {
         switch (phase) {
@@ -41,7 +39,6 @@ export const getRoastPhaseName = (
 export const getRoastPhaseColor = (charged: boolean, phaseName: string): string => {
     if (!charged || phaseName === 'READY') return PHASE_COLORS.ready;
     switch (phaseName) {
-        case 'ENDED':
         case 'Development':
             return PHASE_COLORS.development;
         case 'Maillard':

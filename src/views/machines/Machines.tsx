@@ -71,7 +71,7 @@ export const Machines = ({
         const status = await connectMachine(machine);
         if (status?.connected) {
             const { phase, enterPreheating, setConnected } = useRoastingStore.getState();
-            if (phase === 'idle' || phase === 'ended') {
+            if (phase === 'idle') {
                 enterPreheating(status.capabilities);
             } else {
                 setConnected(true, status.capabilities);

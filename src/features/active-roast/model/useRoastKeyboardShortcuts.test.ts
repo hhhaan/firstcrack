@@ -67,7 +67,7 @@ describe('Charge hotkey form tags', () => {
 describe('isRoastRefreshBlocked', () => {
     it('blocks an in-progress roast, an unsaved end, and the gap before the next charge', () => {
         expect(isRoastRefreshBlocked('roasting', false)).toBe(true);
-        expect(isRoastRefreshBlocked('ended', false)).toBe(true);
+        expect(isRoastRefreshBlocked('standby', false, true)).toBe(true);
         expect(isRoastRefreshBlocked('idle', true)).toBe(true);
     });
 

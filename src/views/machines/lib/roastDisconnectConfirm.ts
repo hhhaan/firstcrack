@@ -20,7 +20,7 @@ export type DisconnectMachineRef = {
 
 /**
  * A roast is in progress only after Charge and before Drop (`phase === 'roasting'`).
- * Charge-wait is `preheating` / `standby`. `ended` is after Drop. Those disconnect immediately.
+ * Charge-wait is `preheating` / `standby`. Those disconnect immediately.
  */
 const isActiveRoastPhase = (phase: RoastPhase): boolean => phase === 'roasting';
 

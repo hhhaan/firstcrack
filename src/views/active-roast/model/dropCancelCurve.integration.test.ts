@@ -3,7 +3,7 @@ import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { _resetTsvWriterForTests, flushTsv, sessionTsvPath } from '@shared/lib/tsv-writer';
 import type { LogEntry } from '@shared/types/roast';
-import { act, createElement, useState } from 'react';
+import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { batchRoastFinished } from '../lib/active-roast-screen';
@@ -113,7 +113,8 @@ const renderRoast = (): Harness => {
         const phase = useRoastingStore((s) => s.phase);
         const sessionId = useRoastingStore((s) => s.sessionId);
         const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
-        const [logs, setLogs] = useState<LogEntry[]>([]);
+        const logs = useRoastingStore((s) => s.logEntries);
+        const setLogs = useRoastingStore.getState().setLogEntries;
         const { livePoints, setLivePoints } = useSidecarPolling({
             isActive: true,
             phase,
@@ -133,13 +134,11 @@ const renderRoast = (): Harness => {
             enterStandby: () => useRoastingStore.getState().enterStandby(),
             enterPreheating: () => useRoastingStore.getState().enterPreheating(),
             setConnected,
-            resetStore: () => useRoastingStore.getState().reset(),
+            resetStore: (opts) => useRoastingStore.getState().reset(opts),
             resetAutoDetectionRef: { current: () => undefined },
             disableAutoChargeRef: { current: () => undefined },
             disableAutoDropRef: { current: () => undefined },
             rearmAutoChargeRef: { current: () => undefined },
-            setLogEntries: setLogs,
-            setLivePoints,
             setZoomRange: () => undefined,
             setHoveredChartIndex: () => undefined,
             triggerChargeRef: { current: () => undefined },
@@ -231,8 +230,8 @@ afterEach(() => {
 const chargeAndPlant = async (harness: Harness) => {
     await flush();
     await act(async () => {
-        harness.setLogs([chargeLog(200)]);
         useRoastingStore.getState().startCharge(Date.now() - 8000, 'owner');
+        harness.setLogs([chargeLog(200)]);
     });
     await flush();
     await act(async () => {
@@ -393,8 +392,8 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
                     { t: 0, bt: 190, et: 200, heater: null, fan: 0, drum: 0 },
                     { t: 2, bt: 188, et: 200, heater: null, fan: 0, drum: 0 },
                 ]);
-                harness.setLogs([chargeLog(210)]);
                 useRoastingStore.getState().startCharge();
+                harness.setLogs([chargeLog(210)]);
             });
 
             expect(harness.points.map((sample) => [sample.time, sample.bt])).toEqual([[0, 210]]);

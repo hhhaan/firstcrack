@@ -1,7 +1,8 @@
+import { completedKey } from '@features/active-roast/model/completed';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import type { RoastSummaryData } from '@shared/types/roast';
 import { useCallback } from 'react';
-import { create } from 'zustand';
 
 export type { RoastSummaryData } from '@shared/types/roast';
 
@@ -20,88 +21,6 @@ interface FlowState {
     continueCandidates: PlanBatchWithProgress[];
 }
 
-const INITIAL_FLOW_STATE: FlowState = {
-    endRoastModal: false,
-    summaryModal: false,
-    summaryData: null,
-    continueModal: false,
-    continueCandidates: [],
-};
-
-type FlowAction =
-    | { type: 'OPEN_END_ROAST' }
-    | { type: 'CONFIRM_END_ROAST'; payload: RoastSummaryData }
-    | { type: 'CLOSE_END_ROAST' }
-    | { type: 'CLOSE_SUMMARY' }
-    | { type: 'REOPEN_SUMMARY' }
-    | { type: 'DISCARD_SUMMARY' }
-    | { type: 'SAVE_SUCCESS'; payload: SaveFlowResult }
-    | { type: 'DISMISS_CONTINUE' }
-    | { type: 'RESET' };
-
-export function flowReducer(state: FlowState, action: FlowAction): FlowState {
-    switch (action.type) {
-        case 'OPEN_END_ROAST':
-            return { ...state, endRoastModal: true };
-
-        case 'CONFIRM_END_ROAST':
-            return {
-                ...state,
-                endRoastModal: false,
-                summaryModal: true,
-                summaryData: action.payload,
-            };
-
-        case 'CLOSE_END_ROAST':
-            return { ...state, endRoastModal: false };
-
-        // Keep summaryData so ended phase can reopen (#172). Wipe only on discard/save/reset.
-        case 'CLOSE_SUMMARY':
-            return { ...state, summaryModal: false };
-
-        case 'REOPEN_SUMMARY':
-            if (state.summaryData == null) return state;
-            return { ...state, summaryModal: true };
-
-        case 'DISCARD_SUMMARY':
-            return { ...INITIAL_FLOW_STATE };
-
-        case 'SAVE_SUCCESS': {
-            if (
-                state.summaryData &&
-                (state.summaryData.sessionId !== action.payload.sessionId ||
-                    state.summaryData.sessionOwnerId !== action.payload.sessionOwnerId)
-            )
-                return state;
-            if (action.payload.shouldOpenContinue) {
-                return {
-                    ...state,
-                    summaryModal: false,
-                    summaryData: null,
-                    continueModal: true,
-                    continueCandidates: action.payload.continueCandidates ?? [],
-                };
-            }
-            return {
-                ...state,
-                summaryModal: false,
-                summaryData: null,
-                continueModal: false,
-                continueCandidates: [],
-            };
-        }
-
-        case 'DISMISS_CONTINUE':
-            return { ...state, continueModal: false, continueCandidates: [] };
-
-        case 'RESET':
-            return INITIAL_FLOW_STATE;
-
-        default:
-            return state;
-    }
-}
-
 export interface UseRoastCompletionFlowReturn extends FlowState {
     openEndRoast: () => void;
     confirmEndRoast: (summaryData: RoastSummaryData) => void;
@@ -114,40 +33,42 @@ export interface UseRoastCompletionFlowReturn extends FlowState {
     resetFlow: () => void;
 }
 
-const useCompletionUi = create<{ state: FlowState; dispatch: (action: FlowAction) => void }>((set) => ({
-    state: INITIAL_FLOW_STATE,
-    dispatch: (action) => set((previous) => ({ state: flowReducer(previous.state, action) })),
-}));
-
 export const useRoastCompletionFlow = (): UseRoastCompletionFlowReturn => {
-    const { state, dispatch } = useCompletionUi();
-
-    const openEndRoast = useCallback(() => dispatch({ type: 'OPEN_END_ROAST' }), [dispatch]);
-    const confirmEndRoast = useCallback(
-        (summaryData: RoastSummaryData) => dispatch({ type: 'CONFIRM_END_ROAST', payload: summaryData }),
-        [dispatch],
+    const ui = useRoastingStore((s) => s.completionUi);
+    const summaryData = useRoastingStore((s) =>
+        ui.summaryKey ? (s.completedRecords[ui.summaryKey]?.summary ?? null) : null,
     );
-    const closeEndRoast = useCallback(() => dispatch({ type: 'CLOSE_END_ROAST' }), [dispatch]);
-    const closeSummary = useCallback(() => dispatch({ type: 'CLOSE_SUMMARY' }), [dispatch]);
-    const reopenSummary = useCallback(() => dispatch({ type: 'REOPEN_SUMMARY' }), [dispatch]);
-    const discardSummary = useCallback(() => dispatch({ type: 'DISCARD_SUMMARY' }), [dispatch]);
-    const onSaveSuccess = useCallback(
-        (result: SaveFlowResult) => dispatch({ type: 'SAVE_SUCCESS', payload: result }),
-        [dispatch],
-    );
-    const dismissContinue = useCallback(() => dispatch({ type: 'DISMISS_CONTINUE' }), [dispatch]);
-    const resetFlow = useCallback(() => dispatch({ type: 'RESET' }), [dispatch]);
-
+    const store = useRoastingStore.getState();
+    const confirmEndRoast = useCallback((summary: RoastSummaryData) => {
+        if (summary.sessionId)
+            useRoastingStore.getState().openCompleted(completedKey(summary.sessionOwnerId ?? '', summary.sessionId));
+    }, []);
+    const reopenSummary = useCallback(() => {
+        if (ui.summaryKey) useRoastingStore.getState().openCompleted(ui.summaryKey);
+    }, [ui.summaryKey]);
+    const onSaveSuccess = useCallback((result: SaveFlowResult) => {
+        if (result.sessionId)
+            useRoastingStore
+                .getState()
+                .saveSucceeded(
+                    completedKey(result.sessionOwnerId ?? '', result.sessionId),
+                    result.shouldOpenContinue ? result.continueCandidates : [],
+                );
+    }, []);
     return {
-        ...state,
-        openEndRoast,
+        endRoastModal: ui.endRoastModal,
+        summaryModal: ui.summaryModal,
+        summaryData,
+        continueModal: ui.continueModal,
+        continueCandidates: ui.continueCandidates,
+        openEndRoast: store.openEndRoast,
         confirmEndRoast,
-        closeEndRoast,
-        closeSummary,
+        closeEndRoast: store.closeEndRoast,
+        closeSummary: store.closeSummary,
         reopenSummary,
-        discardSummary,
+        discardSummary: store.clearSummarySelection,
         onSaveSuccess,
-        dismissContinue,
-        resetFlow,
+        dismissContinue: store.dismissContinue,
+        resetFlow: store.resetCompletionUi,
     };
 };

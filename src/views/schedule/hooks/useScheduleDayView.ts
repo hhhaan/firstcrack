@@ -14,7 +14,7 @@ import { batchStatus, toDateKey, unknownErrorMessage } from '../lib';
 
 /** Live/unsaved roast blocks schedule Start. Machine connected (preheating/standby) does not. */
 export function isRoastBlockingScheduleStart(phase: RoastPhase): boolean {
-    return phase === 'roasting' || phase === 'ended';
+    return phase === 'roasting';
 }
 
 /**

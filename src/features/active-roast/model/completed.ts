@@ -1,7 +1,10 @@
+import type { MachineSnapshot } from '@entities/machine';
+import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import type { LiveRoastPoint, LogEntry, RoastSummaryData } from '@shared/types/roast';
 import type { RoastSummaryForm } from '../lib/roastSummarySchema';
+import type { BatchSelection } from './batchSelection';
+import type { FinalizedBbp } from './bbp';
 import type { PendingRoastParams } from './pendingRoastSave';
-import type { BatchSelection } from './status';
 
 export const completedKey = (ownerId: string | null, sessionId: string) => JSON.stringify([ownerId ?? '', sessionId]);
 
@@ -13,6 +16,9 @@ export interface CompletedRoastRestore {
     livePoints: LiveRoastPoint[];
     sessionOwnerId: string | null;
     currentBatch?: BatchSelection | null;
+    machineSnapshot?: MachineSnapshot | null;
+    bbpSummary?: FinalizedBbp | null;
+    rawBT?: number | null;
 }
 
 export interface CompletedRecord {
@@ -29,7 +35,31 @@ export interface CompletedRecord {
     cancelable: boolean;
 }
 
+export interface CompletionUi {
+    endRoastModal: boolean;
+    summaryModal: boolean;
+    summaryKey: string | null;
+    continueModal: boolean;
+    continueCandidates: PlanBatchWithProgress[];
+}
+const emptyUi: CompletionUi = {
+    endRoastModal: false,
+    summaryModal: false,
+    summaryKey: null,
+    continueModal: false,
+    continueCandidates: [],
+};
+
 export interface CompletedSlice {
+    completionUi: CompletionUi;
+    openEndRoast: () => void;
+    closeEndRoast: () => void;
+    openCompleted: (key: string) => void;
+    closeSummary: () => void;
+    clearSummarySelection: () => void;
+    dismissContinue: () => void;
+    resetCompletionUi: () => void;
+    saveSucceeded: (key: string, candidates?: PlanBatchWithProgress[]) => void;
     completedRecords: Record<string, CompletedRecord>;
     latestCompletedKey: string | null;
     capture: (restore: CompletedRoastRestore) => void;
@@ -56,7 +86,7 @@ export const createCompletedSlice = (
         if (!record) return;
         set({ completedRecords: { ...state.completedRecords, [key]: { ...record, ...patch } } });
     };
-    const freeze = (summary: RoastSummaryData, params: PendingRoastParams) => {
+    const freeze = (summary: RoastSummaryData, params: PendingRoastParams, latest = true) => {
         if (!params.sessionId) return;
         const key = completedKey(params.userId, params.sessionId);
         const existing = get().completedRecords[key];
@@ -80,11 +110,40 @@ export const createCompletedSlice = (
             record.params = structuredClone(params);
             record.summary = { ...summary, sessionId: params.sessionId, sessionOwnerId: params.userId };
         }
-        set({ completedRecords: { ...get().completedRecords, [key]: record }, latestCompletedKey: key });
+        set({
+            completedRecords: { ...get().completedRecords, [key]: record },
+            ...(latest ? { latestCompletedKey: key } : {}),
+        });
     };
     return {
         completedRecords: {},
         latestCompletedKey: null,
+        completionUi: emptyUi,
+        openEndRoast: () => set({ completionUi: { ...get().completionUi, endRoastModal: true } }),
+        closeEndRoast: () => set({ completionUi: { ...get().completionUi, endRoastModal: false } }),
+        openCompleted: (key) => {
+            if (!get().completedRecords[key]?.summary || get().completedRecords[key].submitted) return;
+            set({ completionUi: { ...get().completionUi, endRoastModal: false, summaryModal: true, summaryKey: key } });
+        },
+        closeSummary: () => set({ completionUi: { ...get().completionUi, summaryModal: false } }),
+        clearSummarySelection: () => set({ completionUi: emptyUi }),
+        dismissContinue: () =>
+            set({ completionUi: { ...get().completionUi, continueModal: false, continueCandidates: [] } }),
+        resetCompletionUi: () => set({ completionUi: emptyUi }),
+        saveSucceeded: (key, candidates = []) => {
+            patchRecord(key, { submitted: true, saving: false, restore: null, cancelable: false });
+            const ui = get().completionUi;
+            if (ui.summaryKey != null && ui.summaryKey !== key) return;
+            set({
+                completionUi: {
+                    ...ui,
+                    summaryModal: false,
+                    summaryKey: null,
+                    continueModal: candidates.length > 0,
+                    continueCandidates: candidates,
+                },
+            });
+        },
         capture: (restore) => {
             const key = completedKey(restore.sessionOwnerId, restore.sessionId);
             if (get().completedRecords[key]) return;
@@ -109,7 +168,7 @@ export const createCompletedSlice = (
             });
         },
         freezeCompleted: freeze,
-        hydrateCompleted: freeze,
+        hydrateCompleted: (summary, params) => freeze(summary, params, false),
         setCompletedDraft: (key, draft) => {
             if (!get().completedRecords[key]?.saving) patchRecord(key, { draft: structuredClone(draft) });
         },
@@ -170,6 +229,6 @@ export const createCompletedSlice = (
             });
             return true;
         },
-        clear: () => set({ completedRecords: {}, latestCompletedKey: null }),
+        clear: () => set({ completedRecords: {}, latestCompletedKey: null, completionUi: emptyUi }),
     };
 };

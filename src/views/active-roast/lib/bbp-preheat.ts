@@ -77,7 +77,7 @@ export const chartOnlyPreheatDecision = (input: ChartOnlyPreheatInput): ChartOnl
     const recorded = input.bbp.recording || input.awaitingNextCharge;
     if (!input.visible) {
         if (recorded || !input.bbp.active) return 'keep';
-        if (input.phase === 'roasting' || input.phase === 'ended') return 'keep';
+        if (input.phase === 'roasting') return 'keep';
         return 'abort';
     }
     if (!input.bbpEnabled || recorded) return 'keep';

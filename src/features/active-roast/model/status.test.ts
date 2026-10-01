@@ -2,6 +2,7 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reduceSensorObservation, sensorObservationTick } from '../lib/sensorObservation';
+import { completedKey } from './completed';
 import { useRoastingStore } from './status';
 
 const live = {
@@ -30,20 +31,12 @@ describe('startCharge after Drop (#484)', () => {
         expect(useRoastingStore.getState().phase).toBe('roasting');
     });
 
-    it('refuses another Charge while roasting or ended, then allows one after reset', () => {
+    it('refuses another Charge while roasting, then allows one after reset', () => {
         useRoastingStore.getState().startCharge();
         const first = useRoastingStore.getState().sessionId;
         useRoastingStore.getState().startCharge();
         expect(useRoastingStore.getState().sessionId).toBe(first);
         expect(useRoastingStore.getState().phase).toBe('roasting');
-
-        useRoastingStore.getState().endRoast();
-        useRoastingStore.getState().startCharge();
-        expect(useRoastingStore.getState().sessionId).toBe(first);
-        expect(useRoastingStore.getState().phase).toBe('ended');
-
-        useRoastingStore.getState().setConnected(false);
-        expect(useRoastingStore.getState().phase).toBe('ended');
 
         useRoastingStore.getState().reset();
         useRoastingStore.getState().startCharge();
@@ -76,11 +69,22 @@ describe('tick follows phase (#628)', () => {
         expect(useRoastingStore.getState().elapsed).toBe(3);
 
         const endedElapsed = useRoastingStore.getState().elapsed;
-        useRoastingStore.getState().endRoast();
+        const state = useRoastingStore.getState();
+        state.abort({
+            sessionId: state.sessionId ?? '',
+            sessionOwnerId: state.sessionOwnerId,
+            roastStartMs: state.roastStartMs,
+            elapsed: state.elapsed,
+            logEntries: [],
+            livePoints: [],
+        });
         vi.setSystemTime(Date.now() + 5_000);
         useRoastingStore.getState().tick();
-        expect(useRoastingStore.getState().phase).toBe('ended');
-        expect(useRoastingStore.getState().elapsed).toBe(endedElapsed);
+        expect(useRoastingStore.getState().phase).toBe('idle');
+        expect(
+            useRoastingStore.getState().completedRecords[completedKey(state.sessionOwnerId, state.sessionId ?? '')]
+                .restore?.elapsed,
+        ).toBe(endedElapsed);
 
         useRoastingStore.getState().reset();
         vi.setSystemTime(Date.now() + 4_000);
@@ -160,7 +164,9 @@ describe('useRoastingStore observation vs display', () => {
 
 it('consumes a plan only for its charged batch', () => {
     useRoastingStore.getState().prepareBatch({ selectedBeanId: 'bean-A', targetProfileId: 'profile-A' });
-    useRoastSessionStore.getState().startBatch({ planBatchId: 'plan-A' } as PlanBatchHandoff);
+    useRoastSessionStore
+        .getState()
+        .startBatch({ planBatchId: 'plan-A', beanId: 'bean-A', profileId: 'profile-A' } as PlanBatchHandoff);
     useRoastingStore.getState().startCharge();
     expect(useRoastingStore.getState().currentBatch).toMatchObject({
         selectedBeanId: 'bean-A',
@@ -171,3 +177,16 @@ it('consumes a plan only for its charged batch', () => {
     useRoastingStore.getState().startCharge();
     expect(useRoastingStore.getState().currentBatch?.planBatchHandoff).toBeNull();
 });
+
+it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 0, 2_000_000])(
+    'validates Charge origin %s in the store',
+    (origin) => {
+        vi.useFakeTimers();
+        vi.setSystemTime(1_000_000);
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().startCharge(origin);
+        expect(useRoastingStore.getState().roastStartMs).toBe(1_000_000);
+        expect(useRoastingStore.getState().elapsed).toBe(0);
+        vi.useRealTimers();
+    },
+);

@@ -158,9 +158,9 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(isLiveDetachedFromPending({ sessionId: null, phase: 'standby', awaitingNextCharge: true }, 's-a')).toBe(
             true,
         );
-        expect(isLiveDetachedFromPending({ sessionId: 's-a', phase: 'ended', awaitingNextCharge: false }, 's-a')).toBe(
-            false,
-        );
+        expect(
+            isLiveDetachedFromPending({ sessionId: 's-a', phase: 'roasting', awaitingNextCharge: false }, 's-a'),
+        ).toBe(false);
     });
 
     it('reuses the summary UUID for submission, then generates a distinct UUID for the next unrecorded roast', async () => {

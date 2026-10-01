@@ -202,6 +202,7 @@ describe('ActiveRoast running clock (#627)', () => {
     };
 
     beforeEach(() => {
+        useRoastingStore.getState().clear();
         vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
         vi.setSystemTime(new Date('2026-09-28T03:00:00.000Z'));
         vi.stubGlobal(
@@ -320,10 +321,18 @@ describe('ActiveRoast running clock (#627)', () => {
 
         dialog.ask.mockClear();
         seed({
-            phase: 'ended',
+            phase: 'standby',
             awaitingNextCharge: false,
             elapsed: 600,
             roastStartMs: 0,
+        });
+        useRoastingStore.getState().capture({
+            sessionId: 'completed',
+            sessionOwnerId: null,
+            roastStartMs: 1000,
+            elapsed: 600,
+            logEntries: [],
+            livePoints: [],
         });
         mount();
         await flushMicrotasks();

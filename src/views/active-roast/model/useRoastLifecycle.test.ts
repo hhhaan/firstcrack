@@ -69,13 +69,11 @@ const renderLifecycle = (
             enterStandby: () => useRoastingStore.getState().enterStandby(),
             enterPreheating: () => useRoastingStore.getState().enterPreheating(),
             setConnected: () => undefined,
-            resetStore: () => useRoastingStore.getState().reset(),
+            resetStore: (opts) => useRoastingStore.getState().reset(opts),
             resetAutoDetectionRef: { current: detection.resetAutoDetection ?? (() => undefined) },
             disableAutoChargeRef: { current: detection.disableAutoCharge ?? (() => undefined) },
             disableAutoDropRef: { current: detection.disableAutoDrop ?? (() => undefined) },
             rearmAutoChargeRef: { current: () => undefined },
-            setLogEntries: vi.fn(),
-            setLivePoints: vi.fn(),
             setZoomRange: vi.fn(),
             setHoveredChartIndex: vi.fn(),
             triggerChargeRef: { current: detection.triggerCharge ?? (() => undefined) },
@@ -101,7 +99,7 @@ describe('resetActiveRoast after End (#455)', () => {
         vi.mocked(sidecar.enterStandby).mockClear();
         useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [], finalized: null });
         useRoastingStore.setState({
-            phase: 'ended',
+            phase: 'standby',
             sidecarConnected: true,
             sessionId: 's1',
             roastStartMs: 0,
@@ -571,7 +569,9 @@ describe('completeDrop → BBP (#484)', () => {
                 });
             });
             expect(second?.elapsedSec).toBe(610);
-            expect(useBbpStore.getState().startMs).toBe(useRoastingStore.getState().roastStartMs + 610_000);
+            expect(useBbpStore.getState().startMs).toBe(
+                (useCompletedRoastStore.getState().restore?.roastStartMs ?? 0) + 610_000,
+            );
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
         } finally {
             h.unmount();
@@ -665,7 +665,7 @@ describe('completeDrop → BBP (#484)', () => {
         }
     });
 
-    it.each(['roasting', 'ended'] as const)('does not hydrate BBP while phase is %s', (phase) => {
+    it.each(['roasting'] as const)('does not hydrate BBP while phase is %s', (phase) => {
         useBbpStore.getState().begin(5_000, [
             { t: 0, bt: 190, et: 200, heater: 50, fan: 40, drum: 60 },
             { t: 2, bt: 188, et: 200, heater: 50, fan: 40, drum: 60 },
@@ -690,7 +690,7 @@ describe('completeDrop → BBP (#484)', () => {
     });
 });
 
-describe('manual Charge while ended (#630)', () => {
+describe('manual Charge while roasting (#630)', () => {
     beforeEach(() => {
         vi.mocked(sidecar.getStatus).mockReset().mockResolvedValue({
             connected: true,
@@ -702,8 +702,8 @@ describe('manual Charge while ended (#630)', () => {
             error: null,
         });
         useRoastingStore.setState({
-            phase: 'ended',
-            sessionId: 's-ended',
+            phase: 'roasting',
+            sessionId: 's-live',
             roastStartMs: 0,
             sidecarConnected: true,
         });
@@ -717,8 +717,8 @@ describe('manual Charge while ended (#630)', () => {
                 await h.result.handleManualCharge();
             });
             expect(triggerCharge).not.toHaveBeenCalled();
-            expect(useRoastingStore.getState().sessionId).toBe('s-ended');
-            expect(useRoastingStore.getState().phase).toBe('ended');
+            expect(useRoastingStore.getState().sessionId).toBe('s-live');
+            expect(useRoastingStore.getState().phase).toBe('roasting');
         } finally {
             h.unmount();
         }

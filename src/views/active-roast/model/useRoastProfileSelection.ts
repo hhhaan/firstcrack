@@ -65,10 +65,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
 
     const selection = useRoastingStore((s) => (charged ? (s.currentBatch ?? s.prepared) : s.prepared));
     const { targetProfileId, selectedBeanId, handoffBeanName } = selection;
-    const setTargetProfileId = useCallback(
-        (id: string | null) => useRoastingStore.getState().prepareBatch({ targetProfileId: id }),
-        [],
-    );
+    const setTargetProfileId = useCallback((id: string | null) => useRoastingStore.getState().selectProfile(id), []);
     const setSelectedBeanId = useCallback(
         (id: string | null) => useRoastingStore.getState().prepareBatch({ selectedBeanId: id }),
         [],
@@ -118,6 +115,10 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
 
     const applyTarget = useCallback(
         async (id: string | null, source: 'user' | 'handoff') => {
+            if (source === 'handoff' && chargedRef.current) {
+                useRoastingStore.getState().prepareBatch({ targetProfileId: id });
+                return;
+            }
             if (id === targetProfileIdRef.current) return;
             const gen = ++requestGenRef.current;
             const epoch = selectionEpochRef.current;

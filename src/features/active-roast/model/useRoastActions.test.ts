@@ -116,13 +116,13 @@ describe('startCharge 심층 방어 가드 (#174)', () => {
         expect(useRoastingStore.getState().sessionId).toBe(first);
     });
 
-    it('ended 상태에서는 Charge 로그와 session을 만들지 않는다', () => {
-        useRoastingStore.setState({ phase: 'ended', sessionId: 's-ended' });
+    it('진행 중인 상태에서는 Charge 로그와 session을 만들지 않는다', () => {
+        useRoastingStore.setState({ phase: 'roasting', sessionId: 's-live' });
         const h = renderActions();
         void act(() => h.result.triggerCharge(200));
         expect(h.setLogEntries).not.toHaveBeenCalled();
-        expect(useRoastingStore.getState().sessionId).toBe('s-ended');
-        expect(useRoastingStore.getState().phase).toBe('ended');
+        expect(useRoastingStore.getState().sessionId).toBe('s-live');
+        expect(useRoastingStore.getState().phase).toBe('roasting');
     });
 });
 

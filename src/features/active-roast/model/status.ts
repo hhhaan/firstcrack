@@ -1,18 +1,18 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
 import type { TemperatureProcessing } from '@shared/types/sidecar';
 import type { SetStateAction } from 'react';
 import { create } from 'zustand';
 import type { RawTemperatureSample } from '../lib/autoCharge';
 import type { SensorObservation } from '../lib/sensorObservation';
-import { type CompletedSlice, createCompletedSlice } from './completed';
+import type { BatchSelection } from './batchSelection';
+import { type CompletedRoastRestore, type CompletedSlice, completedKey, createCompletedSlice } from './completed';
 
-export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
+export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting';
 
-/** idle / preheating / standby are not charged. roasting and ended stay charged until reset. */
-export const isChargedPhase = (phase: RoastPhase): boolean => phase === 'roasting' || phase === 'ended';
+/** Completed records live separately from the machine execution phase. */
+export const isChargedPhase = (phase: RoastPhase): boolean => phase === 'roasting';
 
 type LiveData = {
     bt: number | null;
@@ -33,18 +33,14 @@ type LiveData = {
     drum: number;
 };
 
-export interface BatchSelection {
-    selectedBeanId: string | null;
-    targetProfileId: string | null;
-    handoffBeanName: string | null;
-    planBatchHandoff: PlanBatchHandoff | null;
-}
-
 export interface RoastingState extends CompletedSlice {
     logEntries: LogEntry[];
     fcDualUnwind: boolean;
     livePoints: LiveRoastPoint[];
     prepared: BatchSelection;
+    preChargeStartMs: number;
+    rememberPreChargeStart: (atMs: number) => void;
+    selectProfile: (id: string | null) => void;
     currentBatch: BatchSelection | null;
     initializedTsvSessions: Set<string>;
     setLogEntries: (entries: SetStateAction<LogEntry[]>) => void;
@@ -76,7 +72,7 @@ export interface RoastingState extends CompletedSlice {
     /** Profiles page "start with this profile" → target profile handoff (consumed once). */
     pendingProfileId: string | null;
     sessionId: string | null;
-    /** Workspace owner at charge. Survives endRoast; cleared on reset with sessionId. */
+    /** Workspace owner at Charge; frozen in the completed record before reset. */
     sessionOwnerId: string | null;
     reconnecting: boolean;
     /** Last connected machine this roast; kept through disconnect until reset. */
@@ -93,7 +89,10 @@ export interface RoastingState extends CompletedSlice {
     enterStandby: () => void;
     /** originMs: charge wall time (auto-charge onset). Defaults to Date.now(). */
     startCharge: (originMs?: number, ownerId?: string) => void;
-    endRoast: () => void;
+    drop: (restore: CompletedRoastRestore) => boolean;
+    abort: (restore: CompletedRoastRestore) => boolean;
+    cancelDrop: (key: string) => boolean;
+    recoverChargeWait: () => void;
     tick: () => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
     setError: (error: string | null) => void;
@@ -103,7 +102,7 @@ export interface RoastingState extends CompletedSlice {
     setPendingBean: (beanId: string | null, beanName?: string | null) => void;
     setPendingProfile: (profileId: string | null) => void;
     rememberMachineSnapshot: (snapshot: MachineSnapshot) => void;
-    reset: () => void;
+    reset: (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => void;
 }
 
 const emptySelection: BatchSelection = {
@@ -118,6 +117,7 @@ const initialState = {
     fcDualUnwind: false,
     livePoints: [] as LiveRoastPoint[],
     prepared: emptySelection,
+    preChargeStartMs: 0,
     currentBatch: null as BatchSelection | null,
     initializedTsvSessions: new Set<string>(),
     phase: 'idle' as RoastPhase,
@@ -154,6 +154,13 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         }),
     setLivePoints: (action) =>
         set((state) => ({ livePoints: typeof action === 'function' ? action(state.livePoints) : action })),
+    rememberPreChargeStart: (atMs) => set({ preChargeStartMs: atMs }),
+    selectProfile: (id) => {
+        const state = get();
+        if (isChargedPhase(state.phase) && state.currentBatch)
+            set({ currentBatch: { ...state.currentBatch, targetProfileId: id } });
+        else state.prepareBatch({ targetProfileId: id });
+    },
     prepareBatch: (patch) => set((state) => ({ prepared: { ...state.prepared, ...patch } })),
     claimSessionTsv: (sessionId) => {
         if (get().initializedTsvSessions.has(sessionId)) return false;
@@ -180,9 +187,21 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         const now = Date.now();
         const origin =
             originMs != null && Number.isFinite(originMs) && originMs > 0 && originMs <= now ? originMs : now;
+        const handoff = useRoastSessionStore.getState().planBatchHandoff;
         set({
             phase: 'roasting',
-            currentBatch: { ...get().prepared, planBatchHandoff: useRoastSessionStore.getState().planBatchHandoff },
+            currentBatch: {
+                ...get().prepared,
+                planBatchHandoff: handoff,
+                ...(handoff
+                    ? {
+                          selectedBeanId: handoff.beanId ?? null,
+                          handoffBeanName: handoff.beanName || null,
+                          targetProfileId: handoff.profileId ?? get().prepared.targetProfileId,
+                      }
+                    : {}),
+            },
+            preChargeStartMs: 0,
             prepared: { ...get().prepared, planBatchHandoff: null },
             logEntries: [],
             fcDualUnwind: false,
@@ -197,8 +216,60 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         get().lockAfterCharge(get().sessionId);
     },
 
-    endRoast: () => {
-        set({ phase: 'ended', roastStartMs: 0 });
+    drop: (restore) => {
+        const state = get();
+        if (
+            !isChargedPhase(state.phase) ||
+            state.sessionId !== restore.sessionId ||
+            state.completedRecords[completedKey(restore.sessionOwnerId, restore.sessionId)]
+        )
+            return false;
+        state.capture(restore);
+        state.reset({ chargeWait: true, keepHeatHold: true });
+        return true;
+    },
+    abort: (restore) => {
+        const state = get();
+        if (!state.drop(restore)) return false;
+        const key = completedKey(restore.sessionOwnerId, restore.sessionId);
+        const record = get().completedRecords[key];
+        set({ completedRecords: { ...get().completedRecords, [key]: { ...record, cancelable: false } } });
+        return true;
+    },
+    cancelDrop: (key) => {
+        const state = get();
+        const record = state.completedRecords[key];
+        const restore = record?.restore;
+        if (
+            !restore ||
+            !record.cancelable ||
+            record.saving ||
+            record.submitted ||
+            (state.sessionId && state.sessionId !== restore.sessionId)
+        )
+            return false;
+        const records = { ...state.completedRecords };
+        delete records[key];
+        set({
+            completedRecords: records,
+            latestCompletedKey: null,
+            completionUi: { ...state.completionUi, summaryModal: false, summaryKey: null },
+            phase: 'roasting',
+            sessionId: restore.sessionId,
+            sessionOwnerId: restore.sessionOwnerId,
+            roastStartMs: restore.roastStartMs,
+            elapsed: Math.max(restore.elapsed, Math.floor((Date.now() - restore.roastStartMs) / 1000)),
+            currentBatch: restore.currentBatch ?? null,
+            logEntries: restore.logEntries.filter((e) => e.event !== 'Drop'),
+            livePoints: [...restore.livePoints, ...record.waitPoints],
+            awaitingNextCharge: false,
+            heatHoldAfterDrop: true,
+        });
+        return true;
+    },
+    recoverChargeWait: () => {
+        if (isChargedPhase(get().phase)) return;
+        set({ awaitingNextCharge: true, ...(get().sidecarConnected ? { phase: 'standby' as const } : {}) });
     },
 
     tick: () => {
@@ -279,8 +350,19 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         set({ pid });
     },
 
-    reset: () => {
-        const { sidecarConnected, machineCapabilities, prepared, initializedTsvSessions } = get();
-        set({ ...initialState, sidecarConnected, machineCapabilities, prepared, initializedTsvSessions });
+    reset: (opts) => {
+        const { sidecarConnected, machineCapabilities, prepared, initializedTsvSessions, machineSnapshot } = get();
+        const chargeWait = opts?.chargeWait ?? false;
+        set({
+            ...initialState,
+            sidecarConnected,
+            machineCapabilities,
+            prepared,
+            initializedTsvSessions,
+            phase: opts && sidecarConnected ? (chargeWait ? 'standby' : 'preheating') : 'idle',
+            awaitingNextCharge: chargeWait,
+            heatHoldAfterDrop: opts?.keepHeatHold ?? false,
+            ...(chargeWait ? { machineSnapshot } : {}),
+        });
     },
 }));

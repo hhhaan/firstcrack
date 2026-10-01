@@ -39,6 +39,7 @@ import { useWeather } from '@shared/api/weather';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
+import { subscribeSecondClock } from '@shared/lib/second-clock';
 import { sidecar } from '@shared/lib/sidecar';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
@@ -174,7 +175,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     } = storeActions;
 
     const charged = isChargedPhase(phase);
-    const roastEnded = phase === 'ended';
+    const hasUnsavedCompleted = useRoastingStore((s) => Object.values(s.completedRecords).some((r) => !r.submitted));
 
     // ── 유저 + DB 프로파일 ────────────────────────────────────────
     const user = useAuthStore((s) => s.user);
@@ -235,11 +236,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         isRunningRef.current = isRunning;
     }, [isRunning]);
 
-    // 미저장 로스트(진행 중 or ended 요약) — 창 닫기 가드용 (#177)
+    // 미저장 로스트(진행 중 or 완료 기록) — 창 닫기 가드용 (#177)
     const hasUnsavedRoastRef = useRef(false);
     useEffect(() => {
-        hasUnsavedRoastRef.current = isRunning || phase === 'ended' || awaitingNextCharge;
-    }, [isRunning, phase, awaitingNextCharge]);
+        hasUnsavedRoastRef.current = isRunning || hasUnsavedCompleted || awaitingNextCharge;
+    }, [isRunning, hasUnsavedCompleted, awaitingNextCharge]);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
@@ -257,7 +258,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
 
     // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
-    const { livePoints, setLivePoints } = useSidecarPolling({
+    const { livePoints } = useSidecarPolling({
         isActive,
         phase,
         pollIntervalMs,
@@ -401,8 +402,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         disableAutoChargeRef,
         disableAutoDropRef,
         rearmAutoChargeRef,
-        setLogEntries,
-        setLivePoints,
         setZoomRange: chart.setZoomRange,
         setHoveredChartIndex: chart.setHoveredChartIndex,
         triggerChargeRef,
@@ -643,11 +642,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── Effect: 타이머 ────────────────────────────────────────────
     useEffect(() => {
         if (!isRunning) return;
-        const interval = setInterval(() => tick(), 1000);
-        return () => clearInterval(interval);
+        return subscribeSecondClock(tick);
     }, [isRunning, tick]);
 
-    // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
+    // ── Effect: 로스팅 중 / 완료 미저장 창 닫기 확인 (#177) ──────
     useEffect(() => {
         if (!('__TAURI_INTERNALS__' in window)) return;
         const win = getCurrentWindow();
@@ -748,6 +746,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         showContinueModal: saveFlow.flow.continueModal,
         phase,
         awaitingNextCharge,
+        hasUnsavedCompleted,
         onToggleFullscreen: toggleFullscreen,
         onExitFullscreen: exitFullscreen,
         onEnterStandby: lifecycle.handleEnterStandby,
@@ -796,6 +795,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const confirmEndRoast = useCallback(() => {
         const summaryData = lifecycle.confirmEndRoast();
+        if (!summaryData) return;
         saveFlow.confirmEndRoast({
             ...summaryData,
             selectedBeanId,
@@ -840,10 +840,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const handleHeaterCommitted = useCallback(
         (value: number, heaterUnit: string) => {
-            if (!Number.isFinite(value) || !charged || roastEnded || bbpActive) return;
+            if (!Number.isFinite(value) || !charged || bbpActive) return;
             markEvent('Heater', `${value}${heaterUnit}`);
         },
-        [bbpActive, charged, markEvent, roastEnded],
+        [bbpActive, charged, markEvent],
     );
 
     const machineControl = useMachineControlComposition({
@@ -853,7 +853,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         pidRuntime,
         roastFinished: batchRoastFinished(
             heatHoldAfterDrop,
-            roastEnded,
+            false,
             logEntries.some((e) => e.event === 'Drop'),
         ),
         pidDropBehavior: roastSettings.pidDropBehavior,
@@ -887,14 +887,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { deltaBT, deltaET } = useMemo(() => calcDelta(livePoints, unit), [livePoints, unit]);
     const targetDelta = useMemo(
         () =>
-            roastSettings.showTargetCurve && charged && !roastEnded
-                ? calcTargetDelta(rawBT, targetCurvePoints, elapsed, unit)
-                : null,
-        [roastSettings.showTargetCurve, charged, roastEnded, rawBT, targetCurvePoints, elapsed, unit],
+            roastSettings.showTargetCurve && charged ? calcTargetDelta(rawBT, targetCurvePoints, elapsed, unit) : null,
+        [roastSettings.showTargetCurve, charged, rawBT, targetCurvePoints, elapsed, unit],
     );
     const roastLogDisplayEntries = useMemo(
-        () => buildRoastLogDisplayEntries(logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit),
-        [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit],
+        () => buildRoastLogDisplayEntries(logEntries, false, charged, timeStr, rawBT, roastPhaseName, unit),
+        [logEntries, charged, timeStr, rawBT, roastPhaseName, unit],
     );
     const chartFrame = buildChartFrame({
         isFullscreen,
@@ -927,7 +925,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         referenceFan: chart.visibleTargetFan,
         elapsed,
         charged,
-        roastEnded,
+        roastEnded: false,
         eventMarkers,
         turningPoints,
         phaseSegments,
@@ -1053,7 +1051,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         roastPhaseName={roastPhaseName}
                         roastPhaseColor={roastPhaseColor}
                         charged={charged}
-                        roastEnded={roastEnded}
+                        roastEnded={false}
                         deltaBT={deltaBT}
                         deltaET={deltaET}
                         targetDelta={targetDelta}

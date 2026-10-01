@@ -24,7 +24,7 @@ interface RoastSidePanelProps {
     displayRoR: string;
     timeStr: string;
     unit: TemperatureUnit;
-    /** machine lifecycle phase (preheating/standby/roasting/ended) — control buttons */
+    /** machine lifecycle phase (preheating/standby/roasting) — control buttons */
     phase: string;
     /** roast chemistry phase display name (Drying/Maillard/Development/…) */
     roastPhaseName: string;
@@ -180,7 +180,7 @@ export const RoastSidePanel = ({
                     {displayRoR}
                 </div>
             </div>
-            {/* Time — hide frozen roast clock while unsaved ended + BBP (#484) */}
+            {/* Time — hide frozen roast clock while completed batch + BBP (#484) */}
             {!hideRoastClock && (
                 <div className="text-right border-t border-border-subtle pt-3" data-testid="roast-time">
                     <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>

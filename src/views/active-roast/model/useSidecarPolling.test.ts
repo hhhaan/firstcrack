@@ -326,8 +326,8 @@ it('Tauri: listen 실패 시 setInterval 폴백으로 폴링이 계속된다', a
 it('waits for sidecar-ready / waitUntilReady before polling (same rule as Machines)', () => {
     expect(hookSrc).toContain("listen<null>('sidecar-ready'");
     expect(hookSrc).toContain('sidecar.waitUntilReady()');
-    expect(hookSrc).toContain('if (!isActive || !sidecarReady) return');
-    expect(hookSrc).toContain("if (phase === 'idle' || !sidecarReady) return");
+    expect(hookSrc).toContain('if (!ownsPolling || !sidecarReady) return');
+    expect(hookSrc).toContain("if (!ownsPolling || phase === 'idle' || !sidecarReady) return");
 });
 
 it('does not poll until waitUntilReady resolves', async () => {
@@ -1174,4 +1174,32 @@ it('does not treat unauthorized temperature polls as an unstable link', async ()
         expect(toastCount()).toBe(0);
         expect(useRoastingStore.getState().phase).toBe('roasting');
     });
+});
+
+it('keeps one poll loop across overlapping screen mounts and retains the curve on takeover', async () => {
+    vi.useFakeTimers();
+    stubTemps();
+    const first = renderProbe(1000);
+    await flushReady();
+    const second = renderProbe(1000);
+    await flushReady();
+    mocks.getTemperatures.mockClear();
+    await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(mocks.getTemperatures).toHaveBeenCalledTimes(1);
+    const points = useRoastingStore.getState().livePoints;
+    expect(points.length).toBeGreaterThan(0);
+    const origin = useRoastingStore.getState().roastStartMs;
+    act(() => first.unmount());
+    await flushReady();
+    expect(useRoastingStore.getState().livePoints).toBe(points);
+    expect(useRoastingStore.getState().roastStartMs).toBe(origin);
+    mocks.getTemperatures.mockClear();
+    await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(mocks.getTemperatures).toHaveBeenCalledTimes(1);
+    expect(useRoastingStore.getState().livePoints.slice(0, points.length)).toEqual(points);
+    act(() => second.unmount());
 });

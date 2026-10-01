@@ -1,4 +1,5 @@
 import { formatElapsed } from '@shared/lib/format';
+import { subscribeSecondClock } from '@shared/lib/second-clock';
 import { useEffect, useState } from 'react';
 import { useBbpStore } from './bbp';
 
@@ -14,8 +15,7 @@ export const useBbpTimer = (): string | null => {
         if (!recording || !active || startMs <= 0) return;
         const update = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
         update();
-        const id = setInterval(update, 1000);
-        return () => clearInterval(id);
+        return subscribeSecondClock(update);
     }, [active, recording, startMs]);
 
     if (!recording || !active || startMs <= 0) return null;

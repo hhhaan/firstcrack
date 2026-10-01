@@ -12,6 +12,6 @@ describe('isRoastBlockingScheduleStart', () => {
 
     it('차지 중·미저장 종료만 차단', () => {
         expect(isRoastBlockingScheduleStart('roasting')).toBe(true);
-        expect(isRoastBlockingScheduleStart('ended')).toBe(true);
+        expect(isRoastBlockingScheduleStart('standby')).toBe(false);
     });
 });

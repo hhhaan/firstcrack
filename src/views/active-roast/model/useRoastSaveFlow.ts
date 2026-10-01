@@ -123,26 +123,36 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
 
     // Everything but the form and log entries is identical between the two snapshots.
     const snapshotParams = useCallback(
-        (formData: SaveRoastFormData, logEntries: LogEntry[]): PendingRoastParams => ({
-            formData,
-            userId: useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
-            elapsed,
-            roastStartTime: useRoastingStore.getState().roastStartMs,
-            rawBT,
-            ambientTemperature,
-            ambientHumidity,
-            selectedBeanId,
-            targetProfileId,
-            planBatchHandoff,
-            sessionId,
-            handoffBeanName,
-            logEntries,
-            machineSnapshot: useRoastingStore.getState().machineSnapshot,
-            bbpSummary:
-                sessionId && useBbpStore.getState().finalized?.sessionId === sessionId
-                    ? useBbpStore.getState().finalized
-                    : null,
-        }),
+        (formData: SaveRoastFormData, logEntries: LogEntry[], summary?: RoastSummaryData): PendingRoastParams => {
+            const id = summary?.sessionId ?? sessionId;
+            const owner = summary?.sessionOwnerId ?? useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId;
+            const completed = id ? useRoastingStore.getState().completedRecords[completedKey(owner, id)] : null;
+            if (completed?.params) return { ...completed.params, formData, logEntries };
+            const restore = completed?.restore;
+            return {
+                formData,
+                logEntries,
+                userId: owner,
+                sessionId: id,
+                elapsed: restore?.elapsed ?? elapsed,
+                roastStartTime: restore?.roastStartMs ?? useRoastingStore.getState().roastStartMs,
+                rawBT: restore ? (restore.rawBT ?? null) : rawBT,
+                ambientTemperature,
+                ambientHumidity,
+                selectedBeanId: restore?.currentBatch?.selectedBeanId ?? selectedBeanId,
+                targetProfileId: restore?.currentBatch?.targetProfileId ?? targetProfileId,
+                planBatchHandoff: restore ? (restore.currentBatch?.planBatchHandoff ?? null) : planBatchHandoff,
+                handoffBeanName: restore?.currentBatch?.handoffBeanName ?? handoffBeanName,
+                machineSnapshot: restore
+                    ? (restore.machineSnapshot ?? null)
+                    : useRoastingStore.getState().machineSnapshot,
+                bbpSummary: restore
+                    ? (restore.bbpSummary ?? null)
+                    : id && useBbpStore.getState().finalized?.sessionId === id
+                      ? useBbpStore.getState().finalized
+                      : null,
+            };
+        },
         [
             workspaceOwnerId,
             elapsed,
@@ -221,7 +231,11 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 const saveStarted = Date.now();
                 const saveResult = await resumeSave(pending);
                 logger.debug('roast-save-stage', { stage: 'resume-save', ms: Date.now() - saveStarted });
-                useRoastingStore.getState().markSubmitted(pending.params.sessionId, ownerId);
+                flow.onSaveSuccess({
+                    shouldOpenContinue: false,
+                    sessionId: pending.params.sessionId,
+                    sessionOwnerId: ownerId,
+                });
                 if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 if (saveResult.syncPending) {
                     useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'), 'info');
@@ -234,11 +248,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     linkedBatch?.planBatchId ??
                     null;
 
-                flow.onSaveSuccess({
-                    shouldOpenContinue: false,
-                    sessionId: pending.params.sessionId,
-                    sessionOwnerId: ownerId,
-                });
                 unrecordedId.current = null;
 
                 // Drop already released the machine. A's save must not reset B / Charge-wait / handoff.
@@ -336,6 +345,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                             deductStock: false,
                         },
                         frozen.logEntries,
+                        frozen,
                     ),
                     userId: frozen.sessionOwnerId ?? workspaceOwnerId,
                     sessionId: frozen.sessionId ?? sessionId,
@@ -374,8 +384,16 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         if (!summary?.sessionId) return;
         const owner = summary.sessionOwnerId ?? workspaceOwnerId;
         const key = completedKey(owner, summary.sessionId);
-        if (!useRoastingStore.getState().discardCompleted(key)) return;
-        clearPendingRoastSave(owner, summary.sessionId);
+        const store = useRoastingStore.getState();
+        if (!store.completedRecords[key] || store.completedRecords[key].saving) return;
+        try {
+            clearPendingRoastSave(owner, summary.sessionId);
+        } catch (err) {
+            logger.capture(err, { context: 'discard completed checkpoint' });
+            useToastStore.getState().show(formatRoastSaveError(err));
+            return;
+        }
+        if (!store.discardCompleted(key)) return;
         unrecordedId.current = null;
         flow.discardSummary();
     }, [flow.discardSummary, flow.summaryData, workspaceOwnerId]);

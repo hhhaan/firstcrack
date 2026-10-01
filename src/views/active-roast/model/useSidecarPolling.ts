@@ -16,11 +16,14 @@ import { sidecar } from '@shared/lib/sidecar';
 import { deleteBbpTsv, enqueueTsvRow, formatRoastTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import type { LiveRoastPoint } from '@shared/types/roast';
 import { listen } from '@tauri-apps/api/event';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
 import { shouldAcceptTick } from '../lib/poll-tick-gate';
+import { usePollingLease } from '../lib/usePollingLease';
 
 /** 좀비 사이드카 401. ready가 아니며 연결 끊김으로 승격하지 않는다. */
+let pollInFlight = false;
+
 const isUnauthorizedSidecar = (err: unknown): boolean => errorMessage(err).toLowerCase() === 'unauthorized';
 
 /** 원시 온도는 유한한 값만 보관한다. ET의 -1(채널 없음)도 남긴다. */
@@ -138,11 +141,16 @@ export const useSidecarPolling = ({
     sessionId,
     chargeBt = null,
 }: Params) => {
+    const [sidecarReady, setSidecarReady] = useState(false);
+    const ownsPolling = usePollingLease(isActive || (sidecarReady && phase !== 'idle'));
+    const updateConnected = useEffectEvent((connected: boolean, capabilities?: string[]) =>
+        setConnected(connected, capabilities),
+    );
+    const recoverPreheating = useEffectEvent((capabilities?: string[]) => enterPreheating(capabilities));
     const livePoints = useRoastingStore((s) => s.livePoints);
     const setLivePoints = useRoastingStore.getState().setLivePoints;
-    const [sidecarReady, setSidecarReady] = useState(false);
     // standby 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
-    const preChargeStartRef = useRef<number>(0);
+    const preChargeStartRef = useRef<number>(useRoastingStore.getState().preChargeStartMs);
     const lastPreChargeAbsRef = useRef(0);
     const lastRoastPointTimeRef = useRef<number | null>(livePoints[livePoints.length - 1]?.time ?? null);
     const prevPhaseRef = useRef(phase);
@@ -151,7 +159,6 @@ export const useSidecarPolling = ({
     const curveSessionRef = useRef<string | null>(useRoastingStore.getState().sessionId);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef(createBtFilter());
-    const pollInFlightRef = useRef(false);
     const sidecarGenerationRef = useRef(0);
     const lastMachineRef = useRef(useRoastingStore.getState().machineSnapshot);
 
@@ -242,7 +249,7 @@ export const useSidecarPolling = ({
     // Rust는 인증된 200 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
     // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (Machines와 같은 규칙).
     useEffect(() => {
-        if (!isActive) return;
+        if (!ownsPolling) return;
         let cancelled = false;
         let unlisten: (() => void) | undefined;
 
@@ -271,14 +278,13 @@ export const useSidecarPolling = ({
             cancelled = true;
             unlisten?.();
         };
-    }, [isActive]);
+    }, [ownsPolling]);
 
     // 뷰 활성화 시 연결 확인 + idle 동안 저주기 재확인 → 복구 시 예열 재진입 (#178).
     // non-idle에서는 온도 폴링 루프가 connected를 관리하므로 interval은 idle만.
     // ready 전에는 폴이 나가지 않는다 — 콜드 기동 401/Load failed를 끊김으로 승격하지 않기 위함.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
-        if (!isActive || !sidecarReady) return;
+        if (!ownsPolling || !sidecarReady) return;
 
         const idleWatch = phase === 'idle';
         if (idleWatch) setRoastLinkWatch(true);
@@ -286,8 +292,8 @@ export const useSidecarPolling = ({
             void checkSidecarAndRecoverIdle({
                 getStatus: () => sidecar.getStatus(),
                 getPhase: () => useRoastingStore.getState().phase,
-                setConnected,
-                enterPreheating,
+                setConnected: updateConnected,
+                enterPreheating: recoverPreheating,
                 setReconnecting: (r) => useRoastingStore.getState().setReconnecting(r),
                 setError: (err) => useRoastingStore.getState().setError(err),
                 reportLink: idleWatch,
@@ -304,13 +310,13 @@ export const useSidecarPolling = ({
             setRoastLinkWatch(false);
             clearInterval(id);
         };
-    }, [isActive, phase, sidecarReady]);
+    }, [ownsPolling, phase, sidecarReady]);
 
     // 예열·대기·로스팅·종료 단계에서 주기적으로 온도를 폴링한다.
-    // idle 단계에서만 폴링을 중단 — ended(요약 모달)에는 BBP 쿨다운 기록을 위해 폴링 유지.
+    // idle 단계에서만 폴링을 중단 — 다음 Charge 대기에는 BBP 쿨다운 기록을 위해 폴링 유지.
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
-        if (phase === 'idle' || !sidecarReady) return;
+        if (!ownsPolling || phase === 'idle' || !sidecarReady) return;
 
         setRoastLinkWatch(true);
         let cancelled = false;
@@ -322,12 +328,12 @@ export const useSidecarPolling = ({
             const store = useRoastingStore.getState();
             store.setError(decision.error);
             store.setReconnecting(decision.reconnecting);
-            setConnected(decision.connected);
+            updateConnected(decision.connected);
         };
 
         const poll = async () => {
-            if (pollInFlightRef.current) return;
-            pollInFlightRef.current = true;
+            if (pollInFlight) return;
+            pollInFlight = true;
             noticed.decision = null;
             let skipLinkNotice = false;
             const epoch = captureLinkEpoch();
@@ -421,9 +427,9 @@ export const useSidecarPolling = ({
                     );
                 }
 
-                // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
+                // BBP: 이전 드롭 이후 pre-charge 구간(preheating/standby) 기록.
                 // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
-                if (currentPhase !== 'roasting' && !data.stale) {
+                if (currentPhase !== 'roasting' && !data.stale && !data.reconnecting) {
                     useBbpStore.getState().append(
                         {
                             bt,
@@ -447,7 +453,8 @@ export const useSidecarPolling = ({
                 }
 
                 if (currentPhase === 'roasting' && roastStartMs !== 0) {
-                    if (curveOriginRef.current !== roastStartMs) {
+                    const clockChanged = curveOriginRef.current !== roastStartMs;
+                    if (clockChanged) {
                         curveOriginRef.current = roastStartMs;
                         lastRoastPointTimeRef.current = null;
                     }
@@ -464,12 +471,12 @@ export const useSidecarPolling = ({
                     // Keep elapsed on wall-clock even if UI tick interval is throttled
                     const elapsedSec = Math.floor(t);
                     if (useRoastingStore.getState().elapsed !== elapsedSec) {
-                        useRoastingStore.setState({ elapsed: elapsedSec });
+                        useRoastingStore.getState().tick();
                     }
                     // stale = last-good 재전송. 표시(updateLiveData)는 유지하되 시계열엔 안 쓴다
                     if (data.stale) return;
                     // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
-                    const lastRoastPointTime = lastRoastPointTimeRef.current;
+                    const lastRoastPointTime = clockChanged ? null : (lastPoint?.time ?? lastRoastPointTimeRef.current);
                     if (lastRoastPointTime !== null && t - lastRoastPointTime < 0.4) return;
                     lastRoastPointTimeRef.current = t;
 
@@ -498,6 +505,7 @@ export const useSidecarPolling = ({
                     }
                     setLivePoints((prev) => [...prev, point]);
                 } else if (currentPhase === 'standby') {
+                    if (data.stale || data.reconnecting) return;
                     // 첫 배치 예열 표시. Charge 때 00:00 시작점으로 교체한다 (#452). BBP 대기는 스토어 차트.
                     const absTime = Date.now();
                     if (lastPreChargeAbsRef.current > 0 && absTime - lastPreChargeAbsRef.current < 400) return;
@@ -505,6 +513,7 @@ export const useSidecarPolling = ({
 
                     if (preChargeStartRef.current === 0) {
                         preChargeStartRef.current = absTime;
+                        useRoastingStore.getState().rememberPreChargeStart(absTime);
                     }
 
                     const sessionTime = (absTime - preChargeStartRef.current) / 1000;
@@ -556,7 +565,7 @@ export const useSidecarPolling = ({
                     }),
                 );
             } finally {
-                pollInFlightRef.current = false;
+                pollInFlight = false;
                 if (isCurrentGeneration()) {
                     const store = useRoastingStore.getState();
                     store.updateRawTemperature(rawSample);
@@ -593,10 +602,10 @@ export const useSidecarPolling = ({
         void poll();
         // Tauri: 호스트 500ms `sidecar-poll-tick` (숨김 setInterval 1s 정렬 회피).
         // 웹 전용/테스트: setInterval. pollIntervalMs가 1000이면 tick을 건너뛴다.
+        let unlisten: (() => void) | undefined;
+        let interval: ReturnType<typeof setInterval> | undefined;
         if ('__TAURI_INTERNALS__' in window) {
             let last = Date.now();
-            let unlisten: (() => void) | undefined;
-            let fallbackId: ReturnType<typeof setInterval> | undefined;
             listen('sidecar-poll-tick', () => {
                 const now = Date.now();
                 if (!shouldAcceptTick(now, last, pollIntervalMs)) return;
@@ -608,24 +617,17 @@ export const useSidecarPolling = ({
                     else unlisten = fn;
                 },
                 () => {
-                    // listen 실패가 폴링 영구 정지가 되지 않도록 webview 타이머로 폴백
-                    if (!cancelled) fallbackId = setInterval(() => void poll(), pollIntervalMs);
+                    if (!cancelled) interval = setInterval(() => void poll(), pollIntervalMs);
                 },
             );
-            return () => {
-                setRoastLinkWatch(false);
-                cancelled = true;
-                unlisten?.();
-                if (fallbackId !== undefined) clearInterval(fallbackId);
-            };
-        }
-        const id = setInterval(() => void poll(), pollIntervalMs);
+        } else interval = setInterval(() => void poll(), pollIntervalMs);
         return () => {
-            setRoastLinkWatch(false);
             cancelled = true;
-            clearInterval(id);
+            setRoastLinkWatch(false);
+            unlisten?.();
+            if (interval !== undefined) clearInterval(interval);
         };
-    }, [phase, pollIntervalMs, sidecarReady]);
+    }, [ownsPolling, phase, pollIntervalMs, sidecarReady]);
 
     // Drop 취소는 phase를 먼저 roasting으로 되돌린 뒤 이 setter로 커브를 넣는다.
     // 폴링 간격 게이트가 복원된 마지막 샘플부터 이어 붙게 시계를 맞춘다 (#638).

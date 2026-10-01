@@ -1,127 +1,99 @@
+import { completedKey } from '@features/active-roast/model/completed';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
-import { describe, expect, it } from 'vitest';
-import { flowReducer } from './useRoastCompletionFlow';
+import { beforeEach, expect, it } from 'vitest';
 
-const row = (id: string): PlanBatchWithProgress =>
-    ({
-        id,
-        plan_id: 'plan-1',
-        bean_id: 'bean-1',
-        blend_id: null,
-        bean_name: 'Ethiopia',
-        batch_size_kg: 5,
-        roast_profile_id: null,
-        batch_count: 2,
-        completed_sessions: 1,
-    }) as PlanBatchWithProgress;
-
-const base = {
-    endRoastModal: false,
-    summaryModal: true,
-    summaryData: { totalTime: '10:00', development: '2:00', finalBt: '200', logEntries: [] },
-    continueModal: false,
-    continueCandidates: [] as PlanBatchWithProgress[],
+const summary = { totalTime: '10:00', development: '2:00', finalBt: '200', logEntries: [] };
+const plant = (ownerId: string, sessionId: string) => {
+    const key = completedKey(ownerId, sessionId);
+    useRoastingStore.getState().hydrateCompleted(
+        { ...summary, sessionId, sessionOwnerId: ownerId },
+        {
+            userId: ownerId,
+            sessionId,
+            elapsed: 600,
+            roastStartTime: 1000,
+            rawBT: 200,
+            selectedBeanId: null,
+            targetProfileId: null,
+            planBatchHandoff: null,
+            handoffBeanName: null,
+            logEntries: [],
+            formData: { notes: '', weightGrams: 0, roastLevel: null, beanId: null },
+        },
+    );
+    return key;
 };
+beforeEach(() => useRoastingStore.getState().clear());
 
-describe('flowReducer SAVE_SUCCESS', () => {
-    it('opens continue with candidates', () => {
-        const next = flowReducer(base, {
-            type: 'SAVE_SUCCESS',
-            payload: { shouldOpenContinue: true, continueCandidates: [row('a')] },
-        });
-        expect(next.continueModal).toBe(true);
-        expect(next.summaryModal).toBe(false);
-        expect(next.continueCandidates).toHaveLength(1);
-        expect(next.continueCandidates[0].id).toBe('a');
+it('closes a matching summary and opens the next-plan candidates after success', () => {
+    const key = plant('owner', 'a');
+    const candidates = [{ id: 'next' }] as PlanBatchWithProgress[];
+    const store = useRoastingStore.getState();
+    store.openCompleted(key);
+    store.saveSucceeded(key, candidates);
+    expect(useRoastingStore.getState().completionUi).toMatchObject({
+        summaryKey: null,
+        summaryModal: false,
+        continueModal: true,
+        continueCandidates: candidates,
     });
+    store.dismissContinue();
+    expect(useRoastingStore.getState().completionUi.continueCandidates).toEqual([]);
+});
 
-    it('closes summary without continue when no remaining', () => {
-        const next = flowReducer(base, {
-            type: 'SAVE_SUCCESS',
-            payload: { shouldOpenContinue: false },
-        });
-        expect(next.continueModal).toBe(false);
-        expect(next.continueCandidates).toEqual([]);
-        expect(next.summaryModal).toBe(false);
-    });
-
-    it('DISMISS_CONTINUE clears candidates', () => {
-        const open = flowReducer(base, {
-            type: 'SAVE_SUCCESS',
-            payload: { shouldOpenContinue: true, continueCandidates: [row('a')] },
-        });
-        const closed = flowReducer(open, { type: 'DISMISS_CONTINUE' });
-        expect(closed.continueModal).toBe(false);
-        expect(closed.continueCandidates).toEqual([]);
+it('closes a matching summary without opening continue when no plan remains', () => {
+    const key = plant('owner', 'a');
+    useRoastingStore.getState().openCompleted(key);
+    useRoastingStore.getState().saveSucceeded(key);
+    expect(useRoastingStore.getState().completionUi).toMatchObject({
+        summaryModal: false,
+        summaryKey: null,
+        continueModal: false,
     });
 });
 
-/** UX contracts: accidental dismiss must not wipe recoverable save state without an explicit discard path. */
-describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
-    it('CLOSE_SUMMARY hides modal but keeps summaryData for reopen (#172)', () => {
-        const next = flowReducer(base, { type: 'CLOSE_SUMMARY' });
-        expect(next.summaryModal).toBe(false);
-        expect(next.summaryData).toEqual(base.summaryData);
-        expect(next.endRoastModal).toBe(false);
-        expect(next.continueModal).toBe(false);
-    });
-
-    it('REOPEN_SUMMARY restores modal when summaryData exists', () => {
-        const closed = flowReducer(base, { type: 'CLOSE_SUMMARY' });
-        const reopened = flowReducer(closed, { type: 'REOPEN_SUMMARY' });
-        expect(reopened.summaryModal).toBe(true);
-        expect(reopened.summaryData).toEqual(base.summaryData);
-    });
-
-    it('REOPEN_SUMMARY is no-op without summaryData', () => {
-        const empty = { ...base, summaryModal: false, summaryData: null };
-        const next = flowReducer(empty, { type: 'REOPEN_SUMMARY' });
-        expect(next.summaryModal).toBe(false);
-        expect(next.summaryData).toBeNull();
-    });
-
-    it('DISCARD_SUMMARY resets entire completion flow', () => {
-        const next = flowReducer(
-            {
-                ...base,
-                endRoastModal: true,
-                continueModal: true,
-                continueCandidates: [row('a')],
-            },
-            { type: 'DISCARD_SUMMARY' },
-        );
-        expect(next).toEqual({
-            endRoastModal: false,
-            summaryModal: false,
-            summaryData: null,
-            continueModal: false,
-            continueCandidates: [],
-        });
-    });
+it.each([
+    ['owner', 'b'],
+    ['other-owner', 'a'],
+])('keeps %s/%s summary when owner/a succeeds late', (owner, session) => {
+    const a = plant('owner', 'a');
+    const b = plant(owner, session);
+    useRoastingStore.getState().openCompleted(b);
+    const ui = useRoastingStore.getState().completionUi;
+    const record = useRoastingStore.getState().completedRecords[b];
+    useRoastingStore.getState().saveSucceeded(a, [{ id: 'next' }] as PlanBatchWithProgress[]);
+    expect(useRoastingStore.getState().completionUi).toBe(ui);
+    expect(useRoastingStore.getState().completedRecords[b]).toBe(record);
 });
 
-describe('late save isolation', () => {
-    it('keeps B summary when A finishes in the same workspace', () => {
-        const state = { ...base, summaryData: { ...base.summaryData, sessionId: 'B', sessionOwnerId: 'owner' } };
-        expect(
-            flowReducer(state, {
-                type: 'SAVE_SUCCESS',
-                payload: {
-                    sessionId: 'A',
-                    sessionOwnerId: 'owner',
-                    shouldOpenContinue: true,
-                    continueCandidates: [row('a')],
-                },
-            }),
-        ).toBe(state);
-    });
-    it('keeps summary belonging to another owner', () => {
-        const state = { ...base, summaryData: { ...base.summaryData, sessionId: 'A', sessionOwnerId: 'other' } };
-        expect(
-            flowReducer(state, {
-                type: 'SAVE_SUCCESS',
-                payload: { sessionId: 'A', sessionOwnerId: 'owner', shouldOpenContinue: false },
-            }),
-        ).toBe(state);
-    });
+it('close hides the modal and retains the selected record for reopen and remount', () => {
+    const key = plant('owner', 'a');
+    const store = useRoastingStore.getState();
+    store.openCompleted(key);
+    store.closeSummary();
+    expect(useRoastingStore.getState().completionUi).toMatchObject({ summaryModal: false, summaryKey: key });
+    store.openCompleted(key);
+    expect(useRoastingStore.getState().completionUi.summaryModal).toBe(true);
+    expect(useRoastingStore.getState().completedRecords[key].summary).toMatchObject(summary);
+});
+
+it('cannot reopen discarded or saved records', () => {
+    const key = plant('owner', 'a');
+    const store = useRoastingStore.getState();
+    store.saveSucceeded(key);
+    store.openCompleted(key);
+    expect(useRoastingStore.getState().completionUi.summaryModal).toBe(false);
+    store.discardCompleted(key);
+    store.openCompleted(key);
+    expect(useRoastingStore.getState().completionUi.summaryModal).toBe(false);
+});
+
+it('resetting modal selection preserves completed records', () => {
+    const key = plant('owner', 'a');
+    const store = useRoastingStore.getState();
+    store.openCompleted(key);
+    store.resetCompletionUi();
+    expect(useRoastingStore.getState().completedRecords[key]).toBeDefined();
+    expect(useRoastingStore.getState().completionUi.summaryModal).toBe(false);
 });
