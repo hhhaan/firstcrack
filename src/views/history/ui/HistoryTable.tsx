@@ -50,7 +50,8 @@ export type SortKey = 'date' | 'bean' | 'duration' | 'drop' | 'level' | 'profile
 type Column = {
     key: SortKey | null;
     label: string;
-    width: string;
+    /** Omitted column takes the leftover table width (table-layout: fixed). */
+    width?: string;
     /** Keeps uppercase header text from compressing into the next column. */
     minWidth?: string;
     sortable: boolean;
@@ -63,7 +64,6 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: 'bean',
         label: 'Bean',
-        width: '200px',
         sortable: true,
         render: (s) => sessionBeanName(s) ?? '—',
     },
@@ -85,8 +85,8 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: null,
         label: 'charge',
-        width: '160px',
-        minWidth: '160px',
+        width: '112px',
+        minWidth: '112px',
         sortable: false,
         render: (s) =>
             formatTemp(summarizeSessionEvents(parseStoredRoastEvents(s.events), s).charge_temp_celsius, unit),
@@ -94,15 +94,16 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: 'drop',
         label: 'Drop',
-        width: '184px',
-        minWidth: '184px',
+        width: '112px',
+        minWidth: '112px',
         sortable: true,
         render: (s) => formatTemp(s.drop_temp_celsius, unit),
     },
     {
         key: 'duration',
         label: 'Duration',
-        width: '90px',
+        width: '76px',
+        minWidth: '76px',
         sortable: true,
         render: (s) => formatDuration(sessionRoastMetrics(s).roastDurationSec),
     },
@@ -285,6 +286,11 @@ export const HistoryTable = ({
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
     const columns = columnsFor(unit);
+    // Bean has no width so it absorbs leftover. Other columns stay at their px width.
+    const beanMinPx = 180;
+    const tableMinPx =
+        (compareMode ? 40 : 0) +
+        columns.reduce((sum, col) => sum + (col.width ? Number.parseInt(col.width, 10) : beanMinPx), 0);
     const start = (page - 1) * pageSize + 1;
     const end = Math.min(page * pageSize, filteredTotal);
 
@@ -314,7 +320,13 @@ export const HistoryTable = ({
 
     return (
         <div className="@container overflow-x-auto rounded-lg bg-main-bg dark:border dark:border-[#585d61] [-webkit-overflow-scrolling:touch]">
-            <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
+            <table className="w-full table-fixed border-collapse" style={{ minWidth: tableMinPx }}>
+                <colgroup>
+                    {compareMode && <col style={{ width: '40px' }} />}
+                    {columns.map((col, colIdx) => (
+                        <col key={col.key || `col-${colIdx}`} style={col.width ? { width: col.width } : undefined} />
+                    ))}
+                </colgroup>
                 <thead>
                     <tr className="border-b border-border-subtle dark:border-[#585d61]">
                         {compareMode && <th style={{ width: '40px' }} />}
