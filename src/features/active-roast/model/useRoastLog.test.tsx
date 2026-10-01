@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fcDualButtonLabel, getFcDualStage } from '../lib/fc-dual-mark';
 import type { TemperatureUnit } from './settings';
+import { useRoastingStore } from './status';
 import { useRoastLog } from './useRoastLog';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -25,6 +26,8 @@ const renderHook = async (unit: TemperatureUnit, rawBT: number | null, elapsed: 
 
 const fcButton = (hook: { get: () => ReturnType<typeof useRoastLog> }) =>
     fcDualButtonLabel(getFcDualStage(hook.get().logEntries), hook.get().fcDualUnwind);
+
+beforeEach(() => useRoastingStore.getState().reset());
 
 describe('useRoastLog markEvent', () => {
     it('accepts manual values alone, including zero and arbitrary units at the selected time', async () => {
@@ -187,4 +190,14 @@ describe('useRoastLog cycleFc', () => {
         expect(fcButton(hook)).toBe('FC Rolling');
         hook.unmount();
     });
+});
+
+it('keeps the session log when the screen remounts', async () => {
+    const first = await renderHook('C', 180, 30);
+    act(() => first.get().markEvent('Note', 'retained'));
+    const entries = first.get().logEntries;
+    first.unmount();
+    const second = await renderHook('C', 190, 40);
+    expect(second.get().logEntries).toBe(entries);
+    second.unmount();
 });

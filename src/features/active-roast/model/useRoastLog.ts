@@ -1,27 +1,18 @@
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
-import { type SetStateAction, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
 import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
+import { useRoastingStore } from './status';
 
 export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed: number) => {
-    const [logState, setLogState] = useState<{ entries: LogEntry[]; unwind: boolean }>({
-        entries: [],
-        unwind: false,
-    });
-    const logEntries = logState.entries;
-    const fcDualUnwind = logState.unwind;
+    const logEntries = useRoastingStore((s) => s.logEntries);
+    const fcDualUnwind = useRoastingStore((s) => s.fcDualUnwind);
+    const { setLogEntries, setLogState } = useRoastingStore.getState();
     const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
-
-    const setLogEntries = useCallback((action: SetStateAction<LogEntry[]>) => {
-        setLogState((prev) => {
-            const entries = typeof action === 'function' ? action(prev.entries) : action;
-            return entries === prev.entries ? prev : { entries, unwind: prev.unwind };
-        });
-    }, []);
 
     const flashButton = useCallback((label: string) => {
         setPressedButtons((prev) => new Set(prev).add(label));
@@ -94,7 +85,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
     // ponytail: 플래시 없음 — 버튼이 stage로 즉시 스타일이 바뀌어 피드백이 이미 보인다
     const cycleFc = useCallback(() => {
         setLogState((prev) => cycleFcDualEntries(prev.entries, { elapsed, rawBT, unit }, prev.unwind));
-    }, [elapsed, rawBT, unit]);
+    }, [elapsed, rawBT, unit, setLogState]);
 
     const handleDrop = useCallback(() => {
         markEvent('Drop', 'Coffee dropped', 'Drop');

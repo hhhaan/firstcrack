@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,20 +9,13 @@ import { useRoastProfileSelection } from './useRoastProfileSelection';
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const roastingState = {
-    pendingBeanId: null as string | null,
-    pendingBeanName: null as string | null,
-    pendingProfileId: null as string | null,
-    setPendingBean: vi.fn(),
-    setPendingProfile: (id: string | null) => {
-        roastingState.pendingProfileId = id;
+    get pendingProfileId() {
+        return useRoastingStore.getState().pendingProfileId;
+    },
+    set pendingProfileId(id: string | null) {
+        useRoastingStore.getState().setPendingProfile(id);
     },
 };
-
-vi.mock('@features/active-roast/model/status', () => ({
-    useRoastingStore: {
-        getState: () => roastingState,
-    },
-}));
 
 const session = vi.hoisted(() => ({
     planBatchHandoff: null as null | {
@@ -63,6 +57,13 @@ function mountHook(props: Parameters<typeof useRoastProfileSelection>[0]) {
 describe('useRoastProfileSelection pending profile handoff', () => {
     beforeEach(() => {
         localStorage.clear();
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().prepareBatch({
+            selectedBeanId: null,
+            targetProfileId: null,
+            handoffBeanName: null,
+            planBatchHandoff: null,
+        });
         roastingState.pendingProfileId = null;
         session.planBatchHandoff = null;
     });
@@ -115,6 +116,13 @@ const baseSelection = {
 describe('useRoastProfileSelection Replay profile confirm (#529 D)', () => {
     beforeEach(() => {
         localStorage.clear();
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().prepareBatch({
+            selectedBeanId: null,
+            targetProfileId: null,
+            handoffBeanName: null,
+            planBatchHandoff: null,
+        });
         roastingState.pendingProfileId = null;
         session.planBatchHandoff = null;
         vi.useRealTimers();
@@ -179,6 +187,13 @@ describe('useRoastProfileSelection Replay profile confirm (#529 D)', () => {
 describe('useRoastProfileSelection user default save (#554)', () => {
     beforeEach(() => {
         localStorage.clear();
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().prepareBatch({
+            selectedBeanId: null,
+            targetProfileId: null,
+            handoffBeanName: null,
+            planBatchHandoff: null,
+        });
         roastingState.pendingProfileId = null;
         session.planBatchHandoff = null;
         vi.useFakeTimers();
@@ -408,6 +423,13 @@ describe('useRoastProfileSelection user default save (#554)', () => {
 describe('useRoastProfileSelection stale bean clear (#176)', () => {
     beforeEach(() => {
         localStorage.clear();
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().prepareBatch({
+            selectedBeanId: null,
+            targetProfileId: null,
+            handoffBeanName: null,
+            planBatchHandoff: null,
+        });
         roastingState.pendingProfileId = null;
         session.planBatchHandoff = null;
         localStorage.setItem(DEFAULT_BEAN_KEY, 'stale-bean');

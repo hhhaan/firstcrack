@@ -3,7 +3,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
 interface UserProfile {
     default_roast_profile_id?: string | null;
@@ -63,17 +63,21 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         selectionEpoch = '',
     } = params;
 
-    const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
-    const userSelectedTargetRef = useRef(false);
-    const [selectedBeanId, setSelectedBeanId] = useState<string | null>(() => {
-        try {
-            return localStorage.getItem(DEFAULT_BEAN_KEY);
-        } catch (err) {
-            logger.capture(err, { scope: 'roastProfileSelection.readDefaultBean' });
-            return null;
-        }
-    });
-    const [handoffBeanName, setHandoffBeanName] = useState<string | null>(null);
+    const selection = useRoastingStore((s) => (charged ? (s.currentBatch ?? s.prepared) : s.prepared));
+    const { targetProfileId, selectedBeanId, handoffBeanName } = selection;
+    const setTargetProfileId = useCallback(
+        (id: string | null) => useRoastingStore.getState().prepareBatch({ targetProfileId: id }),
+        [],
+    );
+    const setSelectedBeanId = useCallback(
+        (id: string | null) => useRoastingStore.getState().prepareBatch({ selectedBeanId: id }),
+        [],
+    );
+    const setHandoffBeanName = useCallback(
+        (name: string | null) => useRoastingStore.getState().prepareBatch({ handoffBeanName: name }),
+        [],
+    );
+    const userSelectedTargetRef = useRef(Boolean(targetProfileId));
     const appliedDefaultBeanRef = useRef(Boolean(selectedBeanId));
 
     const chargedRef = useRef(charged);
@@ -126,7 +130,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
             setTargetProfileId(id);
             if (source === 'user' && !chargedRef.current) scheduleDefaultSave(id, epoch);
         },
-        [scheduleDefaultSave],
+        [scheduleDefaultSave, setTargetProfileId],
     );
 
     // 로그인 후 DB에서 기본 프로파일 ID를 가져와서 targetProfileId에 세팅.
@@ -149,7 +153,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         setHandoffBeanName(pendingBeanName);
         appliedDefaultBeanRef.current = true;
         setPendingBean(null);
-    }, [isActive]);
+    }, [isActive, setSelectedBeanId, setHandoffBeanName]);
 
     // Profiles page "start with this profile" → consume pendingProfileId when roast view activates
     useEffect(() => {
@@ -173,7 +177,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         if (planBatchHandoff.profileId) {
             void applyTarget(planBatchHandoff.profileId, 'handoff');
         }
-    }, [isActive, planBatchHandoff, applyTarget]);
+    }, [isActive, planBatchHandoff, applyTarget, setSelectedBeanId, setHandoffBeanName]);
 
     // One-time default bean from localStorage if nothing was handed off yet
     useEffect(() => {
@@ -191,12 +195,12 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
             logger.capture(err, { scope: 'roastProfileSelection.applyDefaultBean' });
         }
         appliedDefaultBeanRef.current = true;
-    }, [isActive, selectedBeanId]);
+    }, [isActive, selectedBeanId, setSelectedBeanId]);
 
     // Clear deleted / other-workspace bean ids after beans load successfully (#176).
     // Never clear while loading (empty placeholder) or during schedule/inventory handoff name.
     useEffect(() => {
-        if (!beansReady || !selectedBeanId) return;
+        if (charged || !beansReady || !selectedBeanId) return;
         if (handoffBeanName) return;
         if (beans.some((b) => b.id === selectedBeanId)) return;
         setSelectedBeanId(null);
@@ -206,7 +210,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
             logger.capture(err, { scope: 'roastProfileSelection.clearDefaultBean' });
             /* ignore */
         }
-    }, [beansReady, beans, selectedBeanId, handoffBeanName]);
+    }, [charged, beansReady, beans, selectedBeanId, handoffBeanName, setSelectedBeanId]);
 
     const setUserSelectedTarget = useCallback(
         (id: string | null) => {
@@ -215,11 +219,14 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         [applyTarget],
     );
 
-    const handleSetSelectedBeanId = useCallback((id: string | null) => {
-        setSelectedBeanId(id);
-        // User override wins over handoff display name; RoastHeader resolves name from beans list.
-        if (id) setHandoffBeanName(null);
-    }, []);
+    const handleSetSelectedBeanId = useCallback(
+        (id: string | null) => {
+            setSelectedBeanId(id);
+            // User override wins over handoff display name; RoastHeader resolves name from beans list.
+            if (id) setHandoffBeanName(null);
+        },
+        [setSelectedBeanId, setHandoffBeanName],
+    );
 
     return {
         targetProfileId,

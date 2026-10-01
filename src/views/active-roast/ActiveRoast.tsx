@@ -190,7 +190,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
-    const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
+    const currentHandoff = useRoastingStore((s) => s.currentBatch?.planBatchHandoff ?? null);
+    const preparedHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
+    const planBatchHandoff = charged ? currentHandoff : preparedHandoff;
     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
 
     // ── 프로파일/원두 선택 ─────────────────────────────────────────

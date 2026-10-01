@@ -1,3 +1,5 @@
+import { useRoastSessionStore } from '@shared/store/roastSession';
+import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reduceSensorObservation, sensorObservationTick } from '../lib/sensorObservation';
 import { useRoastingStore } from './status';
@@ -154,4 +156,18 @@ describe('useRoastingStore observation vs display', () => {
         useRoastingStore.getState().reset();
         expect(useRoastingStore.getState().observation).toBeNull();
     });
+});
+
+it('consumes a plan only for its charged batch', () => {
+    useRoastingStore.getState().prepareBatch({ selectedBeanId: 'bean-A', targetProfileId: 'profile-A' });
+    useRoastSessionStore.getState().startBatch({ planBatchId: 'plan-A' } as PlanBatchHandoff);
+    useRoastingStore.getState().startCharge();
+    expect(useRoastingStore.getState().currentBatch).toMatchObject({
+        selectedBeanId: 'bean-A',
+        planBatchHandoff: { planBatchId: 'plan-A' },
+    });
+    expect(useRoastSessionStore.getState().planBatchHandoff).toBeNull();
+    useRoastingStore.getState().reset();
+    useRoastingStore.getState().startCharge();
+    expect(useRoastingStore.getState().currentBatch?.planBatchHandoff).toBeNull();
 });

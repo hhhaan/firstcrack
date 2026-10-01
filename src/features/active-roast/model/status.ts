@@ -1,5 +1,9 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
+import { useRoastSessionStore } from '@shared/store/roastSession';
+import type { PlanBatchHandoff } from '@shared/types/database.types';
+import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
 import type { TemperatureProcessing } from '@shared/types/sidecar';
+import type { SetStateAction } from 'react';
 import { create } from 'zustand';
 import type { RawTemperatureSample } from '../lib/autoCharge';
 import type { SensorObservation } from '../lib/sensorObservation';
@@ -28,7 +32,27 @@ type LiveData = {
     drum: number;
 };
 
+export interface BatchSelection {
+    selectedBeanId: string | null;
+    targetProfileId: string | null;
+    handoffBeanName: string | null;
+    planBatchHandoff: PlanBatchHandoff | null;
+}
+
 export interface RoastingState {
+    logEntries: LogEntry[];
+    fcDualUnwind: boolean;
+    livePoints: LiveRoastPoint[];
+    prepared: BatchSelection;
+    currentBatch: BatchSelection | null;
+    initializedTsvSessions: Set<string>;
+    setLogEntries: (entries: SetStateAction<LogEntry[]>) => void;
+    setLogState: (
+        update: (prev: { entries: LogEntry[]; unwind: boolean }) => { entries: LogEntry[]; unwind: boolean },
+    ) => void;
+    setLivePoints: (points: SetStateAction<LiveRoastPoint[]>) => void;
+    prepareBatch: (patch: Partial<BatchSelection>) => void;
+    claimSessionTsv: (sessionId: string) => boolean;
     phase: RoastPhase;
     /** Whole seconds since charge; wall-clock from roastStartMs (not a +1 counter). */
     elapsed: number;
@@ -81,7 +105,20 @@ export interface RoastingState {
     reset: () => void;
 }
 
+const emptySelection: BatchSelection = {
+    selectedBeanId: null,
+    targetProfileId: null,
+    handoffBeanName: null,
+    planBatchHandoff: null,
+};
+
 const initialState = {
+    logEntries: [] as LogEntry[],
+    fcDualUnwind: false,
+    livePoints: [] as LiveRoastPoint[],
+    prepared: emptySelection,
+    currentBatch: null as BatchSelection | null,
+    initializedTsvSessions: new Set<string>(),
     phase: 'idle' as RoastPhase,
     elapsed: 0,
     roastStartMs: 0,
@@ -106,6 +143,22 @@ const initialState = {
 export const useRoastingStore = create<RoastingState>((set, get) => ({
     ...initialState,
 
+    setLogEntries: (action) =>
+        set((state) => ({ logEntries: typeof action === 'function' ? action(state.logEntries) : action })),
+    setLogState: (update) =>
+        set((state) => {
+            const next = update({ entries: state.logEntries, unwind: state.fcDualUnwind });
+            return { logEntries: next.entries, fcDualUnwind: next.unwind };
+        }),
+    setLivePoints: (action) =>
+        set((state) => ({ livePoints: typeof action === 'function' ? action(state.livePoints) : action })),
+    prepareBatch: (patch) => set((state) => ({ prepared: { ...state.prepared, ...patch } })),
+    claimSessionTsv: (sessionId) => {
+        if (get().initializedTsvSessions.has(sessionId)) return false;
+        set({ initializedTsvSessions: new Set(get().initializedTsvSessions).add(sessionId) });
+        return true;
+    },
+
     enterPreheating: (capabilities?: string[]) => {
         set({
             phase: 'preheating',
@@ -127,6 +180,10 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             originMs != null && Number.isFinite(originMs) && originMs > 0 && originMs <= now ? originMs : now;
         set({
             phase: 'roasting',
+            currentBatch: { ...get().prepared, planBatchHandoff: useRoastSessionStore.getState().planBatchHandoff },
+            prepared: { ...get().prepared, planBatchHandoff: null },
+            logEntries: [],
+            fcDualUnwind: false,
             sessionId: crypto.randomUUID(),
             sessionOwnerId: ownerId || null,
             roastStartMs: origin,
@@ -134,6 +191,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             awaitingNextCharge: false,
             heatHoldAfterDrop: false,
         });
+        useRoastSessionStore.getState().completeBatch();
     },
 
     endRoast: () => {
@@ -219,7 +277,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     reset: () => {
-        const { sidecarConnected, machineCapabilities } = get();
-        set({ ...initialState, sidecarConnected, machineCapabilities });
+        const { sidecarConnected, machineCapabilities, prepared, initializedTsvSessions } = get();
+        set({ ...initialState, sidecarConnected, machineCapabilities, prepared, initializedTsvSessions });
     },
 }));

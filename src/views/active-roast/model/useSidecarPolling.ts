@@ -14,7 +14,7 @@ import { errorMessage } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { deleteBbpTsv, enqueueTsvRow, formatRoastTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
-import type { TemperatureProcessing } from '@shared/types/sidecar';
+import type { LiveRoastPoint } from '@shared/types/roast';
 import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
@@ -28,27 +28,7 @@ const finiteRawTemperature = (value: number | null | undefined): number | null =
     typeof value === 'number' && Number.isFinite(value) ? value : null;
 
 /** 폴링 중 누적하는 실시간 측정 포인트 */
-export interface LiveRoastPoint {
-    time: number;
-    label: string;
-    bt: number;
-    et: number | null;
-    ror: number | null;
-    ror_et: number | null;
-    /** null = 화력 피드백 채널 없음 — TSV에는 빈칸으로 남는다 */
-    heater: number | null;
-    fan: number;
-    drum: number;
-    /** 사이드카가 마지막으로 쓴 heater 세트포인트. 열이 생기기 전 기록·쓰기 맵 없는 머신에는 없다 */
-    heaterSet?: number | null;
-    /** 평활화 전 ET. 차트는 `et`를 쓴다 */
-    etRaw?: number | null;
-    /** 평활화 전 BT. 차트는 `bt`를 쓴다 */
-    btRaw?: number | null;
-    sensorTimestamp?: number | null;
-    sensorClock?: string | null;
-    processing?: TemperatureProcessing;
-}
+export type { LiveRoastPoint } from '@shared/types/roast';
 
 interface Params {
     /** 뷰가 화면에 노출되어 있는지 여부 (CSS hide → show 전환 감지) */
@@ -158,15 +138,16 @@ export const useSidecarPolling = ({
     sessionId,
     chargeBt = null,
 }: Params) => {
-    const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
+    const livePoints = useRoastingStore((s) => s.livePoints);
+    const setLivePoints = useRoastingStore.getState().setLivePoints;
     const [sidecarReady, setSidecarReady] = useState(false);
     // standby 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
     const preChargeStartRef = useRef<number>(0);
     const lastPreChargeAbsRef = useRef(0);
-    const lastRoastPointTimeRef = useRef<number | null>(null);
+    const lastRoastPointTimeRef = useRef<number | null>(livePoints[livePoints.length - 1]?.time ?? null);
     const prevPhaseRef = useRef(phase);
     /** Session that owns the roast curve. Kept across Drop; the next Charge replaces it. */
-    const curveSessionRef = useRef<string | null>(null);
+    const curveSessionRef = useRef<string | null>(useRoastingStore.getState().sessionId);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef(createBtFilter());
     const pollInFlightRef = useRef(false);
@@ -175,7 +156,7 @@ export const useSidecarPolling = ({
 
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
-        if (!sessionId) return;
+        if (!sessionId || !useRoastingStore.getState().claimSessionTsv(sessionId)) return;
         void initSessionTsv(sessionId).catch(() => {});
     }, [sessionId]);
 
@@ -254,7 +235,7 @@ export const useSidecarPolling = ({
             if (id) curveSessionRef.current = id;
         }
         prevPhaseRef.current = phase;
-    }, [phase, chargeBt, livePoints]);
+    }, [phase, chargeBt, livePoints, setLivePoints]);
 
     // Rust는 인증된 200 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
     // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (Machines와 같은 규칙).
@@ -610,12 +591,15 @@ export const useSidecarPolling = ({
 
     // Drop 취소는 phase를 먼저 roasting으로 되돌린 뒤 이 setter로 커브를 넣는다.
     // 폴링 간격 게이트가 복원된 마지막 샘플부터 이어 붙게 시계를 맞춘다 (#638).
-    const replaceLivePoints = useCallback((points: LiveRoastPoint[]) => {
-        if (useRoastingStore.getState().phase === 'roasting') {
-            lastRoastPointTimeRef.current = points.length > 0 ? points[points.length - 1].time : null;
-        }
-        setLivePoints(points);
-    }, []);
+    const replaceLivePoints = useCallback(
+        (points: LiveRoastPoint[]) => {
+            if (useRoastingStore.getState().phase === 'roasting') {
+                lastRoastPointTimeRef.current = points.length > 0 ? points[points.length - 1].time : null;
+            }
+            setLivePoints(points);
+        },
+        [setLivePoints],
+    );
 
     return { livePoints, setLivePoints: replaceLivePoints };
 };
