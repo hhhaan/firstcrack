@@ -15,7 +15,7 @@ interface ProfileCompareProps {
     defaultId: string | null;
     primaryId: string;
     chartKey: string;
-    onSetDefault: (id: string) => void;
+    onSetDefault: (id: string | null) => void;
 }
 
 export const ProfileCompare = ({
