@@ -1,7 +1,7 @@
 # Supabase — agent handbook
 
 **Audience:** coding agents  
-**Date:** 2026-07-21  
+**Date:** 2026-10-02  
 **Root rules:** project `AGENTS.md` (secrets, `pnpm types:gen`, no `VITE_*` secrets)
 
 ---
@@ -80,9 +80,29 @@ Filenames under `supabase/migrations/` (group by prefix):
 - **Cupping:** `*cupping*`
 - **RLS / grants:** `*rls*`, `*grant*`, `workspace_security`
 
-After schema migrations: **`pnpm types:gen`** updates `src/shared/types/database.types.ts`. Pre-commit blocks migrations staged without types (bypass only for pure RLS/GRANT: `SKIP_TYPES_GEN=1`).
+## Local apply (before commit)
 
-Prod apply is **automatic on desktop release** (`release.yml` → `deploy-migrations.yml` `supabase db push`). Pending files on `main` sit until the next `pnpm release`. Hotfix without a desktop build: Actions → Deploy migrations → `confirm=deploy`. Do not `db push` from a laptop against prod.
+Docker is for this check only. App dev stays on the hosted project (`VITE_SUPABASE_URL`). CI does not run this reset.
+
+A new or edited file under `supabase/migrations/` is applied on the local Supabase stack before commit:
+
+1. Docker is running.
+2. From the repo root: `supabase start`. `config.toml`: API `54321`, Postgres `54322`, `major_version = 15`.
+3. `supabase db reset --local` replays every file in `supabase/migrations/` onto an empty local database.
+4. Done when that command exits 0. Then `supabase stop` unless another local check follows in the same session.
+
+Exit 0 means the chain applies in order (syntax, functions, grants). The local database has no production rows, Auth users, R2, or Polar.
+
+Production apply stays on the release path: `release.yml` → `deploy-migrations.yml` `supabase db push`. Pending files on `main` sit until the next `pnpm release`. Hotfix without a desktop build: Actions → Deploy migrations → `confirm=deploy`. A laptop does not `db push` or `db reset --linked`.
+
+After the local reset succeeds, schema migrations update `src/shared/types/database.types.ts` in the same commit. `pnpm types:gen` reads the **linked** project, so it sees a migration only after that project has it. Until then, generate from the local stack and keep the alias append:
+
+```bash
+supabase gen types typescript --local > src/shared/types/database.types.ts
+node scripts/append-db-aliases.mjs
+```
+
+Pre-commit blocks a staged migration without that types file. RLS/GRANT-only migrations use `SKIP_TYPES_GEN=1` and still require the local reset.
 
 CI gate (supabase-ci `rls-check`): a **new** migration with `CREATE TABLE` must contain `GRANT ... TO authenticated` in the same file, or opt out with a `-- skip-grant-check: <reason>` comment (service_role-only tables like `sales_channel_secrets`).
 

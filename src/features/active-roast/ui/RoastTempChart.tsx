@@ -27,7 +27,7 @@ import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
-import { useRoastSettings } from '@features/active-roast/model/settings';
+import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
@@ -53,7 +53,45 @@ export type { RoastEventMarker };
 
 const emptyNote: RoastNoteValues = { gas: '', airflow: '', note: '' };
 
+type ChartAxisInput = Pick<
+    RoastSettings,
+    | 'tempGridInterval'
+    | 'tempGridPresetInterval'
+    | 'tempLabelPresetEvery'
+    | 'timeTickPresetSec'
+    | 'tempAxisMode'
+    | 'tempTickMode'
+    | 'tempTicksC'
+    | 'tempLabelEvery'
+    | 'timeTickIntervalSec'
+    | 'tempLabelCustom'
+    | 'timeTickCustom'
+>;
+
+const usesCustomTickList = (settings: Pick<ChartAxisInput, 'tempAxisMode' | 'tempTickMode' | 'tempTicksC'>): boolean =>
+    settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' && settings.tempTicksC.length > 0;
+
+const gridIntervalFor = (settings: ChartAxisInput): number => {
+    if (settings.tempAxisMode === 'preset') return settings.tempGridPresetInterval;
+    if (settings.tempTickMode === 'interval') return settings.tempGridInterval;
+    return 10;
+};
+
+const labelEveryFor = (settings: ChartAxisInput): number => {
+    if (settings.tempAxisMode === 'list' && settings.tempTickMode === 'list') return 5;
+    if (settings.tempLabelCustom) return settings.tempLabelEvery;
+    return settings.tempLabelPresetEvery;
+};
+
+const chartAxisSettings = (settings: ChartAxisInput) => ({
+    tempGridInterval: gridIntervalFor(settings),
+    tempTicksC: settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' ? settings.tempTicksC : [],
+    tempLabelEvery: labelEveryFor(settings),
+    timeTickIntervalSec: settings.timeTickCustom ? settings.timeTickIntervalSec : settings.timeTickPresetSec,
+});
+
 interface Props {
+    report?: boolean;
     xs: number[];
     btTarget: (number | null)[];
     btActual: (number | null)[];
@@ -136,6 +174,7 @@ const seriesPresent = (values: readonly (number | null)[] | undefined): number =
 
 /** Structure identity for setOption notMerge. Branches stay off the chart component. */
 const chartStructureKey = (input: {
+    report: boolean;
     charged: boolean;
     eventMarkerStyle: string;
     eventMarkerCount: number;
@@ -164,6 +203,7 @@ const chartStructureKey = (input: {
     fontScale: number;
 }): string =>
     [
+        input.report,
         input.charged,
         input.eventMarkerStyle,
         input.eventMarkerCount,
@@ -207,6 +247,7 @@ const controlLegendItems = (
 
 export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function RoastTempChart(
     {
+        report = false,
         xs,
         btTarget,
         btActual,
@@ -269,7 +310,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
-    const fontScale = useRoastSettings().fontScalePct / 100;
+    const roastSettings = useRoastSettings();
+    const fontScale = roastSettings.fontScalePct / 100;
+    const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
+    const yRangeInterval = usesCustomTickList(roastSettings) ? undefined : axisSettings.tempGridInterval;
 
     const dragStateRef = useRef<{ pointerId: number; logId: string; timeSec: number } | null>(null);
     const PIXEL_THRESHOLD = 10;
@@ -344,6 +388,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const makeOption = useCallback(
         (colors = getResolvedChartColors()) =>
             buildRoastChartOption({
+                axisSettings,
+                report,
                 xs,
                 btTarget,
                 btActual,
@@ -392,6 +438,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 colors,
             }),
         [
+            report,
+            axisSettings,
             xs,
             btTarget,
             targetXs,
@@ -448,6 +496,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     }, [makeOption, resolvedTheme, t]);
 
     const structureKey = chartStructureKey({
+        report,
         charged,
         eventMarkerStyle,
         eventMarkerCount: eventMarkers.length,
@@ -531,7 +580,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!chart || !point) return null;
             const xMin = xViewMin ?? xs[0] ?? 0;
             const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
-            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
+            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit, yRangeInterval).tempYMax;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
                     if (hideChargeLabel && marker.event === 'Charge') return [];
@@ -636,6 +685,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             onEventMarkerEdit,
             tempMaxC,
             tempMinC,
+            yRangeInterval,
             temperatureUnit,
             turningPoints,
             fontScale,
@@ -1087,7 +1137,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 </form>
             )}
             {controlLegend.length > 0 && (
-                <div className="absolute flex items-center gap-4" style={{ bottom: -15, left: 25 }}>
+                <div
+                    className="absolute flex items-center gap-4"
+                    style={{ bottom: report ? 0 : -15, left: report ? 38 : 25 }}
+                >
                     {controlLegend.map((item) => (
                         <div key={item.label} className="flex items-center gap-1.5">
                             <div style={{ width: 16, height: 2, background: item.color }} />

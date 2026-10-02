@@ -4,7 +4,7 @@ import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HistoryTable } from './HistoryTable';
+import { HistorySessionDetail } from './HistorySessionDetail';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -57,7 +57,7 @@ const session = (index: number): RoastSessionWithRelations =>
         profile_id: null,
     }) as unknown as RoastSessionWithRelations;
 
-describe('HistoryTable edit dialog', () => {
+describe('HistorySessionDetail edit dialog', () => {
     let host: HTMLDivElement;
     let root: Root;
 
@@ -66,39 +66,57 @@ describe('HistoryTable edit dialog', () => {
         host?.remove();
     });
 
-    it('mounts the edit dialog on document.body when many rows sit in the container', async () => {
-        const sessions = Array.from({ length: 40 }, (_, index) => session(index));
+    it('shows Drop-based results without a profile and leaves missing development metrics blank', async () => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        root = createRoot(host);
+        const record = session(1);
+        record.duration_seconds = 660;
+        record.events = [
+            { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
+            { id: 'fc', type: 'FC Start', time_sec: 480, temp_c: 195 },
+            { id: 'd', type: 'Drop', time_sec: 600, temp_c: 210 },
+            { id: 'e', type: 'End', time_sec: 660, temp_c: 208 },
+        ];
+        const render = async (value: RoastSessionWithRelations) => {
+            await act(async () => {
+                root.render(
+                    createElement(HistorySessionDetail, {
+                        session: value,
+                        onBack: () => {},
+                        onSaveAsProfile: () => {},
+                    }),
+                );
+            });
+        };
+
+        await render(record);
+        const values = () => [...host.querySelectorAll('section[aria-label="history.expanded.summary"] dd')];
+        expect(values().map((el) => el.textContent)).toEqual(['10:00', '210.0°C', '2:00', '20.0%']);
+        await render({ ...session(2), beans: null, bean_label: null });
+        expect(host.querySelector('h1')?.textContent).toBe('26-01-15');
+        expect(
+            values()
+                .slice(2)
+                .map((el) => el.textContent),
+        ).toEqual(['—', '—']);
+    });
+
+    it('mounts the edit dialog on document.body', async () => {
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
         await act(async () => {
             root.render(
-                createElement(HistoryTable, {
-                    sessions,
-                    total: sessions.length,
-                    filteredTotal: sessions.length,
-                    expandedId: sessions[sessions.length - 1].id,
-                    compareMode: false,
-                    compareIds: [],
-                    onRowClick: () => {},
-                    onDeleteClick: () => {},
+                createElement(HistorySessionDetail, {
+                    session: session(1),
+                    onBack: () => {},
                     onSaveAsProfile: () => {},
-                    sortKey: 'date',
-                    sortAsc: false,
-                    onSort: () => {},
-                    page: 1,
-                    totalPages: 1,
-                    pageSize: 50,
-                    onPageChange: () => {},
                 }),
             );
         });
 
-        const container = host.firstElementChild as HTMLElement;
-        expect(container.className).toContain('@container');
-        expect(container.querySelectorAll('tbody > tr').length).toBeGreaterThan(40);
-
-        const edit = container.querySelector('[data-testid="history-edit-events"]') as HTMLButtonElement;
+        const edit = host.querySelector('[data-testid="history-edit-events"]') as HTMLButtonElement;
         await act(async () => {
             edit.click();
         });
@@ -109,6 +127,6 @@ describe('HistoryTable edit dialog', () => {
         expect(overlay?.className).toContain('fixed');
         expect(overlay?.className).toContain('inset-0');
         expect(overlay?.parentElement).toBe(document.body);
-        expect(container.contains(dialog)).toBe(false);
+        expect(host.contains(dialog)).toBe(false);
     });
 });

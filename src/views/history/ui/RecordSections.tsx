@@ -14,23 +14,23 @@ import { RecordEventsEditor } from './RecordEventsEditor';
 import { RecordHeaterEditor } from './RecordHeaterEditor';
 
 const editCls =
-    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-border-subtle bg-main-bg px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-secondary transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary) disabled:cursor-not-allowed disabled:opacity-40 dark:bg-surface-elevated';
+    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-border-subtle bg-main-bg px-3 py-1.5 text-[11px] font-medium text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary) disabled:cursor-not-allowed disabled:opacity-40';
 
-const sectionTitleCls = 'm-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted';
+const sectionTitleCls = 'm-0 text-[13px] font-semibold text-primary';
 
 type SectionProps = { title: string; action: ReactNode; children: ReactNode; testId: string };
 
 const Section = ({ title, action, children, testId }: SectionProps) => (
-    <section data-testid={testId} className="min-w-0 rounded-lg border border-border-subtle bg-main-bg px-4 py-3">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h3 className={sectionTitleCls}>{title}</h3>
+    <section data-testid={testId} className="min-w-0 rounded-xl border border-border-subtle bg-main-bg p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className={sectionTitleCls}>{title}</h2>
             {action}
         </div>
         {children}
     </section>
 );
 
-const rowCls = 'flex items-baseline justify-between gap-3 border-t border-border-subtle py-1.5 first:border-t-0';
+const rowCls = 'flex items-baseline justify-between gap-3 border-t border-border-subtle py-3 first:border-t-0';
 
 /** Key marks + Heat set steps of a saved record, each with its edit entry (PR 1 save path). */
 export const RecordSections = ({ session }: { session: RoastSessionWithRelations }) => {
@@ -57,7 +57,7 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
     };
 
     return (
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div className="grid gap-5 @min-[600px]:grid-cols-2">
             <Section
                 testId="history-section-events"
                 title={t('history.expanded.keyEvents')}

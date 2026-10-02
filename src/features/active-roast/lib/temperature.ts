@@ -7,6 +7,19 @@ export const toDisplayTemp = (celsius: number, unit: TemperatureUnit): number =>
 export const fromDisplayTemp = (display: number, unit: TemperatureUnit): number =>
     unit === 'F' ? ((display - 32) * 5) / 9 : display;
 
+export const normalizeTemperatureTicks = (values: unknown): number[] | null =>
+    Array.isArray(values) &&
+    values.length <= 100 &&
+    values.every((value) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 500)
+        ? [...new Set<number>(values)].sort((a, b) => a - b)
+        : null;
+
+export const parseTemperatureTicks = (input: string, unit: TemperatureUnit): number[] | null => {
+    if (!input.trim()) return [];
+    const values = input.split(',').map((value) => (value.trim() === '' ? Number.NaN : Number(value)));
+    return normalizeTemperatureTicks(values.map((value) => fromDisplayTemp(value, unit)));
+};
+
 export const tempUnitLabel = (unit: TemperatureUnit): string => `°${unit}`;
 export const rorUnitLabel = (unit: TemperatureUnit): string => `${tempUnitLabel(unit)}/min`;
 

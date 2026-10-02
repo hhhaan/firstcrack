@@ -66,7 +66,7 @@ Read before changing write paths:
 - Orders / channels: `docs/agent/sales-channels-orders.md`
 - Workspace identity: `docs/agent/workspace-auth.md` (prefer over stale `docs/team-workspaces.md`)
 - Data fetching: `docs/agent/data-fetching.md`
-- Edge + migrations: `supabase/AGENTS.md`
+- Edge + migrations: `supabase/AGENTS.md` — migration edits: local `supabase db reset --local` (Docker) passes before commit
 - Gap inventory: `docs/agent/gap-inventory.md`
 
 ## Agent Rules

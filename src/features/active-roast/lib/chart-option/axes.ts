@@ -17,7 +17,7 @@ import {
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
-import type { ResolvedChartColors } from './types';
+import type { ChartOptionParams, ResolvedChartColors } from './types';
 
 export const fmtSec = (v: number) => `${v < 0 ? '-' : ''}${formatElapsed(Math.abs(v))}`;
 
@@ -27,12 +27,17 @@ export const formatTempYLabel = (v: number) => {
     return n % TEMP_Y_LABEL_INTERVAL === 0 ? String(n) : '';
 };
 
-export const computeTempYRange = (tempMinC: number, tempMaxC: number, temperatureUnit: TemperatureUnit) => {
-    // Align scale to grid step so ticks hit multiples of 10 (and thus 50)
+export const computeTempYRange = (
+    tempMinC: number,
+    tempMaxC: number,
+    temperatureUnit: TemperatureUnit,
+    interval = TEMP_Y_INTERVAL,
+) => {
+    // Align display-unit bounds so grid lines and numeric labels share an origin.
     const tempYMinRaw = toDisplayTemp(tempMinC, temperatureUnit);
     const tempYMaxRaw = toDisplayTemp(tempMaxC, temperatureUnit);
-    const tempYMin = Math.floor(tempYMinRaw / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL;
-    const tempYMax = Math.ceil(tempYMaxRaw / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL;
+    const tempYMin = Math.floor(tempYMinRaw / interval) * interval;
+    const tempYMax = Math.ceil(tempYMaxRaw / interval) * interval;
     return { tempYMin, tempYMax };
 };
 
@@ -89,6 +94,93 @@ export const buildYAxisPointer = (crossLineStyle: ReturnType<typeof buildCrossLi
 });
 
 export const yAxisPointerOff = { show: false };
+
+const formatTick = (value: number): string => String(Number(value.toFixed(6)));
+
+const matchesTick = (value: number, interval: number): boolean =>
+    Math.abs(value / interval - Math.round(value / interval)) < 1e-6;
+
+const reportTimeIntervalSec = (durationSec: number): number => {
+    if (durationSec <= 60) return 5;
+    if (durationSec <= 180) return 15;
+    return Math.max(60, Math.ceil(durationSec / 600) * 60);
+};
+
+const reportTempInterval = (span: number, override: number): number => {
+    if (override) return override;
+    if (span <= 50) return 10;
+    if (span <= 120) return 20;
+    return 50;
+};
+
+export const applyChartAxisSettings = (
+    axes: Pick<EChartsOption, 'xAxis' | 'yAxis'>,
+    settings: ChartOptionParams['axisSettings'],
+    temperatureUnit: TemperatureUnit,
+) => {
+    if (!settings) return;
+    for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
+        if (axis.type === 'value' && settings.timeTickIntervalSec > 0) axis.interval = settings.timeTickIntervalSec;
+        axis.axisLabel = { ...axis.axisLabel, hideOverlap: true };
+    }
+    const temperatureAxis = (Array.isArray(axes.yAxis) ? axes.yAxis : []).find(
+        (axis) => axis.gridIndex === 0 && axis.position !== 'right',
+    );
+    if (temperatureAxis?.type !== 'value') return;
+    const ticks = settings.tempTicksC?.map((value) => toDisplayTemp(value, temperatureUnit));
+    const customValues = ticks?.length ? ticks : undefined;
+    temperatureAxis.axisTick = { ...temperatureAxis.axisTick, customValues };
+    temperatureAxis.axisLabel = { ...temperatureAxis.axisLabel, customValues, hideOverlap: true };
+    if (customValues) {
+        temperatureAxis.axisLabel.formatter = formatTick;
+        return;
+    }
+    if (settings.tempGridInterval > 0) {
+        temperatureAxis.interval = settings.tempGridInterval;
+    }
+    if (settings.tempLabelEvery > 0 || settings.tempGridInterval > 0) {
+        const interval = Number(temperatureAxis.interval) * (settings.tempLabelEvery || 1);
+        temperatureAxis.axisLabel = {
+            ...temperatureAxis.axisLabel,
+            formatter: (value: number) => (matchesTick(value, interval) ? formatTick(value) : ''),
+        };
+    }
+};
+
+export const applyReportAxes = (
+    axes: Pick<EChartsOption, 'xAxis' | 'yAxis'>,
+    colors: ResolvedChartColors,
+    durationSec: number,
+    temperatureUnit: TemperatureUnit,
+    tempGridInterval = 0,
+) => {
+    for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
+        axis.axisLine = { show: false };
+        axis.splitLine = { show: false };
+        axis.minorSplitLine = { show: false };
+        if (axis.type === 'value') {
+            axis.interval = reportTimeIntervalSec(durationSec);
+            axis.axisLabel = { ...axis.axisLabel, hideOverlap: true };
+        }
+    }
+    for (const axis of Array.isArray(axes.yAxis) ? axes.yAxis : []) {
+        axis.axisLine = { show: false };
+        axis.splitLine = {
+            show: axis.gridIndex === 0 && axis.position !== 'right',
+            lineStyle: { color: colors.gridLine, width: 0.6, type: 'dashed' },
+        };
+        if (axis.type === 'value') {
+            axis.interval = axis.position === 'right' && axis.gridIndex === 0 ? (temperatureUnit === 'F' ? 10 : 5) : 50;
+            if (axis.gridIndex === 0 && axis.position !== 'right') {
+                const span = Number(axis.max) - Number(axis.min);
+                axis.interval = reportTempInterval(span, tempGridInterval);
+                axis.min = Math.floor(Number(axis.min) / axis.interval) * axis.interval;
+                axis.max = Math.ceil(Number(axis.max) / axis.interval) * axis.interval;
+                axis.axisLabel = { ...axis.axisLabel, formatter: (value: number) => String(Math.round(value)) };
+            }
+        }
+    }
+};
 
 export const computeGridMargins = (hasRightYAxis: boolean) => {
     const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;

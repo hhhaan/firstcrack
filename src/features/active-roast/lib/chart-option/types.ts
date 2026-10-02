@@ -2,6 +2,7 @@ import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } fr
 import type { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
 
 import type { RoastNoteControls } from '@shared/types/roast';
+import type { RoastSettings } from '../../model/settings';
 
 export type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
 
@@ -34,6 +35,10 @@ export interface ControlData {
 }
 
 export interface ChartOptionParams {
+    axisSettings?: Pick<RoastSettings, 'tempGridInterval' | 'tempLabelEvery' | 'timeTickIntervalSec'> &
+        Partial<Pick<RoastSettings, 'tempTicksC'>>;
+    /** Saved-record presentation: sparse grid, no instrument frame. */
+    report?: boolean;
     xs: number[];
     btTarget: (number | null)[];
     btActual: (number | null)[];

@@ -116,18 +116,18 @@ test.describe('history record edit (#623)', () => {
         expect(sidecarWrites).toEqual([]);
     });
 
-    test('keyboard: expand, open editor, Escape returns focus; actions visible without hover', async ({
+    test('keyboard: open detail, open editor, Escape returns focus; delete stays visible', async ({
         authedPage: page,
         db,
     }) => {
         seed(db);
         await goNav(page, 'history');
-        const toggle = page.getByTestId('history-row-toggle').first();
-        await expect(toggle).toBeVisible();
-        expect(await toggle.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
-        await toggle.focus();
+        const row = page.getByTestId('history-open-row').first();
+        const remove = row.getByRole('button', { name: 'Delete roast session?' });
+        await expect(remove).toBeVisible();
+        expect(await remove.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+        await row.focus();
         await page.keyboard.press('Enter');
-        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
         await expect(page.getByTestId('history-detail')).toBeVisible();
 
         const edit = page.getByTestId('history-edit-events');
@@ -149,8 +149,10 @@ test.describe('history record edit (#623)', () => {
         await page.getByText('E2E History Bean').first().click();
         const detail = page.getByTestId('history-detail');
         await expect(detail).toBeVisible();
+        await expect(detail.locator('header').getByTestId('history-export-pdf')).toBeVisible();
+        await expect(detail.getByRole('heading', { name: 'Temp & RoR' })).toHaveCount(0);
         const vw = 1024;
-        for (const id of ['history-edit-events', 'history-edit-heat', 'history-export-pdf', 'history-row-toggle']) {
+        for (const id of ['history-edit-events', 'history-edit-heat', 'history-export-pdf', 'history-back']) {
             const box = await page.getByTestId(id).first().boundingBox();
             expect(box, id).not.toBeNull();
             expect(box!.x + box!.width, id).toBeLessThanOrEqual(vw);
@@ -168,7 +170,7 @@ test.describe('history record edit (#623)', () => {
         await page.getByRole('button', { name: 'Compare', exact: true }).click();
         await page.getByText('E2E History Bean').first().click();
         await page.getByText('E2E Second Bean').first().click();
-        await expect(page.getByTestId('history-row-toggle')).toHaveCount(0);
+        await expect(page.getByTestId('history-detail')).toHaveCount(0);
         await page.getByRole('button', { name: 'Compare (2)' }).click();
         await expect(page.getByText('Compare Sessions (2)')).toBeVisible();
         await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).first().click();
@@ -180,7 +182,8 @@ test.describe('history record edit (#623)', () => {
         await exportModal.getByRole('button', { name: 'Cancel' }).last().click();
         await expect(exportModal).toBeHidden();
 
-        await page.getByRole('button', { name: 'Save as profile' }).first().click();
+        await page.getByText('E2E History Bean').first().click();
+        await page.getByRole('button', { name: 'Save as profile' }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
     });
 });

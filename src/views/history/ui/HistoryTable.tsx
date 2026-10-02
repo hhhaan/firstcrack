@@ -9,13 +9,9 @@ import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
 import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
-import { BookmarkPlus, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
-import { Fragment, type ReactNode } from 'react';
+import { Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { HistorySessionChart } from './HistorySessionChart';
-import { OutputWeightEditor } from './OutputWeightEditor';
-import { RecordSections } from './RecordSections';
-import { SessionScorecard } from './SessionScorecard';
 
 // ── Constants ──
 
@@ -35,8 +31,6 @@ const levelBg: Record<string, string> = {
     Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
     'Dark-Light': 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
 };
-
-const detailTitleCls = 'm-0 mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted';
 
 /** Row actions stay visible (not hover-only) and pinned right when the table scrolls horizontally. */
 const stickyActionsCls = 'sticky right-0 z-[1] bg-main-bg text-right';
@@ -149,7 +143,7 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     {
         key: null,
         label: '',
-        width: '112px',
+        width: '48px',
         sortable: false,
         render: () => null,
     },
@@ -174,88 +168,16 @@ function SortIcon({ col, sortKey, sortAsc }: SortIconProps): ReactNode {
     );
 }
 
-// ── ExpandedRow ──
-
-type ExpandedRowProps = {
-    session: RoastSessionWithRelations;
-};
-
-function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
-    const { t } = useTranslation();
-    const { temperatureUnit: unit } = useRoastSettings();
-
-    return (
-        <tr className="border-b border-border bg-surface-warm/30">
-            <td colSpan={11} className="p-0">
-                {/* Pinned to the visible scroll width so detail, inputs and buttons never slide off-screen. */}
-                <div
-                    id={`history-detail-${session.id}`}
-                    data-testid="history-detail"
-                    className="sticky left-0 w-[100cqw] max-w-full px-4 py-4 md:px-6"
-                >
-                    <h3 className={detailTitleCls}>{t('history.expanded.summary')}</h3>
-                    <div className="grid grid-cols-2 items-start gap-x-6 gap-y-3 border-b border-border-subtle pb-2 @3xl:grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,1.5fr)]">
-                        {[
-                            { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
-                            {
-                                label: t('history.expanded.chargeTemp'),
-                                value: formatTemp(
-                                    summarizeSessionEvents(parseStoredRoastEvents(session.events), session)
-                                        .charge_temp_celsius,
-                                    unit,
-                                ),
-                            },
-                            {
-                                label: t('history.expanded.dropTemp'),
-                                value: formatTemp(session.drop_temp_celsius, unit),
-                            },
-                            {
-                                label: t('history.expanded.duration'),
-                                value: formatDuration(sessionRoastMetrics(session).roastDurationSec),
-                            },
-                        ].map(({ label, value }) => (
-                            <div key={label} className="min-w-0">
-                                <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                                    {label}
-                                </div>
-                                <div className="break-words font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
-                                    {value}
-                                </div>
-                            </div>
-                        ))}
-                        <OutputWeightEditor session={session} />
-                    </div>
-
-                    <SessionScorecard session={session} />
-
-                    <HistorySessionChart session={session} />
-
-                    <RecordSections session={session} />
-
-                    <section className="mt-3 rounded-lg border border-border-subtle bg-main-bg px-4 py-3">
-                        <h3 className={detailTitleCls}>{t('history.expanded.notes')}</h3>
-                        <div className="min-w-0 whitespace-pre-wrap break-words text-[13px] leading-relaxed tracking-[0.14px] text-secondary">
-                            {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
-                        </div>
-                    </section>
-                </div>
-            </td>
-        </tr>
-    );
-}
-
 // ── HistoryTable ──
 
 interface HistoryTableProps {
     sessions: RoastSessionWithRelations[];
     total: number;
     filteredTotal: number;
-    expandedId: string | null;
     compareMode: boolean;
     compareIds: string[];
     onRowClick: (id: string) => void;
     onDeleteClick: (id: string) => void;
-    onSaveAsProfile: (id: string) => void;
     sortKey: SortKey;
     sortAsc: boolean;
     onSort: (key: SortKey) => void;
@@ -269,12 +191,10 @@ export const HistoryTable = ({
     sessions,
     total,
     filteredTotal,
-    expandedId,
     compareMode,
     compareIds,
     onRowClick,
     onDeleteClick,
-    onSaveAsProfile,
     sortKey,
     sortAsc,
     onSort,
@@ -352,120 +272,80 @@ export const HistoryTable = ({
                 </thead>
                 <tbody>
                     {sessions.map((session) => {
-                        const isExpanded = !compareMode && expandedId === session.id;
                         const compareIdx = compareIds.indexOf(session.id);
                         return (
-                            <Fragment key={session.id}>
-                                <tr
-                                    onClick={() => onRowClick(session.id)}
-                                    className={`group cursor-pointer border-b border-border-subtle dark:border-[#585d61] transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)] dark:bg-[rgba(38,43,48,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)] dark:hover:bg-[rgba(38,43,48,0.45)]'}`}
-                                >
-                                    {compareMode && (
-                                        <td className="px-3 py-3" style={{ width: '40px' }}>
-                                            <div
-                                                className="flex h-4 w-4 items-center justify-center rounded border transition"
-                                                style={
-                                                    compareIdx >= 0
-                                                        ? {
-                                                              backgroundColor:
-                                                                  COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
-                                                              borderColor:
-                                                                  COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
-                                                          }
-                                                        : { borderColor: 'var(--color-muted)' }
-                                                }
-                                            >
-                                                {compareIdx >= 0 && <Check size={11} strokeWidth={3} color="#fff" />}
-                                            </div>
+                            <tr
+                                key={session.id}
+                                data-testid="history-open-row"
+                                tabIndex={0}
+                                onClick={() => onRowClick(session.id)}
+                                onKeyDown={(event) => {
+                                    if (event.target !== event.currentTarget) return;
+                                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                                    event.preventDefault();
+                                    onRowClick(session.id);
+                                }}
+                                className="group cursor-pointer border-b border-border-subtle transition hover:bg-[rgba(245,242,239,0.45)] focus-visible:outline-2 focus-visible:outline-(--color-primary) dark:border-[#585d61] dark:hover:bg-[rgba(38,43,48,0.45)]"
+                            >
+                                {compareMode && (
+                                    <td className="px-3 py-3" style={{ width: '40px' }}>
+                                        <div
+                                            className="flex h-4 w-4 items-center justify-center rounded border transition"
+                                            style={
+                                                compareIdx >= 0
+                                                    ? {
+                                                          backgroundColor:
+                                                              COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
+                                                          borderColor:
+                                                              COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
+                                                      }
+                                                    : { borderColor: 'var(--color-muted)' }
+                                            }
+                                        >
+                                            {compareIdx >= 0 && <Check size={11} strokeWidth={3} color="#fff" />}
+                                        </div>
+                                    </td>
+                                )}
+                                {columns.map((col) => {
+                                    const isActions = col.key === null && col.label === '';
+                                    const cellClass = isActions
+                                        ? stickyActionsCls
+                                        : col.key === 'date'
+                                          ? 'font-mono text-muted'
+                                          : col.key === 'bean'
+                                            ? 'font-medium tracking-[0.14px] text-primary'
+                                            : 'tracking-[0.14px] text-secondary';
+                                    const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
+                                    const cellTitle = getCellTitle(col, session);
+                                    return (
+                                        <td
+                                            key={col.key ?? 'actions'}
+                                            title={cellTitle}
+                                            className={`overflow-hidden px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
+                                            style={{ width: col.width, minWidth: col.minWidth }}
+                                        >
+                                            {isActions ? (
+                                                <span className="inline-flex items-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            onDeleteClick(session.id);
+                                                        }}
+                                                        className={`${rowActionCls} hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626]`}
+                                                        aria-label={t('history.delete.title')}
+                                                        title={t('history.delete.title')}
+                                                    >
+                                                        <Trash2 size={14} strokeWidth={2} />
+                                                    </button>
+                                                </span>
+                                            ) : (
+                                                col.render(session)
+                                            )}
                                         </td>
-                                    )}
-                                    {columns.map((col, idx) => {
-                                        const isActions = col.key === null && col.label === '';
-                                        const cellClass = isActions
-                                            ? stickyActionsCls
-                                            : col.key === 'date'
-                                              ? 'font-mono text-muted'
-                                              : col.key === 'bean'
-                                                ? 'font-medium tracking-[0.14px] text-primary'
-                                                : 'tracking-[0.14px] text-secondary';
-                                        const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
-                                        const cellTitle = getCellTitle(col, session);
-                                        return (
-                                            <td
-                                                key={col.key || idx}
-                                                title={cellTitle}
-                                                className={`overflow-hidden px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
-                                                style={{ width: col.width, minWidth: col.minWidth }}
-                                            >
-                                                {isActions ? (
-                                                    <span className="inline-flex items-center">
-                                                        <button
-                                                            type="button"
-                                                            onClick={(event) => {
-                                                                event.stopPropagation();
-                                                                onSaveAsProfile(session.id);
-                                                            }}
-                                                            className={`${rowActionCls} hover:bg-surface hover:text-primary`}
-                                                            aria-label={t('history.saveAsProfile')}
-                                                            title={t('history.saveAsProfile')}
-                                                        >
-                                                            <BookmarkPlus size={14} strokeWidth={2} />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={(event) => {
-                                                                event.stopPropagation();
-                                                                onDeleteClick(session.id);
-                                                            }}
-                                                            className={`${rowActionCls} hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626]`}
-                                                            aria-label={t('history.delete.title')}
-                                                            title={t('history.delete.title')}
-                                                        >
-                                                            <Trash2 size={14} strokeWidth={2} />
-                                                        </button>
-                                                        {!compareMode && (
-                                                            <button
-                                                                type="button"
-                                                                data-testid="history-row-toggle"
-                                                                onClick={(event) => {
-                                                                    event.stopPropagation();
-                                                                    onRowClick(session.id);
-                                                                }}
-                                                                className={`${rowActionCls} hover:bg-surface hover:text-primary`}
-                                                                aria-expanded={isExpanded}
-                                                                aria-controls={
-                                                                    isExpanded
-                                                                        ? `history-detail-${session.id}`
-                                                                        : undefined
-                                                                }
-                                                                aria-label={t(
-                                                                    isExpanded
-                                                                        ? 'history.expanded.hide'
-                                                                        : 'history.expanded.show',
-                                                                )}
-                                                                title={t(
-                                                                    isExpanded
-                                                                        ? 'history.expanded.hide'
-                                                                        : 'history.expanded.show',
-                                                                )}
-                                                            >
-                                                                {isExpanded ? (
-                                                                    <ChevronUp size={14} strokeWidth={2} />
-                                                                ) : (
-                                                                    <ChevronDown size={14} strokeWidth={2} />
-                                                                )}
-                                                            </button>
-                                                        )}
-                                                    </span>
-                                                ) : (
-                                                    col.render(session)
-                                                )}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                                {isExpanded && <ExpandedRow session={session} />}
-                            </Fragment>
+                                    );
+                                })}
+                            </tr>
                         );
                     })}
                 </tbody>

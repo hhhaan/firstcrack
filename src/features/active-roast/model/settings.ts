@@ -3,6 +3,7 @@ import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
+import { normalizeTemperatureTicks } from '../lib/temperature';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
@@ -69,6 +70,18 @@ export type RoastSettings = {
     eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
     tempMaxC: number;
+    /** Intervals use the displayed unit. */
+    tempGridInterval: number;
+    tempGridPresetInterval: number;
+    tempLabelPresetEvery: number;
+    timeTickPresetSec: number;
+    tempAxisMode: 'preset' | 'list';
+    tempTickMode: 'interval' | 'list';
+    tempLabelCustom: boolean;
+    timeTickCustom: boolean;
+    tempTicksC: number[];
+    tempLabelEvery: number;
+    timeTickIntervalSec: number;
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;
@@ -159,6 +172,17 @@ const DEFAULT_SETTINGS: RoastSettings = {
     eventMarkerStyle: 'both',
     tempMinC: 130,
     tempMaxC: 240,
+    tempGridInterval: 10,
+    tempGridPresetInterval: 10,
+    tempLabelPresetEvery: 5,
+    timeTickPresetSec: 60,
+    tempAxisMode: 'preset',
+    tempTickMode: 'interval',
+    tempLabelCustom: false,
+    timeTickCustom: false,
+    tempTicksC: [],
+    tempLabelEvery: 5,
+    timeTickIntervalSec: 60,
     rorYMin: -5,
     rorYMax: 20,
     yellowTempC: 150,
@@ -192,6 +216,9 @@ const clampNum = (value: unknown, min: number, max: number, fallback: number) =>
 };
 
 const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback);
+
+const pickPreset = (value: number, allowed: readonly number[], fallback: number): number =>
+    allowed.includes(value) ? value : fallback;
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
@@ -257,9 +284,47 @@ export const normalizeRoastSettings = (
     const yellowTempC = clampNum(merged.yellowTempC, 50, 300, DEFAULT_SETTINGS.yellowTempC);
     const autoYellowEnabled = asBool(merged.autoYellowEnabled, DEFAULT_SETTINGS.autoYellowEnabled);
     const fcDualMarkEnabled = asBool(merged.fcDualMarkEnabled, DEFAULT_SETTINGS.fcDualMarkEnabled);
+    const tempTicksC =
+        normalizeTemperatureTicks(merged.tempTicksC) ?? previous?.tempTicksC ?? DEFAULT_SETTINGS.tempTicksC;
 
     return {
         ...merged,
+        tempGridPresetInterval: pickPreset(
+            merged.tempGridPresetInterval,
+            [10, 15, 20, 30],
+            previous?.tempGridPresetInterval ?? 10,
+        ),
+        tempLabelPresetEvery: pickPreset(
+            merged.tempLabelPresetEvery,
+            [1, 2, 3, 5],
+            previous?.tempLabelPresetEvery ?? 5,
+        ),
+        timeTickPresetSec: pickPreset(merged.timeTickPresetSec, [30, 60, 90, 120], previous?.timeTickPresetSec ?? 60),
+        tempGridInterval:
+            Number.isFinite(merged.tempGridInterval) && merged.tempGridInterval >= 1 && merged.tempGridInterval <= 500
+                ? merged.tempGridInterval
+                : (previous?.tempGridInterval ?? DEFAULT_SETTINGS.tempGridInterval),
+        tempTicksC,
+        tempAxisMode:
+            rest.tempAxisMode === 'preset' || rest.tempAxisMode === 'list'
+                ? rest.tempAxisMode
+                : (previous?.tempAxisMode ?? (tempTicksC.length ? 'list' : 'preset')),
+        tempTickMode:
+            rest.tempTickMode === 'interval' || rest.tempTickMode === 'list'
+                ? rest.tempTickMode
+                : (previous?.tempTickMode ?? (tempTicksC.length ? 'list' : 'interval')),
+        tempLabelCustom: asBool(rest.tempLabelCustom, previous?.tempLabelCustom ?? merged.tempLabelEvery !== 5),
+        timeTickCustom: asBool(rest.timeTickCustom, previous?.timeTickCustom ?? merged.timeTickIntervalSec !== 60),
+        tempLabelEvery:
+            Number.isInteger(merged.tempLabelEvery) && merged.tempLabelEvery >= 1 && merged.tempLabelEvery <= 500
+                ? merged.tempLabelEvery
+                : (previous?.tempLabelEvery ?? DEFAULT_SETTINGS.tempLabelEvery),
+        timeTickIntervalSec:
+            Number.isInteger(merged.timeTickIntervalSec) &&
+            merged.timeTickIntervalSec >= 1 &&
+            merged.timeTickIntervalSec <= 3600
+                ? merged.timeTickIntervalSec
+                : (previous?.timeTickIntervalSec ?? DEFAULT_SETTINGS.timeTickIntervalSec),
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)

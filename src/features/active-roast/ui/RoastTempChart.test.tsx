@@ -120,6 +120,70 @@ describe('RoastTempChart Heat set lifecycle', () => {
         });
     };
 
+    it('applies the selected tick mode while preserving the inactive list', () => {
+        const original = getRoastSettings();
+        const ticks = [150, 175, 200];
+        try {
+            act(() =>
+                updateRoastSettings({
+                    tempAxisMode: 'preset',
+                    tempTickMode: 'list',
+                    tempGridInterval: 10,
+                    tempTicksC: ticks,
+                }),
+            );
+            renderChart([null, null]);
+            for (const mode of ['preset', 'list', 'preset'] as const) {
+                act(() => updateRoastSettings({ tempAxisMode: mode }));
+                const option = setOption.mock.lastCall?.[0] as {
+                    yAxis: { interval: number; axisTick: { customValues?: number[] } }[];
+                };
+                expect(option.yAxis[0].axisTick.customValues).toEqual(mode === 'list' ? ticks : undefined);
+                if (mode !== 'list') expect(option.yAxis[0].interval).toBe(10);
+                expect(getRoastSettings().tempTicksC).toEqual(ticks);
+            }
+            act(() =>
+                updateRoastSettings({
+                    tempAxisMode: 'list',
+                    tempTickMode: 'interval',
+                    tempGridInterval: 30,
+                    tempLabelCustom: true,
+                    tempLabelEvery: 3,
+                    timeTickCustom: true,
+                    timeTickIntervalSec: 45,
+                }),
+            );
+            const customOption = setOption.mock.lastCall?.[0] as {
+                yAxis: { interval: number; axisTick: { customValues?: number[] } }[];
+                xAxis: { interval: number }[];
+            };
+            expect(customOption.yAxis[0].interval).toBe(30);
+            expect(customOption.yAxis[0].axisTick.customValues).toBeUndefined();
+            expect(customOption.xAxis[0].interval).toBe(45);
+            expect(getRoastSettings().tempTicksC).toEqual(ticks);
+            act(() => updateRoastSettings({ tempAxisMode: 'preset', timeTickCustom: false }));
+            const defaultOption = setOption.mock.lastCall?.[0] as typeof customOption;
+            expect(defaultOption.yAxis[0].interval).toBe(10);
+            expect(defaultOption.xAxis[0].interval).toBe(60);
+            expect(getRoastSettings().timeTickIntervalSec).toBe(45);
+            act(() =>
+                updateRoastSettings({
+                    tempGridPresetInterval: 20,
+                    tempLabelCustom: false,
+                    tempLabelPresetEvery: 2,
+                    timeTickPresetSec: 90,
+                }),
+            );
+            const presetOption = setOption.mock.lastCall?.[0] as typeof customOption;
+            expect(presetOption.yAxis[0].interval).toBe(20);
+            expect(presetOption.xAxis[0].interval).toBe(90);
+            expect(getRoastSettings().tempGridInterval).toBe(30);
+            expect(getRoastSettings().tempLabelEvery).toBe(3);
+        } finally {
+            act(() => updateRoastSettings(original));
+        }
+    });
+
     it('rebuilds the option when Heat set appears and disappears', () => {
         renderChart([null, null]);
         const initial = setOption.mock.calls[setOption.mock.calls.length - 1];
@@ -208,7 +272,7 @@ describe('RoastTempChart interactions', () => {
                     }),
                 );
             });
-            const option = setOption.mock.calls.at(-1)?.[0];
+            const option = setOption.mock.calls[setOption.mock.calls.length - 1]?.[0];
             const series = option.series.find((s: { id: string }) => s.id === 'event-curve-labels');
             const rendered = series.renderItem(
                 { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 3000 } },

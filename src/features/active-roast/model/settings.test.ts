@@ -17,6 +17,55 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
+it('uses fixed axis defaults, validates intervals, and restores persisted choices', async () => {
+    const defaults = {
+        tempGridInterval: 10,
+        tempLabelEvery: 5,
+        timeTickIntervalSec: 60,
+        tempTicksC: [],
+        tempAxisMode: 'preset',
+    };
+    const choices = {
+        tempGridInterval: 30,
+        tempLabelEvery: 2,
+        timeTickIntervalSec: 120,
+        tempTicksC: [100, 180, 200],
+        tempAxisMode: 'list' as const,
+    };
+    expect(normalizeRoastSettings({})).toMatchObject(defaults);
+    const previous = normalizeRoastSettings(choices);
+    expect(normalizeRoastSettings({ tempGridInterval: 0, tempLabelEvery: 0, timeTickIntervalSec: 0 })).toMatchObject(
+        defaults,
+    );
+    for (const invalid of [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, '10', null]) {
+        const stored = Object.fromEntries(Object.keys(defaults).map((key) => [key, invalid]));
+        expect(normalizeRoastSettings(stored)).toMatchObject(defaults);
+        expect(normalizeRoastSettings(stored, previous)).toMatchObject(choices);
+    }
+    expect(normalizeRoastSettings({ tempGridInterval: 2.5, tempTicksC: [200, 100, 100, 180] })).toMatchObject({
+        tempGridInterval: 2.5,
+        tempTicksC: [100, 180, 200],
+    });
+    expect(normalizeRoastSettings({ tempGridInterval: 501, tempTicksC: [Number.NaN] })).toMatchObject(defaults);
+    expect(normalizeRoastSettings({ tempGridInterval: 15 }).tempAxisMode).toBe('preset');
+    expect(normalizeRoastSettings({ tempTicksC: [100, 180, 200] }).tempAxisMode).toBe('list');
+    expect(normalizeRoastSettings({ ...choices, tempAxisMode: 'preset' })).toMatchObject({
+        tempAxisMode: 'preset',
+        tempTicksC: choices.tempTicksC,
+    });
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce(choices);
+    const settings = await import('./settings');
+    await Promise.resolve();
+    expect(settings.getRoastSettings()).toMatchObject(choices);
+    settings.updateRoastSettings({ timeTickIntervalSec: 30 });
+    expect(settingsSet).toHaveBeenLastCalledWith(
+        'roast.settings',
+        expect.objectContaining({ ...choices, timeTickIntervalSec: 30 }),
+        { debounce: true },
+    );
+});
+
 it('이전에 저장된 BBP 기록 범위는 켜기/끄기 외에 영향을 주지 않는다', () => {
     const stored = { bbpEnabled: false, bbpWindowMinutes: 5 };
     const zero = { bbpEnabled: true, bbpWindowMinutes: 0 };
