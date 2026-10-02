@@ -270,9 +270,8 @@ export const useAutoDetection = ({
     useEffect(() => {
         if (phase !== 'roasting' || confirmedTP !== null) return;
         if (elapsed < TP_FALLBACK_S || detectedTPs.length > 0) return;
-        const latest = rawSamples.at(-1);
-        if (latest == null) return;
-        setConfirmedTP({ timeSec: elapsed, temp: latest.bt, fallback: true });
+        if (rawSamples.length === 0) return;
+        setConfirmedTP({ timeSec: elapsed, temp: rawSamples[rawSamples.length - 1].bt, fallback: true });
     }, [phase, elapsed, rawSamples, confirmedTP, detectedTPs]);
 
     // Fire callback once per confirmed TP (폴백 → 실감지 승격 시 한 번 더)
