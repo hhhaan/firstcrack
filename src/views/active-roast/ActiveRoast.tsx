@@ -9,6 +9,7 @@ import {
     useRoastProfiles,
 } from '@entities/roast-profile';
 import {
+    chartSpanSec,
     computePhaseSegments,
     formatTemp,
     isRoastShortcutBaseEnabled,
@@ -358,7 +359,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         livePoints: chartView.livePoints,
         targetCurvePoints: chartView.targetPoints,
         xMin: chartView.xMin,
-        xMaxFloor: chartView.xMaxFloor,
+        xMaxFloor: chartView.xMaxFloor ?? chartSpanSec(roastSettings),
         showRoR: roastSettings.showRoRChart,
         showControlChart: roastSettings.showControlChart,
         unit,

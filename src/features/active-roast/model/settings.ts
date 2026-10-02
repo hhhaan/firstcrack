@@ -82,6 +82,10 @@ export type RoastSettings = {
     tempTicksC: number[];
     tempLabelEvery: number;
     timeTickIntervalSec: number;
+    /** Live chart time-axis floor, in minutes. The axis grows when the roast or profile is longer. */
+    timeRangePresetMin: number;
+    timeRangeCustom: boolean;
+    timeRangeMin: number;
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;
@@ -131,6 +135,15 @@ export type RoastSettings = {
 };
 
 export type PidDropBehavior = 'hold' | 'zero';
+
+/** Matches `CHART_TOTAL_SECS` (780s). Presets stay in display order, default first. */
+export const TIME_RANGE_MIN_DEFAULT = 13;
+export const TIME_RANGE_PRESET_MIN = [13, 10, 15, 20, 30] as const;
+const TIME_RANGE_MIN_MAX = 180;
+
+export const chartSpanSec = (
+    settings: Pick<RoastSettings, 'timeRangeCustom' | 'timeRangeMin' | 'timeRangePresetMin'>,
+): number => (settings.timeRangeCustom ? settings.timeRangeMin : settings.timeRangePresetMin) * 60;
 
 /** Artisan autoDROP default: Charge 후 7분 초과. */
 export const AUTO_DROP_START_MIN_DEFAULT = 7;
@@ -183,6 +196,9 @@ const DEFAULT_SETTINGS: RoastSettings = {
     tempTicksC: [],
     tempLabelEvery: 5,
     timeTickIntervalSec: 60,
+    timeRangePresetMin: TIME_RANGE_MIN_DEFAULT,
+    timeRangeCustom: false,
+    timeRangeMin: TIME_RANGE_MIN_DEFAULT,
     rorYMin: -5,
     rorYMax: 20,
     yellowTempC: 150,
@@ -325,6 +341,18 @@ export const normalizeRoastSettings = (
             merged.timeTickIntervalSec <= 3600
                 ? merged.timeTickIntervalSec
                 : (previous?.timeTickIntervalSec ?? DEFAULT_SETTINGS.timeTickIntervalSec),
+        timeRangePresetMin: pickPreset(
+            merged.timeRangePresetMin,
+            TIME_RANGE_PRESET_MIN,
+            previous?.timeRangePresetMin ?? TIME_RANGE_MIN_DEFAULT,
+        ),
+        timeRangeCustom: asBool(rest.timeRangeCustom, previous?.timeRangeCustom ?? false),
+        timeRangeMin:
+            Number.isInteger(merged.timeRangeMin) &&
+            merged.timeRangeMin >= 1 &&
+            merged.timeRangeMin <= TIME_RANGE_MIN_MAX
+                ? merged.timeRangeMin
+                : (previous?.timeRangeMin ?? TIME_RANGE_MIN_DEFAULT),
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)

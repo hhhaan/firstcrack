@@ -14,6 +14,8 @@ import {
     type RorSpanSec,
     sliderToFontScale,
     type TemperatureUnit,
+    TIME_RANGE_MIN_DEFAULT,
+    TIME_RANGE_PRESET_MIN,
     toDisplayTemp,
     updateRoastSettings,
     useBbpStore,
@@ -290,6 +292,62 @@ const RangeRow = ({
         </div>
     </div>
 );
+
+const TimeRangeRow = ({ custom, presetMin, customMin }: { custom: boolean; presetMin: number; customMin: number }) => {
+    const { t } = useTranslation();
+    const labelFor = (minutes: number) => t('settings.tabs.roast.timeRangeMinutes', { count: minutes });
+    const selectValue = custom ? 'custom' : String(presetMin);
+    return (
+        <SettingsOptionRow justify="between" align="start">
+            <label className={settingsOptionLabelCls} htmlFor={custom ? 'roast-timeRangeMin-custom' : undefined}>
+                {t('settings.tabs.roast.axisTime')}
+            </label>
+            <div className="flex flex-col items-end gap-2">
+                <Select
+                    value={selectValue}
+                    onValueChange={(value) => {
+                        if (value === 'custom') {
+                            updateRoastSettings({ timeRangeCustom: true });
+                            return;
+                        }
+                        const minutes = Number(value);
+                        if (!TIME_RANGE_PRESET_MIN.some((preset) => preset === minutes)) return;
+                        updateRoastSettings({ timeRangeCustom: false, timeRangePresetMin: minutes });
+                    }}
+                >
+                    <SelectTrigger className="w-48" aria-label={t('settings.tabs.roast.axisTime')}>
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {TIME_RANGE_PRESET_MIN.map((value) => {
+                            const label = labelFor(value);
+                            const text =
+                                value === TIME_RANGE_MIN_DEFAULT
+                                    ? t('settings.tabs.roast.axisTicksDefault', { value: label })
+                                    : label;
+                            return (
+                                <SelectItem key={value} value={String(value)}>
+                                    {text}
+                                </SelectItem>
+                            );
+                        })}
+                        <SelectItem value="custom">{t('settings.tabs.roast.axisTicksCustom')}</SelectItem>
+                    </SelectContent>
+                </Select>
+                {custom && (
+                    <NumberInput
+                        id="roast-timeRangeMin-custom"
+                        value={customMin}
+                        onChange={(value) => updateRoastSettings({ timeRangeMin: Math.round(value) })}
+                        min={1}
+                        max={180}
+                        suffix={t('settings.tabs.roast.axisRangeMinutes')}
+                    />
+                )}
+            </div>
+        </SettingsOptionRow>
+    );
+};
 
 const nextTickTab = (key: string, index: number): number | null => {
     if (key === 'Home') return 0;
@@ -703,6 +761,11 @@ export const RoastSettingsTab = () => {
                         min={-30}
                         max={100}
                         suffix="°/min"
+                    />
+                    <TimeRangeRow
+                        custom={roastSettings.timeRangeCustom}
+                        presetMin={roastSettings.timeRangePresetMin}
+                        customMin={roastSettings.timeRangeMin}
                     />
                 </SettingsSection.Body>
             </SettingsSection>

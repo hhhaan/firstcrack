@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     AUTO_DROP_START_MIN_DEFAULT,
     AUTO_DROP_START_MIN_MAX,
+    chartSpanSec,
     coercePollIntervalForPlan,
     fontScaleToSlider,
     getRoastSettings,
@@ -47,6 +48,14 @@ it('uses fixed axis defaults, validates intervals, and restores persisted choice
         tempTicksC: [100, 180, 200],
     });
     expect(normalizeRoastSettings({ tempGridInterval: 501, tempTicksC: [Number.NaN] })).toMatchObject(defaults);
+    expect(chartSpanSec(normalizeRoastSettings({}))).toBe(780);
+    expect(chartSpanSec(normalizeRoastSettings({ timeRangePresetMin: 20 }))).toBe(1200);
+    expect(chartSpanSec(normalizeRoastSettings({ timeRangeCustom: true, timeRangeMin: 20 }))).toBe(1200);
+    expect(normalizeRoastSettings({ timeRangePresetMin: 99, timeRangeMin: 0 })).toMatchObject({
+        timeRangePresetMin: 13,
+        timeRangeMin: 13,
+        timeRangeCustom: false,
+    });
     expect(normalizeRoastSettings({ tempGridInterval: 15 }).tempAxisMode).toBe('preset');
     expect(normalizeRoastSettings({ tempTicksC: [100, 180, 200] }).tempAxisMode).toBe('list');
     expect(normalizeRoastSettings({ ...choices, tempAxisMode: 'preset' })).toMatchObject({
