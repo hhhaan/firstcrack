@@ -168,7 +168,9 @@ export const useSidecarPolling = ({
     /** Session that owns the roast curve. Kept across Drop; the next Charge replaces it. */
     const curveSessionRef = useRef<string | null>(null);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
-    const btFilterRef = useRef(createBtFilter());
+    const btFilterRef = useRef<ReturnType<typeof createBtFilter> | null>(null);
+    const rawBtFilterRef = useRef<ReturnType<typeof createBtFilter> | null>(null);
+    const lastRawTimestampRef = useRef<number | null>(null);
     const pollInFlightRef = useRef(false);
     const sidecarGenerationRef = useRef(0);
     const lastMachineRef = useRef(useRoastingStore.getState().machineSnapshot);
@@ -271,6 +273,8 @@ export const useSidecarPolling = ({
         void listen<null>('sidecar-ready', () => {
             sidecarGenerationRef.current += 1;
             btFilterRef.current = createBtFilter();
+            rawBtFilterRef.current = createBtFilter();
+            lastRawTimestampRef.current = null;
             const store = useRoastingStore.getState();
             store.updateRawTemperature(null);
             store.updateSensorObservation(null);
@@ -354,8 +358,11 @@ export const useSidecarPolling = ({
             if (machine !== lastMachineRef.current) {
                 lastMachineRef.current = machine;
                 btFilterRef.current = createBtFilter();
+                rawBtFilterRef.current = createBtFilter();
+                lastRawTimestampRef.current = null;
             }
             let rawSample: RawTemperatureSample | null = null;
+            let rawBt: number | null = null;
             let observationTick: ReturnType<typeof sensorObservationTick> | null = null;
             const isCurrentGeneration = () =>
                 !cancelled &&
@@ -367,13 +374,16 @@ export const useSidecarPolling = ({
                 if (!isCurrentGeneration()) return;
                 const store = useRoastingStore.getState();
                 store.updateRawTemperature(rawSample);
-                store.updateSensorObservation(reduceSensorObservation(store.observation, tick));
+                store.updateSensorObservation(
+                    reduceSensorObservation(store.observation, { ...tick, bt: tick.bt == null ? null : rawBt }),
+                );
             };
             try {
                 const data = await sidecar.getTemperatures();
                 const receivedAtMs = Date.now();
                 if (!isCurrentGeneration()) return;
                 const deviceTimestamp = Number.isFinite(data.timestamp) ? data.timestamp : null;
+                rawBt = finiteRawTemperature(data.bt_raw);
                 const tick = (over: Parameters<typeof sensorObservationTick>[1] = {}) =>
                     sensorObservationTick(receivedAtMs, {
                         deviceTimestamp,
@@ -400,6 +410,7 @@ export const useSidecarPolling = ({
                     if (!status?.connected) return;
                 }
                 // 글리치(스파이크·0값·단선) 샘플은 이 폴링 tick 전체를 스킵 — 자동감지 오발화 방지
+                btFilterRef.current ??= createBtFilter();
                 const bt = data.bt == null ? null : btFilterRef.current(data.bt, Date.now());
                 if (data.bt != null && bt === null) {
                     // 거부된 글리치: 표시값은 유지하고 품질만 invalid
@@ -542,7 +553,21 @@ export const useSidecarPolling = ({
                     const store = useRoastingStore.getState();
                     store.updateRawTemperature(rawSample);
                     if (observationTick) {
-                        store.updateSensorObservation(reduceSensorObservation(store.observation, observationTick));
+                        // Replay judges raw BT; display EMA must not validate a raw spike.
+                        const rawTick = { ...observationTick, bt: observationTick.bt == null ? null : rawBt };
+                        const quality = reduceSensorObservation(store.observation, rawTick).quality;
+                        // Repeated/stale samples must not confirm a held spike as a real step.
+                        if (quality === 'valid' && rawSample) {
+                            rawBtFilterRef.current ??= createBtFilter();
+                            const previousTimestamp = lastRawTimestampRef.current;
+                            rawTick.spikeRejected =
+                                (previousTimestamp != null && rawSample.timestamp <= previousTimestamp) ||
+                                rawBtFilterRef.current(rawSample.bt, rawSample.timestamp * 1000) == null;
+                            if (previousTimestamp == null || rawSample.timestamp > previousTimestamp) {
+                                lastRawTimestampRef.current = rawSample.timestamp;
+                            }
+                        }
+                        store.updateSensorObservation(reduceSensorObservation(store.observation, rawTick));
                     }
                     if (!skipLinkNotice) {
                         // applyConnection writes this. Control-flow only sees the reset to null.

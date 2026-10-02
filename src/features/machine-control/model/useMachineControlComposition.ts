@@ -24,6 +24,7 @@ export interface MachineControlCompositionInput {
     replayDropTime: number | null;
     /** 프로파일 heater_events jsonb (#435) */
     replayHeaterEvents?: unknown;
+    /** Raw sensor BT. `observationQuality` must validate this stream, not the display EMA. */
     liveBt: number | null;
     elapsed: number;
     roasting: boolean;
