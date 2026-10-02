@@ -131,7 +131,7 @@ const AUTO_DROP_START_MIN_MIN = 1;
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
 const DEFAULT_SETTINGS: RoastSettings = {
-    pollIntervalMs: 500,
+    pollIntervalMs: 1000,
     rorSpanSec: 30,
     temperatureUnit: 'C',
     fontScalePct: FONT_SCALE_MIN,

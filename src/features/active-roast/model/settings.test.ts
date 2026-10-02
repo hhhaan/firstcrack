@@ -29,6 +29,11 @@ it('이전에 저장된 BBP 기록 범위는 켜기/끄기 외에 영향을 주�
     expect(normalizeRoastSettings(huge)).not.toHaveProperty('bbpWindowMinutes');
 });
 
+it('defaults the poll interval to 1s and keeps a stored 500ms choice', () => {
+    expect(normalizeRoastSettings({}).pollIntervalMs).toBe(1000);
+    expect(normalizeRoastSettings({ pollIntervalMs: 500 }).pollIntervalMs).toBe(500);
+});
+
 describe('coercePollIntervalForPlan', () => {
     it('coerces stored 500ms to 1s when the plan lacks fast polling', () => {
         expect(coercePollIntervalForPlan(500, false)).toBe(1000);
