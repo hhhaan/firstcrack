@@ -1,4 +1,5 @@
 import { logger } from '@shared/lib/logger';
+import { CONFIGURABLE_ROAST_EVENTS, type ConfigurableRoastEvent } from '@shared/lib/roast-events';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
@@ -19,6 +20,7 @@ const isFontScalePct = (value: unknown): value is FontScalePct => value === 100 
 export type EventMarkerStyle = 'line' | 'point' | 'both';
 
 export type RoastSettings = {
+    enabledMarkEvents: ConfigurableRoastEvent[];
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
     temperatureUnit: TemperatureUnit;
@@ -116,6 +118,7 @@ const AUTO_DROP_START_MIN_MIN = 1;
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
 const DEFAULT_SETTINGS: RoastSettings = {
+    enabledMarkEvents: [...CONFIGURABLE_ROAST_EVENTS],
     pollIntervalMs: 500,
     rorSpanSec: 30,
     temperatureUnit: 'C',
@@ -245,6 +248,9 @@ export const normalizeRoastSettings = (
 
     return {
         ...merged,
+        enabledMarkEvents: Array.isArray(merged.enabledMarkEvents)
+            ? CONFIGURABLE_ROAST_EVENTS.filter((event) => merged.enabledMarkEvents.includes(event))
+            : [...DEFAULT_SETTINGS.enabledMarkEvents],
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)

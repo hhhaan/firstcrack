@@ -186,6 +186,8 @@ export const CONTROL_COLORS = {
 const CHART_EVENT_MARKERS = new Set([
     'Charge',
     'Yellow',
+    'Color Change',
+    'SC Start',
     'FC Start',
     'FC Rolling',
     'FC End',

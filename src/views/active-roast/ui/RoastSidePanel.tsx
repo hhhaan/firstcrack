@@ -2,7 +2,7 @@ import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
-import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { type TemperatureUnit, useRoastSettings } from '@features/active-roast/model/settings';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
@@ -98,6 +98,7 @@ export const RoastSidePanel = ({
     bbpChargeWait,
 }: RoastSidePanelProps) => {
     const { t } = useTranslation();
+    const { enabledMarkEvents } = useRoastSettings();
     const showRollingDtr = rollingDtrPct != null;
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
@@ -342,6 +343,15 @@ export const RoastSidePanel = ({
                                 onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
                             },
                         },
+                        ...(['Color Change', 'SC Start'] as const).map((event, index) => ({
+                            label: t(`settings.tabs.roast.markEvents.${event}`),
+                            event,
+                            shortcutKey: String(index + 4),
+                            pressKey: `Mark ${event}`,
+                            onClick: () => {
+                                if (canMark) onMarkEvent(event, '', `Mark ${event}`);
+                            },
+                        })),
                         {
                             label: 'Mark Drop',
                             event: 'Drop',
@@ -352,7 +362,10 @@ export const RoastSidePanel = ({
                                 onHandleDrop();
                             },
                         },
-                    ]}
+                    ].filter(
+                        (button) =>
+                            button.event === 'Drop' || enabledMarkEvents.some((event) => event === button.event),
+                    )}
                 />
             </div>
 

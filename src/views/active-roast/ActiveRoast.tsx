@@ -479,7 +479,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         unit,
         markEvent,
         logEntries,
-        autoYellowEnabled: roastSettings.autoYellowEnabled,
+        autoYellowEnabled: roastSettings.autoYellowEnabled && roastSettings.enabledMarkEvents.includes('Yellow'),
     });
 
     const applyDrop = useCallback(

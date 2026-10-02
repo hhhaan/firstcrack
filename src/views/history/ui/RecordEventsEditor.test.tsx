@@ -192,7 +192,7 @@ describe('RecordEventsEditor', () => {
         await act(async () => addButton().click());
         expect((document.querySelector('select') as HTMLSelectElement).value).toBe('FC Start');
         const options = [...document.querySelectorAll('select option')].map((o) => (o as HTMLOptionElement).value);
-        expect(options).toEqual(['TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End']);
+        expect(options).toEqual(['TP', 'Yellow', 'Color Change', 'FC Start', 'FC Rolling', 'FC End', 'SC Start']);
         await type('FC Start history.edit.time', '8:00');
         await type('FC Start history.edit.temp', '196');
         await act(async () => button('history.edit.save')?.click());
@@ -227,6 +227,8 @@ describe('RecordEventsEditor', () => {
                 { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
                 { id: 'tp', type: 'TP', time_sec: 60, temp_c: 150 },
                 { id: 'y', type: 'Yellow', time_sec: 180, temp_c: 160 },
+                { id: 'cc', type: 'Color Change', time_sec: 240, temp_c: 170 },
+                { id: 'sc', type: 'SC Start', time_sec: 560, temp_c: 205 },
                 { id: 'f', type: 'FC Start', time_sec: 480, temp_c: 196 },
                 { id: 'fr', type: 'FC Rolling', time_sec: 500, temp_c: 198 },
                 { id: 'fe', type: 'FC End', time_sec: 540, temp_c: 202 },

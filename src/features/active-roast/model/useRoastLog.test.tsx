@@ -188,3 +188,12 @@ describe('useRoastLog cycleFc', () => {
         hook.unmount();
     });
 });
+
+it.each(['Color Change', 'SC Start'])('records and toggles %s at the live time and BT', async (event) => {
+    const hook = await renderHook('F', 205, 560);
+    act(() => hook.get().markEvent(event, ''));
+    expect(hook.get().logEntries[0]).toMatchObject({ event, timeSec: 560, tempC: 205, temp: '401.0°F' });
+    act(() => hook.get().markEvent(event, ''));
+    expect(hook.get().logEntries).toEqual([]);
+    hook.unmount();
+});

@@ -281,7 +281,16 @@
                 "alertBeforeDrop": "下豆前",
                 "alertBeforeDropDescription": "目标曲线 Drop 前该分钟数提醒。需要带有 Drop 标记的目标曲线。",
                 "alertAfterDrop": "下豆后",
-                "alertAfterDropDescription": "Drop 后经过该分钟数时提醒。计时器持续到结束烘焙。"
+                "alertAfterDropDescription": "Drop 后经过该分钟数时提醒。计时器持续到结束烘焙。",
+                "recordableEvents": "记录事件",
+                "recordableEventsDescription": "选择实时记录按钮和快捷键。已有记录将保留，缺失的预定义事件可在历史记录中添加。",
+                "markEvents": {
+                    "Yellow": "黄点",
+                    "Color Change": "颜色变化",
+                    "FC Start": "一爆开始",
+                    "FC End": "一爆结束",
+                    "SC Start": "二爆"
+                }
             },
             "account": {
                 "label": "个人资料",

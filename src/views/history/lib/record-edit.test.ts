@@ -225,3 +225,36 @@ describe('applyEventDrafts additions', () => {
         if (!res.ok) expect(res.errors[index]).toBe(code);
     });
 });
+
+it('adds and edits Color Change and second crack while preserving stored rows', () => {
+    const added = applyEventDrafts(
+        stored,
+        [
+            ...drafts(),
+            { index: -1, type: 'Color Change', time: '5:00', temp: '175' },
+            { index: -2, type: 'SC Start', time: '9:30', temp: '205' },
+        ],
+        'C',
+    );
+    if (!added.ok) throw new Error('expected valid additions');
+    expect(isChartEventMarker('Color Change')).toBe(true);
+    expect(isChartEventMarker('SC Start')).toBe(true);
+    const nextDrafts = toEventDrafts(added.events, 'F').map((d) =>
+        d.type === 'SC Start' ? { ...d, time: '9:40', temp: '410' } : d,
+    );
+    const edited = applyEventDrafts(added.events, nextDrafts, 'F');
+    if (!edited.ok) throw new Error('expected valid edit');
+    expect(edited.events).toEqual(
+        expect.arrayContaining([
+            expect.objectContaining({ type: 'SC Start', time_sec: 580, temp_c: 210 }),
+            stored[1],
+            stored[7],
+        ]),
+    );
+    const invalid = applyEventDrafts(
+        stored,
+        [...drafts(), { index: -1, type: 'SC Start', time: '11:00', temp: '205' }],
+        'C',
+    );
+    expect(invalid.ok).toBe(false);
+});

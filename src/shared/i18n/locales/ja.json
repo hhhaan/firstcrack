@@ -281,7 +281,16 @@
                 "alertBeforeDrop": "排出前",
                 "alertBeforeDropDescription": "ターゲットプロファイルの Drop のこの分数前に知らせます。Drop マークがあるターゲットプロファイルが必要です。",
                 "alertAfterDrop": "排出後",
-                "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。"
+                "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。",
+                "recordableEvents": "記録するイベント",
+                "recordableEventsDescription": "リアルタイム記録のボタンとショートカットを選択します。既存の記録は保持され、未記録の標準イベントは履歴から追加できます。",
+                "markEvents": {
+                    "Yellow": "イエロー",
+                    "Color Change": "カラーチェンジ",
+                    "FC Start": "1ハゼ開始",
+                    "FC End": "1ハゼ終了",
+                    "SC Start": "2ハゼ"
+                }
             },
             "account": {
                 "label": "プロフィール",

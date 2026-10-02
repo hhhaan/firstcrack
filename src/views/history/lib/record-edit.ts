@@ -2,16 +2,17 @@ import { type SessionSummary, summarizeSessionEvents } from '@entities/roast-pro
 import { fromDisplayTemp, type TemperatureUnit, toDisplayTemp } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatElapsed } from '@shared/lib/format';
+import { ADDABLE_ROAST_EVENTS, ROAST_KEY_EVENT_ORDER } from '@shared/lib/roast-events';
 import type { Json } from '@shared/types/database.types';
 
 /** Editable key marks in Charge-relative order. Equal times are allowed (FC Start = FC Rolling). */
-export const KEY_EVENT_ORDER = ['Charge', 'TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End', 'Drop', 'End'];
+export const KEY_EVENT_ORDER: string[] = [...ROAST_KEY_EVENT_ORDER];
 
 /** Missing marks the History editor may insert. Charge/Drop/End stay the roast boundaries. */
-export const ADDABLE_KEY_EVENTS = ['TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End'] as const;
+export const ADDABLE_KEY_EVENTS = ADDABLE_ROAST_EVENTS;
 
 /** FC Start first — that is the mark a saved roast is most often missing. */
-const ADD_PREFERENCE = ['FC Start', 'Yellow', 'FC Rolling', 'FC End', 'TP'] as const;
+const ADD_PREFERENCE = ['FC Start', 'Yellow', 'FC Rolling', 'FC End', 'TP', 'Color Change', 'SC Start'] as const;
 
 export const nextAddableEvent = (present: Iterable<string>): (typeof ADDABLE_KEY_EVENTS)[number] | null => {
     const have = new Set(present);

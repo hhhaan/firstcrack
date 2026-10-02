@@ -2,6 +2,7 @@ import { i18n } from '@shared/i18n';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useEffect } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useRoastSettings } from './settings';
 
 interface UseRoastKeyboardShortcutsParams {
     isActive: boolean;
@@ -99,6 +100,7 @@ export const useRoastKeyboardShortcuts = ({
         showContinueModal,
         phase,
     });
+    const { enabledMarkEvents } = useRoastSettings();
     const canMark = isRoastMarkShortcutEnabled({
         isActive,
         showEndRoastModal,
@@ -171,7 +173,7 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
         },
-        { enabled: canMark },
+        { enabled: canMark && enabledMarkEvents.includes('Yellow') },
         [canMark, onMarkEvent],
     );
 
@@ -183,7 +185,7 @@ export const useRoastKeyboardShortcuts = ({
             if (onCycleFc) onCycleFc();
             else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
         },
-        { enabled: canMark },
+        { enabled: canMark && enabledMarkEvents.includes('FC Start') },
         [canMark, onMarkEvent, onCycleFc],
     );
 
@@ -194,7 +196,26 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
         },
-        { enabled: canMark },
+        { enabled: canMark && enabledMarkEvents.includes('FC End') },
+        [canMark, onMarkEvent],
+    );
+
+    useHotkeys(
+        'mod+4',
+        (e) => {
+            e.preventDefault();
+            onMarkEvent('Color Change', '', 'Mark Color Change');
+        },
+        { enabled: canMark && enabledMarkEvents.includes('Color Change') },
+        [canMark, onMarkEvent],
+    );
+    useHotkeys(
+        'mod+5',
+        (e) => {
+            e.preventDefault();
+            onMarkEvent('SC Start', '', 'Mark SC Start');
+        },
+        { enabled: canMark && enabledMarkEvents.includes('SC Start') },
         [canMark, onMarkEvent],
     );
 

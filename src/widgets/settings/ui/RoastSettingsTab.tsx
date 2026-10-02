@@ -18,6 +18,7 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { FEATURE, useFeature } from '@shared/lib/features';
+import { CONFIGURABLE_ROAST_EVENTS } from '@shared/lib/roast-events';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
@@ -611,6 +612,30 @@ export const RoastSettingsTab = () => {
                 <SettingsSection.Header title={tk('profileSeries')} description={tk('profileSeriesDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     <RoastCheckRows options={profileSeriesOptions} />
+                </SettingsSection.Body>
+            </SettingsSection>
+
+            <SettingsSection>
+                <SettingsSection.Header
+                    title={tk('recordableEvents')}
+                    description={tk('recordableEventsDescription')}
+                />
+                <SettingsSection.Body className="grid gap-1.5">
+                    {CONFIGURABLE_ROAST_EVENTS.map((event) => (
+                        <SettingsCheckRow
+                            key={event}
+                            type="checkbox"
+                            checked={roastSettings.enabledMarkEvents.includes(event)}
+                            label={t(`settings.tabs.roast.markEvents.${event}`)}
+                            onChange={() =>
+                                updateRoastSettings({
+                                    enabledMarkEvents: roastSettings.enabledMarkEvents.includes(event)
+                                        ? roastSettings.enabledMarkEvents.filter((item) => item !== event)
+                                        : [...roastSettings.enabledMarkEvents, event],
+                                })
+                            }
+                        />
+                    ))}
                 </SettingsSection.Body>
             </SettingsSection>
 

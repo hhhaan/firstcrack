@@ -281,7 +281,16 @@
                 "alertBeforeDrop": "배출 전",
                 "alertBeforeDropDescription": "타깃 프로파일 Drop 이 시간 전에 알립니다. Drop 마크가 있는 타깃 프로파일이 필요합니다.",
                 "alertAfterDrop": "배출 후",
-                "alertAfterDropDescription": "Drop 후 이 시간이 지나면 알립니다. 타이머는 로스팅 종료까지 계속 갑니다."
+                "alertAfterDropDescription": "Drop 후 이 시간이 지나면 알립니다. 타이머는 로스팅 종료까지 계속 갑니다.",
+                "recordableEvents": "기록할 이벤트",
+                "recordableEventsDescription": "실시간 기록 버튼과 단축키를 선택합니다. 기존 기록은 유지되며, 누락된 기본 이벤트는 이력에서 추가할 수 있습니다.",
+                "markEvents": {
+                    "Yellow": "옐로우",
+                    "Color Change": "컬러 체인지",
+                    "FC Start": "1차 크랙 시작",
+                    "FC End": "1차 크랙 종료",
+                    "SC Start": "2차 크랙"
+                }
             },
             "account": {
                 "label": "프로필",

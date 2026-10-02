@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
+
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
+import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,7 +62,10 @@ describe('RoastSidePanel live readings (#358)', () => {
         root = createRoot(container);
     });
 
+    const initialMarkEvents = getRoastSettings().enabledMarkEvents;
+
     afterEach(() => {
+        act(() => updateRoastSettings({ enabledMarkEvents: initialMarkEvents }));
         void act(() => root.unmount());
         container.remove();
     });
@@ -68,6 +73,38 @@ describe('RoastSidePanel live readings (#358)', () => {
     const renderPanel = (override: Partial<typeof baseProps> = {}) => {
         void act(() => root.render(createElement(RoastSidePanel, { ...baseProps, ...override })));
     };
+
+    it('marks new events and hides buttons disabled in settings', () => {
+        const onMarkEvent = vi.fn();
+        renderPanel({ onMarkEvent });
+        const eventButton = (event: string) =>
+            [...container.querySelectorAll('button')].find((button) => button.firstElementChild?.textContent === event);
+        act(() => eventButton('Color Change')?.click());
+        act(() => eventButton('SC Start')?.click());
+        expect(onMarkEvent.mock.calls).toEqual([
+            ['Color Change', '', 'Mark Color Change'],
+            ['SC Start', '', 'Mark SC Start'],
+        ]);
+        act(() => updateRoastSettings({ enabledMarkEvents: ['FC Start'] }));
+        expect(eventButton('Color Change')).toBeUndefined();
+        expect(eventButton('SC Start')).toBeUndefined();
+        expect(eventButton('FC End')).toBeUndefined();
+        expect(eventButton('Mark Drop')).toBeDefined();
+    });
+
+    it('disables new event marking before Charge', () => {
+        const onMarkEvent = vi.fn();
+        renderPanel({ phase: 'preheating', charged: false, onMarkEvent });
+        const buttons = [...container.querySelectorAll('button')].filter((button) =>
+            ['Color Change', 'SC Start'].includes(button.firstElementChild?.textContent ?? ''),
+        );
+        expect(buttons).toHaveLength(2);
+        expect(buttons.every((button) => button.disabled)).toBe(true);
+        act(() => {
+            for (const button of buttons) button.click();
+        });
+        expect(onMarkEvent).not.toHaveBeenCalled();
+    });
 
     it('hides BBP until a timer is active, then shows mm:ss', () => {
         renderPanel();

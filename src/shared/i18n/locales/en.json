@@ -281,7 +281,16 @@
                 "alertBeforeDrop": "Before drop",
                 "alertBeforeDropDescription": "Remind this many minutes before the target profile's Drop. Needs a target profile with a Drop mark.",
                 "alertAfterDrop": "After drop",
-                "alertAfterDropDescription": "Remind this many minutes after Drop. The timer keeps running until End roast."
+                "alertAfterDropDescription": "Remind this many minutes after Drop. The timer keeps running until End roast.",
+                "recordableEvents": "Events to record",
+                "recordableEventsDescription": "Choose live event buttons and shortcuts. Existing records remain available; missing predefined events can be added in History.",
+                "markEvents": {
+                    "Yellow": "Yellow",
+                    "Color Change": "Color Change",
+                    "FC Start": "FC Start",
+                    "FC End": "FC End",
+                    "SC Start": "Second crack"
+                }
             },
             "account": {
                 "label": "Profile",

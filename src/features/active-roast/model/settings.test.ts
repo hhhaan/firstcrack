@@ -219,3 +219,22 @@ it('defaults legacy Charge/Drop thresholds to Standard and ignores stored °C va
         autoDropMode: 'standard',
     });
 });
+
+describe('event selection', () => {
+    it('enables the new predefined events for legacy settings', () => {
+        expect(normalizeRoastSettings({}).enabledMarkEvents).toEqual([
+            'Yellow',
+            'Color Change',
+            'FC Start',
+            'FC End',
+            'SC Start',
+        ]);
+    });
+    it('preserves an empty selection and rejects unknown or duplicate types', () => {
+        expect(normalizeRoastSettings({ enabledMarkEvents: [] }).enabledMarkEvents).toEqual([]);
+        const raw = { enabledMarkEvents: ['SC Start', 'SC Start', 'Custom'] } as unknown as Partial<
+            import('./settings').RoastSettings
+        >;
+        expect(normalizeRoastSettings(raw).enabledMarkEvents).toEqual(['SC Start']);
+    });
+});
