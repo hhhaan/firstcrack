@@ -29,6 +29,7 @@ export interface ReplayControlInputs {
     referenceDropTime: number | null;
     /** 프로파일 heater_events jsonb — null이면 TSV 추출 (#435) */
     profileHeaterEvents?: unknown;
+    /** Raw BT, gated by collection-boundary `observationQuality`; never display EMA. */
     liveBt: number | null;
     elapsed: number;
     /** phase === 'roasting' — 이 밖에서는 판정도 쓰기도 하지 않는다 */
