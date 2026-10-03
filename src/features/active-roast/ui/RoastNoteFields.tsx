@@ -28,6 +28,7 @@ export const RoastNoteFields = ({
     const inputClass =
         'min-w-0 w-full rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none focus:border-(--color-primary)';
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: note changes update the textarea DOM before its height is measured
     useLayoutEffect(() => {
         const gas = gasRef.current;
         const comment = commentRef.current;
