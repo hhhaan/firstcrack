@@ -100,6 +100,7 @@ export const RoastSidePanel = ({
 }: RoastSidePanelProps) => {
     const { t } = useTranslation();
     const showRollingDtr = rollingDtrPct != null;
+    const showStartDev = dtrPct != null || (devTimeStr !== '' && devTimeStr !== '—');
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
     const hasFcStart = logEntries.some((entry) => entry.event === 'FC Start');
@@ -210,27 +211,31 @@ export const RoastSidePanel = ({
                     <span className="font-mono text-xl font-medium leading-tight">{bbpTimer}</span>
                 </div>
             )}
-            {/* DTR + Dev (Start = canonical; Rolling when dual-mark event present) */}
-            <div className="flex items-center justify-between">
-                <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">{dtrLabel}</span>
-                <span
-                    className="font-mono text-xl font-medium leading-tight"
-                    style={{ color: PHASE_COLORS.development }}
-                >
-                    {dtrPct != null ? `${dtrPct}%` : '—'}
-                </span>
-            </div>
-            <div className="flex items-center justify-between">
-                <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">
-                    {showRollingDtr ? 'Dev · Start' : 'Dev'}
-                </span>
-                <span
-                    className="font-mono text-lg font-medium leading-tight"
-                    style={{ color: PHASE_COLORS.development }}
-                >
-                    {devTimeStr ?? '—'}
-                </span>
-            </div>
+            {/* DTR + Dev — hidden until FC Start makes them calculable */}
+            {showStartDev && (
+                <>
+                    <div className="flex items-center justify-between" data-testid="dtr-row">
+                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">{dtrLabel}</span>
+                        <span
+                            className="font-mono text-xl font-medium leading-tight"
+                            style={{ color: PHASE_COLORS.development }}
+                        >
+                            {dtrPct != null ? `${dtrPct}%` : '—'}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between" data-testid="dev-row">
+                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">
+                            {showRollingDtr ? 'Dev · Start' : 'Dev'}
+                        </span>
+                        <span
+                            className="font-mono text-lg font-medium leading-tight"
+                            style={{ color: PHASE_COLORS.development }}
+                        >
+                            {devTimeStr ?? '—'}
+                        </span>
+                    </div>
+                </>
+            )}
             {showRollingDtr && (
                 <>
                     <div className="flex items-center justify-between">

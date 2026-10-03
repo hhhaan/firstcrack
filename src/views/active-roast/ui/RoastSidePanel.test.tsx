@@ -28,7 +28,7 @@ const baseProps = {
     deltaET: '0.5',
     targetDelta: null,
     activeAlerts: [] as RoastAlertKind[],
-    dtrPct: null,
+    dtrPct: null as number | null,
     devTimeStr: '—',
     rollingDtrPct: null,
     rollingDevTimeStr: '',
@@ -68,6 +68,16 @@ describe('RoastSidePanel live readings (#358)', () => {
     const renderPanel = (override: Partial<typeof baseProps> = {}) => {
         void act(() => root.render(createElement(RoastSidePanel, { ...baseProps, ...override })));
     };
+
+    it('hides DTR and Dev until they are calculated', () => {
+        renderPanel();
+        expect(container.querySelector('[data-testid="dtr-row"]')).toBeNull();
+        expect(container.querySelector('[data-testid="dev-row"]')).toBeNull();
+
+        renderPanel({ dtrPct: 20.5, devTimeStr: '2:00' });
+        expect(container.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('20.5%');
+        expect(container.querySelector('[data-testid="dev-row"]')?.textContent).toContain('2:00');
+    });
 
     it('hides BBP until a timer is active, then shows mm:ss', () => {
         renderPanel();
