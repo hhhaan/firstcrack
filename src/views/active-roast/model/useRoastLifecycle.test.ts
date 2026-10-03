@@ -48,6 +48,7 @@ const renderLifecycle = (
         disableAutoCharge?: () => void;
         disableAutoDrop?: () => void;
         triggerCharge?: () => void;
+        replayActive?: boolean;
     } = {},
 ) => {
     const root = createRoot(document.createElement('div'));
@@ -73,6 +74,7 @@ const renderLifecycle = (
             setZoomRange: vi.fn(),
             setHoveredChartIndex: vi.fn(),
             triggerChargeRef: { current: detection.triggerCharge ?? (() => undefined) },
+            replayActiveRef: { current: detection.replayActive ?? false },
         });
         return null;
     };
@@ -197,6 +199,17 @@ describe('confirmEndRoast roast metrics (#514)', () => {
 });
 
 describe('completeDrop → BBP (#484)', () => {
+    it.each([true, false])('captures Replay state before Drop: %s', (replayActive) => {
+        const h = renderLifecycle([], { replayActive });
+        try {
+            void act(() => {
+                h.result.completeDrop({ livePoints: [] });
+            });
+            expect(useCompletedRoastStore.getState().restore?.replayActive).toBe(replayActive);
+        } finally {
+            h.unmount();
+        }
+    });
     beforeEach(() => {
         feature.bbp = true;
         vi.mocked(replaceSessionTsv).mockClear();

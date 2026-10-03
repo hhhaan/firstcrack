@@ -396,6 +396,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setZoomRange: chart.setZoomRange,
         setHoveredChartIndex: chart.setHoveredChartIndex,
         triggerChargeRef,
+        replayActiveRef,
     });
 
     // ── 날씨 데이터 ───────────────────────────────────────────────
@@ -792,14 +793,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         lifecycle.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
     }, [lifecycle, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName]);
 
-    const handleCancelDrop = useCallback(() => {
-        if (!lifecycle.cancelDrop()) {
-            logger.capture(new Error('Roast summary Drop cancellation failed'));
-            return;
-        }
-        saveFlow.flow.discardSummary();
-    }, [lifecycle, saveFlow.flow]);
-
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
             setLogEntries((prev) =>
@@ -862,6 +855,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
     }, [machineControl.replay.active, machineControl.replay.stop]);
+
+    const handleCancelDrop = useCallback(() => {
+        const restore = useCompletedRoastStore.getState().restore;
+        if (!lifecycle.cancelDrop()) {
+            logger.capture(new Error('Roast summary Drop cancellation failed'));
+            return;
+        }
+        machineControl.replay.restore(restore?.replayActive ?? false);
+        saveFlow.flow.discardSummary();
+    }, [lifecycle, machineControl.replay, saveFlow.flow]);
 
     const [noteInput, setNoteInput] = useState('');
     const handleNoteSubmit = useCallback(() => {
