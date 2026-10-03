@@ -77,6 +77,45 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     };
 };
 
+describe('Replay state restored on Drop cancel', () => {
+    it.each([true, false])('restores the prior On/Off state: %s', async (wasActive) => {
+        const h = await renderReplay({ dropBehavior: 'zero' });
+        if (wasActive) await act(async () => h.get().toggle());
+        await h.rerender({ roastFinished: true, roasting: false, dropBehavior: 'zero' });
+        expect(h.get().active).toBe(false);
+        h.writeHeater.mockClear();
+        await act(async () => {
+            h.get().restore(wasActive);
+            await h.rerender({
+                roastFinished: false,
+                roasting: true,
+                elapsed: 130,
+                liveBt: 120,
+                confirmedTurningPoint: {},
+            });
+        });
+        expect(h.get().active).toBe(wasActive);
+        if (wasActive) expect(h.writeHeater).toHaveBeenLastCalledWith(60);
+        else expect(h.writeHeater).not.toHaveBeenCalled();
+        h.unmount();
+    });
+
+    it('keeps safety guards when restoring On after a disconnection', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        await h.rerender({ roastFinished: true, roasting: false });
+        h.writeHeater.mockClear();
+        await act(async () => {
+            h.get().restore(true);
+            await h.rerender({ roastFinished: false, roasting: true, sidecarConnected: false });
+        });
+        expect(h.get().active).toBe(false);
+        expect(h.get().stopReason).toBe('disconnected');
+        expect(h.writeHeater).not.toHaveBeenCalled();
+        h.unmount();
+    });
+});
+
 describe('divergeTolerance (#428)', () => {
     it('0~100 스케일은 기존 ±2', () => {
         expect(divergeTolerance(100)).toBe(2);

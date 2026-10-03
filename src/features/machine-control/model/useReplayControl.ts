@@ -169,7 +169,7 @@ const replayProfileEventsKey = (events: unknown): string => (events == null ? ''
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
  * 이 훅은 켜기/끄기와 안전 중지만 담당한다.
  *
- * 기본 OFF, 명시적 토글로만 시작. 시작·재개 시 현재 시간·BT로 처음부터 판정해
+ * 기본 OFF, 명시적 토글 또는 Drop 취소로 복원. 시작·재개 시 현재 시간·BT로 처음부터 판정해
  * 마지막으로 충족한 화력 하나를 적용하고, 이후 이벤트부터 이어간다.
  */
 export const useReplayControl = ({
@@ -253,6 +253,7 @@ export const useReplayControl = ({
     });
 
     const [active, setActive] = useState(false);
+    const [restoreRequest, setRestoreRequest] = useState<boolean | null>(null);
     const [index, setIndex] = useState(0);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
@@ -519,25 +520,41 @@ export const useReplayControl = ({
         if (!roastFinished) setSafeOffIssued(false);
     }, [roastFinished]);
 
+    const setEnabled = useCallback(
+        (enabled: boolean) => {
+            setStopReason(null);
+            setActive(enabled && plan != null && !referenceMachineMismatch);
+            if (!enabled) return;
+            // 시작·재개 모두 현재 조건의 마지막 화력으로 동기화한다.
+            setIndex(0);
+            // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
+            setLastWritten(null);
+            setDiverge((d) => ({ ...d, ticks: 0 }));
+            // Explicit resume ages from the current last-valid only — never invent one from nowMs.
+            setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
+        },
+        [lastValidReceivedAtMs, plan, referenceMachineMismatch],
+    );
+
     const toggle = useCallback(() => {
-        if (active) {
-            invalidateInFlightWrite();
-            setActive(false);
-            setStopReason(null); // 사용자가 직접 껐다 — 안내할 사유가 없다
-            return;
-        }
-        if (plan == null || referenceMachineMismatch || stopCause != null) return;
+        if (!active && (plan == null || referenceMachineMismatch || stopCause != null)) return;
         invalidateInFlightWrite();
-        setStopReason(null);
-        // 시작·재개 모두 현재 조건의 마지막 화력으로 동기화한다.
-        setIndex(0);
-        // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
-        setLastWritten(null);
-        setDiverge((d) => ({ ...d, ticks: 0 }));
-        // Explicit resume ages from the current last-valid only — never invent one from nowMs.
-        setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
-        setActive(true);
-    }, [active, plan, referenceMachineMismatch, stopCause, invalidateInFlightWrite, lastValidReceivedAtMs]);
+        setEnabled(!active);
+    }, [active, plan, referenceMachineMismatch, stopCause, setEnabled, invalidateInFlightWrite]);
+
+    const restore = useCallback(
+        (enabled: boolean) => {
+            invalidateInFlightWrite();
+            setRestoreRequest(enabled);
+        },
+        [invalidateInFlightWrite],
+    );
+
+    // Drop 취소의 스토어 변경이 반영된 뒤 복원해 이전 finished 입력에 다시 중지되지 않는다.
+    if (restoreRequest != null && !roastFinished) {
+        setEnabled(restoreRequest);
+        setRestoreRequest(null);
+    }
 
     // 현재 generation의 유효 관측이 있을 때만 일반 TIME/BT write. production의 null/unknown
     // (observation 미수신·generation 초기화)은 hold다 — 표시용 last-good BT로 발화하지 않는다.
@@ -649,6 +666,7 @@ export const useReplayControl = ({
         /** 실기 TP 사실 — 패널이 대기/폴백/실감지를 파생한다 */
         confirmedTurningPoint,
         toggle,
+        restore,
         /** 수동 개입 시 부모가 부른다 — 슬라이더 onChange에서, Replay 자신의 쓰기 경로에서는 부르지 않는다 */
         stop,
     };

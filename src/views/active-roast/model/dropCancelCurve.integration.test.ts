@@ -288,7 +288,7 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
             expect(useRoastingStore.getState().phase).toBe('roasting');
             expect(useRoastingStore.getState().sessionId).toBe(sessionId);
             expect(useRoastingStore.getState().elapsed).toBe(8);
-            expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
+            expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(false);
             expect(useRoastingStore.getState().sidecarConnected).toBe(true);
             expect(mocks.resetRoast).toHaveBeenCalledTimes(resets);
             expect(harness.disconnects()).toBe(droppedConnections);
@@ -298,7 +298,7 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
                     false,
                     harness.logs.some((entry) => entry.event === 'Drop'),
                 ),
-            ).toBe(true);
+            ).toBe(false);
             expect(useBbpStore.getState().finalized).toBeNull();
             expect(useBbpStore.getState().active).toBe(false);
 
@@ -346,7 +346,7 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
         }
     });
 
-    it('BBP off: manual Drop cancel still restores the series and does not resume heat', async () => {
+    it('BBP off: manual Drop cancel restores the series and unlocks heat control', async () => {
         feature.bbp = false;
         const harness = renderRoast();
         try {
@@ -363,7 +363,7 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
             await flush();
             expect(harness.points.map((sample) => sample.bt)).toEqual([200, 150, 180]);
             expect(useBbpStore.getState().active).toBe(false);
-            expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
+            expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(false);
             expect(useRoastingStore.getState().sidecarConnected).toBe(true);
             expect(harness.disconnects()).toBe(droppedConnections);
             expect(
@@ -372,7 +372,7 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
                     false,
                     harness.logs.some((entry) => entry.event === 'Drop'),
                 ),
-            ).toBe(true);
+            ).toBe(false);
         } finally {
             harness.unmount();
         }

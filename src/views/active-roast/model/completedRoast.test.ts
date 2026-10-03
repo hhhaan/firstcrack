@@ -11,6 +11,7 @@ const restore = {
     logEntries: [],
     livePoints: [] as LiveRoastPoint[],
     sessionOwnerId: 'owner',
+    replayActive: false,
 };
 
 describe('completed roast Drop-cancel boundary', () => {

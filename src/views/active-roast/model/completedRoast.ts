@@ -11,6 +11,7 @@ export interface CompletedRoastRestore {
     logEntries: LogEntry[];
     livePoints: LiveRoastPoint[];
     sessionOwnerId: string | null;
+    replayActive: boolean;
 }
 
 interface CompletedRoastState {

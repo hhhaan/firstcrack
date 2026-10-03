@@ -41,6 +41,7 @@ export interface UseRoastLifecycleParams {
     setZoomRange: (range: { start: number; end: number } | null) => void;
     setHoveredChartIndex: (index: number | null) => void;
     triggerChargeRef: React.RefObject<(bt?: number | null, chargeTimeMs?: number) => void>;
+    replayActiveRef?: React.RefObject<boolean>;
 }
 
 export interface UseRoastLifecycleReturn {
@@ -83,6 +84,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         setZoomRange,
         setHoveredChartIndex,
         triggerChargeRef,
+        replayActiveRef,
     } = params;
 
     const roastSettings = useRoastSettings();
@@ -267,6 +269,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 logEntries: planned.logEntries,
                 livePoints: planned.roastPoints as LiveRoastPoint[],
                 sessionOwnerId: store.sessionOwnerId,
+                replayActive: replayActiveRef?.current ?? false,
             });
             if (bbpEnabled) useBbpStore.getState().begin(planned.bbpStartMs, planned.bbpSeed);
             useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
@@ -287,7 +290,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 elapsedSec: planned.summary.elapsedSec,
             };
         },
-        [logEntries, rawBT, unit, bbpEnabled],
+        [logEntries, rawBT, unit, bbpEnabled, replayActiveRef],
     );
 
     const finishDrop = useCallback(
@@ -330,7 +333,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             roastStartMs: origin,
             elapsed,
             awaitingNextCharge: false,
-            heatHoldAfterDrop: true,
+            heatHoldAfterDrop: false,
         });
         setLogEntries(restore.logEntries.filter((e) => e.event !== 'Drop'));
         setLivePoints(restore.livePoints);

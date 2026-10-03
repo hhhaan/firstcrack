@@ -69,8 +69,8 @@ export interface RoastingState {
     /** After Drop/abort: next Charge is allowed even before the prior batch is saved. */
     awaitingNextCharge: boolean;
     /**
-     * Drop/abort stopped PID/Replay. Stays set through Drop cancel so cancel cannot
-     * auto-resume machine output. Cleared only on the next Charge / full reset.
+     * Drop/abort stopped PID/Replay. Cleared on Drop cancel, next Charge, or full reset
+     * so a resumed roast can enable heat control again.
      */
     heatHoldAfterDrop: boolean;
 
