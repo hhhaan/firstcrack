@@ -9,11 +9,11 @@
     },
     "roastEvent": {
         "charge": "투입",
-        "yellow": "옐로잉",
-        "fcStart": "퍼스트 크랙 시작",
+        "yellow": "컬러 체인지",
+        "fcStart": "1차크랙",
         "fcRolling": "퍼스크크랙롤링",
-        "fcEnd": "퍼스트 크랙 종료",
-        "firstCrack": "퍼스트 크랙",
+        "fcEnd": "2차크랙",
+        "firstCrack": "1차크랙",
         "drop": "배출",
         "markDrop": "배출",
         "end": "로스팅 종료",
@@ -1023,9 +1023,9 @@
         },
         "actions": {
             "charge": "투입",
-            "yellow": "옐로잉",
-            "fcStart": "퍼스트 크랙 시작",
-            "fcEnd": "퍼스트 크랙 종료",
+            "yellow": "컬러 체인지",
+            "fcStart": "1차크랙",
+            "fcEnd": "2차크랙",
             "markDrop": "배출",
             "end": "로스팅 종료",
             "endRoast": "로스팅 종료",
@@ -1295,7 +1295,7 @@
             "Dark": "다크"
         },
         "dropTime": "배출 시각",
-        "fcTime": "퍼스트 크랙",
+        "fcTime": "1차크랙",
         "computedHint": "세션 이벤트에서 계산됩니다. 값을 바꾸려면 로스팅 기록을 수정하세요.",
         "noMarks": "마킹 없음",
         "editHeat": "화력 편집"

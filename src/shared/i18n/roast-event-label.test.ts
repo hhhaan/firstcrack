@@ -41,16 +41,16 @@ describe('roast event locale labels', () => {
     it('switches the same stored ids to the active locale', async () => {
         await i18n.changeLanguage('ko');
         expect(roastEventLabel('Charge')).toBe('투입');
-        expect(roastEventLabel('Yellow')).toBe('옐로잉');
-        expect(roastEventLabel('FC Start')).toBe('퍼스트 크랙 시작');
+        expect(roastEventLabel('Yellow')).toBe('컬러 체인지');
+        expect(roastEventLabel('FC Start')).toBe('1차크랙');
         expect(roastEventLabel('FC Rolling')).toBe('퍼스크크랙롤링');
-        expect(roastEventLabel('FC End')).toBe('퍼스트 크랙 종료');
+        expect(roastEventLabel('FC End')).toBe('2차크랙');
         expect(roastEventLabel('Drop')).toBe('배출');
         expect(roastEventLabel('End')).toBe('로스팅 종료');
         expect(roastEventLabel('TP')).toBe('터닝 포인트');
         expect(markDropLabel()).toBe('배출');
         expect(roastReadyLabel()).toBe('로스팅 준비');
-        expect(eventLabelText('FC Start', 480, '196.0°C')).toBe('퍼스트 크랙 시작|08:00|196.0°C');
+        expect(eventLabelText('FC Start', 480, '196.0°C')).toBe('1차크랙|08:00|196.0°C');
         expect(roastEventLabel('Mystery')).toBe('Mystery');
 
         await i18n.changeLanguage('ja');
