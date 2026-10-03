@@ -330,7 +330,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             roastStartMs: origin,
             elapsed,
             awaitingNextCharge: false,
-            heatHoldAfterDrop: true,
+            heatHoldAfterDrop: false,
         });
         setLogEntries(restore.logEntries.filter((e) => e.event !== 'Drop'));
         setLivePoints(restore.livePoints);

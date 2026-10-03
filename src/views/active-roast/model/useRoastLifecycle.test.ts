@@ -381,7 +381,7 @@ describe('completeDrop → BBP (#484)', () => {
             expect(useRoastingStore.getState().sessionId).toBe('s-a');
             expect(useRoastingStore.getState().elapsed).toBe(600);
             expect(useRoastingStore.getState().roastStartMs).toBe(Date.now() - 600_000);
-            expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
+            expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(false);
             expect(useBbpStore.getState().active).toBe(false);
             vi.setSystemTime(new Date('2026-09-21T00:12:03Z'));
             useRoastingStore.getState().tick();

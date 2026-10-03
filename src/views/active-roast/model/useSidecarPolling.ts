@@ -163,15 +163,11 @@ export const useSidecarPolling = ({
 
     // phase → 'roasting' 전환 감지:
     // BBP finalize + 차트 00:00 (#433). 음수 lookback 없음.
-    // Drop 취소도 roasting으로 돌아온다. heatHoldAfterDrop는 다음 Charge에서만 풀리므로
-    // 그 복귀에는 Charge 시드·BBP finalize를 하지 않는다 (#638). 커브 길이로 구분하지 않는다.
+    // Drop 취소는 같은 세션으로 돌아오므로 Charge 시드·BBP finalize를 하지 않는다 (#638).
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
             const store = useRoastingStore.getState();
-            const sameBatchResume =
-                store.heatHoldAfterDrop &&
-                store.sessionId != null &&
-                (curveSessionRef.current == null || curveSessionRef.current === store.sessionId);
+            const sameBatchResume = store.sessionId != null && curveSessionRef.current === store.sessionId;
             if (!sameBatchResume) {
                 const { sessionId: bbpSessionId, roastStartMs } = store;
                 const chargeTime = roastStartMs;
