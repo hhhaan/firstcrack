@@ -28,7 +28,7 @@ const baseProps = {
     deltaET: '0.5',
     targetDelta: null,
     activeAlerts: [] as RoastAlertKind[],
-    dtrPct: null,
+    dtrPct: null as number | null,
     devTimeStr: '—',
     rollingDtrPct: null,
     rollingDevTimeStr: '',
