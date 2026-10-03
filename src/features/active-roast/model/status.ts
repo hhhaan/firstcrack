@@ -40,7 +40,7 @@ export interface RoastingState {
     liveData: LiveData | null;
     rawTemperature: RawTemperatureSample | null;
     updateRawTemperature: (sample: RawTemperatureSample | null) => void;
-    /** Control-path quality/freshness. Display consumers should keep selecting `liveData`. */
+    /** Raw BT control-path quality/freshness. Display consumers keep selecting `liveData`. */
     observation: SensorObservation | null;
     updateSensorObservation: (observation: SensorObservation | null) => void;
     /** 사이드카 PID 런타임 상태 (/temperatures에 실려 온다). PID 미사용이면 null. */

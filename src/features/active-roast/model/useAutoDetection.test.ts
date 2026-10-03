@@ -10,9 +10,16 @@ import { useAutoDetection } from './useAutoDetection';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+type Point = { time: number; bt: number; btRaw?: number | null };
+
 type Props = {
-    livePoints: { time: number; bt: number }[];
-    markEvent: (event: string, note: string) => void;
+    livePoints: Point[];
+    markEvent: (
+        event: string,
+        note: string,
+        buttonLabel?: string,
+        historical?: { timeSec: number; tempC: number | null },
+    ) => void;
     logEntries?: LogEntry[];
     autoYellowEnabled?: boolean;
     autoChargeEnabled?: boolean;
@@ -86,25 +93,39 @@ const tick = (h: { render: (p: Props) => void }, props: Props, bt: number, elaps
     h.render(props);
 };
 
-/** Hot-drum series whose global minimum stays above the 150°C TP sanity ceiling → TP rejected. */
-const shallowHotDrumPoints = () => {
-    const pts: { time: number; bt: number }[] = [];
-    for (let t = 0; t <= 60; t += 0.5) pts.push({ time: t, bt: 160 + 50 * Math.exp(-t / 15) });
+/** Display `bt` is a decoy. TP/Yellow must read `btRaw`. */
+const rawSeries = (until: number, btRawAt: (t: number) => number, btAt: (t: number) => number = () => 180): Point[] => {
+    const pts: Point[] = [];
+    for (let t = 0; t <= until; t += 0.5) pts.push({ time: t, bt: btAt(t), btRaw: btRawAt(t) });
     return pts;
 };
 
-/** Classic curve with a real TP valley near 60s, well inside the sanity range. */
-const realTpPoints = () => {
-    const pts: { time: number; bt: number }[] = [];
-    for (let t = 0; t <= 200; t += 0.5) pts.push({ time: t, bt: 90 + 95 * Math.exp(-t / 20) + 0.18 * t });
-    return pts;
-};
+/** Strictly rising EMA. Using it would confirm a real TP at t=0 and cross 150°C. */
+const risingEma = (t: number) => 140 + t * 0.2;
+
+const realRawAt = (t: number) => 90 + 95 * Math.exp(-t / 20) + 0.18 * t;
+const realTpPoints = (until = 200) => rawSeries(until, realRawAt);
 
 /** Slow profile whose valley lands at ≈126.5s — after the 120s fallback timeout. */
-const lateTpPoints = (until: number) => {
-    const pts: { time: number; bt: number }[] = [];
-    for (let t = 0; t <= until; t += 0.5) pts.push({ time: t, bt: 90 + 95 * Math.exp(-t / 40) + 0.1 * t });
-    return pts;
+const lateRawAt = (t: number) => 90 + 95 * Math.exp(-t / 40) + 0.1 * t;
+const lateTpPoints = (until: number) => rawSeries(until, lateRawAt);
+
+/** Decline, then a rise through 150°C that is still shorter than the 3s TP trigger at 120s. */
+const earlyCrossRawAt = (t: number) => (t <= 119 ? 200 - (52 * t) / 119 : 148 + 2.5 * (t - 119));
+
+/** Hot-drum charge: raw falls through 150°C. The decoy EMA rises through it. */
+const descentRawAt = (t: number) => 210 - 0.5 * t;
+
+/**
+ * Cross 150°C, fall back through it (latch release), sit below until the fallback,
+ * then cross again. Slopes stay inside the glitch filter.
+ */
+const releasedCrossRawAt = (t: number) => {
+    if (t <= 30) return 200 - 2 * t;
+    if (t <= 40) return 140 + 2 * (t - 30);
+    if (t <= 50) return 160 - 2 * (t - 40);
+    if (t <= 120) return 140;
+    return 140 + 2 * (t - 120);
 };
 
 describe('useAutoDetection — fallback TP is provisional', () => {
@@ -118,9 +139,11 @@ describe('useAutoDetection — fallback TP is provisional', () => {
         let props: Props = { livePoints: lateTpPoints(120), markEvent: vi.fn(), onTurningPoint };
         const h = renderAutoDetection(props);
 
-        tick(h, props, 106.7, 120);
+        tick(h, props, 42, 120);
         expect(h.result.confirmedTP?.fallback).toBe(true);
         expect(h.result.confirmedTP?.timeSec).toBe(120);
+        expect(h.result.confirmedTP?.temp).toBeCloseTo(lateRawAt(120), 5);
+        expect(h.result.confirmedTP?.temp).not.toBe(180);
         expect(onTurningPoint).toHaveBeenCalledTimes(1);
 
         // 폴링이 골짜기를 지나 상승 구간까지 진행 → 실감지가 폴백을 교체하고 한 번 더 발화
@@ -151,81 +174,156 @@ describe('useAutoDetection — Yellow gating (no FC auto)', () => {
     });
 
     it('fires Yellow after the TP fallback even though the crossing happened before the gate opened', () => {
-        // TP is never detected (valley above the sanity ceiling), so the 120s fallback opens the gate.
-        // BT crosses 150 while the gate is still closed — that crossing must not be lost.
+        // Raw rise through 150°C is shorter than the TP trigger, so the 120s fallback opens the gate.
+        // The crossing is on btRaw; display EMA and liveData must not supply the log temperature.
         const markEvent = vi.fn();
-        const props: Props = { livePoints: shallowHotDrumPoints(), markEvent };
+        const props: Props = { livePoints: rawSeries(120, earlyCrossRawAt, risingEma), markEvent };
         const h = renderAutoDetection(props);
 
-        tick(h, props, 148, 60);
-        tick(h, props, 152, 61); // upward crossing of 150, gate still closed
+        tick(h, props, 42, 100);
         expect(markEvent).not.toHaveBeenCalled();
         expect(h.result.confirmedTP).toBeNull();
 
-        tick(h, props, 155, 130); // fallback confirms TP → gate opens
+        tick(h, props, 42, 120);
         expect(h.result.confirmedTP?.fallback).toBe(true);
-
-        tick(h, props, 158, 131); // next poll tick fires the pending Yellow
-        expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature');
+        expect(h.result.confirmedTP?.temp).toBeCloseTo(150.5, 5);
+        expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature', undefined, {
+            timeSec: 120,
+            tempC: 150.5,
+        });
     });
 
-    it('does not fire Yellow while BT is descending above the threshold (hot-drum charge)', () => {
+    it('does not fire Yellow while raw BT is descending through the threshold (hot-drum charge)', () => {
         const markEvent = vi.fn();
-        const props: Props = { livePoints: shallowHotDrumPoints(), markEvent };
+        let props: Props = { livePoints: rawSeries(130, descentRawAt, risingEma), markEvent };
         const h = renderAutoDetection(props);
 
-        for (const [i, bt] of [210, 205, 200, 195, 190].entries()) tick(h, props, bt, 100 + i);
-        tick(h, props, 185, 130); // fallback opens the gate with BT still above threshold
+        tick(h, props, 42, 130);
         expect(h.result.confirmedTP?.fallback).toBe(true);
+        expect(h.result.confirmedTP?.temp).toBeCloseTo(descentRawAt(130), 5);
 
-        for (const [i, bt] of [180, 175, 170, 165, 160].entries()) tick(h, props, bt, 131 + i);
+        props = { ...props, livePoints: rawSeries(131, descentRawAt, risingEma) };
+        tick(h, props, 210, 131);
         expect(markEvent).not.toHaveBeenCalled();
+    });
+
+    it('drops the Yellow latch when raw BT falls back through the threshold', () => {
+        const markEvent = vi.fn();
+        let props: Props = { livePoints: rawSeries(120, releasedCrossRawAt, risingEma), markEvent };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 42, 120);
+        expect(h.result.confirmedTP?.fallback).toBe(true);
+        props = { ...props, livePoints: rawSeries(120.5, releasedCrossRawAt, risingEma) };
+        tick(h, props, 42, 121);
+        expect(markEvent).not.toHaveBeenCalled();
+
+        props = { ...props, livePoints: rawSeries(125.5, releasedCrossRawAt, risingEma) };
+        tick(h, props, 42, 126);
+        expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature', undefined, {
+            timeSec: 125,
+            tempC: 150,
+        });
     });
 
     it('prefers a real turning point over the fallback at the timeout boundary', () => {
         const markEvent = vi.fn();
-        const props: Props = { livePoints: realTpPoints(), markEvent };
+        const points = realTpPoints();
+        const props: Props = { livePoints: points, markEvent };
         const h = renderAutoDetection(props);
 
-        tick(h, props, 130, 130); // elapsed past the fallback threshold, real TP available
+        tick(h, props, 42, 130); // elapsed past the fallback threshold, real TP available
         expect(h.result.confirmedTP?.fallback).toBeFalsy();
         expect(h.result.confirmedTP?.timeSec).toBeGreaterThan(40);
         expect(h.result.confirmedTP?.timeSec).toBeLessThan(80);
+        const atTp = points.find((p) => p.time === h.result.confirmedTP?.timeSec);
+        expect(h.result.confirmedTP?.temp).toBe(atTp?.btRaw);
+        expect(h.result.confirmedTP?.temp).not.toBe(180);
     });
 
     it('never auto-marks FC Start by temperature', () => {
         const markEvent = vi.fn();
-        const props: Props = { livePoints: shallowHotDrumPoints(), markEvent };
+        let props: Props = { livePoints: rawSeries(120, earlyCrossRawAt, risingEma), markEvent };
         const h = renderAutoDetection(props);
 
-        tick(h, props, 148, 60);
-        tick(h, props, 152, 61);
-        tick(h, props, 198, 120);
-        tick(h, props, 202, 121);
-        tick(h, props, 205, 130);
-        tick(h, props, 208, 131);
+        tick(h, props, 42, 120);
+        props = { ...props, livePoints: rawSeries(140, earlyCrossRawAt, risingEma) };
+        tick(h, props, 202, 141);
 
-        expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature');
+        expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature', undefined, {
+            timeSec: 120,
+            tempC: 150.5,
+        });
         expect(markEvent).not.toHaveBeenCalledWith('FC Start', expect.anything());
     });
 
     it('skips Yellow auto-mark when autoYellowEnabled is false', () => {
         const markEvent = vi.fn();
-        const props: Props = {
-            livePoints: shallowHotDrumPoints(),
+        let props: Props = {
+            livePoints: rawSeries(120, earlyCrossRawAt, risingEma),
             markEvent,
             autoYellowEnabled: false,
         };
         const h = renderAutoDetection(props);
 
-        tick(h, props, 148, 60);
-        tick(h, props, 152, 61);
-        tick(h, props, 198, 120);
+        tick(h, props, 42, 120);
+        props = { ...props, livePoints: rawSeries(121, earlyCrossRawAt, risingEma) };
         tick(h, props, 202, 121);
-        tick(h, props, 205, 130);
-        tick(h, props, 208, 131);
 
         expect(markEvent).not.toHaveBeenCalled();
+    });
+});
+
+describe('useAutoDetection — raw BT for TP and Yellow', () => {
+    beforeEach(() => {
+        void act(() => useRoastingStore.getState().reset());
+    });
+
+    it('does not treat a single raw spike as the turning-point minimum', () => {
+        const clean = realTpPoints();
+        const valley = clean.reduce((best, point) =>
+            (point.btRaw ?? Infinity) < (best.btRaw ?? Infinity) ? point : best,
+        );
+        const spiked = clean.map((point) => (point.time === 65 ? { ...point, btRaw: 60 } : point));
+        const props: Props = { livePoints: spiked, markEvent: vi.fn() };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 42, 140);
+        expect(h.result.confirmedTP?.fallback).toBeFalsy();
+        expect(h.result.confirmedTP?.timeSec).toBe(valley.time);
+        expect(h.result.confirmedTP?.temp).toBe(valley.btRaw);
+        expect(h.result.confirmedTP?.temp).not.toBe(60);
+    });
+
+    it('keeps a valid raw sample when the display EMA at that time is a glitch', () => {
+        const points = realTpPoints().map((point) => ({
+            ...point,
+            bt: point.time % 1 === 0 ? 30 : 390,
+        }));
+        const props: Props = { livePoints: points, markEvent: vi.fn() };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 30, 140);
+        expect(h.result.confirmedTP?.fallback).toBeFalsy();
+        expect(h.result.confirmedTP?.temp).toBeGreaterThan(90);
+        expect(h.result.confirmedTP?.temp).toBeLessThan(130);
+    });
+
+    it('does not substitute display EMA when btRaw is missing', () => {
+        const markEvent = vi.fn();
+        const withoutRaw = rawSeries(200, realRawAt).map((point) => ({ time: point.time, bt: point.btRaw ?? 0 }));
+        const explicitNull = withoutRaw.map((point) => ({ ...point, btRaw: null }));
+        for (const livePoints of [withoutRaw, explicitNull]) {
+            const props: Props = { livePoints, markEvent };
+            const h = renderAutoDetection(props);
+            tick(h, props, 180, 200);
+            expect(h.result.confirmedTP).toBeNull();
+            expect(markEvent).not.toHaveBeenCalled();
+            act(() => {
+                for (const root of roots.splice(0)) root.unmount();
+            });
+            act(() => useRoastingStore.getState().reset());
+        }
     });
 });
 

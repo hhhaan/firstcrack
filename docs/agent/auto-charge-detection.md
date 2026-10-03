@@ -7,9 +7,10 @@ display EMA. At 1s polling the retained span could be only 2s; a 1–3°C/s
 charge or a slower dump could never satisfy the window even without EMA lag.
 
 Charge and Drop now compare the raw BT slope before and after a bend
-(`checkTop` / `BTbreak`). Chart, TP/Yellow detection and TSV retain the
-display series. TSV backfill, display EMA reset at startRoast, and fallback-TP
-alarm gating are separate issues.
+(`checkTop` / `BTbreak`). Chart and TSV retain the display series. TP and
+Yellow judge the same BT glitch filter on recorded `btRaw` (null raw is
+skipped and never filled with the display EMA). TSV backfill, display EMA
+reset at startRoast, and fallback-TP alarm gating are separate issues.
 
 ## Input and decision
 

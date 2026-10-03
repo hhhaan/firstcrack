@@ -759,6 +759,52 @@ const withSidecarReadyPoll = async (setup: () => void, run: (ready: () => void) 
     }
 };
 
+it.each([null, undefined, Number.NaN, Number.POSITIVE_INFINITY, 0, 400, 1372])(
+    'holds Replay when raw BT is %s despite a valid display temperature',
+    async (btRaw) => {
+        await withMutablePoll(async ({ payload, lastValid }) => {
+            mocks.getTemperatures.mockResolvedValue({ ...payload, bt_raw: btRaw, timestamp: 11 });
+            await act(async () => vi.advanceTimersByTimeAsync(1000));
+            const state = useRoastingStore.getState();
+            expect(state.liveData?.bt).toBe(200);
+            expect(state.observation?.quality).not.toBe('valid');
+            expect(state.observation?.lastValidReceivedAtMs).toBe(lastValid);
+        });
+    },
+);
+
+it('does not let a repeated rejected raw spike confirm a real step', async () => {
+    await withMutablePoll(async ({ payload, lastValid }) => {
+        payload.bt_raw = 300;
+        payload.timestamp = 11;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().observation?.quality).toBe('spike');
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().observation?.quality).toBe('spike');
+        expect(useRoastingStore.getState().observation?.lastValidReceivedAtMs).toBe(lastValid);
+        payload.bt_raw = 201;
+        payload.timestamp = 12;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().observation?.quality).toBe('valid');
+        expect(useRoastingStore.getState().rawTemperature?.bt).toBe(201);
+        expect(useRoastingStore.getState().liveData?.bt).toBe(200);
+    });
+});
+
+it('accepts a real raw step only after a second fresh consistent sample', async () => {
+    await withMutablePoll(async ({ payload }) => {
+        payload.bt_raw = 300;
+        payload.timestamp = 11;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().observation?.quality).toBe('spike');
+        payload.bt_raw = 301;
+        payload.timestamp = 12;
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().observation?.quality).toBe('valid');
+        expect(useRoastingStore.getState().rawTemperature?.bt).toBe(301);
+    });
+});
+
 it('refreshes last-valid time for a flat BT with a new device timestamp', async () => {
     await withMutablePoll(async ({ payload, display, lastValid }) => {
         expect(useRoastingStore.getState().observation).toMatchObject({

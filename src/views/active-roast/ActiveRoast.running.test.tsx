@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import * as machineControlFeature from '@features/machine-control';
 import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
@@ -234,6 +235,27 @@ describe('ActiveRoast running clock (#627)', () => {
         vi.unstubAllGlobals();
         vi.useRealTimers();
         Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+    });
+
+    it('passes raw BT to Replay and never substitutes the display EMA', async () => {
+        const original = machineControlFeature.useMachineControlComposition;
+        const composition = vi
+            .spyOn(machineControlFeature, 'useMachineControlComposition')
+            .mockImplementation(original);
+        seed({
+            liveData: { bt: 140, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 },
+            rawTemperature: { bt: 155, timestamp: 10, receivedAtMs: Date.now() },
+        });
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            expect(composition).toHaveBeenLastCalledWith(expect.objectContaining({ liveBt: 155 }));
+            act(() => useRoastingStore.getState().updateRawTemperature(null));
+            expect(composition).toHaveBeenLastCalledWith(expect.objectContaining({ liveBt: null }));
+        } finally {
+            unmount();
+            composition.mockRestore();
+        }
     });
 
     it('runs the screen timer when a roasting session is already in the store, including remount', async () => {

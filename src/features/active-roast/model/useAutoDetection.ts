@@ -1,6 +1,7 @@
 import type { TurningPoint } from '@features/active-roast';
 import { detectTurningPoints } from '@features/active-roast';
 import { i18n } from '@shared/i18n';
+import { createBtFilter } from '@shared/lib/btFilter';
 import { useToastStore } from '@shared/store/toast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -10,18 +11,49 @@ import {
     createAutoChargeDetector,
     createAutoDropDetector,
 } from '../lib/autoCharge';
-import { toDisplayTemp } from '../lib/temperature';
 import type { PollIntervalMs, TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
-// TP 미확정이 이 시간을 넘으면 현재 시점을 TP로 강제 확정해 Yellow/FC 게이트를 연다
+// TP 미확정이 이 시간을 넘으면 그 시점의 raw BT로 강제 확정해 Yellow 게이트를 연다
 // (Artisan TP_max_roasttime 동일 — 에어로스터 등 TP 골짜기가 없는 머신 대응)
 const TP_FALLBACK_S = 120;
+
+type RawSample = { time: number; bt: number };
+
+/**
+ * livePoints 시계의 btRaw만 쓴다. null은 건너뛰고(EMA로 대체하지 않음),
+ * Charge와 같은 글리치 필터를 통과한 샘플만 TP/Yellow 판정에 넣는다.
+ * 표시용 bt의 필터 통과 여부는 raw 품질이 아니다.
+ */
+const acceptedRawSamples = (points: { time: number; btRaw?: number | null }[]): RawSample[] => {
+    const filter = createBtFilter();
+    const samples: RawSample[] = [];
+    for (const point of points) {
+        if (point.btRaw == null || !Number.isFinite(point.btRaw)) continue;
+        const bt = filter(point.btRaw, point.time * 1000);
+        if (bt == null) continue;
+        samples.push({ time: point.time, bt });
+    }
+    return samples;
+};
+
+/** 마지막 상승 크로싱. 임계 아래로 내려가면 래치를 푼다. */
+const latestRisingCross = (samples: RawSample[], thresholdC: number): RawSample | null => {
+    let cross: RawSample | null = null;
+    for (let i = 1; i < samples.length; i++) {
+        const prev = samples[i - 1].bt;
+        const cur = samples[i];
+        if (prev < thresholdC && cur.bt >= thresholdC) cross = cur;
+        else if (cur.bt < thresholdC) cross = null;
+    }
+    return cross;
+};
 
 export type AutoDropOnset = { timeSec: number; bt: number };
 
 export type UseAutoDetectionOptions = {
-    livePoints: { time: number; bt: number }[];
+    /** `bt` is the display EMA. TP/Yellow read `btRaw` only. */
+    livePoints: { time: number; bt: number; btRaw?: number | null }[];
     onAutoCharge: (bt: number, chargeTimeMs?: number) => void;
     onAutoDrop: (onset?: AutoDropOnset) => void;
     onTurningPoint: (tp: TurningPoint) => void;
@@ -33,8 +65,14 @@ export type UseAutoDetectionOptions = {
     /** Fire only once `elapsed` exceeds this many minutes (`elapsed > minutes * 60`). */
     autoDropStartMin: number;
     yellowTempC: number;
+    /** Display unit. Auto Yellow compares raw °C to `yellowTempC`; markEvent formats the log. */
     unit: TemperatureUnit;
-    markEvent?: (event: string, note: string) => void;
+    markEvent?: (
+        event: string,
+        note: string,
+        buttonLabel?: string,
+        historical?: { timeSec: number; tempC: number | null },
+    ) => void;
     logEntries: LogEntry[];
     autoYellowEnabled: boolean;
 };
@@ -51,7 +89,6 @@ export const useAutoDetection = ({
     autoDropMode,
     autoDropStartMin,
     yellowTempC,
-    unit,
     markEvent,
     logEntries,
     autoYellowEnabled,
@@ -72,14 +109,12 @@ export const useAutoDetection = ({
     // 발화 완료 TP를 그대로 보관 — 폴백→실감지 승격 시 재발화 판정에 identity 비교
     const tpFiredRef = useRef<TurningPoint | null>(null);
     const yellowFiredRef = useRef(false);
-    const yellowPendingRef = useRef(false);
-    const prevDisplayBTRef = useRef<number | null>(null);
     const [confirmedTP, setConfirmedTP] = useState<TurningPoint | null>(null);
 
     const phase = useRoastingStore((s) => s.phase);
     const elapsed = useRoastingStore((s) => s.elapsed);
-    const liveData = useRoastingStore((s) => s.liveData);
-    const bt = liveData?.bt ?? null;
+    const rawSamples = useMemo(() => acceptedRawSamples(livePoints), [livePoints]);
+    const yellowCross = useMemo(() => latestRisingCross(rawSamples, yellowTempC), [rawSamples, yellowTempC]);
 
     // Consume each raw response synchronously, independently of React rendering and display dedupe.
     useEffect(() => {
@@ -195,46 +230,32 @@ export const useAutoDetection = ({
         };
     }, [autoDropEnabled, autoDropMode, pollIntervalMs, autoDropStartMin]);
 
-    // Auto Yellow by temperature — only fire after turning point (FC is manual / dual-mark only)
+    // Auto Yellow — raw 상승 크로싱만, TP 확정 후 한 번 (FC는 수동). 로그 온도는 그 raw 샘플.
     useEffect(() => {
-        if (phase !== 'roasting' || bt == null || !markEvent) return;
+        if (phase !== 'roasting' || !markEvent || !yellowCross) return;
         if (logEntries.some((e) => e.event === 'Drop' || e.event === 'End')) return;
-
-        // 상승 크로싱만 발화: 레벨 비교(≥)는 뜨거운 드럼 투입 직후 하강 중에도
-        // 임계 이상이라 TP 게이트가 열리는 순간 Yellow가 즉시 오발된다.
-        // 크로싱은 게이트와 무관하게 상시 추적(pending 래치) — TP 확정 직전에 일어난
-        // 크로싱이 유실되면 Yellow가 그 로스팅 내내 침묵한다. 하강으로 임계 아래로
-        // 되돌아가면 래치 해제(노이즈 업크로스가 골짜기 이전에 잔류하는 것 방지)
-        const displayBT = toDisplayTemp(bt, unit);
-        const prev = prevDisplayBTRef.current;
-        prevDisplayBTRef.current = displayBT;
-        if (prev == null) return;
-        const th = toDisplayTemp(yellowTempC, unit);
-        if (prev < th && displayBT >= th) yellowPendingRef.current = true;
-        else if (displayBT < th) yellowPendingRef.current = false;
-
+        // 상승 크로싱만 발화: 뜨거운 드럼 투입 직후 하강은 임계 위여도 크로싱이 아니다.
+        // 크로싱은 게이트와 무관하게 시리즈에서 유지되고, 임계 아래로 내려가면 풀린다.
         if (!tpFiredRef.current) return;
-        if (
-            autoYellowEnabled &&
-            !yellowFiredRef.current &&
-            yellowPendingRef.current &&
-            !logEntries.some((e) => e.event === 'Yellow')
-        ) {
+        if (autoYellowEnabled && !yellowFiredRef.current && !logEntries.some((e) => e.event === 'Yellow')) {
             yellowFiredRef.current = true;
-            markEvent('Yellow', 'Auto-marked by temperature');
+            markEvent('Yellow', 'Auto-marked by temperature', undefined, {
+                timeSec: yellowCross.time,
+                tempC: yellowCross.bt,
+            });
         }
-    }, [phase, bt, unit, yellowTempC, markEvent, logEntries, autoYellowEnabled]);
+    }, [phase, yellowCross, markEvent, logEntries, autoYellowEnabled]);
 
-    // Turning Point detection — 샘플 수 게이트 없음: 시간 기준 floor는 detectTurningPoints가 소유
+    // Turning Point — 필터를 통과한 raw BT. 시간 floor는 detectTurningPoints가 소유
     const detectedTPs = useMemo(() => {
         // 실TP 확정 후에는 결과가 쓰이지 않는다 — 매 폴링 tick마다 전체 시리즈 재탐색하는 낭비 차단.
         // 폴백 확정은 잠정치이므로 탐색을 계속한다 (진짜 골짜기가 폴백 시각보다 뒤에 올 수 있음)
         if (phase !== 'roasting' || (confirmedTP !== null && !confirmedTP.fallback)) return [];
         return detectTurningPoints(
-            livePoints.map((p) => p.time),
-            livePoints.map((p) => p.bt),
+            rawSamples.map((p) => p.time),
+            rawSamples.map((p) => p.bt),
         );
-    }, [phase, livePoints, confirmedTP]);
+    }, [phase, rawSamples, confirmedTP]);
 
     // Lock in confirmedTP on first detection (no setState in useMemo).
     // 폴백으로 확정된 잠정 TP는 실감지가 오면 승격 교체 — 실TP는 한 번 확정되면 불변
@@ -247,10 +268,11 @@ export const useAutoDetection = ({
     // TP 타임아웃 폴백 — 미탐 시 Yellow 자동마킹이 조용히 죽는 것 방지.
     // detectedTPs 가드: 같은 tick에 실감지가 있으면 lock-in effect에 양보 (폴백이 덮어쓰기 방지)
     useEffect(() => {
-        if (phase !== 'roasting' || confirmedTP !== null || bt == null) return;
+        if (phase !== 'roasting' || confirmedTP !== null) return;
         if (elapsed < TP_FALLBACK_S || detectedTPs.length > 0) return;
-        setConfirmedTP({ timeSec: elapsed, temp: bt, fallback: true });
-    }, [phase, elapsed, bt, confirmedTP, detectedTPs]);
+        if (rawSamples.length === 0) return;
+        setConfirmedTP({ timeSec: elapsed, temp: rawSamples[rawSamples.length - 1].bt, fallback: true });
+    }, [phase, elapsed, rawSamples, confirmedTP, detectedTPs]);
 
     // Fire callback once per confirmed TP (폴백 → 실감지 승격 시 한 번 더)
     useEffect(() => {
@@ -295,8 +317,6 @@ export const useAutoDetection = ({
         autoDroppedRef.current = false;
         tpFiredRef.current = null;
         yellowFiredRef.current = false;
-        yellowPendingRef.current = false;
-        prevDisplayBTRef.current = null;
         setConfirmedTP(null);
     }, []);
 
