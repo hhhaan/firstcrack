@@ -14,10 +14,15 @@ const mocks = vi.hoisted(() => ({
     connect: vi.fn(),
     disconnect: vi.fn(),
     listen: vi.fn(() => Promise.resolve(() => {})),
+    emitExplicitMachineDisconnect: vi.fn(),
 }));
 
 vi.mock('@tauri-apps/api/event', () => ({
     listen: mocks.listen,
+}));
+
+vi.mock('@shared/lib/explicitMachineDisconnect', () => ({
+    emitExplicitMachineDisconnect: mocks.emitExplicitMachineDisconnect,
 }));
 
 vi.mock('@shared/lib/sidecar', () => ({
@@ -183,6 +188,21 @@ it('does not toast when the user disconnects', async () => {
             await vi.advanceTimersByTimeAsync(6000);
         });
         expect(useToastStore.getState().toasts).toHaveLength(0);
+        expect(mocks.emitExplicitMachineDisconnect).toHaveBeenCalledOnce();
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('does not clear the roast curve when disconnect did not release the link', async () => {
+    mocks.disconnect.mockResolvedValue(status({ connected: true }));
+    const { root, api } = renderHook();
+    try {
+        await flush();
+        await act(async () => {
+            await api.current?.handleDisconnect();
+        });
+        expect(mocks.emitExplicitMachineDisconnect).not.toHaveBeenCalled();
     } finally {
         act(() => root.unmount());
     }

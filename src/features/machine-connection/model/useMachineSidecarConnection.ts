@@ -2,6 +2,7 @@ import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machi
 import { isSameSidecarStatus } from '@entities/machine';
 import * as Sentry from '@sentry/react';
 import { isOpaqueNetworkError } from '@shared/lib/errorMessage';
+import { emitExplicitMachineDisconnect } from '@shared/lib/explicitMachineDisconnect';
 import { logger } from '@shared/lib/logger';
 import { sendOsNotification } from '@shared/lib/osNotification';
 import { sidecar } from '@shared/lib/sidecar';
@@ -185,7 +186,9 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
         noteUserMachineDisconnect();
         const prevStatus = sidecarStatus;
         const status = await sidecar.disconnect().catch(() => null);
-        settleUserMachineDisconnect(status?.connected === false);
+        const released = status?.connected === false;
+        settleUserMachineDisconnect(released);
+        if (released) emitExplicitMachineDisconnect();
         if (status) setSidecarStatus(status);
         setTemps(null);
         if (prevStatus?.connected) {
