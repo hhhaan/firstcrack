@@ -23,6 +23,13 @@ export const formatEditTime = (sec: number): string => {
     return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 };
 
+/** BT is shown at 0.1°. Heater keeps two places for fractional units (kPa, 0.5 steps). */
+export const BT_DECIMALS = 1;
+export const HEAT_DECIMALS = 2;
+
+export const toDisplayBt = (c: number, unit: 'C' | 'F') => (unit === 'F' ? (c * 9) / 5 + 32 : c);
+export const fromDisplayBt = (v: number, unit: 'C' | 'F') => (unit === 'F' ? ((v - 32) * 5) / 9 : v);
+
 /** 빈 문자열·공백·NaN·Infinity 거부. Number('')===0 함정 차단. */
 export const parseFiniteNumber = (value: unknown): number | null => {
     if (typeof value === 'string') {
