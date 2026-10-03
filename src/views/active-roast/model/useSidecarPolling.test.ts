@@ -7,9 +7,11 @@ import { resetMachineLinkNotice } from '@features/machine-connection/lib/machine
 import { parseTsv } from '@shared/lib/tsv';
 import { writeBbpTsv } from '@shared/lib/tsv-writer';
 import { useToastStore } from '@shared/store/toast';
+import { ErrorBoundary } from '@shared/ui/ErrorBoundary';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { ActiveRoastRuntime } from '../ActiveRoastRuntime';
 import { useSidecarPolling } from './useSidecarPolling';
 import hookSrc from './useSidecarPolling.ts?raw';
 
@@ -24,6 +26,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tauri-apps/api/event', () => ({
     listen: mocks.listen,
+}));
+
+vi.mock('@features/active-roast/model/useEffectivePollInterval', () => ({
+    useEffectivePollIntervalMs: () => 1000,
 }));
 
 vi.mock('@shared/lib/sidecar', () => ({
@@ -103,6 +109,111 @@ const renderProbe = (pollIntervalMs: number) => {
     act(() => root.render(createElement(Probe)));
     return root;
 };
+
+it('keeps the recorded curve across an error-boundary remount and resumes without duplicate samples', async () => {
+    vi.useFakeTimers();
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    stubTemps();
+    useRoastingStore.setState({
+        phase: 'roasting',
+        sessionId: 'remount',
+        roastStartMs: Date.now() - 1000,
+    });
+    let polling!: ReturnType<typeof useSidecarPolling>;
+    const Probe = () => {
+        polling = useSidecarPolling({
+            isActive: true,
+            phase: 'roasting',
+            pollIntervalMs: 1000,
+            enterPreheating: vi.fn(),
+            setConnected: vi.fn(),
+            sessionId: 'remount',
+        });
+        return null;
+    };
+    const mount = async () => {
+        const root = createRoot(document.createElement('div'));
+        await act(async () => root.render(createElement(Probe)));
+        await flushReady();
+        return root;
+    };
+    const first = await mount();
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    const recorded = polling.livePoints;
+    expect(recorded.length).toBe(3);
+    act(() => first.unmount());
+    const resumed = await mount();
+    try {
+        expect(polling.livePoints).toEqual(recorded);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(3);
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(polling.livePoints.slice(0, recorded.length)).toEqual(recorded);
+        expect(polling.livePoints.at(-1)?.time).toBe(4);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(4);
+    } finally {
+        act(() => resumed.unmount());
+    }
+});
+
+it('continues recording through a screen crash and restores the curve on retry', async () => {
+    vi.useFakeTimers();
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    stubTemps();
+    useRoastingStore.setState({ phase: 'roasting', sessionId: 'screen-crash', roastStartMs: Date.now() - 1000 });
+    let crash = false;
+    let retry!: () => void;
+    let displayed: ReturnType<typeof useRoastingStore.getState>['livePoints'] = [];
+    const Screen = () => {
+        displayed = useRoastingStore((state) => state.livePoints);
+        if (crash) throw new Error('screen render failed');
+        return null;
+    };
+    const caught = vi.fn();
+    const root = createRoot(document.createElement('div'), { onCaughtError: caught });
+    const render = () =>
+        root.render(
+            createElement(
+                StrictMode,
+                null,
+                createElement(ActiveRoastRuntime, { isActive: true }),
+                createElement(
+                    ErrorBoundary,
+                    {
+                        fallback: ({ reset }) => {
+                            retry = reset;
+                            return null;
+                        },
+                    },
+                    createElement(Screen),
+                ),
+            ),
+        );
+    try {
+        await act(async () => render());
+        await flushReady();
+        await act(async () => vi.advanceTimersByTimeAsync(2000));
+        const recorded = displayed;
+        expect(recorded).toHaveLength(3);
+        crash = true;
+        await act(async () => render());
+        expect(caught).toHaveBeenCalledOnce();
+        await act(async () => vi.advanceTimersByTimeAsync(3000));
+        const collected = useRoastingStore.getState().livePoints;
+        expect(collected).toHaveLength(6);
+        expect(collected.slice(0, recorded.length)).toEqual(recorded);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(6);
+        mocks.getTemperatures.mockResolvedValue({ bt: null });
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().elapsed).toBe(7);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(6);
+        crash = false;
+        await act(async () => retry());
+        expect(displayed).toEqual(collected);
+        expect(mocks.initSessionTsv).toHaveBeenCalledTimes(2); // StrictMode setup only; retry never restarts collection.
+    } finally {
+        act(() => root.unmount());
+    }
+});
 
 it('enqueues the first sample with controls while TSV initialization is pending', async () => {
     let finishInit = () => {};

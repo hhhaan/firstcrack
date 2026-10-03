@@ -4,10 +4,13 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
 import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, createElement } from 'react';
+import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActiveRoast } from './ActiveRoast';
+import { ActiveRoastRuntime } from './ActiveRoastRuntime';
+
+vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
 
 const RUNNING_CLOSE = '로스팅이 진행 중입니다. 정말 종료하시겠습니까?';
 const UNSAVED_CLOSE = '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?';
@@ -176,7 +179,12 @@ describe('ActiveRoast running clock (#627)', () => {
                 createElement(
                     QueryClientProvider,
                     { client: queryClient },
-                    createElement(ActiveRoast, { isActive: true }),
+                    createElement(
+                        Fragment,
+                        null,
+                        createElement(ActiveRoastRuntime, { isActive: true }),
+                        createElement(ActiveRoast, { isActive: true }),
+                    ),
                 ),
             );
         });

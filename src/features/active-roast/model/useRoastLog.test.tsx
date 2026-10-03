@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fcDualButtonLabel, getFcDualStage } from '../lib/fc-dual-mark';
 import type { TemperatureUnit } from './settings';
+import { useRoastingStore } from './status';
 import { useRoastLog } from './useRoastLog';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -25,6 +26,29 @@ const renderHook = async (unit: TemperatureUnit, rawBT: number | null, elapsed: 
 
 const fcButton = (hook: { get: () => ReturnType<typeof useRoastLog> }) =>
     fcDualButtonLabel(getFcDualStage(hook.get().logEntries), hook.get().fcDualUnwind);
+
+afterEach(() => useRoastingStore.getState().reset());
+
+it('keeps roast events and the FC button stage across an error-boundary remount', async () => {
+    const first = await renderHook('C', 196, 500);
+    act(() => first.get().markEvent('Charge', 'Charged'));
+    act(() => first.get().cycleFc());
+    act(() => first.get().cycleFc());
+    act(() => first.get().cycleFc());
+    const recorded = first.get().logEntries;
+    expect(first.get().fcDualUnwind).toBe(true);
+    first.unmount();
+    const resumed = await renderHook('C', 201, 540);
+    try {
+        expect(resumed.get().logEntries).toEqual(recorded);
+        expect(resumed.get().fcDualUnwind).toBe(true);
+        expect(fcButton(resumed)).toBe('FC Start');
+        act(() => resumed.get().markEvent('Note', 'Still recording'));
+        expect(resumed.get().logEntries.slice(0, recorded.length)).toEqual(recorded);
+    } finally {
+        resumed.unmount();
+    }
+});
 
 describe('useRoastLog markEvent', () => {
     it('accepts manual values alone, including zero and arbitrary units at the selected time', async () => {

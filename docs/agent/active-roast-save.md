@@ -33,6 +33,15 @@ Live roast logging (sidecar temps → log entries → local TSV) and durable sav
 
 ---
 
+## Screen recovery
+
+`ActiveRoastRuntime` owns polling and the roast clock outside the screen's `ViewErrorBoundary`.
+The session store owns the collected curve and event log (including FC unwind state). A screen
+error/retry must preserve these and keep TSV collection running. Only the existing batch lifecycle
+may clear them; this does not restore a session after an app/process restart.
+
+---
+
 ## Save write flow
 
 Orchestrator: `useRoastSaveFlow` → `useSaveRoast` / `saveRoastCore`.

@@ -93,7 +93,6 @@ import { useChartPipeline } from './model/useChartPipeline';
 import { useRoastLifecycle } from './model/useRoastLifecycle';
 import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
-import { useSidecarPolling } from './model/useSidecarPolling';
 import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
@@ -143,7 +142,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         elapsed,
         liveData,
         pid: pidRuntime,
-        tick,
         sessionId,
         sidecarConnected,
         reconnecting,
@@ -157,7 +155,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             elapsed: s.elapsed,
             liveData: s.liveData,
             pid: s.pid,
-            tick: s.tick,
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
@@ -257,16 +254,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         elapsed,
     );
 
-    // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
-    const { livePoints, setLivePoints } = useSidecarPolling({
-        isActive,
-        phase,
-        pollIntervalMs,
-        enterPreheating,
-        setConnected,
-        sessionId,
-        chargeBt: logEntries.find((entry) => entry.event === 'Charge')?.tempC ?? null,
-    });
+    const livePoints = useRoastingStore((state) => state.livePoints);
+    const setLivePoints = useRoastingStore((state) => state.setLivePoints);
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
     const targetProfile = useMemo(
@@ -640,13 +629,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         if (awaitingNextCharge || bbpActive) return;
         lifecycle.resetActiveRoast();
     }, [sidecarConnected, phase, awaitingNextCharge, bbpActive, lifecycle.resetActiveRoast]);
-
-    // ── Effect: 타이머 ────────────────────────────────────────────
-    useEffect(() => {
-        if (!isRunning) return;
-        const interval = setInterval(() => tick(), 1000);
-        return () => clearInterval(interval);
-    }, [isRunning, tick]);
 
     // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
     useEffect(() => {

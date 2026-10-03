@@ -1,3 +1,5 @@
+import type { TemperatureProcessing } from './sidecar';
+
 /** Manual observations only; never sent as machine control commands. */
 export type RoastNoteControls = {
     gas?: string;
@@ -30,3 +32,26 @@ export type StoredRoastEvent = RoastNoteControls & {
     temp_c?: number | null;
     note?: string | null;
 };
+
+/** A collected roast sample. Survives view recovery with the active session. */
+export interface LiveRoastPoint {
+    time: number;
+    label: string;
+    bt: number;
+    et: number | null;
+    ror: number | null;
+    ror_et: number | null;
+    /** null = no heater feedback channel; TSV stores a blank cell. */
+    heater: number | null;
+    fan: number;
+    drum: number;
+    /** Last heater setpoint written by the sidecar, when supported. */
+    heaterSet?: number | null;
+    /** Unsmoothed ET for the archive; charts use `et`. */
+    etRaw?: number | null;
+    /** Unsmoothed BT for the archive; charts use `bt`. */
+    btRaw?: number | null;
+    sensorTimestamp?: number | null;
+    sensorClock?: string | null;
+    processing?: TemperatureProcessing;
+}
