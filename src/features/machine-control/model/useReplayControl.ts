@@ -144,6 +144,27 @@ const SAMPLE_GAP_LIMIT_S = 5;
  */
 export const PROPOSED_OBSERVATION_STALE_LIMIT_MS = 5_000;
 
+/** NaN !== NaN, so a bad elapsed or timestamp must not schedule another render. */
+const sameNumber = (left: number, right: number) => left === right || (Number.isNaN(left) && Number.isNaN(right));
+
+const sameStamp = (left: number | null | undefined, right: number | null | undefined) =>
+    left === right ||
+    (typeof left === 'number' && typeof right === 'number' && Number.isNaN(left) && Number.isNaN(right));
+
+/**
+ * Render-phase plan updates compare these keys, not array identity.
+ * A new array with the same samples would otherwise setState on every pass and
+ * throw "Too many re-renders" over a live roast.
+ */
+const replayReferenceKey = (points: ReplayPoint[] | null): string => {
+    if (points == null) return 'loading';
+    let key = `${points.length}`;
+    for (const point of points) key += `|${point.t},${point.bt},${point.heaterSet ?? ''}`;
+    return key;
+};
+
+const replayProfileEventsKey = (events: unknown): string => (events == null ? '' : (JSON.stringify(events) ?? ''));
+
 /**
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
  * 이 훅은 켜기/끄기와 안전 중지만 담당한다.
@@ -184,24 +205,28 @@ export const useReplayControl = ({
     );
     const minHeater = heaterMin ?? 0;
     const maxHeater = heaterMax ?? 100;
+    const pointsKey = replayReferenceKey(referencePoints);
+    const profileKey = replayProfileEventsKey(profileHeaterEvents);
     // null points = 로딩. 이전 프로파일 계획을 새 프로파일에 쓰지 않는다.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: pointsKey is the curve identity
     const extracted = useMemo(
         () => (referencePoints ? extractReplayEvents(referencePoints, referenceDropTime) : null),
-        [referencePoints, referenceDropTime],
+        [pointsKey, referenceDropTime],
     );
     const [batchEvents, setBatchEvents] = useState<ReplayEvent[] | null>(null);
     const [prevExtracted, setPrevExtracted] = useState(extracted);
-    const [prevProfileEvents, setPrevProfileEvents] = useState(profileHeaterEvents);
-    const sourceChanged = extracted !== prevExtracted || profileHeaterEvents !== prevProfileEvents;
+    const [prevProfileKey, setPrevProfileKey] = useState(profileKey);
+    const sourceChanged = extracted !== prevExtracted || profileKey !== prevProfileKey;
     if (sourceChanged) {
         setPrevExtracted(extracted);
-        setPrevProfileEvents(profileHeaterEvents);
+        setPrevProfileKey(profileKey);
         if (batchEvents != null) setBatchEvents(null);
     }
     const {
         plan: resolvedPlan,
         source: planSource,
         overrideInvalid,
+        // biome-ignore lint/correctness/useExhaustiveDependencies: pointsKey and profileKey are the plan identity
     } = useMemo(
         () =>
             resolveReplayPlan({
@@ -213,16 +238,7 @@ export const useReplayControl = ({
                 heaterMax: maxHeater,
                 heaterStep: heaterStep ?? undefined,
             }),
-        [
-            referencePoints,
-            referenceDropTime,
-            profileHeaterEvents,
-            batchEvents,
-            sourceChanged,
-            minHeater,
-            maxHeater,
-            heaterStep,
-        ],
+        [pointsKey, referenceDropTime, profileKey, batchEvents, sourceChanged, minHeater, maxHeater, heaterStep],
     );
     const rawPlan = overrideInvalid ? null : resolvedPlan;
     const rawEvents = rawPlan?.events ?? null;
@@ -384,7 +400,7 @@ export const useReplayControl = ({
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
     // 복귀 후 catch-up write는 하지 않는다 — 그동안의 실기 상태를 모른다.
     let replayRunning = active;
-    if (elapsed !== prevElapsed) {
+    if (!sameNumber(elapsed, prevElapsed)) {
         setPrevElapsed(elapsed);
         if (replayRunning && roasting && stopCause == null && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
             // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
@@ -402,7 +418,7 @@ export const useReplayControl = ({
     // stopCause가 있으면 렌더 중 중지하지 않는다 — DROP zero effect가 active를 봐야 한다.
     // Explicit null last-valid is this generation's unknown: hold, do not age against
     // a prior generation, do not invent trust from nowMs.
-    if (!roasting && trustedLastValidMs !== (lastValidReceivedAtMs ?? null)) {
+    if (!roasting && !sameStamp(trustedLastValidMs, lastValidReceivedAtMs ?? null)) {
         setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
     }
     if (replayRunning && roasting && stopCause == null && lastValidReceivedAtMs !== undefined && nowMs != null) {
@@ -423,7 +439,7 @@ export const useReplayControl = ({
                 replayRunning = false;
                 setActive(false);
                 setStopReason('observationStale');
-            } else if (lastValidReceivedAtMs !== trustedLastValidMs) {
+            } else if (!sameStamp(lastValidReceivedAtMs, trustedLastValidMs)) {
                 setTrustedLastValidMs(lastValidReceivedAtMs);
             }
         }
@@ -436,7 +452,7 @@ export const useReplayControl = ({
     // write는 절대 하지 않는다 — 이탈 시 존중해야 할 값은 기기에 있는 값이다.
     // reconnecting 동안은 카운트 일시정지(리셋 아님) — 동결된 실측을 elapsed 틱으로
     // 여러 번 세면 1샘플로 확정된다. 복구 후 새 샘플부터 이어 센다.
-    if (elapsed !== diverge.tick && !reconnecting) {
+    if (!sameNumber(elapsed, diverge.tick) && !reconnecting) {
         const deviated =
             replayRunning &&
             roasting &&

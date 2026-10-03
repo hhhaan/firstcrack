@@ -148,7 +148,7 @@ it('keeps the recorded curve across an error-boundary remount and resumes withou
         expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(3);
         await act(async () => vi.advanceTimersByTimeAsync(1000));
         expect(polling.livePoints.slice(0, recorded.length)).toEqual(recorded);
-        expect(polling.livePoints.at(-1)?.time).toBe(4);
+        expect(polling.livePoints[polling.livePoints.length - 1]?.time).toBe(4);
         expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(4);
     } finally {
         act(() => resumed.unmount());
@@ -176,16 +176,14 @@ it('continues recording through a screen crash and restores the curve on retry',
                 StrictMode,
                 null,
                 createElement(ActiveRoastRuntime, { isActive: true }),
-                createElement(
-                    ErrorBoundary,
-                    {
-                        fallback: ({ reset }) => {
-                            retry = reset;
-                            return null;
-                        },
+                createElement(ErrorBoundary, {
+                    // biome-ignore lint/correctness/noChildrenProp: createElement requires the class's children prop for type checking.
+                    children: createElement(Screen),
+                    fallback: ({ reset }) => {
+                        retry = reset;
+                        return null;
                     },
-                    createElement(Screen),
-                ),
+                }),
             ),
         );
     try {
