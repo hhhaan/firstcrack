@@ -69,6 +69,16 @@ describe('RoastSidePanel live readings (#358)', () => {
         void act(() => root.render(createElement(RoastSidePanel, { ...baseProps, ...override })));
     };
 
+    it('hides DTR and Dev until they are calculated', () => {
+        renderPanel();
+        expect(container.querySelector('[data-testid="dtr-row"]')).toBeNull();
+        expect(container.querySelector('[data-testid="dev-row"]')).toBeNull();
+
+        renderPanel({ dtrPct: 20.5, devTimeStr: '2:00' });
+        expect(container.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('20.5%');
+        expect(container.querySelector('[data-testid="dev-row"]')?.textContent).toContain('2:00');
+    });
+
     it('hides BBP until a timer is active, then shows mm:ss', () => {
         renderPanel();
         expect(container.querySelector('[data-testid="bbp-timer"]')).toBeNull();
