@@ -29,11 +29,14 @@ export const profileSelectionEpoch = (
     sessionId: string | null | undefined,
 ) => `${workspaceOwnerId ?? ''}:${sessionId ?? 'pre'}`;
 
+/** Must keep one identity: Replay syncs plan state during render, so a fresh `[]` per render loops (FC-1T). */
+const NO_REPLAY_POINTS: never[] = [];
+
 export const replayPointsForProfile = <T>(
     targetProfileId: string | null,
     curveLoading: boolean,
     points: T[],
-): T[] | null => (!targetProfileId ? [] : curveLoading ? null : points);
+): T[] | null => (!targetProfileId ? NO_REPLAY_POINTS : curveLoading ? null : points);
 
 export const isWaitingForCharge = (bbpActive: boolean, charged: boolean) => bbpActive || !charged;
 
