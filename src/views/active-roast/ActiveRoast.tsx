@@ -592,11 +592,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () =>
             subscribeExplicitMachineDisconnect(() => {
                 resetAutoDetectionRef.current?.();
-                applyExplicitDisconnectReset(setLivePoints, setLogEntries);
+                applyExplicitDisconnectReset(useRoastingStore.getState().setLivePoints, setLogEntries);
                 chart.setZoomRange(null);
                 chart.setHoveredChartIndex(null);
             }),
-        [setLivePoints, setLogEntries, chart.setZoomRange, chart.setHoveredChartIndex],
+        [setLogEntries, chart.setZoomRange, chart.setHoveredChartIndex],
     );
 
     // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
