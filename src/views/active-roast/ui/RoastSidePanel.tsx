@@ -109,7 +109,7 @@ export const RoastSidePanel = ({
     const endDisabled = !charged && !roastEnded;
 
     return (
-        <div className="w-48 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="w-44 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <RoastAlertBanner alerts={activeAlerts} />
             {/* ET */}
             <div className="text-right">
