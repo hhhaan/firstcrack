@@ -1,5 +1,5 @@
 import type { Machine } from '@entities/machine';
-import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import { IKAWA_BLE_PROTOCOL, useMachines, VIRTUAL_ID } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useMachineSidecarConnection } from '@features/machine-connection';
 import type { View } from '@shared/types/view';
@@ -234,18 +234,58 @@ export const Machines = ({
 
                                 {/* Temperature cards — 항상 표시, 선택된 머신이 연결된 머신일 때만 실제 값 표시 */}
                                 <div className="grid grid-cols-2 gap-3.5 mb-6">
-                                    {[
-                                        {
-                                            label: t('machines.temperature.bean'),
-                                            value: isSelectedConnected && temps?.bt != null ? `${temps.bt}°C` : '—',
-                                            sub: 'BT',
-                                        },
-                                        {
-                                            label: t('machines.temperature.environment'),
-                                            value: isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
-                                            sub: 'ET',
-                                        },
-                                    ].map((s) => (
+                                    {(selected.protocol === IKAWA_BLE_PROTOCOL
+                                        ? [
+                                              {
+                                                  label: t('machines.temperature.exhaust'),
+                                                  value:
+                                                      isSelectedConnected && temps?.bt != null ? `${temps.bt}°C` : '—',
+                                                  sub: 'BT',
+                                              },
+                                              {
+                                                  label: t('machines.temperature.inlet'),
+                                                  value:
+                                                      isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
+                                                  sub: 'ET',
+                                              },
+                                              {
+                                                  label: t('machines.temperature.setpoint'),
+                                                  value:
+                                                      isSelectedConnected && temps?.setpoint != null
+                                                          ? `${temps.setpoint}°C`
+                                                          : '—',
+                                                  sub: 'SP',
+                                              },
+                                              {
+                                                  label: t('machines.temperature.fan'),
+                                                  value:
+                                                      isSelectedConnected && temps?.fan != null ? `${temps.fan}%` : '—',
+                                                  sub: '%',
+                                              },
+                                              {
+                                                  label: t('machines.temperature.heater'),
+                                                  value:
+                                                      isSelectedConnected && temps?.heater != null
+                                                          ? `${temps.heater}%`
+                                                          : '—',
+                                                  sub: '%',
+                                              },
+                                          ]
+                                        : [
+                                              {
+                                                  label: t('machines.temperature.bean'),
+                                                  value:
+                                                      isSelectedConnected && temps?.bt != null ? `${temps.bt}°C` : '—',
+                                                  sub: 'BT',
+                                              },
+                                              {
+                                                  label: t('machines.temperature.environment'),
+                                                  value:
+                                                      isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
+                                                  sub: 'ET',
+                                              },
+                                          ]
+                                    ).map((s) => (
                                         <div
                                             key={s.label}
                                             className="bg-surface dark:bg-surface-elevated px-4 py-3.5 rounded-lg"

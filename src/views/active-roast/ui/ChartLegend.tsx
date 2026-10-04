@@ -6,16 +6,23 @@ export const ChartLegend = ({
     showET = true,
     showRoR = true,
     showRoRET = false,
+    btLabel = 'BT',
+    etLabel = 'ET',
+    showSetpoint = false,
 }: {
     showTarget?: boolean;
     targetLabel?: string;
     showET?: boolean;
     showRoR?: boolean;
     showRoRET?: boolean;
+    btLabel?: string;
+    etLabel?: string;
+    showSetpoint?: boolean;
 }) => {
     const items = [
-        { color: SENSOR_COLORS.bt, label: 'BT' },
-        ...(showET ? [{ color: SENSOR_COLORS.et, label: 'ET' }] : []),
+        { color: SENSOR_COLORS.bt, label: btLabel },
+        ...(showET ? [{ color: SENSOR_COLORS.et, label: etLabel }] : []),
+        ...(showSetpoint ? [{ color: '#ff5d00', label: 'Setpoint', dashed: true, opacity: 1 }] : []),
         ...(showRoR ? [{ color: SENSOR_COLORS.ror, label: 'RoR' }] : []),
         ...(showRoRET ? [{ color: SENSOR_COLORS.et, label: 'ET RoR', dashed: true }] : []),
         ...(showTarget ? [{ color: SENSOR_COLORS.btTarget, label: targetLabel, dashed: true, opacity: 1 }] : []),

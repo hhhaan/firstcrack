@@ -36,6 +36,7 @@ export interface UseChartPipelineReturn {
     visibleEtActual: (number | null)[];
     visibleRorActual: (number | null)[];
     visibleRorEtActual: (number | null)[];
+    visibleSetpoint: (number | null)[];
     visibleTargetXs: number[];
     visibleTargetBt: number[];
     visibleTargetEt: (number | null)[];
@@ -102,27 +103,31 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         [chartData, effectiveZoomRange],
     );
 
-    const { visibleXs, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } = useMemo(() => {
-        const xs: number[] = [];
-        const btActual: (number | null)[] = [];
-        const etActual: (number | null)[] = [];
-        const rorActual: (number | null)[] = [];
-        const rorEtActual: (number | null)[] = [];
-        for (const p of visibleChartData) {
-            xs.push(p.time);
-            btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
-            etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
-            rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
-            rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
-        }
-        return {
-            visibleXs: xs,
-            visibleBtActual: btActual,
-            visibleEtActual: etActual,
-            visibleRorActual: rorActual,
-            visibleRorEtActual: rorEtActual,
-        };
-    }, [visibleChartData, unit]);
+    const { visibleXs, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual, visibleSetpoint } =
+        useMemo(() => {
+            const xs: number[] = [];
+            const btActual: (number | null)[] = [];
+            const etActual: (number | null)[] = [];
+            const rorActual: (number | null)[] = [];
+            const rorEtActual: (number | null)[] = [];
+            const setpoint: (number | null)[] = [];
+            for (const p of visibleChartData) {
+                xs.push(p.time);
+                btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
+                etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
+                rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
+                rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
+                setpoint.push(p.setpointActual != null ? toDisplayTemp(p.setpointActual, unit) : null);
+            }
+            return {
+                visibleXs: xs,
+                visibleBtActual: btActual,
+                visibleEtActual: etActual,
+                visibleRorActual: rorActual,
+                visibleRorEtActual: rorEtActual,
+                visibleSetpoint: setpoint,
+            };
+        }, [visibleChartData, unit]);
 
     const visibleReference = useMemo(
         () => toDisplayReferenceCurve(referenceCurveInRange(targetSeries, effectiveZoomRange), unit),
@@ -155,6 +160,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         visibleEtActual,
         visibleRorActual,
         visibleRorEtActual,
+        visibleSetpoint,
         visibleTargetXs: visibleReference.xs,
         visibleTargetBt: visibleReference.bt,
         visibleTargetEt: visibleReference.et,

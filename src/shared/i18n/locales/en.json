@@ -473,6 +473,11 @@
         "temperature": {
             "bean": "Bean Temp",
             "environment": "Env Temp",
+            "exhaust": "Exhaust",
+            "inlet": "Inlet",
+            "setpoint": "Setpoint",
+            "fan": "Fan",
+            "heater": "Heater",
             "ror": "RoR",
             "rateOfRise": "Rate of Rise"
         },

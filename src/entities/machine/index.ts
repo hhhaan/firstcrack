@@ -24,7 +24,7 @@ export {
     writeMapFormFlags,
 } from './lib';
 export { useMachines, VIRTUAL_ID } from './model';
-export { PROTOCOL_FORM_FIELDS, ROASTER_REGISTRY } from './roasterRegistry';
+export { IKAWA_BLE_PROTOCOL, PROTOCOL_FORM_FIELDS, ROASTER_REGISTRY } from './roasterRegistry';
 export type {
     ControlCapability,
     ControlLimit,

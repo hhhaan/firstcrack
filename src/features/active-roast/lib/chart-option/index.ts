@@ -35,6 +35,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xs,
         btActual,
         etActual,
+        setpointActual,
+        sensorLabels,
         rorActual,
         currentTimeSec,
         charged,
@@ -93,7 +95,11 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const unitLabel = tempUnitLabel(temperatureUnit);
     const rorUnit = rorUnitLabel(temperatureUnit);
 
-    const dataEndSec = lastDrawnSampleSec(xs, [btActual, etActual, rorActual, rorEtActual], controlData);
+    const dataEndSec = lastDrawnSampleSec(
+        xs,
+        [btActual, etActual, rorActual, rorEtActual, setpointActual ?? []],
+        controlData,
+    );
     const formatAxisTooltip = createAxisTooltipFormatter({
         showET,
         showRoR,
@@ -104,6 +110,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         rorUnit,
         colors,
         dataEndSec,
+        btLabel: sensorLabels?.bt ?? 'Bean Temp',
+        etLabel: sensorLabels?.et ?? 'Env Temp',
     });
 
     // cross: base(x) → lineStyle (세로선), other(y) → crossStyle (가로선)
@@ -202,6 +210,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xs,
         btActual,
         etActual,
+        setpointActual,
         rorActual,
         rorEtActual,
         showTargetCurve,

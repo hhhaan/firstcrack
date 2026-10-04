@@ -70,6 +70,7 @@ export interface TempSeriesParams {
     xs: number[];
     btActual: (number | null)[];
     etActual: (number | null)[];
+    setpointActual?: (number | null)[];
     rorActual: (number | null)[];
     rorEtActual: (number | null)[];
     showTargetCurve: boolean;
@@ -95,6 +96,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
         xs,
         btActual,
         etActual,
+        setpointActual,
         rorActual,
         rorEtActual,
         showTargetCurve,
@@ -168,6 +170,17 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             z: 2,
             data: xs.map((x, i) => [x, etActual[i]]),
             lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH },
+            ...lineSeriesBase,
+            ...getSmoothConfig(0.35),
+        },
+        hasNumericSample(setpointActual) && {
+            name: 'Setpoint',
+            type: 'line',
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            z: 2,
+            data: xs.map((x, i) => [x, setpointActual?.[i] ?? null]),
+            lineStyle: { color: '#ff5d00', width: TEMP_CURVE_WIDTH, type: 'dashed' },
             ...lineSeriesBase,
             ...getSmoothConfig(0.35),
         },

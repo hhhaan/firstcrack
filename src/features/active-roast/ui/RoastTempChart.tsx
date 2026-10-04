@@ -96,6 +96,8 @@ interface Props {
     btTarget: (number | null)[];
     btActual: (number | null)[];
     etActual: (number | null)[];
+    setpointActual?: (number | null)[];
+    sensorLabels?: { bt: string; et: string };
     rorActual: (number | null)[];
     currentTimeSec: number;
     charged?: boolean;
@@ -201,6 +203,7 @@ const chartStructureKey = (input: {
     hasBbpRange: boolean;
     hideChargeLabel: boolean;
     fontScale: number;
+    hasSetpoint: boolean;
 }): string =>
     [
         input.report,
@@ -229,6 +232,7 @@ const chartStructureKey = (input: {
         input.hasBbpRange,
         input.hideChargeLabel,
         input.fontScale,
+        input.hasSetpoint,
     ].join('|');
 
 const controlLegendItems = (
@@ -252,6 +256,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         btTarget,
         btActual,
         etActual,
+        setpointActual,
+        sensorLabels,
         rorActual,
         currentTimeSec,
         charged = false,
@@ -394,6 +400,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 btTarget,
                 btActual,
                 etActual,
+                setpointActual,
+                sensorLabels,
                 rorActual,
                 currentTimeSec,
                 charged,
@@ -448,6 +456,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             targetRor,
             btActual,
             etActual,
+            setpointActual,
+            sensorLabels,
             rorActual,
             currentTimeSec,
             charged,
@@ -523,6 +533,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         hasBbpRange: !!bbpRange,
         hideChargeLabel,
         fontScale,
+        hasSetpoint: seriesPresent(setpointActual) === 1,
     });
     const controlLegend = controlLegendItems(controlData, showControlDrum, showControlHeat, showControlFan);
     const prevStructureKey = useRef(structureKey);

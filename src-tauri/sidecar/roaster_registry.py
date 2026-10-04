@@ -14,6 +14,7 @@ roaster_registry.py
   probat_ws   → Probat WebSocket 모델 (G_UG_WS, P_Series_III, Sample_Roaster)
   modbus      → Probat Probatone, Diedrich CR/DR, Easyster, Proaster, Trinitas
   phidget     → Diedrich Data Logging (id=34), Phidget 장착 범용 로스터
+  ikawa_ble   → IKAWA Home / Pro / Pro X (BLE, read-only MACH_STATUS_GET_ALL)
   virtual     → 개발/테스트용 가상 머신
   mqtt        → ROEST (100/200/P3000). 미지원, 추후 MqttAdapter 추가 시 여기에 항목 추가.
   opcua       → 산업용 대형 로스터 일부. 미지원.
@@ -187,6 +188,9 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "type": "number",
             "required": False,
         },
+    ],
+    "ikawa_ble": [
+        {"key": "address", "label": "BLE Address", "type": "text", "required": False},
     ],
     "virtual": [],
 }
@@ -1748,6 +1752,35 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         },
         "pid": None,
         "capabilities": ["heater"],
+    },
+    # ── IKAWA (BLE, read-only) ──────────────────────────────────────────────
+    # temp_below is not a form field: HOME exhausts below the beans, PRO inlets.
+    "ikawa_home": {
+        "display_name": "IKAWA Home",
+        "brand": "IKAWA",
+        "models": ["Home"],
+        "protocol": "ikawa_ble",
+        "default_params": {"address": "", "temp_below": "exhaust"},
+        "pid": None,
+        "capabilities": ["heater", "fan"],
+    },
+    "ikawa_pro": {
+        "display_name": "IKAWA Pro",
+        "brand": "IKAWA",
+        "models": ["Pro"],
+        "protocol": "ikawa_ble",
+        "default_params": {"address": "", "temp_below": "inlet"},
+        "pid": None,
+        "capabilities": ["heater", "fan"],
+    },
+    "ikawa_pro_x": {
+        "display_name": "IKAWA Pro X",
+        "brand": "IKAWA",
+        "models": ["Pro X"],
+        "protocol": "ikawa_ble",
+        "default_params": {"address": "", "temp_below": "inlet"},
+        "pid": None,
+        "capabilities": ["heater", "fan"],
     },
 }
 

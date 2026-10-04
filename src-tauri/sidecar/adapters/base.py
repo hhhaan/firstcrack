@@ -9,3 +9,4 @@ class Reading:
     fan: float       # 0-100
     drum: float      # 0-100 (RPM % or raw speed)
     timestamp: float # time.monotonic()
+    setpoint: float | None = None  # °C. IKAWA profile setpoint. Absent on other machines.

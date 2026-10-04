@@ -26,6 +26,8 @@ type LiveData = {
     heater: number | null;
     fan: number;
     drum: number;
+    /** IKAWA profile setpoint °C. */
+    setpoint?: number | null;
 };
 
 interface RoastLogState {
@@ -186,7 +188,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current.ror_et === data.ror_et &&
             current.heater === data.heater &&
             current.fan === data.fan &&
-            current.drum === data.drum
+            current.drum === data.drum &&
+            current.setpoint === data.setpoint
         )
             return;
         set({ liveData: data });

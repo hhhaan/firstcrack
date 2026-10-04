@@ -9,6 +9,7 @@ export type LiveChartRow = {
     etActual: number | null;
     rorActual: number | null;
     etRorActual: number | null;
+    setpointActual: number | null;
 };
 
 const emptyRow = (t: number): LiveChartRow => ({
@@ -17,6 +18,7 @@ const emptyRow = (t: number): LiveChartRow => ({
     etActual: null,
     rorActual: null,
     etRorActual: null,
+    setpointActual: null,
 });
 
 /**
@@ -42,6 +44,7 @@ export const buildLiveChartData = (
             etActual: p.et,
             rorActual: p.ror,
             etRorActual: p.ror_et,
+            setpointActual: p.setpoint ?? null,
         });
     }
     // livePoints are append-ordered; only sort when a rare out-of-order point appears

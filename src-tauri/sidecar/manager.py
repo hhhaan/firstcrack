@@ -71,6 +71,8 @@ def _format_connection_error(
         return "Phidget22 SDK가 설치되지 않았습니다. phidgets.com에서 시스템 드라이버를 설치하세요."
     if "No module named 'websockets'" in msg:
         return "websockets 라이브러리가 설치되지 않았습니다."
+    if "No module named 'bleak'" in msg:
+        return "bleak 라이브러리가 설치되지 않았습니다."
 
     # ── 시리얼 포트 (MODBUS RTU, Kaleido Serial) ────────────────────────
     if protocol in ("modbus", "kaleido") and params.get("mode", "").lower() in (
@@ -108,6 +110,8 @@ def _format_connection_error(
         "TimeoutError",
         "asyncio.TimeoutError",
     ):
+        if protocol == "ikawa_ble":
+            return "IKAWA 응답이 없습니다. 공식 앱이 연결되어 있으면 먼저 연결을 끊으세요."
         host = params.get("host", "")
         if protocol == "s7":
             return f"PLC({host}) 응답 없음. 같은 네트워크에 있는지, IP 주소가 맞는지 확인하세요."
@@ -729,6 +733,8 @@ class RoasterManager:
             "stale": False,
             "reconnecting": reconnecting,
         }
+        if reading.setpoint is not None and math.isfinite(reading.setpoint):
+            payload["setpoint"] = round(float(reading.setpoint), 1)
         self._last_good = payload
         self._last_good_ts = time.monotonic()
         return payload

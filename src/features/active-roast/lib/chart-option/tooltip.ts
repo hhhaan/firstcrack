@@ -2,7 +2,17 @@ import { CHART_COLORS } from '@features/active-roast/lib/chart-config';
 import { fmtSec } from './axes';
 import type { ControlData, ResolvedChartColors } from './types';
 
-const DRAWN_TOOLTIP_SERIES = new Set(['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Drum', 'Heat', 'Heat set', 'Fan']);
+const DRAWN_TOOLTIP_SERIES = new Set([
+    'BT Actual',
+    'ET Actual',
+    'Setpoint',
+    'RoR',
+    'ET RoR',
+    'Drum',
+    'Heat',
+    'Heat set',
+    'Fan',
+]);
 
 export interface TooltipFormatterParams {
     showET: boolean;
@@ -16,6 +26,8 @@ export interface TooltipFormatterParams {
     colors: ResolvedChartColors;
     /** Last x with a drawn actual/control sample. Hover past this hides the tooltip. */
     dataEndSec: number;
+    btLabel?: string;
+    etLabel?: string;
 }
 
 const lastNonNullTime = (xs: number[], series: readonly (readonly (number | null)[])[]): number => {
@@ -45,7 +57,19 @@ export const lastDrawnSampleSec = (
 };
 
 export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
-    const { showET, showRoR, showRoRET, showControlHeat, controlData, unitLabel, rorUnit, colors, dataEndSec } = opts;
+    const {
+        showET,
+        showRoR,
+        showRoRET,
+        showControlHeat,
+        controlData,
+        unitLabel,
+        rorUnit,
+        colors,
+        dataEndSec,
+        btLabel = 'Bean Temp',
+        etLabel = 'Env Temp',
+    } = opts;
 
     // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
     return (params: any) => {
@@ -85,9 +109,11 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
             if (p.seriesName === 'Fan Target' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlFanTarget}"></div>Target Fan: <span>${y}%</span></div>`;
             if (p.seriesName === 'BT Actual' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>${btLabel}: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'ET Actual' && showET && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>${etLabel}: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+            if (p.seriesName === 'Setpoint' && y != null)
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:#ff5d00"></div>Setpoint: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'RoR' && showRoR && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
             if (p.seriesName === 'ET RoR' && showRoRET && y != null)

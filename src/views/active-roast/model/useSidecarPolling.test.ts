@@ -599,6 +599,7 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
                 fan: 40,
                 drum: 60,
                 heaterSet: null,
+                setpoint: null,
                 etRaw: null,
                 btRaw: null,
                 sensorTimestamp: null,

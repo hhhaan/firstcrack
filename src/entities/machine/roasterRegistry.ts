@@ -106,8 +106,11 @@ export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
         { key: 'channel_et', label: 'ET Channel (0-3)', type: 'number', required: false, placeholder: '1' },
         { key: 'serial_number', label: 'Serial Number (optional)', type: 'number', required: false },
     ],
+    ikawa_ble: [{ key: 'address', label: 'BLE Address', type: 'text', required: false }],
     virtual: [],
 };
+
+export const IKAWA_BLE_PROTOCOL = 'ikawa_ble';
 
 type RegistryEntry = Omit<RoasterDef, 'form_fields'>;
 
@@ -744,6 +747,34 @@ const REGISTRY: Record<string, RegistryEntry> = {
             stopbits: 1,
             interval: 1,
         },
+    },
+    // temp_below is not a form field: HOME exhausts below the beans, PRO inlets.
+    ikawa_home: {
+        display_name: 'IKAWA Home',
+        brand: 'IKAWA',
+        models: ['Home'],
+        protocol: 'ikawa_ble',
+        capabilities: ['heater', 'fan'],
+        pid: null,
+        default_params: { address: '', temp_below: 'exhaust' },
+    },
+    ikawa_pro: {
+        display_name: 'IKAWA Pro',
+        brand: 'IKAWA',
+        models: ['Pro'],
+        protocol: 'ikawa_ble',
+        capabilities: ['heater', 'fan'],
+        pid: null,
+        default_params: { address: '', temp_below: 'inlet' },
+    },
+    ikawa_pro_x: {
+        display_name: 'IKAWA Pro X',
+        brand: 'IKAWA',
+        models: ['Pro X'],
+        protocol: 'ikawa_ble',
+        capabilities: ['heater', 'fan'],
+        pid: null,
+        default_params: { address: '', temp_below: 'inlet' },
     },
 };
 

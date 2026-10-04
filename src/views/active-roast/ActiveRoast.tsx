@@ -1,4 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
+import { IKAWA_BLE_PROTOCOL } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useBbpCurve } from '@entities/roast';
@@ -939,6 +940,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         etActual={chart.visibleEtActual}
                         rorActual={chart.visibleRorActual}
                         rorEtActual={chart.visibleRorEtActual}
+                        setpointActual={chart.visibleSetpoint}
+                        sensorLabels={
+                            machineSnapshot?.machine_protocol === IKAWA_BLE_PROTOCOL
+                                ? { bt: 'Exhaust', et: 'Inlet' }
+                                : undefined
+                        }
                         targetXs={chart.visibleTargetXs}
                         targetBt={chart.visibleTargetBt}
                         targetEt={chart.visibleTargetEt}

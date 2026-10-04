@@ -29,6 +29,8 @@ interface RoastChartContainerProps {
     etActual: (number | null)[];
     rorActual: (number | null)[];
     rorEtActual: (number | null)[];
+    setpointActual?: (number | null)[];
+    sensorLabels?: { bt: string; et: string };
     targetXs: number[];
     targetBt: number[];
     targetEt?: (number | null)[];
@@ -85,6 +87,8 @@ export const RoastChartContainer = ({
     etActual,
     rorActual,
     rorEtActual,
+    setpointActual,
+    sensorLabels,
     targetXs,
     targetBt,
     targetEt,
@@ -233,6 +237,9 @@ export const RoastChartContainer = ({
                 showET={showET}
                 showRoR={showRoR}
                 showRoRET={showRoRET}
+                btLabel={sensorLabels?.bt ?? 'BT'}
+                etLabel={sensorLabels?.et ?? 'ET'}
+                showSetpoint={setpointActual?.some((value) => value != null) ?? false}
             />
 
             <RoastTempChart
@@ -245,6 +252,8 @@ export const RoastChartContainer = ({
                 targetRor={targetRor}
                 btActual={btActual}
                 etActual={etActual}
+                setpointActual={setpointActual}
+                sensorLabels={sensorLabels}
                 rorActual={rorActual}
                 currentTimeSec={elapsed}
                 charged={charged}
