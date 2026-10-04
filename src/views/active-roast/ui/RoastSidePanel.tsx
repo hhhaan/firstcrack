@@ -115,7 +115,7 @@ export const RoastSidePanel = ({
             <div className="text-right">
                 <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
                 <div
-                    className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                    className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{ color: SENSOR_COLORS.et }}
                 >
                     {formatTemp(rawET, unit)}
@@ -124,7 +124,10 @@ export const RoastSidePanel = ({
             {/* ΔET */}
             <div className="flex items-center justify-between">
                 <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
-                <span className="font-mono text-xl font-medium leading-tight" style={{ color: SENSOR_COLORS.et }}>
+                <span
+                    className="font-inconsolata text-xl font-medium leading-tight"
+                    style={{ color: SENSOR_COLORS.et }}
+                >
                     {deltaET != null ? (
                         <>
                             <span className="mr-1">{Number(deltaET) >= 0 ? '+' : '−'}</span>
@@ -139,7 +142,7 @@ export const RoastSidePanel = ({
             <div className="text-right border-t border-border-subtle pt-3">
                 <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
                 <div
-                    className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                    className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{ color: SENSOR_COLORS.bt }}
                 >
                     {formatTemp(rawBT, unit)}
@@ -148,7 +151,10 @@ export const RoastSidePanel = ({
             {/* ΔBT */}
             <div className="flex items-center justify-between">
                 <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
-                <span className="font-mono text-xl font-medium leading-tight" style={{ color: SENSOR_COLORS.bt }}>
+                <span
+                    className="font-inconsolata text-xl font-medium leading-tight"
+                    style={{ color: SENSOR_COLORS.bt }}
+                >
                     {deltaBT != null ? (
                         <>
                             <span className="mr-1">{Number(deltaBT) >= 0 ? '+' : '−'}</span>
@@ -164,7 +170,7 @@ export const RoastSidePanel = ({
                 <div className="flex items-center justify-between">
                     <span className="text-xs text-muted font-semibold uppercase">Δ Target</span>
                     <span
-                        className="font-mono text-xl font-medium leading-tight"
+                        className="font-inconsolata text-xl font-medium leading-tight"
                         style={{ color: TARGET_DELTA_COLORS[targetDelta.status] }}
                     >
                         <span className="mr-1">{targetDelta.deltaDisplay >= 0 ? '+' : '−'}</span>
@@ -176,7 +182,7 @@ export const RoastSidePanel = ({
             <div className="text-right border-t border-border-subtle pt-3">
                 <div className="text-md text-muted font-semibold mb-1">RoR</div>
                 <div
-                    className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                    className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{ color: SENSOR_COLORS.ror }}
                 >
                     {displayRoR}
@@ -187,7 +193,7 @@ export const RoastSidePanel = ({
                 <div className="text-right border-t border-border-subtle pt-3" data-testid="roast-time">
                     <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
                     <div
-                        className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                        className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                         style={{ color: 'var(--color-primary)' }}
                     >
                         {timeStr}
@@ -207,7 +213,7 @@ export const RoastSidePanel = ({
             {bbpTimer != null && (
                 <div className="flex items-center justify-between" data-testid="bbp-timer">
                     <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.sidebar.bbp')}</span>
-                    <span className="font-mono text-xl font-medium leading-tight">{bbpTimer}</span>
+                    <span className="font-inconsolata text-xl font-medium leading-tight">{bbpTimer}</span>
                 </div>
             )}
             {/* DTR + Dev — hidden until FC Start makes them calculable */}
@@ -216,7 +222,7 @@ export const RoastSidePanel = ({
                     <div className="flex items-center justify-between" data-testid="dtr-row">
                         <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">{dtrLabel}</span>
                         <span
-                            className="font-mono text-xl font-medium leading-tight"
+                            className="font-inconsolata text-xl font-medium leading-tight"
                             style={{ color: PHASE_COLORS.development }}
                         >
                             {dtrPct != null ? `${dtrPct}%` : '—'}
@@ -227,7 +233,7 @@ export const RoastSidePanel = ({
                             {showRollingDtr ? 'Dev · Start' : 'Dev'}
                         </span>
                         <span
-                            className="font-mono text-lg font-medium leading-tight"
+                            className="font-inconsolata text-lg font-medium leading-tight"
                             style={{ color: PHASE_COLORS.development }}
                         >
                             {devTimeStr ?? '—'}
@@ -242,7 +248,7 @@ export const RoastSidePanel = ({
                             DTR · Rolling
                         </span>
                         <span
-                            className="font-mono text-xl font-medium leading-tight"
+                            className="font-inconsolata text-xl font-medium leading-tight"
                             style={{ color: PHASE_COLORS.development }}
                         >
                             {rollingDtrPct}%
@@ -253,7 +259,7 @@ export const RoastSidePanel = ({
                             Dev · Rolling
                         </span>
                         <span
-                            className="font-mono text-lg font-medium leading-tight"
+                            className="font-inconsolata text-lg font-medium leading-tight"
                             style={{ color: PHASE_COLORS.development }}
                         >
                             {rollingDevTimeStr}

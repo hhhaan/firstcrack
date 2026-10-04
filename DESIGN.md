@@ -187,6 +187,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 | `--font-display` | `"Inter", "SUIT", system-ui, -apple-system, BlinkMacSystemFont, sans-serif` |
 | `--font-body` | `"Inter", "SUIT", system-ui, -apple-system, BlinkMacSystemFont, sans-serif` |
 | `--font-mono` | `monospace` |
+| `--font-inconsolata` | `"Inconsolata", monospace` |
 
 - **영문:** `html[lang='en']` → SUIT 제외: `"Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`
 - **`font-variant-numeric: tabular-nums lining-nums`** — `body` + 전역 `*`. **컴포넌트에서 재선언 금지.**
@@ -336,6 +337,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 |---|---|
 | Inter (Latin primary) | `public/fonts/InterVariable.woff2` |
 | SUIT (한글 폴백) | `public/fonts/SUIT-Variable.woff2` |
+| Inconsolata (로스팅 우측 패널 숫자) | `public/fonts/Inconsolata-Variable.woff2` |
 | Icons | `lucide-react` |
 
 ---

@@ -18,11 +18,30 @@
     font-display: swap;
 }
 
+@font-face {
+    font-family: "Inconsolata";
+    src: url("/fonts/Inconsolata-Variable.woff2") format("woff2-variations");
+    font-weight: 200 900;
+    font-stretch: 50% 200%;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* 본문 "zero" 1은 점 0이다. 우측 패널 Inconsolata만 기본 사선 0을 쓴다. */
+.font-inconsolata {
+    font-feature-settings:
+        "kern" 1,
+        "tnum" 1,
+        "lnum" 1,
+        "zero" 0;
+}
+
 /* ── Light theme ─────────────────────────────────────────────── */
 @theme {
     --font-display: "Inter", "SUIT", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-body: "Inter", "SUIT", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: monospace;
+    --font-inconsolata: "Inconsolata", monospace;
 
     --color-main-bg: #ffffff;
     --color-roast-bg: #ffffff;

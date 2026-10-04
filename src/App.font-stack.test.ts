@@ -34,6 +34,9 @@ describe('Korean font stack (Inter + SUIT)', () => {
         expect(appCss).toMatch(/url\(["']\/fonts\/SUIT-Variable\.woff2["']\)/);
         expect(appCss).toMatch(/--font-display:\s*"Inter",\s*"SUIT"/);
         expect(appCss).toMatch(/--font-body:\s*"Inter",\s*"SUIT"/);
+        expect(appCss).toMatch(/font-family:\s*"Inconsolata"/);
+        expect(appCss).toMatch(/url\(["']\/fonts\/Inconsolata-Variable\.woff2["']\)/);
+        expect(appCss).toMatch(/--font-inconsolata:\s*"Inconsolata",\s*monospace/);
         expect(appCss).not.toMatch(/fonts\.googleapis\.com|Pretendard/);
     });
 
@@ -42,6 +45,9 @@ describe('Korean font stack (Inter + SUIT)', () => {
         expect(statSync(interPath).size).toBeGreaterThan(100_000);
         expect(existsSync(suitPath), `missing ${suitPath}`).toBe(true);
         expect(statSync(suitPath).size).toBeGreaterThan(100_000);
+        const inconsolataPath = join(repoRoot, 'public/fonts/Inconsolata-Variable.woff2');
+        expect(existsSync(inconsolataPath), `missing ${inconsolataPath}`).toBe(true);
+        expect(statSync(inconsolataPath).size).toBeGreaterThan(20_000);
         expect(existsSync(pretendardPath), 'Pretendard asset must be removed').toBe(false);
     });
 
