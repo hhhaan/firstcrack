@@ -24,11 +24,16 @@ vi.mock('../hooks/useRoastRecordSave', () => ({
         errorText: () => 'failed',
     }),
 }));
+vi.mock('@entities/organization', () => ({
+    useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: true }),
+}));
+
 vi.mock('@entities/roast', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@entities/roast')>();
     return {
         ...actual,
         useHistoryChart: () => ({ points: [], isLoading: false, isError: false }),
+        useUpdateRoastSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
     };
 });
 
@@ -55,6 +60,8 @@ const session = (index: number): RoastSessionWithRelations =>
         charge_temp_celsius: 200,
         bean_label: null,
         profile_id: null,
+        color_whole: 58.4,
+        color_ground: 63,
     }) as unknown as RoastSessionWithRelations;
 
 describe('HistorySessionDetail edit dialog', () => {
@@ -91,6 +98,8 @@ describe('HistorySessionDetail edit dialog', () => {
         };
 
         await render(record);
+        expect((host.querySelector('[data-testid="history-color-whole"]') as HTMLInputElement).value).toBe('58.4');
+        expect((host.querySelector('[data-testid="history-color-ground"]') as HTMLInputElement).value).toBe('63');
         const values = () => [...host.querySelectorAll('section[aria-label="history.expanded.summary"] dd')];
         expect(values().map((el) => el.textContent)).toEqual(['10:00', '210.0°C', '2:00', '20.0%']);
         await render({ ...session(2), beans: null, bean_label: null });
