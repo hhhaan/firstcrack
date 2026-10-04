@@ -74,6 +74,15 @@ def _default_client(device: Any) -> Any:
     return client_cls(device)
 
 
+def _is_bleak_error(exc: BaseException) -> bool:
+    """True for BleakError and its subclasses. Exact class-name checks miss those."""
+    try:
+        _, bleak_error, _ = _import_bleak()
+    except ConnectionError:
+        return False
+    return isinstance(exc, bleak_error)
+
+
 class IkawaBleAdapter:
     def __init__(
         self,
@@ -108,7 +117,7 @@ class IkawaBleAdapter:
         except (TimeoutError, OSError) as exc:
             raise ConnectionError(_CONNECT_FAIL) from exc
         except Exception as exc:
-            if type(exc).__name__ != "BleakError":
+            if not _is_bleak_error(exc):
                 raise
             raise ConnectionError(_CONNECT_FAIL) from exc
         if not getattr(client, "is_connected", False):
@@ -201,7 +210,7 @@ class IkawaBleAdapter:
                 self._connected = False
                 raise ConnectionError(_CONNECT_FAIL) from exc
             except Exception as exc:
-                if type(exc).__name__ != "BleakError":
+                if not _is_bleak_error(exc):
                     raise
                 self._connected = False
                 raise ConnectionError(_CONNECT_FAIL) from exc

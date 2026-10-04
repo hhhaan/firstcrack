@@ -290,6 +290,23 @@ class TestAdapter:
         assert reading.heater == 0.0
         assert reading.fan == 0.0
 
+    async def test_bleak_subclass_is_a_connection_error(self):
+        from bleak.exc import BleakBluetoothNotAvailableError, BleakBluetoothNotAvailableReason
+
+        client = _FakeClient(
+            None,
+            fail=BleakBluetoothNotAvailableError("no radio", BleakBluetoothNotAvailableReason.NO_BLUETOOTH),
+        )
+        adapter = _adapter(client)
+        with pytest.raises(ConnectionError, match="공식 앱") as exc:
+            await adapter.connect()
+        assert "no radio" not in str(exc.value)
+
+    async def test_unrelated_connect_error_is_not_wrapped(self):
+        adapter = _adapter(_FakeClient(None, fail=RuntimeError("boom")))
+        with pytest.raises(RuntimeError, match="boom"):
+            await adapter.connect()
+
     async def test_official_app_and_scan_miss_are_distinct(self):
         busy = _FakeClient(None, fail=TimeoutError("timed out"))
         adapter = _adapter(busy)
