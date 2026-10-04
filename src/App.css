@@ -108,9 +108,9 @@
     --color-phase-drying-fill: oklch(0.78 0.18 88 / 0.26);
     --color-phase-maillard: oklch(0.6 0.17 225);
     --color-phase-maillard-fill: oklch(0.6 0.17 225 / 0.26);
-    --color-phase-development: oklch(0.58 0.18 280);
-    --color-phase-development-fill: oklch(0.58 0.18 280 / 0.26);
-    --color-fc-band-fill: oklch(0.58 0.18 280 / 0.1);
+    --color-phase-development: oklch(0.6 0.18 155);
+    --color-phase-development-fill: oklch(0.6 0.18 155 / 0.26);
+    --color-fc-band-fill: oklch(0.6 0.18 155 / 0.1);
     --color-bbp-fill: oklch(0.55 0 0 / 0.07);
     --color-phase-danger: #dc2626;
     --color-phase-danger-bg: rgba(220, 38, 38, 0.1);
@@ -196,9 +196,9 @@ html.dark {
     --color-phase-drying-fill: rgba(255, 255, 84, 0.18);
     --color-phase-maillard: #44bffc;
     --color-phase-maillard-fill: rgba(68, 191, 252, 0.18);
-    --color-phase-development: #756afc;
-    --color-phase-development-fill: rgba(117, 106, 252, 0.18);
-    --color-fc-band-fill: rgba(117, 106, 252, 0.08);
+    --color-phase-development: #81fba5;
+    --color-phase-development-fill: rgba(129, 251, 165, 0.18);
+    --color-fc-band-fill: rgba(129, 251, 165, 0.08);
     --color-bbp-fill: oklch(1 0 0 / 0.07);
     --color-phase-danger: #ffffff;
     --color-phase-danger-bg: rgba(255, 255, 255, 0.12);

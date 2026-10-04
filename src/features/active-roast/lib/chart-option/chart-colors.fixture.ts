@@ -33,7 +33,7 @@ export const mockChartColors: ResolvedChartColors = {
     controlFanArea: '#19',
     eventMark: '#23',
     eventControl: '#24',
-    fcBandFill: 'rgba(105,103,225,0.1)',
+    fcBandFill: 'rgba(0,157,76,0.1)',
     bbpFill: '#efeff0',
     targetDeltaWithin: '#20',
     targetDeltaOver: '#21',

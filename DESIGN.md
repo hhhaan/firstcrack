@@ -73,7 +73,7 @@
 | `--color-palette-teal` | `oklch(0.62 0.16 165)` | `#72ebbc` | Note / Drum |
 | `--color-palette-blue` | `oklch(0.6 0.17 225)` | `#44bffc` | FC Start / Maillard / Fan |
 | `--color-palette-indigo` | `oklch(0.58 0.18 280)` | `#5c41ff` | 강한 보라 악센트 |
-| `--color-palette-purple` | `oklch(0.58 0.18 280)` | `#756afc` | FC End / Development |
+| `--color-palette-purple` | `oklch(0.58 0.18 280)` | `#756afc` | 보라 악센트 |
 | `--color-palette-violet` | `oklch(0.58 0.15 275)` | `#8080f0` | End / UI 악센트 |
 | `--color-palette-lavender` | `oklch(0.64 0.14 275)` | `#a6b0ff` | Drop / pending / skipped |
 | `--color-palette-gray-light` | `#e4e4e4` | `#e4e4e4` | 밝은 회색 보더 |
@@ -103,9 +103,9 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | `--color-phase-drying-fill` | `oklch(0.78 0.18 88 / 0.26)` | `rgba(255, 255, 84, 0.18)` | Drying fill |
 | `--color-phase-maillard` | `oklch(0.6 0.17 225)` | `#44bffc` | Maillard |
 | `--color-phase-maillard-fill` | `oklch(0.6 0.17 225 / 0.26)` | `rgba(68, 191, 252, 0.18)` | Maillard fill |
-| `--color-phase-development` | `oklch(0.58 0.18 280)` | `#756afc` | Development |
-| `--color-phase-development-fill` | `oklch(0.58 0.18 280 / 0.26)` | `rgba(117, 106, 252, 0.18)` | Development fill |
-| `--color-fc-band-fill` | `oklch(0.58 0.18 280 / 0.1)` | `rgba(117, 106, 252, 0.08)` | FC band fill |
+| `--color-phase-development` | `oklch(0.6 0.18 155)` | `#81fba5` | Development |
+| `--color-phase-development-fill` | `oklch(0.6 0.18 155 / 0.26)` | `rgba(129, 251, 165, 0.18)` | Development fill |
+| `--color-fc-band-fill` | `oklch(0.6 0.18 155 / 0.1)` | `rgba(129, 251, 165, 0.08)` | FC band fill |
 | `--color-bbp-fill` | `oklch(0.55 0 0 / 0.07)` | `oklch(1 0 0 / 0.07)` | BBP 구간 배경 (격자 유지) |
 | `--color-phase-danger` | `#dc2626` | `#ffffff` | Danger / 임계 (light red, dark white) |
 | `--color-phase-danger-bg` | `rgba(220, 38, 38, 0.1)` | `rgba(255, 255, 255, 0.12)` | Danger 배경 |
