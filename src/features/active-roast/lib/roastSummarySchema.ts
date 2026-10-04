@@ -26,6 +26,10 @@ const roastSummaryShape = z.object({
     linkMode: z.enum(['schedule', 'none']),
     planBatchId: z.string().nullable(),
     deductStock: z.boolean(),
+    /** Whole-bean roast color. Blank → NaN → not recorded. */
+    colorWhole: z.union([z.number(), z.nan()]).optional(),
+    /** Ground roast color. Blank → NaN → not recorded. */
+    colorGround: z.union([z.number(), z.nan()]).optional(),
 });
 
 export type RoastSummaryForm = z.infer<typeof roastSummaryShape>;
@@ -52,6 +56,8 @@ export const buildRoastSummarySchema = ({ t, hasHandoff }: BuildRoastSummarySche
         .extend({
             weightGrams: weightKg,
             outputWeightKg: z.union([weightKg, z.nan()]).optional(),
+            colorWhole: z.union([z.number().min(0), z.nan()]).optional(),
+            colorGround: z.union([z.number().min(0), z.nan()]).optional(),
         })
         .superRefine((data, ctx) => {
             const output = data.outputWeightKg;

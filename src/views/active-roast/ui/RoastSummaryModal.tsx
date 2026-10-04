@@ -445,6 +445,36 @@ export const RoastSummaryModal = ({
                     </div>
                 </div>
 
+                {/* 색도 입력. 저장 경로는 아직 없음 — 주석을 풀기 전까지 화면에 안 나온다.
+                <div className="mb-3.5 grid grid-cols-2 gap-2">
+                    <div>
+                        <div className={sectionLabelClass}>{t('activeRoast.summary.colorWhole')}</div>
+                        <input
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            data-testid="roast-summary-color-whole"
+                            {...register('colorWhole', { valueAsNumber: true })}
+                            placeholder="—"
+                            className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                        />
+                    </div>
+                    <div>
+                        <div className={sectionLabelClass}>{t('activeRoast.summary.colorGround')}</div>
+                        <input
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            data-testid="roast-summary-color-ground"
+                            {...register('colorGround', { valueAsNumber: true })}
+                            placeholder="—"
+                            className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                        />
+                    </div>
+                    <p className="col-span-2 text-[11px] text-muted">{t('activeRoast.summary.colorHint')}</p>
+                </div>
+                */}
+
                 <div className="mb-3.5">
                     <div className={sectionLabelClass}>{t('activeRoast.summary.notes')}</div>
                     <textarea

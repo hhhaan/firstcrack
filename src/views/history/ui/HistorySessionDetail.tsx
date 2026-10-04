@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { HistorySessionChart } from './HistorySessionChart';
 import { OutputWeightEditor } from './OutputWeightEditor';
 import { RecordSections } from './RecordSections';
+import { RoastColorEditor } from './RoastColorEditor';
 import { SessionScorecard } from './SessionScorecard';
 
 const detailTitleCls = 'm-0 text-[11px] font-medium tracking-[0.3px] text-muted';
@@ -116,6 +117,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                                 <div className={detailTitleCls}>{t('history.compare.charge')}</div>
                                 <div className="mt-1 font-mono text-[16px] text-primary">{session.weight_grams}g</div>
                             </div>
+                            <RoastColorEditor key={session.id} session={session} />
                             <OutputWeightEditor session={session} />
                         </div>
                     </section>

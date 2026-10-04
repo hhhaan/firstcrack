@@ -1686,6 +1686,10 @@ export type Database = {
                     /** Free-text name when bean_id is null (sample / no-inventory). */
                     bean_label: string | null;
                     charge_temp_celsius: number | null;
+                    /** Whole-bean roast color. Manual entry, no meter. Omitted until recorded. */
+                    color_whole?: number | null;
+                    /** Ground roast color. Manual entry, no meter. Omitted until recorded. */
+                    color_ground?: number | null;
                     created_at: string;
                     created_by: string | null;
                     drop_temp_celsius: number | null;
@@ -1719,6 +1723,8 @@ export type Database = {
                     bean_id?: string | null;
                     bean_label?: string | null;
                     charge_temp_celsius?: number | null;
+                    color_whole?: number | null;
+                    color_ground?: number | null;
                     created_at?: string;
                     created_by?: string | null;
                     drop_temp_celsius?: number | null;
@@ -1752,6 +1758,8 @@ export type Database = {
                     bean_id?: string | null;
                     bean_label?: string | null;
                     charge_temp_celsius?: number | null;
+                    color_whole?: number | null;
+                    color_ground?: number | null;
                     created_at?: string;
                     created_by?: string | null;
                     drop_temp_celsius?: number | null;
@@ -2245,6 +2253,10 @@ export type Database = {
                     bbp_tsv_path: string | null;
                     bean_id: string | null;
                     charge_temp_celsius: number | null;
+                    /** Whole-bean roast color. Manual entry, no meter. Omitted until recorded. */
+                    color_whole?: number | null;
+                    /** Ground roast color. Manual entry, no meter. Omitted until recorded. */
+                    color_ground?: number | null;
                     created_at: string;
                     created_by: string | null;
                     drop_temp_celsius: number | null;
