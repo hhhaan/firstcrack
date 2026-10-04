@@ -2,7 +2,7 @@ import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { type SetStateAction, useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
-import { cycleFcDualEntries, FC_END_EVENT, FC_START_EVENT, withoutLogEvent } from '../lib/fc-dual-mark';
+import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
@@ -48,7 +48,6 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
             const gas = event === 'Note' ? controls?.gas?.trim() : undefined;
             const airflow = event === 'Note' ? controls?.airflow?.trim() : undefined;
             if (event === 'Note' && !body && !gas && !airflow) return;
-            if (event === FC_END_EVENT && !logEntries.some((e) => e.event === FC_START_EVENT)) return;
             if (
                 historical &&
                 (!Number.isFinite(historical.timeSec) ||

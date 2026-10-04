@@ -14,7 +14,7 @@ export type EventButtonDef = {
     color?: string;
     /** Dual-mark FC: 0 empty / 1 Start only / 2 Start+Rolling (overrides boolean registered). */
     dualStage?: FcDualStage;
-    /** Extra gate on top of the panel-wide `disabled` (for example FC End before FC Start). */
+    /** Extra gate on top of the panel-wide `disabled`. */
     disabled?: boolean;
 };
 

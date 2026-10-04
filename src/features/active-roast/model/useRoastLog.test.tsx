@@ -151,16 +151,12 @@ describe('useRoastLog markEvent', () => {
         hook.unmount();
     });
 
-    it('does not mark FC End until FC Start exists', async () => {
+    it('marks FC End without FC Start', async () => {
         vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('fc') });
         const hook = await renderHook('C', 190, 400);
 
         act(() => hook.get().markEvent('FC End', 'First crack ended', 'Mark FC End'));
-        expect(hook.get().logEntries).toEqual([]);
-
-        act(() => hook.get().markEvent('FC Start', 'First crack started'));
-        act(() => hook.get().markEvent('FC End', 'First crack ended', 'Mark FC End'));
-        expect(hook.get().logEntries.map((e) => e.event)).toEqual(['FC Start', 'FC End']);
+        expect(hook.get().logEntries.map((e) => e.event)).toEqual(['FC End']);
         hook.unmount();
     });
 });

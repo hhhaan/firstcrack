@@ -103,7 +103,6 @@ export const RoastSidePanel = ({
     const showStartDev = dtrPct != null || (devTimeStr !== '' && devTimeStr !== '—');
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
-    const hasFcStart = logEntries.some((entry) => entry.event === 'FC Start');
     const canMark = isRoastEventMarkEnabled(phase);
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
     const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
@@ -346,9 +345,8 @@ export const RoastSidePanel = ({
                             event: 'FC End',
                             shortcutKey: '3',
                             pressKey: 'Mark FC End',
-                            disabled: !hasFcStart,
                             onClick: () => {
-                                if (!canMark || !hasFcStart) return;
+                                if (!canMark) return;
                                 onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
                             },
                         },
