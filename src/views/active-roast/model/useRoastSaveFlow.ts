@@ -4,6 +4,7 @@ import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { formatRoastSaveError } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
+import { type CompletedRoastSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import {
     clearPendingRoastSave,
@@ -18,7 +19,6 @@ import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/mod
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
 import { logger } from '@shared/lib/logger';
-import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
@@ -26,17 +26,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { message } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useCompletedRoastStore } from './completedRoast';
 import { type RoastSummaryData, useRoastCompletionFlow } from './useRoastCompletionFlow';
 
 export interface UseRoastSaveFlowParams {
-    planBatchHandoff: PlanBatchHandoff | null;
-    elapsed: number;
     rawBT: number | null;
-    selectedBeanId: string | null;
-    targetProfileId: string | null;
-    handoffBeanName: string | null;
-    sessionId: string | null;
     ambientTemperature?: number | null;
     ambientHumidity?: number | null;
     onResetActiveRoast: () => void;
@@ -60,65 +53,50 @@ export const isLiveDetachedFromPending = (
     Boolean(live.awaitingNextCharge && !isChargedPhase(live.phase));
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
-    const {
-        planBatchHandoff,
-        elapsed,
-        rawBT,
-        selectedBeanId,
-        targetProfileId,
-        handoffBeanName,
-        sessionId,
-        ambientTemperature,
-        ambientHumidity,
-        onResetActiveRoast,
-    } = params;
-
+    const { rawBT, ambientTemperature, ambientHumidity, onResetActiveRoast } = params;
+    const planBatchHandoff = useRoastingStore((state) => selectRoastSelection(state).planBatchHandoff);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const today = format(new Date(), 'yyyy-MM-dd');
     const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? workspaceOwnerId : '', today);
     const qc = useQueryClient();
 
     const flow = useRoastCompletionFlow();
+    const summaryOwnerId = useRoastingStore((state) => state.completed?.snapshot.sessionOwnerId ?? null);
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
     const { resumeSave, isSaving } = useSaveRoast(planBatchHandoff, syncRoastCurve);
     const submitting = useRef(false);
     const [preparing, setPreparing] = useState(false);
-    const unrecordedId = useRef<string | null>(null);
 
     // Everything but the form and log entries is identical between the two snapshots.
     const snapshotParams = useCallback(
-        (formData: SaveRoastFormData, logEntries: LogEntry[]): PendingRoastParams => ({
-            formData,
-            userId: useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
-            elapsed,
-            roastStartTime: useRoastingStore.getState().roastStartMs,
-            rawBT,
-            ambientTemperature,
-            ambientHumidity,
-            selectedBeanId,
-            targetProfileId,
-            planBatchHandoff,
-            sessionId,
-            handoffBeanName,
-            logEntries,
-            machineSnapshot: useRoastingStore.getState().machineSnapshot,
-            bbpSummary:
-                sessionId && useBbpStore.getState().finalized?.sessionId === sessionId
-                    ? useBbpStore.getState().finalized
-                    : null,
-        }),
-        [
-            workspaceOwnerId,
-            elapsed,
-            rawBT,
-            ambientTemperature,
-            ambientHumidity,
-            selectedBeanId,
-            targetProfileId,
-            planBatchHandoff,
-            sessionId,
-            handoffBeanName,
-        ],
+        (
+            formData: SaveRoastFormData,
+            logEntries: LogEntry[],
+            snapshot?: CompletedRoastSnapshot | null,
+        ): PendingRoastParams => {
+            const state = useRoastingStore.getState();
+            const selection = selectRoastSelection(state);
+            const savedSessionId = snapshot?.sessionId ?? state.sessionId;
+            const bbp = useBbpStore.getState().finalized;
+            return {
+                formData,
+                userId: snapshot?.sessionOwnerId ?? useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
+                elapsed: snapshot?.elapsed ?? state.elapsed,
+                roastStartTime: snapshot?.roastStartMs ?? useRoastingStore.getState().roastStartMs,
+                rawBT: snapshot ? snapshot.rawBT : rawBT,
+                ambientTemperature,
+                ambientHumidity,
+                selectedBeanId: snapshot ? snapshot.selection.beanId : selection.beanId,
+                targetProfileId: snapshot ? snapshot.selection.profileId : selection.profileId,
+                planBatchHandoff: snapshot ? snapshot.selection.planBatchHandoff : selection.planBatchHandoff,
+                sessionId: savedSessionId,
+                handoffBeanName: snapshot ? snapshot.selection.beanName : selection.beanName,
+                logEntries,
+                machineSnapshot: snapshot ? snapshot.machineSnapshot : useRoastingStore.getState().machineSnapshot,
+                bbpSummary: savedSessionId && bbp?.sessionId === savedSessionId ? bbp : null,
+            };
+        },
+        [workspaceOwnerId, rawBT, ambientTemperature, ambientHumidity],
     );
 
     const nextStarting = useRef(false);
@@ -141,8 +119,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const epoch = flowEpoch.current;
             try {
                 const frozen = flow.summaryData;
-                const frozenId = frozen?.sessionId ?? sessionId ?? unrecordedId.current;
-                const liveOwner = useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId;
+                const completed = useRoastingStore.getState().completed;
+                if (!frozen?.sessionId || completed?.snapshot.sessionId !== frozen.sessionId || !completed.summary)
+                    return;
+                const frozenId = frozen.sessionId;
+                const snapshot = completed.snapshot;
+                const liveOwner = snapshot.sessionOwnerId ?? workspaceOwnerId;
                 const existing = frozenId
                     ? (readPendingRoastSave(liveOwner, frozenId) ??
                       readPendingRoastSave(workspaceOwnerId, frozenId) ??
@@ -182,31 +164,19 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                           },
                       }
                     : createPendingRoastSave(
-                          frozen
-                              ? {
-                                    ...snapshotParams(formPatch, frozen.logEntries),
-                                    sessionId: frozen.sessionId ?? null,
-                                    elapsed: frozen.elapsedSec ?? 0,
-                                    selectedBeanId: frozen.selectedBeanId ?? null,
-                                    planBatchHandoff: frozen.planBatchHandoff ?? null,
-                                    handoffBeanName: frozen.handoffBeanName ?? null,
-                                    targetProfileId: null,
-                                    roastStartTime: 0,
-                                    rawBT: null,
-                                    machineSnapshot: null,
-                                    bbpSummary: null,
-                                    userId: ownerId,
-                                }
-                              : snapshotParams(formPatch, []),
+                          { ...snapshotParams(formPatch, snapshot.logEntries, snapshot), userId: ownerId },
                           true,
                       );
-                if (!pending.params.sessionId) pending.params.sessionId = unrecordedId.current ??= crypto.randomUUID();
+                if (!snapshot.curveRecorded) pending.profile = 'not_required';
                 writePendingRoastSave(pending);
 
                 const saveStarted = Date.now();
                 const saveResult = await resumeSave(pending);
                 logger.debug('roast-save-stage', { stage: 'resume-save', ms: Date.now() - saveStarted });
-                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
+                const matched = useRoastingStore
+                    .getState()
+                    .saveSucceeded(pending.params.userId, pending.params.sessionId);
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId || !matched) return;
                 if (saveResult.syncPending) {
                     useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'), 'info');
                 }
@@ -218,10 +188,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     linkedBatch?.planBatchId ??
                     null;
 
-                flow.onSaveSuccess({ shouldOpenContinue: false });
-                unrecordedId.current = null;
+                flow.onSaveSuccess({
+                    shouldOpenContinue: false,
+                    ownerId: pending.params.userId,
+                    sessionId: pending.params.sessionId,
+                });
                 setPreparing(false);
-                useCompletedRoastStore.getState().markSubmitted(pending.params.sessionId);
 
                 // Drop already released the machine. A's save must not reset B / Charge-wait / handoff.
                 const live = useRoastingStore.getState();
@@ -257,10 +229,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 if (isLiveDetachedFromPending(useRoastingStore.getState(), pending.params.sessionId)) return;
 
                 if (continueCandidates.length === 0) {
-                    useRoastSessionStore.getState().completeBatch();
+                    useRoastingStore.getState().completeBatch();
                 } else {
                     flow.onSaveSuccess({
                         shouldOpenContinue: true,
+                        ownerId: pending.params.userId,
+                        sessionId: pending.params.sessionId,
                         continueCandidates,
                     });
                 }
@@ -286,7 +260,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             resumeSave,
             snapshotParams,
             planBatchHandoff,
-            sessionId,
             dayBatches,
             flow.summaryData,
             flow.onSaveSuccess,
@@ -298,37 +271,44 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     // opens, with modal-default form values. Overwritten with the real form on Save.
     const confirmEndRoast = useCallback(
         (summaryData: RoastSummaryData) => {
-            const frozen: RoastSummaryData = {
-                ...summaryData,
-                sessionId: summaryData.sessionId ?? sessionId,
-                selectedBeanId: summaryData.selectedBeanId ?? selectedBeanId,
-                planBatchHandoff: summaryData.planBatchHandoff ?? planBatchHandoff,
-                handoffBeanName: summaryData.handoffBeanName ?? handoffBeanName,
-            };
-            const pending = createPendingRoastSave(
+            const state = useRoastingStore.getState();
+            const selection = selectRoastSelection(state);
+            const snapshot = state.captureSummary(
                 {
-                    ...snapshotParams(
-                        {
-                            notes: '',
-                            weightGrams: frozen.planBatchHandoff?.batchSizeKg ?? 0,
-                            roastLevel: null,
-                            beanId: frozen.selectedBeanId ?? null,
-                            beanLabel: null,
-                            linkedBatch: null,
-                            deductStock: false,
-                        },
-                        frozen.logEntries,
-                    ),
-                    sessionId: frozen.sessionId ?? sessionId,
-                    selectedBeanId: frozen.selectedBeanId ?? null,
-                    planBatchHandoff: frozen.planBatchHandoff ?? null,
-                    handoffBeanName: frozen.handoffBeanName ?? null,
+                    ...summaryData,
+                    sessionId: summaryData.sessionId ?? state.sessionId,
+                    elapsedSec: summaryData.elapsedSec ?? state.elapsed,
+                    selectedBeanId:
+                        summaryData.selectedBeanId !== undefined ? summaryData.selectedBeanId : selection.beanId,
+                    handoffBeanName:
+                        summaryData.handoffBeanName !== undefined ? summaryData.handoffBeanName : selection.beanName,
+                    planBatchHandoff:
+                        summaryData.planBatchHandoff !== undefined
+                            ? summaryData.planBatchHandoff
+                            : selection.planBatchHandoff,
                 },
+                workspaceOwnerId,
+                rawBT,
+            );
+            const frozen = useRoastingStore.getState().completed?.summary;
+            if (!frozen) return;
+            const pending = createPendingRoastSave(
+                snapshotParams(
+                    {
+                        notes: '',
+                        weightGrams: snapshot.selection.planBatchHandoff?.batchSizeKg ?? 0,
+                        roastLevel: null,
+                        beanId: snapshot.selection.beanId,
+                        beanLabel: null,
+                        linkedBatch: null,
+                        deductStock: false,
+                    },
+                    snapshot.logEntries,
+                    snapshot,
+                ),
                 false,
             );
-            if (!pending.params.sessionId) pending.params.sessionId = unrecordedId.current ??= pending.params.sessionId;
-            frozen.sessionId = pending.params.sessionId;
-            pending.params.elapsed = frozen.elapsedSec ?? pending.params.elapsed;
+            if (!snapshot.curveRecorded) pending.profile = 'not_required';
             try {
                 const existing = readPendingRoastSave(pending.params.userId, pending.params.sessionId);
                 if (!existing?.submitted) writePendingRoastSave(pending);
@@ -338,15 +318,20 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             }
             flow.confirmEndRoast(frozen);
         },
-        [snapshotParams, planBatchHandoff, selectedBeanId, sessionId, handoffBeanName, flow.confirmEndRoast],
+        [workspaceOwnerId, rawBT, snapshotParams, flow.confirmEndRoast],
     );
-
     const discardSummary = useCallback(() => {
-        const id = flow.summaryData?.sessionId ?? sessionId ?? unrecordedId.current;
-        if (id) clearPendingRoastSave(useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId, id);
-        unrecordedId.current = null;
-        flow.discardSummary();
-    }, [flow.discardSummary, flow.summaryData?.sessionId, sessionId, workspaceOwnerId]);
+        const sessionId = flow.summaryData?.sessionId;
+        const completed = useRoastingStore.getState().completed;
+        if (
+            !sessionId ||
+            completed?.snapshot.sessionId !== sessionId ||
+            completed.snapshot.sessionOwnerId !== summaryOwnerId
+        )
+            return;
+        clearPendingRoastSave(summaryOwnerId ?? workspaceOwnerId, sessionId);
+        flow.discardSummary(summaryOwnerId, sessionId);
+    }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId]);
 
     const handleStartNext = useCallback(
         async (row: PlanBatchWithProgress) => {
@@ -361,7 +346,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 const liveNow = useRoastingStore.getState();
                 if (liveNow.sessionId) return;
-                useRoastSessionStore.getState().startBatch(toPlanBatchHandoff(real));
+                useRoastingStore.getState().startBatch(toPlanBatchHandoff(real));
                 flow.dismissContinue();
             } catch (err) {
                 invalidateScheduledBatchQueries(qc);

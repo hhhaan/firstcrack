@@ -3,11 +3,10 @@ import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { _resetTsvWriterForTests, flushTsv, sessionTsvPath } from '@shared/lib/tsv-writer';
 import type { LogEntry } from '@shared/types/roast';
-import { act, createElement, useState } from 'react';
+import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { batchRoastFinished } from '../lib/active-roast-screen';
-import { useCompletedRoastStore } from './completedRoast';
 import { useRoastLifecycle } from './useRoastLifecycle';
 import { type LiveRoastPoint, useSidecarPolling } from './useSidecarPolling';
 
@@ -113,7 +112,8 @@ const renderRoast = (): Harness => {
         const phase = useRoastingStore((s) => s.phase);
         const sessionId = useRoastingStore((s) => s.sessionId);
         const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
-        const [logs, setLogs] = useState<LogEntry[]>([]);
+        const logs = useRoastingStore((state) => state.logState.entries);
+        const setLogs = (entries: LogEntry[]) => useRoastingStore.getState().setLogState({ entries, unwind: false });
         const { livePoints, setLivePoints } = useSidecarPolling({
             isActive: true,
             phase,
@@ -128,18 +128,12 @@ const renderRoast = (): Harness => {
             sidecarConnected,
             rawBT: readingBt,
             unit: 'C',
-            logEntries: logs,
-            timeStr: '0:08',
             enterStandby: () => useRoastingStore.getState().enterStandby(),
-            enterPreheating: () => useRoastingStore.getState().enterPreheating(),
             setConnected,
-            resetStore: () => useRoastingStore.getState().reset(),
             resetAutoDetectionRef: { current: () => undefined },
             disableAutoChargeRef: { current: () => undefined },
             disableAutoDropRef: { current: () => undefined },
             rearmAutoChargeRef: { current: () => undefined },
-            setLogEntries: setLogs,
-            setLivePoints,
             setZoomRange: () => undefined,
             setHoveredChartIndex: () => undefined,
             triggerChargeRef: { current: () => undefined },
@@ -204,7 +198,7 @@ beforeEach(() => {
         },
     });
     useBbpStore.setState(emptyBbp);
-    useCompletedRoastStore.getState().clear();
+    useRoastingStore.setState({ completed: null });
     useRoastingStore.setState({
         phase: 'standby',
         sidecarConnected: true,
@@ -223,7 +217,7 @@ afterEach(() => {
     vi.useRealTimers();
     useRoastingStore.getState().reset();
     useBbpStore.setState(emptyBbp);
-    useCompletedRoastStore.getState().clear();
+    useRoastingStore.setState({ completed: null });
     _resetTsvWriterForTests();
     localStorage.clear();
 });

@@ -8,7 +8,6 @@ import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCompletedRoastStore } from './completedRoast';
 import { useRoastLifecycle } from './useRoastLifecycle';
 
 vi.mock('@shared/lib/sidecar', () => ({
@@ -51,6 +50,7 @@ const renderLifecycle = (
         replayActive?: boolean;
     } = {},
 ) => {
+    useRoastingStore.getState().setLogState({ entries: logEntries, unwind: false });
     const root = createRoot(document.createElement('div'));
     let latest: ReturnType<typeof useRoastLifecycle>;
     const Probe = () => {
@@ -59,18 +59,12 @@ const renderLifecycle = (
             sidecarConnected: true,
             rawBT: 200,
             unit: 'C',
-            logEntries,
-            timeStr: '8:00',
             enterStandby: () => useRoastingStore.getState().enterStandby(),
-            enterPreheating: () => useRoastingStore.getState().enterPreheating(),
             setConnected: () => undefined,
-            resetStore: () => useRoastingStore.getState().reset(),
             resetAutoDetectionRef: { current: detection.resetAutoDetection ?? (() => undefined) },
             disableAutoChargeRef: { current: detection.disableAutoCharge ?? (() => undefined) },
             disableAutoDropRef: { current: detection.disableAutoDrop ?? (() => undefined) },
             rearmAutoChargeRef: { current: () => undefined },
-            setLogEntries: vi.fn(),
-            setLivePoints: vi.fn(),
             setZoomRange: vi.fn(),
             setHoveredChartIndex: vi.fn(),
             triggerChargeRef: { current: detection.triggerCharge ?? (() => undefined) },
@@ -205,7 +199,7 @@ describe('completeDrop → BBP (#484)', () => {
             void act(() => {
                 h.result.completeDrop({ livePoints: [] });
             });
-            expect(useCompletedRoastStore.getState().restore?.replayActive).toBe(replayActive);
+            expect(useRoastingStore.getState().completed?.restore?.replayActive).toBe(replayActive);
         } finally {
             h.unmount();
         }
@@ -213,7 +207,7 @@ describe('completeDrop → BBP (#484)', () => {
     beforeEach(() => {
         feature.bbp = true;
         vi.mocked(replaceSessionTsv).mockClear();
-        useCompletedRoastStore.getState().clear();
+        useRoastingStore.setState({ completed: null });
         useBbpStore.setState({
             active: false,
             liveGeneration: '',
@@ -280,12 +274,12 @@ describe('completeDrop → BBP (#484)', () => {
             expect(summary?.sessionId).toBe('s-a');
             expect(useBbpStore.getState().active).toBe(true);
             expect(useBbpStore.getState().startMs).toBe(1_000_000 + 600_000);
-            expect(useCompletedRoastStore.getState().restore?.roastStartMs).toBe(1_000_000);
+            expect(useRoastingStore.getState().completed?.restore?.roastStartMs).toBe(1_000_000);
             expect(useBbpStore.getState().points.map((p) => p.bt)).toEqual([205, 150]);
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
             void act(() => h.result.completeDrop({ livePoints: [], onset: { timeSec: 600, bt: 205 } }));
-            expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
+            expect(useRoastingStore.getState().completed?.snapshot.sessionId ?? null).toBe('s-a');
         } finally {
             h.unmount();
         }
@@ -342,7 +336,7 @@ describe('completeDrop → BBP (#484)', () => {
             expect(armed).toEqual({ charge: false, drop: false });
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
-            expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
+            expect(useRoastingStore.getState().completed?.snapshot.sessionId ?? null).toBe('s-a');
 
             void act(() => {
                 const again = h.result.finishDrop({
@@ -355,13 +349,13 @@ describe('completeDrop → BBP (#484)', () => {
             });
             expect(commitSummary).toHaveBeenCalledTimes(1);
             expect(holdAutoChargeUntilRecovery).toHaveBeenCalledTimes(1);
-            expect(useCompletedRoastStore.getState().droppedSessionId).toBe('s-a');
+            expect(useRoastingStore.getState().completed?.snapshot.sessionId ?? null).toBe('s-a');
         } finally {
             h.unmount();
         }
     });
 
-    it('Drop cancel restores Charge clock and does not clear heat hold', () => {
+    it('Drop cancel restores Charge clock and clears heat hold', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-21T00:10:00Z'));
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)]);
@@ -536,7 +530,7 @@ describe('completeDrop → BBP (#484)', () => {
                 h.result.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
                 expect(h.result.cancelDrop()).toBe(true);
             });
-            expect(useCompletedRoastStore.getState().droppedSessionId).toBeNull();
+            expect(useRoastingStore.getState().completed?.snapshot.sessionId ?? null).toBeNull();
             let second: ReturnType<typeof h.result.completeDrop> | undefined;
             void act(() => {
                 second = h.result.completeDrop({
@@ -557,7 +551,9 @@ describe('completeDrop → BBP (#484)', () => {
                 });
             });
             expect(second?.elapsedSec).toBe(610);
-            expect(useBbpStore.getState().startMs).toBe(useRoastingStore.getState().roastStartMs + 610_000);
+            expect(useBbpStore.getState().startMs).toBe(
+                (useRoastingStore.getState().completed?.snapshot.roastStartMs ?? 0) + 610_000,
+            );
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
         } finally {
             h.unmount();
@@ -590,7 +586,8 @@ describe('completeDrop → BBP (#484)', () => {
                     sessionId: 's-b',
                     awaitingNextCharge: false,
                 });
-                useCompletedRoastStore.getState().lockAfterCharge('s-b');
+                const completed = useRoastingStore.getState().completed;
+                useRoastingStore.setState({ completed: completed ? { ...completed, restore: null } : null });
             });
             expect(h.result.cancelDrop()).toBe(false);
             expect(useRoastingStore.getState().sessionId).toBe('s-b');

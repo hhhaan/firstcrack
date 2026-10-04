@@ -11,7 +11,7 @@
 
 | # | Domain | Primary tree |
 |---|--------|--------------|
-| 1 | Active roast / session | `src/views/active-roast`, `src/features/active-roast`, `src/entities/roast`, `src/shared/store/roastSession.ts` |
+| 1 | Active roast / session | `src/views/active-roast`, `src/features/active-roast`, `src/entities/roast`, `src/features/active-roast/model/batch.ts` |
 | 2 | Inventory + stock events | `src/entities/{bean,bean-stock-event,roasted-stock-event,product-stock-event,inventory-alert}`, `src/features/{adjust-*,blend-roasted,package-product}`, `src/views/bean` |
 | 3 | Orders + sales channel + dispatch | `src/entities/{order,order-dispatch,sales-channel,product}`, `src/features/{fulfill,cancel,dispatch}-order*`, `src/views/orders` |
 | 4 | Schedule / plan | `src/entities/plan`, `src/views/schedule`, schedule widgets, `src/shared/lib/{rrule,batch-stock}.ts` |

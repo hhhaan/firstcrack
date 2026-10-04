@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { useRoastSessionStore } from '@shared/store/roastSession';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -65,7 +65,7 @@ const baseProps = {
 
 afterEach(() => {
     planMock.batches = [];
-    useRoastSessionStore.setState({ planBatchHandoff: null, lastAdhocSave: null });
+    useRoastingStore.getState().reset();
 });
 
 const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {}) => {
@@ -112,7 +112,7 @@ it('checks deductStock when schedule handoff is present', () => {
 });
 
 it('checks deductStock when selectedBeanId is set without handoff', () => {
-    useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
+    useRoastingStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
     const { unmount } = renderModal({ selectedBeanId: 'bean-1' });
     const checkbox = document.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(true);
@@ -120,7 +120,7 @@ it('checks deductStock when selectedBeanId is set without handoff', () => {
 });
 
 it('keeps the opened bean and weight when a later batch selection arrives', () => {
-    useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
+    useRoastingStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -145,7 +145,7 @@ const setInputValue = (el: HTMLInputElement | HTMLSelectElement, value: string) 
 };
 
 it('applies a schedule batch, keeps a same-batch edit, and restores the opened weight on clear', () => {
-    useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
+    useRoastingStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
     planMock.batches = [
         {
             id: 'batch-9',
@@ -181,7 +181,7 @@ it('applies a schedule batch, keeps a same-batch edit, and restores the opened w
 });
 
 it('reopens from the opened batch after an edit', () => {
-    useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
+    useRoastingStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -237,7 +237,7 @@ it('cancels Drop from the summary only while it can be restored', () => {
 });
 
 it('unchecks deductStock when a custom bean name is typed', () => {
-    useRoastSessionStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
+    useRoastingStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });
     const { unmount } = renderModal({ selectedBeanId: 'bean-1' });
     const input = document.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
     expect(input).not.toBeNull();

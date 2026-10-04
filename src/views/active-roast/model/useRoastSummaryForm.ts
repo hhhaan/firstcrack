@@ -4,8 +4,8 @@ import { useDayBatches } from '@entities/plan';
 import { buildRoastSummarySchema, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { scheduleLinkFieldPatch, summaryFormInitialValues } from '@features/active-roast/lib/summaryPrefill';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { format } from 'date-fns';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -69,7 +69,7 @@ export const useRoastSummaryForm = ({
 
     const selectedBeanIdRef = useRef(selectedBeanId);
     const handoffRef = useRef(planBatchHandoff);
-    const lastAdhoc = useRoastSessionStore((s) => s.lastAdhocSave);
+    const lastAdhoc = useRoastingStore((s) => s.lastAdhocSave);
     const lastAdhocRef = useRef(lastAdhoc);
     const openedBaseRef = useRef<{ weightGrams: number; beanId: string | null }>({ weightGrams: 0, beanId: null });
     const prevLinkRef = useRef<{ mode: 'schedule' | 'none'; batchId: string | null }>({

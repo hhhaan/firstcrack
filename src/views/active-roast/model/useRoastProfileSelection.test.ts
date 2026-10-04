@@ -1,58 +1,32 @@
 // @vitest-environment jsdom
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
-import { act, createElement } from 'react';
+import { useRoastingStore } from '@features/active-roast/model/status';
+import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRoastProfileSelection } from './useRoastProfileSelection';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const roastingState = {
-    pendingBeanId: null as string | null,
-    pendingBeanName: null as string | null,
-    pendingProfileId: null as string | null,
-    setPendingBean: vi.fn(),
-    setPendingProfile: (id: string | null) => {
-        roastingState.pendingProfileId = id;
-    },
-};
-
-vi.mock('@features/active-roast/model/status', () => ({
-    useRoastingStore: {
-        getState: () => roastingState,
-    },
-}));
-
-const session = vi.hoisted(() => ({
-    planBatchHandoff: null as null | {
-        beanId: string | null;
-        beanName: string;
-        profileId: string | null;
-    },
-}));
-
-vi.mock('@shared/store/roastSession', () => ({
-    useRoastSessionStore: (sel: (s: { planBatchHandoff: typeof session.planBatchHandoff }) => unknown) =>
-        sel({ planBatchHandoff: session.planBatchHandoff }),
-}));
-
 type HookApi = ReturnType<typeof useRoastProfileSelection>;
 
-function mountHook(props: Parameters<typeof useRoastProfileSelection>[0]) {
+function mountHook(props: Parameters<typeof useRoastProfileSelection>[0], strict = false) {
     const root = createRoot(document.createElement('div'));
     let api: HookApi | undefined;
     const Probe = () => {
         api = useRoastProfileSelection(props);
         return null;
     };
-    void act(() => root.render(createElement(Probe)));
+    void act(() => root.render(strict ? createElement(StrictMode, null, createElement(Probe)) : createElement(Probe)));
     return {
         get api() {
             return api!;
         },
         rerender(next: Parameters<typeof useRoastProfileSelection>[0]) {
             props = next;
-            void act(() => root.render(createElement(Probe)));
+            void act(() =>
+                root.render(strict ? createElement(StrictMode, null, createElement(Probe)) : createElement(Probe)),
+            );
         },
         unmount() {
             void act(() => root.unmount());
@@ -63,12 +37,12 @@ function mountHook(props: Parameters<typeof useRoastProfileSelection>[0]) {
 describe('useRoastProfileSelection pending profile handoff', () => {
     beforeEach(() => {
         localStorage.clear();
-        roastingState.pendingProfileId = null;
-        session.planBatchHandoff = null;
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().completeBatch();
     });
 
-    it('consumes pendingProfileId on activation and resists default overwrite', () => {
-        roastingState.pendingProfileId = 'prof-1';
+    it('consumes pendingProfileId on activation and resists default overwrite', async () => {
+        useRoastingStore.getState().setPendingProfile('prof-1');
         const h = mountHook({
             isActive: true,
             charged: false,
@@ -76,8 +50,11 @@ describe('useRoastProfileSelection pending profile handoff', () => {
             beans: [],
             beansReady: true,
         });
+        await act(async () => {
+            await Promise.resolve();
+        });
         expect(h.api.targetProfileId).toBe('prof-1');
-        expect(roastingState.pendingProfileId).toBeNull();
+        expect(useRoastingStore.getState().pendingProfileId).toBeNull();
 
         h.rerender({
             isActive: true,
@@ -115,8 +92,8 @@ const baseSelection = {
 describe('useRoastProfileSelection Replay profile confirm (#529 D)', () => {
     beforeEach(() => {
         localStorage.clear();
-        roastingState.pendingProfileId = null;
-        session.planBatchHandoff = null;
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().completeBatch();
         vi.useRealTimers();
     });
 
@@ -179,8 +156,8 @@ describe('useRoastProfileSelection Replay profile confirm (#529 D)', () => {
 describe('useRoastProfileSelection user default save (#554)', () => {
     beforeEach(() => {
         localStorage.clear();
-        roastingState.pendingProfileId = null;
-        session.planBatchHandoff = null;
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().completeBatch();
         vi.useFakeTimers();
     });
 
@@ -377,7 +354,7 @@ describe('useRoastProfileSelection user default save (#554)', () => {
 
     it('pending profile and schedule handoff do not save the account default', async () => {
         const saveDefaultProfile = vi.fn();
-        roastingState.pendingProfileId = 'pending-prof';
+        useRoastingStore.getState().setPendingProfile('pending-prof');
         const pending = mountHook({
             ...baseSelection,
             userProfile: { default_roast_profile_id: 'prof-1' },
@@ -390,7 +367,17 @@ describe('useRoastProfileSelection user default save (#554)', () => {
         expect(saveDefaultProfile).not.toHaveBeenCalled();
         pending.unmount();
 
-        session.planBatchHandoff = { beanId: 'bean-9', beanName: 'Lot', profileId: 'sched-prof' };
+        useRoastingStore.getState().startBatch({
+            planBatchId: 'batch-9',
+            planId: 'plan-9',
+            beanId: 'bean-9',
+            blendId: null,
+            beanName: 'Lot',
+            profileId: 'sched-prof',
+            batchSizeKg: 1,
+            batchCount: 1,
+            completedSessions: 0,
+        });
         const handoff = mountHook({
             ...baseSelection,
             userProfile: { default_roast_profile_id: 'prof-1' },
@@ -408,8 +395,8 @@ describe('useRoastProfileSelection user default save (#554)', () => {
 describe('useRoastProfileSelection stale bean clear (#176)', () => {
     beforeEach(() => {
         localStorage.clear();
-        roastingState.pendingProfileId = null;
-        session.planBatchHandoff = null;
+        useRoastingStore.getState().reset();
+        useRoastingStore.getState().completeBatch();
         localStorage.setItem(DEFAULT_BEAN_KEY, 'stale-bean');
     });
 
@@ -450,5 +437,66 @@ describe('useRoastProfileSelection stale bean clear (#176)', () => {
         });
         expect(h.api.selectedBeanId).toBe('bean-1');
         h.unmount();
+    });
+});
+
+describe('selection ownership across screen recovery', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        useRoastingStore.getState().reset();
+        vi.useRealTimers();
+    });
+    it('keeps the running bean and approved reference after the view remounts', async () => {
+        localStorage.setItem(DEFAULT_BEAN_KEY, 'bean-a');
+        const props = { ...baseSelection, workspaceOwnerId: 'ws-a', beans: [{ id: 'bean-a' }] };
+        const first = mountHook(props);
+        await act(async () => {
+            first.api.setUserSelectedTarget('running-profile');
+        });
+        act(() => {
+            useRoastingStore.getState().startCharge(undefined, 'ws-a', { bt: 180, unit: 'C' });
+        });
+        const sessionId = useRoastingStore.getState().sessionId;
+        first.unmount();
+        localStorage.setItem(DEFAULT_BEAN_KEY, 'different-default');
+        const recovered = mountHook({
+            ...props,
+            charged: true,
+            selectionEpoch: `ws-a:${sessionId}`,
+            userProfile: { default_roast_profile_id: 'different-profile' },
+        });
+        expect(recovered.api.selectedBeanId).toBe('bean-a');
+        expect(recovered.api.targetProfileId).toBe('running-profile');
+        expect(useRoastingStore.getState().sessionId).toBe(sessionId);
+        recovered.unmount();
+    });
+    it('does not lose a pending approved profile during StrictMode effect replay', async () => {
+        useRoastingStore.getState().setPendingProfile('pending-profile');
+        const h = mountHook({ ...baseSelection, confirmTargetChange: async () => true }, true);
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(h.api.targetProfileId).toBe('pending-profile');
+        expect(useRoastingStore.getState().pendingProfileId).toBeNull();
+        h.unmount();
+    });
+    it('ignores a late approval after unmount without stopping Replay', async () => {
+        let approve: (value: boolean) => void = () => {};
+        const stop = vi.fn();
+        const h = mountHook({
+            ...baseSelection,
+            commitApprovedTarget: stop,
+            confirmTargetChange: () =>
+                new Promise<boolean>((resolve) => {
+                    approve = resolve;
+                }),
+        });
+        act(() => h.api.setUserSelectedTarget('late-profile'));
+        h.unmount();
+        await act(async () => {
+            approve(true);
+        });
+        expect(useRoastingStore.getState().prepared.profileId).toBe('prof-1');
+        expect(stop).not.toHaveBeenCalled();
     });
 });

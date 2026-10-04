@@ -339,7 +339,9 @@ export class MockDb {
         inboundIsEstimate: boolean;
     }): RoastSession {
         this.lastSaveOpRequestedDeduct = params.deduct;
-        const sessionId = uuid();
+        const sessionId = typeof params.session.id === 'string' ? params.session.id : uuid();
+        const existing = this.sessions.find((session) => session.id === sessionId);
+        if (existing) return existing;
         const beanId = (params.session.bean_id as string | null) ?? null;
         const planBatchId = (params.session.plan_batch_id as string | null) ?? null;
         const userId = (params.session.user_id as string) ?? E2E_USER.id;

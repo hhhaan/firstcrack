@@ -29,7 +29,7 @@ const renderActions = () => {
             rawBT: 200,
             setLogEntries,
             onDrop,
-            storeStartCharge: (ms, ownerId) => useRoastingStore.getState().startCharge(ms, ownerId),
+            storeStartCharge: useRoastingStore.getState().startCharge,
         });
         return null;
     };
@@ -68,7 +68,9 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         const after = useRoastingStore.getState();
         expect(after.sessionId).toBe(sessionId);
         expect(after.roastStartMs).toBe(roastStartMs);
-        expect(h.setLogEntries).toHaveBeenCalledTimes(1);
+        expect(useRoastingStore.getState().logState.entries.filter((entry) => entry.event === 'Charge')).toHaveLength(
+            1,
+        );
         expect(useRoastingStore.getState().sessionOwnerId).toBe('owner-A');
     });
 

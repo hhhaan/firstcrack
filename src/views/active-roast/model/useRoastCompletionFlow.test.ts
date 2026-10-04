@@ -18,7 +18,7 @@ const row = (id: string): PlanBatchWithProgress =>
 const base = {
     endRoastModal: false,
     summaryModal: true,
-    summaryData: { totalTime: '10:00', development: '2:00', finalBt: '200', logEntries: [] },
+    summarySessionId: 's-a',
     continueModal: false,
     continueCandidates: [] as PlanBatchWithProgress[],
 };
@@ -61,23 +61,16 @@ describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
     it('CLOSE_SUMMARY hides modal but keeps summaryData for reopen (#172)', () => {
         const next = flowReducer(base, { type: 'CLOSE_SUMMARY' });
         expect(next.summaryModal).toBe(false);
-        expect(next.summaryData).toEqual(base.summaryData);
+        expect(next.summarySessionId).toBe(base.summarySessionId);
         expect(next.endRoastModal).toBe(false);
         expect(next.continueModal).toBe(false);
     });
 
     it('REOPEN_SUMMARY restores modal when summaryData exists', () => {
         const closed = flowReducer(base, { type: 'CLOSE_SUMMARY' });
-        const reopened = flowReducer(closed, { type: 'REOPEN_SUMMARY' });
+        const reopened = flowReducer(closed, { type: 'REOPEN_SUMMARY', sessionId: 's-a' });
         expect(reopened.summaryModal).toBe(true);
-        expect(reopened.summaryData).toEqual(base.summaryData);
-    });
-
-    it('REOPEN_SUMMARY is no-op without summaryData', () => {
-        const empty = { ...base, summaryModal: false, summaryData: null };
-        const next = flowReducer(empty, { type: 'REOPEN_SUMMARY' });
-        expect(next.summaryModal).toBe(false);
-        expect(next.summaryData).toBeNull();
+        expect(reopened.summarySessionId).toBe(base.summarySessionId);
     });
 
     it('DISCARD_SUMMARY resets entire completion flow', () => {
@@ -93,7 +86,7 @@ describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
         expect(next).toEqual({
             endRoastModal: false,
             summaryModal: false,
-            summaryData: null,
+            summarySessionId: null,
             continueModal: false,
             continueCandidates: [],
         });

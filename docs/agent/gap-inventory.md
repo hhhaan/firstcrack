@@ -12,7 +12,7 @@
 
 | # | Domain | Primary trees | Prior docs | Lang | Agent gap | Action this pass |
 |---|--------|---------------|------------|------|-----------|------------------|
-| 1 | active-roast | `src/features/active-roast/`, `src/views/active-roast/`, `src/shared/store/roastSession.ts` | `active-roast-assessment.md`, integrity specs | KO / mixed EN | **HIGH** — save/deduct/R2 split | **Wrote** `docs/agent/active-roast-save.md` |
+| 1 | active-roast | `src/features/active-roast/`, `src/views/active-roast/`, `src/features/active-roast/model/batch.ts` | `active-roast-assessment.md`, integrity specs | KO / mixed EN | **HIGH** — save/deduct/R2 split | **Wrote** `docs/agent/active-roast-save.md` |
 | 2 | inventory / stock | `src/entities/*-stock-event/`, package/blend/adjust features, ledger RPCs | `inventory-architecture.md` (tracked) | KO body | **HIGH** — ledger SSoT Korean | **Rewrote** `docs/inventory-architecture.md` EN; index `docs/agent/inventory-ledger.md` |
 | 3 | orders / sales-channel | `src/entities/order*`, `sales-channel`, fulfill/dispatch/cancel, EFs | `sales-channel-integration.md`, `order-status-sync.md` | KO only | **HIGH** — secrets + stock | **Wrote** `docs/agent/sales-channels-orders.md` |
 | 4 | schedule / plan | `src/entities/plan/`, `src/views/schedule/` | none dedicated | — | **HIGH** — recurrence + batch stock | **Wrote** `docs/agent/schedule-plan.md` |

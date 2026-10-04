@@ -4,7 +4,6 @@
  */
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 
 export type FcE2eBridge = {
@@ -36,8 +35,8 @@ declare global {
 export function installE2eBridge() {
     if (import.meta.env.VITE_E2E !== '1' && import.meta.env.VITE_E2E !== 'true') return;
     window.__FC_E2E__ = {
-        startBatch: (handoff) => useRoastSessionStore.getState().startBatch(handoff),
-        clearBatch: () => useRoastSessionStore.getState().completeBatch(),
+        startBatch: (handoff) => useRoastingStore.getState().startBatch(handoff),
+        clearBatch: () => useRoastingStore.getState().completeBatch(),
         forceChargedSession: () => {
             const store = useRoastingStore.getState();
             store.enterPreheating(['heater', 'fan', 'drum']);

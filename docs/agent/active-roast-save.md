@@ -18,12 +18,20 @@ Live roast logging (sidecar temps → log entries → local TSV) and durable sav
 |-------|--------|
 | Feature lib/model | `src/features/active-roast/` (`model/useSaveRoast.ts`, `useDeductRoastStock.ts`, `useRoastLog.ts`, `lib/buildRoastStockEvents.ts`, `roastedInbound.ts`, `determine-stock-deduction.ts`, `serialize-roast-events.ts`, `tsv-writer.ts`) |
 | View orchestration | `src/views/active-roast/` (`model/useRoastSaveFlow.ts`, `useRoastCompletionFlow.ts`, `useSidecarPolling.ts`, `ActiveRoast.tsx`) |
-| Session store | `src/shared/store/roastSession.ts` (handoff; not persisted) |
+| Batch model | `src/features/active-roast/model/status.ts` + `batch.ts` (prepared, running and latest completed batch; not persisted) |
 | Upload | `src/features/upload-roast-profile/` → `src/shared/lib/r2.ts` → EF `get-upload-url` |
 | Roast entity | `src/entities/roast/` (`saveOp` / session API) |
 | Sidecar client | `src/shared/lib/sidecar.ts` |
 
 ---
+
+## Batch ownership and transitions
+
+`useRoastingStore` owns prepared selection/handoff, the running session and selection, and one latest completed batch. Charge copies preparation into the running batch. Defaults and future handoffs only update preparation; an approved reference change updates the running reference and next preparation together. The existing form-prefill values also live in this model.
+
+Drop/End atomically capture summary, owner, selection, charge origin, curve/logs and machine context, then release the running session into Charge wait. Drop additionally retains the cancel snapshot and pre-Drop Replay state. Cancel restores the same session and frozen elapsed time; next Charge or submission locks cancellation. The view reducer owns modal visibility only, not completed data.
+
+Model actions perform memory updates only. View hooks write the existing v2 pending checkpoint from the completed snapshot before issuing the sidecar reset, and retain summary data if checkpointing fails. Async save and discard apply only to the matching owner/session; screen remounts cannot reinitialize the running selection. Live collection and controller safety remain separate. This is an ownership/error-recovery refactor; subscription performance and a multi-completed-batch queue are separate work.
 
 ## Runtime loop (read)
 

@@ -5,7 +5,6 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
-import { useRoastSessionStore } from './shared/store/roastSession';
 import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
@@ -116,8 +115,8 @@ export const App = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsTab, setSettingsTab] = useState<SettingsTabId>('general');
     const settingsReturnView = useRef<View>('dashboard');
-    const startBatch = useRoastSessionStore((s) => s.startBatch);
-    const completeBatch = useRoastSessionStore((s) => s.completeBatch);
+    const startBatch = useRoastingStore((s) => s.startBatch);
+    const completeBatch = useRoastingStore((s) => s.completeBatch);
 
     // Active roast: collapse nav for chart real estate (also if user left it open elsewhere)
     useEffect(() => {

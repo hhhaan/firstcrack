@@ -1,6 +1,5 @@
-import { type DropOnset, planDropTransition } from '@features/active-roast/lib/drop-transition';
-import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
-import { formatTemp } from '@features/active-roast/lib/temperature';
+import type { DropOnset } from '@features/active-roast/lib/drop-transition';
+import type { RoastSummaryData } from '@features/active-roast/model/batch';
 import { BBP_INPROGRESS_ID, hydrateLiveBbp, useBbpStore } from '@features/active-roast/model/bbp';
 import { clearPendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
@@ -8,17 +7,11 @@ import { useRoastSettings } from '@features/active-roast/model/settings';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
-import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
-import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sidecar } from '@shared/lib/sidecar';
 import { deleteBbpTsv, formatRoastTsvRow, formatTsvRows, replaceSessionTsv } from '@shared/lib/tsv-writer';
-import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
-import { waitPhaseAfterRoastReset } from '../lib/roast-phase';
-import { isDropCancelable, useCompletedRoastStore } from './completedRoast';
-import type { RoastSummaryData } from './useRoastCompletionFlow';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
 export interface UseRoastLifecycleParams {
@@ -26,18 +19,12 @@ export interface UseRoastLifecycleParams {
     sidecarConnected: boolean;
     rawBT: number | null;
     unit: TemperatureUnit;
-    logEntries: LogEntry[];
-    timeStr: string;
     enterStandby: () => void;
-    enterPreheating: (capabilities?: string[]) => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
-    resetStore: () => void;
     resetAutoDetectionRef: React.RefObject<() => void>;
     disableAutoChargeRef: React.RefObject<() => void>;
     disableAutoDropRef: React.RefObject<() => void>;
     rearmAutoChargeRef: React.RefObject<() => void>;
-    setLogEntries: (entries: LogEntry[]) => void;
-    setLivePoints: (points: LiveRoastPoint[]) => void;
     setZoomRange: (range: { start: number; end: number } | null) => void;
     setHoveredChartIndex: (index: number | null) => void;
     triggerChargeRef: React.RefObject<(bt?: number | null, chargeTimeMs?: number) => void>;
@@ -48,7 +35,7 @@ export interface UseRoastLifecycleReturn {
     handleEnterStandby: () => void;
     handleManualCharge: () => Promise<void>;
     resetActiveRoast: (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => void;
-    confirmEndRoast: () => RoastSummaryData;
+    confirmEndRoast: (commitSummary?: (summary: RoastSummaryData) => void) => RoastSummaryData;
     completeDrop: (input: { livePoints: LiveRoastPoint[]; onset?: DropOnset }) => RoastSummaryData | null;
     /** Manual and auto Drop. Holds Charge through cool-down; disables Drop until Charge. */
     finishDrop: (input: {
@@ -57,7 +44,7 @@ export interface UseRoastLifecycleReturn {
         commitSummary: (summary: RoastSummaryData) => void;
         holdAutoChargeUntilRecovery: () => void;
     }) => RoastSummaryData | null;
-    cancelDrop: () => boolean;
+    cancelDrop: (expectedSessionId?: string | null) => boolean;
     recoverLiveBbp: () => void;
 }
 
@@ -69,24 +56,17 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         sidecarConnected,
         rawBT,
         unit,
-        logEntries,
-        timeStr,
         enterStandby,
-        enterPreheating,
         setConnected,
-        resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
         disableAutoDropRef,
         rearmAutoChargeRef,
-        setLogEntries,
-        setLivePoints,
         setZoomRange,
         setHoveredChartIndex,
         triggerChargeRef,
         replayActiveRef,
     } = params;
-
     const roastSettings = useRoastSettings();
     const bbpEnabled = useFeature(FEATURE.bbp) && roastSettings.bbpEnabled;
     const canWrite = useWriteAccess();
@@ -165,134 +145,62 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         rearmAutoChargeRef,
     ]);
 
+    const resetEffects = useCallback(() => {
+        resetAutoDetectionRef.current?.();
+        if (sidecarConnected) {
+            sidecar.resetRoast().catch((error) => {
+                logger.capture(new Error('Roast reset command failed'), { reason: String(error) });
+            });
+        }
+        setZoomRange(null);
+        setHoveredChartIndex(null);
+    }, [resetAutoDetectionRef, sidecarConnected, setZoomRange, setHoveredChartIndex]);
     const resetActiveRoast = useCallback(
         (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => {
-            resetAutoDetectionRef.current?.();
-            const keepHeatHold = opts?.keepHeatHold ?? false;
-            const chargeWait =
-                opts?.chargeWait ?? (useBbpStore.getState().active || useRoastingStore.getState().awaitingNextCharge);
-            resetStore();
-            if (sidecarConnected) {
-                sidecar.resetRoast().catch((error) => {
-                    logger.capture(new Error('Roast reset command failed'), { reason: String(error) });
-                });
-                enterPreheating();
-                // BBP: skip Roast Ready. Sidecar /standby is not called — virtual would
-                // auto-drop beans in 10s and cut the wait short. Real BT drop still
-                // auto-charges once phase is standby.
-                if (waitPhaseAfterRoastReset(chargeWait) === 'standby') {
-                    enterStandby();
-                }
-            }
-            if (chargeWait || keepHeatHold) {
-                useRoastingStore.setState({
-                    awaitingNextCharge: chargeWait,
-                    heatHoldAfterDrop: keepHeatHold,
-                });
-            }
-            setLogEntries([]);
-            setLivePoints([]);
-            setZoomRange(null);
-            setHoveredChartIndex(null);
+            const state = useRoastingStore.getState();
+            state.resetCurrentBatch({
+                ...opts,
+                chargeWait: opts?.chargeWait ?? (useBbpStore.getState().active || state.awaitingNextCharge),
+            });
+            resetEffects();
         },
-        [
-            resetAutoDetectionRef,
-            resetStore,
-            sidecarConnected,
-            enterPreheating,
-            enterStandby,
-            setLogEntries,
-            setLivePoints,
-            setZoomRange,
-            setHoveredChartIndex,
-        ],
+        [resetEffects],
     );
-
-    const confirmEndRoast = useCallback((): RoastSummaryData => {
-        const endTimeSec = useRoastingStore.getState().elapsed;
-        const completedLogEntries: LogEntry[] = [
-            ...logEntries,
-            {
-                id: crypto.randomUUID(),
-                time: timeStr,
-                timeSec: endTimeSec,
-                event: 'End',
-                temp: formatTemp(rawBT, unit),
-                tempC: rawBT,
-                note: 'Roast complete',
-            },
-        ];
-        const metrics = deriveRoastMetrics(
-            completedLogEntries.map((e) => ({ type: e.event, time_sec: logEntryTimeSec(e) })),
-            { liveElapsed: endTimeSec },
-        );
-        const roastTimeStr = metrics.roastDurationSec != null ? formatElapsed(metrics.roastDurationSec) : timeStr;
-        const development =
-            metrics.devTimeSec != null && metrics.dtrPct != null && metrics.devTimeSec > 0
-                ? `${formatElapsed(metrics.devTimeSec)} (${Number(metrics.dtrPct.toFixed(1))}%)`
-                : '—';
-        const summaryData: RoastSummaryData = {
-            totalTime: roastTimeStr,
-            development,
-            finalBt: formatTemp(rawBT, unit),
-            logEntries: completedLogEntries,
-            sessionId: useRoastingStore.getState().sessionId,
-            elapsedSec: endTimeSec,
-        };
-        // Abnormal abort: BBP starts at confirm time (no Drop). Machine still goes to Charge wait.
-        if (bbpEnabled) useBbpStore.getState().begin(Date.now());
-        useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
-        return summaryData;
-    }, [logEntries, timeStr, rawBT, unit, bbpEnabled]);
-
+    const confirmEndRoast = useCallback(
+        (commitSummary?: (summary: RoastSummaryData) => void): RoastSummaryData => {
+            const summary = useRoastingStore.getState().abortRoast(rawBT, unit);
+            commitSummary?.(summary);
+            if (bbpEnabled) useBbpStore.getState().begin(Date.now());
+            if (commitSummary) resetEffects();
+            return summary;
+        },
+        [rawBT, unit, bbpEnabled, resetEffects],
+    );
     const completeDrop = useCallback(
-        (input: { livePoints: LiveRoastPoint[]; onset?: DropOnset }): RoastSummaryData | null => {
-            const store = useRoastingStore.getState();
-            const planned = planDropTransition({
-                sessionId: store.sessionId,
-                charged: isChargedPhase(store.phase),
-                phase: store.phase,
-                roastStartMs: store.roastStartMs,
-                elapsed: store.elapsed,
-                rawBT,
-                unit,
-                logEntries,
-                livePoints: input.livePoints,
-                onset: input.onset,
-                droppedSessionId: useCompletedRoastStore.getState().droppedSessionId,
-            });
+        (input: {
+            livePoints: LiveRoastPoint[];
+            onset?: DropOnset;
+            commitSummary?: (summary: RoastSummaryData) => void;
+        }): RoastSummaryData | null => {
+            const planned = useRoastingStore
+                .getState()
+                .drop({ ...input, rawBT, unit, replayActive: replayActiveRef?.current ?? false });
             if (!planned) return null;
-            useCompletedRoastStore.getState().capture({
-                sessionId: planned.sessionId,
-                roastStartMs: store.roastStartMs,
-                elapsed: planned.dropTimeSec,
-                logEntries: planned.logEntries,
-                livePoints: planned.roastPoints as LiveRoastPoint[],
-                sessionOwnerId: store.sessionOwnerId,
-                replayActive: replayActiveRef?.current ?? false,
-            });
+            input.commitSummary?.(planned.summary);
             if (bbpEnabled) useBbpStore.getState().begin(planned.bbpStartMs, planned.bbpSeed);
-            useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
-            void replaceSessionTsv(planned.sessionId, formatTsvRows(planned.roastPoints, formatRoastTsvRow)).catch(
-                (err) => {
-                    logger.capture(err instanceof Error ? err : new Error(String(err)), {
-                        context: 'drop clip session tsv',
-                        sessionId: planned.sessionId,
-                    });
-                },
-            );
-            return {
-                totalTime: planned.summary.totalTime,
-                development: planned.summary.development,
-                finalBt: planned.summary.finalBt,
-                logEntries: planned.summary.logEntries,
-                sessionId: planned.summary.sessionId,
-                elapsedSec: planned.summary.elapsedSec,
-            };
+            void replaceSessionTsv(
+                planned.sessionId,
+                formatTsvRows(planned.snapshot.livePoints, formatRoastTsvRow),
+            ).catch((err) => {
+                logger.capture(err instanceof Error ? err : new Error(String(err)), {
+                    context: 'drop clip session tsv',
+                    sessionId: planned.sessionId,
+                });
+            });
+            return planned.summary;
         },
-        [logEntries, rawBT, unit, bbpEnabled, replayActiveRef],
+        [rawBT, unit, bbpEnabled, replayActiveRef],
     );
-
     const finishDrop = useCallback(
         (input: {
             livePoints: LiveRoastPoint[];
@@ -300,45 +208,28 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             commitSummary: (summary: RoastSummaryData) => void;
             holdAutoChargeUntilRecovery: () => void;
         }): RoastSummaryData | null => {
-            // Stop the detector before the snapshot so a second onset in the same turn cannot enter.
             disableAutoDropRef.current();
-            const summary = completeDrop({ livePoints: input.livePoints, onset: input.onset });
+            const summary = completeDrop(input);
             if (!summary) return null;
-            input.commitSummary(summary);
-            resetActiveRoast({ chargeWait: true, keepHeatHold: true });
-            // Drop cool-down must finish before the next auto Charge can fire.
+            resetEffects();
             disableAutoDropRef.current();
             input.holdAutoChargeUntilRecovery();
             return summary;
         },
-        [completeDrop, resetActiveRoast, disableAutoDropRef],
+        [completeDrop, resetEffects, disableAutoDropRef],
     );
-
-    const cancelDrop = useCallback((): boolean => {
-        if (!isDropCancelable()) return false;
-        const restore = useCompletedRoastStore.getState().restore;
+    const cancelDrop = useCallback((expectedSessionId?: string | null): boolean => {
+        const restore = useRoastingStore.getState().cancelDrop(expectedSessionId);
         if (!restore) return false;
         useBbpStore.getState().abort();
         void deleteBbpTsv(BBP_INPROGRESS_ID);
-        clearPendingRoastSave(restore.sessionOwnerId ?? '', restore.sessionId);
-        useCompletedRoastStore.getState().clear();
-        const elapsed = Math.max(0, restore.elapsed);
-        const origin = Date.now() - elapsed * 1000;
-        // Phase before the curve so polling sees a same-batch resume and anchors
-        // the poll clock on this snapshot, not on the pre-charge wait (#638).
-        useRoastingStore.setState({
-            phase: 'roasting',
-            sessionId: restore.sessionId,
-            sessionOwnerId: restore.sessionOwnerId,
-            roastStartMs: origin,
-            elapsed,
-            awaitingNextCharge: false,
-            heatHoldAfterDrop: false,
-        });
-        setLogEntries(restore.logEntries.filter((e) => e.event !== 'Drop'));
-        setLivePoints(restore.livePoints);
+        try {
+            clearPendingRoastSave(restore.sessionOwnerId ?? '', restore.sessionId);
+        } catch (err) {
+            logger.capture(err, { context: 'cancelDrop.pendingCheckpoint', sessionId: restore.sessionId });
+        }
         return true;
-    }, [setLogEntries, setLivePoints]);
+    }, []);
 
     const recoverLiveBbp = useCallback(() => {
         if (!bbpEnabled) return;
@@ -346,11 +237,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         // A roast already owns the chart. Do not rehydrate a wait on top of it (#433).
         if (isChargedPhase(store.phase)) return;
         if (!hydrateLiveBbp()) return;
-        useRoastingStore.setState({ awaitingNextCharge: true });
-        if (store.sidecarConnected && (store.phase === 'idle' || store.phase === 'preheating')) {
-            store.enterPreheating();
-            store.enterStandby();
-        }
+        store.recoverChargeWait();
     }, [bbpEnabled]);
 
     return {

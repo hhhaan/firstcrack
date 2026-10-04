@@ -6,7 +6,7 @@ import {
     type PendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { useRoastSessionStore } from '@shared/store/roastSession';
+
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -14,9 +14,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isLiveDetachedFromPending, type UseRoastSaveFlowParams, useRoastSaveFlow } from './useRoastSaveFlow';
 
 const sessionActions = {
-    startBatch: useRoastSessionStore.getState().startBatch,
-    completeBatch: useRoastSessionStore.getState().completeBatch,
-    recordAdhocSave: useRoastSessionStore.getState().recordAdhocSave,
+    startBatch: useRoastingStore.getState().startBatch,
+    completeBatch: useRoastingStore.getState().completeBatch,
+    recordAdhocSave: useRoastingStore.getState().recordAdhocSave,
 };
 
 const handoffB: PlanBatchHandoff = {
@@ -87,22 +87,39 @@ const batch = {
     completed_sessions: 0,
 } as PlanBatchWithProgress;
 
-const renderFlow = (patch: Partial<UseRoastSaveFlowParams> = {}) => {
+type FlowFixture = Partial<UseRoastSaveFlowParams> & {
+    planBatchHandoff?: PlanBatchHandoff | null;
+    elapsed?: number;
+    selectedBeanId?: string | null;
+    targetProfileId?: string | null;
+    handoffBeanName?: string | null;
+    sessionId?: string | null;
+};
+const renderFlow = (patch: FlowFixture = {}) => {
+    const state = useRoastingStore.getState();
+    const selection = {
+        beanId: patch.selectedBeanId ?? null,
+        beanName: patch.handoffBeanName ?? null,
+        profileId: patch.targetProfileId ?? null,
+        planBatchHandoff: patch.planBatchHandoff ?? null,
+    };
+    useRoastingStore.setState({
+        elapsed: patch.elapsed ?? 600,
+        ...(patch.sessionId !== undefined && { sessionId: patch.sessionId }),
+        prepared: { ...state.prepared, ...selection },
+        activeSelection: state.activeSelection ? { ...state.activeSelection, ...selection } : null,
+    });
     const root = createRoot(document.createElement('div'));
     roots.add(root);
     const onResetActiveRoast = vi.fn();
     let api: ReturnType<typeof useRoastSaveFlow>;
     const Probe = () => {
         api = useRoastSaveFlow({
-            planBatchHandoff: null,
-            elapsed: 600,
             rawBT: 200,
-            selectedBeanId: null,
-            targetProfileId: null,
-            handoffBeanName: null,
-            sessionId: null,
             onResetActiveRoast,
-            ...patch,
+            ...(patch.rawBT !== undefined && { rawBT: patch.rawBT }),
+            ambientTemperature: patch.ambientTemperature,
+            ambientHumidity: patch.ambientHumidity,
         });
         return null;
     };
@@ -133,7 +150,7 @@ beforeEach(() => {
     }));
     useRoastingStore.getState().reset();
     useRoastingStore.setState({ sessionOwnerId: null });
-    useRoastSessionStore.getState().completeBatch();
+    useRoastingStore.getState().completeBatch();
 });
 afterEach(() => {
     act(() => {
@@ -141,8 +158,8 @@ afterEach(() => {
     });
     roots.clear();
     vi.restoreAllMocks();
-    useRoastSessionStore.setState({
-        planBatchHandoff: null,
+    useRoastingStore.setState({
+        prepared: { ...useRoastingStore.getState().prepared, planBatchHandoff: null },
         lastAdhocSave: null,
         ...sessionActions,
     });
@@ -200,7 +217,7 @@ describe('roast save identity and Continue lifecycle', () => {
                     finish = resolve;
                 }),
             );
-            const startBatch = vi.spyOn(useRoastSessionStore.getState(), 'startBatch');
+            const startBatch = vi.spyOn(useRoastingStore.getState(), 'startBatch');
             const h = renderFlow();
             let pending = Promise.resolve();
             act(() => {
@@ -216,7 +233,7 @@ describe('roast save identity and Continue lifecycle', () => {
                 await pending;
             });
             expect(startBatch).not.toHaveBeenCalled();
-            expect(useRoastSessionStore.getState().planBatchHandoff).toBeNull();
+            expect(useRoastingStore.getState().prepared.planBatchHandoff).toBeNull();
             expect(mocks.invalidateScheduledBatchQueries).toHaveBeenCalledTimes(1);
         },
     );
@@ -231,7 +248,7 @@ describe('roast save identity and Continue lifecycle', () => {
                 }),
             );
             const h = renderFlow();
-            const completeBatch = vi.spyOn(useRoastSessionStore.getState(), 'completeBatch');
+            const completeBatch = vi.spyOn(useRoastingStore.getState(), 'completeBatch');
             let pending = Promise.resolve();
             act(() => {
                 pending = h.api.handleSave(form);
@@ -259,7 +276,7 @@ describe('roast save identity and Continue lifecycle', () => {
                 }),
             )
             .mockResolvedValue(batch);
-        const startBatch = vi.spyOn(useRoastSessionStore.getState(), 'startBatch');
+        const startBatch = vi.spyOn(useRoastingStore.getState(), 'startBatch');
         const h = renderFlow();
         let first = Promise.resolve();
         let second = Promise.resolve();
@@ -300,7 +317,7 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(h.api.flow.continueModal).toBe(false);
         expect(h.onResetActiveRoast).not.toHaveBeenCalled();
         expect(mocks.fetchQuery).toHaveBeenCalled();
-        const completeBatch = vi.spyOn(useRoastSessionStore.getState(), 'completeBatch');
+        const completeBatch = vi.spyOn(useRoastingStore.getState(), 'completeBatch');
         await act(async () => {
             finishFetch();
             await pending;
@@ -343,7 +360,7 @@ describe('roast save identity and Continue lifecycle', () => {
         const h = renderFlow({ sessionId: 's-a' });
         act(() => sessionActions.startBatch(handoffB));
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
-        expect(useRoastSessionStore.getState().planBatchHandoff?.planBatchId).toBe('batch-b');
+        expect(useRoastingStore.getState().prepared.planBatchHandoff?.planBatchId).toBe('batch-b');
     });
 
     it('late save without pending reconstructs from frozen summary, not live B', async () => {
@@ -354,7 +371,6 @@ describe('roast save identity and Continue lifecycle', () => {
                 sessionId: 's-a',
                 selectedBeanId: 'bean-a',
                 elapsedSec: 600,
-                planBatchHandoff: null,
             }),
         );
         clearPendingRoastSave('workspace-a', 's-a');
@@ -392,14 +408,14 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(listPendingRoastSaves()[0].params.sessionId).toBe('s-a');
         expect(useRoastingStore.getState().sessionId).toBe('s-b');
         const completeBatch = vi.fn();
-        useRoastSessionStore.setState({ completeBatch });
+        useRoastingStore.setState({ completeBatch });
         await act(async () => h.api.handleSave({ ...form, beanId: 'bean-a' }));
         expect(mocks.resumeSave.mock.calls[0][0].params.sessionId).toBe('s-a');
         expect(mocks.resumeSave.mock.calls[0][0].params.selectedBeanId).toBe('bean-a');
         expect(h.onResetActiveRoast).not.toHaveBeenCalled();
         expect(completeBatch).not.toHaveBeenCalled();
         expect(useRoastingStore.getState().sessionId).toBe('s-b');
-        expect(useRoastSessionStore.getState().planBatchHandoff?.planBatchId).toBe('batch-b');
+        expect(useRoastingStore.getState().prepared.planBatchHandoff?.planBatchId).toBe('batch-b');
     });
 
     it('keeps batch A start time when batch B is charged before A is saved', async () => {
@@ -412,14 +428,13 @@ describe('roast save identity and Continue lifecycle', () => {
                 roastStartMs: startA,
                 sessionId: 's-a',
                 sessionOwnerId: 'workspace-a',
-                elapsed: 600,
             });
             const h = renderFlow({ sessionId: 's-a', elapsed: 600 });
             act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a', elapsedSec: 600 }));
             expect(listPendingRoastSaves()[0]?.params.roastStartTime).toBe(startA);
 
             vi.setSystemTime(new Date('2026-07-01T00:00:00.000Z'));
-            useRoastingStore.getState().reset();
+            useRoastingStore.getState().resetCurrentBatch();
             useRoastingStore.getState().startCharge();
             const startB = useRoastingStore.getState().roastStartMs;
             const sessionB = useRoastingStore.getState().sessionId;
@@ -434,7 +449,7 @@ describe('roast save identity and Continue lifecycle', () => {
 
             vi.setSystemTime(Date.now() + 60_000);
             await act(async () => h.api.handleSave({ ...form, beanId: 'bean-a' }));
-            expect(mocks.resumeSave.mock.calls[1][0].params.roastStartTime).toBe(startA);
+            expect(mocks.resumeSave).toHaveBeenCalledTimes(1);
             expect(useRoastingStore.getState().roastStartMs).toBe(startB);
             expect(useRoastingStore.getState().sessionId).toBe(sessionB);
         } finally {
@@ -447,11 +462,80 @@ describe('roast save identity and Continue lifecycle', () => {
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
         useRoastingStore.setState({ phase: 'standby', sessionId: null, awaitingNextCharge: true });
         const completeBatch = vi.fn();
-        useRoastSessionStore.setState({ completeBatch });
+        useRoastingStore.setState({ completeBatch });
         await act(async () => h.api.handleSave(form));
         expect(h.onResetActiveRoast).not.toHaveBeenCalled();
         expect(completeBatch).not.toHaveBeenCalled();
         expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
         expect(mocks.fetchQuery).not.toHaveBeenCalled();
+    });
+});
+
+describe('completed batch identity at asynchronous and recovery boundaries', () => {
+    it('late A save leaves the new B summary open and recoverable', async () => {
+        let finish: (result: { syncPending: boolean; savedSession: { id: string; plan_batch_id: null } }) => void =
+            () => {};
+        mocks.resumeSave.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                }),
+        );
+        const h = renderFlow({ sessionId: 's-a', selectedBeanId: 'bean-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        let saving: Promise<void> = Promise.resolve();
+        act(() => {
+            saving = h.api.handleSave(form);
+        });
+        const nextId = useRoastingStore.getState().startCharge(undefined, 'workspace-a');
+        if (!nextId) throw new Error('B did not Charge');
+        act(() => {
+            const completed = useRoastingStore.getState().drop({ rawBT: 205, unit: 'C', replayActive: false });
+            if (!completed) throw new Error('B did not Drop');
+            h.api.confirmEndRoast(completed.summary);
+        });
+        expect(h.api.flow.summaryModal).toBe(true);
+        await act(async () => {
+            finish({ syncPending: false, savedSession: { id: 's-a', plan_batch_id: null } });
+            await saving;
+        });
+        expect(h.api.flow.summaryData?.sessionId).toBe(nextId);
+        expect(h.api.flow.summaryModal).toBe(true);
+        expect(listPendingRoastSaves().some((draft) => draft.params.sessionId === nextId)).toBe(true);
+        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+    });
+    it('checkpoint failure and remount retain the original snapshot for retry', async () => {
+        const h = renderFlow({ sessionId: 's-a', selectedBeanId: 'bean-a', targetProfileId: 'profile-a' });
+        const storage = vi.spyOn(Storage.prototype, 'setItem');
+        storage.mockImplementationOnce(() => {
+            throw new Error('Storage quota exceeded');
+        });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        expect(listPendingRoastSaves()).toHaveLength(0);
+        expect(h.api.flow.summaryData?.sessionId).toBe('s-a');
+        h.unmount();
+        const recovered = renderFlow({ selectedBeanId: 'next-bean', targetProfileId: 'next-profile' });
+        act(() => recovered.api.flow.reopenSummary());
+        expect(recovered.api.flow.summaryModal).toBe(true);
+        await act(async () => recovered.api.handleSave(form));
+        expect(mocks.resumeSave.mock.calls[0][0].params).toMatchObject({
+            sessionId: 's-a',
+            selectedBeanId: 'bean-a',
+            targetProfileId: 'profile-a',
+            elapsed: 600,
+        });
+    });
+});
+
+describe('explicit discard is scoped to the visible summary', () => {
+    it('an old A discard callback cannot delete the new B checkpoint or summary', () => {
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        const discardA = h.api.discardSummary;
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-b' }));
+        act(() => discardA());
+        expect(h.api.flow.summaryData?.sessionId).toBe('s-b');
+        expect(h.api.flow.summaryModal).toBe(true);
+        expect(listPendingRoastSaves().some((pending) => pending.params.sessionId === 's-b')).toBe(true);
     });
 });

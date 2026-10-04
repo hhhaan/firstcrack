@@ -1,5 +1,5 @@
-import type { LastAdhocSave } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
+import type { LastAdhocSave } from '../model/batch';
 import type { RoastSummaryForm } from './roastSummarySchema';
 
 /** 저장 폼 프리필. 우선순위: 스케줄 핸드오프 > (bean은 헤더 선택 >) 직전 애드혹 배치 > 빈값. */

@@ -2,13 +2,12 @@ import type { MachineSnapshot, PidRuntime } from '@entities/machine';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
 import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
+import { type BatchActions, type BatchState, createBatchActions, initialBatchState, type RoastPhase } from './batch';
+
+export { isChargedPhase, type RoastPhase } from './batch';
+
 import type { RawTemperatureSample } from '../lib/autoCharge';
 import type { SensorObservation } from '../lib/sensorObservation';
-
-export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
-
-/** idle / preheating / standby are not charged. roasting and ended stay charged until reset. */
-export const isChargedPhase = (phase: RoastPhase): boolean => phase === 'roasting' || phase === 'ended';
 
 type LiveData = {
     bt: number | null;
@@ -34,17 +33,9 @@ interface RoastLogState {
     unwind: boolean;
 }
 
-export interface RoastingState {
-    livePoints: LiveRoastPoint[];
+export interface RoastingState extends BatchState, BatchActions {
     setLivePoints: (action: LiveRoastPoint[] | ((prev: LiveRoastPoint[]) => LiveRoastPoint[])) => void;
-    logState: RoastLogState;
     setLogState: (action: RoastLogState | ((prev: RoastLogState) => RoastLogState)) => void;
-    phase: RoastPhase;
-    /** Whole seconds since charge; wall-clock from roastStartMs (not a +1 counter). */
-    elapsed: number;
-    /** Charge origin (ms since epoch). 0 = not charged. Shared with livePoints.time. */
-    roastStartMs: number;
-    sidecarConnected: boolean;
     sidecarError: string | null;
     machineCapabilities: string[];
     liveData: LiveData | null;
@@ -55,29 +46,10 @@ export interface RoastingState {
     updateSensorObservation: (observation: SensorObservation | null) => void;
     /** 사이드카 PID 런타임 상태 (/temperatures에 실려 온다). PID 미사용이면 null. */
     pid: PidRuntime | null;
-    /** Inventory/other entry → active roast bean handoff (consumed once when roast view activates). */
-    pendingBeanId: string | null;
-    pendingBeanName: string | null;
-    /** Profiles page "start with this profile" → target profile handoff (consumed once). */
-    pendingProfileId: string | null;
-    sessionId: string | null;
-    /** Workspace owner at charge. Survives endRoast; cleared on reset with sessionId. */
-    sessionOwnerId: string | null;
     reconnecting: boolean;
-    /** Last connected machine this roast; kept through disconnect until reset. */
-    machineSnapshot: MachineSnapshot | null;
-    /** After Drop/abort: next Charge is allowed even before the prior batch is saved. */
-    awaitingNextCharge: boolean;
-    /**
-     * Drop/abort stopped PID/Replay. Cleared on Drop cancel, next Charge, or full reset
-     * so a resumed roast can enable heat control again.
-     */
-    heatHoldAfterDrop: boolean;
 
     enterPreheating: (capabilities?: string[]) => void;
     enterStandby: () => void;
-    /** originMs: charge wall time (auto-charge onset). Defaults to Date.now(). */
-    startCharge: (originMs?: number, ownerId?: string) => void;
     endRoast: () => void;
     tick: () => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
@@ -117,6 +89,19 @@ const initialState = {
 
 export const useRoastingStore = create<RoastingState>((set, get) => ({
     ...initialState,
+    ...initialBatchState,
+    ...createBatchActions(set, get, (patch) => {
+        const state = get();
+        set({
+            ...initialState,
+            sidecarConnected: state.sidecarConnected,
+            machineCapabilities: state.machineCapabilities,
+            pendingBeanId: state.pendingBeanId,
+            pendingBeanName: state.pendingBeanName,
+            pendingProfileId: state.pendingProfileId,
+            ...patch,
+        });
+    }),
     setLivePoints: (action) => {
         const prev = get().livePoints;
         const livePoints = typeof action === 'function' ? action(prev) : action;
@@ -140,21 +125,6 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         const { phase } = get();
         if (phase !== 'preheating') return;
         set({ phase: 'standby' });
-    },
-
-    startCharge: (originMs?: number, ownerId?: string) => {
-        if (isChargedPhase(get().phase)) return; // sessionId 재생성 방지 — 심층 방어 (#174)
-        const now = Date.now();
-        const origin = originMs != null && originMs > 0 && originMs <= now ? originMs : now;
-        set({
-            phase: 'roasting',
-            sessionId: crypto.randomUUID(),
-            sessionOwnerId: ownerId || null,
-            roastStartMs: origin,
-            elapsed: Math.floor((now - origin) / 1000),
-            awaitingNextCharge: false,
-            heatHoldAfterDrop: false,
-        });
     },
 
     endRoast: () => {
@@ -241,6 +211,6 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
 
     reset: () => {
         const { sidecarConnected, machineCapabilities } = get();
-        set({ ...initialState, sidecarConnected, machineCapabilities });
+        set({ ...initialState, ...initialBatchState, sidecarConnected, machineCapabilities });
     },
 }));

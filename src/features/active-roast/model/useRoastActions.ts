@@ -15,7 +15,11 @@ interface UseRoastActionsParams {
     rawBT: number | null;
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     onDrop: (onset?: { timeSec: number; bt: number }) => void;
-    storeStartCharge: (originMs?: number, ownerId?: string) => void;
+    storeStartCharge: (
+        originMs?: number,
+        ownerId?: string,
+        charge?: { bt: number | null; unit: TemperatureUnit },
+    ) => string | null;
 }
 
 interface UseRoastActionsReturn {
@@ -38,26 +42,16 @@ export const useRoastActions = ({
         (btAtCharge?: number | null, chargeTimeMs?: number) => {
             // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
             if (isChargedPhase(useRoastingStore.getState().phase)) return;
+            const now = Date.now();
+            const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
+            const btVal = btAtCharge ?? rawBT;
+            const sessionId = storeStartCharge(origin, workspaceOwnerId, { bt: btVal, unit });
+            if (!sessionId) return;
             sidecar.startRoast().catch((error) => {
                 logger.capture(new Error('Roast start command failed'), { reason: String(error) });
             });
-            const now = Date.now();
-            const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
-            storeStartCharge(origin, workspaceOwnerId);
-            const btVal = btAtCharge ?? rawBT;
-            setLogEntries([
-                {
-                    id: crypto.randomUUID(),
-                    time: '0:00',
-                    timeSec: 0,
-                    event: 'Charge',
-                    temp: formatTemp(btVal, unit),
-                    tempC: btVal,
-                    note: 'Bean drop detected',
-                },
-            ]);
         },
-        [unit, rawBT, setLogEntries, storeStartCharge, workspaceOwnerId],
+        [unit, rawBT, storeStartCharge, workspaceOwnerId],
     );
 
     const handleAutoDrop = useCallback(

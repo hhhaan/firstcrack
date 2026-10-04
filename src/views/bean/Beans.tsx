@@ -8,7 +8,6 @@ import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-
 import { useRoastingStore } from '@features/active-roast';
 import { BlendRoastedModal } from '@features/blend-roasted';
 import { FEATURE, useFeature } from '@shared/lib/features';
-import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
@@ -168,7 +167,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
             onEdit={(bean) => openModal('edit', bean.id, bean)}
             onRestock={(id) => openModal('restock', id)}
             onStartRoast={() => {
-                useRoastSessionStore.getState().completeBatch();
+                useRoastingStore.getState().completeBatch();
                 if (selected?.id) {
                     useRoastingStore.getState().setPendingBean(selected.id, selected.name);
                 }

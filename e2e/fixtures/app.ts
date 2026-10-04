@@ -11,6 +11,7 @@ type Fixtures = {
 };
 
 export const test = base.extend<Fixtures>({
+    // biome-ignore lint/correctness/noEmptyPattern: Playwright requires fixture dependency destructuring
     db: async ({}, use) => {
         const db = new MockDb();
         await use(db);
@@ -47,7 +48,7 @@ export async function runRoastSaveWithDeduct(page: Page, opts: { beanName?: stri
     await goNav(page, 'roast');
     // Hardware-free charge: real roasting store phase machine via VITE_E2E bridge
     await page.waitForFunction(() => Boolean(window.__FC_E2E__?.forceChargedSession), null, { timeout: 15_000 });
-    await page.evaluate(() => window.__FC_E2E__!.forceChargedSession());
+    await page.evaluate(() => window.__FC_E2E__?.forceChargedSession());
     // Dismiss tour if still present (persist seed + force)
     const tour = page.locator('[data-tour-overlay="spotlight"]');
     if (await tour.count()) {
@@ -60,12 +61,9 @@ export async function runRoastSaveWithDeduct(page: Page, opts: { beanName?: stri
     await expect(page.getByTestId('roast-summary-save')).toBeVisible({ timeout: 10_000 });
 
     if (opts.beanName) {
-        const select = page.getByTestId('roast-summary-bean');
-        if (await select.count()) {
-            const option = select.locator('option', { hasText: opts.beanName }).first();
-            const value = await option.getAttribute('value');
-            if (value) await select.selectOption(value);
-        }
+        const picker = page.getByTestId('roast-summary-bean');
+        await picker.getByRole('combobox').fill(opts.beanName);
+        await picker.getByRole('option', { name: opts.beanName, exact: true }).click();
     }
 
     await page.getByTestId('roast-summary-weight').fill(opts.weightKg);
