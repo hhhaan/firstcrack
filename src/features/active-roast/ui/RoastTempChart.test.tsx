@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ControlData } from '@features/active-roast/lib/chart-option';
+import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { logger } from '@shared/lib/logger';
 import * as echarts from 'echarts';
 import { act, createElement, createRef } from 'react';
@@ -119,6 +120,70 @@ describe('RoastTempChart Heat set lifecycle', () => {
         });
     };
 
+    it('applies the selected tick mode while preserving the inactive list', () => {
+        const original = getRoastSettings();
+        const ticks = [150, 175, 200];
+        try {
+            act(() =>
+                updateRoastSettings({
+                    tempAxisMode: 'preset',
+                    tempTickMode: 'list',
+                    tempGridInterval: 10,
+                    tempTicksC: ticks,
+                }),
+            );
+            renderChart([null, null]);
+            for (const mode of ['preset', 'list', 'preset'] as const) {
+                act(() => updateRoastSettings({ tempAxisMode: mode }));
+                const option = setOption.mock.lastCall?.[0] as {
+                    yAxis: { interval: number; axisTick: { customValues?: number[] } }[];
+                };
+                expect(option.yAxis[0].axisTick.customValues).toEqual(mode === 'list' ? ticks : undefined);
+                if (mode !== 'list') expect(option.yAxis[0].interval).toBe(10);
+                expect(getRoastSettings().tempTicksC).toEqual(ticks);
+            }
+            act(() =>
+                updateRoastSettings({
+                    tempAxisMode: 'list',
+                    tempTickMode: 'interval',
+                    tempGridInterval: 30,
+                    tempLabelCustom: true,
+                    tempLabelEvery: 3,
+                    timeTickCustom: true,
+                    timeTickIntervalSec: 45,
+                }),
+            );
+            const customOption = setOption.mock.lastCall?.[0] as {
+                yAxis: { interval: number; axisTick: { customValues?: number[] } }[];
+                xAxis: { interval: number }[];
+            };
+            expect(customOption.yAxis[0].interval).toBe(30);
+            expect(customOption.yAxis[0].axisTick.customValues).toBeUndefined();
+            expect(customOption.xAxis[0].interval).toBe(45);
+            expect(getRoastSettings().tempTicksC).toEqual(ticks);
+            act(() => updateRoastSettings({ tempAxisMode: 'preset', timeTickCustom: false }));
+            const defaultOption = setOption.mock.lastCall?.[0] as typeof customOption;
+            expect(defaultOption.yAxis[0].interval).toBe(10);
+            expect(defaultOption.xAxis[0].interval).toBe(60);
+            expect(getRoastSettings().timeTickIntervalSec).toBe(45);
+            act(() =>
+                updateRoastSettings({
+                    tempGridPresetInterval: 20,
+                    tempLabelCustom: false,
+                    tempLabelPresetEvery: 2,
+                    timeTickPresetSec: 90,
+                }),
+            );
+            const presetOption = setOption.mock.lastCall?.[0] as typeof customOption;
+            expect(presetOption.yAxis[0].interval).toBe(20);
+            expect(presetOption.xAxis[0].interval).toBe(90);
+            expect(getRoastSettings().tempGridInterval).toBe(30);
+            expect(getRoastSettings().tempLabelEvery).toBe(3);
+        } finally {
+            act(() => updateRoastSettings(original));
+        }
+    });
+
     it('rebuilds the option when Heat set appears and disappears', () => {
         renderChart([null, null]);
         const initial = setOption.mock.calls[setOption.mock.calls.length - 1];
@@ -176,6 +241,61 @@ describe('RoastTempChart interactions', () => {
         container.remove();
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
+    });
+
+    it.each([101, 113, 125, 175, 199])('matches rendered labels and click/drag bounds at %s%%', (fontScalePct) => {
+        const previous = getRoastSettings().fontScalePct;
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDrag = vi.fn();
+        try {
+            act(() => {
+                updateRoastSettings({ fontScalePct });
+                root.render(
+                    createElement(RoastTempChart, {
+                        ...baseProps,
+                        ref,
+                        xs: [0, 5, 8],
+                        btActual: [180, 185, 190],
+                        eventMarkerStyle: 'both',
+                        eventMarkers: [
+                            {
+                                logId: 'yellow-1',
+                                event: 'Yellow',
+                                timeSec: 5,
+                                timeStr: '0:05',
+                                temp: '185°C',
+                                color: '#888',
+                            },
+                        ],
+                        onEventMarkerDrag,
+                        onEventMarkerEdit: vi.fn(),
+                    }),
+                );
+            });
+            const option = setOption.mock.calls[setOption.mock.calls.length - 1]?.[0];
+            const series = option.series.find((s: { id: string }) => s.id === 'event-curve-labels');
+            const rendered = series.renderItem(
+                { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 3000 } },
+                { coord: ([x, y]: number[]) => [x * 10, y * 10], getWidth: () => 1000 },
+            );
+            const label = rendered.children.find((child: { type: string }) => child.type === 'text');
+            const scale = fontScalePct / 100;
+            expect(label.style.font).toBe(`600 ${10 * scale}px monospace`);
+            expect(label.x).toBe(50 + 4 * scale);
+            const point = {
+                clientX: label.x + label.style.text.length * 6 * scale - 1,
+                clientY: label.y - 14 * scale + 1,
+            };
+            expect(ref.current?.hitTestMarker(point)).toBe(true);
+            expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 6 })).toBe(false);
+            act(() => expect(ref.current?.openMarkerEdit(point)).toBe(true));
+            expect(ref.current?.beginMarkerDrag({ ...point, button: 0, pointerId: 7 })).toBe(true);
+            expect(ref.current?.moveMarkerDrag({ clientX: 80, clientY: point.clientY, pointerId: 7 })).toBe(true);
+            expect(onEventMarkerDrag).toHaveBeenCalledWith('yellow-1', 8);
+            expect(ref.current?.endMarkerDrag(7)).toBe(true);
+        } finally {
+            act(() => updateRoastSettings({ fontScalePct: previous }));
+        }
     });
 
     it('uses scalar coordinate conversion for cursor, drag start, and drag move including zero', () => {

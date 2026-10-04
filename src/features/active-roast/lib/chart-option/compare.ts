@@ -3,6 +3,7 @@ import {
     getResolvedEventColor,
     ROR_Y_MAX,
     ROR_Y_MIN,
+    TEMP_CURVE_WIDTH,
     TEMP_Y_INTERVAL,
 } from '@features/active-roast/lib/chart-config';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
@@ -108,7 +109,7 @@ export const buildCompareChartOption = (
             yAxisIndex: 0,
             z: 2,
             data: s.points.map((p) => [p.t, p.bt]),
-            lineStyle: { color, width: 2 },
+            lineStyle: { color, width: TEMP_CURVE_WIDTH },
             itemStyle: { color },
             ...lineSeriesBase,
             ...getSmoothConfig(0.4),
@@ -152,7 +153,7 @@ export const buildCompareChartOption = (
                 data: s.points
                     .filter((p) => p.ror != null && Number.isFinite(p.ror))
                     .map((p) => [p.t, p.ror as number]),
-                lineStyle: { color, width: 1.2, opacity: 0.6 },
+                lineStyle: { color, width: TEMP_CURVE_WIDTH, opacity: 0.6 },
                 itemStyle: { color },
                 ...lineSeriesBase,
                 ...getSmoothConfig(0.25),

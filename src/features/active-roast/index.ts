@@ -33,8 +33,14 @@ export type {
 } from './model/settings';
 export {
     AUTO_DROP_START_MIN_MAX,
+    chartSpanSec,
     coercePollIntervalForPlan,
-    FONT_SCALE_PCTS,
+    FONT_SLIDER_MAX,
+    FONT_SLIDER_MIN,
+    fontScaleToSlider,
+    sliderToFontScale,
+    TIME_RANGE_MIN_DEFAULT,
+    TIME_RANGE_PRESET_MIN,
     updateRoastSettings,
     useRoastSettings,
 } from './model/settings';

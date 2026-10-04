@@ -1,6 +1,7 @@
 import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { isDeductDisplayEligible } from '@features/active-roast/lib/summaryPrefill';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { formErrorCls } from '@shared/ui/form-styles';
@@ -204,7 +205,7 @@ export const RoastSummaryModal = ({
                                             color: eventMarkerCssColor(entry.event),
                                         }}
                                     >
-                                        {entry.event}
+                                        {roastEventLabel(entry.event)}
                                     </span>
                                     {index < entries.length - 1 && <span className="mx-1 text-border text-xs">·</span>}
                                 </div>

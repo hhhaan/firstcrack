@@ -18,6 +18,7 @@ import { useThemeStore } from './shared/store/theme';
 import type { View } from './shared/types/view';
 import { ErrorBoundary, ViewErrorBoundary } from './shared/ui/ErrorBoundary';
 import { ActiveRoast } from './views/active-roast/ActiveRoast';
+import { ActiveRoastRuntime } from './views/active-roast/ActiveRoastRuntime';
 import { Beans } from './views/bean/Beans';
 import { Cupping } from './views/cupping/Cupping';
 import { Dashboard } from './views/dashboard/Dashboard';
@@ -256,8 +257,7 @@ export const App = () => {
                                 <Dashboard onNavigate={setView} />
                             </ViewErrorBoundary>
                         )}
-                        {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
-            TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+                        {/* 탭 전환 시 화면 상태를 유지한다. 수집·타이머는 화면 오류 경계 밖에서 계속 실행된다. */}
                         <div
                             style={{
                                 display: view === 'roast' ? 'flex' : 'none',
@@ -268,6 +268,7 @@ export const App = () => {
                                 overflow: 'hidden',
                             }}
                         >
+                            <ActiveRoastRuntime isActive={view === 'roast'} />
                             <ViewErrorBoundary>
                                 <ActiveRoast
                                     key={roastMount}

@@ -1,21 +1,36 @@
 import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
-import { formatTemp, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import {
+    computePhaseSegments,
+    formatTemp,
+    type PhaseSegment,
+    type TemperatureUnit,
+    toDisplayRoR,
+    toDisplayTemp,
+    useRoastSettings,
+} from '@features/active-roast';
 import {
     referenceCurveFromPoints,
     referenceHasControls,
     toDisplayReferenceCurve,
 } from '@features/active-roast/lib/reference-curve';
-import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
+import {
+    parseStoredRoastEvents,
+    storedEventsToLogEntries,
+    storedEventsToMarkers,
+} from '@features/active-roast/lib/serialize-roast-events';
+import { rorUnitLabel, tempUnitLabel } from '@features/active-roast/lib/temperature';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { formatDuration } from '@shared/lib/format';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { FileDown } from 'lucide-react';
+import { ChartNoAxesCombined, FileDown } from 'lucide-react';
 import { useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useHistoryPdfExport } from '../hooks/useHistoryPdfExport';
 import { sessionDropTime } from '../lib/record-heat';
@@ -31,7 +46,160 @@ import {
     roastChartStatusKey,
 } from '../lib/session-chart-view';
 
-export function HistorySessionChart({ session }: { session: RoastSessionWithRelations }) {
+type CurveSample = { bt?: number | null; et?: number | null; ror?: number | null };
+
+const finiteNumbers = (values: readonly (number | null | undefined)[]): number[] =>
+    values.filter((value): value is number => value != null && Number.isFinite(value));
+
+const reportTempBounds = (
+    actual: readonly CurveSample[],
+    target: readonly CurveSample[],
+    includeTarget: { bt: boolean; et: boolean } | null,
+    fallbackMin: number,
+    fallbackMax: number,
+): { tempMinC: number; tempMaxC: number } => {
+    const sampled = [
+        ...actual.flatMap((point) => [point.bt, point.et]),
+        ...(includeTarget
+            ? target.flatMap((point) => [includeTarget.bt ? point.bt : null, includeTarget.et ? point.et : null])
+            : []),
+    ];
+    const temperatures = finiteNumbers(sampled);
+    const tempLow = temperatures.length ? Math.min(...temperatures) : fallbackMin;
+    const tempHigh = temperatures.length ? Math.max(...temperatures) : fallbackMax;
+    const tempMid = (tempLow + tempHigh) / 2;
+    const tempSpan = Math.max(40, tempHigh - tempLow + 20);
+    return {
+        tempMinC: Math.floor((tempMid - tempSpan / 2) / 10) * 10,
+        tempMaxC: Math.ceil((tempMid + tempSpan / 2) / 10) * 10,
+    };
+};
+
+const sensorChannels = (points: readonly CurveSample[], unit: TemperatureUnit) =>
+    [
+        {
+            label: `BT · ${tempUnitLabel(unit)}`,
+            color: 'bg-(--color-sensor-bt)',
+            visible: points.some((p) => p.bt != null),
+        },
+        {
+            label: `ET · ${tempUnitLabel(unit)}`,
+            color: 'bg-(--color-sensor-et)',
+            visible: points.some((p) => p.et != null),
+        },
+        {
+            label: `RoR · ${rorUnitLabel(unit)}`,
+            color: 'bg-(--color-sensor-ror)',
+            visible: points.some((p) => p.ror != null),
+        },
+    ].filter((channel) => channel.visible);
+
+function ChartMeta({
+    session,
+    unit,
+    bbpStatus,
+    roastStatus,
+    referenceStatus,
+    hasPoints,
+}: {
+    session: RoastSessionWithRelations;
+    unit: TemperatureUnit;
+    bbpStatus: string | null;
+    roastStatus: string | null;
+    referenceStatus: { name: string; key: string } | null;
+    hasPoints: boolean;
+}) {
+    const { t } = useTranslation();
+    const showBbp = session.bbp_seconds != null || Boolean(session.bbp_tsv_path);
+    const showCharge = session.charge_temp_celsius != null;
+    const showRoast = Boolean(roastStatus) && hasPoints;
+    if (!showBbp && !showCharge && !showRoast && !referenceStatus) return null;
+    return (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
+            {showBbp && (
+                <span>
+                    BBP · {t('bbp.duration')}: {formatDuration(session.bbp_seconds)}
+                </span>
+            )}
+            {showCharge && (
+                <span>
+                    {t('bbp.chargeTemp')}: {formatTemp(session.charge_temp_celsius, unit)}
+                </span>
+            )}
+            {bbpStatus && session.bbp_tsv_path && <output>{t(bbpStatus)}</output>}
+            {showRoast && roastStatus && <output>{t(roastStatus)}</output>}
+            {referenceStatus && (
+                <output>
+                    {referenceStatus.name} · {t(referenceStatus.key)}
+                </output>
+            )}
+        </div>
+    );
+}
+
+function ChartLegend({
+    points,
+    unit,
+    showTarget,
+    profileName,
+}: {
+    points: readonly CurveSample[];
+    unit: TemperatureUnit;
+    showTarget: boolean;
+    profileName: string;
+}) {
+    const channels = sensorChannels(points, unit);
+    if (points.length === 0) return null;
+    return (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-secondary">
+            {channels.map((channel) => (
+                <span key={channel.label} className="inline-flex items-center gap-2">
+                    <span aria-hidden="true" className={`h-0.5 w-4 rounded-full ${channel.color}`} />
+                    {channel.label}
+                </span>
+            ))}
+            {showTarget && (
+                <span className="inline-flex min-w-0 items-center gap-2 text-muted">
+                    <span aria-hidden="true" className="w-4 shrink-0 border-t border-dashed border-muted" />
+                    {profileName}
+                </span>
+            )}
+        </div>
+    );
+}
+
+function PhaseShare({ phases }: { phases: PhaseSegment[] }) {
+    const { t } = useTranslation();
+    if (phases.length <= 1) return null;
+    return (
+        <div className="mt-4 border-t border-border-subtle pt-4">
+            <div aria-hidden="true" className="mb-3 flex h-1.5 gap-0.5 overflow-hidden rounded-full">
+                {phases.map((phase) => (
+                    <span key={phase.name} style={{ flex: phase.durationSec, backgroundColor: phase.color }} />
+                ))}
+            </div>
+            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}>
+                {phases.map((phase) => (
+                    <div key={phase.name} className="min-w-0">
+                        <div className="mb-1 text-[11px] text-muted">{t(`history.compare.phase${phase.name}`)}</div>
+                        <div className="flex flex-wrap items-baseline gap-x-2 font-mono text-[13px] text-primary">
+                            {formatDuration(phase.durationSec)}
+                            <span className="text-[11px] text-muted">{phase.pct}%</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+export function HistorySessionChart({
+    session,
+    exportContainer,
+}: {
+    session: RoastSessionWithRelations;
+    exportContainer: HTMLElement | null;
+}) {
     const { t } = useTranslation();
     const {
         temperatureUnit: unit,
@@ -69,14 +237,32 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
     );
     const machines = useMachines((s) => s.machines);
     const heaterUnit = profileHeaterBounds(session, machines, ROASTER_REGISTRY).unit;
+    const storedEvents = useMemo(() => parseStoredRoastEvents(session.events), [session.events]);
     const eventMarkers = useMemo(() => {
         void resolvedTheme;
-        const events = withEditedHeaterLog(parseStoredRoastEvents(session.events), session.heater_events, heaterUnit);
+        const events = withEditedHeaterLog(storedEvents, session.heater_events, heaterUnit);
         return storedEventsToMarkers(events, unit);
-    }, [session.events, session.heater_events, heaterUnit, unit, resolvedTheme]);
+    }, [storedEvents, session.heater_events, heaterUnit, unit, resolvedTheme]);
     const { points } = actual;
+    const phases = useMemo(
+        () =>
+            computePhaseSegments(
+                storedEventsToLogEntries(storedEvents, unit),
+                sessionRoastMetrics(session).roastDurationSec ?? 0,
+                true,
+            ),
+        [storedEvents, unit, session],
+    );
     const referenceCurve = useMemo(() => referenceCurveFromPoints(target.points), [target.points]);
     const displayedTarget = useMemo(() => toDisplayReferenceCurve(referenceCurve, unit), [referenceCurve, unit]);
+    const targetVisible = historyTargetVisible(showTargetCurve, target.points.length);
+    const tempBounds = reportTempBounds(
+        points,
+        target.points,
+        targetVisible ? { bt: showProfileBt, et: showProfileEt } : null,
+        tempMinC,
+        tempMaxC,
+    );
     const referenceControls = referenceHasControls(referenceCurve);
     const heatSet = useMemo(
         () =>
@@ -116,38 +302,42 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
 
     return (
         <section
-            className="mt-3 rounded-lg border border-border-subtle bg-(--color-roast-bg) px-3 pt-3 pb-7"
-            aria-label={t('history.title')}
+            className="min-w-0 overflow-hidden rounded-xl border border-border-subtle bg-(--color-roast-bg) px-5 pt-5 pb-4"
+            aria-label={t('history.compare.tempAndRor')}
         >
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-b border-border-subtle pb-2 text-xs text-secondary">
-                <div className="flex flex-wrap gap-x-6 gap-y-1">
-                    <span>
-                        BBP · {t('bbp.duration')}: {formatDuration(session.bbp_seconds)}
-                    </span>
-                    <span>
-                        {t('bbp.chargeTemp')}: {formatTemp(session.charge_temp_celsius, unit)}
-                    </span>
-                    {bbpStatus && <output>{t(bbpStatus)}</output>}
-                    {roastStatus && <output>{t(roastStatus)}</output>}
-                    {referenceStatus && (
-                        <output>
-                            {referenceStatus.name} · {t(referenceStatus.key)}
-                        </output>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                <ChartMeta
+                    session={session}
+                    unit={unit}
+                    bbpStatus={bbpStatus}
+                    roastStatus={roastStatus}
+                    referenceStatus={referenceStatus}
+                    hasPoints={points.length > 0}
+                />
+                {exportContainer &&
+                    createPortal(
+                        <button
+                            type="button"
+                            data-testid="history-export-pdf"
+                            onClick={() => void onExportPdf()}
+                            disabled={!canExport}
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-transparent bg-palette-black px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-palette-black/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary) disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            <FileDown size={14} strokeWidth={2} />
+                            {t('history.exportPdf')}
+                        </button>,
+                        exportContainer,
                     )}
-                </div>
-                <button
-                    type="button"
-                    data-testid="history-export-pdf"
-                    onClick={() => void onExportPdf()}
-                    disabled={!canExport}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-primary px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[#0d0d0d]"
-                >
-                    <FileDown size={14} strokeWidth={2} />
-                    {t('history.exportPdf')}
-                </button>
+                <ChartLegend
+                    points={points}
+                    unit={unit}
+                    showTarget={targetVisible}
+                    profileName={profile?.name || t('history.table.profile')}
+                />
             </div>
             {points.length > 0 && (
                 <RoastTempChart
+                    report
                     ref={chartRef}
                     xs={points.map((p) => p.t)}
                     btActual={points.map((p) => toDisplayTemp(p.bt, unit))}
@@ -158,7 +348,7 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                     targetBt={displayedTarget.bt}
                     targetEt={displayedTarget.et}
                     targetRor={displayedTarget.ror}
-                    showTargetCurve={historyTargetVisible(showTargetCurve, target.points.length)}
+                    showTargetCurve={targetVisible}
                     showProfileBt={showProfileBt}
                     showProfileEt={showProfileEt}
                     showProfileRor={showProfileRor}
@@ -170,21 +360,26 @@ export function HistorySessionChart({ session }: { session: RoastSessionWithRela
                     eventMarkers={eventMarkers}
                     showRoRET={false}
                     temperatureUnit={unit}
-                    tempMinC={Math.min(
-                        tempMinC,
-                        ...points.map((p) => Math.floor(Math.min(p.bt, p.et ?? p.bt) / 10) * 10),
-                    )}
-                    tempMaxC={Math.max(
-                        tempMaxC,
-                        ...points.map((p) => Math.ceil(Math.max(p.bt, p.et ?? p.bt) / 10) * 10),
-                    )}
+                    tempMinC={tempBounds.tempMinC}
+                    tempMaxC={tempBounds.tempMaxC}
                     xViewMin={xView.min}
                     xViewMax={xView.max}
                     bbpRange={bbpRange}
                     controlData={controlData}
-                    height={420}
+                    controlChartHeightPct={24}
+                    height={hasControls ? 440 : 360}
                 />
             )}
+            {points.length === 0 && (
+                <div
+                    className="flex min-h-56 flex-col items-center justify-center gap-3 text-[13px] text-muted"
+                    role="status"
+                >
+                    <ChartNoAxesCombined size={28} strokeWidth={1} className="opacity-50" />
+                    {t(roastStatus || 'history.compare.noCurveData')}
+                </div>
+            )}
+            <PhaseShare phases={phases} />
         </section>
     );
 }

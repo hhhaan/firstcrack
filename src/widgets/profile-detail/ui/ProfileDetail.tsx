@@ -31,7 +31,7 @@ interface ProfileDetailProps {
     selectedHasReal: boolean;
     defaultId: string | null;
     chartKey: string;
-    onSetDefault: (id: string) => void;
+    onSetDefault: (id: string | null) => void;
     onEdit: () => void;
     onDuplicate: (profile: RoastProfileWithSource) => void;
     onDelete: (id: string) => void;

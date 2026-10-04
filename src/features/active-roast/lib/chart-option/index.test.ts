@@ -1,6 +1,12 @@
-import { MARKER_LABEL_FONT, markerLabelFont } from '@features/active-roast/lib/chart-config';
+import {
+    CONTROL_CURVE_WIDTH,
+    EVENT_MARK_LINE_WIDTH,
+    MARKER_LABEL_FONT,
+    markerLabelFont,
+    TEMP_CURVE_WIDTH,
+} from '@features/active-roast/lib/chart-config';
 import * as echarts from 'echarts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams } from './types';
@@ -37,22 +43,222 @@ const baseParams = (): ChartOptionParams => ({
 });
 
 describe('buildRoastChartOption font scale', () => {
-    it('enlarges chart labels without moving the axes', () => {
-        const option = buildRoastChartOption({
-            ...baseParams(),
-            fontScale: 2,
-            bbpRange: { start: 0, end: 60, label: 'PREHEAT' },
-        });
-        const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
-        expect(yAxis[0]?.axisLabel?.fontSize).toBe(11);
-        expect(option.grid).toMatchObject([{ left: 38, right: 32, bottom: 65 }]);
-        const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
-        expect(bbp?.markArea?.label?.fontSize).toBe(24);
-        expect(markerLabelFont(2)).toBe('600 20px monospace');
-    });
+    it.each([1, 1.01, 1.13, 1.25, 1.5, 1.75, 1.99, 2])(
+        'scales chart labels by %s without moving the axes',
+        (fontScale) => {
+            const option = buildRoastChartOption({
+                ...baseParams(),
+                fontScale,
+                bbpRange: { start: 0, end: 60, label: 'PREHEAT' },
+            });
+            const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
+            expect(yAxis[0]?.axisLabel?.fontSize).toBe(11);
+            expect(option.grid).toMatchObject([{ left: 38, right: 32, bottom: 65 }]);
+            const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
+            expect(bbp?.markArea?.label?.fontSize).toBe(12 * fontScale);
+            expect(markerLabelFont(fontScale)).toBe(`600 ${10 * fontScale}px monospace`);
+        },
+    );
 });
 
 describe('buildRoastChartOption', () => {
+    it('uses native custom temperature ticks and clears them when returning to a custom interval', () => {
+        for (const temperatureUnit of ['C', 'F'] as const) {
+            for (const controls of [false, true]) {
+                const params = {
+                    ...baseParams(),
+                    temperatureUnit,
+                    controlData: controls
+                        ? { xs: [0, 120], drumTemp: [50, 50], heatPower: [80, 40], fanSpeed: [30, 40] }
+                        : undefined,
+                };
+                const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
+                try {
+                    const custom = buildRoastChartOption({
+                        ...params,
+                        axisSettings: {
+                            tempGridInterval: 15,
+                            tempLabelEvery: 5,
+                            timeTickIntervalSec: 60,
+                            tempTicksC: [100, 181.5, 210],
+                        },
+                    });
+                    chart.setOption(custom);
+                    const axis = (
+                        custom.yAxis as {
+                            axisTick: { customValues: number[] };
+                            axisLabel: { customValues: number[]; formatter: (value: number) => string };
+                        }[]
+                    )[0];
+                    const expected = temperatureUnit === 'C' ? [100, 181.5, 210] : [212, 358.7, 410];
+                    expect(axis.axisTick.customValues).toEqual(expected);
+                    expect(axis.axisLabel.customValues).toEqual(expected);
+                    expect(axis.axisLabel.formatter(expected[1])).toBe(String(expected[1]));
+                    const restored = buildRoastChartOption({
+                        ...params,
+                        axisSettings: {
+                            tempGridInterval: 2.5,
+                            tempLabelEvery: 1,
+                            timeTickIntervalSec: 60,
+                            tempTicksC: [],
+                        },
+                    });
+                    chart.setOption(restored);
+                    const reset = (
+                        chart.getOption().yAxis as {
+                            interval: number;
+                            axisTick: { customValues?: number[] };
+                            axisLabel: { customValues?: number[] };
+                        }[]
+                    )[0];
+                    expect(reset.interval).toBe(2.5);
+                    expect(reset.axisTick.customValues).toBeUndefined();
+                    expect(reset.axisLabel.customValues).toBeUndefined();
+                    expect(
+                        (
+                            restored.yAxis as { axisLabel: { formatter: (value: number) => string } }[]
+                        )[0].axisLabel.formatter(102.5),
+                    ).toBe('102.5');
+                } finally {
+                    chart.dispose();
+                }
+            }
+        }
+    });
+
+    it('applies display-unit grid and label intervals to both layouts and report charts', () => {
+        for (const temperatureUnit of ['C', 'F'] as const) {
+            for (const controls of [false, true]) {
+                for (const report of [false, true]) {
+                    const params = {
+                        ...baseParams(),
+                        xs: [0, 30, 60],
+                        btActual: [100, 110, 120],
+                        tempMinC: 133,
+                        tempMaxC: 237,
+                        eventMarkers: [
+                            { timeSec: 30, event: 'Note', color: '#888', timeStr: '', temp: '', note: 'Top' },
+                        ],
+                        temperatureUnit,
+                        report,
+                        controlData: controls
+                            ? { xs: [0, 120], drumTemp: [50, 50], heatPower: [80, 40], fanSpeed: [30, 40] }
+                            : undefined,
+                    };
+                    const configured = buildRoastChartOption({
+                        ...params,
+                        axisSettings: { tempGridInterval: 25, tempLabelEvery: 2, timeTickIntervalSec: 30 },
+                    });
+                    expect(configured.xAxis).toEqual(
+                        expect.arrayContaining([expect.objectContaining({ interval: 30 })]),
+                    );
+                    for (const axis of configured.xAxis as { interval: number }[]) expect(axis.interval).toBe(30);
+                    const axis = (
+                        configured.yAxis as {
+                            interval: number;
+                            min: number;
+                            max: number;
+                            axisLabel: { formatter: (value: number) => string; hideOverlap: boolean };
+                        }[]
+                    )[0];
+                    expect(axis.interval).toBe(25);
+                    expect(axis.min % 25).toBe(0);
+                    expect(axis.max % 25).toBe(0);
+                    expect(axis.axisLabel.formatter(100)).toBe('100');
+                    expect(axis.axisLabel.formatter(125)).toBe('');
+                    expect(axis.axisLabel.hideOverlap).toBe(true);
+                    expect([axis.min, axis.max]).toEqual(temperatureUnit === 'C' ? [125, 250] : [250, 475]);
+                    const coord = vi.fn(() => [50, 10]);
+                    const labels = (
+                        configured.series as { id?: string; renderItem?: (params: unknown, api: unknown) => unknown }[]
+                    ).find((series) => series.id === 'event-curve-labels');
+                    labels?.renderItem?.(
+                        { dataIndex: 0, coordSys: { x: 0, y: 0, width: 300, height: 300 } },
+                        { coord, getWidth: () => 300 },
+                    );
+                    expect(coord).toHaveBeenCalledWith([30, axis.max]);
+                    const defaults = buildRoastChartOption({
+                        ...params,
+                        axisSettings: { tempGridInterval: 10, tempLabelEvery: 5, timeTickIntervalSec: 60 },
+                    });
+                    expect((defaults.yAxis as { interval: number }[])[0].interval).toBe(10);
+                    expect((defaults.xAxis as { interval: number }[])[0].interval).toBe(60);
+                    const labelsDefault = (
+                        defaults.yAxis as { axisLabel: { formatter: (value: number) => string } }[]
+                    )[0].axisLabel;
+                    expect(labelsDefault.formatter(150)).toBe('150');
+                    expect(labelsDefault.formatter(160)).toBe('');
+                }
+            }
+        }
+    });
+
+    it('keeps useful time and temperature ticks on a short report', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            report: true,
+            xViewMax: 11,
+            tempMinC: 180,
+            tempMaxC: 200,
+        });
+        expect(option.xAxis).toEqual(expect.arrayContaining([expect.objectContaining({ interval: 5 })]));
+        expect(option.yAxis).toEqual(
+            expect.arrayContaining([expect.objectContaining({ interval: 10, min: 180, max: 200 })]),
+        );
+    });
+
+    it('simplifies report axes in both layouts without changing recorded samples or instrument defaults', () => {
+        for (const temperatureUnit of ['C', 'F'] as const) {
+            for (const controls of [false, true]) {
+                const params = {
+                    ...baseParams(),
+                    temperatureUnit,
+                    tempMinC: 93,
+                    tempMaxC: 217,
+                    xs: [0, 60, 120],
+                    btActual: [200, null, 150],
+                    controlData: controls
+                        ? { xs: [0, 120], drumTemp: [50, 50], heatPower: [80, 40], fanSpeed: [30, 40] }
+                        : undefined,
+                };
+                const report = buildRoastChartOption({ ...params, report: true });
+                const instrument = buildRoastChartOption(params);
+                expect(report.xAxis).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            axisLine: { show: false },
+                            splitLine: { show: false },
+                            minorSplitLine: { show: false },
+                        }),
+                    ]),
+                );
+                expect(report.yAxis).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ interval: 50, splitLine: expect.objectContaining({ show: true }) }),
+                        expect.objectContaining({ position: 'right', interval: temperatureUnit === 'F' ? 10 : 5 }),
+                    ]),
+                );
+                const tempAxis = (report.yAxis as { min: number; max: number }[])[0];
+                expect(tempAxis.min % 50).toBe(0);
+                expect(tempAxis.max % 50).toBe(0);
+                const samples = (option: typeof report) =>
+                    (option.series as { name?: string; data: unknown }[]).find((series) => series.name === 'BT Actual')
+                        ?.data;
+                expect(samples(report)).toEqual([
+                    [0, 200],
+                    [60, null],
+                    [120, 150],
+                ]);
+                expect(samples(report)).toEqual(samples(instrument));
+                expect(instrument.xAxis).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ minorSplitLine: expect.objectContaining({ show: true }) }),
+                    ]),
+                );
+            }
+        }
+    });
+
     it('shades only the visible BBP interval on both grids without shifting Charge', () => {
         const option = buildRoastChartOption({
             ...baseParams(),
@@ -286,15 +492,15 @@ describe('buildRoastChartOption', () => {
                 series.lineStyle,
             ]),
         );
-        expect(byName['BT Actual']?.width).toBe(1.2);
-        expect(byName['ET Actual']?.width).toBe(0.9);
-        expect(byName.RoR?.width).toBe(0.9);
-        expect(byName['ET RoR']?.width).toBe(0.9);
-        expect(byName['BT Target']).toMatchObject({ width: 0.8, type: 'dashed' });
-        expect(byName.Drum?.width).toBe(1);
-        expect(byName.Heat?.width).toBe(1);
-        expect(byName.Fan?.width).toBe(1);
-        expect(byName['Heat set']?.width).toBe(1);
+        expect(byName['BT Actual']?.width).toBe(TEMP_CURVE_WIDTH);
+        expect(byName['ET Actual']?.width).toBe(TEMP_CURVE_WIDTH);
+        expect(byName.RoR?.width).toBe(TEMP_CURVE_WIDTH);
+        expect(byName['ET RoR']?.width).toBe(TEMP_CURVE_WIDTH);
+        expect(byName['BT Target']).toMatchObject({ width: TEMP_CURVE_WIDTH, type: 'dashed' });
+        expect(byName.Drum?.width).toBe(CONTROL_CURVE_WIDTH);
+        expect(byName.Heat?.width).toBe(CONTROL_CURVE_WIDTH);
+        expect(byName.Fan?.width).toBe(CONTROL_CURVE_WIDTH);
+        expect(byName['Heat set']?.width).toBe(CONTROL_CURVE_WIDTH);
     });
 
     it.each([
@@ -336,7 +542,7 @@ describe('buildRoastChartOption', () => {
         expect(markerSeries?.clip).toBe(false);
         const api = {
             coord: () => [50, 100],
-            value: (index: number) => [30, Number.NaN, 0.6][index],
+            value: (index: number) => [30, Number.NaN, EVENT_MARK_LINE_WIDTH][index],
             getHeight: () => 500,
         };
         expect(
@@ -344,7 +550,7 @@ describe('buildRoastChartOption', () => {
         ).toEqual(
             expect.objectContaining({
                 shape: { x1: 50, y1: 10, x2: 50, y2: 470 },
-                style: { stroke: baseParams().colors.eventMark, lineWidth: 0.6 },
+                style: { stroke: baseParams().colors.eventMark, lineWidth: EVENT_MARK_LINE_WIDTH },
             }),
         );
         expect(
@@ -369,7 +575,11 @@ describe('buildRoastChartOption', () => {
         ).find((series) => series.name === 'Event marker lines');
         const result = markerSeries?.renderItem?.(
             { dataIndex: 0, coordSys: { x: 20, y: 10, width: 200, height: 300 } },
-            { coord: () => [50, 100], value: (index: number) => [30, Number.NaN, 0.6][index], getHeight: () => 500 },
+            {
+                coord: () => [50, 100],
+                value: (index: number) => [30, Number.NaN, EVENT_MARK_LINE_WIDTH][index],
+                getHeight: () => 500,
+            },
         );
         expect(result?.shape.y2).toBe(310);
     });
@@ -522,7 +732,7 @@ describe('buildRoastChartOption', () => {
                 [30, null],
                 [60, 150],
             ],
-            lineStyle: { color: mockColors.etTarget, width: 0.8, type: 'dashed' },
+            lineStyle: { color: mockColors.etTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
         });
         expect(byName['RoR Target']).toMatchObject({
             yAxisIndex: 1,
@@ -532,10 +742,10 @@ describe('buildRoastChartOption', () => {
                 [30, 6],
                 [60, null],
             ],
-            lineStyle: { color: mockColors.rorTarget, width: 0.8, type: 'dashed' },
+            lineStyle: { color: mockColors.rorTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
         });
         expect(byName['BT Target']).toMatchObject({
-            lineStyle: { color: mockColors.btTarget, width: 0.8, type: 'dashed' },
+            lineStyle: { color: mockColors.btTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
         });
         expect(byName['Drum Target']).toMatchObject({
             xAxisIndex: 1,
@@ -554,7 +764,7 @@ describe('buildRoastChartOption', () => {
                 [30, 60],
                 [60, null],
             ],
-            lineStyle: { color: mockColors.controlHeatTarget, width: 0.8, type: 'dashed' },
+            lineStyle: { color: mockColors.controlHeatTarget, width: CONTROL_CURVE_WIDTH, type: 'dashed' },
         });
         expect(byName['Fan Target']).toMatchObject({
             data: [

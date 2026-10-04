@@ -106,31 +106,29 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
     ];
 
     return (
-        <div className="mt-3 rounded-lg border border-border-subtle bg-main-bg px-4 py-3">
-            <div className="mb-2 break-words text-[11px] font-medium tracking-[0.14px] text-muted">
+        <section className="rounded-xl border border-border-subtle bg-main-bg p-5">
+            <h2 className="m-0 mb-5 break-words text-[13px] font-semibold text-primary">
                 {t('history.scorecard.title', { name: profile.name })}
-            </div>
-            <div className="grid grid-cols-2 gap-x-5 gap-y-3 md:grid-cols-4">
+            </h2>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-5 @min-[640px]:grid-cols-3">
                 {rows.map((row) => {
                     const d = deltaOrNull(row.actual, row.target);
-                    const deltaColor =
+                    const deltaCls =
                         d == null
-                            ? 'var(--color-muted)'
+                            ? 'text-muted'
                             : Math.abs(d) <= row.band
-                              ? 'var(--color-palette-green)'
-                              : '#dc2626';
+                              ? 'bg-palette-green/12 text-palette-green'
+                              : 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
                     return (
-                        <div key={row.key} className="min-w-0 border-l border-border-subtle pl-3">
-                            <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                                {t(row.labelKey)}
-                            </div>
-                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-[13px] tracking-[0.14px] text-primary">
+                        <div key={row.key} className="min-w-0">
+                            <div className="mb-2 text-[11px] font-medium text-muted">{t(row.labelKey)}</div>
+                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-2 font-mono text-[16px] text-primary">
                                 {row.actual != null ? row.format(row.actual) : '—'}
-                                <span className="text-muted">
+                                <span className="text-[12px] text-muted">
                                     {' / '}
                                     {row.target != null ? row.format(row.target) : '—'}
                                 </span>
-                                <span className="text-xs" style={{ color: deltaColor }}>
+                                <span className={`rounded px-1.5 py-0.5 text-[11px] ${deltaCls}`}>
                                     {d == null ? '—' : row.formatDelta(d)}
                                 </span>
                             </div>
@@ -138,6 +136,6 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
                     );
                 })}
             </div>
-        </div>
+        </section>
     );
 };

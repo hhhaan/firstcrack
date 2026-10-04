@@ -1,5 +1,6 @@
 import { type TemperatureUnit, tempUnitLabel } from '@features/active-roast';
 import { isDecimalDraft, isPartialTime } from '@features/machine-control/lib/heater-events';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { Json } from '@shared/types/database.types';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { formErrorCls, inputCls } from '@shared/ui/form-styles';
@@ -166,12 +167,12 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                                     >
                                                         {typeOptions.map((type) => (
                                                             <option key={type} value={type}>
-                                                                {type}
+                                                                {roastEventLabel(type)}
                                                             </option>
                                                         ))}
                                                     </FormSelect>
                                                 ) : (
-                                                    <span className="inline-block pt-2">{d.type}</span>
+                                                    <span className="inline-block pt-2">{roastEventLabel(d.type)}</span>
                                                 )}
                                                 {error && (
                                                     <p
@@ -198,7 +199,7 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                                     className={`${inputCls} px-2 py-1.5 font-mono text-xs read-only:opacity-60 ${error === 'time' || error === 'order' ? 'border-red-500' : ''}`}
                                                     inputMode="numeric"
                                                     autoComplete="off"
-                                                    aria-label={`${d.type} ${t('history.edit.time')}`}
+                                                    aria-label={`${roastEventLabel(d.type)} ${t('history.edit.time')}`}
                                                     aria-invalid={error === 'time' || error === 'order'}
                                                     aria-describedby={error ? errorId : undefined}
                                                 />
@@ -214,7 +215,7 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                                     className={`${inputCls} px-2 py-1.5 font-mono text-xs ${error === 'temp' ? 'border-red-500' : ''}`}
                                                     inputMode="decimal"
                                                     autoComplete="off"
-                                                    aria-label={`${d.type} ${t('history.edit.temp')}`}
+                                                    aria-label={`${roastEventLabel(d.type)} ${t('history.edit.temp')}`}
                                                     aria-invalid={error === 'temp'}
                                                     aria-describedby={error ? errorId : undefined}
                                                 />

@@ -27,7 +27,8 @@ import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
-import { useRoastSettings } from '@features/active-roast/model/settings';
+import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { applyTimeEdit, parseEditTime, type TimeEditKind } from '@shared/lib/time-edit';
@@ -52,7 +53,45 @@ export type { RoastEventMarker };
 
 const emptyNote: RoastNoteValues = { gas: '', airflow: '', note: '' };
 
+type ChartAxisInput = Pick<
+    RoastSettings,
+    | 'tempGridInterval'
+    | 'tempGridPresetInterval'
+    | 'tempLabelPresetEvery'
+    | 'timeTickPresetSec'
+    | 'tempAxisMode'
+    | 'tempTickMode'
+    | 'tempTicksC'
+    | 'tempLabelEvery'
+    | 'timeTickIntervalSec'
+    | 'tempLabelCustom'
+    | 'timeTickCustom'
+>;
+
+const usesCustomTickList = (settings: Pick<ChartAxisInput, 'tempAxisMode' | 'tempTickMode' | 'tempTicksC'>): boolean =>
+    settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' && settings.tempTicksC.length > 0;
+
+const gridIntervalFor = (settings: ChartAxisInput): number => {
+    if (settings.tempAxisMode === 'preset') return settings.tempGridPresetInterval;
+    if (settings.tempTickMode === 'interval') return settings.tempGridInterval;
+    return 10;
+};
+
+const labelEveryFor = (settings: ChartAxisInput): number => {
+    if (settings.tempAxisMode === 'list' && settings.tempTickMode === 'list') return 5;
+    if (settings.tempLabelCustom) return settings.tempLabelEvery;
+    return settings.tempLabelPresetEvery;
+};
+
+const chartAxisSettings = (settings: ChartAxisInput) => ({
+    tempGridInterval: gridIntervalFor(settings),
+    tempTicksC: settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' ? settings.tempTicksC : [],
+    tempLabelEvery: labelEveryFor(settings),
+    timeTickIntervalSec: settings.timeTickCustom ? settings.timeTickIntervalSec : settings.timeTickPresetSec,
+});
+
 interface Props {
+    report?: boolean;
     xs: number[];
     btTarget: (number | null)[];
     btActual: (number | null)[];
@@ -135,6 +174,7 @@ const seriesPresent = (values: readonly (number | null)[] | undefined): number =
 
 /** Structure identity for setOption notMerge. Branches stay off the chart component. */
 const chartStructureKey = (input: {
+    report: boolean;
     charged: boolean;
     eventMarkerStyle: string;
     eventMarkerCount: number;
@@ -163,6 +203,7 @@ const chartStructureKey = (input: {
     fontScale: number;
 }): string =>
     [
+        input.report,
         input.charged,
         input.eventMarkerStyle,
         input.eventMarkerCount,
@@ -206,6 +247,7 @@ const controlLegendItems = (
 
 export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function RoastTempChart(
     {
+        report = false,
         xs,
         btTarget,
         btActual,
@@ -268,7 +310,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
-    const fontScale = useRoastSettings().fontScalePct / 100;
+    const roastSettings = useRoastSettings();
+    const fontScale = roastSettings.fontScalePct / 100;
+    const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
+    const yRangeInterval = usesCustomTickList(roastSettings) ? undefined : axisSettings.tempGridInterval;
 
     const dragStateRef = useRef<{ pointerId: number; logId: string; timeSec: number } | null>(null);
     const PIXEL_THRESHOLD = 10;
@@ -343,6 +388,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const makeOption = useCallback(
         (colors = getResolvedChartColors()) =>
             buildRoastChartOption({
+                axisSettings,
+                report,
                 xs,
                 btTarget,
                 btActual,
@@ -391,6 +438,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 colors,
             }),
         [
+            report,
+            axisSettings,
             xs,
             btTarget,
             targetXs,
@@ -447,6 +496,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     }, [makeOption, resolvedTheme, t]);
 
     const structureKey = chartStructureKey({
+        report,
         charged,
         eventMarkerStyle,
         eventMarkerCount: eventMarkers.length,
@@ -530,7 +580,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!chart || !point) return null;
             const xMin = xViewMin ?? xs[0] ?? 0;
             const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
-            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
+            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit, yRangeInterval).tempYMax;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
                     if (hideChargeLabel && marker.event === 'Charge') return [];
@@ -635,6 +685,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             onEventMarkerEdit,
             tempMaxC,
             tempMinC,
+            yRangeInterval,
             temperatureUnit,
             turningPoints,
             fontScale,
@@ -956,7 +1007,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ref={noteFormRef}
                     data-chart-note-form
                     onKeyDown={(event) => handleFormKeyDown(event, submitNote)}
-                    className="absolute z-20 flex w-[320px] max-w-full max-h-full flex-col gap-3 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-3 shadow-md"
+                    className="absolute z-20 flex w-[260px] max-w-full max-h-full flex-col gap-1 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md"
                     style={{ left: noteForm.x, top: noteForm.y }}
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -965,7 +1016,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     onPointerDown={(event) => event.stopPropagation()}
                     onWheel={(event) => event.stopPropagation()}
                 >
-                    <div className="flex items-center justify-between text-[14px] text-(--color-text-primary)">
+                    <div className="flex items-center justify-between px-1 text-[11px] text-(--color-text-primary)">
                         <span className="font-medium">{t('activeRoast.noteEntry.title')}</span>
                         <span className="font-mono text-muted">{formatElapsed(noteForm.timeSec)}</span>
                     </div>
@@ -976,12 +1027,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         commentId="chart-note-input"
                         autoFocus
                     />
-                    <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center justify-between gap-1 px-1">
                         <span className="text-[11px] text-muted">{t('activeRoast.noteEntry.keyboardHint')}</span>
                         <button
                             type="submit"
                             disabled={!Object.values(noteValues).some((value) => value.trim())}
-                            className="rounded bg-(--color-text-primary) px-4 py-2 text-[13px] text-(--color-surface) disabled:opacity-40"
+                            className="rounded px-2 text-xs text-(--color-text-primary) disabled:opacity-40"
                         >
                             {t('common.add')}
                         </button>
@@ -993,7 +1044,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ref={editFormRef}
                     data-chart-marker-edit
                     onKeyDown={(event) => handleFormKeyDown(event, submitEdit)}
-                    className={`absolute z-20 flex max-w-full max-h-full flex-col overflow-auto rounded border border-(--color-border) bg-(--color-surface) shadow-md ${editForm.event === 'Note' ? 'w-[320px] gap-3 p-3' : 'w-[220px] gap-1 p-1.5'}`}
+                    className={`absolute z-20 flex max-w-full max-h-full flex-col gap-1 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md ${editForm.event === 'Note' ? 'w-[260px]' : 'w-[220px]'}`}
                     style={{ left: editForm.x, top: editForm.y }}
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -1003,7 +1054,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     onWheel={(event) => event.stopPropagation()}
                 >
                     <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">
-                        {editForm.event === 'Note' ? t('activeRoast.noteEntry.editTitle') : editForm.event}
+                        {editForm.event === 'Note'
+                            ? t('activeRoast.noteEntry.editTitle')
+                            : roastEventLabel(editForm.event)}
                     </div>
                     <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
                         {t('activeRoast.noteEntry.time')}
@@ -1084,7 +1137,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 </form>
             )}
             {controlLegend.length > 0 && (
-                <div className="absolute flex items-center gap-4" style={{ bottom: -15, left: 25 }}>
+                <div
+                    className="absolute flex items-center gap-4"
+                    style={{ bottom: report ? 0 : -15, left: report ? 38 : 25 }}
+                >
                     {controlLegend.map((item) => (
                         <div key={item.label} className="flex items-center gap-1.5">
                             <div style={{ width: 16, height: 2, background: item.color }} />

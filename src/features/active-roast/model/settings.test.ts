@@ -1,13 +1,79 @@
 import { FEATURE, planHasFeature } from '@shared/lib/features';
-import { describe, expect, it } from 'vitest';
+import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import { describe, expect, it, vi } from 'vitest';
 import {
     AUTO_DROP_START_MIN_DEFAULT,
     AUTO_DROP_START_MIN_MAX,
+    chartSpanSec,
     coercePollIntervalForPlan,
+    fontScaleToSlider,
     getRoastSettings,
     normalizeRoastSettings,
+    sliderToFontScale,
     updateRoastSettings,
 } from './settings';
+
+vi.mock('@shared/lib/settings-store', () => ({
+    settingsGet: vi.fn().mockResolvedValue(null),
+    settingsSet: vi.fn().mockResolvedValue(undefined),
+}));
+
+it('uses fixed axis defaults, validates intervals, and restores persisted choices', async () => {
+    const defaults = {
+        tempGridInterval: 10,
+        tempLabelEvery: 5,
+        timeTickIntervalSec: 60,
+        tempTicksC: [],
+        tempAxisMode: 'preset',
+    };
+    const choices = {
+        tempGridInterval: 30,
+        tempLabelEvery: 2,
+        timeTickIntervalSec: 120,
+        tempTicksC: [100, 180, 200],
+        tempAxisMode: 'list' as const,
+    };
+    expect(normalizeRoastSettings({})).toMatchObject(defaults);
+    const previous = normalizeRoastSettings(choices);
+    expect(normalizeRoastSettings({ tempGridInterval: 0, tempLabelEvery: 0, timeTickIntervalSec: 0 })).toMatchObject(
+        defaults,
+    );
+    for (const invalid of [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, '10', null]) {
+        const stored = Object.fromEntries(Object.keys(defaults).map((key) => [key, invalid]));
+        expect(normalizeRoastSettings(stored)).toMatchObject(defaults);
+        expect(normalizeRoastSettings(stored, previous)).toMatchObject(choices);
+    }
+    expect(normalizeRoastSettings({ tempGridInterval: 2.5, tempTicksC: [200, 100, 100, 180] })).toMatchObject({
+        tempGridInterval: 2.5,
+        tempTicksC: [100, 180, 200],
+    });
+    expect(normalizeRoastSettings({ tempGridInterval: 501, tempTicksC: [Number.NaN] })).toMatchObject(defaults);
+    expect(chartSpanSec(normalizeRoastSettings({}))).toBe(780);
+    expect(chartSpanSec(normalizeRoastSettings({ timeRangePresetMin: 20 }))).toBe(1200);
+    expect(chartSpanSec(normalizeRoastSettings({ timeRangeCustom: true, timeRangeMin: 20 }))).toBe(1200);
+    expect(normalizeRoastSettings({ timeRangePresetMin: 99, timeRangeMin: 0 })).toMatchObject({
+        timeRangePresetMin: 13,
+        timeRangeMin: 13,
+        timeRangeCustom: false,
+    });
+    expect(normalizeRoastSettings({ tempGridInterval: 15 }).tempAxisMode).toBe('preset');
+    expect(normalizeRoastSettings({ tempTicksC: [100, 180, 200] }).tempAxisMode).toBe('list');
+    expect(normalizeRoastSettings({ ...choices, tempAxisMode: 'preset' })).toMatchObject({
+        tempAxisMode: 'preset',
+        tempTicksC: choices.tempTicksC,
+    });
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce(choices);
+    const settings = await import('./settings');
+    await Promise.resolve();
+    expect(settings.getRoastSettings()).toMatchObject(choices);
+    settings.updateRoastSettings({ timeTickIntervalSec: 30 });
+    expect(settingsSet).toHaveBeenLastCalledWith(
+        'roast.settings',
+        expect.objectContaining({ ...choices, timeTickIntervalSec: 30 }),
+        { debounce: true },
+    );
+});
 
 it('이전에 저장된 BBP 기록 범위는 켜기/끄기 외에 영향을 주지 않는다', () => {
     const stored = { bbpEnabled: false, bbpWindowMinutes: 5 };
@@ -19,6 +85,11 @@ it('이전에 저장된 BBP 기록 범위는 켜기/끄기 외에 영향을 주�
     expect(normalizeRoastSettings(zero).bbpEnabled).toBe(true);
     expect(normalizeRoastSettings(zero)).not.toHaveProperty('bbpWindowMinutes');
     expect(normalizeRoastSettings(huge)).not.toHaveProperty('bbpWindowMinutes');
+});
+
+it('defaults the poll interval to 1s and keeps a stored 500ms choice', () => {
+    expect(normalizeRoastSettings({}).pollIntervalMs).toBe(1000);
+    expect(normalizeRoastSettings({ pollIntervalMs: 500 }).pollIntervalMs).toBe(500);
 });
 
 describe('coercePollIntervalForPlan', () => {
@@ -119,12 +190,43 @@ describe('normalize — profile channels', () => {
 });
 
 describe('normalize — font scale', () => {
-    it('defaults to 100% and keeps 150% and 200%', () => {
+    it('defaults missing and invalid values to slider 1% (1×)', () => {
         expect(normalizeRoastSettings({}).fontScalePct).toBe(100);
-        expect(normalizeRoastSettings({ fontScalePct: 150 }).fontScalePct).toBe(150);
-        expect(normalizeRoastSettings({ fontScalePct: 200 }).fontScalePct).toBe(200);
-        expect(normalizeRoastSettings({ fontScalePct: 125 as never }).fontScalePct).toBe(100);
+        for (const fontScalePct of [0, 99, 110.5, 201, Number.NaN, Number.POSITIVE_INFINITY, '125', null]) {
+            expect(normalizeRoastSettings({ fontScalePct } as never).fontScalePct).toBe(100);
+        }
     });
+
+    it('maps the 1–100 slider onto stored 100–200 and back', () => {
+        expect(fontScaleToSlider(100)).toBe(1);
+        expect(fontScaleToSlider(200)).toBe(100);
+        expect(sliderToFontScale(1)).toBe(100);
+        expect(sliderToFontScale(100)).toBe(200);
+        for (let slider = 1; slider <= 100; slider++) {
+            expect(fontScaleToSlider(sliderToFontScale(slider))).toBe(slider);
+        }
+    });
+
+    it('accepts every integer percentage from 100 to 200', () => {
+        for (let fontScalePct = 100; fontScalePct <= 200; fontScalePct++) {
+            expect(normalizeRoastSettings({ fontScalePct }).fontScalePct).toBe(fontScalePct);
+        }
+    });
+
+    it.each([100, 101, 113, 125, 150, 175, 199, 200])(
+        'restores and saves %s%% through roast.settings',
+        async (fontScalePct) => {
+            vi.resetModules();
+            vi.mocked(settingsGet).mockResolvedValueOnce({ fontScalePct });
+            const settings = await import('./settings');
+            expect(settings.getRoastSettings().fontScalePct).toBe(fontScalePct);
+            expect(settingsGet).toHaveBeenLastCalledWith('roast.settings');
+            settings.updateRoastSettings({ fontScalePct });
+            expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', expect.objectContaining({ fontScalePct }), {
+                debounce: true,
+            });
+        },
+    );
 });
 
 describe('normalize — event marker style', () => {

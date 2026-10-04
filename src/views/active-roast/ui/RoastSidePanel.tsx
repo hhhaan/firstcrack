@@ -5,6 +5,7 @@ import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
+import { endRoastLabel, markDropLabel, roastEventLabel, roastReadyLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -99,8 +100,10 @@ export const RoastSidePanel = ({
 }: RoastSidePanelProps) => {
     const { t } = useTranslation();
     const showRollingDtr = rollingDtrPct != null;
+    const showStartDev = dtrPct != null || (devTimeStr !== '' && devTimeStr !== '—');
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
+    const hasFcStart = logEntries.some((entry) => entry.event === 'FC Start');
     const canMark = isRoastEventMarkEnabled(phase);
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
     const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
@@ -208,27 +211,31 @@ export const RoastSidePanel = ({
                     <span className="font-mono text-xl font-medium leading-tight">{bbpTimer}</span>
                 </div>
             )}
-            {/* DTR + Dev (Start = canonical; Rolling when dual-mark event present) */}
-            <div className="flex items-center justify-between">
-                <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">{dtrLabel}</span>
-                <span
-                    className="font-mono text-xl font-medium leading-tight"
-                    style={{ color: PHASE_COLORS.development }}
-                >
-                    {dtrPct != null ? `${dtrPct}%` : '—'}
-                </span>
-            </div>
-            <div className="flex items-center justify-between">
-                <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">
-                    {showRollingDtr ? 'Dev · Start' : 'Dev'}
-                </span>
-                <span
-                    className="font-mono text-lg font-medium leading-tight"
-                    style={{ color: PHASE_COLORS.development }}
-                >
-                    {devTimeStr ?? '—'}
-                </span>
-            </div>
+            {/* DTR + Dev — hidden until FC Start makes them calculable */}
+            {showStartDev && (
+                <>
+                    <div className="flex items-center justify-between" data-testid="dtr-row">
+                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">{dtrLabel}</span>
+                        <span
+                            className="font-mono text-xl font-medium leading-tight"
+                            style={{ color: PHASE_COLORS.development }}
+                        >
+                            {dtrPct != null ? `${dtrPct}%` : '—'}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between" data-testid="dev-row">
+                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">
+                            {showRollingDtr ? 'Dev · Start' : 'Dev'}
+                        </span>
+                        <span
+                            className="font-mono text-lg font-medium leading-tight"
+                            style={{ color: PHASE_COLORS.development }}
+                        >
+                            {devTimeStr ?? '—'}
+                        </span>
+                    </div>
+                </>
+            )}
             {showRollingDtr && (
                 <>
                     <div className="flex items-center justify-between">
@@ -270,7 +277,7 @@ export const RoastSidePanel = ({
                             type="button"
                         >
                             <Play size={12} />
-                            Roast Ready
+                            {roastReadyLabel()}
                         </button>
                     )}
                     {(phase === 'standby' || chargeWait) && (
@@ -282,14 +289,14 @@ export const RoastSidePanel = ({
                             type="button"
                         >
                             <Play size={12} />
-                            Charge
+                            {roastEventLabel('Charge')}
                         </button>
                     )}
                     <button
                         data-testid="roast-end"
                         onClick={onEndRoast}
                         disabled={endDisabled}
-                        aria-label="End roast"
+                        aria-label={endRoastLabel()}
                         type="button"
                         className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
                             endDisabled
@@ -301,7 +308,7 @@ export const RoastSidePanel = ({
                         }
                     >
                         <Square size={12} />
-                        End Roast
+                        {endRoastLabel()}
                     </button>
                 </div>
                 <EventButtons
@@ -311,7 +318,7 @@ export const RoastSidePanel = ({
                     disabled={!canMark}
                     buttons={[
                         {
-                            label: 'Yellow',
+                            label: roastEventLabel('Yellow'),
                             event: 'Yellow',
                             shortcutKey: '1',
                             pressKey: 'Mark Yellow',
@@ -321,7 +328,9 @@ export const RoastSidePanel = ({
                             },
                         },
                         {
-                            label: fcDualStage != null ? fcDualButtonLabel(fcDualStage, fcDualUnwind) : 'FC Start',
+                            label: roastEventLabel(
+                                fcDualStage != null ? fcDualButtonLabel(fcDualStage, fcDualUnwind) : 'FC Start',
+                            ),
                             event: 'FC Start',
                             shortcutKey: '2',
                             pressKey: 'Mark FC Start',
@@ -333,19 +342,20 @@ export const RoastSidePanel = ({
                             dualStage: fcDualStage,
                         },
                         {
-                            label: 'FC End',
+                            label: roastEventLabel('FC End'),
                             event: 'FC End',
                             shortcutKey: '3',
                             pressKey: 'Mark FC End',
+                            disabled: !hasFcStart,
                             onClick: () => {
-                                if (!canMark) return;
+                                if (!canMark || !hasFcStart) return;
                                 onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
                             },
                         },
                         {
-                            label: 'Mark Drop',
+                            label: markDropLabel(),
                             event: 'Drop',
-                            shortcutKey: 'D',
+                            shortcutKey: 'DD',
                             pressKey: 'Mark Drop',
                             onClick: () => {
                                 if (!canMark) return;

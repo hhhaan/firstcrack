@@ -1,9 +1,11 @@
 import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
+    EVENT_MARK_LINE_WIDTH,
     isControlEvent,
     MARKER_LABEL_CANVAS_GUTTER_PX,
     MARKER_LABEL_CHAR_WIDTH_PX,
     MARKER_LABEL_DISTANCE_PX,
+    MARKER_LABEL_FONT_SIZE,
     MARKER_LABEL_GAP_PX,
     MARKER_LABEL_MAX_WIDTH_PX,
     MARKER_LABEL_MIN_WIDTH_PX,
@@ -13,6 +15,7 @@ import {
 } from '@features/active-roast/lib/chart-config';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
 
@@ -80,9 +83,20 @@ const formatMarkerTime = (timeSec: number) => {
     return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 };
 
+const hasMarkerTemp = (temp: string) => {
+    const value = temp.trim();
+    return value !== '' && value !== '—' && value !== '-' && value !== '–';
+};
+
 export const eventLabelText = (event: string, timeSec: number, temp: string, note?: string) => {
-    const name = event === 'Note' ? note?.trim() || event : event === 'Heater' && note ? `${event}→${note}` : event;
-    return `${name}|${formatMarkerTime(timeSec)}|${temp || '—'}`;
+    const name =
+        event === 'Note'
+            ? note?.trim() || event
+            : event === 'Heater' && note
+              ? `${event}→${note}`
+              : roastEventLabel(event);
+    const time = formatMarkerTime(timeSec);
+    return hasMarkerTemp(temp) ? `${name}|${time}|${temp}` : `${name}|${time}`;
 };
 
 export const markerLabelDy = (below: boolean, rank = 0, scale = 1) => {
@@ -91,13 +105,19 @@ export const markerLabelDy = (below: boolean, rank = 0, scale = 1) => {
     return (below ? distance : -distance) - stack * rank;
 };
 
+/** ASCII is 6px; Hangul and other non-ASCII are one em so the hit box matches the canvas glyph. */
+const markerLabelAdvance = (text: string) => {
+    let px = 0;
+    for (const ch of text) {
+        px += (ch.codePointAt(0) ?? 0) > 0xff ? MARKER_LABEL_FONT_SIZE : MARKER_LABEL_CHAR_WIDTH_PX;
+    }
+    return px;
+};
+
 export const estimateLabelWidth = (text: string, scale = 1) =>
     Math.min(
         scaleChartPx(MARKER_LABEL_MAX_WIDTH_PX, scale),
-        Math.max(
-            scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale),
-            text.length * scaleChartPx(MARKER_LABEL_CHAR_WIDTH_PX, scale),
-        ),
+        Math.max(scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale), scaleChartPx(markerLabelAdvance(text), scale)),
     );
 
 export interface MarkerLabelGeometry {
@@ -216,10 +236,12 @@ export const layoutCurveLabelBoxes = (
         let textY = labelTextY(item, scale);
         let box = makeLabelBox(item, textY, canvasWidth, scale);
         const trySteps = (dir: number) => {
+            const gap = scaleChartPx(MARKER_LABEL_GAP_PX, scale);
             let step = 0;
             let next = box;
             while (placed.some((prior) => boxesOverlap(next, prior, scale)) && step < 24) {
-                textY += dir * stack;
+                // Box is `stack` tall and overlap includes `gap`, so one stack still collides.
+                textY += dir * (stack + gap);
                 next = makeLabelBox(item, textY, canvasWidth, scale);
                 step += 1;
             }
@@ -376,7 +398,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         xAxis: m.timeSec,
         lineStyle: {
             color: markerColor(m.event),
-            width: isControlEvent(m.event) ? 1 : 0.6,
+            width: EVENT_MARK_LINE_WIDTH,
             type: 'solid' as const,
             opacity: 1,
         },
@@ -390,7 +412,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         xAxis: tp.timeSec,
         lineStyle: {
             color: colors.eventMark,
-            width: 0.6,
+            width: EVENT_MARK_LINE_WIDTH,
             type: 'solid' as const,
             opacity: 1,
         },
@@ -472,9 +494,13 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
               ...lineEvents.map((m) => ({
                   timeSec: m.timeSec,
                   color: markerColor(m.event),
-                  width: isControlEvent(m.event) ? 1 : 0.6,
+                  width: EVENT_MARK_LINE_WIDTH,
               })),
-              ...visibleTurningPoints.map((tp) => ({ timeSec: tp.timeSec, color: colors.eventMark, width: 0.6 })),
+              ...visibleTurningPoints.map((tp) => ({
+                  timeSec: tp.timeSec,
+                  color: colors.eventMark,
+                  width: EVENT_MARK_LINE_WIDTH,
+              })),
           ]
         : [];
 

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+    DROP_DOUBLE_TAP_MS,
     isRoastChargeShortcutEnabled,
     isRoastEventMarkEnabled,
     isRoastMarkShortcutEnabled,
     isRoastRefreshBlocked,
     isRoastShortcutBaseEnabled,
+    nextDropDoubleTap,
 } from './useRoastKeyboardShortcuts';
 import shortcutsSrc from './useRoastKeyboardShortcuts.ts?raw';
 
@@ -84,6 +86,25 @@ describe('isRoastEventMarkEnabled', () => {
         expect(isRoastEventMarkEnabled('preheating')).toBe(false);
         expect(isRoastEventMarkEnabled('standby')).toBe(false);
         expect(isRoastEventMarkEnabled('ended')).toBe(false);
+    });
+});
+
+describe('nextDropDoubleTap', () => {
+    it('arms on the first tap and fires only on a second tap inside the window', () => {
+        const first = nextDropDoubleTap(null, 1_000, false);
+        expect(first).toEqual({ armedAt: 1_000, fire: false });
+        expect(nextDropDoubleTap(first.armedAt, 1_000 + DROP_DOUBLE_TAP_MS, false)).toEqual({
+            armedAt: null,
+            fire: true,
+        });
+    });
+
+    it('re-arms when the second tap is late, and ignores key repeat', () => {
+        expect(nextDropDoubleTap(1_000, 1_000 + DROP_DOUBLE_TAP_MS + 1, false)).toEqual({
+            armedAt: 1_401,
+            fire: false,
+        });
+        expect(nextDropDoubleTap(1_000, 1_100, true)).toEqual({ armedAt: 1_000, fire: false });
     });
 });
 

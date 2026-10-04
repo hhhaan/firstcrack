@@ -8,6 +8,7 @@ export type FcDualStage = 0 | 1 | 2;
 
 export const FC_START_EVENT = 'FC Start';
 export const FC_ROLLING_EVENT = 'FC Rolling';
+export const FC_END_EVENT = 'FC End';
 
 /** Stage from log: 0 empty/orphan, 1 Start only, 2 Start+Rolling. Orphan Rolling → 0. */
 export const getFcDualStage = (entries: readonly Pick<LogEntry, 'event'>[]): FcDualStage => {
@@ -47,7 +48,9 @@ export const fcDualButtonLabel = (
 /** Dual-mark OFF / log toggle: drop `event`. Removing Start also drops orphan Rolling. */
 export const withoutLogEvent = (prev: LogEntry[], event: string): LogEntry[] => {
     const next = prev.filter((e) => e.event !== event);
-    if (event === FC_START_EVENT) return next.filter((e) => e.event !== FC_ROLLING_EVENT);
+    if (event === FC_START_EVENT) {
+        return next.filter((e) => e.event !== FC_ROLLING_EVENT && e.event !== FC_END_EVENT);
+    }
     return next;
 };
 

@@ -65,11 +65,11 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
         <div className="mb-2">
             <label
                 htmlFor={`history-output-weight-${session.id}`}
-                className="mb-1 block text-[11px] font-medium uppercase tracking-[0.5px] text-muted"
+                className="mb-2 block text-[11px] font-medium tracking-[0.3px] text-muted"
             >
                 {t('history.expanded.outputWeight')}
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
                 <input
                     id={`history-output-weight-${session.id}`}
                     type="number"
@@ -88,7 +88,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') e.currentTarget.blur();
                     }}
-                    className={`w-20 rounded border bg-transparent px-1.5 py-0.5 font-mono text-[13px] font-medium tracking-[0.14px] text-primary outline-none ${
+                    className={`w-24 rounded-md border bg-main-bg px-2 py-1.5 font-mono text-[13px] font-medium tracking-[0.14px] text-primary outline-none ${
                         invalid ? 'border-red-500' : 'border-border-subtle focus:border-border'
                     }`}
                 />

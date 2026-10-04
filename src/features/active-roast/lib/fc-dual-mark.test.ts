@@ -103,8 +103,8 @@ describe('cycleFcDualEntries', () => {
 });
 
 describe('withoutLogEvent', () => {
-    it('removing FC Start also drops Rolling', () => {
-        const prev = [entry('Yellow', 240), entry('FC Start', 480), entry('FC Rolling', 520)];
+    it('removing FC Start also drops Rolling and FC End', () => {
+        const prev = [entry('Yellow', 240), entry('FC Start', 480), entry('FC Rolling', 520), entry('FC End', 560)];
         expect(withoutLogEvent(prev, 'FC Start').map((e) => e.event)).toEqual(['Yellow']);
     });
 

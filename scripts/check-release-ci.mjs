@@ -14,6 +14,7 @@ const required = [
     'zizmor',
     'architecture',
     'bundle',
+    'clippy',
 ];
 const optional = ['paths', 'ios-check'];
 

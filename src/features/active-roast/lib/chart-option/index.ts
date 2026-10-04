@@ -2,6 +2,8 @@ import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-c
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
 import {
+    applyChartAxisSettings,
+    applyReportAxes,
     buildAxisStyles,
     buildCrossLineStyle,
     buildDualGridLayout,
@@ -29,6 +31,7 @@ export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMar
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
     const {
+        report = false,
         xs,
         btActual,
         etActual,
@@ -78,7 +81,12 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const fontScale = chartFontScale(fontScaleRaw);
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
-    const { tempYMin, tempYMax } = computeTempYRange(tempMinC, tempMaxC, temperatureUnit);
+    const { tempYMin, tempYMax } = computeTempYRange(
+        tempMinC,
+        tempMaxC,
+        temperatureUnit,
+        params.axisSettings?.tempTicksC?.length ? undefined : params.axisSettings?.tempGridInterval || undefined,
+    );
     const rorYMinDisp = toDisplayRoR(rorYMin, temperatureUnit);
     const rorYMaxDisp = toDisplayRoR(rorYMax, temperatureUnit);
 
@@ -108,6 +116,13 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const xMin = xViewMin ?? xs[0] ?? 0;
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
+    const reportGridInterval = params.axisSettings?.tempTicksC?.length
+        ? undefined
+        : params.axisSettings?.tempGridInterval;
+    const tuneAxes = (axes: Parameters<typeof applyChartAxisSettings>[0]) => {
+        if (report) applyReportAxes(axes, colors, xMax - xMin, temperatureUnit, reportGridInterval);
+        applyChartAxisSettings(axes, params.axisSettings, temperatureUnit);
+    };
 
     const bbpBackground = (control: boolean) => ({
         id: control ? 'bbp-control-background' : 'bbp-background',
@@ -204,7 +219,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         allMarkLines,
         markPointData,
         fcMarkArea,
-        tempBottomBorderLine,
+        tempBottomBorderLine: report ? null : tempBottomBorderLine,
     });
 
     const hasPhaseBar = phaseSegments.length > 0;
@@ -213,7 +228,17 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         : null;
     const continuousMarkerSeries =
         eventMarkerStyle === 'both'
-            ? buildContinuousMarkerSeries(continuousMarkerLines, (tempYMin + tempYMax) / 2, hasControlSeries)
+            ? buildContinuousMarkerSeries(
+                  report
+                      ? continuousMarkerLines.map((line) => ({
+                            ...line,
+                            width: 0.6,
+                            color: line.color === colors.eventControl ? colors.eventControl : colors.phaseLines,
+                        }))
+                      : continuousMarkerLines,
+                  (tempYMin + tempYMax) / 2,
+                  hasControlSeries,
+              )
             : null;
     // Always present so a zoom that culls every label still updates this series.
     // Omitting it on merge leaves the previous frame's text on the canvas.
@@ -254,6 +279,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             colors,
             controlGuideMarkLines,
         });
+
+        tuneAxes({ xAxis, yAxis });
 
         return {
             backgroundColor: 'transparent',
@@ -305,6 +332,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xAxisPointer,
         yAxisPointer,
     });
+
+    tuneAxes({ xAxis, yAxis });
 
     return {
         backgroundColor: 'transparent',

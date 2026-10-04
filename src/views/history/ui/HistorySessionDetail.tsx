@@ -1,0 +1,135 @@
+import { sessionBeanName } from '@entities/roast';
+import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { sessionRoastMetrics } from '@shared/lib/roast-delta';
+import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { Badge } from '@shared/ui/Badge';
+import { BookmarkPlus, ChevronLeft, FileText, Package } from 'lucide-react';
+import { type ReactNode, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { HistorySessionChart } from './HistorySessionChart';
+import { OutputWeightEditor } from './OutputWeightEditor';
+import { RecordSections } from './RecordSections';
+import { SessionScorecard } from './SessionScorecard';
+
+const detailTitleCls = 'm-0 text-[11px] font-medium tracking-[0.3px] text-muted';
+
+type HistorySessionDetailProps = {
+    session: RoastSessionWithRelations;
+    onBack: () => void;
+    onSaveAsProfile: (id: string) => void;
+};
+
+export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: HistorySessionDetailProps): ReactNode => {
+    const { t } = useTranslation();
+    const [exportContainer, setExportContainer] = useState<HTMLDivElement | null>(null);
+    const { temperatureUnit } = useRoastSettings();
+    const beanName = sessionBeanName(session);
+    const metrics = sessionRoastMetrics(session);
+    const results = [
+        { label: 'history.table.duration', value: formatDuration(metrics.roastDurationSec) },
+        { label: 'history.table.dropTemp', value: formatTemp(session.drop_temp_celsius, temperatureUnit) },
+        { label: 'history.scorecard.devTime', value: formatDuration(metrics.devTimeSec) },
+        { label: 'history.scorecard.devPct', value: metrics.dtrPct == null ? '—' : `${metrics.dtrPct.toFixed(1)}%` },
+    ];
+    const batchInfo = [
+        { label: 'history.expanded.origin', value: session.beans?.origin },
+        { label: 'history.table.profile', value: session.roast_profiles?.name },
+        { label: 'history.table.level', value: session.roast_level },
+    ];
+
+    return (
+        <article data-testid="history-detail" className="@container min-w-0">
+            <button
+                type="button"
+                data-testid="history-back"
+                onClick={onBack}
+                className="mb-3 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-[12px] text-muted transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--color-primary)"
+            >
+                <ChevronLeft size={14} strokeWidth={2} />
+                {t('history.title')}
+            </button>
+            <header className="mb-4 flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
+                <div className="min-w-0 flex-1">
+                    <h1 className="m-0 break-words font-(--font-display) text-[24px] leading-tight tracking-[-0.5px] text-primary">
+                        {beanName || formatDateShort(session.roasted_at)}
+                    </h1>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+                        {beanName && <span>{formatDateShort(session.roasted_at)}</span>}
+                        {session.beans?.origin && (
+                            <span className="text-[12px] text-secondary">{session.beans.origin}</span>
+                        )}
+                        {session.roast_level && <Badge tone="neutral">{session.roast_level}</Badge>}
+                    </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <div ref={setExportContainer} />
+                    <button
+                        type="button"
+                        onClick={() => onSaveAsProfile(session.id)}
+                        className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-border-subtle bg-main-bg px-4 py-2 text-[12px] font-medium text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary)"
+                    >
+                        <BookmarkPlus size={14} strokeWidth={2} />
+                        {t('history.saveAsProfile')}
+                    </button>
+                </div>
+            </header>
+            <section
+                aria-label={t('history.expanded.summary')}
+                className="mb-5 rounded-xl border border-border-subtle bg-main-bg"
+            >
+                <dl className="m-0 grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-3.5 @min-[640px]:grid-cols-4">
+                    {results.map(({ label, value }) => (
+                        <div key={label} className="min-w-0">
+                            <dt className={detailTitleCls}>{t(label)}</dt>
+                            <dd className="m-0 mt-1 font-mono text-[22px] leading-tight tracking-[-0.5px] text-primary">
+                                {value}
+                            </dd>
+                        </div>
+                    ))}
+                </dl>
+            </section>
+            <div className="grid min-w-0 items-start gap-6 @min-[1000px]:grid-cols-[minmax(0,1fr)_248px]">
+                <div className="@container min-w-0 space-y-6">
+                    <HistorySessionChart session={session} exportContainer={exportContainer} />
+                    <SessionScorecard session={session} />
+                    <RecordSections session={session} />
+                </div>
+                <aside className="grid min-w-0 gap-5 @min-[640px]:grid-cols-2 @min-[1000px]:grid-cols-1">
+                    <section className="min-w-0 rounded-xl border border-border-subtle bg-surface-warm p-5">
+                        <h2 className="m-0 mb-5 flex items-center gap-2 text-[13px] font-semibold text-primary">
+                            <Package size={15} strokeWidth={1.5} className="text-muted" />
+                            {t('history.expanded.summary')}
+                        </h2>
+                        <dl className="m-0 space-y-4">
+                            {batchInfo.map(({ label, value }) => (
+                                <div key={label}>
+                                    <dt className={detailTitleCls}>{t(label)}</dt>
+                                    <dd className="m-0 mt-1 break-words text-[13px] leading-relaxed text-secondary">
+                                        {value || '—'}
+                                    </dd>
+                                </div>
+                            ))}
+                        </dl>
+                        <div className="mt-5 space-y-4 border-t border-border-subtle pt-5">
+                            <div>
+                                <div className={detailTitleCls}>{t('history.compare.charge')}</div>
+                                <div className="mt-1 font-mono text-[16px] text-primary">{session.weight_grams}g</div>
+                            </div>
+                            <OutputWeightEditor session={session} />
+                        </div>
+                    </section>
+                    <section className="min-w-0 rounded-xl border border-border-subtle bg-main-bg p-5">
+                        <h2 className="m-0 mb-4 flex items-center gap-2 text-[13px] font-semibold text-primary">
+                            <FileText size={15} strokeWidth={1.5} className="text-muted" />
+                            {t('history.expanded.notes')}
+                        </h2>
+                        <div className="min-h-24 whitespace-pre-wrap break-words text-[13px] leading-7 text-secondary">
+                            {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
+                        </div>
+                    </section>
+                </aside>
+            </div>
+        </article>
+    );
+};

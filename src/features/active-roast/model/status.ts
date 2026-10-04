@@ -1,4 +1,5 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
+import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
 import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
 import type { RawTemperatureSample } from '../lib/autoCharge';
@@ -28,7 +29,16 @@ type LiveData = {
     drum: number;
 };
 
+interface RoastLogState {
+    entries: LogEntry[];
+    unwind: boolean;
+}
+
 export interface RoastingState {
+    livePoints: LiveRoastPoint[];
+    setLivePoints: (action: LiveRoastPoint[] | ((prev: LiveRoastPoint[]) => LiveRoastPoint[])) => void;
+    logState: RoastLogState;
+    setLogState: (action: RoastLogState | ((prev: RoastLogState) => RoastLogState)) => void;
     phase: RoastPhase;
     /** Whole seconds since charge; wall-clock from roastStartMs (not a +1 counter). */
     elapsed: number;
@@ -59,8 +69,8 @@ export interface RoastingState {
     /** After Drop/abort: next Charge is allowed even before the prior batch is saved. */
     awaitingNextCharge: boolean;
     /**
-     * Drop/abort stopped PID/Replay. Stays set through Drop cancel so cancel cannot
-     * auto-resume machine output. Cleared only on the next Charge / full reset.
+     * Drop/abort stopped PID/Replay. Cleared on Drop cancel, next Charge, or full reset
+     * so a resumed roast can enable heat control again.
      */
     heatHoldAfterDrop: boolean;
 
@@ -82,6 +92,8 @@ export interface RoastingState {
 }
 
 const initialState = {
+    livePoints: [] as LiveRoastPoint[],
+    logState: { entries: [] as LogEntry[], unwind: false },
     phase: 'idle' as RoastPhase,
     elapsed: 0,
     roastStartMs: 0,
@@ -105,6 +117,16 @@ const initialState = {
 
 export const useRoastingStore = create<RoastingState>((set, get) => ({
     ...initialState,
+    setLivePoints: (action) => {
+        const prev = get().livePoints;
+        const livePoints = typeof action === 'function' ? action(prev) : action;
+        if (livePoints !== prev) set({ livePoints });
+    },
+    setLogState: (action) => {
+        const prev = get().logState;
+        const logState = typeof action === 'function' ? action(prev) : action;
+        if (logState !== prev) set({ logState });
+    },
 
     enterPreheating: (capabilities?: string[]) => {
         set({

@@ -156,6 +156,8 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
 #### Chart visual grammar
 
+- History의 `report` 모드: 축 테두리·세로/보조 격자는 생략하고 수평 점선 격자만 표시한다. 온도 범위는 표시 중인 실측·참조 곡선에 맞추되 최소 40°C 폭을 유지한다. 온도 눈금은 범위에 따라 10·20·50°, RoR은 5°C/min 또는 10°F/min 간격이다. 짧은 기록의 시간 눈금은 5·15초 간격이다. 이벤트 가이드는 0.6px로 낮추며 센서 범례와 단계별 시간·비율을 카드 안에서 별도로 표시한다.
+
 - 선 두께(px): 라이브 BT `1.2`, ET/RoR/ET RoR `0.9`, 제어 실측·Heat set `1.0`, Heat target `1.5` dotted, 참조 곡선 `0.8` dashed, 마킹 세로선 `0.6`, 제어 이벤트 세로선 `1.0`.
 - 참조 곡선(BT·ET·RoR·Drum·Heater·Fan)은 라이브와 같은 채널 색의 `*-target` 토큰이다. 라이브보다 뒤에 그린다. 프로파일에 없는 채널과 저장되지 않은 ET RoR는 만들지 않는다. 결측 샘플은 null이며 0으로 채우거나 끊긴 구간을 잇지 않는다.
 - Heat target(프로파일 화력 지시)과 Heat set(라이브 지시)은 참조 Heater와 다른 시리즈다. 지시값을 참조 곡선으로 복제하지 않는다. 순서: 참조 제어 → Heat target → Heat set → 실측 Heat.

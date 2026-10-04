@@ -2,6 +2,7 @@ import { eventMarkerCssColor, isControlEvent } from '@features/active-roast/lib/
 import { STATUS_COLORS } from '@features/active-roast/lib/colors';
 import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
+import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
 import { X } from 'lucide-react';
 
@@ -98,7 +99,7 @@ export const RoastLog = ({
                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
                                     }}
                                 >
-                                    {entry.event}
+                                    {roastEventLabel(entry.event)}
                                 </span>
                                 <span
                                     style={{
@@ -127,7 +128,7 @@ export const RoastLog = ({
                                 type="button"
                                 // biome-ignore lint/style/noNonNullAssertion: error already checked above
                                 onClick={() => onRemoveEntry(entry.id!)}
-                                aria-label={`Delete ${entry.event.toLowerCase()}`}
+                                aria-label={`Delete ${roastEventLabel(entry.event).toLowerCase()}`}
                                 className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
                             >
                                 <X size={12} />

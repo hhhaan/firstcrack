@@ -11,6 +11,12 @@ export const PHASE_BAR_WIDE_THRESHOLD = 70;
 export const PHASE_BAR_NARROW_THRESHOLD = 30;
 export const PHASE_BAR_TEXT_INSET = 6;
 export const PHASE_BAR_STROKE_WIDTH = 0.5;
+/** BT, ET, RoR, and their reference curves. */
+export const TEMP_CURVE_WIDTH = 1.8;
+/** Heat, damper, drum, and their reference curves. */
+export const CONTROL_CURVE_WIDTH = 1.5;
+/** Vertical guides for heater, roast events, notes, and turning points. */
+export const EVENT_MARK_LINE_WIDTH = 1;
 export const PHASE_BAR_FONT_SIZE = 10;
 export const PHASE_BAR_FONT_SIZE_NARROW = 9;
 export const PHASE_BAR_FONT_FAMILY = 'monospace';
@@ -28,18 +34,19 @@ export const MARKER_LABEL_FONT =
     `${MARKER_LABEL_FONT_WEIGHT} ${MARKER_LABEL_FONT_SIZE}px ${MARKER_LABEL_FONT_FAMILY}` as const;
 
 /** Roast font setting → chart scale. Anything else stays at 1 so layout tests keep base pixels. */
-export const chartFontScale = (scale: number | undefined): number => (scale === 1.5 || scale === 2 ? scale : 1);
+export const chartFontScale = (scale: number | undefined): number =>
+    typeof scale === 'number' && Number.isFinite(scale) && scale >= 1 && scale <= 2 ? scale : 1;
 
-/** Scale 1 returns `base` unchanged. 1.5 and 2 round to whole pixels. */
-export const scaleChartPx = (base: number, scale: number) => (scale === 1 ? base : Math.round(base * scale));
+/** Keep fractional pixels so each 1% step changes labels and their hit boxes together. */
+export const scaleChartPx = (base: number, scale: number) => base * scale;
 
 export const markerLabelFont = (scale: number) =>
     scale === 1
         ? MARKER_LABEL_FONT
         : `${MARKER_LABEL_FONT_WEIGHT} ${scaleChartPx(MARKER_LABEL_FONT_SIZE, scale)}px ${MARKER_LABEL_FONT_FAMILY}`;
-/** Box height and same-time stack step. */
+/** Collision box height. The packer steps by this plus MARKER_LABEL_GAP_PX. */
 export const MARKER_LABEL_STACK_PX = 14;
-/** Monospace advance at MARKER_LABEL_FONT_SIZE. */
+/** ASCII advance at MARKER_LABEL_FONT_SIZE. Hangul and other non-ASCII use the full em. */
 export const MARKER_LABEL_CHAR_WIDTH_PX = 6;
 export const MARKER_LABEL_MIN_WIDTH_PX = 8;
 export const MARKER_LABEL_MAX_WIDTH_PX = 240;

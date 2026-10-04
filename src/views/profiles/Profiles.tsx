@@ -153,9 +153,20 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const { data: selectedRealCurve = [] } = useRoastProfileCurve(selectedTsvPath);
     const selectedHasReal = selectedRealCurve.length > 0;
 
-    const setDefault = (id: string) => {
+    const setDefault = (id: string | null) => {
+        const previous = defaultId;
         setDefaultId(id);
-        updateProfile({ default_roast_profile_id: id });
+        updateProfile(
+            { default_roast_profile_id: id },
+            {
+                onError: (err) => {
+                    setDefaultId(previous);
+                    logger.capture(err instanceof Error ? err : new Error('Failed to update default profile'), {
+                        profileId: id,
+                    });
+                },
+            },
+        );
     };
 
     const enterCompareMode = () => {

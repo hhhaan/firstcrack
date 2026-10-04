@@ -3,6 +3,7 @@ import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
+import { normalizeTemperatureTicks } from '../lib/temperature';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
@@ -10,11 +11,26 @@ const STORE_KEY = 'roast.settings';
 export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
 export type TemperatureUnit = 'C' | 'F';
-/** Labels drawn inside the roast chart. */
-export const FONT_SCALE_PCTS = [100, 150, 200] as const;
-export type FontScalePct = (typeof FONT_SCALE_PCTS)[number];
+/** Labels drawn inside the roast chart. Stored as 100–200 (1×–2×). */
+export type FontScalePct = number;
 
-const isFontScalePct = (value: unknown): value is FontScalePct => value === 100 || value === 150 || value === 200;
+export const FONT_SCALE_MIN = 100;
+export const FONT_SCALE_MAX = 200;
+/** Settings slider. 1 is the stored minimum, 100 is the stored maximum. */
+export const FONT_SLIDER_MIN = 1;
+export const FONT_SLIDER_MAX = 100;
+
+const isFontScalePct = (value: unknown): value is FontScalePct =>
+    typeof value === 'number' && Number.isInteger(value) && value >= FONT_SCALE_MIN && value <= FONT_SCALE_MAX;
+
+export const fontScaleToSlider = (fontScalePct: number): number =>
+    Math.round(
+        ((fontScalePct - FONT_SCALE_MIN) * (FONT_SLIDER_MAX - FONT_SLIDER_MIN)) / (FONT_SCALE_MAX - FONT_SCALE_MIN),
+    ) + FONT_SLIDER_MIN;
+
+export const sliderToFontScale = (slider: number): FontScalePct =>
+    FONT_SCALE_MIN +
+    Math.round(((slider - FONT_SLIDER_MIN) * (FONT_SCALE_MAX - FONT_SCALE_MIN)) / (FONT_SLIDER_MAX - FONT_SLIDER_MIN));
 /** line = vertical line | point = curve label | both = curve label + full-height line */
 export type EventMarkerStyle = 'line' | 'point' | 'both';
 
@@ -22,7 +38,7 @@ export type RoastSettings = {
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
     temperatureUnit: TemperatureUnit;
-    /** 100 = default. 150 and 200 enlarge labels drawn on the chart. */
+    /** Stored chart scale: 100–200. Default 100 (slider 1%, actual 1×). */
     fontScalePct: FontScalePct;
     showET: boolean;
     showTargetCurve: boolean;
@@ -54,6 +70,22 @@ export type RoastSettings = {
     eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
     tempMaxC: number;
+    /** Intervals use the displayed unit. */
+    tempGridInterval: number;
+    tempGridPresetInterval: number;
+    tempLabelPresetEvery: number;
+    timeTickPresetSec: number;
+    tempAxisMode: 'preset' | 'list';
+    tempTickMode: 'interval' | 'list';
+    tempLabelCustom: boolean;
+    timeTickCustom: boolean;
+    tempTicksC: number[];
+    tempLabelEvery: number;
+    timeTickIntervalSec: number;
+    /** Live chart time-axis floor, in minutes. The axis grows when the roast or profile is longer. */
+    timeRangePresetMin: number;
+    timeRangeCustom: boolean;
+    timeRangeMin: number;
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;
@@ -104,6 +136,15 @@ export type RoastSettings = {
 
 export type PidDropBehavior = 'hold' | 'zero';
 
+/** Matches `CHART_TOTAL_SECS` (780s). Presets stay in display order, default first. */
+export const TIME_RANGE_MIN_DEFAULT = 13;
+export const TIME_RANGE_PRESET_MIN = [13, 10, 15, 20, 30] as const;
+const TIME_RANGE_MIN_MAX = 180;
+
+export const chartSpanSec = (
+    settings: Pick<RoastSettings, 'timeRangeCustom' | 'timeRangeMin' | 'timeRangePresetMin'>,
+): number => (settings.timeRangeCustom ? settings.timeRangeMin : settings.timeRangePresetMin) * 60;
+
 /** Artisan autoDROP default: Charge 후 7분 초과. */
 export const AUTO_DROP_START_MIN_DEFAULT = 7;
 /**
@@ -116,10 +157,10 @@ const AUTO_DROP_START_MIN_MIN = 1;
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
 const DEFAULT_SETTINGS: RoastSettings = {
-    pollIntervalMs: 500,
+    pollIntervalMs: 1000,
     rorSpanSec: 30,
     temperatureUnit: 'C',
-    fontScalePct: 100,
+    fontScalePct: FONT_SCALE_MIN,
     showET: true,
     showTargetCurve: true,
     showProfileBt: true,
@@ -144,6 +185,20 @@ const DEFAULT_SETTINGS: RoastSettings = {
     eventMarkerStyle: 'both',
     tempMinC: 130,
     tempMaxC: 240,
+    tempGridInterval: 10,
+    tempGridPresetInterval: 10,
+    tempLabelPresetEvery: 5,
+    timeTickPresetSec: 60,
+    tempAxisMode: 'preset',
+    tempTickMode: 'interval',
+    tempLabelCustom: false,
+    timeTickCustom: false,
+    tempTicksC: [],
+    tempLabelEvery: 5,
+    timeTickIntervalSec: 60,
+    timeRangePresetMin: TIME_RANGE_MIN_DEFAULT,
+    timeRangeCustom: false,
+    timeRangeMin: TIME_RANGE_MIN_DEFAULT,
     rorYMin: -5,
     rorYMax: 20,
     yellowTempC: 150,
@@ -177,6 +232,9 @@ const clampNum = (value: unknown, min: number, max: number, fallback: number) =>
 };
 
 const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback);
+
+const pickPreset = (value: number, allowed: readonly number[], fallback: number): number =>
+    allowed.includes(value) ? value : fallback;
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
@@ -242,9 +300,59 @@ export const normalizeRoastSettings = (
     const yellowTempC = clampNum(merged.yellowTempC, 50, 300, DEFAULT_SETTINGS.yellowTempC);
     const autoYellowEnabled = asBool(merged.autoYellowEnabled, DEFAULT_SETTINGS.autoYellowEnabled);
     const fcDualMarkEnabled = asBool(merged.fcDualMarkEnabled, DEFAULT_SETTINGS.fcDualMarkEnabled);
+    const tempTicksC =
+        normalizeTemperatureTicks(merged.tempTicksC) ?? previous?.tempTicksC ?? DEFAULT_SETTINGS.tempTicksC;
 
     return {
         ...merged,
+        tempGridPresetInterval: pickPreset(
+            merged.tempGridPresetInterval,
+            [10, 15, 20, 30],
+            previous?.tempGridPresetInterval ?? 10,
+        ),
+        tempLabelPresetEvery: pickPreset(
+            merged.tempLabelPresetEvery,
+            [1, 2, 3, 5],
+            previous?.tempLabelPresetEvery ?? 5,
+        ),
+        timeTickPresetSec: pickPreset(merged.timeTickPresetSec, [30, 60, 90, 120], previous?.timeTickPresetSec ?? 60),
+        tempGridInterval:
+            Number.isFinite(merged.tempGridInterval) && merged.tempGridInterval >= 1 && merged.tempGridInterval <= 500
+                ? merged.tempGridInterval
+                : (previous?.tempGridInterval ?? DEFAULT_SETTINGS.tempGridInterval),
+        tempTicksC,
+        tempAxisMode:
+            rest.tempAxisMode === 'preset' || rest.tempAxisMode === 'list'
+                ? rest.tempAxisMode
+                : (previous?.tempAxisMode ?? (tempTicksC.length ? 'list' : 'preset')),
+        tempTickMode:
+            rest.tempTickMode === 'interval' || rest.tempTickMode === 'list'
+                ? rest.tempTickMode
+                : (previous?.tempTickMode ?? (tempTicksC.length ? 'list' : 'interval')),
+        tempLabelCustom: asBool(rest.tempLabelCustom, previous?.tempLabelCustom ?? merged.tempLabelEvery !== 5),
+        timeTickCustom: asBool(rest.timeTickCustom, previous?.timeTickCustom ?? merged.timeTickIntervalSec !== 60),
+        tempLabelEvery:
+            Number.isInteger(merged.tempLabelEvery) && merged.tempLabelEvery >= 1 && merged.tempLabelEvery <= 500
+                ? merged.tempLabelEvery
+                : (previous?.tempLabelEvery ?? DEFAULT_SETTINGS.tempLabelEvery),
+        timeTickIntervalSec:
+            Number.isInteger(merged.timeTickIntervalSec) &&
+            merged.timeTickIntervalSec >= 1 &&
+            merged.timeTickIntervalSec <= 3600
+                ? merged.timeTickIntervalSec
+                : (previous?.timeTickIntervalSec ?? DEFAULT_SETTINGS.timeTickIntervalSec),
+        timeRangePresetMin: pickPreset(
+            merged.timeRangePresetMin,
+            TIME_RANGE_PRESET_MIN,
+            previous?.timeRangePresetMin ?? TIME_RANGE_MIN_DEFAULT,
+        ),
+        timeRangeCustom: asBool(rest.timeRangeCustom, previous?.timeRangeCustom ?? false),
+        timeRangeMin:
+            Number.isInteger(merged.timeRangeMin) &&
+            merged.timeRangeMin >= 1 &&
+            merged.timeRangeMin <= TIME_RANGE_MIN_MAX
+                ? merged.timeRangeMin
+                : (previous?.timeRangeMin ?? TIME_RANGE_MIN_DEFAULT),
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)

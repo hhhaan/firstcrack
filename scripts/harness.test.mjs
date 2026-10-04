@@ -172,6 +172,7 @@ test('release policy fails closed and is shared by CLI, local release and workfl
         'zizmor',
         'architecture',
         'bundle',
+        'clippy',
     ];
     const green = checks.map((name) => ({ name, status: 'completed', conclusion: 'success' }));
     const cases = [

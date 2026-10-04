@@ -474,7 +474,7 @@ export class MockDb {
         if (!recordEventsEditOk(s.events, body.p_events)) {
             return { status: 422, body: { code: 'PT422', message: 'roast_record_invalid_events' } };
         }
-        s.events = next;
+        s.events = body.p_events;
         s.heater_events = body.p_heater_events ?? null;
         s.drop_temp_celsius = (body.p_drop_temp_celsius as number | null) ?? null;
         s.duration_seconds = (body.p_duration_seconds as number | null) ?? null;

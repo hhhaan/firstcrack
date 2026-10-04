@@ -31,7 +31,7 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | `git commit` (2) | migration staged w/o `database.types.ts` → block (bypass `SKIP_TYPES_GEN=1`) | no |
 | `git push` | `pnpm verify:all` (core + lint + sidecar + actionlint + architecture) | no |
 | main push `supabase/functions/**` | EF deploy → POST probe each deployed fn (transport errors/5xx/BOOT_ERROR = fail) | no |
-| CI (PR and main — main direct push is still possible) | `check` (biome+i18n+registry+plan-caps+harness+knip+typecheck+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), actionlint, zizmor, dependency-cruiser, bundle, ios-check (off until iPad: repo var `IOS_CHECK=true` enables; `src-tauri/**` only), edge-check (`deno check`) | no |
+| CI (PR and main — main direct push is still possible) | `check` (biome+i18n+registry+plan-caps+harness+knip+typecheck+eslint+secretlint), test, sidecar, semgrep (ERROR only), gitleaks (this change), actionlint, zizmor, dependency-cruiser, bundle, clippy (`cargo clippy -D warnings`), ios-check (off until iPad: repo var `IOS_CHECK=true` enables; `src-tauri/**` only), edge-check (`deno check`) | no |
 | schedule (Mon 09:00 KST) | gitleaks (HEAD tree + last 7d history) | no |
 | `pnpm release` / `v*` tag | 3-platform build (+ sidecar `/status` smoke) → `supabase db push` → R2 publish | no |
 
@@ -66,7 +66,7 @@ Read before changing write paths:
 - Orders / channels: `docs/agent/sales-channels-orders.md`
 - Workspace identity: `docs/agent/workspace-auth.md` (prefer over stale `docs/team-workspaces.md`)
 - Data fetching: `docs/agent/data-fetching.md`
-- Edge + migrations: `supabase/AGENTS.md`
+- Edge + migrations: `supabase/AGENTS.md` — migration edits: local `supabase db reset --local` (Docker) passes before commit
 - Gap inventory: `docs/agent/gap-inventory.md`
 
 ## Agent Rules

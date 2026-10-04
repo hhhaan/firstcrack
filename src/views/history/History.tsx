@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import { ExportCsvModal, type ExportDateRange } from './ui/ExportCsvModal';
+import { HistorySessionDetail } from './ui/HistorySessionDetail';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
 import { SessionCompareModal } from './ui/SessionCompareModal';
@@ -32,9 +33,18 @@ const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] 
 
 const PAGE_SIZE = 10;
 
+const findById = <T extends { id: string }>(id: string | null, ...lists: T[][]): T | null => {
+    if (!id) return null;
+    for (const list of lists) {
+        const found = list.find((item) => item.id === id);
+        if (found) return found;
+    }
+    return null;
+};
+
 export const History = () => {
     const { t } = useTranslation();
-    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -148,6 +158,11 @@ export const History = () => {
     const isLoading = useClientPagination ? isRawLoading : isPaginatedLoading;
     const isError = useClientPagination ? isRawError : isPaginatedError;
 
+    const selectedSession = useMemo(
+        () => (selectedId && !compareMode ? findById(selectedId, displaySessions, rawSessions) : null),
+        [selectedId, compareMode, displaySessions, rawSessions],
+    );
+
     const exportCsv = useExportCsv();
     const deleteSession = useDeleteRoastSession(workspaceOwnerId);
     const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
@@ -163,10 +178,7 @@ export const History = () => {
         [createProfile],
     );
 
-    const deletingSession = useMemo(
-        () => displaySessions.find((s) => s.id === deletingId) ?? rawSessions.find((s) => s.id === deletingId) ?? null,
-        [displaySessions, rawSessions, deletingId],
-    );
+    const deletingSession = findById(deletingId, displaySessions, rawSessions);
 
     // ── Handlers ──
 
@@ -177,7 +189,7 @@ export const History = () => {
             );
             return;
         }
-        setExpandedId(expandedId === id ? null : id);
+        setSelectedId(id);
     };
 
     const handleToggleCompareMode = useCallback(() => {
@@ -187,15 +199,12 @@ export const History = () => {
             return;
         }
         setCompareMode(true);
-        setCompareIds(expandedId ? [expandedId] : []);
-        setExpandedId(null);
-    }, [compareMode, expandedId]);
+        setCompareIds(selectedId ? [selectedId] : []);
+        setSelectedId(null);
+    }, [compareMode, selectedId]);
 
     const compareSessions = useMemo(
-        () =>
-            compareIds
-                .map((id) => rawSessions.find((s) => s.id === id) ?? displaySessions.find((s) => s.id === id) ?? null)
-                .filter((s): s is NonNullable<typeof s> => s != null),
+        () => compareIds.map((id) => findById(id, rawSessions, displaySessions)).filter((session) => session != null),
         [compareIds, rawSessions, displaySessions],
     );
 
@@ -243,7 +252,7 @@ export const History = () => {
         deleteSession.mutate(deletingId, {
             onSuccess: () => {
                 setDeletingId(null);
-                setExpandedId((prev) => (prev === deletingId ? null : prev));
+                setSelectedId((prev) => (prev === deletingId ? null : prev));
             },
         });
     }, [deletingId, deleteSession]);
@@ -260,12 +269,10 @@ export const History = () => {
                 sessions={displaySessions}
                 total={totalSessions}
                 filteredTotal={displayTotal}
-                expandedId={expandedId}
                 compareMode={compareMode}
                 compareIds={compareIds}
                 onRowClick={handleRowClick}
                 onDeleteClick={handleDeleteClick}
-                onSaveAsProfile={setPromoteSessionId}
                 sortKey={sortKey}
                 sortAsc={sortAsc}
                 onSort={setSort}
@@ -280,82 +287,94 @@ export const History = () => {
     return (
         <PageLayout>
             <div data-testid="history-page" className="contents">
-                <PageHeader
-                    title={t('history.title')}
-                    subtitle={
-                        isLoading ? t('history.subtitleLoading') : t('history.subtitle', { count: totalSessions })
-                    }
-                    className="flex-col gap-4 md:flex-row"
-                    actions={
-                        <div className="flex items-center gap-2">
-                            {totalSessions > 1 && (
-                                <button
-                                    type="button"
-                                    onClick={handleToggleCompareMode}
-                                    className={`inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] transition hover:-translate-y-px ${compareMode ? 'bg-primary text-white dark:bg-[#0d0d0d]' : 'bg-main-bg text-secondary hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]'}`}
-                                >
-                                    <GitCompare size={14} strokeWidth={2} />
-                                    {compareMode ? t('history.compare.cancel') : t('history.compare.button')}
-                                </button>
-                            )}
-                            {compareMode && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowCompare(true)}
-                                    disabled={compareSessions.length < 2}
-                                    className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    {t('history.compare.open', { count: compareSessions.length })}
-                                </button>
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => setExportOpen(true)}
-                                className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
-                            >
-                                <Download size={14} strokeWidth={2} />
-                                {t('history.exportCsv')}
-                            </button>
+                {selectedSession ? (
+                    <HistorySessionDetail
+                        session={selectedSession}
+                        onBack={() => setSelectedId(null)}
+                        onSaveAsProfile={setPromoteSessionId}
+                    />
+                ) : (
+                    <>
+                        <PageHeader
+                            title={t('history.title')}
+                            subtitle={
+                                isLoading
+                                    ? t('history.subtitleLoading')
+                                    : t('history.subtitle', { count: totalSessions })
+                            }
+                            className="flex-col gap-4 md:flex-row"
+                            actions={
+                                <div className="flex items-center gap-2">
+                                    {totalSessions > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={handleToggleCompareMode}
+                                            className={`inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] transition hover:-translate-y-px ${compareMode ? 'bg-primary text-white dark:bg-[#0d0d0d]' : 'bg-main-bg text-secondary hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]'}`}
+                                        >
+                                            <GitCompare size={14} strokeWidth={2} />
+                                            {compareMode ? t('history.compare.cancel') : t('history.compare.button')}
+                                        </button>
+                                    )}
+                                    {compareMode && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCompare(true)}
+                                            disabled={compareSessions.length < 2}
+                                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            {t('history.compare.open', { count: compareSessions.length })}
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setExportOpen(true)}
+                                        className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
+                                    >
+                                        <Download size={14} strokeWidth={2} />
+                                        {t('history.exportCsv')}
+                                    </button>
+                                </div>
+                            }
+                        />
+
+                        <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg dark:border dark:border-[#585d61] p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
+                            <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface dark:bg-surface-elevated px-3 py-2">
+                                <Search size={14} strokeWidth={2} className="text-muted" />
+                                <input
+                                    className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder={t('history.searchPlaceholder')}
+                                />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <FilterDropdown
+                                    label={t('history.allLevels')}
+                                    value={levelFilter}
+                                    options={ROAST_LEVELS.filter((l) => rawSessions.some((s) => s.roast_level === l))}
+                                    onSelect={setLevelFilter}
+                                />
+                                <FilterDropdown
+                                    label={t('history.allOrigins')}
+                                    value={originFilter}
+                                    options={uniqueOrigins}
+                                    onSelect={setOriginFilter}
+                                />
+                                <DateRangeFilter
+                                    preset={datePreset}
+                                    fromYM={fromYM}
+                                    toYM={toYM}
+                                    monthOptions={monthOptions}
+                                    onPresetChange={setDatePreset}
+                                    onFromYM={setFromYM}
+                                    onToYM={setToYM}
+                                />
+                            </div>
                         </div>
-                    }
-                />
 
-                <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg dark:border dark:border-[#585d61] p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
-                    <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface dark:bg-surface-elevated px-3 py-2">
-                        <Search size={14} strokeWidth={2} className="text-muted" />
-                        <input
-                            className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder={t('history.searchPlaceholder')}
-                        />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <FilterDropdown
-                            label={t('history.allLevels')}
-                            value={levelFilter}
-                            options={ROAST_LEVELS.filter((l) => rawSessions.some((s) => s.roast_level === l))}
-                            onSelect={setLevelFilter}
-                        />
-                        <FilterDropdown
-                            label={t('history.allOrigins')}
-                            value={originFilter}
-                            options={uniqueOrigins}
-                            onSelect={setOriginFilter}
-                        />
-                        <DateRangeFilter
-                            preset={datePreset}
-                            fromYM={fromYM}
-                            toYM={toYM}
-                            monthOptions={monthOptions}
-                            onPresetChange={setDatePreset}
-                            onFromYM={setFromYM}
-                            onToYM={setToYM}
-                        />
-                    </div>
-                </div>
-
-                {renderContent()}
+                        {renderContent()}
+                    </>
+                )}
                 {showCompare && compareSessions.length >= 2 && (
                     <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
                 )}

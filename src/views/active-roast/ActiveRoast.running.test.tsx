@@ -2,12 +2,16 @@
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
+import { sidecar } from '@shared/lib/sidecar';
 import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, createElement } from 'react';
+import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActiveRoast } from './ActiveRoast';
+import { ActiveRoastRuntime } from './ActiveRoastRuntime';
+
+vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
 
 const RUNNING_CLOSE = '로스팅이 진행 중입니다. 정말 종료하시겠습니까?';
 const UNSAVED_CLOSE = '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?';
@@ -176,7 +180,12 @@ describe('ActiveRoast running clock (#627)', () => {
                 createElement(
                     QueryClientProvider,
                     { client: queryClient },
-                    createElement(ActiveRoast, { isActive: true }),
+                    createElement(
+                        Fragment,
+                        null,
+                        createElement(ActiveRoastRuntime, { isActive: true }),
+                        createElement(ActiveRoast, { isActive: true }),
+                    ),
                 ),
             );
         });
@@ -254,6 +263,66 @@ describe('ActiveRoast running clock (#627)', () => {
             expect(composition).toHaveBeenLastCalledWith(expect.objectContaining({ liveBt: null }));
         } finally {
             unmount();
+            composition.mockRestore();
+        }
+    });
+
+    it('replays a heater edit without a reference profile and keeps it across roast ticks', async () => {
+        const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+        const status = await sidecar.getStatus();
+        const capability = vi.mocked(sidecar.getStatus);
+        const previousCapability = capability.getMockImplementation();
+        const write = vi.mocked(sidecar.setControl);
+        const previousWrite = write.getMockImplementation();
+        capability.mockResolvedValue({
+            ...status,
+            control: { writable: true, limits: { heater: { min: 0, max: 100, unit: '%' } } },
+        });
+        write.mockClear().mockResolvedValue({ ok: true, applied: { heater: 45 } });
+        seed({
+            liveData: { bt: 180, et: 210, ror: 0, ror_et: 0, heater: 45, fan: 0, drum: 0 },
+            rawTemperature: { bt: 180, timestamp: 10, receivedAtMs: Date.now() },
+            observation: {
+                receivedAtMs: Date.now(),
+                lastValidReceivedAtMs: Date.now(),
+                lastValidDeviceTimestamp: 10,
+                isNew: true,
+                quality: 'valid',
+            },
+        });
+        const unmount = mount();
+        const latest = () => {
+            const result = composition.mock.results[composition.mock.results.length - 1];
+            if (result.type !== 'return') throw new Error('Machine control composition did not render');
+            return result.value;
+        };
+        try {
+            await flushMicrotasks();
+            expect(composition).toHaveBeenLastCalledWith(expect.objectContaining({ replayPoints: [] }));
+            const events = [
+                { id: 'edited-heat', t: 0, bt: 180, heater: 45, trigger: 'time' as const },
+                { id: 'next-heat', t: 60, bt: 180, heater: 30, trigger: 'time' as const },
+            ];
+            await act(async () => latest().replay.applyBatchEvents(events));
+            expect(latest().replay.source).toBe('batch');
+            expect(latest().replay.plan?.events).toEqual(events);
+            await act(async () => latest().replay.toggle());
+            expect(latest().replay.active).toBe(true);
+            expect(write).toHaveBeenCalledWith({ heater: 45 });
+            await advance(2000);
+            expect(latest().replay.source).toBe('batch');
+            expect(latest().replay.plan?.events).toEqual(events);
+            expect(latest().replay.active).toBe(true);
+            expect(latest().replay.firedCount).toBe(1);
+            expect(write).toHaveBeenCalledOnce();
+            expect(clockText(host)).toContain('0:07');
+            expect(useRoastingStore.getState().sessionId).toBe('sess-remount');
+        } finally {
+            unmount();
+            capability.mockReset();
+            if (previousCapability) capability.mockImplementation(previousCapability);
+            write.mockReset();
+            if (previousWrite) write.mockImplementation(previousWrite);
             composition.mockRestore();
         }
     });

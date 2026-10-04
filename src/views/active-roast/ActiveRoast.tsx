@@ -9,6 +9,7 @@ import {
     useRoastProfiles,
 } from '@entities/roast-profile';
 import {
+    chartSpanSec,
     computePhaseSegments,
     formatTemp,
     isRoastShortcutBaseEnabled,
@@ -94,7 +95,6 @@ import { useChartPipeline } from './model/useChartPipeline';
 import { useRoastLifecycle } from './model/useRoastLifecycle';
 import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
-import { useSidecarPolling } from './model/useSidecarPolling';
 import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
@@ -144,7 +144,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         elapsed,
         liveData,
         pid: pidRuntime,
-        tick,
         sessionId,
         sidecarConnected,
         reconnecting,
@@ -158,7 +157,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             elapsed: s.elapsed,
             liveData: s.liveData,
             pid: s.pid,
-            tick: s.tick,
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
@@ -258,16 +256,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         elapsed,
     );
 
-    // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
-    const { livePoints, setLivePoints } = useSidecarPolling({
-        isActive,
-        phase,
-        pollIntervalMs,
-        enterPreheating,
-        setConnected,
-        sessionId,
-        chargeBt: logEntries.find((entry) => entry.event === 'Charge')?.tempC ?? null,
-    });
+    const livePoints = useRoastingStore((state) => state.livePoints);
+    const setLivePoints = useRoastingStore((state) => state.setLivePoints);
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
     const targetProfile = useMemo(
@@ -362,7 +352,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         livePoints: chartView.livePoints,
         targetCurvePoints: chartView.targetPoints,
         xMin: chartView.xMin,
-        xMaxFloor: chartView.xMaxFloor,
+        xMaxFloor: chartView.xMaxFloor ?? chartSpanSec(roastSettings),
         showRoR: roastSettings.showRoRChart,
         showControlChart: roastSettings.showControlChart,
         unit,
@@ -408,6 +398,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setZoomRange: chart.setZoomRange,
         setHoveredChartIndex: chart.setHoveredChartIndex,
         triggerChargeRef,
+        replayActiveRef,
     });
 
     // ── 날씨 데이터 ───────────────────────────────────────────────
@@ -653,13 +644,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [setLivePoints, setLogEntries, chart.setZoomRange, chart.setHoveredChartIndex],
     );
 
-    // ── Effect: 타이머 ────────────────────────────────────────────
-    useEffect(() => {
-        if (!isRunning) return;
-        const interval = setInterval(() => tick(), 1000);
-        return () => clearInterval(interval);
-    }, [isRunning, tick]);
-
     // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
     useEffect(() => {
         if (!('__TAURI_INTERNALS__' in window)) return;
@@ -822,14 +806,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         lifecycle.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
     }, [lifecycle, saveFlow, selectedBeanId, planBatchHandoff, handoffBeanName]);
 
-    const handleCancelDrop = useCallback(() => {
-        if (!lifecycle.cancelDrop()) {
-            logger.capture(new Error('Roast summary Drop cancellation failed'));
-            return;
-        }
-        saveFlow.flow.discardSummary();
-    }, [lifecycle, saveFlow.flow]);
-
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
             setLogEntries((prev) =>
@@ -892,6 +868,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
     }, [machineControl.replay.active, machineControl.replay.stop]);
+
+    const handleCancelDrop = useCallback(() => {
+        const restore = useCompletedRoastStore.getState().restore;
+        if (!lifecycle.cancelDrop()) {
+            logger.capture(new Error('Roast summary Drop cancellation failed'));
+            return;
+        }
+        machineControl.replay.restore(restore?.replayActive ?? false);
+        saveFlow.flow.discardSummary();
+    }, [lifecycle, machineControl.replay, saveFlow.flow]);
 
     const [noteInput, setNoteInput] = useState('');
     const handleNoteSubmit = useCallback(() => {

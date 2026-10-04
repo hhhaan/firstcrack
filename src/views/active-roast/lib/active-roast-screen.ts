@@ -29,11 +29,14 @@ export const profileSelectionEpoch = (
     sessionId: string | null | undefined,
 ) => `${workspaceOwnerId ?? ''}:${sessionId ?? 'pre'}`;
 
+// Replay reconciles plans by curve identity, including a batch edit without a profile.
+const EMPTY_REPLAY_POINTS: never[] = [];
+
 export const replayPointsForProfile = <T>(
     targetProfileId: string | null,
     curveLoading: boolean,
     points: T[],
-): T[] | null => (!targetProfileId ? [] : curveLoading ? null : points);
+): T[] | null => (!targetProfileId ? EMPTY_REPLAY_POINTS : curveLoading ? null : points);
 
 export const isWaitingForCharge = (bbpActive: boolean, charged: boolean) => bbpActive || !charged;
 

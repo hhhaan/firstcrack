@@ -36,6 +36,7 @@ vi.mock('@entities/roast-profile', () => ({
 }));
 vi.mock('@features/active-roast', async () => ({
     ...(await vi.importActual('@features/active-roast/lib/temperature')),
+    ...(await vi.importActual('@features/active-roast/lib/phases')),
     useRoastSettings: () => ({
         temperatureUnit: 'F',
         tempMinC: 100,
@@ -53,6 +54,7 @@ vi.mock('@features/active-roast', async () => ({
 vi.mock('@features/active-roast/lib/serialize-roast-events', () => ({
     parseStoredRoastEvents: () => [],
     storedEventsToMarkers: () => [{ event: 'Charge', timeSec: 0 }],
+    storedEventsToLogEntries: () => [],
 }));
 vi.mock('@shared/store/theme', () => ({ useThemeStore: () => 'light' }));
 vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
@@ -77,7 +79,10 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 
 it('joins BBP and roast in one Charge-relative chart and keeps roast visible on BBP loading/failure/absence', async () => {
     const container = document.createElement('div');
-    const root = createRoot(container);
+    const chartHost = document.createElement('div');
+    const exportContainer = document.createElement('div');
+    container.append(chartHost, exportContainer);
+    const root = createRoot(chartHost);
     const session = {
         id: 'charge-session',
         user_id: 'owner',
@@ -103,12 +108,14 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
         { t: 30, bt: 120, et: null, ror: null, heater: null, fan: null, drum: null },
     ];
     const render = async () => {
-        await act(async () => root.render(<HistorySessionChart session={session} />));
+        await act(async () => root.render(<HistorySessionChart session={session} exportContainer={exportContainer} />));
     };
     await render();
     expect(mocks.useBbpCurve).toHaveBeenCalledWith('owner', 'charge-session', 'saved.bbp.tsv');
     expect(container.querySelectorAll('[data-testid="curve"]')).toHaveLength(1);
     const pdfBtn = container.querySelector('[data-testid="history-export-pdf"]') as HTMLButtonElement;
+    expect(exportContainer.contains(pdfBtn)).toBe(true);
+    expect(chartHost.querySelector('[data-testid="history-export-pdf"]')).toBeNull();
     expect(pdfBtn.disabled).toBe(false);
     await act(async () => pdfBtn.click());
     expect(mocks.exportPdf).toHaveBeenCalledWith(
@@ -124,12 +131,13 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     expect(container.textContent).toContain('365');
     expect(mocks.chart).toHaveBeenLastCalledWith(
         expect.objectContaining({
+            report: true,
             xs: [-90, -2, 0, 60],
             btActual: [410, 365, 365, 302],
             etActual: [null, 194, 392, 410],
             rorActual: [null, null, 9, 9],
-            tempMinC: 90,
-            tempMaxC: 250,
+            tempMinC: 80,
+            tempMaxC: 220,
             bbpRange: { start: -92, end: 0 },
             xViewMin: -92,
             xViewMax: 120,
@@ -180,5 +188,21 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     mocks.query.data = [];
     await render();
     expect((container.querySelector('[data-testid="history-export-pdf"]') as HTMLButtonElement).disabled).toBe(true);
+    mocks.roast.isError = false;
+    mocks.target = [];
+    session.duration_seconds = 11;
+    mocks.roast.points = [
+        { t: 0, bt: 186, et: null, ror: null, heater: null, fan: null, drum: null },
+        { t: 11, bt: 187, et: null, ror: null, heater: null, fan: null, drum: null },
+    ];
+    await render();
+    expect(mocks.chart).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+            tempMinC: 160,
+            tempMaxC: 210,
+            xViewMax: 11,
+            height: 360,
+        }),
+    );
     await act(async () => root.unmount());
 });
