@@ -36,6 +36,7 @@ import { MachineControlPanel, useMachineControlComposition } from '@features/mac
 import { profileHeatTarget } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
+import { subscribeExplicitMachineDisconnect } from '@shared/lib/explicitMachineDisconnect';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
@@ -85,6 +86,7 @@ import {
     calcDevTime,
     calcTargetDelta,
 } from './lib/display-derivatives';
+import { applyExplicitDisconnectReset } from './lib/explicit-disconnect-reset';
 import { resolveLiveChartView } from './lib/live-chart-view';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
 import { useCompletedRoastStore } from './model/completedRoast';
@@ -621,15 +623,26 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sidecar.updateSettings({ ror_window_sec: roastSettings.rorSpanSec }).catch(() => {});
     }, [sidecarConnected, roastSettings.rorSpanSec]);
 
-    // ── Effect: 머신 disconnect 시 대기 상태만 초기화 ─────────────
-    // 로스팅 중(원두가 드럼 안) 끊김은 세션 보존 — 폴링이 계속 재시도하므로
-    // 재연결되면 커브가 이어진다(끊긴 구간만 갭). 헤더 배너가 끊김을 표시한다.
+    // ── Effect: 링크가 끊기면 예열·대기만 초기화 ──────────────────
+    // 로스팅 중 장애는 세션을 보존한다. 재연결되면 끊긴 구간만 비고 커브가 이어진다.
+    // Machines에서 연결 해제 버튼을 누른 경우는 아래 구독이 곡선을 지운다.
     useEffect(() => {
         if (sidecarConnected) return;
         if (phase !== 'preheating' && phase !== 'standby') return;
         if (awaitingNextCharge || bbpActive) return;
         lifecycle.resetActiveRoast();
     }, [sidecarConnected, phase, awaitingNextCharge, bbpActive, lifecycle.resetActiveRoast]);
+
+    useEffect(
+        () =>
+            subscribeExplicitMachineDisconnect(() => {
+                resetAutoDetectionRef.current?.();
+                applyExplicitDisconnectReset(setLivePoints, setLogEntries);
+                chart.setZoomRange(null);
+                chart.setHoveredChartIndex(null);
+            }),
+        [setLivePoints, setLogEntries, chart.setZoomRange, chart.setHoveredChartIndex],
+    );
 
     // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
     useEffect(() => {
