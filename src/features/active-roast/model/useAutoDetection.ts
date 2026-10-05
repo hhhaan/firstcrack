@@ -372,12 +372,19 @@ export const useAutoDetection = ({
         setConfirmedTP(null);
     }, []);
 
+    // A dragged TP is a real mark. Later valley detection must not put it back.
+    const moveTurningPoint = useCallback((timeSec: number, temp: number) => {
+        if (!Number.isFinite(timeSec) || !Number.isFinite(temp)) return;
+        setConfirmedTP({ timeSec, temp, fallback: false });
+    }, []);
+
     return {
         resetAutoDetection,
         disableAutoCharge,
         rearmAutoCharge,
         holdAutoChargeUntilRecovery,
         disableAutoDrop,
+        moveTurningPoint,
         turningPoints,
         confirmedTP,
     };

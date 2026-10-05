@@ -328,6 +328,31 @@ describe('RoastTempChart interactions', () => {
         expect(convertFromPixel.mock.calls.every(([, value]) => !Array.isArray(value))).toBe(true);
     });
 
+    it('drags the turning-point mark', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDrag = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 5, 8],
+                    btActual: [180, 185, 190],
+                    currentTimeSec: 60,
+                    eventMarkerStyle: 'line',
+                    turningPoints: [{ timeSec: 5, temp: 90 }],
+                    onEventMarkerDrag,
+                    onEventMarkerEdit: vi.fn(),
+                }),
+            );
+        });
+
+        expect(ref.current?.hitTestMarker({ clientX: 50, clientY: 20 })).toBe(true);
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 20, pointerId: 3 })).toBe(true);
+        expect(ref.current?.moveMarkerDrag({ clientX: 80, clientY: 20, pointerId: 3 })).toBe(true);
+        expect(onEventMarkerDrag).toHaveBeenCalledWith('tp', 8);
+    });
+
     it('selects finite cursor samples and supports point-symbol hits only inside a plot', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onCursorIdx = vi.fn();

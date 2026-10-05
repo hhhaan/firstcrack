@@ -23,7 +23,7 @@ import {
     noteAnchoredAtTop,
     noteLabelTopInsetPx,
 } from '@features/active-roast/lib/chart-option/markers';
-import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
+import { REMOVABLE_LOG_EVENTS, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
@@ -315,7 +315,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
     const yRangeInterval = usesCustomTickList(roastSettings) ? undefined : axisSettings.tempGridInterval;
 
-    const dragStateRef = useRef<{ pointerId: number; logId: string; timeSec: number } | null>(null);
+    const dragStateRef = useRef<{ pointerId: number; logId: string; event: string; timeSec: number } | null>(null);
     const PIXEL_THRESHOLD = 10;
     const lastChartSizeRef = useRef({ w: 0, h: 0 });
     const [noteForm, setNoteForm] = useState<{ x: number; y: number; timeSec: number } | null>(null);
@@ -625,13 +625,22 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, tp.timeSec));
                     const displayY = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
                     const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
+                    const temp = formatTemp(tp.temp, temperatureUnit);
                     return [
                         {
-                            marker: null as RoastEventMarker | null,
+                            marker: {
+                                logId: TP_MARKER_ID,
+                                timeSec: tp.timeSec,
+                                event: 'TP',
+                                color: '',
+                                timeStr: '',
+                                temp,
+                                tempC: tp.temp,
+                            },
                             timeSec: tp.timeSec,
                             xPx: x ?? Number.NaN,
                             yPx: y ?? Number.NaN,
-                            text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+                            text: eventLabelText('TP', tp.timeSec, temp),
                             below: true,
                             color: '',
                             showDot: eventMarkerStyle === 'point',
@@ -700,7 +709,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (event.button !== 0) return false;
             const selected = findDraggableMarker(event.clientX, event.clientY);
             if (!selected?.logId) return false;
-            dragStateRef.current = { pointerId: event.pointerId, logId: selected.logId, timeSec: selected.timeSec };
+            dragStateRef.current = {
+                pointerId: event.pointerId,
+                logId: selected.logId,
+                event: selected.event,
+                timeSec: selected.timeSec,
+            };
             return true;
         },
         [findDraggableMarker],
@@ -721,16 +735,15 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!chart || !point) return true;
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
             if (converted == null) return true;
-            const dragged = eventMarkers.find((marker) => marker.logId === drag.logId);
             const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
-            const nextTimeSec = clampMarkerTime(dragged?.event ?? '', converted, currentTimeSec, axisMax);
+            const nextTimeSec = clampMarkerTime(drag.event, converted, currentTimeSec, axisMax);
             if (nextTimeSec !== drag.timeSec) {
                 onEventMarkerDrag(drag.logId, nextTimeSec);
                 drag.timeSec = nextTimeSec;
             }
             return true;
         },
-        [currentTimeSec, eventMarkers, localPoint, onEventMarkerDrag, xs, xViewMax],
+        [currentTimeSec, localPoint, onEventMarkerDrag, xs, xViewMax],
     );
 
     const endMarkerDrag = useCallback((pointerId: number) => {

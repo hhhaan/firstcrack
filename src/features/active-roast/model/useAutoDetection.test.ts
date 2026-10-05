@@ -155,6 +155,22 @@ describe('useAutoDetection — fallback TP is provisional', () => {
         expect(onTurningPoint).toHaveBeenCalledTimes(2);
     });
 
+    it('keeps a dragged TP when a later valley would have confirmed', () => {
+        const onTurningPoint = vi.fn();
+        let props: Props = { livePoints: lateTpPoints(40), markEvent: vi.fn(), onTurningPoint };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 100, 40);
+        act(() => h.result.moveTurningPoint(30, 95));
+        expect(h.result.confirmedTP).toEqual({ timeSec: 30, temp: 95, fallback: false });
+
+        props = { ...props, livePoints: lateTpPoints(160) };
+        tick(h, props, 120, 160);
+        expect(h.result.confirmedTP).toEqual({ timeSec: 30, temp: 95, fallback: false });
+        expect(onTurningPoint).toHaveBeenCalledTimes(1);
+        expect(onTurningPoint).toHaveBeenCalledWith({ timeSec: 30, temp: 95, fallback: false });
+    });
+
     it('never re-fires once a real TP is confirmed', () => {
         const onTurningPoint = vi.fn();
         let props: Props = { livePoints: lateTpPoints(140), markEvent: vi.fn(), onTurningPoint };

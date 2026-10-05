@@ -22,6 +22,7 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
+import { TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import {
     applyEventMarkerEdit,
     type EventMarkerPatch,
@@ -425,6 +426,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const {
         turningPoints,
         confirmedTP,
+        moveTurningPoint,
         resetAutoDetection,
         disableAutoCharge,
         rearmAutoCharge,
@@ -760,20 +762,38 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         lifecycle.confirmEndRoast(saveFlow.confirmEndRoast);
     }, [lifecycle, saveFlow]);
 
+    const placeTurningPoint = useCallback(
+        (timeSec: number) => {
+            const nearest = nearestLivePointAt(livePoints, timeSec);
+            const temp = nearest?.bt ?? confirmedTP?.temp ?? turningPoints[0]?.temp;
+            if (temp == null || !Number.isFinite(temp)) return;
+            moveTurningPoint(timeSec, temp);
+        },
+        [confirmedTP, livePoints, moveTurningPoint, turningPoints],
+    );
+
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
+            if (logId === TP_MARKER_ID) {
+                placeTurningPoint(newTimeSec);
+                return;
+            }
             setLogEntries((prev) =>
                 applyEventMarkerEdit(prev, logId, { timeSec: newTimeSec }, livePoints, unit, elapsed),
             );
         },
-        [setLogEntries, livePoints, unit, elapsed],
+        [elapsed, livePoints, placeTurningPoint, setLogEntries, unit],
     );
 
     const handleEventMarkerEdit = useCallback(
         (logId: string, patch: EventMarkerPatch) => {
+            if (logId === TP_MARKER_ID) {
+                if (patch.timeSec != null) placeTurningPoint(patch.timeSec);
+                return;
+            }
             setLogEntries((prev) => applyEventMarkerEdit(prev, logId, patch, livePoints, unit, elapsed));
         },
-        [setLogEntries, livePoints, unit, elapsed],
+        [elapsed, livePoints, placeTurningPoint, setLogEntries, unit],
     );
 
     const handleChartNote = useCallback(
