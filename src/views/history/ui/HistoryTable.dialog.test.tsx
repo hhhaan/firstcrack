@@ -28,12 +28,23 @@ vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: true }),
 }));
 
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+    return { ...actual, useQueryClient: () => ({}) };
+});
+vi.mock('@entities/bean', () => ({
+    useUpdateBean: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@entities/roast-profile', () => ({
+    useRoastProfiles: () => ({ data: [] }),
+}));
 vi.mock('@entities/roast', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@entities/roast')>();
     return {
         ...actual,
         useHistoryChart: () => ({ points: [], isLoading: false, isError: false }),
         useUpdateRoastSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
+        useSetOutputWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
     };
 });
 

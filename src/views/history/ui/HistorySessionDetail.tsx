@@ -12,6 +12,7 @@ import { OutputWeightEditor } from './OutputWeightEditor';
 import { RecordSections } from './RecordSections';
 import { RoastColorEditor } from './RoastColorEditor';
 import { SessionScorecard } from './SessionScorecard';
+import { SummaryMetaEditor } from './SummaryMetaEditor';
 
 const detailTitleCls = 'm-0 text-[11px] font-medium tracking-[0.3px] text-muted';
 
@@ -33,12 +34,6 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
         { label: 'history.scorecard.devTime', value: formatDuration(metrics.devTimeSec) },
         { label: 'history.scorecard.devPct', value: metrics.dtrPct == null ? '—' : `${metrics.dtrPct.toFixed(1)}%` },
     ];
-    const batchInfo = [
-        { label: 'history.expanded.origin', value: session.beans?.origin },
-        { label: 'history.table.profile', value: session.roast_profiles?.name },
-        { label: 'history.table.level', value: session.roast_level },
-    ];
-
     return (
         <article data-testid="history-detail" className="@container min-w-0">
             <button
@@ -102,16 +97,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                             <Package size={15} strokeWidth={1.5} className="text-muted" />
                             {t('history.expanded.summary')}
                         </h2>
-                        <dl className="m-0 space-y-4">
-                            {batchInfo.map(({ label, value }) => (
-                                <div key={label}>
-                                    <dt className={detailTitleCls}>{t(label)}</dt>
-                                    <dd className="m-0 mt-1 break-words text-[13px] leading-relaxed text-secondary">
-                                        {value || '—'}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
+                        <SummaryMetaEditor key={session.id} session={session} />
                         <div className="mt-5 space-y-4 border-t border-border-subtle pt-5">
                             <div>
                                 <div className={detailTitleCls}>{t('history.compare.charge')}</div>
