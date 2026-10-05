@@ -82,6 +82,20 @@ const captureIo = (err: unknown, context: string, sessionId: string) => {
     });
 };
 
+// Tauri fs errors are plain strings with a localized OS message; only the code is stable.
+// 2 = ENOENT / ERROR_FILE_NOT_FOUND, 3 = Windows ERROR_PATH_NOT_FOUND.
+const isNotFound = (err: unknown): boolean =>
+    /\(os error [23]\)/.test(err instanceof Error ? err.message : String(err));
+
+/** Idempotent: an already-absent file counts as deleted. */
+const removeQuietly = async (path: string, context: string, sessionId: string): Promise<void> => {
+    try {
+        await removeImpl(path);
+    } catch (err) {
+        if (!isNotFound(err)) captureIo(err, context, sessionId);
+    }
+};
+
 const enqueue = (sessionId: string, task: () => Promise<void>): void => {
     const q = getQueue(sessionId);
     q.chain = q.chain.then(task).catch((err) => {
@@ -227,21 +241,12 @@ export const writeBbpTsv = async (sessionId: string, content: string): Promise<v
     await writeImpl(bbpTsvPath(sessionId), content, { append: false });
 };
 
-export const deleteBbpTsv = async (sessionId: string): Promise<void> => {
-    try {
-        await removeImpl(bbpTsvPath(sessionId));
-    } catch (err) {
-        captureIo(err, 'bbp-tsv delete', sessionId);
-    }
-};
+export const deleteBbpTsv = (sessionId: string): Promise<void> =>
+    removeQuietly(bbpTsvPath(sessionId), 'bbp-tsv delete', sessionId);
 
 /** Delete local TSV only after successful sync (caller responsibility). */
 export const deleteSessionTsv = async (sessionId: string): Promise<void> => {
     await flushTsv(sessionId);
-    try {
-        await removeImpl(sessionTsvPath(sessionId));
-    } catch (err) {
-        captureIo(err, 'tsv-writer delete', sessionId);
-    }
+    await removeQuietly(sessionTsvPath(sessionId), 'tsv-writer delete', sessionId);
     sessions.delete(sessionId);
 };
