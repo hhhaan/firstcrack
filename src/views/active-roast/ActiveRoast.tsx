@@ -9,6 +9,7 @@ import {
     useRoastProfiles,
 } from '@entities/roast-profile';
 import {
+    btSmoothingToAlpha,
     chartSpanSec,
     computePhaseSegments,
     formatTemp,
@@ -572,11 +573,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         referenceDropSec: replayDropTime,
     });
 
-    // ── Effect: rorSpanSec 변경 시 사이드카에 전달 ────────────────
+    // ── Effect: 온도 처리 설정을 연결/변경 시 사이드카에 전달 ────
     useEffect(() => {
         if (!sidecarConnected) return;
-        sidecar.updateSettings({ ror_window_sec: roastSettings.rorSpanSec }).catch(() => {});
-    }, [sidecarConnected, roastSettings.rorSpanSec]);
+        sidecar
+            .updateSettings({
+                ror_window_sec: roastSettings.rorSpanSec,
+                bt_display_ema_alpha: btSmoothingToAlpha(roastSettings.btSmoothing),
+            })
+            .catch(() => {});
+    }, [sidecarConnected, roastSettings.rorSpanSec, roastSettings.btSmoothing]);
 
     // ── Effect: 링크가 끊기면 예열·대기만 초기화 ──────────────────
     // 로스팅 중 장애는 세션을 보존한다. 재연결되면 끊긴 구간만 비고 커브가 이어진다.

@@ -1,5 +1,41 @@
 import { expect, goNav, test } from '../fixtures/app';
 
+test('BT smoothing supports custom strength, keyboard input, reopening and reset', async ({
+    authedPage: page,
+}, testInfo) => {
+    await page.getByTestId('app-sidebar').getByRole('button', { name: 'Settings', exact: true }).click();
+    const settings = page.getByTestId('settings-page');
+    await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
+    const slider = settings.getByRole('slider', { name: 'BT smoothing strength', exact: true });
+    const value = settings.getByRole('spinbutton', { name: 'BT smoothing strength value', exact: true });
+    await expect(value).toHaveValue('50');
+    await value.fill('75');
+    await value.press('Enter');
+    await expect(slider).toHaveValue('75');
+    await slider.focus();
+    await slider.press('End');
+    await expect(value).toHaveValue('100');
+    await value.fill('80');
+    await value.blur();
+    await expect(slider).toHaveValue('80');
+    await settings
+        .locator('[data-settings-section]')
+        .filter({
+            has: page.getByRole('heading', { name: 'BT smoothing strength', exact: true }),
+        })
+        .screenshot({ path: testInfo.outputPath('bt-smoothing-custom.png') });
+    await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+    await page.getByTestId('app-sidebar').getByRole('button', { name: 'Settings', exact: true }).click();
+    await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
+    await expect(value).toHaveValue('80');
+    await settings.getByRole('button', { name: 'Restore default (50)', exact: true }).click();
+    await expect(value).toHaveValue('50');
+    await expect(slider).toHaveValue('50');
+    await value.fill('');
+    await value.blur();
+    await expect(value).toHaveValue('50');
+});
+
 test('settings is a responsive page and preserves existing preferences and entry points', async ({
     authedPage: page,
 }, testInfo) => {

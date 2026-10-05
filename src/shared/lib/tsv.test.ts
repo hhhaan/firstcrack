@@ -17,6 +17,25 @@ const none = {
 };
 
 describe('parseTsv', () => {
+    it('round-trips separate BT/ET EMA settings and reads legacy shared settings', () => {
+        const processing = {
+            algorithm_version: 'ema-least-squares-v1',
+            temperature_unit: 'C',
+            ror_unit: 'C/min',
+            timestamp_clock: 'sidecar-monotonic-seconds',
+            display_ema_alpha: 0.08,
+            et_display_ema_alpha: 0.16,
+            ror_ema_alpha: 0.2,
+            ror_window_sec: 30,
+            ror_warmup_reads: 3,
+        };
+        const row = '1\t180\t200\t5\t50\t30\t0\n';
+        expect(parseTsv(`${TSV_HEADER}# processing\t${JSON.stringify(processing)}\n${row}`)[0].processing).toEqual(
+            processing,
+        );
+        const { et_display_ema_alpha: _etAlpha, ...legacy } = processing;
+        expect(parseTsv(`${TSV_HEADER}# processing\t${JSON.stringify(legacy)}\n${row}`)[0].processing).toEqual(legacy);
+    });
     it('skips header and parses finite t/bt plus et/ror/heater/fan/drum', () => {
         const text = [HEADER, '0\t180.5\t200\t5.2\t50\t30\t0', '1.5\t185\t205.1\t4.0\t50\t30\t0', ''].join('\n');
         expect(parseTsv(text)).toEqual([

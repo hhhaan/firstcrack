@@ -10,6 +10,7 @@ const STORE_KEY = 'roast.settings';
 
 export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
+export const btSmoothingToAlpha = (strength: number): number => 0.16 * 2 ** ((50 - strength) / 50);
 export type TemperatureUnit = 'C' | 'F';
 /** Labels drawn inside the roast chart. Stored as 100–200 (1×–2×). */
 export type FontScalePct = number;
@@ -37,6 +38,8 @@ export type EventMarkerStyle = 'line' | 'point' | 'both';
 export type RoastSettings = {
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
+    /** BT display smoothing strength, 0–100. 50 preserves the original EMA. */
+    btSmoothing: number;
     temperatureUnit: TemperatureUnit;
     /** Stored chart scale: 100–200. Default 100 (slider 1%, actual 1×). */
     fontScalePct: FontScalePct;
@@ -159,6 +162,7 @@ const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || 
 const DEFAULT_SETTINGS: RoastSettings = {
     pollIntervalMs: 1000,
     rorSpanSec: 30,
+    btSmoothing: 50,
     temperatureUnit: 'C',
     fontScalePct: FONT_SCALE_MIN,
     showET: true,
@@ -354,6 +358,7 @@ export const normalizeRoastSettings = (
                 ? merged.timeRangeMin
                 : (previous?.timeRangeMin ?? TIME_RANGE_MIN_DEFAULT),
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
+        btSmoothing: Math.round(clampNum(merged.btSmoothing, 0, 100, DEFAULT_SETTINGS.btSmoothing)),
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)
             ? merged.eventMarkerStyle

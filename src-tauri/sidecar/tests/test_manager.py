@@ -213,6 +213,50 @@ class TestConnect:
 # ---------------------------------------------------------------------------
 
 class TestReadTemperatures:
+    @pytest.mark.parametrize("alpha", [0.08, 0.16, 0.32])
+    async def test_bt_smoothing_changes_display_without_changing_pid_or_ror(self, manager, alpha):
+        baseline = RoasterManager()
+        manager._adapter = FakeAdapter(readings=[
+            make_reading(bt=200.0, et=220.0, ts=10.0),
+            make_reading(bt=190.0, et=210.0, ts=11.0),
+            make_reading(bt=180.0, et=200.0, ts=12.0),
+        ])
+        manager._connected = True
+        manager._ror_warmup = 0
+        await manager.read_temperatures()
+        baseline._add_to_ror_window(10.0, 200.0)
+        manager.update_settings({"bt_display_ema_alpha": alpha})
+        assert manager._bt_display_ema == 200.0
+        reading = await manager.read_temperatures()
+        baseline._add_to_ror_window(11.0, 190.0)
+        assert reading["bt"] == pytest.approx(round(200.0 - 10.0 * alpha, 1))
+        assert reading["bt_raw"] == 190.0
+        assert reading["et"] == 218.4
+        assert reading["ror"] == pytest.approx(round(baseline._compute_ror(), 2))
+        assert reading["processing"]["display_ema_alpha"] == alpha
+        assert reading["processing"]["et_display_ema_alpha"] == config.DISPLAY_ALPHA
+        # _pv_snapshot reuses the last sample and must retain the original control EMA.
+        pv = await manager._pv_snapshot()
+        assert pv.bt == 198.4
+        manager.update_settings({"bt_display_ema_alpha": 0.16})
+        expected = round((200.0 - 10.0 * alpha) * 0.84 + 180.0 * 0.16, 1)
+        assert (await manager.read_temperatures())["bt"] == pytest.approx(expected)
+        manager.update_settings({"bt_display_ema_alpha": 0.08})
+        await manager.start_roast()
+        assert manager._bt_display_ema is None
+        assert manager._bt_pid_ema is None
+        assert manager._bt_display_alpha == 0.08
+        await manager.disconnect()
+
+    def test_bt_smoothing_settings_reject_invalid_values_and_bound_numbers(self, manager):
+        manager.update_settings({"bt_display_ema_alpha": 0.1})
+        for value in [None, True, False, "0.2", [], {}, float("nan"), float("inf")]:
+            manager.update_settings({"bt_display_ema_alpha": value})
+            assert manager._bt_display_alpha == 0.1
+        for value, expected in [(-1, 0.08), (2, 0.32), (10**1000, 0.32)]:
+            manager.update_settings({"bt_display_ema_alpha": value})
+            assert manager._bt_display_alpha == expected
+
     async def test_returns_none_when_not_connected(self, manager):
         result = await manager.read_temperatures()
         assert result["bt"] is None
@@ -252,6 +296,7 @@ class TestReadTemperatures:
             "ror_unit": "C/min",
             "timestamp_clock": "sidecar-monotonic-seconds",
             "display_ema_alpha": config.DISPLAY_ALPHA,
+            "et_display_ema_alpha": config.DISPLAY_ALPHA,
             "ror_ema_alpha": config.EMA_ALPHA,
             "ror_window_sec": 45,
             "ror_warmup_reads": config.ROR_WARMUP_READS,

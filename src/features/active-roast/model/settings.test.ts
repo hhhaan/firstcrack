@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     AUTO_DROP_START_MIN_DEFAULT,
     AUTO_DROP_START_MIN_MAX,
+    btSmoothingToAlpha,
     chartSpanSec,
     coercePollIntervalForPlan,
     fontScaleToSlider,
@@ -17,6 +18,30 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsGet: vi.fn().mockResolvedValue(null),
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
+
+it('restores and bounds BT smoothing while preserving the original default', async () => {
+    expect(normalizeRoastSettings({}).btSmoothing).toBe(50);
+    for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, '80', null]) {
+        expect(
+            normalizeRoastSettings({ btSmoothing: invalid } as Partial<ReturnType<typeof getRoastSettings>>)
+                .btSmoothing,
+        ).toBe(50);
+    }
+    expect(normalizeRoastSettings({ btSmoothing: -1 }).btSmoothing).toBe(0);
+    expect(normalizeRoastSettings({ btSmoothing: 101 }).btSmoothing).toBe(100);
+    expect(normalizeRoastSettings({ btSmoothing: 74.6 }).btSmoothing).toBe(75);
+    expect([0, 50, 100].map(btSmoothingToAlpha)).toEqual([0.32, 0.16, 0.08]);
+
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce({ btSmoothing: 75 });
+    const settings = await import('./settings');
+    await Promise.resolve();
+    expect(settings.getRoastSettings().btSmoothing).toBe(75);
+    settings.updateRoastSettings({ btSmoothing: 100 });
+    expect(settingsSet).toHaveBeenCalledWith('roast.settings', expect.objectContaining({ btSmoothing: 100 }), {
+        debounce: true,
+    });
+});
 
 it('uses fixed axis defaults, validates intervals, and restores persisted choices', async () => {
     const defaults = {

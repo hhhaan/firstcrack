@@ -230,6 +230,8 @@ class RoasterManager:
         self._bt_ema: float | None = None
         self._et_ema: float | None = None
         self._bt_display_ema: float | None = None
+        self._bt_pid_ema: float | None = None
+        self._bt_display_alpha: float = config.DISPLAY_ALPHA
         self._et_display_ema: float | None = None
         self._lock: asyncio.Lock = asyncio.Lock()
         # 센서 갱신 직렬화 — 프론트 폴링과 PID tick이 같은 순간에 읽어도
@@ -377,6 +379,7 @@ class RoasterManager:
             self._bt_ema = None
             self._et_ema = None
             self._bt_display_ema = None
+            self._bt_pid_ema = None
             self._et_display_ema = None
             self._error = None
             self._ror_warmup = config.ROR_WARMUP_READS
@@ -481,6 +484,7 @@ class RoasterManager:
         self._bt_ema = None
         self._et_ema = None
         self._bt_display_ema = None
+        self._bt_pid_ema = None
         self._et_display_ema = None
         self._consecutive_errors = 0
         self._last_good = None
@@ -522,6 +526,7 @@ class RoasterManager:
                         self._bt_ema = None
                         self._et_ema = None
                         self._bt_display_ema = None
+                        self._bt_pid_ema = None
                         self._et_display_ema = None
                         self._ror_warmup = config.ROR_WARMUP_READS
                         self._hw_alerts_sent.discard("reconnect_failed")
@@ -721,7 +726,8 @@ class RoasterManager:
                 "temperature_unit": "C",
                 "ror_unit": "C/min",
                 "timestamp_clock": "sidecar-monotonic-seconds",
-                "display_ema_alpha": config.DISPLAY_ALPHA,
+                "display_ema_alpha": self._bt_display_alpha,
+                "et_display_ema_alpha": config.DISPLAY_ALPHA,
                 "ror_ema_alpha": config.EMA_ALPHA,
                 "ror_window_sec": self._ror_window_secs,
                 "ror_warmup_reads": config.ROR_WARMUP_READS,
@@ -832,10 +838,11 @@ class RoasterManager:
         return self._pid.state() if self._pid is not None else None
 
     async def _pv_snapshot(self) -> PvSample:
-        """PID가 쓰는 표본. 화면과 같은 평활 BT를 쓴다 — 조작자와 제어기가 같은 값을 본다."""
+        """PID 표본은 기존 고정 EMA를 쓴다. 표시 강도 조절은 제어에 영향을 주지 않는다."""
         payload = await self.read_temperatures(max_age=config.READING_MAX_AGE_S)
+        bt = self._bt_pid_ema if payload.get("bt") is not None else None
         return PvSample(
-            bt=payload.get("bt"),
+            bt=round(bt, 1) if bt is not None else None,
             ts=time.monotonic(),
             stale=bool(payload.get("stale")),
             connected=self._connected,
@@ -935,6 +942,7 @@ class RoasterManager:
             self._bt_ema = None
             self._et_ema = None
             self._bt_display_ema = None
+            self._bt_pid_ema = None
             self._et_display_ema = None
             self._ror_warmup = config.ROR_WARMUP_READS
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
@@ -948,6 +956,7 @@ class RoasterManager:
             self._bt_ema = None
             self._et_ema = None
             self._bt_display_ema = None
+            self._bt_pid_ema = None
             self._et_display_ema = None
             self._ror_warmup = config.ROR_WARMUP_READS
             if self._adapter is None:
@@ -999,6 +1008,16 @@ class RoasterManager:
 
     def update_settings(self, settings: dict[str, Any]) -> None:
         """프론트엔드 설정 변경을 런타임에 반영."""
+        if "bt_display_ema_alpha" in settings:
+            value = settings["bt_display_ema_alpha"]
+            if (
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and (isinstance(value, int) or math.isfinite(value))
+            ):
+                self._bt_display_alpha = max(
+                    config.BT_DISPLAY_ALPHA_MIN, min(config.BT_DISPLAY_ALPHA_MAX, value)
+                )
         if "ror_window_sec" in settings:
             try:
                 v = float(settings["ror_window_sec"])
@@ -1068,7 +1087,11 @@ class RoasterManager:
         if self._bt_display_ema is None:
             self._bt_display_ema = bt
         else:
-            self._bt_display_ema = config.DISPLAY_ALPHA * bt + (1.0 - config.DISPLAY_ALPHA) * self._bt_display_ema
+            self._bt_display_ema = self._bt_display_alpha * bt + (1.0 - self._bt_display_alpha) * self._bt_display_ema
+        if self._bt_pid_ema is None:
+            self._bt_pid_ema = bt
+        else:
+            self._bt_pid_ema = config.DISPLAY_ALPHA * bt + (1.0 - config.DISPLAY_ALPHA) * self._bt_pid_ema
         self._ror_window.append((ts, self._bt_ema))
         cutoff = ts - self._ror_window_secs
         while self._ror_window and self._ror_window[0][0] < cutoff:

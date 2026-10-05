@@ -364,6 +364,15 @@ export const RoastSettingsTab = () => {
     const committedFontPct = fontScaleToSlider(roastSettings.fontScalePct);
     const [fontDraft, setFontDraft] = useState<number | null>(null);
     const fontSizePct = fontDraft ?? committedFontPct;
+    const [btSmoothingDraft, setBtSmoothingDraft] = useState<string | null>(null);
+    const btSmoothingValue = btSmoothingDraft ?? String(roastSettings.btSmoothing);
+    const commitBtSmoothing = (value: string) => {
+        setBtSmoothingDraft(null);
+        const next = Number(value);
+        if (value.trim() && Number.isFinite(next) && next !== roastSettings.btSmoothing) {
+            updateRoastSettings({ btSmoothing: next });
+        }
+    };
 
     const commitFontSlider = (slider: number) => {
         setFontDraft(null);
@@ -1024,6 +1033,60 @@ export const RoastSettingsTab = () => {
                     />
                 </SettingsSection.Body>
             </SettingsSection>
+            <SettingsSection>
+                <SettingsSection.Header title={tk('btSmoothing')} description={tk('btSmoothingDescription')} />
+                <SettingsSection.Body className="grid gap-2">
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={btSmoothingValue === '' ? roastSettings.btSmoothing : Number(btSmoothingValue)}
+                            aria-label={tk('btSmoothing')}
+                            aria-valuetext={`${btSmoothingValue || roastSettings.btSmoothing} / 100`}
+                            className="h-5 w-full accent-palette-black"
+                            onChange={(event) => setBtSmoothingDraft(event.currentTarget.value)}
+                            onPointerUp={(event) => commitBtSmoothing(event.currentTarget.value)}
+                            onLostPointerCapture={(event) => commitBtSmoothing(event.currentTarget.value)}
+                            onPointerCancel={(event) => commitBtSmoothing(event.currentTarget.value)}
+                            onKeyUp={(event) => commitBtSmoothing(event.currentTarget.value)}
+                            onBlur={(event) => commitBtSmoothing(event.currentTarget.value)}
+                        />
+                        <div className={numberInputWrapCls}>
+                            <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={btSmoothingValue}
+                                aria-label={tk('btSmoothingValue')}
+                                onChange={(event) => setBtSmoothingDraft(event.currentTarget.value)}
+                                onBlur={(event) => commitBtSmoothing(event.currentTarget.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') commitBtSmoothing(event.currentTarget.value);
+                                }}
+                                className="w-14 bg-transparent text-right text-[13px] font-medium text-primary outline-none"
+                            />
+                            <span className="shrink-0 whitespace-nowrap text-[12px] text-muted">/ 100</span>
+                        </div>
+                    </div>
+                    <div className="flex justify-between text-[12px] text-muted">
+                        <span>{tk('btSmoothingFast')}</span>
+                        <span>{tk('btSmoothingSmooth')}</span>
+                    </div>
+                    <SurfaceButton
+                        className="justify-self-start"
+                        onClick={() => {
+                            setBtSmoothingDraft(null);
+                            updateRoastSettings({ btSmoothing: 50 });
+                        }}
+                    >
+                        {tk('btSmoothingReset')}
+                    </SurfaceButton>
+                </SettingsSection.Body>
+            </SettingsSection>
+
             <SettingsSection>
                 <SettingsSection.Header title={tk('rorSpan')} description={tk('rorSpanDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">

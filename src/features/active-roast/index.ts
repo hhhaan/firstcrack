@@ -33,6 +33,7 @@ export type {
 } from './model/settings';
 export {
     AUTO_DROP_START_MIN_MAX,
+    btSmoothingToAlpha,
     chartSpanSec,
     coercePollIntervalForPlan,
     FONT_SLIDER_MAX,

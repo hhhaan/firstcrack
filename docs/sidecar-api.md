@@ -72,7 +72,8 @@ interface TemperatureReading {
         temperature_unit: 'C';
         ror_unit: 'C/min';
         timestamp_clock: 'sidecar-monotonic-seconds';
-        display_ema_alpha: number;
+    display_ema_alpha: number;
+    et_display_ema_alpha?: number; // legacy records use display_ema_alpha for ET too
         ror_ema_alpha: number;
         ror_window_sec: number;
         ror_warmup_reads: number;
@@ -445,8 +446,11 @@ Request body:
 ```ts
 {
   ror_window_sec?: number;
+  bt_display_ema_alpha?: number; // 0.08–0.32; default 0.16
 }
 ```
+
+BT display EMA changes take effect on the next fresh sample without resetting its accumulated state. PID PV retains the fixed 0.16 EMA; ET and RoR smoothing are independent of this setting. The sample's `processing` metadata records the actual BT and ET display coefficients.
 
 Response:
 

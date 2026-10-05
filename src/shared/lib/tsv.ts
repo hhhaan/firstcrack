@@ -7,6 +7,7 @@ const processingSchema: z.ZodType<TemperatureProcessing> = z.object({
     ror_unit: z.literal('C/min'),
     timestamp_clock: z.literal('sidecar-monotonic-seconds'),
     display_ema_alpha: z.number().positive().max(1),
+    et_display_ema_alpha: z.number().positive().max(1).optional(),
     ror_ema_alpha: z.number().positive().max(1),
     ror_window_sec: z.number().finite().positive(),
     ror_warmup_reads: z.number().int().nonnegative(),
