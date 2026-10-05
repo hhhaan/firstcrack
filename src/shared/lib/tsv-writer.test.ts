@@ -328,13 +328,25 @@ describe('tsv-writer', () => {
         expect(writes).toEqual([{ path: 'bbp_abc.tsv', contents: 'time\tbt\n1.0\t200\n', append: false }]);
     });
 
-    it('deleteBbpTsv swallows remove failure', async () => {
+    it('deleteBbpTsv swallows and reports real remove failures', async () => {
         _resetTsvWriterForTests({
             remove: async () => {
-                throw new Error('ENOENT');
+                throw new Error('failed to remove path: x with error: Access is denied. (os error 5)');
             },
         });
         await expect(deleteBbpTsv('abc')).resolves.toBeUndefined();
+        expect(loggerCapture).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        'failed to get metadata of path: x with error: 지정된 파일을 찾을 수 없습니다. (os error 2)',
+        'failed to get metadata of path: x with error: The system cannot find the path specified. (os error 3)',
+    ])('missing-file deletes are idempotent and not captured: %s', async (message) => {
+        // Tauri plugin errors reject with a plain string, not an Error.
+        _resetTsvWriterForTests({ remove: () => Promise.reject(message) });
+        await expect(deleteBbpTsv('inprogress')).resolves.toBeUndefined();
+        await expect(deleteSessionTsv('s1')).resolves.toBeUndefined();
+        expect(loggerCapture).not.toHaveBeenCalled();
     });
 
     it('deleteBbpTsv removes the bbp file', async () => {
