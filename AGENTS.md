@@ -72,7 +72,6 @@ Read before changing write paths:
 ## Agent Rules
 - When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
 - Commit: `git add` then `git commit` with a conventional message the agent writes (`feat|fix|refactor|docs|style|test|chore`, first line ≤72). Never run `scripts/ai-commit.sh` or gen-cmt, and do not ask.
-- Push: feature branch, then a PR. Never `git push` to `main` (`origin main`, `HEAD:main`, or a checked-out `main`). Only `pnpm release` may push `main`, and only together with its version tag.
 
 ## Sidecar
 - src-tauri/sidecar/: main.py(aiohttp :9999) + manager.py + adapters/ (modbus,phidget,kaleido,probat_ws,s7,virtual)
