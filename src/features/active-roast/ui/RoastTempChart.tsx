@@ -626,17 +626,18 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     const displayY = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
                     const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
                     const temp = formatTemp(tp.temp, temperatureUnit);
+                    const marker: RoastEventMarker = {
+                        logId: TP_MARKER_ID,
+                        timeSec: tp.timeSec,
+                        event: 'TP',
+                        color: '',
+                        timeStr: '',
+                        temp,
+                        tempC: tp.temp,
+                    };
                     return [
                         {
-                            marker: {
-                                logId: TP_MARKER_ID,
-                                timeSec: tp.timeSec,
-                                event: 'TP',
-                                color: '',
-                                timeStr: '',
-                                temp,
-                                tempC: tp.temp,
-                            },
+                            marker,
                             timeSec: tp.timeSec,
                             xPx: x ?? Number.NaN,
                             yPx: y ?? Number.NaN,
