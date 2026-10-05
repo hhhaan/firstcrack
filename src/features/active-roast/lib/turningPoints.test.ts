@@ -127,3 +127,50 @@ describe('detectTurningPoints', () => {
         expect(points[0].timeSec).toBeGreaterThan(0);
     });
 });
+
+describe('raw BT turning-point regressions', () => {
+    it.each([0.5, 1])('detects the valley despite repeating +/-0.2C noise at %ss', (step) => {
+        const xs: number[] = [];
+        const bt: number[] = [];
+        let first = null;
+        for (let t = 0; t <= 100; t += step) {
+            xs.push(t);
+            bt.push(t <= 40 ? 180 - 2 * t : 100 + 0.1 * (t - 40) + (Math.round(t / step) % 2 ? 0.2 : -0.2));
+            first ??= detectTurningPoints(xs, bt)[0] ?? null;
+        }
+        expect(first?.timeSec).toBeGreaterThanOrEqual(40);
+        expect(first?.timeSec).toBeLessThanOrEqual(42);
+    });
+
+    it('waits through a brief rebound during cooling and finds the later valley', () => {
+        const xs: number[] = [];
+        const bt: number[] = [];
+        let first = null;
+        for (let t = 0; t <= 90; t += 0.5) {
+            xs.push(t);
+            bt.push(
+                t <= 20
+                    ? 180 - 2.5 * t
+                    : t <= 24
+                      ? 130 + 0.1 * (t - 20)
+                      : t <= 60
+                        ? 130.4 - (30.4 / 36) * (t - 24)
+                        : 100 + 0.4 * (t - 60),
+            );
+            first ??= detectTurningPoints(xs, bt)[0] ?? null;
+        }
+        expect(first).toEqual({ timeSec: 60, temp: 100 });
+    });
+
+    it('ignores a single accepted 5C dip when selecting the valley', () => {
+        const xs = Array.from({ length: 121 }, (_, i) => i / 2);
+        const bt = xs.map((t) => (t <= 40 ? 120 - 0.5 * t : 100 + 0.5 * (t - 40)) - (t === 37 ? 5 : 0));
+        expect(detectTurningPoints(xs, bt)).toEqual([{ timeSec: 40, temp: 100 }]);
+    });
+
+    it('does not bridge a gap, missing reading or repeated time during confirmation', () => {
+        expect(detectTurningPoints([20, 20.5, 21, 24], [140, 139, 139.1, 139.2])).toEqual([]);
+        expect(detectTurningPoints([20, 21, 22, 23, 24], [140, 139, NaN, 139.3, 139.8])).toEqual([]);
+        expect(detectTurningPoints([20, 21, 21, 24], [140, 139, 139.1, 140])).toEqual([]);
+    });
+});

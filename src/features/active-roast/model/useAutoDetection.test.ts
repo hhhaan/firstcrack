@@ -86,6 +86,7 @@ const tick = (h: { render: (p: Props) => void }, props: Props, bt: number, elaps
     void act(() => {
         useRoastingStore.setState({
             phase: 'roasting',
+            sidecarConnected: true,
             ...(elapsed != null ? { elapsed } : {}),
             liveData: { bt, et: null, ror: 0, ror_et: 0, heater: 0, fan: 0, drum: 0 },
         });
@@ -187,6 +188,8 @@ describe('useAutoDetection — Yellow gating (no FC auto)', () => {
         tick(h, props, 42, 120);
         expect(h.result.confirmedTP?.fallback).toBe(true);
         expect(h.result.confirmedTP?.temp).toBeCloseTo(150.5, 5);
+        expect(markEvent).not.toHaveBeenCalled();
+        h.render({ ...props, livePoints: rawSeries(121, earlyCrossRawAt, risingEma) });
         expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature', undefined, {
             timeSec: 120,
             tempC: 150.5,
@@ -218,7 +221,7 @@ describe('useAutoDetection — Yellow gating (no FC auto)', () => {
         tick(h, props, 42, 121);
         expect(markEvent).not.toHaveBeenCalled();
 
-        props = { ...props, livePoints: rawSeries(125.5, releasedCrossRawAt, risingEma) };
+        props = { ...props, livePoints: rawSeries(126, releasedCrossRawAt, risingEma) };
         tick(h, props, 42, 126);
         expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature', undefined, {
             timeSec: 125,
@@ -248,7 +251,7 @@ describe('useAutoDetection — Yellow gating (no FC auto)', () => {
 
         tick(h, props, 42, 120);
         props = { ...props, livePoints: rawSeries(140, earlyCrossRawAt, risingEma) };
-        tick(h, props, 202, 141);
+        tick(h, props, 202, 140);
 
         expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature', undefined, {
             timeSec: 120,
@@ -477,6 +480,8 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         sample(2.5, 199);
         h.render({ ...props, onAutoCharge: (bt, time) => callback(bt, time) });
         sample(3, 198);
+        sample(3.5, 197);
+        sample(4, 196);
         expect(callback).toHaveBeenCalledExactlyOnceWith(200, origin + 2000);
     });
 
@@ -680,5 +685,97 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         });
         fallingDrop();
         expect(h.onAutoDrop).not.toHaveBeenCalled();
+    });
+});
+
+describe('raw BT observation regressions', () => {
+    it.each(['disconnected', 'reconnecting'])('holds TP and Yellow while %s', (status) => {
+        const markEvent = vi.fn();
+        const props: Props = { livePoints: rawSeries(130, earlyCrossRawAt), markEvent };
+        const h = renderAutoDetection(props);
+        act(() =>
+            useRoastingStore.setState({
+                phase: 'roasting',
+                elapsed: 130,
+                sidecarConnected: status !== 'disconnected',
+                reconnecting: status === 'reconnecting',
+            }),
+        );
+        h.render(props);
+        expect(h.result.confirmedTP).toBeNull();
+        expect(markEvent).not.toHaveBeenCalled();
+    });
+
+    const run = (rawAt: (t: number) => number | null, until: number) => {
+        const onTurningPoint = vi.fn();
+        const markEvent = vi.fn();
+        const props: Props = { livePoints: [], markEvent, onTurningPoint };
+        const h = renderAutoDetection(props);
+        for (let t = 0; t <= until; t += 0.5) {
+            props.livePoints = [...props.livePoints, { time: t, bt: 180, btRaw: rawAt(t) }];
+            tick(h, props, 180, t);
+        }
+        return { h, props, markEvent, onTurningPoint };
+    };
+
+    it('confirms a noisy raw valley before fallback and does not lock the early rebound', () => {
+        const { h, onTurningPoint } = run(
+            (t) =>
+                t <= 20
+                    ? 180 - 2.5 * t
+                    : t <= 24
+                      ? 130 + 0.1 * (t - 20)
+                      : t <= 60
+                        ? 130.4 - (30.4 / 36) * (t - 24)
+                        : 100 + 0.1 * (t - 60) + (Math.round(t * 2) % 2 ? 0.2 : -0.2),
+            100,
+        );
+        expect(h.result.confirmedTP?.fallback).toBeFalsy();
+        expect(h.result.confirmedTP?.timeSec).toBeGreaterThanOrEqual(60);
+        expect(h.result.confirmedTP?.timeSec).toBeLessThanOrEqual(62);
+        expect(onTurningPoint).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for sustained Yellow crossing and records the original raw crossing', () => {
+        const { markEvent } = run(
+            (t) =>
+                t <= 30
+                    ? 180 - 2 * t
+                    : t <= 59
+                      ? 120 + (29.4 / 29) * (t - 30)
+                      : t === 60
+                        ? 150.1
+                        : t < 100
+                          ? 149.4
+                          : 150 + (t - 100) * 0.3,
+            110,
+        );
+        expect(markEvent).toHaveBeenCalledTimes(1);
+        expect(markEvent.mock.calls[0][3]).toEqual({ timeSec: 100, tempC: 150 });
+    });
+
+    it('does not bridge missing raw data or reuse it for the timeout fallback', () => {
+        const { h } = run((t) => (t <= 20 ? 180 - t : null), 120);
+        expect(h.result.confirmedTP).toBeNull();
+    });
+
+    it('does not generate fallback while only an old raw observation remains', () => {
+        const props: Props = { livePoints: rawSeries(20, (t) => 180 - t), markEvent: vi.fn() };
+        const h = renderAutoDetection(props);
+        tick(h, props, 180, 120);
+        expect(h.result.confirmedTP).toBeNull();
+    });
+
+    it('does not count repeated sensor timestamps as TP/Yellow evidence', () => {
+        const points = rawSeries(130, realRawAt).map((point) => ({
+            ...point,
+            sensorTimestamp: 1,
+            sensorClock: 'probe:1',
+        }));
+        const props: Props = { livePoints: points, markEvent: vi.fn() };
+        const h = renderAutoDetection(props);
+        tick(h, props, 180, 130);
+        expect(h.result.confirmedTP).toBeNull();
+        expect(props.markEvent).not.toHaveBeenCalled();
     });
 });

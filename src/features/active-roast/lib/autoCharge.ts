@@ -26,20 +26,29 @@ const OFFSET: Record<BtBreakKind, Record<AutoDetectMode, Record<PollMs, number>>
     drop: { standard: { 1000: 0.2, 500: 0.1 }, sensitive: { 1000: 0.2, 500: 0.05 } },
 };
 const MIN_BT: Record<BtBreakKind, number> = { charge: 77, drop: 160 };
-const DROP_RECOVERY_C = 0.5;
-/** Single-sample dump that then holds — BTbreak needs two falling legs and misses this. */
-const DROP_STEP_C = 8;
+const RECOVERY_C = 0.5;
+const CONFIRM_SPAN_S = 1;
+const CONFIRM_FALL_C: Record<AutoDetectMode, number> = { standard: 2, sensitive: 1 };
+/** A rapid confirmed step may have only one falling leg. */
+const STEP_FALL_C = 8;
 
 const checkStepHold = (points: RawTemperatureSample[]): RawTemperatureSample | null => {
-    if (points.length < 4) return null;
-    const a = points[points.length - 2];
-    const b = points[points.length - 1];
-    let plateau = points[0];
-    for (let i = 1; i < points.length - 2; i++) {
-        if (points[i].bt >= plateau.bt) plateau = points[i];
+    const last = points[points.length - 1];
+    for (let i = points.length - 2; i >= 2; i--) {
+        const before = points[i - 2];
+        const onset = points[i - 1];
+        const dip = points[i];
+        const beforeRate = Math.abs((onset.bt - before.bt) / (onset.timestamp - before.timestamp));
+        const stepRate = (onset.bt - dip.bt) / (dip.timestamp - onset.timestamp);
+        if (
+            onset.bt - dip.bt >= STEP_FALL_C &&
+            stepRate > 2.5 * beforeRate &&
+            last.timestamp - dip.timestamp >= CONFIRM_SPAN_S &&
+            points.slice(i + 1).every((point) => point.bt <= dip.bt + RECOVERY_C)
+        )
+            return onset;
     }
-    if (plateau.bt - a.bt < DROP_STEP_C || plateau.bt - b.bt < DROP_STEP_C) return null;
-    return plateau;
+    return null;
 };
 
 const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollIntervalMs: PollMs) => {
@@ -52,7 +61,7 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
     let history: RawTemperatureSample[] = [];
     let lastTimestamp: number | null = null;
     let filter = createBtFilter();
-    let candidate: { onset: RawTemperatureSample; dipBt: number } | null = null;
+    let candidate: { onset: RawTemperatureSample; dipBt: number; armedAt: number } | null = null;
     let held: RawTemperatureSample | null = null;
 
     const reset = () => {
@@ -78,7 +87,7 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
         if (
             leg1 < limit &&
             leg2 < limit &&
-            (Math.abs(after) > Math.min(6.4, offset + 2.5 * Math.abs(before)) ||
+            (Math.abs(after) > offset + 2.5 * Math.abs(before) ||
                 (after < 0 && before < 0 && -before - after > reversal))
         )
             return p[3]; // tight: current index - 2; wide: current index - 4
@@ -110,14 +119,13 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
             }
             lastTimestamp = sample.timestamp;
             if (filter(sample.bt, sample.timestamp * 1000) === null) {
-                if (kind === 'drop') held = sample;
-                else history = []; // Charge: two-reading step recovery starts a new window
+                held ??= sample;
                 return null;
             }
-            if (kind === 'drop' && held) {
+            if (held) {
                 const last = history[history.length - 1];
                 const confirmedStep =
-                    last != null && held.bt <= last.bt - DROP_STEP_C && Math.abs(sample.bt - held.bt) <= 2;
+                    last != null && held.bt <= last.bt - STEP_FALL_C && sample.bt <= held.bt + RECOVERY_C;
                 if (confirmedStep) {
                     history.push(held);
                     if (history.length > 11) history.shift();
@@ -126,35 +134,35 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
             }
             history.push(sample);
             if (history.length > 11) history.shift();
-            if (sample.bt <= minBt) {
-                candidate = null;
-                return null;
-            }
             if (candidate) {
-                if (sample.bt > candidate.dipBt + DROP_RECOVERY_C) candidate = null;
-                else {
+                if (sample.bt > candidate.dipBt + RECOVERY_C) candidate = null;
+                else if (
+                    sample.timestamp - candidate.armedAt >= CONFIRM_SPAN_S &&
+                    candidate.onset.bt - sample.bt >= CONFIRM_FALL_C[mode]
+                ) {
                     const onset = candidate.onset;
                     candidate = null;
                     return onset;
-                }
-            }
-            const hit = check(1) ?? check(2);
-            if (hit) {
-                if (kind === 'drop') {
-                    candidate = { onset: hit, dipBt: sample.bt };
+                } else {
+                    candidate.dipBt = Math.min(candidate.dipBt, sample.bt);
                     return null;
                 }
-                return hit;
             }
-            return kind === 'drop' ? checkStepHold(history) : null;
+            const step = checkStepHold(history);
+            if (step && step.bt > minBt) return step;
+            const hit = check(1) ?? check(2);
+            if (hit && hit.bt > minBt) {
+                candidate = { onset: hit, dipBt: sample.bt, armedAt: sample.timestamp };
+            }
+            return null;
         },
     };
 };
 
-/** Charge fires on the slope break. */
+/** Confirm a slope break against recovery; report the original bend. */
 export const createAutoChargeDetector = (mode: AutoChargeMode, pollIntervalMs: PollMs) =>
     createBtBreakDetector('charge', mode, pollIntervalMs);
 
-/** Drop marks the bend on the next sample that does not recover by 0.5°C. */
+/** Drop uses the same confirmation, including a held rapid step below 160°C. */
 export const createAutoDropDetector = (mode: AutoDropMode, pollIntervalMs: PollMs) =>
     createBtBreakDetector('drop', mode, pollIntervalMs);

@@ -1,74 +1,40 @@
-# Auto Charge / Drop detection (#448, #459)
+# Raw BT automatic event detection
 
-## Failure and scope
+## Input and clocks
 
-The old detectors required a 5–8°C fall inside 2.5 seconds and consumed the
-display EMA. At 1s polling the retained span could be only 2s; a 1–3°C/s
-charge or a slower dump could never satisfy the window even without EMA lag.
+- `/temperatures.bt_raw` is the unsmoothed sensor input; `bt` is the independently configurable display EMA. Automatic event detection never uses the display smoothing setting.
+- Charge/Drop consume each `rawTemperature` response synchronously. Sensor timestamps, including repeated integer temperatures with a new timestamp, supply elapsed time. Duplicate/out-of-order timestamps and bursts shorter than half a poll interval are ignored.
+- Invalid/stale/missing raw data, phase/connection/machine changes and gaps longer than three nominal poll intervals reset Charge/Drop. A new batch resets fired latches; manual marks disable automatic marks for that batch. Undo Drop does not re-arm it.
+- TP/Yellow use recorded `btRaw`, retain missing/rejected readings as discontinuities, and use `sensorTimestamp`/`sensorClock` to exclude duplicates and clock changes. Older raw recordings without these fields use recording time. Neither event can confirm across a gap longer than 1.5 poll intervals, while disconnected/reconnecting, or from an old last observation.
+- The shared BT range/rate filter rejects invalid values and single large spikes. A held downward step followed by a consistent raw reading can be restored to Charge/Drop history; recording remains unchanged.
+- Sidecars without raw BT cannot auto-detect events; manual marks remain available.
 
-Charge and Drop now compare the raw BT slope before and after a bend
-(`checkTop` / `BTbreak`). Chart and TSV retain the display series. TP and
-Yellow judge the same BT glitch filter on recorded `btRaw` (null raw is
-skipped and never filled with the display EMA). TSV backfill, display EMA
-reset at startRoast, and fallback-TP alarm gating are separate issues.
+## Charge / Drop
 
-## Input and decision
+Artisan `checkTop`/`BTbreak` supplies the bend comparison: two falling legs after a bend must beat the previous slope, with tight and every-second-sample checks for quantized probes. Actual timestamps normalize rates, rather than relying only on Artisan's sampling buckets.
 
-- `/temperatures.bt_raw` is the validated, unsmoothed sensor BT. `bt` remains
-  the display EMA. The frontend applies the existing BT glitch filter to each
-  stream separately; invalid raw samples clear the detector history.
-- Sensor `timestamp` supplies elapsed time, including unchanged integer BT
-  readings. UI timer ticks and repeated timestamps do not add samples.
-- Stale/missing raw data, a phase change, a backwards clock or a gap over
-  2.5s clears history. Older sidecars without raw BT cannot auto-detect Charge
-  or Drop; manual Charge and manual Drop remain available.
-- Compare two pre-bend and two post-bend intervals in °C/s. Both post-bend
-  intervals must exceed the configured falling rate. The fall must exceed
-  `offset + 2.5 * abs(previous slope)`, or reverse a rising slope by more
-  than 0.78°C/s. This rejects ongoing steady cooling rather than accumulating it.
-- Evaluate adjacent samples and every second sample (11 retained points) for
-  quantized probes. Actual timestamps normalize both 500ms and 1000ms polling.
-- Charge Standard 1s: 0.67°C/s, offset 0.5°C/s, BT > 77°C, standby (Charge Wait).
-- Drop Standard: 0.34°C/s and offset 0.2°C/s at both 500ms and 1000ms, BT > 160°C,
-  roasting, and only once elapsed exceeds `autoDropStartMin` (default 7). The 500ms
-  per-sample leg limit is -0.17°C, and the rise-to-fall reversal is 0.39°C/sample,
-  so both equal the 1s rates (0.34°C/s and 0.78°C/s). Artisan's 500ms leg of -0.20
-  is 0.40°C/s and its reversal stays 0.78°C/sample, which misses those bends.
-  Samples at or before the start minute are discarded, so a pre-gate candidate cannot
-  fire when the gate opens or the minute setting changes.
-  These use Artisan Standard's 1s reference values, not W60A measurements.
-  Unlike Artisan's sampling buckets, rates here use actual time intervals;
-  there is no cap that lets an already-steep steady fall become a new event.
-- Drop marks the bend on the next sample that does not recover by 0.5°C, so a 1°C dip
-  that recovers does not mark Drop or stop PID. Charge fires on the slope break.
-  A step of at least 8°C that then holds is a Drop even when the second post-bend leg
-  is flat; a rejected over-rate sample is kept so the following confirmed step still
-  sees the plateau.
-- Mark the higher point bordering the bend (last plateau point on a tie).
-  Convert its sensor-time lag to the current sample's reception wall clock.
-  This preserves existing event/session clock semantics; it does not remove
-  transport latency from the recording time axis.
-- Manual Charge / Drop set the once-per-batch latch. Undo of Drop does not
-  re-arm auto Drop (Artisan `autoDROPenabled=False`). A new batch
-  `resetAutoDetection` re-arms both.
+- Standard Charge falling leg: approximately 0.67°C/s; onset BT >77°C.
+- Standard Drop falling leg: 0.34°C/s at both polling rates; onset BT >160°C. Only samples after `elapsed > autoDropStartMin * 60` can arm a candidate (default seven minutes).
+- Sensitive mode retains the existing weaker slope thresholds. Display units never change these Celsius decisions.
+- Require at least one second after the slope candidate is armed and a total fall of 2°C (Standard) or 1°C (Sensitive) from its onset. Recovery by more than 0.5°C from the lowest observed candidate temperature cancels it. This confirmation is an application-specific noise guard, not a verbatim Artisan rule.
+- A rapid step of at least 8°C can also confirm after one second without recovery. It must be an adjacent-sample slope break stronger than the preceding rate, not an accumulated fall from an arbitrary high point. This applies to both Charge and Drop, including events that pass below the onset temperature floor during confirmation.
+- No cap on the previous-slope comparison: a steep steady fall must not masquerade as a new bend.
+- Event time/temperature remain those of the original bend. Confirmation delay does not move the recorded event forward. Sensor-time lag is converted to the current response's reception wall clock; transport latency is not removed.
+- After Drop, auto Charge waits for two raw readings rebounding at least 2°C (Standard) or 1°C (Sensitive) from the post-Drop minimum. Manual Charge covers machines without this rebound.
 
-## Settings
+## TP / Yellow
 
-`autoChargeMode` / `autoDropMode` are Standard or Sensitive. Sensitivity
-only changes the slope limits. `autoDropStartMin`
-is whole or fractional minutes after Charge (UI min 1, max 30, no step — same
-NumberInput as the time alarms). Missing and invalid stored values
-(non-positive, NaN, Infinity, non-numeric) read as the previous valid minute,
-or 7. The gate is `elapsed > minutes * 60` (the exact minute does not fire).
-Legacy
-`autoChargeDropC`, `autoDropDropC`, `autoChargeConfirmC`, and `autoDropConfirmC`
-are ignored. Stored confirm degrees are not a rate and do not delay the mark.
+Artisan `checkTPalarmtime` compares later temperatures with the first temperature in its recent window; it does not require each reading to exceed its immediate predecessor.
 
-References: [Artisan parameters](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/canvas.py)
-and [checkTop / BTbreak](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/main.py).
+- Earliest TP confirmation is 20 seconds after Charge. Compare a continuous three-second window against its first temperature, allowing 0.3°C noise and requiring net rise. Require a 0.5°C rebound from the valley for this short confirmation; a six-second rising window can confirm gentler valleys without waiting for a fixed degree gain.
+- Select the post-Charge global raw minimum, ignoring isolated dips more than 1°C below both adjacent valid readings. Preserve the existing Artisan-derived 50–150°C sanity range and the original raw valley time/temperature.
+- The first real TP stays fixed. A 120-second fallback is provisional, uses the latest fresh valid raw sample's own time/temperature, and can be replaced by a later real TP. It opens Yellow marking, but never opens Replay's BT-trigger gate.
+- Yellow requires a rising raw crossing followed by one continuous second at/above `yellowTempC`, after real or fallback TP. Record the original crossing sample. A dip below the threshold or invalid observation clears the crossing. FC remains manual.
 
-Synthetic tests cover 1–3°C/s onsets, both polling rates with jitter, integer
-probes, drift, isolated spikes, stale/duplicate/invalid samples, clock resets,
-phase gates and manual exclusion. They do not establish W60A field accuracy.
-Still collect actual charge/drop BT/TSV, batch weight, polling interval, and
-manual vs auto marks.
+## Settings and validation
+
+`autoChargeMode`/`autoDropMode` select Standard or Sensitive. `autoDropStartMin` supports positive fractional minutes (UI 1–30); invalid persisted values retain the previous valid value, or seven minutes. Legacy degree-confirm settings remain ignored; there are no new persisted settings.
+
+References: [Artisan canvas.py](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/canvas.py) (`checkTPalarmtime`, sampling/event gates), [Artisan main.py](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/main.py) (`checkTop`, `BTbreak`), [Artisan curves](https://artisan-scope.org/docs/curves/) (raw input filtering versus display smoothing).
+
+Regression checks cover 500ms/1s polling, slow and abrupt onsets, integer probes, jitter, small recoverable dips, steep steady cooling, repeated raw noise around TP, temporary rebounds, isolated troughs, Yellow overshoots, missing/repeated observations, freshness/connection gates and manual-event latches. They establish synthetic behavior, not field accuracy: validate thresholds against actual raw recordings, batch weights and manual event marks for each roaster.

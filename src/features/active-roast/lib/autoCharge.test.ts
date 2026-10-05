@@ -21,7 +21,7 @@ describe('automatic Charge', () => {
                 break;
             }
         }
-        expect(detected).toBe(10 + 2 * period);
+        expect(detected).toBe(Math.max(12, 11 + 2 * period));
         expect(hit).toEqual(sample(10, 200));
     });
     it.each([0.999, 1, 1.001])('normalizes actual %ss intervals with nominal 1000ms parameters', (dt) => {
@@ -29,7 +29,7 @@ describe('automatic Charge', () => {
         const hits = Array.from({ length: 30 }, (_, i) =>
             detector.push(sample(i * dt, 200 - Math.max(0, i - 10) * dt)),
         );
-        expect(hits[12]).toEqual(sample(10 * dt, 200));
+        expect(hits.find(Boolean)).toEqual(sample(10 * dt, 200));
     });
     it.each([500, 1000] as const)('rejects steady drift, noise and single spikes at %ims', (ms) => {
         for (const temperature of [
@@ -41,16 +41,17 @@ describe('automatic Charge', () => {
             for (let i = 0; i < 60; i++) expect(detector.push(sample((i * ms) / 1000, temperature(i)))).toBeNull();
         }
     });
-    it('uses p3 rather than the higher p2 and waits for six samples', () => {
+    it('preserves p3 through confirmation rather than using the higher p2', () => {
         const detector = createAutoChargeDetector('standard', 1000);
         for (const [i, bt] of [200, 200, 200, 199, 198].entries()) expect(detector.push(sample(i, bt))).toBeNull();
-        expect(detector.push(sample(5, 197))).toEqual(sample(3, 199));
+        expect(detector.push(sample(5, 197))).toBeNull();
+        expect(detector.push(sample(6, 196))).toEqual(sample(3, 199));
     });
     it('uses eleven samples and marks index minus four for quantized wide-only detection', () => {
         const detector = createAutoChargeDetector('standard', 500);
-        const values = [200, 200, 200, 200, 200, 200, 200, 200, 199, 199, 198];
+        const values = [200, 200, 200, 200, 200, 200, 200, 200, 199, 199, 198, 198, 198];
         for (const [i, bt] of values.entries()) {
-            expect(detector.push(sample(i / 2, bt))).toEqual(i === 10 ? sample(3, 200) : null);
+            expect(detector.push(sample(i / 2, bt))).toEqual(i === 12 ? sample(3, 200) : null);
         }
     });
     it('allows weak declines only in sensitive mode', () => {
@@ -71,7 +72,8 @@ describe('automatic Charge', () => {
         for (let i = 0; i <= 4; i++) detector.push(sample(i, 200));
         detector.push(sample(5, 199));
         for (const t of [5, 4, 5.1]) expect(detector.push(sample(t, 198))).toBeNull();
-        expect(detector.push(sample(6, 198))).toEqual(sample(4, 200));
+        expect(detector.push(sample(6, 198))).toBeNull();
+        expect(detector.push(sample(7, 197))).toEqual(sample(4, 200));
     });
     it.each([
         null,
@@ -93,8 +95,8 @@ describe('automatic Charge', () => {
         expect(detector.push(sample(10, 195))).toBeNull();
         expect(detector.push(sample(10.5, 194))).toBeNull();
         detector.reset();
-        const hits = [200, 200, 200, 200, 199, 198].map((bt, i) => detector.push(sample(i / 2, bt)));
-        expect(hits[5]).toEqual(sample(1.5, 200));
+        const hits = [200, 200, 200, 200, 199, 198, 198, 198].map((bt, i) => detector.push(sample(i / 2, bt)));
+        expect(hits[7]).toEqual(sample(1.5, 200));
     });
 });
 
@@ -143,15 +145,15 @@ describe('automatic Drop', () => {
     });
     it('uses eleven samples and confirms the wide-only mark on the next reading', () => {
         const detector = createAutoDropDetector('standard', 500);
-        const values = [200, 200, 200, 200, 200, 200, 200, 200, 199, 199, 198, 198];
+        const values = [200, 200, 200, 200, 200, 200, 200, 200, 199, 199, 198, 198, 198];
         for (const [i, bt] of values.entries()) {
-            expect(detector.push(sample(i / 2, bt))).toEqual(i === 11 ? sample(3, 200) : null);
+            expect(detector.push(sample(i / 2, bt))).toEqual(i === 12 ? sample(3, 200) : null);
         }
     });
     it('allows weak declines only in sensitive mode', () => {
         for (const mode of ['standard', 'sensitive'] as const) {
             const detector = createAutoDropDetector(mode, 500);
-            const hits = Array.from({ length: 20 }, (_, i) =>
+            const hits = Array.from({ length: 30 }, (_, i) =>
                 detector.push(sample(i / 2, 200 - 0.1 * Math.max(0, i - 10))),
             );
             expect(hits.some(Boolean)).toBe(mode === 'sensitive');
@@ -184,4 +186,54 @@ describe('automatic Drop', () => {
         expect(detector.push(sample(5, 170))).toBeNull();
         expect(detector.push(sample(6, 170))).toEqual(sample(4, 200));
     });
+});
+
+describe('raw BT noise and rapid events', () => {
+    it.each([500, 1000] as const)('rejects steady cooling at %ims, including rates above the old cap', (ms) => {
+        for (const create of [createAutoChargeDetector, createAutoDropDetector]) {
+            for (const rate of [1, 8]) {
+                const detector = create('standard', ms);
+                for (let i = 0; i < 20; i++) {
+                    expect(detector.push(sample((i * ms) / 1000, 350 - (rate * i * ms) / 1000))).toBeNull();
+                }
+            }
+        }
+    });
+
+    it('rejects a recoverable 1.4C Charge dip and a held 1C Drop dip', () => {
+        for (const [create, values] of [
+            [createAutoChargeDetector, [200, 200, 200, 200, 199.3, 198.6, 200]],
+            [createAutoDropDetector, [200, 200, 200, 200, 199.5, 199, 199, 200]],
+        ] as const) {
+            const detector = create('standard', 1000);
+            for (const [i, bt] of values.entries()) expect(detector.push(sample(i, bt))).toBeNull();
+        }
+    });
+
+    it.each([500, 1000] as const)('confirms a rapid real step through the temperature floor at %ims', (ms) => {
+        for (const create of [createAutoChargeDetector, createAutoDropDetector]) {
+            const detector = create('standard', ms);
+            const values = [200, 200, 200, 200, 200, 170, 150, 145, 140, 135, 130, 125];
+            const hits = values.map((bt, i) => detector.push(sample((i * ms) / 1000, bt)));
+            expect(hits.find(Boolean)).toEqual(sample((4 * ms) / 1000, 200));
+        }
+    });
+
+    it.each([500, 1000] as const)('does not confirm a rapid step that recovers at %ims', (ms) => {
+        for (const create of [createAutoChargeDetector, createAutoDropDetector]) {
+            const detector = create('standard', ms);
+            for (const [i, bt] of [200, 200, 200, 200, 170, 200, 200, 200].entries()) {
+                expect(detector.push(sample((i * ms) / 1000, bt))).toBeNull();
+            }
+        }
+    });
+});
+
+it('cancels a candidate recovering from its newest low during confirmation', () => {
+    for (const create of [createAutoChargeDetector, createAutoDropDetector]) {
+        const detector = create('standard', 500);
+        for (const [i, bt] of [200, 200, 200, 200, 199, 198, 197, 197.6, 200].entries()) {
+            expect(detector.push(sample(i / 2, bt))).toBeNull();
+        }
+    }
 });
