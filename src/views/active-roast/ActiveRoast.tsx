@@ -582,9 +582,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             .updateSettings({
                 ror_window_sec: roastSettings.rorSpanSec,
                 bt_display_ema_alpha: btSmoothingToAlpha(roastSettings.btSmoothing),
+                et_display_ema_alpha: btSmoothingToAlpha(roastSettings.etSmoothing),
             })
             .catch(() => {});
-    }, [sidecarConnected, roastSettings.rorSpanSec, roastSettings.btSmoothing]);
+    }, [sidecarConnected, roastSettings.rorSpanSec, roastSettings.btSmoothing, roastSettings.etSmoothing]);
 
     // ── Effect: 링크가 끊기면 예열·대기만 초기화 ──────────────────
     // 로스팅 중 장애는 세션을 보존한다. 재연결되면 끊긴 구간만 비고 커브가 이어진다.

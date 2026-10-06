@@ -18,6 +18,17 @@ from roaster_registry import ROASTER_REGISTRY
 _log = logging.getLogger(__name__)
 
 
+def _display_alpha_setting(value: Any) -> float | None:
+    """Clamp a display-EMA alpha. Invalid values stay on the previous setting."""
+    if (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and (isinstance(value, int) or math.isfinite(value))
+    ):
+        return max(config.BT_DISPLAY_ALPHA_MIN, min(config.BT_DISPLAY_ALPHA_MAX, value))
+    return None
+
+
 class ConnectCancelled(Exception):
     """사용자가 /disconnect로 연결 시도를 취소했다 — 실패가 아니다.
 
@@ -231,7 +242,8 @@ class RoasterManager:
         self._et_ema: float | None = None
         self._bt_display_ema: float | None = None
         self._bt_pid_ema: float | None = None
-        self._bt_display_alpha: float = config.DISPLAY_ALPHA
+        self._bt_display_alpha: float = 1.0
+        self._et_display_alpha: float = 1.0
         self._et_display_ema: float | None = None
         self._lock: asyncio.Lock = asyncio.Lock()
         # 센서 갱신 직렬화 — 프론트 폴링과 PID tick이 같은 순간에 읽어도
@@ -727,7 +739,7 @@ class RoasterManager:
                 "ror_unit": "C/min",
                 "timestamp_clock": "sidecar-monotonic-seconds",
                 "display_ema_alpha": self._bt_display_alpha,
-                "et_display_ema_alpha": config.DISPLAY_ALPHA,
+                "et_display_ema_alpha": self._et_display_alpha,
                 "ror_ema_alpha": config.EMA_ALPHA,
                 "ror_window_sec": self._ror_window_secs,
                 "ror_warmup_reads": config.ROR_WARMUP_READS,
@@ -1008,16 +1020,15 @@ class RoasterManager:
 
     def update_settings(self, settings: dict[str, Any]) -> None:
         """프론트엔드 설정 변경을 런타임에 반영."""
-        if "bt_display_ema_alpha" in settings:
-            value = settings["bt_display_ema_alpha"]
-            if (
-                isinstance(value, (int, float))
-                and not isinstance(value, bool)
-                and (isinstance(value, int) or math.isfinite(value))
-            ):
-                self._bt_display_alpha = max(
-                    config.BT_DISPLAY_ALPHA_MIN, min(config.BT_DISPLAY_ALPHA_MAX, value)
-                )
+        for key, attr in (
+            ("bt_display_ema_alpha", "_bt_display_alpha"),
+            ("et_display_ema_alpha", "_et_display_alpha"),
+        ):
+            if key not in settings:
+                continue
+            alpha = _display_alpha_setting(settings[key])
+            if alpha is not None:
+                setattr(self, attr, alpha)
         if "ror_window_sec" in settings:
             try:
                 v = float(settings["ror_window_sec"])
@@ -1105,7 +1116,7 @@ class RoasterManager:
         if self._et_display_ema is None:
             self._et_display_ema = et
         else:
-            self._et_display_ema = config.DISPLAY_ALPHA * et + (1.0 - config.DISPLAY_ALPHA) * self._et_display_ema
+            self._et_display_ema = self._et_display_alpha * et + (1.0 - self._et_display_alpha) * self._et_display_ema
         self._et_ror_window.append((ts, self._et_ema))
         cutoff = ts - self._ror_window_secs
         while self._et_ror_window and self._et_ror_window[0][0] < cutoff:

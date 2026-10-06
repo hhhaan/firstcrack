@@ -446,11 +446,12 @@ Request body:
 ```ts
 {
   ror_window_sec?: number;
-  bt_display_ema_alpha?: number; // 0.08–0.32; default 0.16
+  bt_display_ema_alpha?: number; // 0.08–1; runtime default 1 (raw sample). PID stays at 0.16
+  et_display_ema_alpha?: number; // 0.08–1; runtime default 1 (raw sample)
 }
 ```
 
-BT display EMA changes take effect on the next fresh sample without resetting its accumulated state. PID PV retains the fixed 0.16 EMA; ET and RoR smoothing are independent of this setting. The sample's `processing` metadata records the actual BT and ET display coefficients.
+BT and ET display EMA changes take effect on the next fresh sample without resetting accumulated state. PID PV retains the fixed 0.16 BT EMA. RoR smoothing is independent of both display settings. The sample's `processing` metadata records the actual BT and ET display coefficients.
 
 Response:
 
@@ -462,7 +463,7 @@ Error response: `{ "error": "invalid JSON" }` (status 400)
 
 Notes:
 
-- 현재 지원 키는 `ror_window_sec`(RoR 계산 윈도우, 초)뿐이다. 알 수 없는 키는 무시된다.
+- 지원 키는 `ror_window_sec`, `bt_display_ema_alpha`, `et_display_ema_alpha`다. 알 수 없는 키는 무시된다.
 - 숫자로 변환 불가한 값은 조용히 무시된다.
 
 ### POST /control

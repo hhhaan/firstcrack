@@ -356,6 +356,82 @@ const nextTickTab = (key: string, index: number): number | null => {
     return null;
 };
 
+const DisplaySmoothingSection = ({
+    setting,
+    committed,
+}: {
+    setting: 'btSmoothing' | 'etSmoothing';
+    committed: number;
+}) => {
+    const { t } = useTranslation();
+    const tk = (key: string) => t(`settings.tabs.roast.${key}`);
+    const [draft, setDraft] = useState<string | null>(null);
+    const shown = draft ?? String(committed);
+    const commit = (value: string) => {
+        setDraft(null);
+        const next = Number(value);
+        if (value.trim() && Number.isFinite(next) && next !== committed) {
+            updateRoastSettings({ [setting]: next });
+        }
+    };
+
+    return (
+        <SettingsSection>
+            <SettingsSection.Header title={tk(setting)} description={tk(`${setting}Description`)} />
+            <SettingsSection.Body className="grid gap-2">
+                <div className="flex items-center gap-3">
+                    <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={shown === '' ? committed : Number(shown)}
+                        aria-label={tk(setting)}
+                        aria-valuetext={`${shown || committed} / 100`}
+                        className="h-5 w-full accent-palette-black"
+                        onChange={(event) => setDraft(event.currentTarget.value)}
+                        onPointerUp={(event) => commit(event.currentTarget.value)}
+                        onLostPointerCapture={(event) => commit(event.currentTarget.value)}
+                        onPointerCancel={(event) => commit(event.currentTarget.value)}
+                        onKeyUp={(event) => commit(event.currentTarget.value)}
+                        onBlur={(event) => commit(event.currentTarget.value)}
+                    />
+                    <div className={numberInputWrapCls}>
+                        <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={shown}
+                            aria-label={tk(`${setting}Value`)}
+                            onChange={(event) => setDraft(event.currentTarget.value)}
+                            onBlur={(event) => commit(event.currentTarget.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') commit(event.currentTarget.value);
+                            }}
+                            className="w-14 bg-transparent text-right text-[13px] font-medium text-primary outline-none"
+                        />
+                        <span className="shrink-0 whitespace-nowrap text-[12px] text-muted">/ 100</span>
+                    </div>
+                </div>
+                <div className="flex justify-between text-[12px] text-muted">
+                    <span>{tk('btSmoothingFast')}</span>
+                    <span>{tk('btSmoothingSmooth')}</span>
+                </div>
+                <SurfaceButton
+                    className="justify-self-start"
+                    onClick={() => {
+                        setDraft(null);
+                        updateRoastSettings({ [setting]: 0 });
+                    }}
+                >
+                    {tk('btSmoothingReset')}
+                </SurfaceButton>
+            </SettingsSection.Body>
+        </SettingsSection>
+    );
+};
+
 export const RoastSettingsTab = () => {
     const { t } = useTranslation();
     const roastSettings = useRoastSettings();
@@ -364,16 +440,6 @@ export const RoastSettingsTab = () => {
     const committedFontPct = fontScaleToSlider(roastSettings.fontScalePct);
     const [fontDraft, setFontDraft] = useState<number | null>(null);
     const fontSizePct = fontDraft ?? committedFontPct;
-    const [btSmoothingDraft, setBtSmoothingDraft] = useState<string | null>(null);
-    const btSmoothingValue = btSmoothingDraft ?? String(roastSettings.btSmoothing);
-    const commitBtSmoothing = (value: string) => {
-        setBtSmoothingDraft(null);
-        const next = Number(value);
-        if (value.trim() && Number.isFinite(next) && next !== roastSettings.btSmoothing) {
-            updateRoastSettings({ btSmoothing: next });
-        }
-    };
-
     const commitFontSlider = (slider: number) => {
         setFontDraft(null);
         const next = sliderToFontScale(slider);
@@ -1033,59 +1099,8 @@ export const RoastSettingsTab = () => {
                     />
                 </SettingsSection.Body>
             </SettingsSection>
-            <SettingsSection>
-                <SettingsSection.Header title={tk('btSmoothing')} description={tk('btSmoothingDescription')} />
-                <SettingsSection.Body className="grid gap-2">
-                    <div className="flex items-center gap-3">
-                        <input
-                            type="range"
-                            min={0}
-                            max={100}
-                            step={1}
-                            value={btSmoothingValue === '' ? roastSettings.btSmoothing : Number(btSmoothingValue)}
-                            aria-label={tk('btSmoothing')}
-                            aria-valuetext={`${btSmoothingValue || roastSettings.btSmoothing} / 100`}
-                            className="h-5 w-full accent-palette-black"
-                            onChange={(event) => setBtSmoothingDraft(event.currentTarget.value)}
-                            onPointerUp={(event) => commitBtSmoothing(event.currentTarget.value)}
-                            onLostPointerCapture={(event) => commitBtSmoothing(event.currentTarget.value)}
-                            onPointerCancel={(event) => commitBtSmoothing(event.currentTarget.value)}
-                            onKeyUp={(event) => commitBtSmoothing(event.currentTarget.value)}
-                            onBlur={(event) => commitBtSmoothing(event.currentTarget.value)}
-                        />
-                        <div className={numberInputWrapCls}>
-                            <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                step={1}
-                                value={btSmoothingValue}
-                                aria-label={tk('btSmoothingValue')}
-                                onChange={(event) => setBtSmoothingDraft(event.currentTarget.value)}
-                                onBlur={(event) => commitBtSmoothing(event.currentTarget.value)}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') commitBtSmoothing(event.currentTarget.value);
-                                }}
-                                className="w-14 bg-transparent text-right text-[13px] font-medium text-primary outline-none"
-                            />
-                            <span className="shrink-0 whitespace-nowrap text-[12px] text-muted">/ 100</span>
-                        </div>
-                    </div>
-                    <div className="flex justify-between text-[12px] text-muted">
-                        <span>{tk('btSmoothingFast')}</span>
-                        <span>{tk('btSmoothingSmooth')}</span>
-                    </div>
-                    <SurfaceButton
-                        className="justify-self-start"
-                        onClick={() => {
-                            setBtSmoothingDraft(null);
-                            updateRoastSettings({ btSmoothing: 50 });
-                        }}
-                    >
-                        {tk('btSmoothingReset')}
-                    </SurfaceButton>
-                </SettingsSection.Body>
-            </SettingsSection>
+            <DisplaySmoothingSection setting="btSmoothing" committed={roastSettings.btSmoothing} />
+            <DisplaySmoothingSection setting="etSmoothing" committed={roastSettings.etSmoothing} />
 
             <SettingsSection>
                 <SettingsSection.Header title={tk('rorSpan')} description={tk('rorSpanDescription')} />

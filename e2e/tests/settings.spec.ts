@@ -8,7 +8,7 @@ test('BT smoothing supports custom strength, keyboard input, reopening and reset
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
     const slider = settings.getByRole('slider', { name: 'BT smoothing strength', exact: true });
     const value = settings.getByRole('spinbutton', { name: 'BT smoothing strength value', exact: true });
-    await expect(value).toHaveValue('50');
+    await expect(value).toHaveValue('0');
     await value.fill('75');
     await value.press('Enter');
     await expect(slider).toHaveValue('75');
@@ -28,12 +28,21 @@ test('BT smoothing supports custom strength, keyboard input, reopening and reset
     await page.getByTestId('app-sidebar').getByRole('button', { name: 'Settings', exact: true }).click();
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
     await expect(value).toHaveValue('80');
-    await settings.getByRole('button', { name: 'Restore default (50)', exact: true }).click();
-    await expect(value).toHaveValue('50');
-    await expect(slider).toHaveValue('50');
+    const btSection = settings.locator('[data-settings-section]').filter({
+        has: page.getByRole('heading', { name: 'BT smoothing strength', exact: true }),
+    });
+    await btSection.getByRole('button', { name: 'Restore default (0)', exact: true }).click();
+    await expect(value).toHaveValue('0');
+    await expect(slider).toHaveValue('0');
+    const etValue = settings.getByRole('spinbutton', { name: 'ET smoothing strength value', exact: true });
+    await expect(etValue).toHaveValue('0');
+    await etValue.fill('25');
+    await etValue.press('Enter');
+    await expect(settings.getByRole('slider', { name: 'ET smoothing strength', exact: true })).toHaveValue('25');
+    await expect(value).toHaveValue('0');
     await value.fill('');
     await value.blur();
-    await expect(value).toHaveValue('50');
+    await expect(value).toHaveValue('0');
 });
 
 test('settings is a responsive page and preserves existing preferences and entry points', async ({

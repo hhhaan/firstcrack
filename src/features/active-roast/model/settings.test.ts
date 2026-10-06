@@ -19,28 +19,37 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
-it('restores and bounds BT smoothing while preserving the original default', async () => {
-    expect(normalizeRoastSettings({}).btSmoothing).toBe(50);
+it('restores and bounds display smoothing while preserving the original default', async () => {
+    expect(normalizeRoastSettings({}).btSmoothing).toBe(0);
+    expect(normalizeRoastSettings({}).etSmoothing).toBe(0);
     for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, '80', null]) {
-        expect(
-            normalizeRoastSettings({ btSmoothing: invalid } as Partial<ReturnType<typeof getRoastSettings>>)
-                .btSmoothing,
-        ).toBe(50);
+        const normalized = normalizeRoastSettings({
+            btSmoothing: invalid,
+            etSmoothing: invalid,
+        } as Partial<ReturnType<typeof getRoastSettings>>);
+        expect(normalized.btSmoothing).toBe(0);
+        expect(normalized.etSmoothing).toBe(0);
     }
+    expect(normalizeRoastSettings({ btSmoothing: -1, etSmoothing: -1 }).etSmoothing).toBe(0);
+    expect(normalizeRoastSettings({ btSmoothing: 101, etSmoothing: 101 }).etSmoothing).toBe(100);
+    expect(normalizeRoastSettings({ btSmoothing: 74.6, etSmoothing: 74.6 }).etSmoothing).toBe(75);
     expect(normalizeRoastSettings({ btSmoothing: -1 }).btSmoothing).toBe(0);
     expect(normalizeRoastSettings({ btSmoothing: 101 }).btSmoothing).toBe(100);
     expect(normalizeRoastSettings({ btSmoothing: 74.6 }).btSmoothing).toBe(75);
-    expect([0, 50, 100].map(btSmoothingToAlpha)).toEqual([0.32, 0.16, 0.08]);
+    expect([0, 50, 100].map(btSmoothingToAlpha)).toEqual([1, 0.16, 0.08]);
 
     vi.resetModules();
     vi.mocked(settingsGet).mockResolvedValueOnce({ btSmoothing: 75 });
     const settings = await import('./settings');
     await Promise.resolve();
     expect(settings.getRoastSettings().btSmoothing).toBe(75);
-    settings.updateRoastSettings({ btSmoothing: 100 });
-    expect(settingsSet).toHaveBeenCalledWith('roast.settings', expect.objectContaining({ btSmoothing: 100 }), {
-        debounce: true,
-    });
+    expect(settings.getRoastSettings().etSmoothing).toBe(0);
+    settings.updateRoastSettings({ etSmoothing: 100 });
+    expect(settingsSet).toHaveBeenCalledWith(
+        'roast.settings',
+        expect.objectContaining({ btSmoothing: 75, etSmoothing: 100 }),
+        { debounce: true },
+    );
 });
 
 it('uses fixed axis defaults, validates intervals, and restores persisted choices', async () => {
