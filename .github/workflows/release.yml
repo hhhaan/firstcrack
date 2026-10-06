@@ -206,6 +206,7 @@ jobs:
         uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
+          prefix-key: v1-rust
           shared-key: rust-${{ matrix.target }}
           save-if: false
 
