@@ -1,4 +1,4 @@
-import { shouldCommitCurveColor } from '@widgets/settings/lib/shouldCommitCurveColor';
+import { resolveCurveColorCommit } from '@widgets/settings/lib/shouldCommitCurveColor';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const COMMIT_DELAY_MS = 120;
@@ -12,7 +12,7 @@ export const CurveStyleColorInput = ({
     value: string | null;
     themeFallback: string;
     label: string;
-    onCommit: (color: string) => void;
+    onCommit: (color: string | null) => void;
 }) => {
     const [draft, setDraft] = useState<string | null>(null);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -27,7 +27,10 @@ export const CurveStyleColorInput = ({
         themeRef.current = themeFallback;
     });
 
-    const shouldCommit = (hex: string) => shouldCommitCurveColor(hex, storedRef.current, themeRef.current);
+    const applyPending = (hex: string) => {
+        const decision = resolveCurveColorCommit(hex, storedRef.current, themeRef.current);
+        if (decision.kind === 'set') onCommitRef.current(decision.color);
+    };
 
     const flushPending = () => {
         if (timerRef.current) {
@@ -37,9 +40,7 @@ export const CurveStyleColorInput = ({
         const hex = pendingRef.current;
         pendingRef.current = null;
         setDraft(null);
-        if (hex != null && shouldCommit(hex)) {
-            onCommitRef.current(hex);
-        }
+        if (hex != null) applyPending(hex);
     };
 
     useEffect(
@@ -50,9 +51,9 @@ export const CurveStyleColorInput = ({
             }
             const hex = pendingRef.current;
             pendingRef.current = null;
-            if (hex != null && shouldCommitCurveColor(hex, storedRef.current, themeRef.current)) {
-                onCommitRef.current(hex);
-            }
+            if (hex == null) return;
+            const decision = resolveCurveColorCommit(hex, storedRef.current, themeRef.current);
+            if (decision.kind === 'set') onCommitRef.current(decision.color);
         },
         [],
     );
@@ -66,9 +67,7 @@ export const CurveStyleColorInput = ({
             pendingRef.current = null;
             timerRef.current = null;
             setDraft(null);
-            if (pending != null && shouldCommitCurveColor(pending, storedRef.current, themeRef.current)) {
-                onCommitRef.current(pending);
-            }
+            if (pending != null) applyPending(pending);
         }, COMMIT_DELAY_MS);
     };
 

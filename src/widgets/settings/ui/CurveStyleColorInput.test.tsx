@@ -9,7 +9,7 @@ import { CurveStyleColorInput } from './CurveStyleColorInput';
 describe('CurveStyleColorInput', () => {
     let container: HTMLDivElement;
     let root: Root;
-    const onCommit = vi.fn<(color: string) => void>();
+    const onCommit = vi.fn<(color: string | null) => void>();
 
     const render = (value: string | null, themeFallback = '#112233') => {
         act(() => {

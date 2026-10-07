@@ -30,13 +30,11 @@ export type HistoryPdfHeader = {
 export type HistoryPdfLegendItem = {
     color: string;
     label: string;
-    /** @deprecated Prefer `lineType`. */
-    dashed?: boolean;
     lineType?: 'solid' | 'dashed' | 'dotted';
 };
 
 const legendLineDash = (item: HistoryPdfLegendItem): number[] => {
-    const type = item.lineType ?? (item.dashed ? 'dashed' : 'solid');
+    const type = item.lineType ?? 'solid';
     if (type === 'dotted') return [4, 6];
     if (type === 'dashed') return [10, 6];
     return [];
