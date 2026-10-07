@@ -1026,4 +1026,51 @@ describe('buildRoastChartOption', () => {
         expect(labels.some((label) => label.text === '50' && label.x <= 8)).toBe(false);
         expect(labels.some((label) => label.text === '62')).toBe(true);
     });
+
+    it('keeps the same non-% change labels when the zoom window changes', () => {
+        const changeLabels = {
+            xs: [0, 30, 60, 90, 120],
+            drumTemp: [48, 48, 48, 55, 55],
+            heatPower: [60, 60, 60, 60, 60],
+            fanSpeed: [20, 20, 20, 20, 20],
+        };
+        const controlUnits = resolveControlUnits({ drum: { min: 0, max: 500, unit: 'RPM' } });
+        const labelTexts = (xViewMin: number, xViewMax: number) => {
+            const option = buildRoastChartOption({
+                ...baseParams(),
+                controlUnits,
+                xViewMin,
+                xViewMax,
+                controlData: {
+                    xs: changeLabels.xs.filter((x) => x >= xViewMin && x <= xViewMax),
+                    drumTemp: [48, 48, 55, 55],
+                    heatPower: [60, 60, 60, 60],
+                    fanSpeed: [20, 20, 20, 20],
+                    changeLabels,
+                },
+            });
+            const labelSeries = (
+                option.series as {
+                    id?: string;
+                    renderItem?: (params: unknown, api: unknown) => { children?: { style?: { text?: string } }[] };
+                }[]
+            ).find((series) => series.id === 'control-change-labels');
+            const width = 600;
+            const height = 80;
+            const rendered = labelSeries?.renderItem?.(
+                { dataIndex: 0, coordSys: { x: 0, y: 0, width, height } },
+                {
+                    coord: ([x]: number[]) => [((x - xViewMin) / (xViewMax - xViewMin)) * width, height / 2],
+                },
+            );
+            return (rendered?.children ?? [])
+                .map((child) => child.style?.text)
+                .filter((text): text is string => Boolean(text));
+        };
+        const narrow = labelTexts(85, 120);
+        const wide = labelTexts(0, 120);
+        expect(narrow).toContain('55');
+        expect(wide).toContain('55');
+        expect(narrow.filter((text) => text === '55')).toEqual(wide.filter((text) => text === '55'));
+    });
 });

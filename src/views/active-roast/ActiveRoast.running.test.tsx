@@ -246,6 +246,21 @@ describe('ActiveRoast running clock (#627)', () => {
         Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
     });
 
+    it('mounts with received control limits without a render loop', async () => {
+        const status = await sidecar.getStatus();
+        vi.mocked(sidecar.getStatus).mockResolvedValue({
+            ...status,
+            control: { writable: true, limits: { heater: { min: 0, max: 100, unit: '%' } } },
+        });
+        seed({});
+        const unmount = mount();
+        await flushMicrotasks();
+        await advance(2000);
+        expect(host.querySelector('[data-testid="roast-time"]')).toBeTruthy();
+        unmount();
+        await flushMicrotasks();
+    });
+
     it('passes raw BT to Replay and never substitutes the display EMA', async () => {
         const original = machineControlFeature.useMachineControlComposition;
         const composition = vi

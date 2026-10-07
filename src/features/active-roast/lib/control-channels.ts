@@ -38,6 +38,9 @@ export const resolveControlUnits = (limits?: ControlLimits): ControlUnits => ({
 
 export const DEFAULT_CONTROL_UNITS: ControlUnits = resolveControlUnits();
 
+/** Stable empty limits reference for live-status presentation. */
+export const EMPTY_CONTROL_LIMITS: ControlLimits = {};
+
 export type StickyControlLimitsCache = { identity: string; limits: ControlLimits } | null;
 
 /**
@@ -53,16 +56,20 @@ export const resolveEffectiveControlLimits = (input: {
 }): { cache: StickyControlLimitsCache; limits: ControlLimits | undefined } => {
     const { identity, statusLimits, statusLimitsReceived, useStickyPresentation } = input;
     let cache = input.cache;
-    if (!identity) return { cache: null, limits: undefined };
+    if (!identity) return { cache: null, limits: statusLimits };
+
     if (cache?.identity !== identity) cache = null;
 
     const liveStatus = statusLimitsReceived && !useStickyPresentation;
     if (liveStatus) {
-        const limits = statusLimits ?? {};
+        const limits = statusLimits ?? EMPTY_CONTROL_LIMITS;
+        if (cache?.identity === identity && cache.limits === limits) {
+            return { cache, limits };
+        }
         return { cache: { identity, limits }, limits };
     }
 
-    if (useStickyPresentation && cache) {
+    if (useStickyPresentation && cache?.identity === identity) {
         return { cache, limits: cache.limits };
     }
 

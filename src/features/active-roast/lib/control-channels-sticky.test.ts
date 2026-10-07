@@ -103,6 +103,41 @@ describe('resolveEffectiveControlLimits', () => {
         expect(span.max).toBeGreaterThan(51);
     });
 
+    it('passes status limits through when machine identity is missing', () => {
+        const live = { heater: { min: 0, max: 100, unit: '%' } };
+        const resolved = resolveEffectiveControlLimits({
+            cache: null,
+            identity: null,
+            statusLimits: live,
+            statusLimitsReceived: true,
+            useStickyPresentation: false,
+        });
+        expect(resolved.limits).toBe(live);
+        expect(resolved.cache).toBeNull();
+    });
+
+    it('does not serve machine A sticky cache to machine B after identity change', () => {
+        let cache = null;
+        let resolved = resolveEffectiveControlLimits({
+            cache,
+            identity: machineA,
+            statusLimits: limitsA,
+            statusLimitsReceived: true,
+            useStickyPresentation: false,
+        });
+        cache = resolved.cache;
+        resolved = resolveEffectiveControlLimits({
+            cache,
+            identity: machineB,
+            statusLimits: {},
+            statusLimitsReceived: false,
+            useStickyPresentation: true,
+        });
+        expect(resolved.cache?.identity).not.toBe(machineA);
+        expect(resolved.limits).not.toEqual(limitsA);
+        expect(resolved.limits?.drum).toBeUndefined();
+    });
+
     it('clears leaked drum/fan when switching machine identity with live empty status', () => {
         let cache = null;
         let resolved = resolveEffectiveControlLimits({

@@ -25,7 +25,6 @@ import {
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import { resolveControlUnits } from '@features/active-roast/lib/control-channels';
-import { controlLinkState } from '@features/active-roast/lib/control-readout';
 import {
     applyEventMarkerEdit,
     type EventMarkerPatch,
@@ -858,20 +857,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         return key ? machines.find((m) => m.roasterKey === key) : undefined;
     }, [machines, machineSnapshot?.machine_id, machineSnapshot?.machine_roaster_key]);
     const machineRoasterKey = connectedMachine?.roasterKey ?? machineSnapshot?.machine_roaster_key ?? null;
-    const useStickyControlPresentation = useMemo(() => {
-        if (!sidecarConnected || reconnecting || !limitsReceived) return true;
-        return (
-            controlLinkState({
-                connected: true,
-                reconnecting: false,
-                quality: observationQuality,
-                lastValidReceivedAtMs,
-                pollIntervalMs,
-                // eslint-disable-next-line react-hooks/purity -- stale gate for axis presentation only
-                nowMs: Date.now(),
-            }) !== 'live'
-        );
-    }, [sidecarConnected, reconnecting, limitsReceived, observationQuality, lastValidReceivedAtMs, pollIntervalMs]);
+    const useStickyControlPresentation = !sidecarConnected || reconnecting || !limitsReceived;
     const controlLimits = useEffectiveControlLimits({
         machineId: machineSnapshot?.machine_id,
         roasterKey: machineRoasterKey,
