@@ -1054,6 +1054,8 @@
             "markDrop": "⌘DD"
         },
         "log": {
+            "expand": "로스팅 로그 펼치기",
+            "collapse": "로스팅 로그 접기",
             "title": "로스팅 로그",
             "deleteNote": "메모 삭제"
         },

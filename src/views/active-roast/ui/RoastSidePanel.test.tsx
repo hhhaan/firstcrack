@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
+
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
+import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,7 +37,7 @@ const baseProps = {
     fcDualMarkEnabled: false,
     logEntries: [],
     pressedButtons: new Set<string>(),
-    roastLogDisplayEntries: [],
+    roastLogDisplayEntries: [] as LogEntry[],
     noteInput: '',
     onNoteChange: noop,
     onNoteSubmit: noop,
@@ -128,5 +130,39 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(container.querySelector('[data-testid="roast-charge"]')).not.toBeNull();
         expect(container.querySelector('[data-testid="roast-time"]')).toBeNull();
         expect(container.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('1:05');
+    });
+    it('opens a separate newest-first log and restores focus on Escape without losing the note draft', () => {
+        const onRemoveLogEntry = vi.fn();
+        const entries: LogEntry[] = [
+            { id: 'charge', time: '0:00', event: 'Charge', temp: '180°C', note: '' },
+            { id: 'note', time: '1:00', event: 'Note', temp: '190°C', note: 'aroma' },
+        ];
+        renderPanel({ roastLogDisplayEntries: entries, noteInput: 'draft', onRemoveLogEntry });
+        const sidePanel = container.querySelector('[data-testid="roast-side-panel"]') as HTMLDivElement;
+        const trigger = sidePanel.querySelector('[aria-expanded]') as HTMLButtonElement;
+        const noteInput = sidePanel.querySelector('textarea');
+        expect(sidePanel.textContent).toContain('aroma');
+        act(() => trigger.click());
+        const log = container.querySelector('[data-testid="roast-log-panel"]') as HTMLElement;
+        expect(log.parentElement).toBe(sidePanel.parentElement);
+        expect(sidePanel.textContent).not.toContain('aroma');
+        expect(trigger.getAttribute('aria-controls')).toBe(log.id);
+        expect(trigger.getAttribute('aria-expanded')).toBe('true');
+        expect((log.textContent ?? '').indexOf('aroma')).toBeLessThan((log.textContent ?? '').indexOf('0:00'));
+        expect(document.activeElement).toBe(log.querySelector('button'));
+        expect(sidePanel.querySelector('textarea')).toBe(noteInput);
+        expect(noteInput?.value).toBe('draft');
+        act(() => (log.querySelector('[aria-label="Delete note"]') as HTMLButtonElement).click());
+        expect(onRemoveLogEntry).toHaveBeenCalledWith('note');
+        act(() => log.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+        expect(container.querySelector('[data-testid="roast-log-panel"]')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+        expect(trigger.getAttribute('aria-expanded')).toBe('false');
+        expect(sidePanel.textContent).toContain('aroma');
+        expect(noteInput?.value).toBe('draft');
+        act(() => trigger.click());
+        act(() => (container.querySelector('[data-testid="roast-log-panel"] button') as HTMLButtonElement).click());
+        expect(document.activeElement).toBe(trigger);
+        expect(container.querySelector('[data-testid="roast-log-panel"]')).toBeNull();
     });
 });
