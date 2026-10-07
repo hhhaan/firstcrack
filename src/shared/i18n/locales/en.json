@@ -169,6 +169,7 @@
                     "general": "Units & sampling",
                     "alerts": "Alerts",
                     "automation": "Automatic detection",
+                    "bbp": "BBP",
                     "display": "Chart display",
                     "axes": "Axes & controls",
                     "sensors": "Sensors & RoR"

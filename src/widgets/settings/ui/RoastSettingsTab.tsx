@@ -703,7 +703,7 @@ export const RoastSettingsTab = () => {
             </SettingsSection>
             */}
 
-            <SettingsSection group="automation">
+            <SettingsSection group="bbp">
                 <SettingsSection.Header title={tk('bbp')} description={tk('bbpDescription')} />
                 <SettingsSection.Body className="grid gap-3">
                     <SettingsCheckRow

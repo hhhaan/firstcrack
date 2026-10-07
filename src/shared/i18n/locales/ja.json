@@ -169,6 +169,7 @@
                     "general": "単位・取得間隔",
                     "alerts": "アラート",
                     "automation": "自動検出",
+                    "bbp": "BBP",
                     "display": "チャート表示",
                     "axes": "軸・制御",
                     "sensors": "センサー・RoR"

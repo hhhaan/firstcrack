@@ -169,6 +169,7 @@
                     "general": "단위·수집 주기",
                     "alerts": "알람",
                     "automation": "자동 감지",
+                    "bbp": "BBP",
                     "display": "차트 표시",
                     "axes": "축·제어",
                     "sensors": "센서·RoR"

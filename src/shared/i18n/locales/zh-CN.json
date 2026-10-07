@@ -169,6 +169,7 @@
                     "general": "单位与采样",
                     "alerts": "警报",
                     "automation": "自动检测",
+                    "bbp": "BBP",
                     "display": "图表显示",
                     "axes": "坐标轴与控制",
                     "sensors": "传感器与 RoR"
