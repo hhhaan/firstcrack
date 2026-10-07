@@ -1,6 +1,7 @@
 import type { TemperatureUnit } from '@features/active-roast';
 import {
     AXIS_LABEL_FONT,
+    AXIS_LABEL_FONT_SM,
     AXIS_MINOR_SPLIT_NUMBER,
     CHART_GRID_LEFT,
     CHART_GRID_RIGHT,
@@ -14,6 +15,11 @@ import {
     TIME_X_INTERVAL_SEC,
     Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
+import {
+    CONTROL_CHANNEL_LABEL,
+    type ControlAxisLayout,
+    type ControlAxisSide,
+} from '@features/active-roast/lib/control-channels';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
@@ -169,9 +175,9 @@ export const applyReportAxes = (
             show: axis.gridIndex === 0 && axis.position !== 'right',
             lineStyle: { color: colors.gridLine, width: 0.6, type: 'dashed' },
         };
-        if (axis.type === 'value') {
-            axis.interval = axis.position === 'right' && axis.gridIndex === 0 ? (temperatureUnit === 'F' ? 10 : 5) : 50;
-            if (axis.gridIndex === 0 && axis.position !== 'right') {
+        if (axis.type === 'value' && axis.gridIndex === 0) {
+            axis.interval = axis.position === 'right' ? (temperatureUnit === 'F' ? 10 : 5) : 50;
+            if (axis.position !== 'right') {
                 const span = Number(axis.max) - Number(axis.min);
                 axis.interval = reportTempInterval(span, tempGridInterval);
                 axis.min = Math.floor(Number(axis.min) / axis.interval) * axis.interval;
@@ -189,6 +195,34 @@ export const computeGridMargins = (hasRightYAxis: boolean) => {
     return { leftMargin, rightMargin, topMargin };
 };
 
+export const controlAxisName = (side: ControlAxisSide): string =>
+    side.unit == null
+        ? ''
+        : `${side.channels.map((channel) => CONTROL_CHANNEL_LABEL[channel]).join(' · ')} (${side.unit})`;
+
+/**
+ * Control band axis: numbers only when a shown channel is drawn on it.
+ * The name ("Heat · Fan (%)") sits inward over the gap above the band so it never meets
+ * the temperature/RoR tick labels in the margins. Two ticks keep the short band readable.
+ */
+export const controlAxisScale = (
+    side: ControlAxisSide,
+    labelStyle: ReturnType<typeof buildAxisStyles>['axisLabelStyle'],
+    nameStyle: ReturnType<typeof buildAxisStyles>['axisNameStyle'],
+    position: 'left' | 'right',
+) => ({
+    min: side.min,
+    max: side.max,
+    splitNumber: 2,
+    name: controlAxisName(side),
+    nameLocation: 'end' as const,
+    nameGap: 2,
+    nameTextStyle: { ...nameStyle, ...AXIS_LABEL_FONT_SM, align: position, verticalAlign: 'bottom' as const },
+    axisLabel: { ...labelStyle, show: side.unit != null, hideOverlap: true, formatter: formatControlTick },
+});
+
+const formatControlTick = (value: number) => String(Number(value.toFixed(2)));
+
 export interface DualGridAxesParams {
     leftMargin: number;
     rightMargin: number;
@@ -200,8 +234,7 @@ export interface DualGridAxesParams {
     tempYMax: number;
     rorYMin: number;
     rorYMax: number;
-    controlYMin: number;
-    controlYMax: number;
+    controlAxes: ControlAxisLayout;
     colors: ResolvedChartColors;
     axisLabelStyle: ReturnType<typeof buildAxisStyles>['axisLabelStyle'];
     axisNameStyle: ReturnType<typeof buildAxisStyles>['axisNameStyle'];
@@ -222,8 +255,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
         tempYMax,
         rorYMin,
         rorYMax,
-        controlYMin,
-        controlYMax,
+        controlAxes,
         colors,
         axisLabelStyle,
         axisNameStyle,
@@ -312,34 +344,32 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             interval: 20,
         },
         {
+            ...controlAxisScale(controlAxes.left, axisLabelStyle, axisNameStyle, 'left'),
             gridIndex: 1,
             type: 'value',
-            nameLocation: 'middle',
-            nameGap: Y_AXIS_NAME_GAP,
-            nameTextStyle: axisNameStyle,
             position: 'left',
             axisLine: { onZero: false },
             axisTick: { show: false },
-            axisLabel: { show: false },
             axisPointer: yAxisPointer,
             splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-            min: controlYMin,
-            max: controlYMax,
+        },
+        {
+            ...controlAxisScale(controlAxes.right, rightYAxisLabel, axisNameStyle, 'right'),
+            gridIndex: 1,
+            type: 'value',
+            position: 'right',
+            axisLine: { onZero: false },
+            axisTick: { show: false },
+            axisPointer: yAxisPointerOff,
+            splitLine: { show: false },
         },
         {
             gridIndex: 1,
             type: 'value',
-            nameLocation: 'middle',
-            nameGap: Y_AXIS_NAME_GAP,
-            nameTextStyle: axisNameStyle,
-            position: 'right',
-            axisLine: { onZero: false },
-            axisTick: { show: false },
-            axisLabel: { show: false },
+            show: false,
             axisPointer: yAxisPointerOff,
-            splitLine: { show: false },
-            min: controlYMin,
-            max: controlYMax,
+            min: controlAxes.ownScale.min,
+            max: controlAxes.ownScale.max,
         },
     ] as EChartsOption['yAxis'];
 

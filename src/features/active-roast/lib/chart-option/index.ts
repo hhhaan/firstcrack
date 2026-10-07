@@ -1,6 +1,7 @@
 import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-config';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
+import { type ControlChannel, DEFAULT_CONTROL_UNITS, layoutControlAxes } from '../control-channels';
 import {
     applyChartAxisSettings,
     applyReportAxes,
@@ -14,6 +15,7 @@ import {
     computeGridMargins,
     computeTempYRange,
 } from './axes';
+import { buildChangeLabelSeries, findChangePoints } from './change-labels';
 import { buildMarkers } from './markers';
 import {
     buildContinuousMarkerSeries,
@@ -28,6 +30,38 @@ import type { ChartOptionParams } from './types';
 export { fmtSec } from './axes';
 export { buildCompareChartOption, type CompareChartSeries, compareChartXMax } from './compare';
 export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMarker } from './types';
+
+/** Which control axis each channel uses. Live curves and shown reference curves both claim an axis. */
+export const controlAxisLayoutFor = (
+    params: Pick<
+        ChartOptionParams,
+        | 'controlData'
+        | 'controlUnits'
+        | 'controlYMin'
+        | 'controlYMax'
+        | 'showTargetCurve'
+        | 'showControlDrum'
+        | 'showControlHeat'
+        | 'showControlFan'
+        | 'showProfileDrum'
+        | 'showProfileHeat'
+        | 'showProfileFan'
+    >,
+) => {
+    const reference = params.controlData?.reference;
+    const referenceShown = (flag: boolean | undefined, values: readonly (number | null)[] | undefined) =>
+        params.showTargetCurve && !!reference?.xs.length && flag !== false && !!values?.some((value) => value != null);
+    return layoutControlAxes(
+        {
+            drum: params.showControlDrum || referenceShown(params.showProfileDrum, reference?.drum),
+            heat: params.showControlHeat || referenceShown(params.showProfileHeat, reference?.heater),
+            fan: params.showControlFan || referenceShown(params.showProfileFan, reference?.fan),
+        },
+        params.controlUnits ?? DEFAULT_CONTROL_UNITS,
+        params.controlYMin,
+        params.controlYMax,
+    );
+};
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
     const {
@@ -63,8 +97,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showControlHeat,
         showControlFan,
         controlChartHeightPct,
-        controlYMin,
-        controlYMax,
+        controlUnits = DEFAULT_CONTROL_UNITS,
         phaseSegments,
         showFcBand = true,
         tempMinC,
@@ -100,6 +133,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showRoRET,
         showControlHeat,
         controlData,
+        controlUnits,
         unitLabel,
         rorUnit,
         colors,
@@ -163,6 +197,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             (profileOn(showProfileHeat) && reference.heater.some((value) => value != null)) ||
             (profileOn(showProfileFan) && reference.fan.some((value) => value != null)));
     const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan || profileControl);
+    const controlAxes = controlAxisLayoutFor({ ...params, controlUnits });
     const {
         allMarkLines,
         markPointData,
@@ -257,8 +292,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             tempYMax,
             rorYMin: rorYMinDisp,
             rorYMax: rorYMaxDisp,
-            controlYMin,
-            controlYMax,
+            controlAxes,
             colors,
             axisLabelStyle,
             axisNameStyle,
@@ -278,7 +312,28 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             showControlFan,
             colors,
             controlGuideMarkLines,
+            axisOf: controlAxes.axisOf,
         });
+        const sideOf = (channel: ControlChannel) =>
+            [controlAxes.left, controlAxes.right, controlAxes.ownScale][controlAxes.axisOf[channel] - 2];
+        const measured: [ControlChannel, boolean, (number | null)[], string][] = [
+            ['drum', showControlDrum, controlData.drumTemp, colors.controlDrum],
+            ['heat', showControlHeat, controlData.heatPower, colors.controlHeat],
+            ['fan', showControlFan, controlData.fanSpeed, colors.controlFan],
+        ];
+        // Always present so a zoom that culls every label still clears the previous frame.
+        const changeLabelSeries = buildChangeLabelSeries(
+            measured
+                .filter(([, shown]) => shown)
+                .map(([channel, , values, color]) => ({
+                    channel,
+                    color,
+                    points: findChangePoints(controlData.xs, values),
+                    min: sideOf(channel).min,
+                    max: sideOf(channel).max,
+                })),
+            colors.controlLabelHalo,
+        );
 
         tuneAxes({ xAxis, yAxis });
 
@@ -306,6 +361,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 ...(bbpRange ? [bbpBackground(false), bbpBackground(true)] : []),
                 ...tempSeries,
                 ...controlSeries,
+                changeLabelSeries,
                 ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
                 curveLabelSeries,
                 ...(phaseSeries ? [phaseSeries] : []),

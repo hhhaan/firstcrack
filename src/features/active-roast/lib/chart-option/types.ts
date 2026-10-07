@@ -3,6 +3,7 @@ import type { getResolvedChartColors } from '@features/active-roast/lib/chart-co
 
 import type { RoastNoteControls } from '@shared/types/roast';
 import type { RoastSettings } from '../../model/settings';
+import type { ControlUnits } from '../control-channels';
 
 export type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
 
@@ -76,6 +77,8 @@ export interface ChartOptionParams {
     controlChartHeightPct: number;
     controlYMin: number;
     controlYMax: number;
+    /** Per-channel unit and device range. Omitted = Drum RPM, Heat %, Fan % on the user range. */
+    controlUnits?: ControlUnits;
     phaseSegments: PhaseSegment[];
     /** FC Start–End background band (default on) */
     showFcBand?: boolean;

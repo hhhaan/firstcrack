@@ -7,6 +7,7 @@ import {
 } from '@features/active-roast/lib/chart-config';
 import * as echarts from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
+import { resolveControlUnits } from '../control-channels';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams } from './types';
@@ -416,10 +417,93 @@ describe('buildRoastChartOption', () => {
         const yAxis = option.yAxis as unknown[];
 
         expect(option.grid).toHaveLength(2);
-        expect(yAxis).toHaveLength(4);
+        expect(yAxis).toHaveLength(5);
         expect(series.some((s) => s.name === 'Drum')).toBe(true);
         expect(series.some((s) => s.name === 'Heat')).toBe(true);
         expect(series.some((s) => s.name === 'Fan')).toBe(true);
+        expect(series.some((s) => s.name === 'Control change labels')).toBe(true);
+    });
+
+    describe('control axes', () => {
+        const controlData = { xs: [0, 60], drumTemp: [50, 55], heatPower: [40, 45], fanSpeed: [30, 35] };
+        type Axis = {
+            name?: string;
+            min?: number;
+            max?: number;
+            show?: boolean;
+            axisLabel?: { show?: boolean; formatter?: (v: number) => string };
+        };
+        const build = (over: Partial<ChartOptionParams> = {}) => {
+            const option = buildRoastChartOption({ ...baseParams(), controlData, ...over });
+            const yAxis = option.yAxis as Axis[];
+            const yOf = (name: string) =>
+                (option.series as { name?: string; yAxisIndex?: number }[]).find((s) => s.name === name)?.yAxisIndex;
+            return { left: yAxis[2], right: yAxis[3], own: yAxis[4], yOf };
+        };
+
+        it('labels both sides with the channel units: Drum RPM left, Heat/Fan % right', () => {
+            const { left, right, yOf } = build();
+            expect(left).toMatchObject({ name: 'Drum (RPM)', min: 0, max: 100, axisLabel: { show: true } });
+            expect(right).toMatchObject({ name: 'Heat · Fan (%)', min: 0, max: 100, axisLabel: { show: true } });
+            expect([yOf('Drum'), yOf('Heat'), yOf('Fan')]).toEqual([2, 3, 3]);
+            expect(left.axisLabel?.formatter?.(50)).toBe('50');
+        });
+
+        it('uses the device range for a non-% unit instead of assuming 0–100', () => {
+            const { left } = build({
+                controlUnits: resolveControlUnits({ drum: { min: 0, max: 80, unit: 'RPM' } }),
+            });
+            expect(left).toMatchObject({ name: 'Drum (RPM)', min: 0, max: 80 });
+        });
+
+        it('keeps the user range for %, and for a non-% unit without a device range', () => {
+            const { left, right } = build({ controlYMin: 10, controlYMax: 90 });
+            expect(left).toMatchObject({ min: 10, max: 90 });
+            expect(right).toMatchObject({ min: 10, max: 90 });
+        });
+
+        it('never puts a third unit on a labeled axis', () => {
+            const { left, right, own, yOf } = build({
+                controlUnits: resolveControlUnits({
+                    heater: { min: 0, max: 10, unit: 'step' },
+                    fan: { min: 0, max: 100, unit: '%' },
+                }),
+            });
+            expect(left.name).toBe('Drum (RPM)');
+            expect(right).toMatchObject({ name: 'Heat (step)', min: 0, max: 10 });
+            expect(yOf('Fan')).toBe(4);
+            expect(own).toMatchObject({ show: false, min: 0, max: 100 });
+        });
+
+        it('moves Fan to the free left side when Drum is hidden and units differ', () => {
+            const { left, right, yOf } = build({
+                showControlDrum: false,
+                controlUnits: resolveControlUnits({ heater: { min: 0, max: 30, unit: 'kPa' } }),
+            });
+            expect(yOf('Fan')).toBe(2);
+            expect(left.name).toBe('Fan (%)');
+            expect(right).toMatchObject({ name: 'Heat (kPa)', min: 0, max: 30 });
+        });
+
+        it('hides numbers on a side with no shown channel', () => {
+            const { left } = build({ showControlDrum: false });
+            expect(left).toMatchObject({ name: '', axisLabel: { show: false } });
+        });
+
+        it('tooltip uses the same units as the axes', () => {
+            const option = buildRoastChartOption({
+                ...baseParams(),
+                controlData,
+                controlUnits: resolveControlUnits({ heater: { unit: 'kPa' }, drum: { unit: '%' } }),
+            });
+            const fmt = (option.tooltip as { formatter: (p: unknown) => string }).formatter;
+            const html = fmt([
+                { axisValue: 60, seriesName: 'Heat', value: [60, 45] },
+                { axisValue: 60, seriesName: 'Drum', value: [60, 55] },
+            ]);
+            expect(html).toContain('Heat: <span>45 kPa');
+            expect(html).toContain('Drum: <span>55%');
+        });
     });
 
     it('includes NOW markLine when charged with current time in view', () => {

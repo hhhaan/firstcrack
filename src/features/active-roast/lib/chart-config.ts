@@ -135,6 +135,8 @@ export const getResolvedChartColors = (print = false) => {
         controlFan: gv('--color-control-fan', '#0091cb'),
         controlFanTarget: gv('--color-control-fan-target', 'oklch(0.6 0.17 225 / 0.55)'),
         controlFanArea: gv('--color-control-fan-area', 'rgba(0,145,203,0.22)'),
+        /** Outline behind on-curve value labels so they stay legible over grid and curves. */
+        controlLabelHalo: gv('--color-roast-bg', '#ffffff'),
 
         // Event marker categories (resolved for canvas)
         eventMark: gv('--color-event-mark', '#777'),

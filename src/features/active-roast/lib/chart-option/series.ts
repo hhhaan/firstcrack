@@ -20,6 +20,7 @@ import {
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
+import type { ControlAxisLayout } from '../control-channels';
 import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
@@ -206,6 +207,7 @@ export interface ControlSeriesParams {
     showControlFan: boolean;
     colors: ResolvedChartColors;
     controlGuideMarkLines: object[];
+    axisOf: ControlAxisLayout['axisOf'];
 }
 
 export const buildControlSeries = (params: ControlSeriesParams): object[] => {
@@ -220,6 +222,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         showControlFan,
         colors,
         controlGuideMarkLines,
+        axisOf,
     } = params;
     const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference } = controlData;
     const series: object[] = [];
@@ -234,7 +237,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     reference.drum,
                     colors.controlDrumTarget,
                     1,
-                    2,
+                    axisOf.drum,
                     CONTROL_CURVE_WIDTH,
                 ),
             );
@@ -247,7 +250,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     reference.heater,
                     colors.controlHeatTarget,
                     1,
-                    3,
+                    axisOf.heat,
                     CONTROL_CURVE_WIDTH,
                 ),
             );
@@ -260,7 +263,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     reference.fan,
                     colors.controlFanTarget,
                     1,
-                    3,
+                    axisOf.fan,
                     CONTROL_CURVE_WIDTH,
                 ),
             );
@@ -273,7 +276,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             type: 'line' as const,
             color: colors.controlDrum,
             xAxisIndex: 1,
-            yAxisIndex: 2,
+            yAxisIndex: axisOf.drum,
             data: cxs.map((x, i) => [x, drumTemp[i]]),
             lineStyle: { color: colors.controlDrum, width: CONTROL_CURVE_WIDTH },
             ...lineSeriesBase,
@@ -287,7 +290,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             type: 'line' as const,
             color: colors.controlHeat,
             xAxisIndex: 1,
-            yAxisIndex: 3,
+            yAxisIndex: axisOf.heat,
             data: heatTarget.xs.map((x, i) => [x, heatTarget.values[i]]),
             lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH, type: 'dotted' as const },
             ...lineSeriesBase,
@@ -301,7 +304,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             type: 'line' as const,
             color: colors.controlHeat,
             xAxisIndex: 1,
-            yAxisIndex: 3,
+            yAxisIndex: axisOf.heat,
             data: cxs.map((x, i) => [x, heatSet[i]]),
             lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH, type: 'dashed' as const },
             ...lineSeriesBase,
@@ -315,7 +318,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             type: 'line' as const,
             color: colors.controlHeat,
             xAxisIndex: 1,
-            yAxisIndex: 3,
+            yAxisIndex: axisOf.heat,
             data: cxs.map((x, i) => [x, heatPower[i]]),
             lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH },
             ...lineSeriesBase,
@@ -329,7 +332,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             type: 'line' as const,
             color: colors.controlFan,
             xAxisIndex: 1,
-            yAxisIndex: 3,
+            yAxisIndex: axisOf.fan,
             data: cxs.map((x, i) => [x, fanSpeed[i]]),
             lineStyle: { color: colors.controlFan, width: CONTROL_CURVE_WIDTH },
             ...lineSeriesBase,

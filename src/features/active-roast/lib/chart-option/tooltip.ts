@@ -1,4 +1,5 @@
 import { CHART_COLORS } from '@features/active-roast/lib/chart-config';
+import { type ControlUnits, DEFAULT_CONTROL_UNITS, withUnit } from '../control-channels';
 import { fmtSec } from './axes';
 import type { ControlData, ResolvedChartColors } from './types';
 
@@ -11,6 +12,8 @@ export interface TooltipFormatterParams {
     /** Heat 시리즈를 끈 상태에서는 목표 행도 숨긴다. 선과 툴팁이 같은 토글을 따른다. */
     showControlHeat: boolean;
     controlData?: ControlData;
+    /** Same units the control axes and readout use. */
+    controlUnits?: ControlUnits;
     unitLabel: string;
     rorUnit: string;
     colors: ResolvedChartColors;
@@ -46,6 +49,10 @@ export const lastDrawnSampleSec = (
 
 export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
     const { showET, showRoR, showRoRET, showControlHeat, controlData, unitLabel, rorUnit, colors, dataEndSec } = opts;
+    const units = opts.controlUnits ?? DEFAULT_CONTROL_UNITS;
+    const drum = (v: number) => withUnit(String(v), units.drum.unit);
+    const heat = (v: number) => withUnit(String(v), units.heat.unit);
+    const fan = (v: number) => withUnit(String(v), units.fan.unit);
 
     // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
     return (params: any) => {
@@ -64,7 +71,7 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
         if (target && timeSec <= target.xs[target.xs.length - 1]) {
             for (let i = target.xs.length - 1; i >= 0; i--) {
                 if (timeSec < target.xs[i]) continue;
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dotted ${colors.controlHeat}"></div>Heat target: <span>${Math.round(target.values[i])}%</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dotted ${colors.controlHeat}"></div>Heat target: <span>${heat(Math.round(target.values[i]))}</span></div>`;
                 break;
             }
         }
@@ -79,11 +86,11 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
             if (p.seriesName === 'RoR Target' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.rorTarget}"></div>Target RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
             if (p.seriesName === 'Drum Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlDrumTarget}"></div>Target Drum: <span>${y} RPM</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlDrumTarget}"></div>Target Drum: <span>${drum(y)}</span></div>`;
             if (p.seriesName === 'Heater Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlHeatTarget}"></div>Target Heater: <span>${y}%</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlHeatTarget}"></div>Target Heater: <span>${heat(y)}</span></div>`;
             if (p.seriesName === 'Fan Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlFanTarget}"></div>Target Fan: <span>${y}%</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlFanTarget}"></div>Target Fan: <span>${fan(y)}</span></div>`;
             if (p.seriesName === 'BT Actual' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'ET Actual' && showET && y != null)
@@ -93,13 +100,13 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
             if (p.seriesName === 'ET RoR' && showRoRET && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.etActual}"></div>ET RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
             if (controlData && p.seriesName === 'Drum' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${y} RPM</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${drum(y)}</span></div>`;
             if (controlData && p.seriesName === 'Heat' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${y}%</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${heat(y)}</span></div>`;
             if (controlData && p.seriesName === 'Heat set' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlHeat}"></div>Heat set: <span>${Math.round(y)}%</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlHeat}"></div>Heat set: <span>${heat(Math.round(y))}</span></div>`;
             if (controlData && p.seriesName === 'Fan' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${y}%</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${fan(y)}</span></div>`;
         }
         return html;
     };
