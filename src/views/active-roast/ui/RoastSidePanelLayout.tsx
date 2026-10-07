@@ -65,7 +65,7 @@ export const RoastSidePanelLayout = ({
                     id={logPanelId}
                     aria-label={t('activeRoast.log.title')}
                     data-testid="roast-log-panel"
-                    className="flex w-40 min-h-0 shrink-0 self-stretch flex-col border-l border-border-subtle bg-roast-bg px-1 pb-1"
+                    className="flex w-40 min-h-0 shrink-0 self-stretch flex-col border-l border-border-subtle bg-roast-bg pl-3 pr-1 pb-5"
                 >
                     <div className="flex shrink-0 items-center justify-between py-1">
                         <h3 className="text-xs font-semibold uppercase text-muted">{t('activeRoast.log.title')}</h3>
@@ -81,7 +81,7 @@ export const RoastSidePanelLayout = ({
                     </div>
                     <div className="min-h-0 overflow-y-auto break-words [overflow-wrap:anywhere]">
                         <RoastLog
-                            variant="panel"
+                            variant="main"
                             entries={[...roastLogDisplayEntries].reverse()}
                             onRemoveEntry={onRemoveLogEntry}
                         />
