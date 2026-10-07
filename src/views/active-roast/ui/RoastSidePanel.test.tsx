@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
+import { updateRoastSettings } from '@features/active-roast/model/settings';
 import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -11,6 +12,11 @@ import { RoastSidePanel } from './RoastSidePanel';
 
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (key: string) => key.split('.').pop() ?? key }),
+}));
+
+vi.mock('@shared/lib/settings-store', () => ({
+    settingsGet: vi.fn().mockResolvedValue(undefined),
+    settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
 const noop = () => undefined;
@@ -57,6 +63,7 @@ describe('RoastSidePanel live readings (#358)', () => {
     let root: Root;
 
     beforeEach(() => {
+        updateRoastSettings({ logExpanded: false });
         container = document.createElement('div');
         document.body.appendChild(container);
         root = createRoot(container);
@@ -165,5 +172,17 @@ describe('RoastSidePanel live readings (#358)', () => {
         act(() => (container.querySelector('[data-testid="roast-log-panel"] button') as HTMLButtonElement).click());
         expect(document.activeElement).toBe(trigger);
         expect(container.querySelector('[data-testid="roast-log-panel"]')).toBeNull();
+    });
+    it('keeps expanded and collapsed log choices across remounts', () => {
+        renderPanel();
+        act(() => (container.querySelector('[aria-expanded]') as HTMLButtonElement).click());
+        act(() => root.render(null));
+        renderPanel();
+        expect(container.querySelector('[data-testid="roast-log-panel"]')).not.toBeNull();
+        act(() => (container.querySelector('[data-testid="roast-log-panel"] button') as HTMLButtonElement).click());
+        act(() => root.render(null));
+        renderPanel();
+        expect(container.querySelector('[data-testid="roast-log-panel"]')).toBeNull();
+        expect(container.querySelector('[aria-expanded]')?.getAttribute('aria-expanded')).toBe('false');
     });
 });

@@ -62,7 +62,7 @@ for (const machineControl of [false, true]) {
                 const after = await chart.boundingBox();
                 if (!after) throw new Error('Chart is missing after opening log');
                 expect(position).toBe('static');
-                expect(before.width - after.width).toBe(256);
+                expect(before.width - after.width).toBe(160);
                 const logBox = await panel.boundingBox();
                 const sideBox = await sidePanel.boundingBox();
                 if (!logBox || !sideBox) throw new Error('Side panels are missing');
@@ -88,7 +88,7 @@ for (const machineControl of [false, true]) {
                             'position:fixed;bottom:4px;left:80px;z-index:9999;background:#fff;color:#171717;font:12px monospace;padding:4px;border:1px solid #777';
                         document.body.appendChild(badge);
                     },
-                    `Chart canvas ${Math.round(plot.width)} × ${Math.round(plot.height)} CSS px · ${viewport.width} × ${viewport.height} · docked log 256px`,
+                    `Chart canvas ${Math.round(plot.width)} × ${Math.round(plot.height)} CSS px · ${viewport.width} × ${viewport.height} · docked log 160px`,
                 );
                 await testInfo.attach(
                     `${viewport.width}-${dark ? 'dark' : 'light'}-chart-${Math.round(after.width)}x${Math.round(after.height)}`,

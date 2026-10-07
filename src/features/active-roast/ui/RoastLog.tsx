@@ -91,8 +91,15 @@ export const RoastLog = ({
                                 }}
                             />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: isSidebar ? 6 : 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    alignItems: 'center',
+                                    gap: isSidebar ? 6 : 8,
+                                }}
+                            >
                                 <span
                                     style={{
                                         fontSize: isSidebar ? 12 : 13,

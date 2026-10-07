@@ -1,7 +1,8 @@
+import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Minus, Plus } from 'lucide-react';
-import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export const RoastSidePanelLayout = ({
@@ -14,7 +15,7 @@ export const RoastSidePanelLayout = ({
     onRemoveLogEntry: (id: string) => void;
 }) => {
     const { t } = useTranslation();
-    const [logExpanded, setLogExpanded] = useState(false);
+    const { logExpanded } = useRoastSettings();
     const logPanelId = useId();
     const logTriggerRef = useRef<HTMLButtonElement>(null);
     const logCloseRef = useRef<HTMLButtonElement>(null);
@@ -22,7 +23,7 @@ export const RoastSidePanelLayout = ({
         if (logExpanded) logCloseRef.current?.focus();
     }, [logExpanded]);
     const closeLog = () => {
-        setLogExpanded(false);
+        updateRoastSettings({ logExpanded: false });
         logTriggerRef.current?.focus();
     };
     return (
@@ -41,7 +42,7 @@ export const RoastSidePanelLayout = ({
                         aria-label={t(logExpanded ? 'activeRoast.log.collapse' : 'activeRoast.log.expand')}
                         aria-expanded={logExpanded}
                         aria-controls={logPanelId}
-                        onClick={() => (logExpanded ? closeLog() : setLogExpanded(true))}
+                        onClick={() => (logExpanded ? closeLog() : updateRoastSettings({ logExpanded: true }))}
                         className="flex size-6 shrink-0 items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface cursor-pointer"
                     >
                         {logExpanded ? <Minus size={14} /> : <Plus size={14} />}
@@ -68,7 +69,7 @@ export const RoastSidePanelLayout = ({
                             closeLog();
                         }
                     }}
-                    className="flex w-64 min-h-0 shrink-0 self-stretch flex-col border-l border-border-subtle bg-roast-bg px-3 pb-5"
+                    className="flex w-40 min-h-0 shrink-0 self-stretch flex-col border-l border-border-subtle bg-roast-bg px-3 pb-5"
                 >
                     <div className="flex shrink-0 items-center justify-between py-1">
                         <h3 className="text-xs font-semibold uppercase text-muted">{t('activeRoast.log.title')}</h3>

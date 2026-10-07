@@ -60,6 +60,7 @@ export type RoastSettings = {
     showRoRChart: boolean;
     showRoRET: boolean;
     showControlChart: boolean;
+    logExpanded: boolean;
     /** Drum / Heat / Fan series on the control band */
     showControlDrum: boolean;
     showControlHeat: boolean;
@@ -181,6 +182,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showRoRChart: true,
     showRoRET: false,
     showControlChart: true,
+    logExpanded: false,
     showControlDrum: true,
     showControlHeat: true,
     showControlFan: true,
@@ -368,6 +370,7 @@ export const normalizeRoastSettings = (
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)
             ? merged.eventMarkerStyle
             : DEFAULT_SETTINGS.eventMarkerStyle,
+        logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
