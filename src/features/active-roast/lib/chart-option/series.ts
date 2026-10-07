@@ -24,18 +24,6 @@ import * as echarts from 'echarts';
 import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
-// 커피 로스팅 차트에 최적화된 스무딩 설정
-// - BT(Bean Temp): 0.4 → 실측 느낌 유지, 과한 곡선화 방지
-// - ET(Environment Temp): 0.35 → BT보다 약간 덜 휘게
-// - RoR(Rate of Rise): 0.25 → 센서 노이즈 많아서 상대적으로 더 부드럽게
-// - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
-// - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
-export const getSmoothConfig = (strength: number = 0.4) => ({
-    smooth: strength,
-    smoothMonotone: 'x' as const,
-    sampling: 'lttb' as const,
-});
-
 export const lineSeriesBase = {
     showSymbol: false,
     emphasis: { disabled: true },
@@ -141,7 +129,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, btActual[i]]),
             lineStyle: { color: colors.btActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.4),
             markLine:
                 allMarkLines.length > 0 || tempBottomBorderLine
                     ? {
@@ -170,7 +157,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, etActual[i]]),
             lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.35),
         },
         showRoR && {
             name: 'RoR',
@@ -180,7 +166,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, rorActual[i]]),
             lineStyle: { color: colors.rorActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.25),
         },
         showRoR &&
             showRoRET && {
@@ -191,7 +176,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
                 lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH, type: 'dashed' },
                 ...lineSeriesBase,
-                ...getSmoothConfig(0.25),
             },
     ].filter(Boolean) as object[];
 };
@@ -278,7 +262,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data: cxs.map((x, i) => [x, drumTemp[i]]),
             lineStyle: { color: colors.controlDrum, width: CONTROL_CURVE_WIDTH },
             ...lineSeriesBase,
-            smooth: 0.3,
+            smooth: false,
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다
