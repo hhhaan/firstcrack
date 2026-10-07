@@ -138,4 +138,5 @@ src-tauri/gen/schemas/
 
 # Local agent dirs
 .agents/skills/*/.local/
+.agents/skills/react-doctor/
 .cursor/*.log
