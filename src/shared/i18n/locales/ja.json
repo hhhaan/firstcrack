@@ -325,7 +325,31 @@
                 "alertBeforeDrop": "排出前",
                 "alertBeforeDropDescription": "ターゲットプロファイルの Drop のこの分数前に知らせます。Drop マークがあるターゲットプロファイルが必要です。",
                 "alertAfterDrop": "排出後",
-                "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。"
+                "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。",
+                "curveStyles": "カーブスタイル",
+                "curveStylesDescription": "チャンネルごとの色と太さ、現在のカーブと背景リファレンスの線種を個別に設定します。ロースト画面と履歴チャートに適用されます。背景カーブは灰色の実線で、チャンネル色を指定するとその色を薄く表示します。",
+                "curveStyleChannel": "チャンネル",
+                "curveStyleChannelBt": "BT",
+                "curveStyleChannelEt": "ET",
+                "curveStyleChannelRor": "BT RoR",
+                "curveStyleChannelEtRor": "ET RoR",
+                "curveStyleColor": "色",
+                "curveStyleCurrent": "現在",
+                "curveStyleBackground": "背景",
+                "curveStyleWidth": "太さ",
+                "curveStyleLine": "線",
+                "curveStyleCurrentWidth": "現在の太さ",
+                "curveStyleCurrentLine": "現在の線",
+                "curveStyleBackgroundWidth": "背景の太さ",
+                "curveStyleBackgroundLine": "背景の線",
+                "curveStyleNoBackground": "背景カーブなし",
+                "curveStyleThemeColor": "テーマ色を使用",
+                "curveStylesReset": "初期値に戻す",
+                "curveLineType": {
+                    "solid": "実線",
+                    "dashed": "破線",
+                    "dotted": "点線"
+                }
             },
             "account": {
                 "label": "プロフィール",
@@ -678,6 +702,8 @@
             "drum": "ドラム"
         },
         "log": {
+            "expand": "焙煎ログを展開",
+            "collapse": "焙煎ログを折りたたむ",
             "title": "ローストログ",
             "deleteNote": "ノート削除"
         },

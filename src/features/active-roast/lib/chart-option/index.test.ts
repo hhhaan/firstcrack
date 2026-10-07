@@ -3,11 +3,13 @@ import {
     EVENT_MARK_LINE_WIDTH,
     MARKER_LABEL_FONT,
     markerLabelFont,
+    REFERENCE_CURVE_OPACITY,
     TEMP_CURVE_WIDTH,
 } from '@features/active-roast/lib/chart-config';
 import * as echarts from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
 import { deadbandSpanForChannel, resolveControlUnits } from '../control-channels';
+import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '../curve-style';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams } from './types';
@@ -795,7 +797,7 @@ describe('buildRoastChartOption', () => {
         yAxisIndex?: number;
         z?: number;
         data?: unknown;
-        lineStyle?: { color?: string; width?: number; type?: string };
+        lineStyle?: { color?: string; width?: number; type?: string; opacity?: number };
     };
     const seriesByName = (params: ChartOptionParams) => {
         const byName: Record<string, NamedSeries> = {};
@@ -829,7 +831,12 @@ describe('buildRoastChartOption', () => {
             lineStyle: { color: mockColors.reference, width: TEMP_CURVE_WIDTH, type: 'solid' },
         });
         expect(byName['BT Target']).toMatchObject({
-            lineStyle: { color: mockColors.reference, width: TEMP_CURVE_WIDTH, type: 'solid' },
+            lineStyle: {
+                color: mockColors.reference,
+                width: TEMP_CURVE_WIDTH,
+                type: 'solid',
+                opacity: REFERENCE_CURVE_OPACITY,
+            },
         });
         expect(byName['Drum Target']).toMatchObject({
             xAxisIndex: 1,
@@ -884,6 +891,40 @@ describe('buildRoastChartOption', () => {
         chart.dispose();
         expect(svg).toContain('#123456');
         expect(svg).toContain('stroke-dasharray');
+    });
+
+    it('applies user curve styles per channel without changing data, gaps, or the heat step roles', () => {
+        const curveStyles = {
+            ...DEFAULT_CURVE_STYLES,
+            bt: { ...DEFAULT_CURVE_STYLES.bt, color: '#ff0000' },
+            ror: { ...DEFAULT_CURVE_STYLES.ror, backgroundLineType: 'solid' as const, backgroundWidth: 3 },
+            heat: { ...DEFAULT_CURVE_STYLES.heat, color: '#112233', width: 2.5, lineType: 'dotted' as const },
+        };
+        const plain = seriesByName({ ...baseParams(), ...fullReference });
+        const styled = seriesByName({ ...baseParams(), ...fullReference, curveStyles });
+
+        expect(styled['BT Actual']?.lineStyle).toEqual({ color: '#ff0000', width: TEMP_CURVE_WIDTH, type: 'solid' });
+        expect(styled['BT Target']?.lineStyle).toEqual({ color: '#ff00008c', width: TEMP_CURVE_WIDTH, type: 'solid' });
+        expect(styled['RoR Target']?.lineStyle).toEqual({
+            color: mockColors.reference,
+            width: 3,
+            type: 'solid',
+            opacity: REFERENCE_CURVE_OPACITY,
+        });
+        expect(styled.RoR?.lineStyle).toEqual(plain.RoR?.lineStyle);
+        expect(styled['ET Actual']?.lineStyle).toEqual(plain['ET Actual']?.lineStyle);
+        expect(styled.Heat?.lineStyle).toEqual({ color: '#112233', width: 2.5, type: 'solid' });
+        expect(styled['Heat set']).toMatchObject({ step: 'end', lineStyle: { color: '#112233', type: 'dashed' } });
+        expect(styled['Heat target']).toMatchObject({ step: 'end', lineStyle: { color: '#112233', type: 'dotted' } });
+        expect(styled.Heat?.lineStyle?.type).not.toBe(styled['Heat target']?.lineStyle?.type);
+        expect(styled.Heat?.lineStyle?.type).not.toBe(styled['Heat set']?.lineStyle?.type);
+        const lineNames = Object.keys(plain).filter((name) => (plain[name] as { type?: string }).type === 'line');
+        expect(lineNames).toContain('RoR Target');
+        for (const name of lineNames) {
+            const { lineStyle: _a, color: _c, ...rest } = plain[name] as NamedSeries & { color?: string };
+            const { lineStyle: _b, color: _d, ...styledRest } = styled[name] as NamedSeries & { color?: string };
+            expect(styledRest).toEqual(rest);
+        }
     });
 
     it('omits reference channels that were not stored', () => {
@@ -1134,5 +1175,45 @@ describe('buildRoastChartOption', () => {
             .map((child) => child.style?.text)
             .filter((text): text is string => Boolean(text));
         expect(labels).not.toContain('502');
+    });
+
+    it('paints control change labels with the resolved drum curve color', () => {
+        const drumColor = '#cc00dd';
+        const curveStyles = { ...DEFAULT_CURVE_STYLES, drum: { ...DEFAULT_CURVE_STYLES.drum, color: drumColor } };
+        const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(mockColors));
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            curveStyles,
+            controlData: {
+                xs: [0, 60, 120],
+                drumTemp: [50, 60, 60],
+                heatPower: [40, 40, 40],
+                fanSpeed: [20, 20, 20],
+                changeLabels: {
+                    xs: [0, 60, 120],
+                    drumTemp: [50, 60, 60],
+                    heatPower: [40, 40, 40],
+                    fanSpeed: [20, 20, 20],
+                },
+            },
+        });
+        const labelSeries = (
+            option.series as {
+                id?: string;
+                renderItem?: (
+                    params: unknown,
+                    api: unknown,
+                ) => { children?: { style?: { fill?: string; text?: string } }[] };
+            }[]
+        ).find((series) => series.id === 'control-change-labels');
+        const rendered = labelSeries?.renderItem?.(
+            { dataIndex: 0, coordSys: { x: 0, y: 0, width: 600, height: 80 } },
+            { coord: ([x]: number[]) => [(x / 120) * 600, 40] },
+        );
+        const fills = (rendered?.children ?? [])
+            .filter((child) => child.style?.text === '60')
+            .map((child) => child.style?.fill);
+        expect(fills).toContain(curves.drum.current.color);
+        expect(fills).toContain(drumColor);
     });
 });

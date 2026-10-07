@@ -1,21 +1,22 @@
-import { CONTROL_COLORS } from '@features/active-roast/lib/chart-config';
 import type { ControlReadoutEntry, ControlReadoutGroups } from '@features/active-roast/lib/control-readout';
+import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import { Clock, Unplug } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CurveSwatch } from './CurveSwatch';
 
-const Swatch = ({ entry }: { entry: ControlReadoutEntry }) => {
-    const color = CONTROL_COLORS[entry.channel];
-    if (entry.kind === 'measured') return <span className="h-0.5 w-3 shrink-0" style={{ background: color }} />;
-    return (
-        <span
-            className="h-0 w-3 shrink-0 border-t"
-            style={{ borderColor: color, borderTopStyle: entry.kind === 'set' ? 'dashed' : 'dotted' }}
-        />
-    );
+const swatchStyle = (entry: ControlReadoutEntry, curves: ResolvedCurveStyles): CurveLineStyle => {
+    const channelCurves = curves[entry.channel];
+    if (entry.kind === 'measured') return channelCurves.current;
+    if (entry.kind === 'set') return { ...channelCurves.current, type: 'dashed' };
+    return { ...channelCurves.background, type: 'dotted' };
 };
 
-const Entry = ({ entry }: { entry: ControlReadoutEntry }) => {
+const Swatch = ({ entry, curves }: { entry: ControlReadoutEntry; curves: ResolvedCurveStyles }) => (
+    <CurveSwatch style={swatchStyle(entry, curves)} />
+);
+
+const Entry = ({ entry, curves }: { entry: ControlReadoutEntry; curves: ResolvedCurveStyles }) => {
     const { t } = useTranslation();
     const measured = entry.kind === 'measured';
     const label = measured ? entry.label : t(`activeRoast.chart.controlReadout.${entry.kind}`);
@@ -33,7 +34,7 @@ const Entry = ({ entry }: { entry: ControlReadoutEntry }) => {
         );
     return (
         <span className={`flex items-center gap-1 whitespace-nowrap ${measured ? '' : 'text-muted'}`}>
-            <Swatch entry={entry} />
+            <Swatch entry={entry} curves={curves} />
             <span className={measured ? 'text-muted' : ''}>{label}</span>
             {value}
         </span>
@@ -44,10 +45,12 @@ const Group = ({
     entries,
     side,
     unit,
+    curves,
 }: {
     entries: ControlReadoutEntry[];
     side: 'left' | 'right' | 'own';
     unit: string | null;
+    curves: ResolvedCurveStyles;
 }) => {
     const { t } = useTranslation();
     if (entries.length === 0) return null;
@@ -58,7 +61,7 @@ const Group = ({
     return (
         <div role="group" className="flex min-w-0 items-center gap-3" title={title} aria-label={title}>
             {entries.map((entry) => (
-                <Entry key={entry.key} entry={entry} />
+                <Entry key={entry.key} entry={entry} curves={curves} />
             ))}
         </div>
     );
@@ -68,7 +71,15 @@ const Group = ({
  * Always-visible current values under the control band. Left group = left axis curves,
  * right group = right axis curves, so each number sits on the side of its scale.
  */
-export const ControlReadoutStrip = ({ groups, style }: { groups: ControlReadoutGroups; style: CSSProperties }) => {
+export const ControlReadoutStrip = ({
+    groups,
+    style,
+    curves,
+}: {
+    groups: ControlReadoutGroups;
+    style: CSSProperties;
+    curves: ResolvedCurveStyles;
+}) => {
     const { t } = useTranslation();
     const status =
         groups.state === 'offline' ? (
@@ -90,12 +101,12 @@ export const ControlReadoutStrip = ({ groups, style }: { groups: ControlReadoutG
             style={style}
         >
             <div className="flex min-w-0 items-center gap-3">
-                <Group entries={groups.left} side="left" unit={groups.leftUnit} />
+                <Group entries={groups.left} side="left" unit={groups.leftUnit} curves={curves} />
                 {status}
             </div>
             <div className="flex min-w-0 items-center gap-3">
-                <Group entries={groups.ownScale} side="own" unit={null} />
-                <Group entries={groups.right} side="right" unit={groups.rightUnit} />
+                <Group entries={groups.ownScale} side="own" unit={null} curves={curves} />
+                <Group entries={groups.right} side="right" unit={groups.rightUnit} curves={curves} />
             </div>
         </div>
     );

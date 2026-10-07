@@ -1,4 +1,6 @@
+import { REFERENCE_CURVE_OPACITY } from '@features/active-roast/lib/chart-config';
 import { describe, expect, it } from 'vitest';
+import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '../curve-style';
 import { mockChartColors as colors } from './chart-colors.fixture';
 import { createAxisTooltipFormatter, lastDrawnSampleSec } from './tooltip';
 
@@ -9,7 +11,7 @@ const formatterOpts = {
     showControlHeat: true,
     unitLabel: '°C',
     rorUnit: '°C/min',
-    colors,
+    curves: resolveCurveStyles(DEFAULT_CURVE_STYLES, canvasCurveTokens(colors)),
     dataEndSec: 180,
 };
 
@@ -68,6 +70,27 @@ describe('createAxisTooltipFormatter', () => {
         const html = fmt([{ axisValue: 90, seriesName: 'Fan', value: [90, 20] }]);
         expect(html).toContain('Fan:');
         expect(html).not.toContain('Heat target');
+    });
+
+    it('draws each row swatch with the same color, width, and dash as its line', () => {
+        const curves = resolveCurveStyles(
+            {
+                ...DEFAULT_CURVE_STYLES,
+                bt: { ...DEFAULT_CURVE_STYLES.bt, color: '#ff0000', width: 3 },
+                ror: { ...DEFAULT_CURVE_STYLES.ror, backgroundLineType: 'solid', backgroundWidth: 2.5 },
+            },
+            canvasCurveTokens(colors),
+        );
+        const html = createAxisTooltipFormatter({ ...formatterOpts, curves })([
+            { axisValue: 30, seriesName: 'BT Actual', value: [30, 120] },
+            { axisValue: 30, seriesName: 'RoR Target', value: [30, 6] },
+            { axisValue: 30, seriesName: 'ET Actual', value: [30, 140] },
+        ]);
+        expect(html).toContain('border-top:3px solid #ff0000;flex-shrink:0"></span>Bean Temp');
+        expect(html).toContain(
+            `border-top:2.5px solid ${colors.reference};opacity:${REFERENCE_CURVE_OPACITY};flex-shrink:0`,
+        );
+        expect(html).toContain(`border-top:1.8px solid ${colors.etActual}`);
     });
 
     it('hides target-only tooltip past the drawn curve', () => {

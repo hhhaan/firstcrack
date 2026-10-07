@@ -28,6 +28,7 @@ import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-d
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
+import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
@@ -309,6 +310,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const roastSettings = useRoastSettings();
+    const { curveStyles } = roastSettings;
+    const curves = useCurveStyles();
     const fontScale = roastSettings.fontScalePct / 100;
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
     const yRangeInterval = usesCustomTickList(roastSettings) ? undefined : axisSettings.tempGridInterval;
@@ -436,6 +439,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 hideChargeLabel,
                 fontScale,
                 colors,
+                curveStyles,
             }),
         [
             report,
@@ -487,6 +491,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             bbpRange,
             hideChargeLabel,
             fontScale,
+            curveStyles,
         ],
     );
 
@@ -1160,6 +1165,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 chartReadoutActive={chartReadoutActive}
                 controlData={controlData}
                 controlUnits={controlUnits}
+                curves={curves}
                 controlYMin={controlYMin}
                 controlYMax={controlYMax}
                 currentTimeSec={currentTimeSec}

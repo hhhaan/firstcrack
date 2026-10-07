@@ -325,7 +325,31 @@
                 "alertBeforeDrop": "배출 전",
                 "alertBeforeDropDescription": "타깃 프로파일 Drop 이 시간 전에 알립니다. Drop 마크가 있는 타깃 프로파일이 필요합니다.",
                 "alertAfterDrop": "배출 후",
-                "alertAfterDropDescription": "Drop 후 이 시간이 지나면 알립니다. 타이머는 로스팅 종료까지 계속 갑니다."
+                "alertAfterDropDescription": "Drop 후 이 시간이 지나면 알립니다. 타이머는 로스팅 종료까지 계속 갑니다.",
+                "curveStyles": "곡선 스타일",
+                "curveStylesDescription": "채널별 색상·두께와, 현재 곡선·배경 참조 곡선의 선 모양을 따로 정합니다. 로스팅 화면과 기록 차트에 함께 적용됩니다. 배경 곡선은 회색 실선이며, 채널 색을 정하면 그 색을 옅게 씁니다.",
+                "curveStyleChannel": "채널",
+                "curveStyleChannelBt": "BT",
+                "curveStyleChannelEt": "ET",
+                "curveStyleChannelRor": "BT RoR",
+                "curveStyleChannelEtRor": "ET RoR",
+                "curveStyleColor": "색상",
+                "curveStyleCurrent": "현재",
+                "curveStyleBackground": "배경",
+                "curveStyleWidth": "두께",
+                "curveStyleLine": "선",
+                "curveStyleCurrentWidth": "현재 두께",
+                "curveStyleCurrentLine": "현재 선",
+                "curveStyleBackgroundWidth": "배경 두께",
+                "curveStyleBackgroundLine": "배경 선",
+                "curveStyleNoBackground": "배경 곡선 없음",
+                "curveStyleThemeColor": "테마 색 사용",
+                "curveStylesReset": "기본값으로 되돌리기",
+                "curveLineType": {
+                    "solid": "실선",
+                    "dashed": "파선",
+                    "dotted": "점선"
+                }
             },
             "account": {
                 "label": "프로필",
@@ -1054,6 +1078,8 @@
             "markDrop": "⌘DD"
         },
         "log": {
+            "expand": "로스팅 로그 펼치기",
+            "collapse": "로스팅 로그 접기",
             "title": "로스팅 로그",
             "deleteNote": "메모 삭제"
         },

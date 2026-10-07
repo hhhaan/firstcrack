@@ -1,7 +1,11 @@
-import { CHART_COLORS, REFERENCE_CURVE_OPACITY } from '@features/active-roast/lib/chart-config';
+import { CHART_COLORS } from '@features/active-roast/lib/chart-config';
+import { type CurveLineStyle, curveSwatchCss, type ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import { type ControlUnits, DEFAULT_CONTROL_UNITS, withUnit } from '../control-channels';
 import { fmtSec } from './axes';
-import type { ControlData, ResolvedChartColors } from './types';
+import type { ControlData } from './types';
+
+const tooltipRow = (style: CurveLineStyle, label: string, value: string) =>
+    `<div style="display:flex;gap:6px;align-items:center"><span style="${curveSwatchCss(style)}"></span>${label}: <span>${value}</span></div>`;
 
 const DRAWN_TOOLTIP_SERIES = new Set(['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Drum', 'Heat', 'Heat set', 'Fan']);
 
@@ -16,7 +20,7 @@ export interface TooltipFormatterParams {
     controlUnits?: ControlUnits;
     unitLabel: string;
     rorUnit: string;
-    colors: ResolvedChartColors;
+    curves: ResolvedCurveStyles;
     /** Last x with a drawn actual/control sample. Hover past this hides the tooltip. */
     dataEndSec: number;
 }
@@ -48,11 +52,37 @@ export const lastDrawnSampleSec = (
 };
 
 export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
-    const { showET, showRoR, showRoRET, showControlHeat, controlData, unitLabel, rorUnit, colors, dataEndSec } = opts;
+    const { showET, showRoR, showRoRET, showControlHeat, controlData, unitLabel, rorUnit, curves, dataEndSec } = opts;
     const units = opts.controlUnits ?? DEFAULT_CONTROL_UNITS;
     const drum = (v: number) => withUnit(String(v), units.drum.unit);
     const heat = (v: number) => withUnit(String(v), units.heat.unit);
     const fan = (v: number) => withUnit(String(v), units.fan.unit);
+    const temp = (y: number) => `${y.toFixed(1)}${unitLabel}`;
+    const ror = (y: number) => `${y.toFixed(1)}${rorUnit}`;
+    const control = !!controlData;
+    const tooltipRows: Partial<
+        Record<string, { style: CurveLineStyle; label: string; format: (y: number) => string; visible: boolean }>
+    > = {
+        'BT Target': { style: curves.bt.background, label: 'Target BT', format: temp, visible: true },
+        'ET Target': { style: curves.et.background, label: 'Target ET', format: temp, visible: true },
+        'RoR Target': { style: curves.ror.background, label: 'Target RoR', format: ror, visible: true },
+        'Drum Target': { style: curves.drum.background, label: 'Target Drum', format: drum, visible: true },
+        'Heater Target': { style: curves.heat.background, label: 'Target Heater', format: heat, visible: true },
+        'Fan Target': { style: curves.fan.background, label: 'Target Fan', format: fan, visible: true },
+        'BT Actual': { style: curves.bt.current, label: 'Bean Temp', format: temp, visible: true },
+        'ET Actual': { style: curves.et.current, label: 'Env Temp', format: temp, visible: showET },
+        RoR: { style: curves.ror.current, label: 'RoR', format: ror, visible: showRoR },
+        'ET RoR': { style: curves.etRor.current, label: 'ET RoR', format: ror, visible: showRoRET },
+        Drum: { style: curves.drum.current, label: 'Drum', format: drum, visible: control },
+        Heat: { style: curves.heat.current, label: 'Heat', format: heat, visible: control },
+        'Heat set': {
+            style: { ...curves.heat.current, type: 'dashed' },
+            label: 'Heat set',
+            format: (y) => heat(Math.round(y)),
+            visible: control,
+        },
+        Fan: { style: curves.fan.current, label: 'Fan', format: fan, visible: control },
+    };
 
     // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
     return (params: any) => {
@@ -71,7 +101,11 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
         if (target && timeSec <= target.xs[target.xs.length - 1]) {
             for (let i = target.xs.length - 1; i >= 0; i--) {
                 if (timeSec < target.xs[i]) continue;
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dotted ${colors.controlHeat}"></div>Heat target: <span>${heat(Math.round(target.values[i]))}</span></div>`;
+                html += tooltipRow(
+                    { ...curves.heat.current, type: 'dotted' },
+                    'Heat target',
+                    heat(Math.round(target.values[i])),
+                );
                 break;
             }
         }
@@ -79,34 +113,9 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
         // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
         for (const p of items as any[]) {
             const y = p.value?.[1];
-            if (p.seriesName === 'BT Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
-            if (p.seriesName === 'ET Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target ET: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
-            if (p.seriesName === 'RoR Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
-            if (p.seriesName === 'Drum Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target Drum: <span>${drum(y)}</span></div>`;
-            if (p.seriesName === 'Heater Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target Heater: <span>${heat(y)}</span></div>`;
-            if (p.seriesName === 'Fan Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target Fan: <span>${fan(y)}</span></div>`;
-            if (p.seriesName === 'BT Actual' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
-            if (p.seriesName === 'ET Actual' && showET && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
-            if (p.seriesName === 'RoR' && showRoR && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
-            if (p.seriesName === 'ET RoR' && showRoRET && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.etActual}"></div>ET RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
-            if (controlData && p.seriesName === 'Drum' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${drum(y)}</span></div>`;
-            if (controlData && p.seriesName === 'Heat' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${heat(y)}</span></div>`;
-            if (controlData && p.seriesName === 'Heat set' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlHeat}"></div>Heat set: <span>${heat(Math.round(y))}</span></div>`;
-            if (controlData && p.seriesName === 'Fan' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${fan(y)}</span></div>`;
+            if (y == null) continue;
+            const row = tooltipRows[p.seriesName];
+            if (row?.visible) html += tooltipRow(row.style, row.label, row.format(y));
         }
         return html;
     };

@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 
+import { mockChartColors as mockColors } from '@features/active-roast/lib/chart-option/chart-colors.fixture';
 import { layoutControlAxes, resolveControlUnits } from '@features/active-roast/lib/control-channels';
 import { buildControlLiveReadout, buildControlReadoutGroups } from '@features/active-roast/lib/control-readout';
+import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -46,9 +48,15 @@ describe('ControlReadoutStrip', () => {
             live,
             hasHeatSet: false,
         });
-        act(() => root.render(createElement(ControlReadoutStrip, { groups, style: {} })));
+        const curves = resolveCurveStyles(
+            { ...DEFAULT_CURVE_STYLES, drum: { ...DEFAULT_CURVE_STYLES.drum, color: '#aabbcc' } },
+            canvasCurveTokens(mockColors),
+        );
+        act(() => root.render(createElement(ControlReadoutStrip, { groups, style: {}, curves })));
         expect(container.querySelector('[data-testid="control-readout"]')?.getAttribute('data-state')).toBe('stale');
         expect(container.textContent).toContain('activeRoast.chart.controlReadout.stale');
         expect(container.querySelector('[data-testid="control-readout-drum"]')?.textContent).toContain('55');
+        const swatch = container.querySelector('[aria-hidden="true"]') as HTMLElement | null;
+        expect(swatch?.style.borderTop).toContain('rgb(170, 187, 204)');
     });
 });

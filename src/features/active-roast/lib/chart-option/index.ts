@@ -1,4 +1,5 @@
 import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-config';
+import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
 import {
@@ -133,7 +134,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         hideChargeLabel = false,
         fontScale: fontScaleRaw,
         colors,
+        curveStyles = DEFAULT_CURVE_STYLES,
     } = params;
+    const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
 
     const fontScale = chartFontScale(fontScaleRaw);
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
@@ -159,7 +162,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         controlUnits,
         unitLabel,
         rorUnit,
-        colors,
+        curves,
         dataEndSec,
     });
 
@@ -277,7 +280,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showET,
         showRoR,
         showRoRET,
-        colors,
+        curves,
         allMarkLines,
         markPointData,
         fcMarkArea,
@@ -337,7 +340,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             showControlDrum: liveControlDrum,
             showControlHeat: liveControlHeat,
             showControlFan: liveControlFan,
-            colors,
+            curves,
             controlGuideMarkLines,
             axisOf: controlAxes.axisOf,
         });
@@ -350,9 +353,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             fanSpeed: controlData.fanSpeed,
         };
         const measured: [ControlChannel, boolean, (number | null)[], string][] = [
-            ['drum', liveControlDrum, labelSeries.drumTemp, colors.controlDrum],
-            ['heat', liveControlHeat, labelSeries.heatPower, colors.controlHeat],
-            ['fan', liveControlFan, labelSeries.fanSpeed, colors.controlFan],
+            ['drum', liveControlDrum, labelSeries.drumTemp, curves.drum.current.color],
+            ['heat', liveControlHeat, labelSeries.heatPower, curves.heat.current.color],
+            ['fan', liveControlFan, labelSeries.fanSpeed, curves.fan.current.color],
         ];
         const units = params.controlUnits ?? DEFAULT_CONTROL_UNITS;
         // Always present so a zoom that culls every label still clears the previous frame.

@@ -1,6 +1,5 @@
 import type { PhaseSegment, TemperatureUnit } from '@features/active-roast';
 import {
-    CONTROL_CURVE_WIDTH,
     CONTROL_GRID_BOTTOM,
     MARKER_LABEL_CANVAS_GUTTER_PX,
     MARKER_LABEL_MAX_WIDTH_PX,
@@ -14,10 +13,9 @@ import {
     PHASE_BAR_STROKE_WIDTH,
     PHASE_BAR_TEXT_INSET,
     PHASE_BAR_WIDE_THRESHOLD,
-    REFERENCE_CURVE_OPACITY,
     scaleChartPx,
-    TEMP_CURVE_WIDTH,
 } from '@features/active-roast/lib/chart-config';
+import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
@@ -33,15 +31,14 @@ export const lineSeriesBase = {
 const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>
     values?.some((value) => value != null) ?? false;
 
-/** Stored reference: neutral gray solid background line, behind the live curve. Gaps stay broken. */
+/** Stored reference behind the live curve. Default is gray and solid; curve styles can override it. Gaps stay broken. */
 const referenceLineSeries = (
     name: string,
     xs: number[],
     values: readonly (number | null)[],
-    color: string,
+    style: CurveLineStyle,
     xAxisIndex: number,
     yAxisIndex: number,
-    width: number,
 ) => ({
     id: `ref-${name}`,
     name,
@@ -51,9 +48,8 @@ const referenceLineSeries = (
     z: 1,
     data: xs.map((x, i) => [x, values[i] ?? null]),
     connectNulls: false,
-    lineStyle: { color, width, type: 'solid' as const, opacity: REFERENCE_CURVE_OPACITY },
+    lineStyle: { ...style },
     ...lineSeriesBase,
-    smooth: false,
 });
 
 export interface TempSeriesParams {
@@ -73,7 +69,7 @@ export interface TempSeriesParams {
     showET: boolean;
     showRoR: boolean;
     showRoRET: boolean;
-    colors: ResolvedChartColors;
+    curves: ResolvedCurveStyles;
     allMarkLines: object[];
     markPointData: object[];
     fcMarkArea: object | null;
@@ -98,7 +94,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
         showET,
         showRoR,
         showRoRET,
-        colors,
+        curves,
         allMarkLines,
         markPointData,
         fcMarkArea,
@@ -110,17 +106,17 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             showProfileBt &&
             targetXs?.length &&
             hasNumericSample(targetBt) &&
-            referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.reference, 0, 0, TEMP_CURVE_WIDTH),
+            referenceLineSeries('BT Target', targetXs, targetBt ?? [], curves.bt.background, 0, 0),
         showTargetCurve &&
             showProfileEt &&
             targetXs?.length &&
             hasNumericSample(targetEt) &&
-            referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.reference, 0, 0, TEMP_CURVE_WIDTH),
+            referenceLineSeries('ET Target', targetXs, targetEt ?? [], curves.et.background, 0, 0),
         showTargetCurve &&
             showProfileRor &&
             targetXs?.length &&
             hasNumericSample(targetRor) &&
-            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.reference, 0, 1, TEMP_CURVE_WIDTH),
+            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], curves.ror.background, 0, 1),
         {
             name: 'BT Actual',
             type: 'line',
@@ -128,7 +124,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             yAxisIndex: 0,
             z: 2,
             data: xs.map((x, i) => [x, btActual[i]]),
-            lineStyle: { color: colors.btActual, width: TEMP_CURVE_WIDTH },
+            lineStyle: { ...curves.bt.current },
             ...lineSeriesBase,
             markLine:
                 allMarkLines.length > 0 || tempBottomBorderLine
@@ -156,7 +152,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             yAxisIndex: 0,
             z: 2,
             data: xs.map((x, i) => [x, etActual[i]]),
-            lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH },
+            lineStyle: { ...curves.et.current },
             ...lineSeriesBase,
         },
         showRoR && {
@@ -165,7 +161,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             xAxisIndex: 0,
             yAxisIndex: 1,
             data: xs.map((x, i) => [x, rorActual[i]]),
-            lineStyle: { color: colors.rorActual, width: TEMP_CURVE_WIDTH },
+            lineStyle: { ...curves.ror.current },
             ...lineSeriesBase,
         },
         showRoR &&
@@ -175,7 +171,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 xAxisIndex: 0,
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-                lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH, type: 'dashed' },
+                lineStyle: { ...curves.etRor.current },
                 ...lineSeriesBase,
             },
     ].filter(Boolean) as object[];
@@ -190,7 +186,7 @@ export interface ControlSeriesParams {
     showControlDrum: boolean;
     showControlHeat: boolean;
     showControlFan: boolean;
-    colors: ResolvedChartColors;
+    curves: ResolvedCurveStyles;
     controlGuideMarkLines: object[];
     axisOf: ControlAxisLayout['axisOf'];
 }
@@ -205,7 +201,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         showControlDrum,
         showControlHeat,
         showControlFan,
-        colors,
+        curves,
         controlGuideMarkLines,
         axisOf,
     } = params;
@@ -220,10 +216,9 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     'Drum Target',
                     reference.xs,
                     reference.drum,
-                    colors.reference,
+                    curves.drum.background,
                     1,
                     axisOf.drum,
-                    CONTROL_CURVE_WIDTH,
                 ),
             );
         }
@@ -233,24 +228,15 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     'Heater Target',
                     reference.xs,
                     reference.heater,
-                    colors.reference,
+                    curves.heat.background,
                     1,
                     axisOf.heat,
-                    CONTROL_CURVE_WIDTH,
                 ),
             );
         }
         if (showProfileFan && hasNumericSample(reference.fan)) {
             series.push(
-                referenceLineSeries(
-                    'Fan Target',
-                    reference.xs,
-                    reference.fan,
-                    colors.reference,
-                    1,
-                    axisOf.fan,
-                    CONTROL_CURVE_WIDTH,
-                ),
+                referenceLineSeries('Fan Target', reference.xs, reference.fan, curves.fan.background, 1, axisOf.fan),
             );
         }
     }
@@ -259,13 +245,12 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         series.push({
             name: 'Drum',
             type: 'line' as const,
-            color: colors.controlDrum,
+            color: curves.drum.current.color,
             xAxisIndex: 1,
             yAxisIndex: axisOf.drum,
             data: cxs.map((x, i) => [x, drumTemp[i]]),
-            lineStyle: { color: colors.controlDrum, width: CONTROL_CURVE_WIDTH },
+            lineStyle: { ...curves.drum.current },
             ...lineSeriesBase,
-            smooth: false,
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다
@@ -273,56 +258,52 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         series.push({
             name: 'Heat target',
             type: 'line' as const,
-            color: colors.controlHeat,
+            color: curves.heat.current.color,
             xAxisIndex: 1,
             yAxisIndex: axisOf.heat,
             data: heatTarget.xs.map((x, i) => [x, heatTarget.values[i]]),
-            lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH, type: 'dotted' as const },
+            lineStyle: { ...curves.heat.current, type: 'dotted' as const },
             ...lineSeriesBase,
             step: 'end' as const,
-            smooth: false,
         });
     }
     if (showControlHeat && heatSet?.some((v) => v != null)) {
         series.push({
             name: 'Heat set',
             type: 'line' as const,
-            color: colors.controlHeat,
+            color: curves.heat.current.color,
             xAxisIndex: 1,
             yAxisIndex: axisOf.heat,
             data: cxs.map((x, i) => [x, heatSet[i]]),
-            lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH, type: 'dashed' as const },
+            lineStyle: { ...curves.heat.current, type: 'dashed' as const },
             ...lineSeriesBase,
             step: 'end' as const,
-            smooth: false,
         });
     }
     if (showControlHeat) {
         series.push({
             name: 'Heat',
             type: 'line' as const,
-            color: colors.controlHeat,
+            color: curves.heat.current.color,
             xAxisIndex: 1,
             yAxisIndex: axisOf.heat,
             data: cxs.map((x, i) => [x, heatPower[i]]),
-            lineStyle: { color: colors.controlHeat, width: CONTROL_CURVE_WIDTH },
+            lineStyle: { ...curves.heat.current },
             ...lineSeriesBase,
             step: 'end' as const,
-            smooth: false,
         });
     }
     if (showControlFan) {
         series.push({
             name: 'Fan',
             type: 'line' as const,
-            color: colors.controlFan,
+            color: curves.fan.current.color,
             xAxisIndex: 1,
             yAxisIndex: axisOf.fan,
             data: cxs.map((x, i) => [x, fanSpeed[i]]),
-            lineStyle: { color: colors.controlFan, width: CONTROL_CURVE_WIDTH },
+            lineStyle: { ...curves.fan.current },
             ...lineSeriesBase,
             step: 'end' as const,
-            smooth: false,
         });
     }
     const guideOwner = series.find((item) => ['Drum', 'Heat', 'Fan'].includes((item as { name: string }).name));

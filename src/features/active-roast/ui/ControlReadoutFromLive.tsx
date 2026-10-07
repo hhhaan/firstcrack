@@ -11,6 +11,7 @@ import {
     type ControlLiveInput,
     stepValueAt,
 } from '@features/active-roast/lib/control-readout';
+import type { ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import { supportedChannelVisible } from '@features/active-roast/lib/supported-control-channels';
 import { useControlReadoutNowMs } from '@features/active-roast/lib/useControlReadoutNowMs';
 import type { CSSProperties } from 'react';
@@ -25,6 +26,7 @@ export const ControlReadoutFromLive = ({
     chartReadoutActive,
     controlData,
     controlUnits,
+    curves,
     controlYMin,
     controlYMax,
     currentTimeSec,
@@ -42,6 +44,7 @@ export const ControlReadoutFromLive = ({
     chartReadoutActive: boolean;
     controlData: ControlData | undefined;
     controlUnits: ControlUnits | undefined;
+    curves: ResolvedCurveStyles;
     controlYMin: number;
     controlYMax: number;
     currentTimeSec: number;
@@ -111,5 +114,5 @@ export const ControlReadoutFromLive = ({
         supportedControls,
     ]);
     if (!groups) return null;
-    return <ControlReadoutStrip groups={groups} style={style} />;
+    return <ControlReadoutStrip groups={groups} style={style} curves={curves} />;
 };

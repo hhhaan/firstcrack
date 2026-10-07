@@ -5,6 +5,17 @@ export type { RawTemperatureSample } from './lib/autoCharge';
 export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
 export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';
+export {
+    BACKGROUND_CHANNELS,
+    CSS_CURVE_TOKENS,
+    CURVE_CHANNELS,
+    CURVE_LINE_TYPES,
+    CURVE_WIDTH_MAX,
+    CURVE_WIDTH_MIN,
+    type CurveChannel,
+    type CurveLineType,
+    HEAT_CURRENT_LINE_TYPE,
+} from './lib/curve-style';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
 export type { ObservationQuality, SensorObservation } from './lib/sensorObservation';
@@ -39,15 +50,18 @@ export {
     FONT_SLIDER_MAX,
     FONT_SLIDER_MIN,
     fontScaleToSlider,
+    resetCurveStyles,
     sliderToFontScale,
     TIME_RANGE_MIN_DEFAULT,
     TIME_RANGE_PRESET_MIN,
+    updateCurveStyle,
     updateRoastSettings,
     useRoastSettings,
 } from './model/settings';
 export type { RoastingState, RoastPhase } from './model/status';
 export { useRoastingStore } from './model/status';
 export { useBbpTimer } from './model/useBbpTimer';
+export { useCurveStyles } from './model/useCurveStyles';
 export type { DeductRoastStockParams } from './model/useDeductRoastStock';
 export { useDeductRoastStock } from './model/useDeductRoastStock';
 export { useEffectivePollIntervalMs } from './model/useEffectivePollInterval';
@@ -55,4 +69,5 @@ export { useRoastActions } from './model/useRoastActions';
 export { isRoastShortcutBaseEnabled, useRoastKeyboardShortcuts } from './model/useRoastKeyboardShortcuts';
 export type { SaveRoastFormData, SaveRoastParams, SaveRoastResult } from './model/useSaveRoast';
 export { useSaveRoast } from './model/useSaveRoast';
+export { CurveSwatch } from './ui/CurveSwatch';
 export { RoastTempChart } from './ui/RoastTempChart';
