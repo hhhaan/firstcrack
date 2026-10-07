@@ -10,16 +10,18 @@ export const RoastLog = ({
     entries,
     variant,
     onRemoveEntry,
+    showHeading = true,
 }: {
     entries: LogEntry[];
-    variant: 'sidebar' | 'main';
+    variant: 'sidebar' | 'main' | 'panel';
     onRemoveEntry?: (id: string) => void;
+    showHeading?: boolean;
 }) => {
     const isSidebar = variant === 'sidebar';
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {isSidebar && (
+            {isSidebar && showHeading && (
                 <h3
                     style={{
                         fontSize: 12,
@@ -33,6 +35,7 @@ export const RoastLog = ({
                 </h3>
             )}
             {entries.map((entry, i, arr) => {
+                const key = entry.current ? 'current' : (entry.id ?? `${entry.time}-${entry.event}`);
                 const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
                 const canRemove =
                     REMOVABLE_LOG_EVENTS.has(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
@@ -42,9 +45,64 @@ export const RoastLog = ({
                       ? 'var(--color-event-control)'
                       : 'var(--color-primary)';
 
+                if (variant === 'panel') {
+                    return (
+                        <div
+                            key={key}
+                            className="py-2"
+                            style={{
+                                borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : undefined,
+                            }}
+                        >
+                            <div className="flex items-start gap-1.5">
+                                <span
+                                    className="mt-1.5 size-1.5 shrink-0 rounded-full"
+                                    style={{
+                                        background: entry.current
+                                            ? STATUS_COLORS.active
+                                            : eventMarkerCssColor(entry.event),
+                                    }}
+                                />
+                                <span
+                                    className="min-w-0 flex-1 text-[13px] font-medium"
+                                    style={{ color: categoryTextColor }}
+                                >
+                                    {roastEventLabel(entry.event)}
+                                </span>
+                                {canRemove && (
+                                    <button
+                                        type="button"
+                                        // biome-ignore lint/style/noNonNullAssertion: error already checked above
+                                        onClick={() => onRemoveEntry(entry.id!)}
+                                        aria-label={`Delete ${roastEventLabel(entry.event).toLowerCase()}`}
+                                        className="shrink-0 p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-x-1 text-xs font-mono text-muted">
+                                <span>{entry.time}</span>
+                                <span aria-hidden="true">·</span>
+                                <span>{entry.temp}</span>
+                            </div>
+                            {note && (
+                                <div
+                                    className="text-xs"
+                                    style={{
+                                        color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
+                                    }}
+                                >
+                                    {note}
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+
                 return (
                     <div
-                        key={entry.id ?? `${entry.time}-${entry.event}-${i}`}
+                        key={key}
                         style={{
                             display: 'flex',
                             gap: isSidebar ? 10 : 12,
@@ -89,8 +147,15 @@ export const RoastLog = ({
                                 }}
                             />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: isSidebar ? 6 : 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    alignItems: 'center',
+                                    gap: isSidebar ? 6 : 8,
+                                }}
+                            >
                                 <span
                                     style={{
                                         fontSize: isSidebar ? 12 : 13,

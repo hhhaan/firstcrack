@@ -678,6 +678,8 @@
             "drum": "滚筒"
         },
         "log": {
+            "expand": "展开烘焙日志",
+            "collapse": "收起烘焙日志",
             "title": "烘焙记录",
             "deleteNote": "删除备注"
         },
