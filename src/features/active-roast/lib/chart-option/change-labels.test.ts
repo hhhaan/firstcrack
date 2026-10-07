@@ -37,6 +37,23 @@ describe('findChangePoints', () => {
             findChangePoints([0, 1, 2, 3, 4], [49.94, 49.96, 50.04, 50.06, 52], { deadband }).map((p) => p.text),
         ).toEqual(['49.9', '52']);
     });
+
+    it('labels each 1% step on a 0–100% axis', () => {
+        const deadband = changeLabelDeadband(0, 100, '%');
+        expect(deadband).toBe(0.5);
+        expect(findChangePoints([0, 1, 2], [50, 51, 52], { deadband }).map((p) => [p.x, p.text])).toEqual([
+            [0, '50'],
+            [1, '51'],
+            [2, '52'],
+        ]);
+    });
+
+    it('ignores sub-deadband jitter on % axes', () => {
+        const deadband = changeLabelDeadband(0, 100, '%');
+        expect(findChangePoints([0, 1, 2, 3], [50, 50.1, 50.05, 50.08], { deadband }).map((p) => p.text)).toEqual([
+            '50',
+        ]);
+    });
 });
 
 describe('layoutChangeLabels', () => {

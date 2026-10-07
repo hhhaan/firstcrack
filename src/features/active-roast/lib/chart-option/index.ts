@@ -214,7 +214,11 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         ((profileOn(showProfileDrum) && reference.drum.some((value) => value != null)) ||
             (profileOn(showProfileHeat) && reference.heater.some((value) => value != null)) ||
             (profileOn(showProfileFan) && reference.fan.some((value) => value != null)));
-    const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan || profileControl);
+    const supported = params.supportedControls;
+    const liveControlDrum = supportedChannelVisible('drum', showControlDrum, supported);
+    const liveControlHeat = supportedChannelVisible('heat', showControlHeat, supported);
+    const liveControlFan = supportedChannelVisible('fan', showControlFan, supported);
+    const hasControlSeries = !!controlData && (liveControlDrum || liveControlHeat || liveControlFan || profileControl);
     const controlAxes = controlAxisLayoutFor({ ...params, controlUnits });
     const {
         allMarkLines,
@@ -325,20 +329,19 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             showProfileDrum,
             showProfileHeat,
             showProfileFan,
-            showControlDrum,
-            showControlHeat,
-            showControlFan,
+            showControlDrum: liveControlDrum,
+            showControlHeat: liveControlHeat,
+            showControlFan: liveControlFan,
             colors,
             controlGuideMarkLines,
             axisOf: controlAxes.axisOf,
         });
         const sideOf = (channel: ControlChannel) =>
             [controlAxes.left, controlAxes.right, controlAxes.ownScale][controlAxes.axisOf[channel] - 2];
-        const supported = params.supportedControls;
         const measured: [ControlChannel, boolean, (number | null)[], string][] = [
-            ['drum', showControlDrum, controlData.drumTemp, colors.controlDrum],
-            ['heat', showControlHeat, controlData.heatPower, colors.controlHeat],
-            ['fan', showControlFan, controlData.fanSpeed, colors.controlFan],
+            ['drum', liveControlDrum, controlData.drumTemp, colors.controlDrum],
+            ['heat', liveControlHeat, controlData.heatPower, colors.controlHeat],
+            ['fan', liveControlFan, controlData.fanSpeed, colors.controlFan],
         ];
         const units = params.controlUnits ?? DEFAULT_CONTROL_UNITS;
         // Always present so a zoom that culls every label still clears the previous frame.

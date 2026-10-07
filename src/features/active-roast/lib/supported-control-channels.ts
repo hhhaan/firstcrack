@@ -3,12 +3,6 @@ import type { ControlChannel, ControlLimits } from './control-channels';
 
 export type SidecarControlRole = 'heater' | 'fan' | 'drum';
 
-const ROLE_TO_CHANNEL: Record<SidecarControlRole, ControlChannel> = {
-    heater: 'heat',
-    fan: 'fan',
-    drum: 'drum',
-};
-
 const CONTROL_ROLES: readonly SidecarControlRole[] = ['heater', 'fan', 'drum'];
 
 /** Roles declared in a connect params map (channels / modbus_registers / channel_nodes). */
@@ -82,5 +76,3 @@ export const supportedChannelVisible = (
     shown: boolean,
     supported?: Record<ControlChannel, boolean>,
 ): boolean => shown && (supported?.[channel] ?? true);
-
-export const channelFromSidecarRole = (role: SidecarControlRole): ControlChannel => ROLE_TO_CHANNEL[role];

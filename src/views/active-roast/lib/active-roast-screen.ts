@@ -128,7 +128,7 @@ const profileControlRequested = (input: ControlFrameInput) =>
     Boolean(input.targetProfileId) &&
     anySeriesOn(input.showProfileDrum, input.showProfileHeat, input.showProfileFan);
 
-const chartControlData = (input: ControlFrameInput): ControlData | undefined => {
+export const chartControlData = (input: ControlFrameInput): ControlData | undefined => {
     const liveOpen = anySeriesOn(input.showControlDrum, input.showControlHeat, input.showControlFan);
     if (!input.showControlChart || (!liveOpen && !profileControlRequested(input))) return undefined;
     return {
@@ -190,6 +190,8 @@ export const buildChartFrame = <TTurningPoint>(input: {
     onEventMarkerEdit: (logId: string, patch: EventMarkerPatch) => void;
     onEventMarkerDelete: (logId: string) => void;
     onAddNote: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
+    /** When set, skips rebuilding control series data (stable across readout clock ticks). */
+    prebuiltControlData?: ControlData;
 }) => {
     const canEdit = canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
     return {
@@ -211,7 +213,7 @@ export const buildChartFrame = <TTurningPoint>(input: {
             input.showTargetDeltaLabel &&
             !!input.targetProfileId &&
             input.targetCurvePointCount > 0,
-        controlData: chartControlData(input),
+        controlData: input.prebuiltControlData ?? chartControlData(input),
         elapsed: input.bbpActive ? input.bbpNowSec : input.elapsed,
         charged: input.charged && !input.bbpActive,
         eventMarkers: listUnlessBbp(input.bbpActive, input.eventMarkers),

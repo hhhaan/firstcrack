@@ -1,10 +1,10 @@
 import type { ControlData, RoastEventMarker } from '@features/active-roast/lib/chart-option';
 import type { ControlChannel, ControlUnits } from '@features/active-roast/lib/control-channels';
-import type { ControlLiveReadout } from '@features/active-roast/lib/control-readout';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
+import type { ControlLiveReadoutInput } from '@features/active-roast/ui/ControlReadoutFromLive';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import type { RoastNoteControls } from '@shared/types/roast';
 import { type RefObject, useRef, useState } from 'react';
@@ -54,7 +54,8 @@ interface RoastChartContainerProps {
     controlYMin?: number;
     controlYMax?: number;
     controlUnits?: ControlUnits;
-    controlReadout?: ControlLiveReadout;
+    controlLive?: ControlLiveReadoutInput;
+    chartReadoutActive?: boolean;
     supportedControls?: Record<ControlChannel, boolean>;
     tempMinC: number;
     tempMaxC: number;
@@ -113,7 +114,8 @@ export const RoastChartContainer = ({
     controlYMin = 0,
     controlYMax = 100,
     controlUnits,
-    controlReadout,
+    controlLive,
+    chartReadoutActive = true,
     supportedControls,
     tempMinC,
     tempMaxC,
@@ -290,7 +292,8 @@ export const RoastChartContainer = ({
                 controlYMin={controlYMin}
                 controlYMax={controlYMax}
                 controlUnits={controlUnits}
-                controlReadout={controlReadout}
+                controlLive={controlLive}
+                chartReadoutActive={chartReadoutActive}
                 supportedControls={supportedControls}
                 phaseSegments={phaseSegments}
                 showFcBand={showFcBand}

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ControlData } from '@features/active-roast/lib/chart-option';
+import * as chartOption from '@features/active-roast/lib/chart-option';
 import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { logger } from '@shared/lib/logger';
 import * as echarts from 'echarts';
@@ -846,6 +847,40 @@ describe('RoastTempChart interactions', () => {
             pixelRatio: 2,
             backgroundColor: '#ffffff',
         });
+    });
+
+    it('does not rebuild the chart option when the readout stale clock advances', () => {
+        const buildSpy = vi.spyOn(chartOption, 'buildRoastChartOption');
+        const live = {
+            liveData: { heater: 50, fan: 0, drum: 0 },
+            capabilities: ['heater'],
+            connected: true,
+            reconnecting: false,
+            quality: 'valid' as const,
+            lastValidReceivedAtMs: Date.now() - 500,
+            pollIntervalMs: 1000,
+        };
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    controlData: controlData([]),
+                    controlLive: live,
+                    chartReadoutActive: true,
+                    supportedControls: { drum: false, heat: true, fan: false },
+                }),
+            ),
+        );
+        const callsAfterMount = buildSpy.mock.calls.length;
+        act(() => {
+            vi.useFakeTimers();
+            vi.advanceTimersByTime(2500);
+        });
+        act(() => {
+            vi.useRealTimers();
+        });
+        expect(buildSpy.mock.calls.length).toBe(callsAfterMount);
+        buildSpy.mockRestore();
     });
 
     it('re-renders at print density with legible light colors and both grids, without changing the screen theme', () => {

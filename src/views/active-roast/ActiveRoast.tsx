@@ -25,7 +25,6 @@ import {
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import { resolveControlUnits } from '@features/active-roast/lib/control-channels';
-import { buildControlLiveReadout } from '@features/active-roast/lib/control-readout';
 import {
     applyEventMarkerEdit,
     type EventMarkerPatch,
@@ -39,6 +38,7 @@ import { useAutoDetection } from '@features/active-roast/model/useAutoDetection'
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
+import type { ControlLiveReadoutInput } from '@features/active-roast/ui/ControlReadoutFromLive';
 import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
 import { profileHeatTarget } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
@@ -67,6 +67,7 @@ import {
     bbpFeatureEnabled,
     buildChartFrame,
     chargeWaitTempBand,
+    chartControlData,
     cycleFcWhenEnabled,
     formatDisplayRoR,
     isReplayMachineMismatch,
@@ -124,11 +125,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
     const machines = useMachines((s) => s.machines);
-    const [readoutNowMs, setReadoutNowMs] = useState(() => Date.now());
-    useEffect(() => {
-        const id = setInterval(() => setReadoutNowMs(Date.now()), 1000);
-        return () => clearInterval(id);
-    }, []);
     const unit = roastSettings.temperatureUnit;
     const bbpEnabled = bbpFeatureEnabled(useFeature(FEATURE.bbp), roastSettings.bbpEnabled);
     const bbpElapsed = useBbpTimer();
@@ -875,19 +871,80 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             controlLimits,
         ],
     );
-    const controlReadout = buildControlLiveReadout({
-        liveData,
-        capabilities: machineCapabilities,
-        limits: controlLimits,
-        roasterKey: connectedMachine?.roasterKey ?? machineSnapshot?.machine_roaster_key,
-        connectionParams: connectedMachine?.connectionParams,
-        connected: sidecarConnected,
-        reconnecting,
-        quality: observationQuality,
-        lastValidReceivedAtMs,
-        nowMs: readoutNowMs,
-        pollIntervalMs,
-    });
+    const controlLive = useMemo<ControlLiveReadoutInput>(
+        () => ({
+            liveData,
+            capabilities: machineCapabilities,
+            limits: controlLimits,
+            roasterKey: connectedMachine?.roasterKey ?? machineSnapshot?.machine_roaster_key,
+            connectionParams: connectedMachine?.connectionParams,
+            connected: sidecarConnected,
+            reconnecting,
+            quality: observationQuality,
+            lastValidReceivedAtMs,
+            pollIntervalMs,
+        }),
+        [
+            liveData,
+            machineCapabilities,
+            controlLimits,
+            connectedMachine?.roasterKey,
+            connectedMachine?.connectionParams,
+            machineSnapshot?.machine_roaster_key,
+            sidecarConnected,
+            reconnecting,
+            observationQuality,
+            lastValidReceivedAtMs,
+            pollIntervalMs,
+        ],
+    );
+    const memoChartControlData = useMemo(
+        () =>
+            chartControlData({
+                showControlChart: roastSettings.showControlChart,
+                showControlDrum: roastSettings.showControlDrum,
+                showControlHeat: roastSettings.showControlHeat,
+                showControlFan: roastSettings.showControlFan,
+                showTargetCurve: roastSettings.showTargetCurve,
+                targetProfileId,
+                showProfileDrum: roastSettings.showProfileDrum,
+                showProfileHeat: roastSettings.showProfileHeat,
+                showProfileFan: roastSettings.showProfileFan,
+                bbpActive,
+                controlXs: chart.visibleControlXs,
+                drumTemp: chart.visibleDrumTemp,
+                heatPower: chart.visibleHeatPower,
+                fanSpeed: chart.visibleFanSpeed,
+                heatSet: chart.visibleHeatSet,
+                heatTarget,
+                referenceXs: chart.visibleTargetXs,
+                referenceDrum: chart.visibleTargetDrum,
+                referenceHeater: chart.visibleTargetHeater,
+                referenceFan: chart.visibleTargetFan,
+            }),
+        [
+            roastSettings.showControlChart,
+            roastSettings.showControlDrum,
+            roastSettings.showControlHeat,
+            roastSettings.showControlFan,
+            roastSettings.showTargetCurve,
+            roastSettings.showProfileDrum,
+            roastSettings.showProfileHeat,
+            roastSettings.showProfileFan,
+            targetProfileId,
+            bbpActive,
+            chart.visibleControlXs,
+            chart.visibleDrumTemp,
+            chart.visibleHeatPower,
+            chart.visibleFanSpeed,
+            chart.visibleHeatSet,
+            heatTarget,
+            chart.visibleTargetXs,
+            chart.visibleTargetDrum,
+            chart.visibleTargetHeater,
+            chart.visibleTargetFan,
+        ],
+    );
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
@@ -965,6 +1022,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onEventMarkerEdit: handleEventMarkerEdit,
         onEventMarkerDelete: removeLogEntry,
         onAddNote: handleChartNote,
+        prebuiltControlData: memoChartControlData,
     });
 
     // ── 렌더 ──────────────────────────────────────────────────────
@@ -1038,7 +1096,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         controlYMin={roastSettings.controlYMin}
                         controlYMax={roastSettings.controlYMax}
                         controlUnits={controlUnits}
-                        controlReadout={controlReadout}
+                        controlLive={controlLive}
+                        chartReadoutActive={isActive}
                         supportedControls={supportedControls}
                         tempMinC={bbpTempMinC}
                         tempMaxC={bbpTempMaxC}

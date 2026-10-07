@@ -966,4 +966,20 @@ describe('buildRoastChartOption', () => {
         expect(profileBtOff).not.toContain('BT Target');
         expect(profileBtOff).toContain('BT Actual');
     });
+
+    it('omits live drum/fan series when supportedControls disables them', () => {
+        const names = Object.keys(
+            seriesByName({
+                ...baseParams(),
+                controlData: { xs: [0, 60], drumTemp: [10, 20], heatPower: [50, 60], fanSpeed: [0, 0] },
+                showControlDrum: true,
+                showControlHeat: true,
+                showControlFan: true,
+                supportedControls: { drum: false, heat: true, fan: false },
+            }),
+        );
+        expect(names).toContain('Heat');
+        expect(names).not.toContain('Drum');
+        expect(names).not.toContain('Fan');
+    });
 });

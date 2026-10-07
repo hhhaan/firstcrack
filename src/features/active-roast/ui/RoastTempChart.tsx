@@ -9,7 +9,6 @@ import {
 import {
     buildRoastChartOption,
     type ControlData,
-    controlAxisLayoutFor,
     type RoastEventMarker,
 } from '@features/active-roast/lib/chart-option';
 import { computeTempYRange } from '@features/active-roast/lib/chart-option/axes';
@@ -24,19 +23,9 @@ import {
     noteLabelTopInsetPx,
 } from '@features/active-roast/lib/chart-option/markers';
 import { REMOVABLE_LOG_EVENTS, TP_MARKER_ID } from '@features/active-roast/lib/constants';
-import {
-    type ControlChannel,
-    type ControlUnits,
-    DEFAULT_CONTROL_UNITS,
-} from '@features/active-roast/lib/control-channels';
-import {
-    buildControlReadoutGroups,
-    type ControlLiveReadout,
-    stepValueAt,
-} from '@features/active-roast/lib/control-readout';
+import type { ControlChannel, ControlUnits } from '@features/active-roast/lib/control-channels';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
-import { supportedChannelVisible } from '@features/active-roast/lib/supported-control-channels';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
@@ -58,7 +47,7 @@ import {
     useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ControlReadoutStrip } from './ControlReadoutStrip';
+import { type ControlLiveReadoutInput, ControlReadoutFromLive } from './ControlReadoutFromLive';
 import { RoastNoteFields, type RoastNoteValues } from './RoastNoteFields';
 
 export type { RoastEventMarker };
@@ -145,8 +134,9 @@ interface Props {
     controlYMin?: number;
     controlYMax?: number;
     controlUnits?: ControlUnits;
-    /** Live roast only. Without it the strip under the control band is a legend without numbers. */
-    controlReadout?: ControlLiveReadout;
+    /** Live roast inputs for the readout strip (isolated from chart option rebuilds). */
+    controlLive?: ControlLiveReadoutInput;
+    chartReadoutActive?: boolean;
     supportedControls?: Record<ControlChannel, boolean>;
     phaseSegments?: PhaseSegment[];
     showFcBand?: boolean;
@@ -217,6 +207,7 @@ const chartStructureKey = (input: {
     hasBbpRange: boolean;
     hideChargeLabel: boolean;
     fontScale: number;
+    supportedControls: string;
 }): string =>
     [
         input.report,
@@ -245,43 +236,8 @@ const chartStructureKey = (input: {
         input.hasBbpRange,
         input.hideChargeLabel,
         input.fontScale,
+        input.supportedControls,
     ].join('|');
-
-const controlReadoutGroups = (input: {
-    controlData: ControlData | undefined;
-    controlUnits: ControlUnits | undefined;
-    controlReadout: ControlLiveReadout | undefined;
-    controlYMin: number;
-    controlYMax: number;
-    currentTimeSec: number;
-    showTargetCurve: boolean;
-    showControlDrum: boolean;
-    showControlHeat: boolean;
-    showControlFan: boolean;
-    showProfileDrum: boolean;
-    showProfileHeat: boolean;
-    showProfileFan: boolean;
-    supportedControls?: Record<ControlChannel, boolean>;
-}) => {
-    const { controlData, showControlDrum, showControlHeat, showControlFan, supportedControls } = input;
-    const shown = {
-        drum: supportedChannelVisible('drum', showControlDrum, supportedControls),
-        heat: supportedChannelVisible('heat', showControlHeat, supportedControls),
-        fan: supportedChannelVisible('fan', showControlFan, supportedControls),
-    };
-    if (!controlData || (!shown.drum && !shown.heat && !shown.fan)) return null;
-    const axes = controlAxisLayoutFor(input);
-    return buildControlReadoutGroups({
-        shown,
-        axes,
-        units: input.controlUnits ?? DEFAULT_CONTROL_UNITS,
-        live: input.controlReadout,
-        hasHeatSet: !!controlData.heatSet?.some((value) => value != null),
-        heatTargetNow: controlData.heatTarget?.xs.length
-            ? stepValueAt(controlData.heatTarget, input.currentTimeSec)
-            : undefined,
-    });
-};
 
 export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function RoastTempChart(
     {
@@ -328,7 +284,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         controlYMin = 0,
         controlYMax = 100,
         controlUnits,
-        controlReadout,
+        controlLive,
+        chartReadoutActive = true,
         supportedControls,
         phaseSegments = [],
         showFcBand = true,
@@ -568,22 +525,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         hasBbpRange: !!bbpRange,
         hideChargeLabel,
         fontScale,
-    });
-    const controlGroups = controlReadoutGroups({
-        controlData,
-        controlUnits,
-        controlReadout,
-        controlYMin,
-        controlYMax,
-        currentTimeSec,
-        showTargetCurve,
-        showControlDrum,
-        showControlHeat,
-        showControlFan,
-        showProfileDrum: profileDrum,
-        showProfileHeat: profileHeat,
-        showProfileFan: profileFan,
-        supportedControls,
+        supportedControls: supportedControls
+            ? `${supportedControls.drum}|${supportedControls.heat}|${supportedControls.fan}`
+            : 'all',
     });
     const prevStructureKey = useRef(structureKey);
     useEffect(() => {
@@ -1210,12 +1154,24 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     </div>
                 </form>
             )}
-            {controlGroups && (
-                <ControlReadoutStrip
-                    groups={controlGroups}
-                    style={{ bottom: report ? 0 : -15, left: report ? 38 : 25, right: report ? 32 : 8 }}
-                />
-            )}
+            <ControlReadoutFromLive
+                style={{ bottom: report ? 0 : -15, left: report ? 38 : 25, right: report ? 32 : 8 }}
+                live={controlLive}
+                chartReadoutActive={chartReadoutActive}
+                controlData={controlData}
+                controlUnits={controlUnits}
+                controlYMin={controlYMin}
+                controlYMax={controlYMax}
+                currentTimeSec={currentTimeSec}
+                showTargetCurve={showTargetCurve}
+                showControlDrum={showControlDrum}
+                showControlHeat={showControlHeat}
+                showControlFan={showControlFan}
+                showProfileDrum={profileDrum}
+                showProfileHeat={profileHeat}
+                showProfileFan={profileFan}
+                supportedControls={supportedControls}
+            />
         </div>
     );
 });

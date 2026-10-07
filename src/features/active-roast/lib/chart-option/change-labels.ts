@@ -11,12 +11,12 @@ export interface FindChangePointsOptions {
     deadband?: number;
 }
 
-/** ~1% of axis span; % axes keep at least 0.5 so rounding noise does not label every tick. */
+/** % axes use a fixed 0.5 so 1-point steps label; non-% use 0.5% of span (min 0.05). */
 export const changeLabelDeadband = (min: number, max: number, unit?: string) => {
+    if (unit === '%') return 0.5;
     const span = max - min;
-    if (!Number.isFinite(span) || span <= 0) return 0;
-    const relative = span * 0.01;
-    return unit === '%' ? Math.max(relative, 0.5) : Math.max(relative, 0.05);
+    if (!Number.isFinite(span) || span <= 0) return 0.05;
+    return Math.max(span * 0.005, 0.05);
 };
 
 /**
@@ -36,7 +36,7 @@ export const findChangePoints = (
         const value = values[i];
         const text = formatControlValue(value);
         if (text == null || value == null || !Number.isFinite(xs[i])) continue;
-        if (lastLabeledValue != null && Math.abs(value - lastLabeledValue) <= deadband) continue;
+        if (lastLabeledValue != null && Math.abs(value - lastLabeledValue) < deadband) continue;
         if (text !== previous) {
             points.push({ x: xs[i], value, text });
             lastLabeledValue = value;
