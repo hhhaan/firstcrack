@@ -1,6 +1,5 @@
 import {
     CONTROL_CURVE_WIDTH,
-    EVENT_MARK_LINE_WIDTH,
     MARKER_LABEL_FONT,
     markerLabelFont,
     REFERENCE_CURVE_OPACITY,
@@ -525,65 +524,21 @@ describe('buildRoastChartOption', () => {
         expect(series.filter((item) => item.markLine).map((item) => item.name)).toEqual(['BT Actual', ownerName]);
     });
 
-    it('draws both-mode marker lines through the inter-grid gap and clips x manually', () => {
+    it('keeps tempLine event guides on the temperature plot only', () => {
         const option = buildRoastChartOption({
             ...baseParams(),
             xs: [0, 30, 60],
             btActual: [100, 110, 120],
-            eventMarkerStyle: 'both',
-            eventMarkers: [{ timeSec: 30, event: 'Note', color: '#old', timeStr: '', temp: '', note: 'Test' }],
+            eventMarkerStyle: 'tempLine',
+            eventMarkers: [{ timeSec: 30, event: 'Yellow', color: '#old', timeStr: '', temp: '110°C' }],
             controlData: { xs: [0, 60], drumTemp: [50, 55], heatPower: [40, 45], fanSpeed: [30, 35] },
         });
-        const markerSeries = (
-            option.series as {
-                name?: string;
-                renderItem?: (params: unknown, api: unknown) => { shape: { y2: number } } | undefined;
-                clip?: boolean;
-            }[]
-        ).find((series) => series.name === 'Event marker lines');
-        expect(markerSeries?.clip).toBe(false);
-        const api = {
-            coord: () => [50, 100],
-            value: (index: number) => [30, Number.NaN, EVENT_MARK_LINE_WIDTH][index],
-            getHeight: () => 500,
-        };
-        expect(
-            markerSeries?.renderItem?.({ dataIndex: 0, coordSys: { x: 20, y: 10, width: 200, height: 300 } }, api),
-        ).toEqual(
-            expect.objectContaining({
-                shape: { x1: 50, y1: 10, x2: 50, y2: 470 },
-                style: { stroke: baseParams().colors.eventMark, lineWidth: EVENT_MARK_LINE_WIDTH },
-            }),
+        const series = option.series as { name?: string; markLine?: { data: { xAxis?: number }[] } }[];
+        expect(series.find((item) => item.name === 'BT Actual')?.markLine?.data).toEqual(
+            expect.arrayContaining([expect.objectContaining({ xAxis: 30 })]),
         );
-        expect(
-            markerSeries?.renderItem?.(
-                { dataIndex: 0, coordSys: { x: 60, y: 10, width: 200, height: 300 } },
-                { ...api, coord: () => [50, 100] },
-            ),
-        ).toBeUndefined();
-    });
-
-    it('stops both-mode lines at the temperature grid when controls are hidden', () => {
-        const option = buildRoastChartOption({
-            ...baseParams(),
-            eventMarkerStyle: 'both',
-            eventMarkers: [{ timeSec: 30, event: 'Yellow', color: '#old', timeStr: '', temp: '100°C' }],
-        });
-        const markerSeries = (
-            option.series as {
-                name?: string;
-                renderItem?: (params: unknown, api: unknown) => { shape: { y2: number } } | undefined;
-            }[]
-        ).find((series) => series.name === 'Event marker lines');
-        const result = markerSeries?.renderItem?.(
-            { dataIndex: 0, coordSys: { x: 20, y: 10, width: 200, height: 300 } },
-            {
-                coord: () => [50, 100],
-                value: (index: number) => [30, Number.NaN, EVENT_MARK_LINE_WIDTH][index],
-                getHeight: () => 500,
-            },
-        );
-        expect(result?.shape.y2).toBe(310);
+        expect(series.filter((item) => item.markLine).map((item) => item.name)).toEqual(['BT Actual']);
+        expect(series.some((item) => item.name === 'Event marker lines')).toBe(false);
     });
 
     it('draws event labels on the BT axis, not the grid edge', () => {
@@ -591,7 +546,7 @@ describe('buildRoastChartOption', () => {
             ...baseParams(),
             xs: [0, 60],
             btActual: [100, 185],
-            eventMarkerStyle: 'both',
+            eventMarkerStyle: 'tempLine',
             eventMarkers: [{ timeSec: 60, event: 'FC Start', color: '#old', timeStr: '', temp: '185°C' }],
         });
         const labelSeries = (

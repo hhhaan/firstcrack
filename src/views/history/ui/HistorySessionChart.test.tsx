@@ -41,7 +41,7 @@ vi.mock('@features/active-roast', async () => ({
         temperatureUnit: 'F',
         tempMinC: 100,
         tempMaxC: 250,
-        eventMarkerStyle: 'both',
+        eventMarkerStyle: 'line',
         showTargetCurve: true,
         showProfileBt: true,
         showProfileEt: true,

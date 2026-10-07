@@ -256,7 +256,7 @@ describe('RoastTempChart interactions', () => {
                         ref,
                         xs: [0, 5, 8],
                         btActual: [180, 185, 190],
-                        eventMarkerStyle: 'both',
+                        eventMarkerStyle: 'tempLine',
                         eventMarkers: [
                             {
                                 logId: 'yellow-1',

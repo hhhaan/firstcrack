@@ -265,12 +265,16 @@ describe('normalize — font scale', () => {
 });
 
 describe('normalize — event marker style', () => {
-    it('defaults missing and invalid values to both', () => {
-        expect(normalizeRoastSettings({}).eventMarkerStyle).toBe('both');
-        expect(normalizeRoastSettings({ eventMarkerStyle: 'unknown' as never }).eventMarkerStyle).toBe('both');
+    it('defaults missing and invalid values to line', () => {
+        expect(normalizeRoastSettings({}).eventMarkerStyle).toBe('line');
+        expect(normalizeRoastSettings({ eventMarkerStyle: 'unknown' as never }).eventMarkerStyle).toBe('line');
     });
 
-    it.each(['point', 'line', 'both'] as const)('preserves stored %s mode', (eventMarkerStyle) => {
+    it('maps the removed both style onto line', () => {
+        expect(normalizeRoastSettings({ eventMarkerStyle: 'both' as never }).eventMarkerStyle).toBe('line');
+    });
+
+    it.each(['point', 'line', 'tempLine'] as const)('preserves stored %s mode', (eventMarkerStyle) => {
         expect(normalizeRoastSettings({ eventMarkerStyle }).eventMarkerStyle).toBe(eventMarkerStyle);
     });
 });

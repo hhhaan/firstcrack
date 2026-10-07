@@ -320,7 +320,6 @@ export interface MarkerBuildResult {
     /** FC Start–End vertical band (null if incomplete / invalid range) */
     fcMarkArea: object | null;
     controlGuideMarkLines: object[];
-    continuousMarkerLines: { timeSec: number; color: string; width: number }[];
     tempBottomBorderLine: object | null;
 }
 
@@ -352,7 +351,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     // Charge: t=0 = 좌단 축 (#451). 세로선 없음. 라이브는 라벨도 숨김.
     // NOW: 세로 markLine 가이드 (항상)
     // 라벨은 항상 BT 커브 위 custom series. 점은 point 모드만.
-    const useContinuousLines = eventMarkerStyle === 'both';
+    // tempLine: 온도 차트만. line: 온도 차트와 컨트롤 차트.
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];
     const markerVisible = (event: string, timeSec: number) =>
@@ -478,8 +477,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     });
     if (targetDeltaPoint) markPointData.push(targetDeltaPoint);
 
-    const allMarkLines =
-        eventMarkerStyle === 'line' ? [...guideMarkLines, ...eventMarkLines, ...tpMarkLines] : guideMarkLines;
+    const showTempLine = eventMarkerStyle === 'line' || eventMarkerStyle === 'tempLine';
+    const allMarkLines = showTempLine ? [...guideMarkLines, ...eventMarkLines, ...tpMarkLines] : guideMarkLines;
     if (eventMarkerStyle === 'line') {
         controlGuideMarkLines.push(
             ...[...eventMarkLines, ...tpMarkLines].map(({ xAxis, lineStyle }) => ({
@@ -489,20 +488,6 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             })),
         );
     }
-    const continuousMarkerLines = useContinuousLines
-        ? [
-              ...lineEvents.map((m) => ({
-                  timeSec: m.timeSec,
-                  color: markerColor(m.event),
-                  width: EVENT_MARK_LINE_WIDTH,
-              })),
-              ...visibleTurningPoints.map((tp) => ({
-                  timeSec: tp.timeSec,
-                  color: colors.eventMark,
-                  width: EVENT_MARK_LINE_WIDTH,
-              })),
-          ]
-        : [];
 
     // FC Start → FC End 세로 밴드 (End 없으면 live currentTime까지).
     // dual-mark FC Rolling is not End — band stays on FC End.
@@ -542,7 +527,6 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         curveLabels,
         fcMarkArea,
         controlGuideMarkLines,
-        continuousMarkerLines,
         tempBottomBorderLine,
     };
 };

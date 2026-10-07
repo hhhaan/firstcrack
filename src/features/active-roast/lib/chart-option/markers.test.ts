@@ -92,33 +92,36 @@ describe('FC band vs dual-mark Rolling', () => {
 });
 
 describe('buildMarkers label position', () => {
-    it.each(['point', 'both', 'line'] as const)('%s: FC Start above BT, FC Rolling below BT', (eventMarkerStyle) => {
-        const { curveLabels, markPointData } = buildMarkers({
-            ...baseParams,
-            eventMarkerStyle,
-            eventMarkers: [
-                { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
-                { timeSec: 520, event: 'FC Rolling', color: '#5a9', timeStr: '8:40', temp: '200°C' },
-            ],
-        });
-        expect(markPointData).toEqual([]);
-        expect(curveLabels).toEqual([
-            expect.objectContaining({
-                timeSec: 480,
-                y: 196,
-                text: 'FC Start|08:00|196.0°C',
-                below: false,
-                showDot: eventMarkerStyle === 'point',
-            }),
-            expect.objectContaining({
-                timeSec: 520,
-                y: 200,
-                text: 'FC Rolling|08:40|200.0°C',
-                below: true,
-                showDot: eventMarkerStyle === 'point',
-            }),
-        ]);
-    });
+    it.each(['point', 'tempLine', 'line'] as const)(
+        '%s: FC Start above BT, FC Rolling below BT',
+        (eventMarkerStyle) => {
+            const { curveLabels, markPointData } = buildMarkers({
+                ...baseParams,
+                eventMarkerStyle,
+                eventMarkers: [
+                    { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
+                    { timeSec: 520, event: 'FC Rolling', color: '#5a9', timeStr: '8:40', temp: '200°C' },
+                ],
+            });
+            expect(markPointData).toEqual([]);
+            expect(curveLabels).toEqual([
+                expect.objectContaining({
+                    timeSec: 480,
+                    y: 196,
+                    text: 'FC Start|08:00|196.0°C',
+                    below: false,
+                    showDot: eventMarkerStyle === 'point',
+                }),
+                expect.objectContaining({
+                    timeSec: 520,
+                    y: 200,
+                    text: 'FC Rolling|08:40|200.0°C',
+                    below: true,
+                    showDot: eventMarkerStyle === 'point',
+                }),
+            ]);
+        },
+    );
 });
 
 describe('event marker visual grammar', () => {
@@ -126,10 +129,11 @@ describe('event marker visual grammar', () => {
         expect(nearestBtAt([Number.NaN, 20], [180, Number.POSITIVE_INFINITY], 10)).toBeNull();
     });
 
-    it('renders both as one curve label plus a full-height line with category widths and colors', () => {
+    it('draws tempLine on the temperature chart and leaves the control chart clear', () => {
         const result = buildMarkers({
             ...baseParams,
-            eventMarkerStyle: 'both',
+            hasControlSeries: true,
+            eventMarkerStyle: 'tempLine',
             eventMarkers: [
                 {
                     logId: 'note-1',
@@ -169,11 +173,14 @@ describe('event marker visual grammar', () => {
             y: 202,
             showDot: false,
         });
-        expect(result.allMarkLines).not.toEqual(expect.arrayContaining([expect.objectContaining({ xAxis: 540 })]));
-        expect(result.continuousMarkerLines).toEqual([
-            { timeSec: 540, color: '#888', width: EVENT_MARK_LINE_WIDTH },
-            { timeSec: 540, color: '#c00', width: EVENT_MARK_LINE_WIDTH },
+        const eventLines = result.allMarkLines.filter((line) => (line as { xAxis?: number }).xAxis === 540) as {
+            lineStyle: { color: string; width: number };
+        }[];
+        expect(eventLines.map((line) => line.lineStyle)).toEqual([
+            { color: '#888', width: EVENT_MARK_LINE_WIDTH, type: 'solid', opacity: 1 },
+            { color: '#c00', width: EVENT_MARK_LINE_WIDTH, type: 'solid', opacity: 1 },
         ]);
+        expect(result.controlGuideMarkLines.some((line) => (line as { xAxis?: number }).xAxis === 540)).toBe(false);
     });
 
     it('keeps an empty-curve Note at the top of the temperature axis', () => {
@@ -184,7 +191,7 @@ describe('event marker visual grammar', () => {
             xs: [],
             btActual: [],
             tempYMax: 250,
-            eventMarkerStyle: 'both',
+            eventMarkerStyle: 'tempLine',
             eventMarkers: [{ timeSec: 591, event: 'Note', color: '#old', timeStr: '', temp: '', note: 'No sample' }],
         });
         expect(result.curveLabels[0]).toMatchObject({
@@ -213,7 +220,6 @@ describe('event marker visual grammar', () => {
             eventMarkerStyle: 'line',
             eventMarkers: [{ timeSec: 480, event: 'Yellow', color: '#old', timeStr: '', temp: '196°C' }],
         });
-        expect(result.continuousMarkerLines).toEqual([]);
         const eventLine = result.allMarkLines.find((line) => (line as { xAxis?: number }).xAxis === 480) as {
             lineStyle: { color: string; width: number };
             label: { show: boolean };
@@ -321,7 +327,7 @@ describe('zoom window (#599)', () => {
     const yellow = { timeSec: 60, event: 'Yellow', color: '#old', timeStr: '1:00', temp: '120°C' };
     const fc = { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' };
 
-    it.each(['point', 'both', 'line'] as const)(
+    it.each(['point', 'tempLine', 'line'] as const)(
         '%s: hides labels, lines, and dots outside the visible window',
         (eventMarkerStyle) => {
             const result = buildMarkers({
@@ -337,7 +343,6 @@ describe('zoom window (#599)', () => {
                 turningPoints: [tp],
             });
             expect(result.curveLabels).toEqual([]);
-            expect(result.continuousMarkerLines).toEqual([]);
             const xAxes = [...result.allMarkLines, ...result.controlGuideMarkLines].map(
                 (line) => (line as { xAxis?: number }).xAxis,
             );
@@ -366,7 +371,6 @@ describe('zoom window (#599)', () => {
                 showDot: true,
             }),
         ]);
-        expect(result.continuousMarkerLines).toEqual([]);
     });
 
     it('restores labels when the window resets to the full range', () => {
@@ -403,7 +407,7 @@ describe('zoom window (#599)', () => {
     it('hides a marker when the filtered series has no finite BT near its time', () => {
         const result = buildMarkers({
             ...baseParams,
-            eventMarkerStyle: 'both',
+            eventMarkerStyle: 'tempLine',
             xMin: 100,
             xMax: 660,
             xs: [400, 460, 600],
@@ -414,13 +418,13 @@ describe('zoom window (#599)', () => {
         expect(nearestBtAt([400, 460, 600], [190, null, 197], 122)).toBeNull();
         expect(nearestBtAt([400, 460, 600], [190, null, 197], 130)).toBeNull();
         expect(result.curveLabels).toEqual([]);
-        expect(result.continuousMarkerLines).toEqual([]);
+        expect(result.allMarkLines.some((line) => (line as { xAxis?: number }).xAxis === 130)).toBe(false);
     });
 
     it('keeps a Note on the axis when the curve has not reached that time', () => {
         const result = buildMarkers({
             ...baseParams,
-            eventMarkerStyle: 'both',
+            eventMarkerStyle: 'tempLine',
             xMin: 0,
             xMax: 780,
             currentTimeSec: 14,
@@ -437,7 +441,8 @@ describe('zoom window (#599)', () => {
                 topInsetPx: NOTE_LABEL_TOP_INSET_PX,
             }),
         ]);
-        expect(result.continuousMarkerLines).toEqual([expect.objectContaining({ timeSec: 300 })]);
+        expect(result.allMarkLines).toEqual(expect.arrayContaining([expect.objectContaining({ xAxis: 300 })]));
+        expect(result.controlGuideMarkLines.some((line) => (line as { xAxis?: number }).xAxis === 300)).toBe(false);
     });
 });
 
@@ -470,7 +475,7 @@ describe('Charge marker (#451)', () => {
     };
 
     it('line style: no Charge vertical line, curve label only', () => {
-        const { allMarkLines, controlGuideMarkLines, curveLabels, continuousMarkerLines } = buildMarkers({
+        const { allMarkLines, controlGuideMarkLines, curveLabels } = buildMarkers({
             ...baseParams,
             xs: [0, 60],
             btActual: [210.1, 200],
@@ -481,7 +486,6 @@ describe('Charge marker (#451)', () => {
         });
         expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
         expect(controlGuideMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
-        expect(continuousMarkerLines.some((l) => l.timeSec === 0)).toBe(false);
         expect(curveLabels).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({

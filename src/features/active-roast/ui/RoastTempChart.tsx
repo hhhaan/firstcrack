@@ -258,7 +258,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         rorActual,
         currentTimeSec,
         charged = false,
-        eventMarkerStyle = 'both',
+        eventMarkerStyle = 'line',
         eventMarkers,
         turningPoints = [],
         temperatureUnit = 'C',

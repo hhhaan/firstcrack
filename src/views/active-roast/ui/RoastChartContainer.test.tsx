@@ -79,7 +79,7 @@ describe('RoastChartContainer pointer ownership', () => {
                     rorYMax: 40,
                     elapsed: 60,
                     charged: true,
-                    eventMarkerStyle: 'both',
+                    eventMarkerStyle: 'line',
                     eventMarkers: [],
                     turningPoints: [],
                     phaseSegments: [],

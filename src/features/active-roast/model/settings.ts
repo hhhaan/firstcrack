@@ -41,8 +41,8 @@ export const fontScaleToSlider = (fontScalePct: number): number =>
 export const sliderToFontScale = (slider: number): FontScalePct =>
     FONT_SCALE_MIN +
     Math.round(((slider - FONT_SLIDER_MIN) * (FONT_SCALE_MAX - FONT_SCALE_MIN)) / (FONT_SLIDER_MAX - FONT_SLIDER_MIN));
-/** line = vertical line | point = curve label | both = curve label + full-height line */
-export type EventMarkerStyle = 'line' | 'point' | 'both';
+/** line = vertical lines on the temperature and control charts | tempLine = temperature chart only | point = dot on BT */
+export type EventMarkerStyle = 'line' | 'tempLine' | 'point';
 
 export type RoastSettings = {
     pollIntervalMs: PollIntervalMs;
@@ -201,7 +201,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showPhaseBar: true,
     showFcBand: true,
     bbpEnabled: true,
-    eventMarkerStyle: 'both',
+    eventMarkerStyle: 'line',
     curveStyles: DEFAULT_CURVE_STYLES,
     tempMinC: 130,
     tempMaxC: 240,
@@ -271,8 +271,9 @@ const coerceAutoDropStartMin = (value: unknown, previous: number): number => {
     return Math.min(AUTO_DROP_START_MIN_MAX, Math.max(AUTO_DROP_START_MIN_MIN, value));
 };
 
-const isEventMarkerStyle = (value: unknown): value is EventMarkerStyle =>
-    value === 'line' || value === 'point' || value === 'both';
+/** Retired `both` was one line through both charts. Keep lines on each chart. */
+const eventMarkerStyleOf = (value: unknown): EventMarkerStyle =>
+    value === 'line' || value === 'tempLine' || value === 'point' ? value : 'line';
 
 const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
     if (ms === 250) return 500;
@@ -377,9 +378,7 @@ export const normalizeRoastSettings = (
         btSmoothing: Math.round(clampNum(merged.btSmoothing, 0, 100, DEFAULT_SETTINGS.btSmoothing)),
         etSmoothing: Math.round(clampNum(merged.etSmoothing, 0, 100, DEFAULT_SETTINGS.etSmoothing)),
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
-        eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)
-            ? merged.eventMarkerStyle
-            : DEFAULT_SETTINGS.eventMarkerStyle,
+        eventMarkerStyle: eventMarkerStyleOf(merged.eventMarkerStyle),
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
         // curveStyles: invalid per-field values fall back to channel defaults (see normalizeCurveStyles), not prior settings.
         curveStyles: normalizeCurveStyles(merged.curveStyles),

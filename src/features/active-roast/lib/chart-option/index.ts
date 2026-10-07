@@ -16,13 +16,7 @@ import {
     computeTempYRange,
 } from './axes';
 import { buildMarkers } from './markers';
-import {
-    buildContinuousMarkerSeries,
-    buildControlSeries,
-    buildCurveLabelSeries,
-    buildPhaseSeries,
-    buildTempSeries,
-} from './series';
+import { buildControlSeries, buildCurveLabelSeries, buildPhaseSeries, buildTempSeries } from './series';
 import { createAxisTooltipFormatter, lastDrawnSampleSec } from './tooltip';
 import type { ChartOptionParams } from './types';
 
@@ -166,37 +160,30 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             (profileOn(showProfileHeat) && reference.heater.some((value) => value != null)) ||
             (profileOn(showProfileFan) && reference.fan.some((value) => value != null)));
     const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan || profileControl);
-    const {
-        allMarkLines,
-        markPointData,
-        curveLabels,
-        fcMarkArea,
-        controlGuideMarkLines,
-        continuousMarkerLines,
-        tempBottomBorderLine,
-    } = buildMarkers({
-        charged,
-        currentTimeSec,
-        xMin,
-        xMax,
-        eventMarkerStyle,
-        eventMarkers,
-        turningPoints,
-        temperatureUnit,
-        unitLabel,
-        xs,
-        btActual,
-        colors,
-        tempYMin,
-        tempYMax,
-        hasControlSeries,
-        showFcBand,
-        showTargetDeltaLabel,
-        targetXs,
-        targetBt,
-        hideChargeLabel,
-        fontScale,
-    });
+    const { allMarkLines, markPointData, curveLabels, fcMarkArea, controlGuideMarkLines, tempBottomBorderLine } =
+        buildMarkers({
+            charged,
+            currentTimeSec,
+            xMin,
+            xMax,
+            eventMarkerStyle,
+            eventMarkers,
+            turningPoints,
+            temperatureUnit,
+            unitLabel,
+            xs,
+            btActual,
+            colors,
+            tempYMin,
+            tempYMax,
+            hasControlSeries,
+            showFcBand,
+            showTargetDeltaLabel,
+            targetXs,
+            targetBt,
+            hideChargeLabel,
+            fontScale,
+        });
 
     const hasRightYAxis = showRoR || hasControlSeries;
     const { leftMargin, rightMargin, topMargin } = computeGridMargins(hasRightYAxis);
@@ -229,20 +216,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const phaseSeries = hasPhaseBar
         ? buildPhaseSeries({ phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors, fontScale })
         : null;
-    const continuousMarkerSeries =
-        eventMarkerStyle === 'both'
-            ? buildContinuousMarkerSeries(
-                  report
-                      ? continuousMarkerLines.map((line) => ({
-                            ...line,
-                            width: 0.6,
-                            color: line.color === colors.eventControl ? colors.eventControl : colors.phaseLines,
-                        }))
-                      : continuousMarkerLines,
-                  (tempYMin + tempYMax) / 2,
-                  hasControlSeries,
-              )
-            : null;
     // Always present so a zoom that culls every label still updates this series.
     // Omitting it on merge leaves the previous frame's text on the canvas.
     const curveLabelSeries = buildCurveLabelSeries(curveLabels, fontScale);
@@ -309,7 +282,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 ...(bbpRange ? [bbpBackground(false), bbpBackground(true)] : []),
                 ...tempSeries,
                 ...controlSeries,
-                ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
                 curveLabelSeries,
                 ...(phaseSeries ? [phaseSeries] : []),
             ],
@@ -357,7 +329,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         series: [
             ...(bbpRange ? [bbpBackground(false)] : []),
             ...tempSeries,
-            ...(continuousMarkerSeries ? [continuousMarkerSeries] : []),
             curveLabelSeries,
             ...(phaseSeries ? [phaseSeries] : []),
         ],

@@ -1,6 +1,5 @@
 import type { PhaseSegment, TemperatureUnit } from '@features/active-roast';
 import {
-    CONTROL_GRID_BOTTOM,
     MARKER_LABEL_CANVAS_GUTTER_PX,
     MARKER_LABEL_MAX_WIDTH_PX,
     markerLabelFont,
@@ -298,40 +297,6 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     }
     return series;
 };
-
-export const buildContinuousMarkerSeries = (
-    lines: { timeSec: number; color: string; width: number }[],
-    tempYMid: number,
-    hasControlSeries: boolean,
-) => ({
-    id: 'event-marker-lines',
-    name: 'Event marker lines',
-    type: 'custom' as const,
-    xAxisIndex: 0,
-    yAxisIndex: 0,
-    clip: false,
-    silent: true,
-    z: 3,
-    // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
-    renderItem: (params: any, api: any) => {
-        const x = api.coord([api.value(0), tempYMid])[0] as number;
-        const { x: plotX, y: plotY, width: plotWidth, height: plotHeight } = params.coordSys;
-        if (!Number.isFinite(x) || x < plotX || x > plotX + plotWidth) return;
-        return {
-            type: 'line',
-            shape: {
-                x1: x,
-                y1: plotY,
-                x2: x,
-                y2: hasControlSeries ? api.getHeight() - CONTROL_GRID_BOTTOM : plotY + plotHeight,
-            },
-            // Keep CSS colors outside ECharts numeric data dimensions.
-            style: { stroke: lines[params.dataIndex].color, lineWidth: lines[params.dataIndex].width },
-            silent: true,
-        };
-    },
-    data: lines.map(({ timeSec, color, width }) => [timeSec, color, width]),
-});
 
 /** BT 축 위에 이벤트 라벨. 한 번에 배치해서 박스가 겹치면 위/아래로 밀어낸다. */
 export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
