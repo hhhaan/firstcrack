@@ -44,6 +44,29 @@ describe('RoastLog removable entries', () => {
         expect(container.textContent).toContain('Gas 0 · Airflow 1.2 kPa');
     });
 
+    it.each(['panel', 'main', 'sidebar'] as const)(
+        'keeps %s rows and delete focus stable when reordered',
+        (variant) => {
+            const onRemoveEntry = vi.fn();
+            const first = entry('Note', 'first');
+            const second = entry('Note', 'second');
+            const now: LogEntry = { time: '1:00', event: 'Now', temp: '180°C', note: '', current: true };
+            const render = (entries: LogEntry[]) =>
+                act(() => root.render(createElement(RoastLog, { variant, entries, onRemoveEntry })));
+            const nowLabel = () => [...container.querySelectorAll('span')].find((el) => el.textContent === 'Now');
+            render([first, second, now]);
+            const currentLabel = nowLabel();
+            const firstDelete = container.querySelector('[aria-label="Delete note"]') as HTMLButtonElement;
+            firstDelete.focus();
+            render([{ ...now, time: '1:01', temp: '181°C' }, second, first]);
+            expect(nowLabel()).toBe(currentLabel);
+            expect(document.activeElement).toBe(firstDelete);
+            expect(container.querySelectorAll('[aria-label="Delete note"]')[1]).toBe(firstDelete);
+            act(() => firstDelete.click());
+            expect(onRemoveEntry).toHaveBeenCalledWith('first');
+        },
+    );
+
     it('deletes Heater and Note rows, not Charge', () => {
         const onRemoveEntry = vi.fn();
         act(() => {
