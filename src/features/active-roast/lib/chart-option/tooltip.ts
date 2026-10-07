@@ -1,5 +1,10 @@
 import { CHART_COLORS } from '@features/active-roast/lib/chart-config';
-import { type CurveLineStyle, curveSwatchCss, type ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
+import {
+    type CurveLineStyle,
+    controlLiveLineStyle,
+    curveSwatchCss,
+    type ResolvedCurveStyles,
+} from '@features/active-roast/lib/curve-style';
 import { type ControlUnits, DEFAULT_CONTROL_UNITS, withUnit } from '../control-channels';
 import { fmtSec } from './axes';
 import type { ControlData } from './types';
@@ -76,7 +81,7 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
         Drum: { style: curves.drum.current, label: 'Drum', format: drum, visible: control },
         Heat: { style: curves.heat.current, label: 'Heat', format: heat, visible: control },
         'Heat set': {
-            style: { ...curves.heat.current, type: 'dashed' },
+            style: controlLiveLineStyle(curves.heat.current, 'set'),
             label: 'Heat set',
             format: (y) => heat(Math.round(y)),
             visible: control,
@@ -102,7 +107,7 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
             for (let i = target.xs.length - 1; i >= 0; i--) {
                 if (timeSec < target.xs[i]) continue;
                 html += tooltipRow(
-                    { ...curves.heat.current, type: 'dotted' },
+                    controlLiveLineStyle(curves.heat.current, 'heatTarget'),
                     'Heat target',
                     heat(Math.round(target.values[i])),
                 );

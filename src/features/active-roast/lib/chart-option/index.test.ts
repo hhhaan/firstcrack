@@ -9,7 +9,7 @@ import {
 import * as echarts from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
 import { deadbandSpanForChannel, resolveControlUnits } from '../control-channels';
-import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '../curve-style';
+import { canvasCurveTokens, controlLiveLineStyle, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '../curve-style';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams } from './types';
@@ -1215,5 +1215,51 @@ describe('buildRoastChartOption', () => {
             .map((child) => child.style?.fill);
         expect(fills).toContain(curves.drum.current.color);
         expect(fills).toContain(drumColor);
+    });
+
+    it('aligns control change labels and live series with custom heat and fan curve colors', () => {
+        const heatColor = '#112233';
+        const fanColor = '#445566';
+        const curveStyles = {
+            ...DEFAULT_CURVE_STYLES,
+            heat: { ...DEFAULT_CURVE_STYLES.heat, color: heatColor },
+            fan: { ...DEFAULT_CURVE_STYLES.fan, color: fanColor, width: 4, lineType: 'dashed' as const },
+        };
+        const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(mockColors));
+        const controlData = {
+            xs: [0, 60, 120],
+            drumTemp: [50, 50, 50],
+            heatPower: [40, 55, 55],
+            fanSpeed: [20, 30, 30],
+            heatTarget: { xs: [0, 120], values: [70, 70] },
+            changeLabels: {
+                xs: [0, 60, 120],
+                drumTemp: [50, 50, 50],
+                heatPower: [40, 55, 55],
+                fanSpeed: [20, 30, 30],
+            },
+        };
+        const option = buildRoastChartOption({ ...baseParams(), curveStyles, controlData });
+        const byName = seriesByName({ ...baseParams(), curveStyles, controlData });
+        expect(byName.Heat?.lineStyle).toEqual(curves.heat.current);
+        expect(byName.Fan?.lineStyle).toEqual(curves.fan.current);
+        expect(byName['Heat target']?.lineStyle).toEqual(controlLiveLineStyle(curves.heat.current, 'heatTarget'));
+        const labelSeries = (
+            option.series as {
+                id?: string;
+                renderItem?: (
+                    params: unknown,
+                    api: unknown,
+                ) => { children?: { style?: { fill?: string; text?: string } }[] };
+            }[]
+        ).find((series) => series.id === 'control-change-labels');
+        const rendered = labelSeries?.renderItem?.(
+            { dataIndex: 0, coordSys: { x: 0, y: 0, width: 600, height: 80 } },
+            { coord: ([x]: number[]) => [(x / 120) * 600, 40] },
+        );
+        const fillFor = (text: string) =>
+            (rendered?.children ?? []).find((child) => child.style?.text === text)?.style?.fill;
+        expect(fillFor('55')).toBe(heatColor);
+        expect(fillFor('30')).toBe(fanColor);
     });
 });

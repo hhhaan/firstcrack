@@ -141,6 +141,16 @@ export const canvasCurveTokens = (colors: ResolvedChartColors): CurveTokenColors
     drum: { current: colors.controlDrum, background: colors.reference },
 });
 
+/** Live control curve roles on the roast chart (measured / Heat set / profile Heat target). */
+export type ControlLiveLineRole = 'measured' | 'set' | 'heatTarget';
+
+/** Single source for live control line + matching swatch styles (series, readout, tooltip). */
+export const controlLiveLineStyle = (current: CurveLineStyle, role: ControlLiveLineRole): CurveLineStyle => {
+    if (role === 'measured') return current;
+    if (role === 'set') return { ...current, type: 'dashed' };
+    return { ...current, type: 'dotted' };
+};
+
 /** Inline CSS for a short line sample. Tooltip HTML and React legends share it. */
 export const curveSwatchCss = (style: CurveLineStyle): string => {
     const opacity = style.opacity == null ? '' : `opacity:${style.opacity};`;

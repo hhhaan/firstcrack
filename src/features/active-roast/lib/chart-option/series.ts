@@ -15,7 +15,11 @@ import {
     PHASE_BAR_WIDE_THRESHOLD,
     scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
-import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
+import {
+    type CurveLineStyle,
+    controlLiveLineStyle,
+    type ResolvedCurveStyles,
+} from '@features/active-roast/lib/curve-style';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
@@ -262,7 +266,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: axisOf.heat,
             data: heatTarget.xs.map((x, i) => [x, heatTarget.values[i]]),
-            lineStyle: { ...curves.heat.current, type: 'dotted' as const },
+            lineStyle: controlLiveLineStyle(curves.heat.current, 'heatTarget'),
             ...lineSeriesBase,
             step: 'end' as const,
         });
@@ -275,7 +279,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             xAxisIndex: 1,
             yAxisIndex: axisOf.heat,
             data: cxs.map((x, i) => [x, heatSet[i]]),
-            lineStyle: { ...curves.heat.current, type: 'dashed' as const },
+            lineStyle: controlLiveLineStyle(curves.heat.current, 'set'),
             ...lineSeriesBase,
             step: 'end' as const,
         });

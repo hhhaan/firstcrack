@@ -3,6 +3,7 @@ import { CONTROL_CURVE_WIDTH, REFERENCE_CURVE_OPACITY, TEMP_CURVE_WIDTH } from '
 import {
     CSS_CURVE_TOKENS,
     CURVE_CHANNELS,
+    controlLiveLineStyle,
     DEFAULT_CURVE_STYLES,
     normalizeCurveStyles,
     resolveCurveStyles,
@@ -55,6 +56,15 @@ describe('normalizeCurveStyles', () => {
         for (const color of ['#fff', 'var(--x)', '#ff0000;background:url(x)', 'rgb(0,0,0)', '#ff00008c']) {
             expect(normalizeCurveStyles({ bt: { color } }).bt.color).toBeNull();
         }
+    });
+});
+
+describe('controlLiveLineStyle', () => {
+    it('derives set and heat target from the channel current style without using background', () => {
+        const current = { color: '#ff5500', width: 4, type: 'solid' as const };
+        expect(controlLiveLineStyle(current, 'measured')).toEqual(current);
+        expect(controlLiveLineStyle(current, 'set')).toEqual({ ...current, type: 'dashed' });
+        expect(controlLiveLineStyle(current, 'heatTarget')).toEqual({ ...current, type: 'dotted' });
     });
 });
 
