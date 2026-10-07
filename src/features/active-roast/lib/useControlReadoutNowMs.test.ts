@@ -132,4 +132,58 @@ describe('useControlReadoutNowMs', () => {
             }).state,
         ).toBe('stale');
     });
+
+    it('re-arms exactly one timeout when the first fire is still inside the strict stale window', () => {
+        const poll = 1000;
+        const last = Date.now();
+
+        let nowMs = last;
+        const Probe = () => {
+            nowMs = useControlReadoutNowMs({
+                connected: true,
+                isActive: true,
+                lastValidReceivedAtMs: last,
+                pollIntervalMs: poll,
+            });
+            return null;
+        };
+
+        act(() => {
+            root.render(createElement(Probe));
+        });
+        expect(vi.getTimerCount()).toBe(1);
+
+        act(() => {
+            vi.advanceTimersByTime(CONTROL_STALE_AGE_FACTOR * poll);
+        });
+        act(() => {
+            vi.setSystemTime(last);
+        });
+        act(() => {
+            vi.advanceTimersByTime(CONTROL_STALE_TIMER_MARGIN_MS);
+        });
+
+        expect(
+            buildControlLiveReadout({
+                ...liveInput(),
+                lastValidReceivedAtMs: last,
+                nowMs,
+                pollIntervalMs: poll,
+            }).state,
+        ).toBe('live');
+        expect(vi.getTimerCount()).toBe(1);
+
+        act(() => {
+            vi.advanceTimersByTime(CONTROL_STALE_AGE_FACTOR * poll + CONTROL_STALE_TIMER_MARGIN_MS);
+        });
+        expect(
+            buildControlLiveReadout({
+                ...liveInput(),
+                lastValidReceivedAtMs: last,
+                nowMs,
+                pollIntervalMs: poll,
+            }).state,
+        ).toBe('stale');
+        expect(vi.getTimerCount()).toBe(0);
+    });
 });

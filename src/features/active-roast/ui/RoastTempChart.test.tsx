@@ -2,6 +2,8 @@
 
 import type { ControlData } from '@features/active-roast/lib/chart-option';
 import * as chartOption from '@features/active-roast/lib/chart-option';
+import { CONTROL_STALE_AGE_FACTOR } from '@features/active-roast/lib/control-readout';
+import { CONTROL_STALE_TIMER_MARGIN_MS } from '@features/active-roast/lib/useControlReadoutNowMs';
 import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { logger } from '@shared/lib/logger';
 import * as echarts from 'echarts';
@@ -9,6 +11,8 @@ import { act, createElement, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoastTempChart, type RoastTempChartHandle } from './RoastTempChart';
+
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 const dispatchTimeInput = (input: HTMLInputElement, data: string, inputType = 'insertText') => {
     input.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, data, inputType }));
@@ -850,6 +854,9 @@ describe('RoastTempChart interactions', () => {
     });
 
     it('does not rebuild the chart option when the readout stale clock advances', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-03-01T12:00:00.000Z'));
+        const t0 = Date.now();
         const buildSpy = vi.spyOn(chartOption, 'buildRoastChartOption');
         const live = {
             liveData: { heater: 50, fan: 0, drum: 0 },
@@ -857,30 +864,38 @@ describe('RoastTempChart interactions', () => {
             connected: true,
             reconnecting: false,
             quality: 'valid' as const,
-            lastValidReceivedAtMs: Date.now() - 500,
+            lastValidReceivedAtMs: t0,
             pollIntervalMs: 1000,
         };
-        act(() =>
-            root.render(
-                createElement(RoastTempChart, {
-                    ...baseProps,
-                    controlData: controlData([]),
-                    controlLive: live,
-                    chartReadoutActive: true,
-                    supportedControls: { drum: false, heat: true, fan: false },
-                }),
-            ),
-        );
-        const callsAfterMount = buildSpy.mock.calls.length;
-        act(() => {
-            vi.useFakeTimers();
-            vi.advanceTimersByTime(2500);
-        });
-        act(() => {
+        try {
+            act(() =>
+                root.render(
+                    createElement(RoastTempChart, {
+                        ...baseProps,
+                        controlData: controlData([]),
+                        controlLive: live,
+                        chartReadoutActive: true,
+                        supportedControls: { drum: false, heat: true, fan: false },
+                    }),
+                ),
+            );
+            const readout = () => container.querySelector('[data-testid="control-readout"]');
+            expect(readout()?.getAttribute('data-state')).toBe('live');
+
+            const buildCallsAfterMount = buildSpy.mock.calls.length;
+            const setOptionCallsAfterMount = setOption.mock.calls.length;
+
+            act(() => {
+                vi.advanceTimersByTime(CONTROL_STALE_AGE_FACTOR * 1000 + CONTROL_STALE_TIMER_MARGIN_MS);
+            });
+
+            expect(readout()?.getAttribute('data-state')).toBe('stale');
+            expect(buildSpy.mock.calls.length).toBe(buildCallsAfterMount);
+            expect(setOption.mock.calls.length).toBe(setOptionCallsAfterMount);
+        } finally {
+            buildSpy.mockRestore();
             vi.useRealTimers();
-        });
-        expect(buildSpy.mock.calls.length).toBe(callsAfterMount);
-        buildSpy.mockRestore();
+        }
     });
 
     it('re-renders at print density with legible light colors and both grids, without changing the screen theme', () => {
