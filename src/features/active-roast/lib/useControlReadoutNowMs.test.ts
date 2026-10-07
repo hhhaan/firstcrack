@@ -2,10 +2,25 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CONTROL_STALE_AGE_FACTOR } from './control-readout';
-import { useControlReadoutNowMs } from './useControlReadoutNowMs';
+import {
+    buildControlLiveReadout,
+    CONTROL_STALE_AGE_FACTOR,
+    type ControlLiveInput,
+    controlLinkState,
+} from './control-readout';
+import { CONTROL_STALE_TIMER_MARGIN_MS, useControlReadoutNowMs } from './useControlReadoutNowMs';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const liveInput = (over: Partial<ControlLiveInput> = {}): ControlLiveInput => ({
+    liveData: { heater: 50, fan: 0, drum: 0 },
+    capabilities: ['heater'],
+    connected: true,
+    reconnecting: false,
+    quality: 'valid',
+    pollIntervalMs: 1000,
+    ...over,
+});
 
 describe('useControlReadoutNowMs', () => {
     let container: HTMLDivElement;
@@ -25,30 +40,6 @@ describe('useControlReadoutNowMs', () => {
         vi.useRealTimers();
     });
 
-    it('schedules a single timeout at the stale boundary, not a 1s interval', () => {
-        const poll = 1000;
-        const last = Date.now() - 500;
-        let latest = 0;
-        const Probe = () => {
-            latest = useControlReadoutNowMs({
-                connected: true,
-                isActive: true,
-                lastValidReceivedAtMs: last,
-                pollIntervalMs: poll,
-            });
-            return null;
-        };
-        act(() => {
-            root.render(createElement(Probe));
-        });
-        const before = latest;
-        act(() => {
-            vi.advanceTimersByTime(CONTROL_STALE_AGE_FACTOR * poll - 500);
-        });
-        expect(latest).toBeGreaterThanOrEqual(before);
-        expect(vi.getTimerCount()).toBe(0);
-    });
-
     it('does not schedule when disconnected', () => {
         const Probe = () => {
             useControlReadoutNowMs({
@@ -63,5 +54,82 @@ describe('useControlReadoutNowMs', () => {
             root.render(createElement(Probe));
         });
         expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('flips buildControlLiveReadout to stale past the strict boundary and re-arms after a new reading', () => {
+        const poll = 1000;
+        const last = Date.now();
+        const staleAt = last + CONTROL_STALE_AGE_FACTOR * poll;
+
+        expect(
+            controlLinkState({
+                connected: true,
+                reconnecting: false,
+                quality: 'valid',
+                lastValidReceivedAtMs: last,
+                pollIntervalMs: poll,
+                nowMs: staleAt,
+            }),
+        ).toBe('live');
+
+        let lastProp = last;
+        let nowMs = last;
+        const Probe = () => {
+            nowMs = useControlReadoutNowMs({
+                connected: true,
+                isActive: true,
+                lastValidReceivedAtMs: lastProp,
+                pollIntervalMs: poll,
+            });
+            return null;
+        };
+
+        act(() => {
+            root.render(createElement(Probe));
+        });
+        expect(vi.getTimerCount()).toBe(1);
+
+        act(() => {
+            vi.advanceTimersByTime(CONTROL_STALE_AGE_FACTOR * poll + CONTROL_STALE_TIMER_MARGIN_MS);
+        });
+
+        expect(
+            buildControlLiveReadout({
+                ...liveInput(),
+                lastValidReceivedAtMs: lastProp,
+                nowMs,
+                pollIntervalMs: poll,
+            }).state,
+        ).toBe('stale');
+        expect(vi.getTimerCount()).toBe(0);
+
+        const freshAt = staleAt + CONTROL_STALE_TIMER_MARGIN_MS + 50;
+        act(() => {
+            vi.setSystemTime(freshAt);
+            lastProp = freshAt;
+            root.render(createElement(Probe));
+        });
+
+        expect(
+            buildControlLiveReadout({
+                ...liveInput(),
+                lastValidReceivedAtMs: lastProp,
+                nowMs,
+                pollIntervalMs: poll,
+            }).state,
+        ).toBe('live');
+        expect(vi.getTimerCount()).toBe(1);
+
+        act(() => {
+            vi.advanceTimersByTime(CONTROL_STALE_AGE_FACTOR * poll + CONTROL_STALE_TIMER_MARGIN_MS);
+        });
+        expect(
+            buildControlLiveReadout({
+                ...liveInput(),
+                lastValidReceivedAtMs: lastProp,
+                nowMs,
+                pollIntervalMs: poll,
+            }).state,
+        ).toBe('stale');
     });
 });
