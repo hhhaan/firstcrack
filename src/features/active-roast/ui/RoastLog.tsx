@@ -35,6 +35,7 @@ export const RoastLog = ({
                 </h3>
             )}
             {entries.map((entry, i, arr) => {
+                const key = entry.current ? 'current' : (entry.id ?? `${entry.time}-${entry.event}`);
                 const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
                 const canRemove =
                     REMOVABLE_LOG_EVENTS.has(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
@@ -47,7 +48,7 @@ export const RoastLog = ({
                 if (variant === 'panel') {
                     return (
                         <div
-                            key={entry.id ?? `${entry.time}-${entry.event}-${i}`}
+                            key={key}
                             className="py-2"
                             style={{
                                 borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : undefined,
@@ -101,7 +102,7 @@ export const RoastLog = ({
 
                 return (
                     <div
-                        key={entry.id ?? `${entry.time}-${entry.event}-${i}`}
+                        key={key}
                         style={{
                             display: 'flex',
                             gap: isSidebar ? 10 : 12,
