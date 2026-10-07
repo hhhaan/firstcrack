@@ -1086,4 +1086,53 @@ describe('buildRoastChartOption', () => {
         expect(wide).toContain('55');
         expect(narrow.filter((text) => text === '55')).toEqual(wide.filter((text) => text === '55'));
     });
+
+    it('suppresses sub-deadband drum steps in a tight zoom when deadband uses full-series span', () => {
+        const changeLabels = {
+            xs: [0, 30, 60, 90, 120],
+            drumTemp: [0, 1000, 500, 500, 502],
+            heatPower: [60, 60, 60, 60, 60],
+            fanSpeed: [20, 20, 20, 20, 20],
+        };
+        const controlUnits = resolveControlUnits({ drum: { unit: 'RPM' } });
+        const xViewMin = 100;
+        const xViewMax = 120;
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            controlUnits,
+            xViewMin,
+            xViewMax,
+            controlData: {
+                xs: changeLabels.xs.filter((x) => x >= xViewMin && x <= xViewMax),
+                drumTemp: changeLabels.drumTemp.filter(
+                    (_, i) => changeLabels.xs[i] >= xViewMin && changeLabels.xs[i] <= xViewMax,
+                ),
+                heatPower: changeLabels.heatPower.filter(
+                    (_, i) => changeLabels.xs[i] >= xViewMin && changeLabels.xs[i] <= xViewMax,
+                ),
+                fanSpeed: changeLabels.fanSpeed.filter(
+                    (_, i) => changeLabels.xs[i] >= xViewMin && changeLabels.xs[i] <= xViewMax,
+                ),
+                changeLabels,
+            },
+        });
+        const labelSeries = (
+            option.series as {
+                id?: string;
+                renderItem?: (params: unknown, api: unknown) => { children?: { style?: { text?: string } }[] };
+            }[]
+        ).find((series) => series.id === 'control-change-labels');
+        const width = 600;
+        const height = 80;
+        const rendered = labelSeries?.renderItem?.(
+            { dataIndex: 0, coordSys: { x: 0, y: 0, width, height } },
+            {
+                coord: ([x]: number[]) => [((x - xViewMin) / (xViewMax - xViewMin)) * width, height / 2],
+            },
+        );
+        const labels = (rendered?.children ?? [])
+            .map((child) => child.style?.text)
+            .filter((text): text is string => Boolean(text));
+        expect(labels).not.toContain('502');
+    });
 });
