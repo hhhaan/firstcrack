@@ -18,8 +18,9 @@ import { useThemeStore } from '@shared/store/theme';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { RotateCcw } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CurveStyleColorInput } from './CurveStyleColorInput';
 import { SettingsSection } from './SettingsSection';
 
 const CHANNEL_LABEL_KEY: Record<CurveChannel, string> = {
@@ -43,70 +44,25 @@ const readThemeHex = (cssVar: string): string => {
     return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 };
 
-const useThemeHexForChannels = (resolvedTheme: string) =>
-    useMemo(() => {
+const readThemeHexForChannels = (): Record<CurveChannel, string> => {
+    const map: Partial<Record<CurveChannel, string>> = {};
+    for (const channel of CURVE_CHANNELS) {
+        map[channel] = readThemeHex(CSS_CURVE_TOKENS[channel].current);
+    }
+    return map as Record<CurveChannel, string>;
+};
+
+/**
+ * `useThemeStore.setTheme` calls `applyThemeToDOM` before updating `resolvedTheme`.
+ * Re-read token hex in layout effect so the picker fallback always matches the class on `<html>`.
+ */
+const useThemeHexForChannels = (resolvedTheme: string) => {
+    const [themeHexByChannel, setThemeHexByChannel] = useState(readThemeHexForChannels);
+    useLayoutEffect(() => {
         void resolvedTheme;
-        const map: Partial<Record<CurveChannel, string>> = {};
-        for (const channel of CURVE_CHANNELS) {
-            map[channel] = readThemeHex(CSS_CURVE_TOKENS[channel].current);
-        }
-        return map as Record<CurveChannel, string>;
+        setThemeHexByChannel(readThemeHexForChannels());
     }, [resolvedTheme]);
-
-const ColorInput = ({
-    value,
-    themeFallback,
-    label,
-    onCommit,
-}: {
-    value: string | null;
-    themeFallback: string;
-    label: string;
-    onCommit: (color: string) => void;
-}) => {
-    const [draft, setDraft] = useState<string | null>(null);
-    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const pendingRef = useRef<string | null>(null);
-
-    useEffect(
-        () => () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-        },
-        [],
-    );
-
-    const flush = (hex: string) => {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = null;
-        pendingRef.current = null;
-        onCommit(hex);
-        setDraft(null);
-    };
-
-    const schedule = (hex: string) => {
-        setDraft(hex);
-        pendingRef.current = hex;
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => {
-            if (pendingRef.current) onCommit(pendingRef.current);
-            pendingRef.current = null;
-            timerRef.current = null;
-        }, 120);
-    };
-
-    return (
-        <input
-            type="color"
-            value={draft ?? value ?? themeFallback}
-            aria-label={label}
-            onChange={(event) => schedule(event.currentTarget.value)}
-            onBlur={() => {
-                const hex = draft ?? value ?? themeFallback;
-                flush(hex);
-            }}
-            className="h-8 w-10 cursor-pointer rounded-md border border-border-subtle bg-transparent p-0.5"
-        />
-    );
+    return themeHexByChannel;
 };
 
 const WidthInput = ({ value, label, onCommit }: { value: number; label: string; onCommit: (v: number) => void }) => {
@@ -222,7 +178,7 @@ export const CurveStyleSection = () => {
                                         </th>
                                         <td className="px-2 py-2">
                                             <span className="flex items-center gap-1">
-                                                <ColorInput
+                                                <CurveStyleColorInput
                                                     value={style.color}
                                                     themeFallback={themeHexByChannel[channel]}
                                                     label={part('curveStyleColor')}

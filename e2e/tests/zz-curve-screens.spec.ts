@@ -49,6 +49,7 @@ const chooseLine = async (page: Page, label: string, option: string) => {
 };
 
 test('curve style screenshots', async ({ authedPage: page, db }) => {
+    test.skip(!process.env.FC_CURVE_SCREENS, 'opt-in artifact screenshots: FC_CURVE_SCREENS=1');
     test.setTimeout(600_000);
     await page.setViewportSize({ width: 1440, height: 900 });
     db.tsvFiles.set(REF_KEY, tsv(0));
