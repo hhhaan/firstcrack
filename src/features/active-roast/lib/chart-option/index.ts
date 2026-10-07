@@ -254,6 +254,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             showControlFan,
             curves,
             controlGuideMarkLines,
+            fontScale,
         });
 
         tuneAxes({ xAxis, yAxis });

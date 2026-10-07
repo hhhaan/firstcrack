@@ -29,6 +29,75 @@ export const lineSeriesBase = {
 const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>
     values?.some((value) => value != null) ?? false;
 
+const CONTROL_CHANGE_FONT_SIZE = 10;
+const CONTROL_CHANGE_DOT_PX = 4;
+
+type ControlPoint = readonly [number, number | null];
+
+/**
+ * Label a step only when the rounded value changes.
+ * A flat line keeps the tail number. A later change also keeps the opening number.
+ * The tail repeats the held value so the live end stays readable after a long plateau.
+ */
+const controlChangeMarks = (data: readonly ControlPoint[], style: CurveLineStyle, fontScale: number) => {
+    const samples: { x: number; y: number; shown: number }[] = [];
+    for (const [x, raw] of data) {
+        if (typeof raw !== 'number' || !Number.isFinite(raw)) continue;
+        samples.push({ x, y: raw, shown: Math.round(raw) });
+    }
+    if (samples.length === 0) return [];
+
+    const opacity = style.opacity ?? 1;
+    const changes: number[] = [];
+    let prev: number | null = null;
+    for (let i = 0; i < samples.length; i++) {
+        if (samples[i].shown === prev) continue;
+        changes.push(i);
+        prev = samples[i].shown;
+    }
+
+    const text = {
+        show: true,
+        color: style.color,
+        opacity,
+        fontFamily: PHASE_BAR_FONT_FAMILY,
+        fontWeight: PHASE_BAR_FONT_WEIGHT,
+        fontSize: scaleChartPx(CONTROL_CHANGE_FONT_SIZE, fontScale),
+    };
+    const end = samples.length - 1;
+    const mark = (index: number, endPoint: boolean) => {
+        const sample = samples[index];
+        // A zero-size symbol is culled with its label. Text-only steps keep a transparent dot.
+        const dotted = endPoint || (index === changes[0] && changes.length > 1);
+        return {
+            coord: [sample.x, sample.y] as [number, number],
+            symbol: 'circle' as const,
+            symbolSize: scaleChartPx(CONTROL_CHANGE_DOT_PX, fontScale),
+            itemStyle: { color: dotted ? style.color : 'transparent', opacity: dotted ? opacity : 1 },
+            label: {
+                ...text,
+                position: endPoint ? ('left' as const) : ('top' as const),
+                distance: endPoint ? 4 : 2,
+                // The opening sample sits on the plot edge. Shift it into the pane.
+                offset: index === changes[0] && !endPoint ? ([8, 0] as [number, number]) : undefined,
+                formatter: String(sample.shown),
+            },
+        };
+    };
+
+    if (changes.length === 1) return [mark(end, true)];
+    return [...changes.filter((index) => index !== end).map((index) => mark(index, false)), mark(end, true)];
+};
+
+const changeMarkProps = (data: readonly ControlPoint[], style: CurveLineStyle, fontScale: number) => ({
+    step: 'end' as const,
+    markPoint: {
+        silent: true,
+        animation: false,
+        data: controlChangeMarks(data, style, fontScale),
+    },
+});
+
 /** Stored reference behind the live curve. Same stroke as the live curve, at 30% opacity. Gaps stay broken. */
 const referenceLineSeries = (
     name: string,
@@ -186,6 +255,7 @@ export interface ControlSeriesParams {
     showControlFan: boolean;
     curves: ResolvedCurveStyles;
     controlGuideMarkLines: object[];
+    fontScale?: number;
 }
 
 export const buildControlSeries = (params: ControlSeriesParams): object[] => {
@@ -200,6 +270,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         showControlFan,
         curves,
         controlGuideMarkLines,
+        fontScale = 1,
     } = params;
     const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference } = controlData;
     const series: object[] = [];
@@ -207,28 +278,43 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     // 참조(현재 곡선, 투명도 30%)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
     if (showTargetCurve && reference?.xs.length) {
         if (showProfileDrum && hasNumericSample(reference.drum)) {
-            series.push(referenceLineSeries('Drum Target', reference.xs, reference.drum, curves.drum.background, 1, 2));
+            const data = reference.xs.map((x, i) => [x, reference.drum[i] ?? null] as [number, number | null]);
+            series.push({
+                ...referenceLineSeries('Drum Target', reference.xs, reference.drum, curves.drum.background, 1, 2),
+                data,
+                ...changeMarkProps(data, curves.drum.background, fontScale),
+            });
         }
         if (showProfileHeat && hasNumericSample(reference.heater)) {
-            series.push(
-                referenceLineSeries('Heater Target', reference.xs, reference.heater, curves.heat.background, 1, 3),
-            );
+            const data = reference.xs.map((x, i) => [x, reference.heater[i] ?? null] as [number, number | null]);
+            series.push({
+                ...referenceLineSeries('Heater Target', reference.xs, reference.heater, curves.heat.background, 1, 3),
+                data,
+                ...changeMarkProps(data, curves.heat.background, fontScale),
+            });
         }
         if (showProfileFan && hasNumericSample(reference.fan)) {
-            series.push(referenceLineSeries('Fan Target', reference.xs, reference.fan, curves.fan.background, 1, 3));
+            const data = reference.xs.map((x, i) => [x, reference.fan[i] ?? null] as [number, number | null]);
+            series.push({
+                ...referenceLineSeries('Fan Target', reference.xs, reference.fan, curves.fan.background, 1, 3),
+                data,
+                ...changeMarkProps(data, curves.fan.background, fontScale),
+            });
         }
     }
 
     if (showControlDrum) {
+        const data = cxs.map((x, i) => [x, drumTemp[i]] as [number, number | null]);
         series.push({
             name: 'Drum',
             type: 'line' as const,
             color: curves.drum.current.color,
             xAxisIndex: 1,
             yAxisIndex: 2,
-            data: cxs.map((x, i) => [x, drumTemp[i]]),
+            data,
             lineStyle: { ...curves.drum.current },
             ...lineSeriesBase,
+            ...changeMarkProps(data, curves.drum.current, fontScale),
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다
@@ -259,29 +345,31 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         });
     }
     if (showControlHeat) {
+        const data = cxs.map((x, i) => [x, heatPower[i]] as [number, number | null]);
         series.push({
             name: 'Heat',
             type: 'line' as const,
             color: curves.heat.current.color,
             xAxisIndex: 1,
             yAxisIndex: 3,
-            data: cxs.map((x, i) => [x, heatPower[i]]),
+            data,
             lineStyle: { ...curves.heat.current },
             ...lineSeriesBase,
-            step: 'end' as const,
+            ...changeMarkProps(data, curves.heat.current, fontScale),
         });
     }
     if (showControlFan) {
+        const data = cxs.map((x, i) => [x, fanSpeed[i]] as [number, number | null]);
         series.push({
             name: 'Fan',
             type: 'line' as const,
             color: curves.fan.current.color,
             xAxisIndex: 1,
             yAxisIndex: 3,
-            data: cxs.map((x, i) => [x, fanSpeed[i]]),
+            data,
             lineStyle: { ...curves.fan.current },
             ...lineSeriesBase,
-            step: 'end' as const,
+            ...changeMarkProps(data, curves.fan.current, fontScale),
         });
     }
     const guideOwner = series.find((item) => ['Drum', 'Heat', 'Fan'].includes((item as { name: string }).name));
