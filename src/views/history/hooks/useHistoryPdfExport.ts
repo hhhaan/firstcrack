@@ -55,7 +55,7 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
                     { color: colors.etActual, label: `ET (°${unit})` },
                     { color: colors.rorActual, label: `RoR (°${unit}/min)` },
                     ...(hasTarget
-                        ? [{ color: colors.btTarget, label: t('settings.tabs.roast.showTargetCurve'), dashed: true }]
+                        ? [{ color: colors.reference, label: t('settings.tabs.roast.showTargetCurve') }]
                         : []),
                     ...(hasControls
                         ? [

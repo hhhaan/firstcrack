@@ -1,3 +1,4 @@
+import { REFERENCE_CURVE_OPACITY } from '@features/active-roast/lib/chart-config';
 import { SENSOR_COLORS } from '@features/active-roast/lib/colors';
 
 export const ChartLegend = ({
@@ -18,7 +19,9 @@ export const ChartLegend = ({
         ...(showET ? [{ color: SENSOR_COLORS.et, label: 'ET' }] : []),
         ...(showRoR ? [{ color: SENSOR_COLORS.ror, label: 'RoR' }] : []),
         ...(showRoRET ? [{ color: SENSOR_COLORS.et, label: 'ET RoR', dashed: true }] : []),
-        ...(showTarget ? [{ color: SENSOR_COLORS.btTarget, label: targetLabel, dashed: true, opacity: 1 }] : []),
+        ...(showTarget
+            ? [{ color: 'var(--color-chart-axis-label)', label: targetLabel, opacity: REFERENCE_CURVE_OPACITY }]
+            : []),
     ];
 
     return (

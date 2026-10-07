@@ -14,6 +14,7 @@ import {
     PHASE_BAR_STROKE_WIDTH,
     PHASE_BAR_TEXT_INSET,
     PHASE_BAR_WIDE_THRESHOLD,
+    REFERENCE_CURVE_OPACITY,
     scaleChartPx,
     TEMP_CURVE_WIDTH,
 } from '@features/active-roast/lib/chart-config';
@@ -24,18 +25,6 @@ import type { ControlAxisLayout } from '../control-channels';
 import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
-// 커피 로스팅 차트에 최적화된 스무딩 설정
-// - BT(Bean Temp): 0.4 → 실측 느낌 유지, 과한 곡선화 방지
-// - ET(Environment Temp): 0.35 → BT보다 약간 덜 휘게
-// - RoR(Rate of Rise): 0.25 → 센서 노이즈 많아서 상대적으로 더 부드럽게
-// - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
-// - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
-export const getSmoothConfig = (strength: number = 0.4) => ({
-    smooth: strength,
-    smoothMonotone: 'x' as const,
-    sampling: 'lttb' as const,
-});
-
 export const lineSeriesBase = {
     showSymbol: false,
     emphasis: { disabled: true },
@@ -44,7 +33,7 @@ export const lineSeriesBase = {
 const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>
     values?.some((value) => value != null) ?? false;
 
-/** Stored reference: same channel color at the faded token, behind the live line. Gaps stay broken. */
+/** Stored reference: neutral gray solid background line, behind the live curve. Gaps stay broken. */
 const referenceLineSeries = (
     name: string,
     xs: number[],
@@ -62,7 +51,7 @@ const referenceLineSeries = (
     z: 1,
     data: xs.map((x, i) => [x, values[i] ?? null]),
     connectNulls: false,
-    lineStyle: { color, width, type: 'dashed' as const },
+    lineStyle: { color, width, type: 'solid' as const, opacity: REFERENCE_CURVE_OPACITY },
     ...lineSeriesBase,
     smooth: false,
 });
@@ -121,17 +110,17 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             showProfileBt &&
             targetXs?.length &&
             hasNumericSample(targetBt) &&
-            referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.btTarget, 0, 0, TEMP_CURVE_WIDTH),
+            referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.reference, 0, 0, TEMP_CURVE_WIDTH),
         showTargetCurve &&
             showProfileEt &&
             targetXs?.length &&
             hasNumericSample(targetEt) &&
-            referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.etTarget, 0, 0, TEMP_CURVE_WIDTH),
+            referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.reference, 0, 0, TEMP_CURVE_WIDTH),
         showTargetCurve &&
             showProfileRor &&
             targetXs?.length &&
             hasNumericSample(targetRor) &&
-            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.rorTarget, 0, 1, TEMP_CURVE_WIDTH),
+            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.reference, 0, 1, TEMP_CURVE_WIDTH),
         {
             name: 'BT Actual',
             type: 'line',
@@ -141,7 +130,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, btActual[i]]),
             lineStyle: { color: colors.btActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.4),
             markLine:
                 allMarkLines.length > 0 || tempBottomBorderLine
                     ? {
@@ -170,7 +158,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, etActual[i]]),
             lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.35),
         },
         showRoR && {
             name: 'RoR',
@@ -180,7 +167,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, rorActual[i]]),
             lineStyle: { color: colors.rorActual, width: TEMP_CURVE_WIDTH },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.25),
         },
         showRoR &&
             showRoRET && {
@@ -191,7 +177,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
                 lineStyle: { color: colors.etActual, width: TEMP_CURVE_WIDTH, type: 'dashed' },
                 ...lineSeriesBase,
-                ...getSmoothConfig(0.25),
             },
     ].filter(Boolean) as object[];
 };
@@ -227,7 +212,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference } = controlData;
     const series: object[] = [];
 
-    // 참조(옅은 점선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
+    // 참조(회색 실선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
     if (showTargetCurve && reference?.xs.length) {
         if (showProfileDrum && hasNumericSample(reference.drum)) {
             series.push(
@@ -235,7 +220,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     'Drum Target',
                     reference.xs,
                     reference.drum,
-                    colors.controlDrumTarget,
+                    colors.reference,
                     1,
                     axisOf.drum,
                     CONTROL_CURVE_WIDTH,
@@ -248,7 +233,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     'Heater Target',
                     reference.xs,
                     reference.heater,
-                    colors.controlHeatTarget,
+                    colors.reference,
                     1,
                     axisOf.heat,
                     CONTROL_CURVE_WIDTH,
@@ -261,7 +246,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     'Fan Target',
                     reference.xs,
                     reference.fan,
-                    colors.controlFanTarget,
+                    colors.reference,
                     1,
                     axisOf.fan,
                     CONTROL_CURVE_WIDTH,
@@ -280,7 +265,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data: cxs.map((x, i) => [x, drumTemp[i]]),
             lineStyle: { color: colors.controlDrum, width: CONTROL_CURVE_WIDTH },
             ...lineSeriesBase,
-            smooth: 0.3,
+            smooth: false,
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다

@@ -20,6 +20,7 @@ export const mockChartColors: ResolvedChartColors = {
     tooltipBg: '#f',
     tooltipBorder: '#10',
     markerLabelColor: '#11',
+    reference: '#30',
     phaseBarStroke: '#12',
     phaseBarName: '#13',
     phaseBarDuration: '#14',

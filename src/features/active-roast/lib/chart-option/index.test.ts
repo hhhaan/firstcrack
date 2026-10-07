@@ -580,7 +580,7 @@ describe('buildRoastChartOption', () => {
         expect(byName['ET Actual']?.width).toBe(TEMP_CURVE_WIDTH);
         expect(byName.RoR?.width).toBe(TEMP_CURVE_WIDTH);
         expect(byName['ET RoR']?.width).toBe(TEMP_CURVE_WIDTH);
-        expect(byName['BT Target']).toMatchObject({ width: TEMP_CURVE_WIDTH, type: 'dashed' });
+        expect(byName['BT Target']).toMatchObject({ width: TEMP_CURVE_WIDTH, type: 'solid' });
         expect(byName.Drum?.width).toBe(CONTROL_CURVE_WIDTH);
         expect(byName.Heat?.width).toBe(CONTROL_CURVE_WIDTH);
         expect(byName.Fan?.width).toBe(CONTROL_CURVE_WIDTH);
@@ -805,7 +805,7 @@ describe('buildRoastChartOption', () => {
         return byName;
     };
 
-    it('draws stored reference channels in the channel color without filling gaps', () => {
+    it('draws stored reference channels as a neutral gray solid line without filling gaps', () => {
         const byName = seriesByName({ ...baseParams(), ...fullReference });
         expect(byName['ET Target']).toMatchObject({
             connectNulls: false,
@@ -816,7 +816,7 @@ describe('buildRoastChartOption', () => {
                 [30, null],
                 [60, 150],
             ],
-            lineStyle: { color: mockColors.etTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
+            lineStyle: { color: mockColors.reference, width: TEMP_CURVE_WIDTH, type: 'solid' },
         });
         expect(byName['RoR Target']).toMatchObject({
             yAxisIndex: 1,
@@ -826,10 +826,10 @@ describe('buildRoastChartOption', () => {
                 [30, 6],
                 [60, null],
             ],
-            lineStyle: { color: mockColors.rorTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
+            lineStyle: { color: mockColors.reference, width: TEMP_CURVE_WIDTH, type: 'solid' },
         });
         expect(byName['BT Target']).toMatchObject({
-            lineStyle: { color: mockColors.btTarget, width: TEMP_CURVE_WIDTH, type: 'dashed' },
+            lineStyle: { color: mockColors.reference, width: TEMP_CURVE_WIDTH, type: 'solid' },
         });
         expect(byName['Drum Target']).toMatchObject({
             xAxisIndex: 1,
@@ -839,7 +839,7 @@ describe('buildRoastChartOption', () => {
                 [30, null],
                 [60, 42],
             ],
-            lineStyle: { color: mockColors.controlDrumTarget, type: 'dashed' },
+            lineStyle: { color: mockColors.reference, type: 'solid' },
         });
         expect(byName['Heater Target']).toMatchObject({
             yAxisIndex: 3,
@@ -848,7 +848,7 @@ describe('buildRoastChartOption', () => {
                 [30, 60],
                 [60, null],
             ],
-            lineStyle: { color: mockColors.controlHeatTarget, width: CONTROL_CURVE_WIDTH, type: 'dashed' },
+            lineStyle: { color: mockColors.reference, width: CONTROL_CURVE_WIDTH, type: 'solid' },
         });
         expect(byName['Fan Target']).toMatchObject({
             data: [
@@ -856,7 +856,7 @@ describe('buildRoastChartOption', () => {
                 [30, null],
                 [60, 12],
             ],
-            lineStyle: { color: mockColors.controlFanTarget },
+            lineStyle: { color: mockColors.reference },
         });
         expect(byName['Heat target']).toMatchObject({
             data: [
@@ -877,7 +877,7 @@ describe('buildRoastChartOption', () => {
             buildRoastChartOption({
                 ...baseParams(),
                 ...fullReference,
-                colors: { ...mockColors, etTarget: '#123456' },
+                colors: { ...mockColors, reference: '#123456' },
             }),
         );
         const svg = chart.renderToSVGString();
