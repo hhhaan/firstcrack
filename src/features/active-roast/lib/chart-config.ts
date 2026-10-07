@@ -222,5 +222,4 @@ export const DRUM_Y_MAX_F = 500;
 export const POWER_Y_MIN = 0;
 export const POWER_Y_MAX = 100;
 export const DRUM_LINE_WIDTH = 3;
-export const DRUM_LINE_SMOOTH = 0.3;
 export const DRUM_MARK_LINE_WIDTH = 2;
