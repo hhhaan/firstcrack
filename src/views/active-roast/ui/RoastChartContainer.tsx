@@ -1,4 +1,6 @@
 import type { ControlData, RoastEventMarker } from '@features/active-roast/lib/chart-option';
+import type { ControlUnits } from '@features/active-roast/lib/control-channels';
+import type { ControlLiveReadout } from '@features/active-roast/lib/control-readout';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
@@ -51,6 +53,8 @@ interface RoastChartContainerProps {
     controlChartHeightPct?: number;
     controlYMin?: number;
     controlYMax?: number;
+    controlUnits?: ControlUnits;
+    controlReadout?: ControlLiveReadout;
     tempMinC: number;
     tempMaxC: number;
     rorYMin: number;
@@ -107,6 +111,8 @@ export const RoastChartContainer = ({
     controlChartHeightPct = 21,
     controlYMin = 0,
     controlYMax = 100,
+    controlUnits,
+    controlReadout,
     tempMinC,
     tempMaxC,
     rorYMin,
@@ -281,6 +287,8 @@ export const RoastChartContainer = ({
                 controlChartHeightPct={controlChartHeightPct}
                 controlYMin={controlYMin}
                 controlYMax={controlYMax}
+                controlUnits={controlUnits}
+                controlReadout={controlReadout}
                 phaseSegments={phaseSegments}
                 showFcBand={showFcBand}
                 tempMinC={tempMinC}

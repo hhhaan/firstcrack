@@ -725,7 +725,16 @@
             "cancelDrop": "取消出豆"
         },
         "chart": {
-            "ariaLabel": "温度曲线图。使用滚轮或 +/- 缩放，拖拽或方向键平移，按 0 重置缩放。"
+            "ariaLabel": "温度曲线图。使用滚轮或 +/- 缩放，拖拽或方向键平移，按 0 重置缩放。",
+            "controlReadout": {
+                "set": "设定",
+                "target": "目标",
+                "leftAxis": "左轴 ({{unit}})",
+                "rightAxis": "右轴 ({{unit}})",
+                "ownScale": "独立刻度 (与两侧轴单位不同)",
+                "stale": "未更新",
+                "offline": "已断开"
+            }
         },
         "endRoastModal": {
             "title": "结束烘焙",

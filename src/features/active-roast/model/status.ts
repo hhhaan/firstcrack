@@ -24,6 +24,8 @@ type LiveData = {
     ror_et: number;
     /** null = 이 머신에 화력 피드백 채널이 없다 */
     heater: number | null;
+    /** Last heater setpoint the sidecar wrote. Absent/null before any write. */
+    heater_set?: number | null;
     fan: number;
     drum: number;
 };
@@ -185,6 +187,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current.ror === data.ror &&
             current.ror_et === data.ror_et &&
             current.heater === data.heater &&
+            current.heater_set === data.heater_set &&
             current.fan === data.fan &&
             current.drum === data.drum
         )

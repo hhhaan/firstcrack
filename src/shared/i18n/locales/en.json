@@ -725,7 +725,16 @@
             "cancelDrop": "Cancel Drop"
         },
         "chart": {
-            "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
+            "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom.",
+            "controlReadout": {
+                "set": "set",
+                "target": "target",
+                "leftAxis": "Left axis ({{unit}})",
+                "rightAxis": "Right axis ({{unit}})",
+                "ownScale": "Own scale (unit differs from both axes)",
+                "stale": "Stale",
+                "offline": "Disconnected"
+            }
         },
         "endRoastModal": {
             "title": "End Roast",

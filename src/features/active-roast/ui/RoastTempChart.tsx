@@ -1,6 +1,5 @@
 import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
-    CONTROL_COLORS,
     getResolvedChartColors,
     ROR_Y_MAX,
     ROR_Y_MIN,
@@ -10,6 +9,7 @@ import {
 import {
     buildRoastChartOption,
     type ControlData,
+    controlAxisLayoutFor,
     type RoastEventMarker,
 } from '@features/active-roast/lib/chart-option';
 import { computeTempYRange } from '@features/active-roast/lib/chart-option/axes';
@@ -24,6 +24,12 @@ import {
     noteLabelTopInsetPx,
 } from '@features/active-roast/lib/chart-option/markers';
 import { REMOVABLE_LOG_EVENTS, TP_MARKER_ID } from '@features/active-roast/lib/constants';
+import { type ControlUnits, DEFAULT_CONTROL_UNITS } from '@features/active-roast/lib/control-channels';
+import {
+    buildControlReadoutGroups,
+    type ControlLiveReadout,
+    stepValueAt,
+} from '@features/active-roast/lib/control-readout';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
@@ -47,6 +53,7 @@ import {
     useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ControlReadoutStrip } from './ControlReadoutStrip';
 import { RoastNoteFields, type RoastNoteValues } from './RoastNoteFields';
 
 export type { RoastEventMarker };
@@ -132,6 +139,9 @@ interface Props {
     controlChartHeightPct?: number;
     controlYMin?: number;
     controlYMax?: number;
+    controlUnits?: ControlUnits;
+    /** Live roast only. Without it the strip under the control band is a legend without numbers. */
+    controlReadout?: ControlLiveReadout;
     phaseSegments?: PhaseSegment[];
     showFcBand?: boolean;
     tempMinC?: number;
@@ -231,18 +241,34 @@ const chartStructureKey = (input: {
         input.fontScale,
     ].join('|');
 
-const controlLegendItems = (
-    controlData: ControlData | undefined,
-    drum: boolean,
-    heat: boolean,
-    fan: boolean,
-): { color: string; label: string }[] => {
-    if (!controlData || (!drum && !heat && !fan)) return [];
-    return [
-        ...(drum ? [{ color: CONTROL_COLORS.drum, label: 'Drum' }] : []),
-        ...(heat ? [{ color: CONTROL_COLORS.heat, label: 'Heat' }] : []),
-        ...(fan ? [{ color: CONTROL_COLORS.fan, label: 'Fan' }] : []),
-    ];
+const controlReadoutGroups = (input: {
+    controlData: ControlData | undefined;
+    controlUnits: ControlUnits | undefined;
+    controlReadout: ControlLiveReadout | undefined;
+    controlYMin: number;
+    controlYMax: number;
+    currentTimeSec: number;
+    showTargetCurve: boolean;
+    showControlDrum: boolean;
+    showControlHeat: boolean;
+    showControlFan: boolean;
+    showProfileDrum: boolean;
+    showProfileHeat: boolean;
+    showProfileFan: boolean;
+}) => {
+    const { controlData, showControlDrum, showControlHeat, showControlFan } = input;
+    if (!controlData || (!showControlDrum && !showControlHeat && !showControlFan)) return null;
+    const axes = controlAxisLayoutFor(input);
+    return buildControlReadoutGroups({
+        shown: { drum: showControlDrum, heat: showControlHeat, fan: showControlFan },
+        axes,
+        units: input.controlUnits ?? DEFAULT_CONTROL_UNITS,
+        live: input.controlReadout,
+        hasHeatSet: !!controlData.heatSet?.some((value) => value != null),
+        heatTargetNow: controlData.heatTarget?.xs.length
+            ? stepValueAt(controlData.heatTarget, input.currentTimeSec)
+            : undefined,
+    });
 };
 
 export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function RoastTempChart(
@@ -289,6 +315,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         controlChartHeightPct = 21,
         controlYMin = 0,
         controlYMax = 100,
+        controlUnits,
+        controlReadout,
         phaseSegments = [],
         showFcBand = true,
         tempMinC = TEMP_Y_MIN_C,
@@ -424,6 +452,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 controlChartHeightPct,
                 controlYMin,
                 controlYMax,
+                controlUnits,
                 phaseSegments,
                 showFcBand,
                 tempMinC,
@@ -474,6 +503,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             controlChartHeightPct,
             controlYMin,
             controlYMax,
+            controlUnits,
             phaseSegments,
             showFcBand,
             tempMinC,
@@ -524,7 +554,21 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         hideChargeLabel,
         fontScale,
     });
-    const controlLegend = controlLegendItems(controlData, showControlDrum, showControlHeat, showControlFan);
+    const controlGroups = controlReadoutGroups({
+        controlData,
+        controlUnits,
+        controlReadout,
+        controlYMin,
+        controlYMax,
+        currentTimeSec,
+        showTargetCurve,
+        showControlDrum,
+        showControlHeat,
+        showControlFan,
+        showProfileDrum: profileDrum,
+        showProfileHeat: profileHeat,
+        showProfileFan: profileFan,
+    });
     const prevStructureKey = useRef(structureKey);
     useEffect(() => {
         const chart = chartInstanceRef.current;
@@ -1150,18 +1194,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     </div>
                 </form>
             )}
-            {controlLegend.length > 0 && (
-                <div
-                    className="absolute flex items-center gap-4"
-                    style={{ bottom: report ? 0 : -15, left: report ? 38 : 25 }}
-                >
-                    {controlLegend.map((item) => (
-                        <div key={item.label} className="flex items-center gap-1.5">
-                            <div style={{ width: 16, height: 2, background: item.color }} />
-                            <span className="text-[11px] text-muted tracking-[0.14px]">{item.label}</span>
-                        </div>
-                    ))}
-                </div>
+            {controlGroups && (
+                <ControlReadoutStrip
+                    groups={controlGroups}
+                    style={{ bottom: report ? 0 : -15, left: report ? 38 : 25, right: report ? 32 : 8 }}
+                />
             )}
         </div>
     );

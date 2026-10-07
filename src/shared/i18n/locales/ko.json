@@ -1058,7 +1058,16 @@
             "deleteNote": "메모 삭제"
         },
         "chart": {
-            "ariaLabel": "온도 곡선 차트. 휠 또는 +/- 로 확대/축소, 드래그 또는 좌우 화살표로 이동, 0으로 확대 초기화."
+            "ariaLabel": "온도 곡선 차트. 휠 또는 +/- 로 확대/축소, 드래그 또는 좌우 화살표로 이동, 0으로 확대 초기화.",
+            "controlReadout": {
+                "set": "설정",
+                "target": "목표",
+                "leftAxis": "왼쪽 축 ({{unit}})",
+                "rightAxis": "오른쪽 축 ({{unit}})",
+                "ownScale": "별도 스케일 (양쪽 축과 단위가 다름)",
+                "stale": "갱신 안 됨",
+                "offline": "연결 끊김"
+            }
         },
         "dialogs": {
             "machineRequiredTitle": "머신 연결 필요",

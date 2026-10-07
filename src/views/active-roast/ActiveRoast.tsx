@@ -23,6 +23,8 @@ import {
 } from '@features/active-roast';
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { TP_MARKER_ID } from '@features/active-roast/lib/constants';
+import { resolveControlUnits } from '@features/active-roast/lib/control-channels';
+import { buildControlLiveReadout } from '@features/active-roast/lib/control-readout';
 import {
     applyEventMarkerEdit,
     type EventMarkerPatch,
@@ -151,6 +153,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayBt,
         observationQuality,
         lastValidReceivedAtMs,
+        machineCapabilities,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -164,6 +167,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             replayBt: s.rawTemperature?.bt ?? null,
             observationQuality: s.observation?.quality ?? null,
             lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
+            machineCapabilities: s.machineCapabilities,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -839,6 +843,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
     });
+    const controlLimits = machineControl.machine.limits;
+    const controlUnits = useMemo(() => resolveControlUnits(controlLimits), [controlLimits]);
+    const controlReadout = buildControlLiveReadout({
+        liveData,
+        capabilities: machineCapabilities,
+        limits: controlLimits,
+        connected: sidecarConnected,
+        reconnecting,
+        quality: observationQuality,
+    });
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
@@ -988,6 +1002,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         controlChartHeightPct={roastSettings.controlChartHeightPct}
                         controlYMin={roastSettings.controlYMin}
                         controlYMax={roastSettings.controlYMax}
+                        controlUnits={controlUnits}
+                        controlReadout={controlReadout}
                         tempMinC={bbpTempMinC}
                         tempMaxC={bbpTempMaxC}
                         rorYMin={roastSettings.rorYMin}

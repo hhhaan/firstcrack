@@ -725,7 +725,16 @@
             "cancelDrop": "排出を取り消す"
         },
         "chart": {
-            "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
+            "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom.",
+            "controlReadout": {
+                "set": "設定",
+                "target": "目標",
+                "leftAxis": "左軸 ({{unit}})",
+                "rightAxis": "右軸 ({{unit}})",
+                "ownScale": "独立スケール (左右の軸と単位が異なる)",
+                "stale": "更新なし",
+                "offline": "切断"
+            }
         },
         "endRoastModal": {
             "title": "ロースト終了",
