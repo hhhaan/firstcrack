@@ -57,6 +57,7 @@ for (const machineControl of [false, true]) {
                 await trigger.focus();
                 await page.keyboard.press('Enter');
                 await expect(panel).toBeVisible();
+                await expect(sidePanel.getByText('Roast Log', { exact: true })).toHaveCount(0);
                 await expect(panel.getByRole('button', { name: 'Collapse roast log' })).toBeFocused();
                 const position = await panel.evaluate((element) => getComputedStyle(element).position);
                 const after = await chart.boundingBox();
@@ -100,6 +101,8 @@ for (const machineControl of [false, true]) {
                 await page.evaluate(() => document.getElementById('test-chart-dimensions')?.remove());
                 await panel.getByRole('button', { name: 'Collapse roast log' }).focus();
                 await page.keyboard.press('Escape');
+                await expect(panel).toBeVisible();
+                await panel.getByRole('button', { name: 'Collapse roast log' }).click();
                 await expect(panel).toHaveCount(0);
                 await expect(trigger).toBeFocused();
                 await expect.poll(async () => (await chart.boundingBox())?.width).toBe(before?.width);

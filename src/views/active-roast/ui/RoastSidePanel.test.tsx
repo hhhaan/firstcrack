@@ -138,7 +138,7 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(container.querySelector('[data-testid="roast-time"]')).toBeNull();
         expect(container.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('1:05');
     });
-    it('opens a separate newest-first log and restores focus on Escape without losing the note draft', () => {
+    it('opens a separate newest-first log and ignores Escape and restores focus on collapse without losing the note draft', () => {
         const onRemoveLogEntry = vi.fn();
         const entries: LogEntry[] = [
             { id: 'charge', time: '0:00', event: 'Charge', temp: '180°C', note: '' },
@@ -155,7 +155,8 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(log.parentElement).toBe(sidePanel.parentElement);
         expect(sidePanel.textContent).not.toContain('aroma');
         expect(trigger.getAttribute('aria-controls')).toBe(log.id);
-        expect(trigger.getAttribute('aria-expanded')).toBe('true');
+        expect(sidePanel.querySelector('[aria-expanded]')).toBeNull();
+        expect(sidePanel.textContent).not.toContain('title');
         expect((log.textContent ?? '').indexOf('aroma')).toBeLessThan((log.textContent ?? '').indexOf('0:00'));
         expect(document.activeElement).toBe(log.querySelector('button'));
         expect(sidePanel.querySelector('textarea')).toBe(noteInput);
@@ -163,14 +164,17 @@ describe('RoastSidePanel live readings (#358)', () => {
         act(() => (log.querySelector('[aria-label="Delete note"]') as HTMLButtonElement).click());
         expect(onRemoveLogEntry).toHaveBeenCalledWith('note');
         act(() => log.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+        expect(container.querySelector('[data-testid="roast-log-panel"]')).toBe(log);
+        act(() => (log.querySelector('button') as HTMLButtonElement).click());
         expect(container.querySelector('[data-testid="roast-log-panel"]')).toBeNull();
-        expect(document.activeElement).toBe(trigger);
-        expect(trigger.getAttribute('aria-expanded')).toBe('false');
+        const restoredTrigger = sidePanel.querySelector('[aria-expanded]') as HTMLButtonElement;
+        expect(document.activeElement).toBe(restoredTrigger);
+        expect(restoredTrigger.getAttribute('aria-expanded')).toBe('false');
         expect(sidePanel.textContent).toContain('aroma');
         expect(noteInput?.value).toBe('draft');
-        act(() => trigger.click());
+        act(() => restoredTrigger.click());
         act(() => (container.querySelector('[data-testid="roast-log-panel"] button') as HTMLButtonElement).click());
-        expect(document.activeElement).toBe(trigger);
+        expect(document.activeElement).toBe(sidePanel.querySelector('[aria-expanded]'));
         expect(container.querySelector('[data-testid="roast-log-panel"]')).toBeNull();
     });
     it('keeps expanded and collapsed log choices across remounts', () => {

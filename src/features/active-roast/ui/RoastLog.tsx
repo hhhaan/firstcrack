@@ -13,11 +13,12 @@ export const RoastLog = ({
     showHeading = true,
 }: {
     entries: LogEntry[];
-    variant: 'sidebar' | 'main';
+    variant: 'sidebar' | 'main' | 'panel';
     onRemoveEntry?: (id: string) => void;
     showHeading?: boolean;
 }) => {
     const isSidebar = variant === 'sidebar';
+    const isPanel = variant === 'panel';
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -49,8 +50,8 @@ export const RoastLog = ({
                         key={entry.id ?? `${entry.time}-${entry.event}-${i}`}
                         style={{
                             display: 'flex',
-                            gap: isSidebar ? 10 : 12,
-                            padding: isSidebar ? '8px 0' : '10px 0',
+                            gap: isPanel ? 6 : isSidebar ? 10 : 12,
+                            padding: isPanel ? '6px 0' : isSidebar ? '8px 0' : '10px 0',
                             borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
                         }}
                     >
@@ -59,7 +60,7 @@ export const RoastLog = ({
                                 fontFamily: 'var(--font-mono)',
                                 fontSize: isSidebar ? 11 : 12,
                                 color: 'var(--color-muted)',
-                                width: isSidebar ? 32 : 36,
+                                width: isSidebar || isPanel ? 32 : 36,
                                 flexShrink: 0,
                                 paddingTop: isSidebar ? 2 : 1,
                             }}
