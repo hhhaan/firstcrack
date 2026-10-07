@@ -820,7 +820,12 @@ describe('buildRoastChartOption', () => {
         const styled = seriesByName({ ...baseParams(), ...fullReference, curveStyles });
 
         expect(styled['BT Actual']?.lineStyle).toEqual({ color: '#ff0000', width: TEMP_CURVE_WIDTH, type: 'solid' });
-        expect(styled['BT Target']?.lineStyle).toEqual({ color: '#ff00008c', width: TEMP_CURVE_WIDTH, type: 'solid' });
+        expect(styled['BT Target']?.lineStyle).toEqual({
+            color: '#ff00008c',
+            width: TEMP_CURVE_WIDTH,
+            type: 'solid',
+            opacity: 1,
+        });
         expect(styled['RoR Target']?.lineStyle).toEqual({
             color: mockColors.reference,
             width: 3,

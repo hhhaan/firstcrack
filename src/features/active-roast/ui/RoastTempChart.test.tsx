@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
+import { REFERENCE_CURVE_OPACITY } from '@features/active-roast/lib/chart-config';
 import type { ControlData } from '@features/active-roast/lib/chart-option';
-import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
+import {
+    getRoastSettings,
+    resetCurveStyles,
+    updateCurveStyle,
+    updateRoastSettings,
+} from '@features/active-roast/model/settings';
 import { logger } from '@shared/lib/logger';
 import * as echarts from 'echarts';
 import { act, createElement, createRef } from 'react';
@@ -870,5 +876,65 @@ describe('RoastTempChart interactions', () => {
             pixelRatio: 2,
             backgroundColor: '#ffffff',
         });
+    });
+});
+
+describe('RoastTempChart reference opacity on merge', () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    const targetProps = {
+        showTargetCurve: true,
+        targetXs: [0, 60],
+        targetBt: [180, 190],
+        btTarget: [180, 190],
+    };
+
+    const btTargetLineOpacity = () => {
+        const option = setOption.mock.lastCall?.[0] as {
+            series?: { name?: string; lineStyle?: { opacity?: number } }[];
+        };
+        return option?.series?.find((s) => s.name === 'BT Target')?.lineStyle?.opacity;
+    };
+
+    beforeEach(() => {
+        vi.stubGlobal(
+            'ResizeObserver',
+            class {
+                disconnect() {}
+                observe() {}
+            },
+        );
+        setOption.mockClear();
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+            measureText: (text: string) => ({ width: text.length * 6 }),
+        } as CanvasRenderingContext2D);
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        root = createRoot(container);
+        resetCurveStyles();
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+        resetCurveStyles();
+    });
+
+    it('emits explicit reference opacity on merged setOption when BT color changes live', () => {
+        act(() => {
+            root.render(createElement(RoastTempChart, { ...baseProps, ...targetProps }));
+        });
+        expect(btTargetLineOpacity()).toBe(REFERENCE_CURVE_OPACITY);
+
+        act(() => updateCurveStyle('bt', { color: '#e53935' }));
+        expect((setOption.mock.lastCall?.[1] as { notMerge?: boolean })?.notMerge).toBe(false);
+        expect(btTargetLineOpacity()).toBe(1);
+
+        act(() => resetCurveStyles());
+        expect((setOption.mock.lastCall?.[1] as { notMerge?: boolean })?.notMerge).toBe(false);
+        expect(btTargetLineOpacity()).toBe(REFERENCE_CURVE_OPACITY);
     });
 });

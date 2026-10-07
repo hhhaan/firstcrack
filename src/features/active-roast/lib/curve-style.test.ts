@@ -80,7 +80,7 @@ describe('resolveCurveStyles', () => {
         );
         expect(custom.ror).toEqual({
             current: { color: '#00aaff', width: 2, type: 'solid' },
-            background: { color: '#00aaff8c', width: 3, type: 'solid' },
+            background: { color: '#00aaff8c', width: 3, type: 'solid', opacity: 1 },
         });
         expect(custom.bt).toEqual(defaults.bt);
     });
@@ -100,5 +100,19 @@ describe('resolveCurveStyles', () => {
             drum: { current: '#0', background: '#1' },
         });
         expect(resolved.heat.current).toEqual({ color: '#112233', width: CONTROL_CURVE_WIDTH, type: 'solid' });
+    });
+
+    it('always includes background opacity (1 for custom color, reference alpha for theme gray)', () => {
+        const defaults = resolveCurveStyles(DEFAULT_CURVE_STYLES, CSS_CURVE_TOKENS);
+        for (const channel of CURVE_CHANNELS) {
+            expect(defaults[channel].background.opacity).toBe(REFERENCE_CURVE_OPACITY);
+        }
+
+        const custom = resolveCurveStyles(
+            { ...DEFAULT_CURVE_STYLES, bt: { ...DEFAULT_CURVE_STYLES.bt, color: '#e53935' } },
+            CSS_CURVE_TOKENS,
+        );
+        expect(custom.bt.background.opacity).toBe(1);
+        expect(custom.et.background.opacity).toBe(REFERENCE_CURVE_OPACITY);
     });
 });

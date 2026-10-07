@@ -111,8 +111,8 @@ export const resolveCurveStyles = (styles: CurveStyles, tokens: CurveTokenColors
                         color: style.color ? `${style.color}${BACKGROUND_ALPHA_HEX}` : tokens[channel].background,
                         width: style.backgroundWidth,
                         type: style.backgroundLineType,
-                        // Default reference stays translucent gray. A channel color already carries its own alpha.
-                        ...(style.color ? {} : { opacity: REFERENCE_CURVE_OPACITY }),
+                        // Always set opacity so ECharts merge cannot keep a stale 0.3 after a live color change.
+                        opacity: style.color ? 1 : REFERENCE_CURVE_OPACITY,
                     },
                 },
             ];
