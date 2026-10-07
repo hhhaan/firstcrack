@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { shouldCommitCurveColor } from '@widgets/settings/lib/shouldCommitCurveColor';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 const COMMIT_DELAY_MS = 120;
-
-/** Commits only when `hex` differs from the stored custom color (`stored`). */
-export const shouldCommitCurveColor = (hex: string, stored: string | null): boolean => stored !== hex;
 
 export const CurveStyleColorInput = ({
     value,
@@ -20,9 +18,16 @@ export const CurveStyleColorInput = ({
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingRef = useRef<string | null>(null);
     const storedRef = useRef(value);
-    storedRef.current = value;
     const onCommitRef = useRef(onCommit);
-    onCommitRef.current = onCommit;
+    const themeRef = useRef(themeFallback);
+
+    useLayoutEffect(() => {
+        storedRef.current = value;
+        onCommitRef.current = onCommit;
+        themeRef.current = themeFallback;
+    });
+
+    const shouldCommit = (hex: string) => shouldCommitCurveColor(hex, storedRef.current, themeRef.current);
 
     const flushPending = () => {
         if (timerRef.current) {
@@ -32,7 +37,7 @@ export const CurveStyleColorInput = ({
         const hex = pendingRef.current;
         pendingRef.current = null;
         setDraft(null);
-        if (hex != null && shouldCommitCurveColor(hex, storedRef.current)) {
+        if (hex != null && shouldCommit(hex)) {
             onCommitRef.current(hex);
         }
     };
@@ -45,7 +50,7 @@ export const CurveStyleColorInput = ({
             }
             const hex = pendingRef.current;
             pendingRef.current = null;
-            if (hex != null && shouldCommitCurveColor(hex, storedRef.current)) {
+            if (hex != null && shouldCommitCurveColor(hex, storedRef.current, themeRef.current)) {
                 onCommitRef.current(hex);
             }
         },
@@ -61,7 +66,7 @@ export const CurveStyleColorInput = ({
             pendingRef.current = null;
             timerRef.current = null;
             setDraft(null);
-            if (pending != null && shouldCommitCurveColor(pending, storedRef.current)) {
+            if (pending != null && shouldCommitCurveColor(pending, storedRef.current, themeRef.current)) {
                 onCommitRef.current(pending);
             }
         }, COMMIT_DELAY_MS);

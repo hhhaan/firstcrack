@@ -2,28 +2,21 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CurveStyleColorInput, shouldCommitCurveColor } from './CurveStyleColorInput';
+import { CurveStyleColorInput } from './CurveStyleColorInput';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-describe('shouldCommitCurveColor', () => {
-    it('does not treat theme fallback display as a stored custom color', () => {
-        expect(shouldCommitCurveColor('#aabbcc', null)).toBe(true);
-        expect(shouldCommitCurveColor('#aabbcc', '#aabbcc')).toBe(false);
-    });
-});
 
 describe('CurveStyleColorInput', () => {
     let container: HTMLDivElement;
     let root: Root;
     const onCommit = vi.fn<(color: string) => void>();
 
-    const render = (value: string | null) => {
+    const render = (value: string | null, themeFallback = '#112233') => {
         act(() => {
             root.render(
                 createElement(CurveStyleColorInput, {
                     value,
-                    themeFallback: '#112233',
+                    themeFallback,
                     label: 'BT Color',
                     onCommit,
                 }),
@@ -61,6 +54,14 @@ describe('CurveStyleColorInput', () => {
             input.dispatchEvent(new Event('change', { bubbles: true }));
         });
     };
+
+    it('does not commit when the picked color matches theme fallback (stored null)', () => {
+        const input = render(null, '#112233');
+        act(() => input.focus());
+        pickColor(input, '#112233');
+        act(() => input.blur());
+        expect(onCommit).not.toHaveBeenCalled();
+    });
 
     it('commits a pending change on blur', () => {
         const input = render(null);
