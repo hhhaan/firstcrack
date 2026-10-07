@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { type ControlLimits, resolveEffectiveControlLimits, type StickyControlLimitsCache } from './control-channels';
 
+/** `statusLimits` must stay referentially stable across renders while connected (see `resolveEffectiveControlLimits`). */
 export const useEffectiveControlLimits = (input: {
     machineId: string | null | undefined;
     roasterKey: string | null | undefined;
