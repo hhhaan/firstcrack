@@ -1,6 +1,7 @@
 import type { InputHTMLAttributes, ReactNode } from 'react';
 
-const rowBase = 'flex min-w-0 gap-3 py-3 border-b border-border-subtle first:pt-0 last:border-b-0 last:pb-0';
+const rowBase =
+    'flex min-w-0 gap-3 py-3 border-b border-border-subtle first:pt-0 last:border-b-0 last:pb-0 in-[.settings-compact]:gap-2.5 in-[.settings-compact]:border-0 in-[.settings-compact]:py-2 in-[.settings-compact]:first:pt-2 in-[.settings-compact]:last:pb-2';
 const checkboxCls = 'w-4 h-4 accent-primary shrink-0';
 const switchCls =
     'relative h-6 w-10 shrink-0 cursor-pointer appearance-none rounded-full bg-primary/15 transition-colors checked:bg-primary before:absolute before:left-1 before:top-1 before:h-4 before:w-4 before:rounded-full before:bg-main-bg before:transition-transform checked:before:translate-x-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 forced-colors:appearance-auto';
@@ -80,7 +81,7 @@ export function SettingsCheckRow({
                 checked={checked}
                 disabled={disabled}
                 onChange={onChange}
-                className={type === 'checkbox' ? switchCls : checkboxCls}
+                className={`${type === 'checkbox' ? switchCls : checkboxCls} in-[.settings-compact]:order-first in-[.settings-compact]:h-4 in-[.settings-compact]:w-4 in-[.settings-compact]:appearance-auto in-[.settings-compact]:accent-primary in-[.settings-compact]:before:hidden`}
             />
         </SettingsOptionRow>
     );

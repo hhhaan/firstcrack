@@ -175,8 +175,7 @@ const controlSeriesOptions = [
     },
 ];
 
-const numberInputWrapCls =
-    'flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262b31]';
+const numberInputWrapCls = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-main-bg';
 
 const NumberInput = ({
     id,
@@ -463,10 +462,10 @@ export const RoastSettingsTab = () => {
     const storeT = (display: number) => fromDisplayTemp(display, unit);
 
     return (
-        <div className="grid gap-6">
+        <div className="settings-compact grid gap-0">
             <SettingsSection>
                 <SettingsSection.Header title={tk('temperatureUnit')} description={tk('temperatureUnitDescription')} />
-                <SettingsSection.Body className="grid gap-1.5">
+                <SettingsSection.Body className="flex-row flex-wrap gap-x-6 gap-y-1">
                     {temperatureOptions.map((u) => (
                         <SettingsCheckRow
                             key={u}
@@ -776,7 +775,7 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection>
                 <SettingsSection.Header title={tk('eventMarkers')} description={tk('eventMarkersDescription')} />
-                <SettingsSection.Body className="grid gap-1.5">
+                <SettingsSection.Body className="grid gap-x-6 gap-y-1 @[480px]:grid-cols-3">
                     {eventMarkerStyleOptions.map(({ value, labelKey, descKey }) => (
                         <SettingsCheckRow
                             key={value}
@@ -1104,7 +1103,7 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection>
                 <SettingsSection.Header title={tk('rorSpan')} description={tk('rorSpanDescription')} />
-                <SettingsSection.Body className="grid gap-1.5">
+                <SettingsSection.Body className="flex-row flex-wrap gap-x-6 gap-y-1">
                     {rorOptions.map((sec) => (
                         <SettingsCheckRow
                             key={sec}
@@ -1120,7 +1119,7 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection>
                 <SettingsSection.Header title={tk('updateRate')} description={tk('updateRateDescription')} />
-                <SettingsSection.Body className="grid gap-1.5">
+                <SettingsSection.Body className="flex-row flex-wrap gap-x-6 gap-y-1">
                     {pollOptions.map((ms) => {
                         const locked = ms === 500 && !canFastPoll;
                         return (
@@ -1154,7 +1153,7 @@ export const RoastSettingsTab = () => {
                         );
                     })}
                     {showPollUpgradeHint && (
-                        <div className="flex items-center gap-2 px-1 pt-0.5 text-[12px] text-palette-teal">
+                        <div className="flex basis-full items-center gap-2 px-1 pt-0.5 text-[12px] text-palette-teal">
                             <Lock size={12} className="shrink-0" aria-hidden />
                             {tk('updateRateProHint')}
                         </div>

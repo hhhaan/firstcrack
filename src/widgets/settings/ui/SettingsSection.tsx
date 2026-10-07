@@ -6,7 +6,13 @@ type SettingsSectionProps = { children: ReactNode; className?: string };
 
 export function SettingsSection({ children, className }: SettingsSectionProps) {
     return (
-        <section data-settings-section className={cn('flex min-w-0 flex-col gap-2.5', className)}>
+        <section
+            data-settings-section
+            className={cn(
+                'flex min-w-0 flex-col gap-2.5 in-[.settings-compact]:gap-2 in-[.settings-compact]:border-b in-[.settings-compact]:border-border in-[.settings-compact]:py-4 in-[.settings-compact]:first:pt-0 in-[.settings-compact]:last:border-b-0',
+                className,
+            )}
+        >
             {children}
         </section>
     );
@@ -39,7 +45,16 @@ function SettingsSectionHeader({
 SettingsSection.Header = SettingsSectionHeader;
 
 function SettingsSectionBody({ children, className }: SettingsSectionProps) {
-    return <SectionCard className={cn('rounded-xl border-border-subtle p-4', className)}>{children}</SectionCard>;
+    return (
+        <SectionCard
+            className={cn(
+                'rounded-xl border-border-subtle p-4 in-[.settings-compact]:rounded-none in-[.settings-compact]:border-0 in-[.settings-compact]:p-0',
+                className,
+            )}
+        >
+            {children}
+        </SectionCard>
+    );
 }
 
 SettingsSection.Body = SettingsSectionBody;

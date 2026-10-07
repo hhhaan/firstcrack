@@ -113,6 +113,7 @@ test('settings is a responsive page and preserves existing preferences and entry
     await settings.getByRole('radio', { name: '°F', exact: true }).check();
     await expect(settings.getByRole('radio', { name: '°C', exact: true })).not.toBeChecked();
     await settings.getByRole('radio', { name: '°C', exact: true }).check();
+    await page.screenshot({ path: testInfo.outputPath('settings-roasting-top.png') });
     const visibilityToggle = settings
         .locator('[data-settings-section]')
         .filter({ has: page.getByRole('heading', { name: 'Data Visibility', exact: true }) })
