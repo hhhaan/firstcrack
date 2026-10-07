@@ -252,7 +252,15 @@ describe('ActiveRoast running clock (#627)', () => {
             ...status,
             control: { writable: true, limits: { heater: { min: 0, max: 100, unit: '%' } } },
         });
-        seed({});
+        seed({
+            machineSnapshot: {
+                machine_id: 'm-1',
+                machine_name: 'Virtual test',
+                machine_roaster_key: 'virtual',
+                machine_brand: null,
+                machine_protocol: null,
+            },
+        });
         const unmount = mount();
         await flushMicrotasks();
         await advance(2000);

@@ -81,4 +81,52 @@ describe('useEffectiveControlLimits', () => {
         expect(latest).toEqual({});
         expect(latest?.drum).toBeUndefined();
     });
+
+    it('does not serve machine A drum/fan cache to machine B on the same roaster key when sticky', () => {
+        let latest: ControlLimits | undefined;
+        const Probe = ({
+            machineId,
+            statusLimits,
+            statusLimitsReceived,
+            useStickyPresentation,
+        }: {
+            machineId: string;
+            statusLimits: ControlLimits;
+            statusLimitsReceived: boolean;
+            useStickyPresentation: boolean;
+        }) => {
+            latest = useEffectiveControlLimits({
+                machineId,
+                roasterKey: 'virtual',
+                statusLimits,
+                statusLimitsReceived,
+                useStickyPresentation,
+            });
+            return null;
+        };
+        act(() => {
+            root.render(
+                createElement(Probe, {
+                    machineId: 'machine-a',
+                    statusLimits: DRUM_LIMITS,
+                    statusLimitsReceived: true,
+                    useStickyPresentation: false,
+                }),
+            );
+        });
+        expect(latest?.drum).toBeDefined();
+        expect(latest?.fan).toBeDefined();
+        act(() => {
+            root.render(
+                createElement(Probe, {
+                    machineId: 'machine-b',
+                    statusLimits: {},
+                    statusLimitsReceived: false,
+                    useStickyPresentation: true,
+                }),
+            );
+        });
+        expect(latest?.drum).toBeUndefined();
+        expect(latest?.fan).toBeUndefined();
+    });
 });

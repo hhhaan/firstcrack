@@ -7,7 +7,7 @@ import {
 } from '@features/active-roast/lib/chart-config';
 import * as echarts from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
-import { resolveControlUnits } from '../control-channels';
+import { deadbandSpanForChannel, resolveControlUnits } from '../control-channels';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams } from './types';
@@ -1034,7 +1034,11 @@ describe('buildRoastChartOption', () => {
             heatPower: [60, 60, 60, 60, 60],
             fanSpeed: [20, 20, 20, 20, 20],
         };
-        const controlUnits = resolveControlUnits({ drum: { min: 0, max: 500, unit: 'RPM' } });
+        // Unit only — no device min/max; deadband must use full-series extent, not the zoomed axis range.
+        const controlUnits = resolveControlUnits({ drum: { unit: 'RPM' } });
+        const span = deadbandSpanForChannel('drum', controlUnits, changeLabels.drumTemp, { min: 55, max: 55 });
+        expect(span.min).toBeLessThan(55);
+        expect(span.max).toBeGreaterThan(55);
         const labelTexts = (xViewMin: number, xViewMax: number) => {
             const option = buildRoastChartOption({
                 ...baseParams(),
@@ -1043,9 +1047,18 @@ describe('buildRoastChartOption', () => {
                 xViewMax,
                 controlData: {
                     xs: changeLabels.xs.filter((x) => x >= xViewMin && x <= xViewMax),
-                    drumTemp: [48, 48, 55, 55],
-                    heatPower: [60, 60, 60, 60],
-                    fanSpeed: [20, 20, 20, 20],
+                    drumTemp: changeLabels.drumTemp.filter((_, i) => {
+                        const x = changeLabels.xs[i];
+                        return x >= xViewMin && x <= xViewMax;
+                    }),
+                    heatPower: changeLabels.heatPower.filter((_, i) => {
+                        const x = changeLabels.xs[i];
+                        return x >= xViewMin && x <= xViewMax;
+                    }),
+                    fanSpeed: changeLabels.fanSpeed.filter((_, i) => {
+                        const x = changeLabels.xs[i];
+                        return x >= xViewMin && x <= xViewMax;
+                    }),
                     changeLabels,
                 },
             });

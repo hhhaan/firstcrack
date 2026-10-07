@@ -46,6 +46,9 @@ export type StickyControlLimitsCache = { identity: string; limits: ControlLimits
 /**
  * Presentation limits for chart/readout axes.
  * Live `/status` wins when connected and fresh; otherwise reuse the last limits for this machine identity.
+ *
+ * Callers must pass a reference-stable `statusLimits` across renders when connected (same object until
+ * `/status` changes). A fresh `{}` built during render makes the live cache miss every time and can loop.
  */
 export const resolveEffectiveControlLimits = (input: {
     cache: StickyControlLimitsCache;
