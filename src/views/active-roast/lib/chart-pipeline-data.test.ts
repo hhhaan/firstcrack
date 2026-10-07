@@ -43,6 +43,7 @@ describe('buildLiveChartData', () => {
             etActual: null,
             rorActual: null,
             etRorActual: null,
+            setpointActual: null,
         });
         expect(rows[rows.length - 1].time).toBe(CHART_TOTAL_SECS);
         expect(rows[rows.length - 1].btActual).toBeNull();

@@ -152,6 +152,8 @@ export const listProtocols = (registry: Record<string, RoasterDef>): string[] =>
     for (const [key, def] of Object.entries(registry)) {
         if (def.brand === 'Internal') continue;
         if (key.startsWith('custom_')) continue;
+        // Protocols without a custom connect key (IKAWA BLE) are model-only.
+        if (!(def.protocol in CUSTOM_CONNECT_KEYS)) continue;
         set.add(def.protocol);
     }
     return [...set].sort((a, b) => a.localeCompare(b));

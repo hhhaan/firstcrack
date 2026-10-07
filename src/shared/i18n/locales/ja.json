@@ -482,6 +482,11 @@
         "temperature": {
             "bean": "豆温度",
             "environment": "環境温度",
+            "exhaust": "排気",
+            "inlet": "吸気",
+            "setpoint": "設定温度",
+            "fan": "ファン",
+            "heater": "ヒーター",
             "ror": "RoR",
             "rateOfRise": "上昇率"
         },

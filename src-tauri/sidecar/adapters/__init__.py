@@ -5,6 +5,7 @@ from adapters.s7 import S7Adapter
 from adapters.modbus import ModbusAdapter
 from adapters.probat_ws import ProbatWSAdapter
 from adapters.phidget import PhidgetAdapter
+from adapters.ikawa_ble import IkawaBleAdapter
 from typing import Any
 
 _PROTOCOL_ADAPTER: dict[str, type] = {
@@ -14,6 +15,7 @@ _PROTOCOL_ADAPTER: dict[str, type] = {
     "modbus": ModbusAdapter,
     "probat_ws": ProbatWSAdapter,
     "phidget": PhidgetAdapter,
+    "ikawa_ble": IkawaBleAdapter,
 }
 
 # control()이 실제로 하드웨어에 쓰는 프로토콜. hasattr(adapter, "control")는

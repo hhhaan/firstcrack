@@ -43,6 +43,10 @@ export interface ChartOptionParams {
     btTarget: (number | null)[];
     btActual: (number | null)[];
     etActual: (number | null)[];
+    /** IKAWA profile setpoint °C, already in the display unit. Omitted when the machine has none. */
+    setpointActual?: (number | null)[];
+    /** Overrides the BT/ET tooltip names. IKAWA uses Exhaust / Inlet. */
+    sensorLabels?: { bt: string; et: string };
     rorActual: (number | null)[];
     currentTimeSec: number;
     charged: boolean;

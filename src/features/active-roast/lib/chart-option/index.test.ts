@@ -310,6 +310,31 @@ describe('buildRoastChartOption', () => {
         expect(option.dataZoom).toEqual([]);
     });
 
+    it('adds an IKAWA setpoint series without renaming BT/ET', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 1],
+            btActual: [180, 190],
+            etActual: [170, 175],
+            setpointActual: [200, 200],
+            sensorLabels: { bt: 'Exhaust', et: 'Inlet' },
+        });
+        const series = option.series as { name?: string; lineStyle?: { type?: string } }[];
+        expect(series.map((item) => item.name)).toContain('Setpoint');
+        expect(series.map((item) => item.name)).toContain('BT Actual');
+        expect(series.find((item) => item.name === 'Setpoint')?.lineStyle?.type).toBe('dashed');
+        const tooltip = option.tooltip as { formatter: (params: unknown) => string };
+        const html = tooltip.formatter([
+            { axisValue: 0, seriesName: 'BT Actual', value: [0, 180] },
+            { axisValue: 0, seriesName: 'ET Actual', value: [0, 170] },
+            { axisValue: 0, seriesName: 'Setpoint', value: [0, 200] },
+        ]);
+        expect(html).toContain('Exhaust');
+        expect(html).toContain('Inlet');
+        expect(html).toContain('Setpoint');
+        expect(html).not.toContain('Bean Temp');
+    });
+
     it('hides axis tooltip past the last drawn sample when target continues', () => {
         const option = buildRoastChartOption({
             ...baseParams(),

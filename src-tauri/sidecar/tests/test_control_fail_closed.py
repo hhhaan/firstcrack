@@ -6,6 +6,7 @@ import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
 from adapters import WRITABLE_PROTOCOLS, _PROTOCOL_ADAPTER
+from adapters.ikawa_ble import IkawaBleAdapter
 from adapters.kaleido import KaleidoAdapter
 from adapters.modbus import ModbusAdapter
 from adapters.phidget import PhidgetAdapter
@@ -27,6 +28,7 @@ NOOP_ROASTERS = (
     ("custom_modbus", "modbus"),
     ("custom_phidget", "phidget"),
     ("custom_probat_ws", "probat_ws"),
+    ("ikawa_home", "ikawa_ble"),
 )
 
 NOOP_ADAPTERS = (
@@ -34,6 +36,7 @@ NOOP_ADAPTERS = (
     ModbusAdapter,
     PhidgetAdapter,
     ProbatWSAdapter,
+    IkawaBleAdapter,
 )
 
 
@@ -92,6 +95,7 @@ class TestNoopProtocolControl:
             ModbusAdapter: "modbus",
             PhidgetAdapter: "phidget",
             ProbatWSAdapter: "probat_ws",
+            IkawaBleAdapter: "ikawa_ble",
         }[adapter_cls]
         manager._merged_params = {"write_map": _CLIENT_WRITE_MAP}
 

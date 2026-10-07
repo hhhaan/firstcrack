@@ -482,6 +482,11 @@
         "temperature": {
             "bean": "생두 온도",
             "environment": "환경 온도",
+            "exhaust": "배기",
+            "inlet": "흡기",
+            "setpoint": "설정온도",
+            "fan": "팬",
+            "heater": "히터",
             "ror": "RoR",
             "rateOfRise": "상승률"
         },

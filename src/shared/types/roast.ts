@@ -47,6 +47,8 @@ export interface LiveRoastPoint {
     drum: number;
     /** Last heater setpoint written by the sidecar, when supported. */
     heaterSet?: number | null;
+    /** IKAWA profile setpoint °C. Live chart only — not a TSV column. */
+    setpoint?: number | null;
     /** Unsmoothed ET for the archive; charts use `et`. */
     etRaw?: number | null;
     /** Unsmoothed BT for the archive; charts use `bt`. */
