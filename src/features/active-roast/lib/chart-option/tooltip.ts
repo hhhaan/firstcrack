@@ -1,4 +1,4 @@
-import { CHART_COLORS } from '@features/active-roast/lib/chart-config';
+import { CHART_COLORS, REFERENCE_CURVE_OPACITY } from '@features/active-roast/lib/chart-config';
 import { fmtSec } from './axes';
 import type { ControlData, ResolvedChartColors } from './types';
 
@@ -73,17 +73,17 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
         for (const p of items as any[]) {
             const y = p.value?.[1];
             if (p.seriesName === 'BT Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'ET Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.etTarget}"></div>Target ET: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target ET: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'RoR Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.rorTarget}"></div>Target RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
             if (p.seriesName === 'Drum Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlDrumTarget}"></div>Target Drum: <span>${y} RPM</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target Drum: <span>${y} RPM</span></div>`;
             if (p.seriesName === 'Heater Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlHeatTarget}"></div>Target Heater: <span>${y}%</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target Heater: <span>${y}%</span></div>`;
             if (p.seriesName === 'Fan Target' && y != null)
-                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;box-sizing:border-box;border:1px dashed ${colors.controlFanTarget}"></div>Target Fan: <span>${y}%</span></div>`;
+                html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.reference};opacity:${REFERENCE_CURVE_OPACITY}"></div>Target Fan: <span>${y}%</span></div>`;
             if (p.seriesName === 'BT Actual' && y != null)
                 html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
             if (p.seriesName === 'ET Actual' && showET && y != null)

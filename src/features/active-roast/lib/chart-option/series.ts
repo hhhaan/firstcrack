@@ -14,6 +14,7 @@ import {
     PHASE_BAR_STROKE_WIDTH,
     PHASE_BAR_TEXT_INSET,
     PHASE_BAR_WIDE_THRESHOLD,
+    REFERENCE_CURVE_OPACITY,
     scaleChartPx,
     TEMP_CURVE_WIDTH,
 } from '@features/active-roast/lib/chart-config';
@@ -43,7 +44,7 @@ export const lineSeriesBase = {
 const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>
     values?.some((value) => value != null) ?? false;
 
-/** Stored reference: same channel color at the faded token, behind the live line. Gaps stay broken. */
+/** Stored reference: neutral gray solid background line, behind the live curve. Gaps stay broken. */
 const referenceLineSeries = (
     name: string,
     xs: number[],
@@ -61,7 +62,7 @@ const referenceLineSeries = (
     z: 1,
     data: xs.map((x, i) => [x, values[i] ?? null]),
     connectNulls: false,
-    lineStyle: { color, width, type: 'dashed' as const },
+    lineStyle: { color, width, type: 'solid' as const, opacity: REFERENCE_CURVE_OPACITY },
     ...lineSeriesBase,
     smooth: false,
 });
@@ -120,17 +121,17 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             showProfileBt &&
             targetXs?.length &&
             hasNumericSample(targetBt) &&
-            referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.btTarget, 0, 0, TEMP_CURVE_WIDTH),
+            referenceLineSeries('BT Target', targetXs, targetBt ?? [], colors.reference, 0, 0, TEMP_CURVE_WIDTH),
         showTargetCurve &&
             showProfileEt &&
             targetXs?.length &&
             hasNumericSample(targetEt) &&
-            referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.etTarget, 0, 0, TEMP_CURVE_WIDTH),
+            referenceLineSeries('ET Target', targetXs, targetEt ?? [], colors.reference, 0, 0, TEMP_CURVE_WIDTH),
         showTargetCurve &&
             showProfileRor &&
             targetXs?.length &&
             hasNumericSample(targetRor) &&
-            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.rorTarget, 0, 1, TEMP_CURVE_WIDTH),
+            referenceLineSeries('RoR Target', targetXs, targetRor ?? [], colors.reference, 0, 1, TEMP_CURVE_WIDTH),
         {
             name: 'BT Actual',
             type: 'line',
@@ -224,7 +225,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference } = controlData;
     const series: object[] = [];
 
-    // 참조(옅은 점선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
+    // 참조(회색 실선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
     if (showTargetCurve && reference?.xs.length) {
         if (showProfileDrum && hasNumericSample(reference.drum)) {
             series.push(
@@ -232,7 +233,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     'Drum Target',
                     reference.xs,
                     reference.drum,
-                    colors.controlDrumTarget,
+                    colors.reference,
                     1,
                     2,
                     CONTROL_CURVE_WIDTH,
@@ -245,7 +246,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     'Heater Target',
                     reference.xs,
                     reference.heater,
-                    colors.controlHeatTarget,
+                    colors.reference,
                     1,
                     3,
                     CONTROL_CURVE_WIDTH,
@@ -258,7 +259,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
                     'Fan Target',
                     reference.xs,
                     reference.fan,
-                    colors.controlFanTarget,
+                    colors.reference,
                     1,
                     3,
                     CONTROL_CURVE_WIDTH,
