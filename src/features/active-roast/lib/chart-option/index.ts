@@ -1,7 +1,12 @@
 import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-config';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
-import { type ControlChannel, DEFAULT_CONTROL_UNITS, layoutControlAxes } from '../control-channels';
+import {
+    type ControlChannel,
+    DEFAULT_CONTROL_UNITS,
+    deadbandSpanForChannel,
+    layoutControlAxes,
+} from '../control-channels';
 import { supportedChannelVisible } from '../supported-control-channels';
 import {
     applyChartAxisSettings,
@@ -356,7 +361,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 .filter(([channel, shown]) => supportedChannelVisible(channel, shown, supported))
                 .map(([channel, , values, color]) => {
                     const side = sideOf(channel);
-                    const deadband = changeLabelDeadband(side.min, side.max, units[channel].unit);
+                    const span = deadbandSpanForChannel(channel, units, values, side);
+                    const deadband = changeLabelDeadband(span.min, span.max, units[channel].unit);
                     return {
                         channel,
                         color,

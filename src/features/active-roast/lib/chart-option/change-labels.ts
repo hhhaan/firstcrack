@@ -72,15 +72,6 @@ export const memoizedChangePoints = (
     return cached;
 };
 
-/** Change points on the full series, cropped to a visible x-window (zoom/pan safe). */
-export const changePointsInWindow = (
-    xs: readonly number[],
-    values: readonly (number | null)[],
-    deadband: number,
-    xMin: number,
-    xMax: number,
-): ChangePoint[] => sliceVisibleChangePoints(memoizedChangePoints(xs, values, deadband), xMin, xMax);
-
 export const sliceVisibleChangePoints = (points: readonly ChangePoint[], xMin: number, xMax: number) => {
     if (points.length === 0 || xMax < xMin) return [];
     let lo = 0;

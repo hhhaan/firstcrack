@@ -3,7 +3,6 @@ import {
     CHANGE_LABEL_CHANNEL_GAP_PX,
     type ChangeLabelCandidate,
     changeLabelDeadband,
-    changePointsInWindow,
     findChangePoints,
     layoutChangeLabels,
 } from './change-labels';
@@ -54,26 +53,6 @@ describe('findChangePoints', () => {
         expect(findChangePoints([0, 1, 2, 3], [50, 50.1, 50.05, 50.08], { deadband }).map((p) => p.text)).toEqual([
             '50',
         ]);
-    });
-});
-
-describe('changePointsInWindow', () => {
-    const deadband = changeLabelDeadband(0, 100, '%');
-
-    it('does not invent a label at the zoom window start for a flat series', () => {
-        const xs = [0, 30, 60, 90, 120];
-        const values = [50, 50, 50, 50, 50];
-        const slicedXs = xs.slice(2);
-        const slicedValues = values.slice(2);
-        expect(changePointsInWindow(slicedXs, slicedValues, deadband, 60, 90).map((p) => p.x)).toEqual([60]);
-        expect(changePointsInWindow(xs, values, deadband, 60, 90).map((p) => p.x)).toEqual([]);
-    });
-
-    it('labels a real change inside the window but not outside it', () => {
-        const xs = [0, 60, 120];
-        const values = [50, 50, 62];
-        expect(changePointsInWindow(xs, values, deadband, 60, 120).map((p) => p.x)).toEqual([120]);
-        expect(changePointsInWindow(xs, values, deadband, 0, 55).map((p) => p.x)).toEqual([0]);
     });
 });
 

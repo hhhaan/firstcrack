@@ -982,4 +982,48 @@ describe('buildRoastChartOption', () => {
         expect(names).not.toContain('Drum');
         expect(names).not.toContain('Fan');
     });
+
+    it('uses full-series changeLabels so zoom slice does not add window-edge labels', () => {
+        const xViewMin = 60;
+        const xViewMax = 120;
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xViewMin,
+            xViewMax,
+            controlData: {
+                xs: [60, 90, 120],
+                drumTemp: [50, 50, 50],
+                heatPower: [60, 60, 62],
+                fanSpeed: [20, 20, 20],
+                changeLabels: {
+                    xs: [0, 30, 60, 90, 120],
+                    drumTemp: [50, 50, 50, 50, 50],
+                    heatPower: [60, 60, 60, 60, 62],
+                    fanSpeed: [20, 20, 20, 20, 20],
+                },
+            },
+        });
+        const labelSeries = (
+            option.series as {
+                id?: string;
+                renderItem?: (
+                    params: unknown,
+                    api: unknown,
+                ) => { children?: { style?: { text?: string }; x?: number }[] };
+            }[]
+        ).find((series) => series.id === 'control-change-labels');
+        const width = 600;
+        const height = 80;
+        const rendered = labelSeries?.renderItem?.(
+            { dataIndex: 0, coordSys: { x: 0, y: 0, width, height } },
+            {
+                coord: ([x]: number[]) => [((x - xViewMin) / (xViewMax - xViewMin)) * width, height / 2],
+            },
+        );
+        const labels = (rendered?.children ?? [])
+            .filter((child) => child.style?.text)
+            .map((child) => ({ text: child.style?.text as string, x: child.x ?? 0 }));
+        expect(labels.some((label) => label.text === '50' && label.x <= 8)).toBe(false);
+        expect(labels.some((label) => label.text === '62')).toBe(true);
+    });
 });

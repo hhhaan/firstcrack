@@ -24,11 +24,8 @@ import {
 } from '@features/active-roast';
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { TP_MARKER_ID } from '@features/active-roast/lib/constants';
-import {
-    resolveControlUnits,
-    type StickyControlLimitsState,
-    stickyControlLimits,
-} from '@features/active-roast/lib/control-channels';
+import { resolveControlUnits } from '@features/active-roast/lib/control-channels';
+import { controlLinkState } from '@features/active-roast/lib/control-readout';
 import {
     applyEventMarkerEdit,
     type EventMarkerPatch,
@@ -36,6 +33,7 @@ import {
 } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { resolveSupportedControlChannels } from '@features/active-roast/lib/supported-control-channels';
+import { useEffectiveControlLimits } from '@features/active-roast/lib/useEffectiveControlLimits';
 import { selectDropCancelable } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -852,19 +850,35 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onHeaterCommitted: handleHeaterCommitted,
     });
     const controlLimitsRaw = machineControl.machine.limits;
+    const limitsReceived = machineControl.machine.limitsReceived;
     const connectedMachine = useMemo(() => {
         const id = machineSnapshot?.machine_id;
         if (id) return machines.find((m) => m.id === id);
         const key = machineSnapshot?.machine_roaster_key;
         return key ? machines.find((m) => m.roasterKey === key) : undefined;
     }, [machines, machineSnapshot?.machine_id, machineSnapshot?.machine_roaster_key]);
-    const machineRoasterKey = connectedMachine?.roasterKey ?? machineSnapshot?.machine_roaster_key;
-    const stickyControlLimitsRef = useRef<StickyControlLimitsState>(null);
-    const controlLimits = useMemo(() => {
-        const next = stickyControlLimits(stickyControlLimitsRef.current, machineRoasterKey, controlLimitsRaw);
-        stickyControlLimitsRef.current = next.state;
-        return next.limits;
-    }, [machineRoasterKey, controlLimitsRaw]);
+    const machineRoasterKey = connectedMachine?.roasterKey ?? machineSnapshot?.machine_roaster_key ?? null;
+    const useStickyControlPresentation = useMemo(() => {
+        if (!sidecarConnected || reconnecting || !limitsReceived) return true;
+        return (
+            controlLinkState({
+                connected: true,
+                reconnecting: false,
+                quality: observationQuality,
+                lastValidReceivedAtMs,
+                pollIntervalMs,
+                // eslint-disable-next-line react-hooks/purity -- stale gate for axis presentation only
+                nowMs: Date.now(),
+            }) !== 'live'
+        );
+    }, [sidecarConnected, reconnecting, limitsReceived, observationQuality, lastValidReceivedAtMs, pollIntervalMs]);
+    const controlLimits = useEffectiveControlLimits({
+        machineId: machineSnapshot?.machine_id,
+        roasterKey: machineRoasterKey,
+        statusLimits: controlLimitsRaw,
+        statusLimitsReceived: limitsReceived,
+        useStickyPresentation: useStickyControlPresentation,
+    });
     const controlUnits = useMemo(() => resolveControlUnits(controlLimits), [controlLimits]);
     const supportedControls = useMemo(
         () =>

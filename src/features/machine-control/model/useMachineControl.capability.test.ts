@@ -56,6 +56,7 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
 
         const hook = await renderHook(true);
         expect(getStatus).toHaveBeenCalledTimes(1);
+        expect(hook.get().limitsReceived).toBe(false);
         expect(hook.get().writable).toBe(false); // 아직 — 하지만 포기하지 않는다
 
         // 재시도 타이머 발화 → 두 번째 조회 성공
@@ -63,6 +64,7 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
             vi.advanceTimersByTime(3000);
         });
         expect(getStatus).toHaveBeenCalledTimes(2);
+        expect(hook.get().limitsReceived).toBe(true);
         expect(hook.get().writable).toBe(true);
         expect(hook.get().limits.heater).toEqual({ min: 0, max: 100 });
         hook.unmount();

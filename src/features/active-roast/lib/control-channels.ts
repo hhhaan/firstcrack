@@ -38,25 +38,51 @@ export const resolveControlUnits = (limits?: ControlLimits): ControlUnits => ({
 
 export const DEFAULT_CONTROL_UNITS: ControlUnits = resolveControlUnits();
 
-export const controlLimitsReported = (limits?: ControlLimits): boolean =>
-    limits != null && (limits.drum != null || limits.heater != null || limits.fan != null);
+export type StickyControlLimitsCache = { identity: string; limits: ControlLimits } | null;
 
-export type StickyControlLimitsState = { machineKey: string; limits: ControlLimits } | null;
+/**
+ * Presentation limits for chart/readout axes.
+ * Live `/status` wins when connected and fresh; otherwise reuse the last limits for this machine identity.
+ */
+export const resolveEffectiveControlLimits = (input: {
+    cache: StickyControlLimitsCache;
+    identity: string | null;
+    statusLimits: ControlLimits | undefined;
+    statusLimitsReceived: boolean;
+    useStickyPresentation: boolean;
+}): { cache: StickyControlLimitsCache; limits: ControlLimits | undefined } => {
+    const { identity, statusLimits, statusLimitsReceived, useStickyPresentation } = input;
+    let cache = input.cache;
+    if (!identity) return { cache: null, limits: undefined };
+    if (cache?.identity !== identity) cache = null;
 
-/** Keep last reported limits for a machine when sidecar drops them during offline/stale. */
-export const stickyControlLimits = (
-    state: StickyControlLimitsState,
-    machineKey: string | null | undefined,
-    limits: ControlLimits | undefined,
-): { state: StickyControlLimitsState; limits: ControlLimits | undefined } => {
-    const key = machineKey?.trim() || null;
-    if (!key) return { state: null, limits };
-    if (state?.machineKey !== key) state = null;
-    if (controlLimitsReported(limits)) {
-        return { state: { machineKey: key, limits: limits as ControlLimits }, limits };
+    const liveStatus = statusLimitsReceived && !useStickyPresentation;
+    if (liveStatus) {
+        const limits = statusLimits ?? {};
+        return { cache: { identity, limits }, limits };
     }
-    if (state?.machineKey === key) return { state, limits: state.limits };
-    return { state, limits };
+
+    if (useStickyPresentation && cache) {
+        return { cache, limits: cache.limits };
+    }
+
+    return { cache, limits: statusLimits };
+};
+
+/** Span for change-label deadband — device range or full-series extent, not the zoomed axis window. */
+export const deadbandSpanForChannel = (
+    channel: ControlChannel,
+    units: ControlUnits,
+    fullSeries: readonly (number | null)[],
+    axisFallback: { min: number; max: number },
+): { min: number; max: number } => {
+    const meta = units[channel];
+    if (meta.min != null && meta.max != null && meta.max > meta.min) {
+        return { min: meta.min, max: meta.max };
+    }
+    const extent = seriesExtent(fullSeries);
+    if (extent) return extent;
+    return axisFallback;
 };
 
 const isPercent = (unit: string) => unit === '%';
