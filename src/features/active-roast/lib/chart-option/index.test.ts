@@ -443,7 +443,7 @@ describe('buildRoastChartOption', () => {
 
         it('labels both sides with the channel units: Drum RPM left, Heat/Fan % right', () => {
             const { left, right, yOf } = build();
-            expect(left).toMatchObject({ name: 'Drum (RPM)', min: 0, max: 100, axisLabel: { show: true } });
+            expect(left).toMatchObject({ name: 'Drum (RPM)', min: 49.75, max: 55.25, axisLabel: { show: true } });
             expect(right).toMatchObject({ name: 'Heat · Fan (%)', min: 0, max: 100, axisLabel: { show: true } });
             expect([yOf('Drum'), yOf('Heat'), yOf('Fan')]).toEqual([2, 3, 3]);
             expect(left.axisLabel?.formatter?.(50)).toBe('50');
@@ -456,9 +456,9 @@ describe('buildRoastChartOption', () => {
             expect(left).toMatchObject({ name: 'Drum (RPM)', min: 0, max: 80 });
         });
 
-        it('keeps the user range for %, and for a non-% unit without a device range', () => {
+        it('keeps the user range for %, and auto-scales a non-% unit without a device range from data', () => {
             const { left, right } = build({ controlYMin: 10, controlYMax: 90 });
-            expect(left).toMatchObject({ min: 10, max: 90 });
+            expect(left).toMatchObject({ min: 49.75, max: 55.25 });
             expect(right).toMatchObject({ min: 10, max: 90 });
         });
 
@@ -472,7 +472,7 @@ describe('buildRoastChartOption', () => {
             expect(left.name).toBe('Drum (RPM)');
             expect(right).toMatchObject({ name: 'Heat (step)', min: 0, max: 10 });
             expect(yOf('Fan')).toBe(4);
-            expect(own).toMatchObject({ show: false, min: 0, max: 100 });
+            expect(own).toMatchObject({ show: true, min: 0, max: 100, axisLabel: { show: true } });
         });
 
         it('moves Fan to the free left side when Drum is hidden and units differ', () => {

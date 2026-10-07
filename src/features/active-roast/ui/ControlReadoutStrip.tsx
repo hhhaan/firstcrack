@@ -4,8 +4,6 @@ import { Clock, Unplug } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const unitText = (unit: string) => (unit === '%' ? '%' : ` ${unit}`);
-
 const Swatch = ({ entry }: { entry: ControlReadoutEntry }) => {
     const color = CONTROL_COLORS[entry.channel];
     if (entry.kind === 'measured') return <span className="h-0.5 w-3 shrink-0" style={{ background: color }} />;
@@ -25,11 +23,12 @@ const Entry = ({ entry }: { entry: ControlReadoutEntry }) => {
         entry.text === undefined ? null : (
             <span
                 data-testid={`control-readout-${entry.key}`}
-                className={`font-mono tabular-nums ${measured ? 'font-semibold' : ''} ${entry.stale ? 'opacity-45' : ''}`}
-                style={measured ? { color: CONTROL_COLORS[entry.channel] } : undefined}
+                className={`font-mono tabular-nums ${measured ? 'font-semibold text-foreground' : ''} ${entry.stale ? 'opacity-45' : ''}`}
             >
                 {entry.text ?? '—'}
-                {entry.text != null && <span className="font-normal text-muted">{unitText(entry.unit)}</span>}
+                {entry.text != null && (
+                    <span className="font-normal text-muted">{entry.unit === '%' ? '%' : ` ${entry.unit}`}</span>
+                )}
             </span>
         );
     return (

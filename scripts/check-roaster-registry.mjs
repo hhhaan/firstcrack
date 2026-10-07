@@ -182,11 +182,20 @@ function loadTs() {
         registry.set(key, { protocol, pidNull, capabilities, paramKeys: objectTopKeys(paramsBody) });
     }
 
+    const readableBlock = sliceBlock(text, /const READABLE_CONTROLS(?::[^=]+)?\s*=\s*\{/);
+    const readableControls = new Map();
+    for (const m of readableBlock.matchAll(/^\s{4}([a-z0-9_]+):\s*\[([^\]]*)\]/gm)) {
+        readableControls.set(
+            m[1],
+            [...m[2].matchAll(/'([a-z_]+)'/g)].map((r) => r[1]),
+        );
+    }
+
     const form = new Map();
     for (const [key, body] of tsEntries(formBlock, '[', ']')) {
         form.set(key, formFieldKeys(body, text));
     }
-    return { registry, form };
+    return { registry, form, readableControls };
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +241,11 @@ function main() {
             failures.push(
                 `${key}: capabilities py=[${(p.capabilities ?? []).join(',')}] ts=[${t.capabilities.join(',')}]`,
             );
+        }
+        const pyReadable = p.readable_controls ?? [];
+        const tsReadable = ts.readableControls.get(key) ?? [];
+        if (!eq(pyReadable, tsReadable)) {
+            failures.push(`${key}: readable_controls py=[${pyReadable.join(',')}] ts=[${tsReadable.join(',')}]`);
         }
         const pyParams = Object.keys(p.default_params ?? {})
             .filter((k) => !PY_ONLY_PARAM_KEYS.has(k))

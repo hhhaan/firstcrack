@@ -1,4 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
+import { useMachines } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useBbpCurve } from '@entities/roast';
@@ -31,6 +32,7 @@ import {
     nearestLivePointAt,
 } from '@features/active-roast/lib/event-marker-drag';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { resolveSupportedControlChannels } from '@features/active-roast/lib/supported-control-channels';
 import { selectDropCancelable } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -121,6 +123,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
+    const machines = useMachines((s) => s.machines);
+    const [readoutNowMs, setReadoutNowMs] = useState(() => Date.now());
+    useEffect(() => {
+        const id = setInterval(() => setReadoutNowMs(Date.now()), 1000);
+        return () => clearInterval(id);
+    }, []);
     const unit = roastSettings.temperatureUnit;
     const bbpEnabled = bbpFeatureEnabled(useFeature(FEATURE.bbp), roastSettings.bbpEnabled);
     const bbpElapsed = useBbpTimer();
@@ -845,13 +853,40 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     });
     const controlLimits = machineControl.machine.limits;
     const controlUnits = useMemo(() => resolveControlUnits(controlLimits), [controlLimits]);
+    const connectedMachine = useMemo(() => {
+        const id = machineSnapshot?.machine_id;
+        if (id) return machines.find((m) => m.id === id);
+        const key = machineSnapshot?.machine_roaster_key;
+        return key ? machines.find((m) => m.roasterKey === key) : undefined;
+    }, [machines, machineSnapshot?.machine_id, machineSnapshot?.machine_roaster_key]);
+    const supportedControls = useMemo(
+        () =>
+            resolveSupportedControlChannels({
+                roasterKey: connectedMachine?.roasterKey ?? machineSnapshot?.machine_roaster_key,
+                connectionParams: connectedMachine?.connectionParams,
+                capabilities: machineCapabilities,
+                limits: controlLimits,
+            }),
+        [
+            connectedMachine?.roasterKey,
+            connectedMachine?.connectionParams,
+            machineSnapshot?.machine_roaster_key,
+            machineCapabilities,
+            controlLimits,
+        ],
+    );
     const controlReadout = buildControlLiveReadout({
         liveData,
         capabilities: machineCapabilities,
         limits: controlLimits,
+        roasterKey: connectedMachine?.roasterKey ?? machineSnapshot?.machine_roaster_key,
+        connectionParams: connectedMachine?.connectionParams,
         connected: sidecarConnected,
         reconnecting,
         quality: observationQuality,
+        lastValidReceivedAtMs,
+        nowMs: readoutNowMs,
+        pollIntervalMs,
     });
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
@@ -1004,6 +1039,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         controlYMax={roastSettings.controlYMax}
                         controlUnits={controlUnits}
                         controlReadout={controlReadout}
+                        supportedControls={supportedControls}
                         tempMinC={bbpTempMinC}
                         tempMaxC={bbpTempMaxC}
                         rorYMin={roastSettings.rorYMin}

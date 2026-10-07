@@ -164,6 +164,7 @@ export const buildProtocolRoasterDef = (protocol: string): RoasterDef => ({
     models: [],
     protocol,
     capabilities: [],
+    readable_controls: [],
     pid: null,
     form_fields: PROTOCOL_FORM_FIELDS[protocol] ?? [],
     default_params: {},

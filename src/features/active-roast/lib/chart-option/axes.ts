@@ -364,12 +364,24 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             splitLine: { show: false },
         },
         {
+            ...controlAxisScale(controlAxes.ownScale, axisLabelStyle, axisNameStyle, 'right'),
             gridIndex: 1,
             type: 'value',
-            show: false,
+            show: controlAxes.ownScale.channels.length > 0,
+            position: 'right',
+            offset: 28,
+            axisLine: { show: false },
+            axisTick: { show: false },
             axisPointer: yAxisPointerOff,
-            min: controlAxes.ownScale.min,
-            max: controlAxes.ownScale.max,
+            splitLine: { show: false },
+            axisLabel: {
+                ...axisLabelStyle,
+                ...AXIS_LABEL_FONT_SM,
+                show: controlAxes.ownScale.channels.length > 0,
+                inside: true,
+                hideOverlap: true,
+                formatter: formatControlTick,
+            },
         },
     ] as EChartsOption['yAxis'];
 

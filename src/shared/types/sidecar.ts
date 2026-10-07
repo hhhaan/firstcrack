@@ -26,6 +26,8 @@ export interface RoasterDef {
     models: string[];
     protocol: string;
     capabilities: string[];
+    /** Roles read from the machine (fan/drum/heater). Distinct from write `capabilities`. */
+    readable_controls: string[];
     pid: { Kp: number; Ki: number; Kd: number } | null;
     form_fields: RoasterFormField[];
     default_params: Record<string, unknown>;

@@ -6,22 +6,89 @@ export interface ChangePoint {
     text: string;
 }
 
+export interface FindChangePointsOptions {
+    /** Minimum numeric delta from the last labeled value before a new label is placed. */
+    deadband?: number;
+}
+
+/** ~1% of axis span; % axes keep at least 0.5 so rounding noise does not label every tick. */
+export const changeLabelDeadband = (min: number, max: number, unit?: string) => {
+    const span = max - min;
+    if (!Number.isFinite(span) || span <= 0) return 0;
+    const relative = span * 0.01;
+    return unit === '%' ? Math.max(relative, 0.5) : Math.max(relative, 0.05);
+};
+
 /**
- * Samples whose displayed value differs from the previous non-null sample.
- * The first reading counts (it is the starting setting). Null gaps never read as 0
- * and a value that returns unchanged after a gap is not a change.
+ * Samples whose displayed value differs from the previous non-null sample, after deadband.
+ * The first reading counts. Null gaps never read as 0.
  */
-export const findChangePoints = (xs: readonly number[], values: readonly (number | null)[]): ChangePoint[] => {
+export const findChangePoints = (
+    xs: readonly number[],
+    values: readonly (number | null)[],
+    options?: FindChangePointsOptions,
+): ChangePoint[] => {
+    const deadband = options?.deadband ?? 0;
     const points: ChangePoint[] = [];
     let previous: string | null = null;
+    let lastLabeledValue: number | null = null;
     for (let i = 0; i < xs.length; i++) {
         const value = values[i];
         const text = formatControlValue(value);
         if (text == null || value == null || !Number.isFinite(xs[i])) continue;
-        if (text !== previous) points.push({ x: xs[i], value, text });
+        if (lastLabeledValue != null && Math.abs(value - lastLabeledValue) <= deadband) continue;
+        if (text !== previous) {
+            points.push({ x: xs[i], value, text });
+            lastLabeledValue = value;
+        }
         previous = text;
     }
     return points;
+};
+
+type ValuesKey = readonly (number | null)[];
+const changePointCache = new WeakMap<readonly number[], WeakMap<ValuesKey, Map<number, ChangePoint[]>>>();
+
+export const memoizedChangePoints = (
+    xs: readonly number[],
+    values: readonly (number | null)[],
+    deadband: number,
+): ChangePoint[] => {
+    let byValues = changePointCache.get(xs);
+    if (!byValues) {
+        byValues = new WeakMap();
+        changePointCache.set(xs, byValues);
+    }
+    let byDeadband = byValues.get(values);
+    if (!byDeadband) {
+        byDeadband = new Map();
+        byValues.set(values, byDeadband);
+    }
+    let cached = byDeadband.get(deadband);
+    if (!cached) {
+        cached = findChangePoints(xs, values, { deadband });
+        byDeadband.set(deadband, cached);
+    }
+    return cached;
+};
+
+const sliceVisible = (points: readonly ChangePoint[], xMin: number, xMax: number) => {
+    if (points.length === 0 || xMax < xMin) return [];
+    let lo = 0;
+    let hi = points.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (points[mid].x < xMin) lo = mid + 1;
+        else hi = mid;
+    }
+    const start = lo;
+    hi = points.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (points[mid].x <= xMax) lo = mid + 1;
+        else hi = mid;
+    }
+    return points.slice(start, lo);
 };
 
 export interface ChangeLabelCandidate {
@@ -123,11 +190,19 @@ export interface ChangeLabelChannel {
     max: number;
 }
 
+export interface ChangeLabelSeriesOptions {
+    haloColor: string;
+    xDomain: { min: number; max: number };
+}
+
 /**
  * One custom series for every channel so the collision pass sees all labels at once.
  * Y is mapped from each channel's own axis range; x follows the shared control x-axis.
  */
-export const buildChangeLabelSeries = (channels: ChangeLabelChannel[], haloColor: string) => ({
+export const buildChangeLabelSeries = (
+    channels: ChangeLabelChannel[],
+    { haloColor, xDomain }: ChangeLabelSeriesOptions,
+) => ({
     id: 'control-change-labels',
     name: 'Control change labels',
     type: 'custom' as const,
@@ -141,9 +216,15 @@ export const buildChangeLabelSeries = (channels: ChangeLabelChannel[], haloColor
     renderItem: (params: any, api: any) => {
         if (params.dataIndex !== 0) return;
         const rect = params.coordSys as PlotRect;
-        const candidates = channels.flatMap(({ channel, color, points, min, max }) =>
-            points.map((point) => {
-                const ratio = (point.value - min) / (max - min);
+        const span = xDomain.max - xDomain.min;
+        const dataXAt = (px: number) => (span <= 0 ? xDomain.min : xDomain.min + ((px - rect.x) / rect.width) * span);
+        const visMin = dataXAt(rect.x);
+        const visMax = dataXAt(rect.x + rect.width);
+        const candidates = channels.flatMap(({ channel, color, points, min, max }) => {
+            const visible = sliceVisible(points, visMin, visMax);
+            const yDenom = max - min;
+            return visible.map((point) => {
+                const ratio = yDenom <= 0 ? 0 : (point.value - min) / yDenom;
                 return {
                     channel,
                     color,
@@ -151,10 +232,9 @@ export const buildChangeLabelSeries = (channels: ChangeLabelChannel[], haloColor
                     xPx: (api.coord([point.x, min]) as number[])[0],
                     yPx: rect.y + rect.height * (1 - ratio),
                 };
-            }),
-        );
+            });
+        });
         const laid = layoutChangeLabels(candidates, rect);
-        // Same as the event labels: an empty group on merge leaves the previous frame's text.
         if (laid.length === 0) return;
         return {
             type: 'group',

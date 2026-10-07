@@ -1,12 +1,26 @@
+import { ROASTER_REGISTRY } from '@entities/machine';
 import { describe, expect, it } from 'vitest';
 import { layoutControlAxes, resolveControlUnits } from './control-channels';
 import {
     buildControlLiveReadout,
     buildControlReadoutGroups,
+    CONTROL_STALE_AGE_FACTOR,
     type ControlLiveInput,
     controlLinkState,
     stepValueAt,
 } from './control-readout';
+
+const presetReadonlyDrumFan = Object.keys(ROASTER_REGISTRY).find((key) => {
+    const def = ROASTER_REGISTRY[key];
+    return (
+        def.capabilities.length === 0 && def.readable_controls.includes('drum') && def.readable_controls.includes('fan')
+    );
+});
+
+const presetHeaterOnly = Object.keys(ROASTER_REGISTRY).find((key) => {
+    const def = ROASTER_REGISTRY[key];
+    return def.readable_controls.length === 1 && def.readable_controls[0] === 'heater';
+});
 
 const live = (over: Partial<ControlLiveInput> = {}): ControlLiveInput => ({
     liveData: { heater: 62, fan: 40, drum: 55.5, heater_set: 65 },
@@ -14,6 +28,9 @@ const live = (over: Partial<ControlLiveInput> = {}): ControlLiveInput => ({
     connected: true,
     reconnecting: false,
     quality: 'valid',
+    pollIntervalMs: 1000,
+    nowMs: 10_000,
+    lastValidReceivedAtMs: 10_000,
     ...over,
 });
 
@@ -23,10 +40,39 @@ describe('controlLinkState', () => {
         [{ connected: true, reconnecting: true, quality: 'valid' as const }, 'stale'],
         [{ connected: true, reconnecting: false, quality: 'stale' as const }, 'stale'],
         [{ connected: true, reconnecting: false, quality: 'poll_error' as const }, 'stale'],
-        [{ connected: true, reconnecting: false, quality: 'retransmit' as const }, 'live'],
         [{ connected: true, reconnecting: false, quality: null }, 'live'],
     ])('%o → %s', (input, state) => {
-        expect(controlLinkState(input)).toBe(state);
+        expect(controlLinkState({ ...input, pollIntervalMs: 1000, nowMs: 10_000, lastValidReceivedAtMs: 10_000 })).toBe(
+            state,
+        );
+    });
+
+    it('marks retransmit stale when the last valid sample is older than 3× the poll interval', () => {
+        const poll = 1000;
+        const last = 10_000;
+        expect(
+            controlLinkState({
+                connected: true,
+                reconnecting: false,
+                quality: 'retransmit',
+                pollIntervalMs: poll,
+                nowMs: last + CONTROL_STALE_AGE_FACTOR * poll + 1,
+                lastValidReceivedAtMs: last,
+            }),
+        ).toBe('stale');
+    });
+
+    it('keeps retransmit live while the last valid sample is recent', () => {
+        expect(
+            controlLinkState({
+                connected: true,
+                reconnecting: false,
+                quality: 'retransmit',
+                pollIntervalMs: 1000,
+                nowMs: 12_500,
+                lastValidReceivedAtMs: 10_000,
+            }),
+        ).toBe('live');
     });
 });
 
@@ -40,8 +86,37 @@ describe('buildControlLiveReadout', () => {
         expect(buildControlLiveReadout(live({ liveData: { heater: null, fan: 40, drum: 55 } })).values.heat).toBeNull();
     });
 
-    it('lists only channels the machine declares (fan/drum arrive as 0 either way)', () => {
-        expect(Object.keys(buildControlLiveReadout(live({ capabilities: ['heater'] })).values)).toEqual(['heat']);
+    it('lists Bühler drum/fan from preset read maps even when capabilities are empty', () => {
+        expect(presetReadonlyDrumFan).toBeDefined();
+        expect(
+            Object.keys(
+                buildControlLiveReadout(
+                    live({
+                        roasterKey: presetReadonlyDrumFan,
+                        capabilities: [],
+                        liveData: { heater: null, fan: 40, drum: 55 },
+                    }),
+                ).values,
+            ).sort(),
+        ).toEqual(['drum', 'fan']);
+    });
+
+    it('lists only heater when capabilities declare heater alone (Loring-like)', () => {
+        expect(presetHeaterOnly).toBeDefined();
+        expect(
+            Object.keys(
+                buildControlLiveReadout(
+                    live({
+                        roasterKey: presetHeaterOnly,
+                        capabilities: ['heater'],
+                        liveData: { heater: 62, fan: 0, drum: 0 },
+                    }),
+                ).values,
+            ),
+        ).toEqual(['heat']);
+    });
+
+    it('adds a channel declared only in control limits (custom write map)', () => {
         expect(
             Object.keys(buildControlLiveReadout(live({ capabilities: [], limits: { fan: { unit: '%' } } })).values),
         ).toEqual(['fan']);
@@ -102,7 +177,11 @@ describe('buildControlReadoutGroups', () => {
             axes,
             units,
             live: buildControlLiveReadout(
-                live({ capabilities: ['heater', 'fan'], liveData: { heater: 62, fan: 40, drum: 0 } }),
+                live({
+                    roasterKey: presetHeaterOnly,
+                    capabilities: ['heater'],
+                    liveData: { heater: 62, fan: 0, drum: 0 },
+                }),
             ),
             hasHeatSet: false,
         });

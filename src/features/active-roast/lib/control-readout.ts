@@ -4,14 +4,17 @@ import {
     CONTROL_RIGHT_AXIS,
     type ControlAxisLayout,
     type ControlChannel,
-    type ControlLimits,
     type ControlUnits,
     formatControlValue,
 } from './control-channels';
 import type { ObservationQuality } from './sensorObservation';
+import type { SupportedControlChannelsInput } from './supported-control-channels';
+import { resolveSupportedControlChannels } from './supported-control-channels';
 
 /** live = this poll's reading. stale = sidecar is replaying its last good read. offline = no link. */
 export type ControlLinkState = 'live' | 'stale' | 'offline';
+
+export const CONTROL_STALE_AGE_FACTOR = 3;
 
 export interface ControlLiveReadout {
     state: ControlLinkState;
@@ -20,36 +23,42 @@ export interface ControlLiveReadout {
     heatSet: number | null;
 }
 
-export interface ControlLiveInput {
+export interface ControlLiveInput extends SupportedControlChannelsInput {
     liveData: { heater: number | null; fan: number; drum: number; heater_set?: number | null } | null;
-    /** `/status.capabilities` — channels the machine reads. */
-    capabilities: readonly string[];
-    /** `/status.control.limits` — channels the machine writes (custom maps can add these). */
-    limits?: ControlLimits;
     connected: boolean;
     reconnecting: boolean;
     quality: ObservationQuality | null;
+    lastValidReceivedAtMs?: number | null;
+    nowMs?: number;
+    pollIntervalMs?: number;
 }
 
-const ROLE: Record<ControlChannel, 'drum' | 'heater' | 'fan'> = { drum: 'drum', heat: 'heater', fan: 'fan' };
+const badQuality = (quality: ObservationQuality | null) =>
+    quality != null && quality !== 'valid' && quality !== 'retransmit';
 
-// BT-only problems (`spike`, `null` with a live link) still hold the previous aux values,
-// so anything other than a new or repeated good read is not fresh.
-const FRESH: ReadonlySet<ObservationQuality> = new Set(['valid', 'retransmit']);
-
-export const controlLinkState = (input: Pick<ControlLiveInput, 'connected' | 'reconnecting' | 'quality'>) => {
+export const controlLinkState = (
+    input: Pick<
+        ControlLiveInput,
+        'connected' | 'reconnecting' | 'quality' | 'lastValidReceivedAtMs' | 'nowMs' | 'pollIntervalMs'
+    >,
+) => {
     if (!input.connected) return 'offline';
-    if (input.reconnecting || (input.quality != null && !FRESH.has(input.quality))) return 'stale';
+    if (input.reconnecting || badQuality(input.quality)) return 'stale';
+    const last = input.lastValidReceivedAtMs;
+    const poll = input.pollIntervalMs;
+    const now = input.nowMs;
+    if (last != null && poll != null && now != null && now - last > CONTROL_STALE_AGE_FACTOR * poll) return 'stale';
     return 'live';
 };
 
 /**
  * Fan and drum arrive as 0 even when the machine has no such channel, so a channel is only
- * listed when the machine declares it. Offline readings are dropped, never shown as 0.
+ * listed when the machine reads it. Offline readings are dropped, never shown as 0.
  */
 export const buildControlLiveReadout = (input: ControlLiveInput): ControlLiveReadout => {
     const state = controlLinkState(input);
     const data = state === 'offline' ? null : input.liveData;
+    const supported = resolveSupportedControlChannels(input);
     const raw: Record<ControlChannel, number | null> = {
         drum: data?.drum ?? null,
         heat: data?.heater ?? null,
@@ -57,8 +66,8 @@ export const buildControlLiveReadout = (input: ControlLiveInput): ControlLiveRea
     };
     const values: ControlLiveReadout['values'] = {};
     for (const channel of ['drum', 'heat', 'fan'] as const) {
-        const role = ROLE[channel];
-        if (input.capabilities.includes(role) || input.limits?.[role] != null) values[channel] = raw[channel];
+        if (!supported[channel]) continue;
+        values[channel] = raw[channel];
     }
     return { state, values, heatSet: data?.heater_set ?? null };
 };

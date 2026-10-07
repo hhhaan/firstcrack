@@ -24,7 +24,11 @@ import {
     noteLabelTopInsetPx,
 } from '@features/active-roast/lib/chart-option/markers';
 import { REMOVABLE_LOG_EVENTS, TP_MARKER_ID } from '@features/active-roast/lib/constants';
-import { type ControlUnits, DEFAULT_CONTROL_UNITS } from '@features/active-roast/lib/control-channels';
+import {
+    type ControlChannel,
+    type ControlUnits,
+    DEFAULT_CONTROL_UNITS,
+} from '@features/active-roast/lib/control-channels';
 import {
     buildControlReadoutGroups,
     type ControlLiveReadout,
@@ -32,6 +36,7 @@ import {
 } from '@features/active-roast/lib/control-readout';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
+import { supportedChannelVisible } from '@features/active-roast/lib/supported-control-channels';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
@@ -142,6 +147,7 @@ interface Props {
     controlUnits?: ControlUnits;
     /** Live roast only. Without it the strip under the control band is a legend without numbers. */
     controlReadout?: ControlLiveReadout;
+    supportedControls?: Record<ControlChannel, boolean>;
     phaseSegments?: PhaseSegment[];
     showFcBand?: boolean;
     tempMinC?: number;
@@ -255,12 +261,18 @@ const controlReadoutGroups = (input: {
     showProfileDrum: boolean;
     showProfileHeat: boolean;
     showProfileFan: boolean;
+    supportedControls?: Record<ControlChannel, boolean>;
 }) => {
-    const { controlData, showControlDrum, showControlHeat, showControlFan } = input;
-    if (!controlData || (!showControlDrum && !showControlHeat && !showControlFan)) return null;
+    const { controlData, showControlDrum, showControlHeat, showControlFan, supportedControls } = input;
+    const shown = {
+        drum: supportedChannelVisible('drum', showControlDrum, supportedControls),
+        heat: supportedChannelVisible('heat', showControlHeat, supportedControls),
+        fan: supportedChannelVisible('fan', showControlFan, supportedControls),
+    };
+    if (!controlData || (!shown.drum && !shown.heat && !shown.fan)) return null;
     const axes = controlAxisLayoutFor(input);
     return buildControlReadoutGroups({
-        shown: { drum: showControlDrum, heat: showControlHeat, fan: showControlFan },
+        shown,
         axes,
         units: input.controlUnits ?? DEFAULT_CONTROL_UNITS,
         live: input.controlReadout,
@@ -317,6 +329,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         controlYMax = 100,
         controlUnits,
         controlReadout,
+        supportedControls,
         phaseSegments = [],
         showFcBand = true,
         tempMinC = TEMP_Y_MIN_C,
@@ -453,6 +466,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 controlYMin,
                 controlYMax,
                 controlUnits,
+                supportedControls,
                 phaseSegments,
                 showFcBand,
                 tempMinC,
@@ -504,6 +518,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             controlYMin,
             controlYMax,
             controlUnits,
+            supportedControls,
             phaseSegments,
             showFcBand,
             tempMinC,
@@ -568,6 +583,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showProfileDrum: profileDrum,
         showProfileHeat: profileHeat,
         showProfileFan: profileFan,
+        supportedControls,
     });
     const prevStructureKey = useRef(structureKey);
     useEffect(() => {

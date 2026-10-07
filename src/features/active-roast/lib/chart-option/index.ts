@@ -2,6 +2,7 @@ import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-c
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
 import { type ControlChannel, DEFAULT_CONTROL_UNITS, layoutControlAxes } from '../control-channels';
+import { supportedChannelVisible } from '../supported-control-channels';
 import {
     applyChartAxisSettings,
     applyReportAxes,
@@ -15,7 +16,7 @@ import {
     computeGridMargins,
     computeTempYRange,
 } from './axes';
-import { buildChangeLabelSeries, findChangePoints } from './change-labels';
+import { buildChangeLabelSeries, changeLabelDeadband, memoizedChangePoints } from './change-labels';
 import { buildMarkers } from './markers';
 import {
     buildContinuousMarkerSeries,
@@ -46,20 +47,37 @@ export const controlAxisLayoutFor = (
         | 'showProfileDrum'
         | 'showProfileHeat'
         | 'showProfileFan'
+        | 'supportedControls'
     >,
 ) => {
     const reference = params.controlData?.reference;
+    const supported = params.supportedControls;
     const referenceShown = (flag: boolean | undefined, values: readonly (number | null)[] | undefined) =>
         params.showTargetCurve && !!reference?.xs.length && flag !== false && !!values?.some((value) => value != null);
+    const data = params.controlData;
+    const dataByChannel = data ? { drum: data.drumTemp, heat: data.heatPower, fan: data.fanSpeed } : undefined;
     return layoutControlAxes(
         {
-            drum: params.showControlDrum || referenceShown(params.showProfileDrum, reference?.drum),
-            heat: params.showControlHeat || referenceShown(params.showProfileHeat, reference?.heater),
-            fan: params.showControlFan || referenceShown(params.showProfileFan, reference?.fan),
+            drum: supportedChannelVisible(
+                'drum',
+                params.showControlDrum || referenceShown(params.showProfileDrum, reference?.drum),
+                supported,
+            ),
+            heat: supportedChannelVisible(
+                'heat',
+                params.showControlHeat || referenceShown(params.showProfileHeat, reference?.heater),
+                supported,
+            ),
+            fan: supportedChannelVisible(
+                'fan',
+                params.showControlFan || referenceShown(params.showProfileFan, reference?.fan),
+                supported,
+            ),
         },
         params.controlUnits ?? DEFAULT_CONTROL_UNITS,
         params.controlYMin,
         params.controlYMax,
+        dataByChannel,
     );
 };
 
@@ -316,23 +334,29 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         });
         const sideOf = (channel: ControlChannel) =>
             [controlAxes.left, controlAxes.right, controlAxes.ownScale][controlAxes.axisOf[channel] - 2];
+        const supported = params.supportedControls;
         const measured: [ControlChannel, boolean, (number | null)[], string][] = [
             ['drum', showControlDrum, controlData.drumTemp, colors.controlDrum],
             ['heat', showControlHeat, controlData.heatPower, colors.controlHeat],
             ['fan', showControlFan, controlData.fanSpeed, colors.controlFan],
         ];
+        const units = params.controlUnits ?? DEFAULT_CONTROL_UNITS;
         // Always present so a zoom that culls every label still clears the previous frame.
         const changeLabelSeries = buildChangeLabelSeries(
             measured
-                .filter(([, shown]) => shown)
-                .map(([channel, , values, color]) => ({
-                    channel,
-                    color,
-                    points: findChangePoints(controlData.xs, values),
-                    min: sideOf(channel).min,
-                    max: sideOf(channel).max,
-                })),
-            colors.controlLabelHalo,
+                .filter(([channel, shown]) => supportedChannelVisible(channel, shown, supported))
+                .map(([channel, , values, color]) => {
+                    const side = sideOf(channel);
+                    const deadband = changeLabelDeadband(side.min, side.max, units[channel].unit);
+                    return {
+                        channel,
+                        color,
+                        points: memoizedChangePoints(controlData.xs, values, deadband),
+                        min: side.min,
+                        max: side.max,
+                    };
+                }),
+            { haloColor: colors.controlLabelHalo, xDomain: { min: xMin, max: xMax } },
         );
 
         tuneAxes({ xAxis, yAxis });

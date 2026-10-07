@@ -109,7 +109,7 @@ export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
     virtual: [],
 };
 
-type RegistryEntry = Omit<RoasterDef, 'form_fields'>;
+type RegistryEntry = Omit<RoasterDef, 'form_fields' | 'readable_controls'>;
 
 const REGISTRY: Record<string, RegistryEntry> = {
     virtual: {
@@ -748,6 +748,59 @@ const REGISTRY: Record<string, RegistryEntry> = {
 };
 
 // BT/ET positions from sidecar roaster_registry.py; keep in sync with its read maps.
+// Control read roles per preset — keep in sync with sidecar readable_controls_from_params.
+const READABLE_CONTROLS: Record<string, readonly string[]> = {
+    buhler_rm20_playone: ['drum', 'fan'],
+    buhler_rm20_simatic: ['drum', 'fan'],
+    buhler_rm20_simatic_legacy: ['drum', 'fan'],
+    buhler_rm60_240: ['drum', 'fan'],
+    buja_manual_autonics: [],
+    buja_manual_hanyoung_nux: [],
+    buja_smart_electric: [],
+    buja_smart_gas: ['fan', 'heater'],
+    custom_kaleido: [],
+    custom_modbus: [],
+    custom_phidget: [],
+    custom_probat_ws: ['heater'],
+    custom_s7: [],
+    diedrich_cr: [],
+    diedrich_dr: [],
+    diedrich_phidget_4ch: [],
+    diedrich_phidget_6ch: [],
+    easyster: [],
+    easyster_smart: [],
+    giesen_sample: ['drum', 'fan', 'heater'],
+    giesen_standard: ['drum', 'fan', 'heater'],
+    giesen_w1: ['drum', 'fan', 'heater'],
+    giesen_w140a_v1: ['drum', 'fan', 'heater'],
+    giesen_w140a_v2: ['drum', 'fan', 'heater'],
+    giesen_w15e: ['drum', 'fan', 'heater'],
+    giesen_w30a: ['drum', 'fan', 'heater'],
+    giesen_w30a_pro: ['drum', 'fan', 'heater'],
+    giesen_w45a_w60a: ['drum', 'fan', 'heater'],
+    giesen_w6a_pro: ['drum', 'fan', 'heater'],
+    giesen_wxa: ['drum', 'heater'],
+    giesen_wxa_coarse: ['drum', 'heater'],
+    giesen_wxa_plus: ['drum', 'heater'],
+    kaleido: [],
+    loring_smart_roast: ['heater'],
+    loring_smart_roast_auto: ['heater'],
+    phidget_1048: [],
+    phidget_tmp1101: [],
+    phidget_tmp1200: [],
+    proaster: [],
+    proaster_thcr01a: [],
+    probat_gug_control_s7: ['drum', 'fan', 'heater'],
+    probat_gug_s7: ['drum', 'fan', 'heater'],
+    probat_probatone: [],
+    probat_probatone_7: [],
+    probat_sample_ws: ['heater'],
+    probat_ws: ['drum', 'fan', 'heater'],
+    trinitas_t2: [],
+    trinitas_t7: [],
+    virtual: [],
+};
+
 const SUPPORTED_ADDRESS_DEFAULTS: Record<string, Record<string, number>> = {
     giesen_w1: { bt_db: 3, bt_offset: 118, et_db: 3, et_offset: 114 },
     giesen_standard: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
@@ -791,6 +844,7 @@ export const ROASTER_REGISTRY: RoastersResponse = Object.fromEntries(
         key,
         {
             ...entry,
+            readable_controls: [...(READABLE_CONTROLS[key] ?? [])],
             default_params: { ...entry.default_params, ...SUPPORTED_ADDRESS_DEFAULTS[key] },
             form_fields: PROTOCOL_FORM_FIELDS[entry.protocol] ?? [],
         } satisfies RoasterDef,

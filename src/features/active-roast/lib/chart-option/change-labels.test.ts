@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     CHANGE_LABEL_CHANNEL_GAP_PX,
     type ChangeLabelCandidate,
+    changeLabelDeadband,
     findChangePoints,
     layoutChangeLabels,
 } from './change-labels';
@@ -22,8 +23,19 @@ describe('findChangePoints', () => {
         expect(findChangePoints([0, 1, 2, 3], [40, null, 40, 45]).map((p) => p.x)).toEqual([0, 3]);
     });
 
-    it('ignores sub-display noise but keeps one-decimal changes', () => {
-        expect(findChangePoints([0, 1, 2], [55.01, 55.04, 55.3]).map((p) => p.text)).toEqual(['55', '55.3']);
+    it('applies deadband relative to the last labeled value', () => {
+        const deadband = changeLabelDeadband(0, 100, '%');
+        expect(findChangePoints([0, 1, 2, 3], [50, 50.2, 50.4, 55], { deadband }).map((p) => p.text)).toEqual([
+            '50',
+            '55',
+        ]);
+    });
+
+    it('does not label every rounding flip at an integer boundary', () => {
+        const deadband = changeLabelDeadband(0, 100, '%');
+        expect(
+            findChangePoints([0, 1, 2, 3, 4], [49.94, 49.96, 50.04, 50.06, 52], { deadband }).map((p) => p.text),
+        ).toEqual(['49.9', '52']);
     });
 });
 

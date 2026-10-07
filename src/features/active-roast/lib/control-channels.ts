@@ -64,20 +64,45 @@ export interface ControlAxisLayout {
  * Device range when every channel on the axis reports one and the unit is not %.
  * % keeps the user's control range setting so the default band stays 0–100.
  */
+const padRange = (min: number, max: number) => {
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+    if (max <= min) return { min: min - 1, max: max + 1 };
+    const margin = (max - min) * 0.05;
+    return { min: min - margin, max: max + margin };
+};
+
+const seriesExtent = (values: readonly (number | null)[] | undefined) => {
+    const nums = (values ?? []).filter((v): v is number => v != null && Number.isFinite(v));
+    if (nums.length === 0) return null;
+    return padRange(Math.min(...nums), Math.max(...nums));
+};
+
 const axisRange = (
     channels: ControlChannel[],
     units: ControlUnits,
     fallbackMin: number,
     fallbackMax: number,
+    dataByChannel?: Partial<Record<ControlChannel, readonly (number | null)[]>>,
 ): { min: number; max: number } => {
     const metas = channels.map((channel) => units[channel]);
-    if (metas.length === 0 || metas.some((meta) => isPercent(meta.unit))) return { min: fallbackMin, max: fallbackMax };
+    if (metas.length === 0) return { min: fallbackMin, max: fallbackMax };
+    if (metas.some((meta) => isPercent(meta.unit))) return { min: fallbackMin, max: fallbackMax };
     const mins = metas.map((meta) => meta.min);
     const maxs = metas.map((meta) => meta.max);
-    if (mins.some((v) => v == null) || maxs.some((v) => v == null)) return { min: fallbackMin, max: fallbackMax };
-    const min = Math.min(...(mins as number[]));
-    const max = Math.max(...(maxs as number[]));
-    return max > min ? { min, max } : { min: fallbackMin, max: fallbackMax };
+    if (!mins.some((v) => v == null) && !maxs.some((v) => v == null)) {
+        const min = Math.min(...(mins as number[]));
+        const max = Math.max(...(maxs as number[]));
+        if (max > min) return { min, max };
+    }
+    const extents = channels
+        .map((channel) => seriesExtent(dataByChannel?.[channel]))
+        .filter((e): e is { min: number; max: number } => e != null);
+    if (extents.length > 0) {
+        const min = Math.min(...extents.map((e) => e.min));
+        const max = Math.max(...extents.map((e) => e.max));
+        if (max > min) return { min, max };
+    }
+    return { min: fallbackMin, max: fallbackMax };
 };
 
 /**
@@ -89,6 +114,7 @@ export const layoutControlAxes = (
     units: ControlUnits,
     fallbackMin: number,
     fallbackMax: number,
+    dataByChannel?: Partial<Record<ControlChannel, readonly (number | null)[]>>,
 ): ControlAxisLayout => {
     const axisOf: Record<ControlChannel, ControlAxisIndex> = {
         drum: CONTROL_LEFT_AXIS,
@@ -108,7 +134,7 @@ export const layoutControlAxes = (
         return {
             unit: channels.length > 0 ? units[channels[0]].unit : null,
             channels,
-            ...axisRange(channels, units, fallbackMin, fallbackMax),
+            ...axisRange(channels, units, fallbackMin, fallbackMax, dataByChannel),
         };
     };
     return {

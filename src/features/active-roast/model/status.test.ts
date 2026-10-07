@@ -106,6 +106,14 @@ describe('useRoastingStore observation vs display', () => {
         expect(useRoastingStore.getState().liveData).toBe(first);
     });
 
+    it('updates liveData when only heater_set changes', () => {
+        useRoastingStore.getState().updateLiveData({ ...live, heater_set: 40 });
+        const first = useRoastingStore.getState().liveData;
+        useRoastingStore.getState().updateLiveData({ ...live, heater_set: 45 });
+        expect(useRoastingStore.getState().liveData).not.toBe(first);
+        expect(useRoastingStore.getState().liveData?.heater_set).toBe(45);
+    });
+
     it('stores quality independently so display dedupe does not drop it', () => {
         const observation = reduceSensorObservation(null, sample(1_000));
         useRoastingStore.getState().updateLiveData(live);

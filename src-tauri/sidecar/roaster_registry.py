@@ -1798,3 +1798,27 @@ ROASTER_REGISTRY.update({
         host="192.168.3.230", write_map=_GIESEN_DB2_COARSE_WRITE_MAP,
     ),
 })
+
+
+def readable_controls_from_params(default_params: dict[str, Any]) -> list[str]:
+    """Control roles the preset reads (not write capabilities). Mirrors TS READABLE_CONTROLS."""
+    roles: set[str] = set()
+    for ch in default_params.get("channels") or []:
+        role = str(ch.get("role", "")).lower()
+        if role in ("fan", "drum", "heater"):
+            roles.add(role)
+    for key, val in (default_params.get("modbus_registers") or {}).items():
+        if val is None:
+            continue
+        role = str(key).lower()
+        if role in ("fan", "drum", "heater"):
+            roles.add(role)
+    for key in (default_params.get("channel_nodes") or {}):
+        role = str(key).lower()
+        if role in ("fan", "drum", "heater"):
+            roles.add(role)
+    return sorted(roles)
+
+
+for _entry in ROASTER_REGISTRY.values():
+    _entry["readable_controls"] = readable_controls_from_params(_entry.get("default_params") or {})
