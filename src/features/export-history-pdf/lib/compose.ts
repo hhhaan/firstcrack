@@ -27,7 +27,18 @@ export type HistoryPdfHeader = {
     };
 };
 
-export type HistoryPdfLegendItem = { color: string; label: string; dashed?: boolean };
+export type HistoryPdfLegendItem = {
+    color: string;
+    label: string;
+    lineType?: 'solid' | 'dashed' | 'dotted';
+};
+
+const legendLineDash = (item: HistoryPdfLegendItem): number[] => {
+    const type = item.lineType ?? 'solid';
+    if (type === 'dotted') return [4, 6];
+    if (type === 'dashed') return [10, 6];
+    return [];
+};
 
 export type ComposeHistoryPdfInput = {
     title?: string;
@@ -168,7 +179,7 @@ export const composeHistoryPdfJpeg = async (
         for (const item of input.legend) {
             ctx.strokeStyle = item.color;
             ctx.lineWidth = 4;
-            ctx.setLineDash(item.dashed ? [10, 6] : []);
+            ctx.setLineDash(legendLineDash(item));
             ctx.beginPath();
             ctx.moveTo(lx, ly + 14);
             ctx.lineTo(lx + 40, ly + 14);

@@ -1,6 +1,5 @@
 import { sessionBeanName } from '@entities/roast';
 import { formatTemp, type TemperatureUnit } from '@features/active-roast';
-import { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
 import type { RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { historyPdfChartBox, historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
@@ -8,6 +7,7 @@ import { useToastStore } from '@shared/store/toast';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { type RefObject, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { historyPdfLegend } from '../lib/historyPdfLegend';
 
 type Args = {
     session: RoastSessionWithRelations;
@@ -29,7 +29,6 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
             useToastStore.getState().show(t('history.exportPdfUnavailable'), 'error');
             return;
         }
-        const colors = getResolvedChartColors(true);
         setExporting(true);
         try {
             await exportPdf({
@@ -50,21 +49,7 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
                         drop: t('history.compare.dropTemp'),
                     },
                 },
-                legend: [
-                    { color: colors.btActual, label: `BT (°${unit})` },
-                    { color: colors.etActual, label: `ET (°${unit})` },
-                    { color: colors.rorActual, label: `RoR (°${unit}/min)` },
-                    ...(hasTarget
-                        ? [{ color: colors.reference, label: t('settings.tabs.roast.showTargetCurve') }]
-                        : []),
-                    ...(hasControls
-                        ? [
-                              { color: colors.controlDrum, label: 'Drum' },
-                              { color: colors.controlHeat, label: 'Heat' },
-                              { color: colors.controlFan, label: 'Fan' },
-                          ]
-                        : []),
-                ],
+                legend: historyPdfLegend({ unit, hasTarget, hasControls, t }),
             });
         } finally {
             setExporting(false);

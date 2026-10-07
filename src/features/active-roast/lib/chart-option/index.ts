@@ -1,4 +1,5 @@
 import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-config';
+import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
 import {
@@ -77,7 +78,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         hideChargeLabel = false,
         fontScale: fontScaleRaw,
         colors,
+        curveStyles = DEFAULT_CURVE_STYLES,
     } = params;
+    const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
 
     const fontScale = chartFontScale(fontScaleRaw);
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
@@ -102,7 +105,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         controlData,
         unitLabel,
         rorUnit,
-        colors,
+        curves,
         dataEndSec,
     });
 
@@ -215,7 +218,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showET,
         showRoR,
         showRoRET,
-        colors,
+        curves,
         allMarkLines,
         markPointData,
         fcMarkArea,
@@ -276,7 +279,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             showControlDrum,
             showControlHeat,
             showControlFan,
-            colors,
+            curves,
             controlGuideMarkLines,
         });
 

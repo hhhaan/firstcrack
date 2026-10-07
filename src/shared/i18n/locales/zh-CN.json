@@ -325,7 +325,31 @@
                 "alertBeforeDrop": "下豆前",
                 "alertBeforeDropDescription": "目标曲线 Drop 前该分钟数提醒。需要带有 Drop 标记的目标曲线。",
                 "alertAfterDrop": "下豆后",
-                "alertAfterDropDescription": "Drop 后经过该分钟数时提醒。计时器持续到结束烘焙。"
+                "alertAfterDropDescription": "Drop 后经过该分钟数时提醒。计时器持续到结束烘焙。",
+                "curveStyles": "曲线样式",
+                "curveStylesDescription": "为每个通道设置颜色和粗细，并分别设置当前曲线与背景参考曲线的线型。同时应用于烘焙界面和历史图表。背景曲线默认为灰色实线；设置通道颜色后使用该颜色的淡化版本。",
+                "curveStyleChannel": "通道",
+                "curveStyleChannelBt": "BT",
+                "curveStyleChannelEt": "ET",
+                "curveStyleChannelRor": "BT RoR",
+                "curveStyleChannelEtRor": "ET RoR",
+                "curveStyleColor": "颜色",
+                "curveStyleCurrent": "当前",
+                "curveStyleBackground": "背景",
+                "curveStyleWidth": "粗细",
+                "curveStyleLine": "线型",
+                "curveStyleCurrentWidth": "当前粗细",
+                "curveStyleCurrentLine": "当前线型",
+                "curveStyleBackgroundWidth": "背景粗细",
+                "curveStyleBackgroundLine": "背景线型",
+                "curveStyleNoBackground": "无背景曲线",
+                "curveStyleThemeColor": "使用主题颜色",
+                "curveStylesReset": "恢复默认",
+                "curveLineType": {
+                    "solid": "实线",
+                    "dashed": "虚线",
+                    "dotted": "点线"
+                }
             },
             "account": {
                 "label": "个人资料",
