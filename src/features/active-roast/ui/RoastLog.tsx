@@ -49,9 +49,10 @@ export const RoastLog = ({
                     <div
                         key={entry.id ?? `${entry.time}-${entry.event}-${i}`}
                         style={{
-                            display: 'flex',
-                            gap: isPanel ? 6 : isSidebar ? 10 : 12,
-                            padding: isPanel ? '6px 0' : isSidebar ? '8px 0' : '10px 0',
+                            display: isPanel ? 'grid' : 'flex',
+                            gridTemplateColumns: isPanel ? 'auto 6px minmax(0, 1fr) auto' : undefined,
+                            gap: isPanel ? '2px 4px' : isSidebar ? 10 : 12,
+                            padding: isPanel ? '4px 0' : isSidebar ? '8px 0' : '10px 0',
                             borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
                         }}
                     >
@@ -60,7 +61,7 @@ export const RoastLog = ({
                                 fontFamily: 'var(--font-mono)',
                                 fontSize: isSidebar ? 11 : 12,
                                 color: 'var(--color-muted)',
-                                width: isSidebar || isPanel ? 32 : 36,
+                                width: isPanel ? undefined : isSidebar ? 32 : 36,
                                 flexShrink: 0,
                                 paddingTop: isSidebar ? 2 : 1,
                             }}
@@ -92,10 +93,10 @@ export const RoastLog = ({
                                 }}
                             />
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: isPanel ? 'contents' : undefined, flex: 1, minWidth: 0 }}>
                             <div
                                 style={{
-                                    display: 'flex',
+                                    display: isPanel ? 'contents' : 'flex',
                                     flexWrap: 'wrap',
                                     alignItems: 'center',
                                     gap: isSidebar ? 6 : 8,
@@ -107,6 +108,8 @@ export const RoastLog = ({
                                         fontWeight: 500,
                                         color: categoryTextColor,
                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
+                                        gridColumn: isPanel ? '3' : undefined,
+                                        gridRow: isPanel ? '1' : undefined,
                                     }}
                                 >
                                     {roastEventLabel(entry.event)}
@@ -116,6 +119,8 @@ export const RoastLog = ({
                                         fontFamily: 'var(--font-mono)',
                                         fontSize: isSidebar ? 11 : 12,
                                         color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
+                                        gridColumn: isPanel ? '1 / -1' : undefined,
+                                        gridRow: isPanel ? '2' : undefined,
                                     }}
                                 >
                                     {entry.temp}
@@ -127,6 +132,8 @@ export const RoastLog = ({
                                         fontSize: isSidebar ? 11 : 12,
                                         color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
+                                        gridColumn: isPanel ? '1 / -1' : undefined,
+                                        gridRow: isPanel ? '3' : undefined,
                                     }}
                                 >
                                     {note}
@@ -139,7 +146,7 @@ export const RoastLog = ({
                                 // biome-ignore lint/style/noNonNullAssertion: error already checked above
                                 onClick={() => onRemoveEntry(entry.id!)}
                                 aria-label={`Delete ${roastEventLabel(entry.event).toLowerCase()}`}
-                                className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                                className={`shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer ${isPanel ? 'col-start-4 row-start-1' : ''}`}
                             >
                                 <X size={12} />
                             </button>
