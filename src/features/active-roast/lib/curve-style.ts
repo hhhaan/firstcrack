@@ -15,7 +15,9 @@ export type CurveChannelStyle = {
     color: string | null;
     width: number;
     lineType: CurveLineType;
+    /** Kept so older settings still load. The target inherits `width` and `lineType`. */
     backgroundWidth: number;
+    /** Kept so older settings still load. The target inherits `lineType`. */
     backgroundLineType: CurveLineType;
 };
 
@@ -80,37 +82,28 @@ export type CurveLineStyle = { color: string; width: number; type: CurveLineType
 export type ResolvedCurveStyle = { current: CurveLineStyle; background: CurveLineStyle };
 export type ResolvedCurveStyles = Record<CurveChannel, ResolvedCurveStyle>;
 
-/** Theme colors per channel. An unset background color is the shared gray reference. */
-export type CurveTokenColors = Record<CurveChannel, { current: string; background: string }>;
-
-/** Reference alpha for a custom color, matching the 0.55 `*-target` tokens. */
-const BACKGROUND_ALPHA_HEX = '8c';
-
-const REFERENCE_CSS = 'var(--color-chart-axis-label)';
+/** Theme color per channel. The target curve inherits this color at {@link REFERENCE_CURVE_OPACITY}. */
+export type CurveTokenColors = Record<CurveChannel, { current: string }>;
 
 /**
  * The single source for curve color, width, and dash. Lines, legends, tooltips,
  * and value readouts must all read from this so they never drift apart.
+ * The target copies the current curve and draws it at 30% opacity.
  */
 export const resolveCurveStyles = (styles: CurveStyles, tokens: CurveTokenColors): ResolvedCurveStyles =>
     Object.fromEntries(
         CURVE_CHANNELS.map((channel) => {
             const style = styles[channel];
+            const current: CurveLineStyle = {
+                color: style.color ?? tokens[channel].current,
+                width: style.width,
+                type: channel === 'heat' ? HEAT_CURRENT_LINE_TYPE : style.lineType,
+            };
             return [
                 channel,
                 {
-                    current: {
-                        color: style.color ?? tokens[channel].current,
-                        width: style.width,
-                        type: channel === 'heat' ? HEAT_CURRENT_LINE_TYPE : style.lineType,
-                    },
-                    background: {
-                        color: style.color ? `${style.color}${BACKGROUND_ALPHA_HEX}` : tokens[channel].background,
-                        width: style.backgroundWidth,
-                        type: style.backgroundLineType,
-                        // Default reference stays translucent gray. A channel color already carries its own alpha.
-                        ...(style.color ? {} : { opacity: REFERENCE_CURVE_OPACITY }),
-                    },
+                    current,
+                    background: { ...current, opacity: REFERENCE_CURVE_OPACITY },
                 },
             ];
         }),
@@ -118,24 +111,24 @@ export const resolveCurveStyles = (styles: CurveStyles, tokens: CurveTokenColors
 
 /** CSS variables for DOM legends. Theme switches need no re-render. */
 export const CSS_CURVE_TOKENS: CurveTokenColors = {
-    bt: { current: 'var(--color-sensor-bt)', background: REFERENCE_CSS },
-    et: { current: 'var(--color-sensor-et)', background: REFERENCE_CSS },
-    ror: { current: 'var(--color-sensor-ror)', background: REFERENCE_CSS },
-    etRor: { current: 'var(--color-sensor-et)', background: REFERENCE_CSS },
-    heat: { current: 'var(--color-control-heat)', background: REFERENCE_CSS },
-    fan: { current: 'var(--color-control-fan)', background: REFERENCE_CSS },
-    drum: { current: 'var(--color-control-drum)', background: REFERENCE_CSS },
+    bt: { current: 'var(--color-sensor-bt)' },
+    et: { current: 'var(--color-sensor-et)' },
+    ror: { current: 'var(--color-sensor-ror)' },
+    etRor: { current: 'var(--color-sensor-et)' },
+    heat: { current: 'var(--color-control-heat)' },
+    fan: { current: 'var(--color-control-fan)' },
+    drum: { current: 'var(--color-control-drum)' },
 };
 
 /** Canvas colors resolved from the same tokens, for ECharts. */
 export const canvasCurveTokens = (colors: ResolvedChartColors): CurveTokenColors => ({
-    bt: { current: colors.btActual, background: colors.reference },
-    et: { current: colors.etActual, background: colors.reference },
-    ror: { current: colors.rorActual, background: colors.reference },
-    etRor: { current: colors.etActual, background: colors.reference },
-    heat: { current: colors.controlHeat, background: colors.reference },
-    fan: { current: colors.controlFan, background: colors.reference },
-    drum: { current: colors.controlDrum, background: colors.reference },
+    bt: { current: colors.btActual },
+    et: { current: colors.etActual },
+    ror: { current: colors.rorActual },
+    etRor: { current: colors.etActual },
+    heat: { current: colors.controlHeat },
+    fan: { current: colors.controlFan },
+    drum: { current: colors.controlDrum },
 });
 
 /** Inline CSS for a short line sample. Tooltip HTML and React legends share it. */

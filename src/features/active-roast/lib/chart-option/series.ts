@@ -30,7 +30,7 @@ export const lineSeriesBase = {
 const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>
     values?.some((value) => value != null) ?? false;
 
-/** Stored reference behind the live curve. Default is gray and solid; curve styles can override it. Gaps stay broken. */
+/** Stored reference behind the live curve. Same stroke as the live curve, at 30% opacity. Gaps stay broken. */
 const referenceLineSeries = (
     name: string,
     xs: number[],
@@ -205,7 +205,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference } = controlData;
     const series: object[] = [];
 
-    // 참조(회색 실선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
+    // 참조(현재 곡선, 투명도 30%)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
     if (showTargetCurve && reference?.xs.length) {
         if (showProfileDrum && hasNumericSample(reference.drum)) {
             series.push(referenceLineSeries('Drum Target', reference.xs, reference.drum, curves.drum.background, 1, 2));

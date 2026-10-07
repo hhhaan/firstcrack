@@ -29,15 +29,16 @@ describe('CurveStyleSection', () => {
         container.remove();
     });
 
-    it('keeps background width and line selectable for a channel with no background curve', () => {
+    it('edits only the current curve, because the target inherits it', () => {
         act(() => root.render(createElement(CurveStyleSection)));
 
-        expect(container.textContent).not.toContain('curveStyleNoBackground');
+        expect(container.textContent).not.toContain('curveStyleBackgroundWidth');
+        expect(container.textContent).not.toContain('curveStyleBackgroundLine');
         const line = container.querySelector<HTMLButtonElement>(
-            `[aria-label="${label('curveStyleChannelEtRor', 'curveStyleBackgroundLine')}"]`,
+            `[aria-label="${label('curveStyleChannelEtRor', 'curveStyleCurrentLine')}"]`,
         );
         const width = container.querySelector<HTMLInputElement>(
-            `[aria-label="${label('curveStyleChannelEtRor', 'curveStyleBackgroundWidth')}"]`,
+            `[aria-label="${label('curveStyleChannelEtRor', 'curveStyleCurrentWidth')}"]`,
         );
         expect(line?.disabled).toBe(false);
         expect(width?.disabled).toBe(false);
@@ -48,7 +49,7 @@ describe('CurveStyleSection', () => {
         for (const cell of container.querySelectorAll('thead th')) {
             expect(cell.className).toContain('whitespace-nowrap');
         }
-        expect(container.querySelector('thead')?.textContent).toContain('settings.tabs.roast.curveStyleCurrentWidth');
-        expect(container.querySelector('thead')?.textContent).toContain('settings.tabs.roast.curveStyleBackgroundLine');
+        expect(container.querySelector('thead')?.textContent).toContain('settings.tabs.roast.curveStyleWidth');
+        expect(container.querySelector('thead')?.textContent).not.toContain('settings.tabs.roast.curveStyleBackground');
     });
 });

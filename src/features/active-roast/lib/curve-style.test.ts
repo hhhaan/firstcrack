@@ -59,12 +59,12 @@ describe('normalizeCurveStyles', () => {
 });
 
 describe('resolveCurveStyles', () => {
-    it('uses theme tokens until a color is set, then fades the custom color for the background', () => {
+    it('makes the target the current curve at 30% opacity, ignoring stored background width and line', () => {
         const defaults = resolveCurveStyles(DEFAULT_CURVE_STYLES, CSS_CURVE_TOKENS);
         expect(defaults.bt).toEqual({
             current: { color: 'var(--color-sensor-bt)', width: TEMP_CURVE_WIDTH, type: 'solid' },
             background: {
-                color: 'var(--color-chart-axis-label)',
+                color: 'var(--color-sensor-bt)',
                 width: TEMP_CURVE_WIDTH,
                 type: 'solid',
                 opacity: REFERENCE_CURVE_OPACITY,
@@ -74,13 +74,19 @@ describe('resolveCurveStyles', () => {
         const custom = resolveCurveStyles(
             {
                 ...DEFAULT_CURVE_STYLES,
-                ror: { color: '#00aaff', width: 2, lineType: 'solid', backgroundWidth: 3, backgroundLineType: 'solid' },
+                ror: {
+                    color: '#00aaff',
+                    width: 2,
+                    lineType: 'dashed',
+                    backgroundWidth: 3,
+                    backgroundLineType: 'solid',
+                },
             },
             CSS_CURVE_TOKENS,
         );
         expect(custom.ror).toEqual({
-            current: { color: '#00aaff', width: 2, type: 'solid' },
-            background: { color: '#00aaff8c', width: 3, type: 'solid' },
+            current: { color: '#00aaff', width: 2, type: 'dashed' },
+            background: { color: '#00aaff', width: 2, type: 'dashed', opacity: REFERENCE_CURVE_OPACITY },
         });
         expect(custom.bt).toEqual(defaults.bt);
     });
@@ -91,14 +97,20 @@ describe('resolveCurveStyles', () => {
         });
         expect(stored.heat.lineType).toBe('solid');
         const resolved = resolveCurveStyles(stored, {
-            bt: { current: '#0', background: '#1' },
-            et: { current: '#0', background: '#1' },
-            ror: { current: '#0', background: '#1' },
-            etRor: { current: '#0', background: '#1' },
-            heat: { current: '#heat', background: '#heat-t' },
-            fan: { current: '#0', background: '#1' },
-            drum: { current: '#0', background: '#1' },
+            bt: { current: '#0' },
+            et: { current: '#0' },
+            ror: { current: '#0' },
+            etRor: { current: '#0' },
+            heat: { current: '#heat' },
+            fan: { current: '#0' },
+            drum: { current: '#0' },
         });
         expect(resolved.heat.current).toEqual({ color: '#112233', width: CONTROL_CURVE_WIDTH, type: 'solid' });
+        expect(resolved.heat.background).toEqual({
+            color: '#112233',
+            width: CONTROL_CURVE_WIDTH,
+            type: 'solid',
+            opacity: REFERENCE_CURVE_OPACITY,
+        });
     });
 });

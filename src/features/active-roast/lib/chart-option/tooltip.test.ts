@@ -77,7 +77,7 @@ describe('createAxisTooltipFormatter', () => {
             {
                 ...DEFAULT_CURVE_STYLES,
                 bt: { ...DEFAULT_CURVE_STYLES.bt, color: '#ff0000', width: 3 },
-                ror: { ...DEFAULT_CURVE_STYLES.ror, backgroundLineType: 'solid', backgroundWidth: 2.5 },
+                ror: { ...DEFAULT_CURVE_STYLES.ror, width: 2.5, lineType: 'dashed', backgroundWidth: 4 },
             },
             canvasCurveTokens(colors),
         );
@@ -88,7 +88,7 @@ describe('createAxisTooltipFormatter', () => {
         ]);
         expect(html).toContain('border-top:3px solid #ff0000;flex-shrink:0"></span>Bean Temp');
         expect(html).toContain(
-            `border-top:2.5px solid ${colors.reference};opacity:${REFERENCE_CURVE_OPACITY};flex-shrink:0`,
+            `border-top:2.5px dashed ${colors.rorActual};opacity:${REFERENCE_CURVE_OPACITY};flex-shrink:0`,
         );
         expect(html).toContain(`border-top:1.8px solid ${colors.etActual}`);
     });

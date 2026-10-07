@@ -31,6 +31,7 @@ export type HistoryPdfLegendItem = {
     color: string;
     label: string;
     lineType?: 'solid' | 'dashed' | 'dotted';
+    opacity?: number;
 };
 
 const legendLineDash = (item: HistoryPdfLegendItem): number[] => {
@@ -177,6 +178,8 @@ export const composeHistoryPdfJpeg = async (
         // The export supplies at most seven series; equal slots keep long translations bounded.
         const slot = innerW / input.legend.length;
         for (const item of input.legend) {
+            ctx.save();
+            ctx.globalAlpha = item.opacity ?? 1;
             ctx.strokeStyle = item.color;
             ctx.lineWidth = 4;
             ctx.setLineDash(legendLineDash(item));
@@ -184,7 +187,7 @@ export const composeHistoryPdfJpeg = async (
             ctx.moveTo(lx, ly + 14);
             ctx.lineTo(lx + 40, ly + 14);
             ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.restore();
             ctx.fillStyle = COLOR_MUTED;
             ctx.fillText(fitText(ctx, item.label, slot - 76), lx + 52, ly);
             lx += slot;

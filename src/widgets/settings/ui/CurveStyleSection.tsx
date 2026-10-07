@@ -137,15 +137,13 @@ export const CurveStyleSection = () => {
             <SettingsSection.Header title={tk('curveStyles')} description={tk('curveStylesDescription')} />
             <SettingsSection.Body className="grid gap-3">
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[560px] border-collapse text-[13px]">
+                    <table className="w-full border-collapse text-[13px]">
                         <thead>
                             <tr>
                                 <th className={headCls}>{tk('curveStyleChannel')}</th>
                                 <th className={headCls}>{tk('curveStyleColor')}</th>
-                                <th className={headCls}>{tk('curveStyleCurrentWidth')}</th>
-                                <th className={headCls}>{tk('curveStyleCurrentLine')}</th>
-                                <th className={headCls}>{tk('curveStyleBackgroundWidth')}</th>
-                                <th className={headCls}>{tk('curveStyleBackgroundLine')}</th>
+                                <th className={headCls}>{tk('curveStyleWidth')}</th>
+                                <th className={headCls}>{tk('curveStyleLine')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -202,24 +200,6 @@ export const CurveStyleSection = () => {
                                                     onChange={(lineType) => updateCurveStyle(channel, { lineType })}
                                                 />
                                             )}
-                                        </td>
-                                        <td className="px-2 py-2">
-                                            <WidthInput
-                                                value={style.backgroundWidth}
-                                                label={part('curveStyleBackgroundWidth')}
-                                                onCommit={(backgroundWidth) =>
-                                                    updateCurveStyle(channel, { backgroundWidth })
-                                                }
-                                            />
-                                        </td>
-                                        <td className="px-2 py-2">
-                                            <LineTypeSelect
-                                                value={style.backgroundLineType}
-                                                label={part('curveStyleBackgroundLine')}
-                                                onChange={(backgroundLineType) =>
-                                                    updateCurveStyle(channel, { backgroundLineType })
-                                                }
-                                            />
                                         </td>
                                     </tr>
                                 );

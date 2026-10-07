@@ -27,6 +27,7 @@ export const historyPdfLegend = ({
                       color: curves.bt.background.color,
                       label: t('settings.tabs.roast.showTargetCurve'),
                       lineType: curves.bt.background.type,
+                      opacity: curves.bt.background.opacity,
                   },
               ]
             : []),
