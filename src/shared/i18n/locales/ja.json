@@ -350,7 +350,6 @@
                 "curveStyleCurrentLine": "現在の線",
                 "curveStyleBackgroundWidth": "背景の太さ",
                 "curveStyleBackgroundLine": "背景の線",
-                "curveStyleNoBackground": "背景カーブなし",
                 "curveStyleThemeColor": "テーマ色を使用",
                 "curveStylesReset": "初期値に戻す",
                 "curveLineType": {

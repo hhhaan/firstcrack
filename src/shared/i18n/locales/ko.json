@@ -350,7 +350,6 @@
                 "curveStyleCurrentLine": "현재 선",
                 "curveStyleBackgroundWidth": "배경 두께",
                 "curveStyleBackgroundLine": "배경 선",
-                "curveStyleNoBackground": "배경 곡선 없음",
                 "curveStyleThemeColor": "테마 색 사용",
                 "curveStylesReset": "기본값으로 되돌리기",
                 "curveLineType": {

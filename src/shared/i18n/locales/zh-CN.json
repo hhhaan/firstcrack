@@ -350,7 +350,6 @@
                 "curveStyleCurrentLine": "当前线型",
                 "curveStyleBackgroundWidth": "背景粗细",
                 "curveStyleBackgroundLine": "背景线型",
-                "curveStyleNoBackground": "无背景曲线",
                 "curveStyleThemeColor": "使用主题颜色",
                 "curveStylesReset": "恢复默认",
                 "curveLineType": {

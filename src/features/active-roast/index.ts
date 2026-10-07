@@ -6,7 +6,6 @@ export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
 export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';
 export {
-    BACKGROUND_CHANNELS,
     CSS_CURVE_TOKENS,
     CURVE_CHANNELS,
     CURVE_LINE_TYPES,

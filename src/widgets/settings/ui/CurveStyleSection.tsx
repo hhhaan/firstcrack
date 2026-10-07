@@ -1,5 +1,4 @@
 import {
-    BACKGROUND_CHANNELS,
     CSS_CURVE_TOKENS,
     CURVE_CHANNELS,
     CURVE_LINE_TYPES,
@@ -165,7 +164,6 @@ export const CurveStyleSection = () => {
                             {CURVE_CHANNELS.map((channel) => {
                                 const style = curveStyles[channel];
                                 const name = tk(CHANNEL_LABEL_KEY[channel]);
-                                const hasBackground = BACKGROUND_CHANNELS.includes(channel);
                                 const part = (key: string) => `${name} ${tk(key)}`;
                                 const heatCurrentLocked = channel === 'heat';
                                 return (
@@ -217,32 +215,24 @@ export const CurveStyleSection = () => {
                                                 />
                                             )}
                                         </td>
-                                        {hasBackground ? (
-                                            <>
-                                                <td className="px-2 py-2">
-                                                    <WidthInput
-                                                        value={style.backgroundWidth}
-                                                        label={part('curveStyleBackgroundWidth')}
-                                                        onCommit={(backgroundWidth) =>
-                                                            updateCurveStyle(channel, { backgroundWidth })
-                                                        }
-                                                    />
-                                                </td>
-                                                <td className="px-2 py-2">
-                                                    <LineTypeSelect
-                                                        value={style.backgroundLineType}
-                                                        label={part('curveStyleBackgroundLine')}
-                                                        onChange={(backgroundLineType) =>
-                                                            updateCurveStyle(channel, { backgroundLineType })
-                                                        }
-                                                    />
-                                                </td>
-                                            </>
-                                        ) : (
-                                            <td colSpan={2} className="px-2 py-2 text-[12px] text-muted">
-                                                {tk('curveStyleNoBackground')}
-                                            </td>
-                                        )}
+                                        <td className="px-2 py-2">
+                                            <WidthInput
+                                                value={style.backgroundWidth}
+                                                label={part('curveStyleBackgroundWidth')}
+                                                onCommit={(backgroundWidth) =>
+                                                    updateCurveStyle(channel, { backgroundWidth })
+                                                }
+                                            />
+                                        </td>
+                                        <td className="px-2 py-2">
+                                            <LineTypeSelect
+                                                value={style.backgroundLineType}
+                                                label={part('curveStyleBackgroundLine')}
+                                                onChange={(backgroundLineType) =>
+                                                    updateCurveStyle(channel, { backgroundLineType })
+                                                }
+                                            />
+                                        </td>
                                     </tr>
                                 );
                             })}

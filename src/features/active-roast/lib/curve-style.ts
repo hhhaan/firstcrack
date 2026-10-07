@@ -7,9 +7,6 @@ export type CurveChannel = (typeof CURVE_CHANNELS)[number];
 export const CURVE_LINE_TYPES = ['solid', 'dashed', 'dotted'] as const;
 export type CurveLineType = (typeof CURVE_LINE_TYPES)[number];
 
-/** ET RoR has no stored reference curve. */
-export const BACKGROUND_CHANNELS: readonly CurveChannel[] = ['bt', 'et', 'ror', 'heat', 'fan', 'drum'];
-
 export const CURVE_WIDTH_MIN = 1;
 export const CURVE_WIDTH_MAX = 6;
 

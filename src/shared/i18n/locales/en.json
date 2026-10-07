@@ -350,7 +350,6 @@
                 "curveStyleCurrentLine": "current line",
                 "curveStyleBackgroundWidth": "background width",
                 "curveStyleBackgroundLine": "background line",
-                "curveStyleNoBackground": "No background curve",
                 "curveStyleThemeColor": "Use theme color",
                 "curveStylesReset": "Restore defaults",
                 "curveLineType": {
