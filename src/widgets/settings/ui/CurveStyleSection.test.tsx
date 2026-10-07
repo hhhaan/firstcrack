@@ -42,5 +42,13 @@ describe('CurveStyleSection', () => {
         expect(line?.disabled).toBe(false);
         expect(width?.disabled).toBe(false);
         expect(width?.value).toBe('1.8');
+
+        const headerRows = container.querySelectorAll('thead tr');
+        expect(headerRows).toHaveLength(1);
+        for (const cell of container.querySelectorAll('thead th')) {
+            expect(cell.className).toContain('whitespace-nowrap');
+        }
+        expect(container.querySelector('thead')?.textContent).toContain('settings.tabs.roast.curveStyleCurrentWidth');
+        expect(container.querySelector('thead')?.textContent).toContain('settings.tabs.roast.curveStyleBackgroundLine');
     });
 });

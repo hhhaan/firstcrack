@@ -130,7 +130,7 @@ export const CurveStyleSection = () => {
     const curves = useCurveStyles();
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
     const themeHexByChannel = useThemeHexForChannels(resolvedTheme);
-    const headCls = 'px-2 pb-2 text-left text-[11px] font-medium text-muted';
+    const headCls = 'whitespace-nowrap px-2 pb-2 text-left text-[11px] font-medium text-muted';
 
     return (
         <SettingsSection group="display">
@@ -140,24 +140,12 @@ export const CurveStyleSection = () => {
                     <table className="w-full min-w-[560px] border-collapse text-[13px]">
                         <thead>
                             <tr>
-                                <th className={headCls} rowSpan={2}>
-                                    {tk('curveStyleChannel')}
-                                </th>
-                                <th className={headCls} rowSpan={2}>
-                                    {tk('curveStyleColor')}
-                                </th>
-                                <th className={headCls} colSpan={2}>
-                                    {tk('curveStyleCurrent')}
-                                </th>
-                                <th className={headCls} colSpan={2}>
-                                    {tk('curveStyleBackground')}
-                                </th>
-                            </tr>
-                            <tr>
-                                <th className={headCls}>{tk('curveStyleWidth')}</th>
-                                <th className={headCls}>{tk('curveStyleLine')}</th>
-                                <th className={headCls}>{tk('curveStyleWidth')}</th>
-                                <th className={headCls}>{tk('curveStyleLine')}</th>
+                                <th className={headCls}>{tk('curveStyleChannel')}</th>
+                                <th className={headCls}>{tk('curveStyleColor')}</th>
+                                <th className={headCls}>{tk('curveStyleCurrentWidth')}</th>
+                                <th className={headCls}>{tk('curveStyleCurrentLine')}</th>
+                                <th className={headCls}>{tk('curveStyleBackgroundWidth')}</th>
+                                <th className={headCls}>{tk('curveStyleBackgroundLine')}</th>
                             </tr>
                         </thead>
                         <tbody>
