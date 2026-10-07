@@ -65,7 +65,7 @@ export function SettingsCheckRow({
     trailing,
 }: SettingsCheckRowProps) {
     return (
-        <SettingsOptionRow as="label" interactive>
+        <SettingsOptionRow as="label" interactive className="in-[.settings-compact]:items-start">
             {description ? (
                 <div className="min-w-0 flex-1">
                     <div className={labelCls}>{label}</div>
