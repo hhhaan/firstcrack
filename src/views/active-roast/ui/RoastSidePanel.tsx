@@ -3,6 +3,7 @@ import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { endRoastLabel, markDropLabel, roastEventLabel, roastReadyLabel } from '@shared/i18n/roast-event-label';
@@ -107,6 +108,7 @@ export const RoastSidePanel = ({
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
     const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
     const endDisabled = !charged && !roastEnded;
+    const curves = useCurveStyles();
 
     return (
         <div className="w-44 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -116,7 +118,7 @@ export const RoastSidePanel = ({
                 <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
                 <div
                     className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                    style={{ color: SENSOR_COLORS.et }}
+                    style={{ color: curves.et.current.color }}
                 >
                     {formatTemp(rawET, unit)}
                 </div>
@@ -126,7 +128,7 @@ export const RoastSidePanel = ({
                 <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
                 <span
                     className="font-inconsolata text-xl font-medium leading-tight"
-                    style={{ color: SENSOR_COLORS.et }}
+                    style={{ color: curves.et.current.color }}
                 >
                     {deltaET != null ? (
                         <>
@@ -143,7 +145,7 @@ export const RoastSidePanel = ({
                 <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
                 <div
                     className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                    style={{ color: SENSOR_COLORS.bt }}
+                    style={{ color: curves.bt.current.color }}
                 >
                     {formatTemp(rawBT, unit)}
                 </div>
@@ -153,7 +155,7 @@ export const RoastSidePanel = ({
                 <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
                 <span
                     className="font-inconsolata text-xl font-medium leading-tight"
-                    style={{ color: SENSOR_COLORS.bt }}
+                    style={{ color: curves.bt.current.color }}
                 >
                     {deltaBT != null ? (
                         <>
@@ -183,7 +185,7 @@ export const RoastSidePanel = ({
                 <div className="text-md text-muted font-semibold mb-1">RoR</div>
                 <div
                     className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                    style={{ color: SENSOR_COLORS.ror }}
+                    style={{ color: curves.ror.current.color }}
                 >
                     {displayRoR}
                 </div>
