@@ -1,6 +1,7 @@
 import { FEATURE, planHasFeature } from '@shared/lib/features';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_CURVE_STYLES } from '../lib/curve-style';
 import {
     AUTO_DROP_START_MIN_DEFAULT,
     AUTO_DROP_START_MIN_MAX,
@@ -353,5 +354,42 @@ it('defaults legacy Charge/Drop thresholds to Standard and ignores stored °C va
     expect(normalizeRoastSettings({ autoDropEnabled: 'false', autoDropMode: 'invalid' } as never)).toMatchObject({
         autoDropEnabled: true,
         autoDropMode: 'standard',
+    });
+});
+
+describe('curve styles', () => {
+    it('falls back to defaults for old or invalid stored styles', () => {
+        expect(normalizeRoastSettings({}).curveStyles).toEqual(DEFAULT_CURVE_STYLES);
+        const stored = normalizeRoastSettings({ curveStyles: { bt: { color: 'nope', width: 50 } } } as never);
+        expect(stored.curveStyles.bt).toEqual(DEFAULT_CURVE_STYLES.bt);
+    });
+
+    it('updates one channel, survives a restart, and resets to defaults', async () => {
+        vi.resetModules();
+        vi.mocked(settingsSet).mockClear();
+        const first = await import('./settings');
+        await Promise.resolve();
+        first.updateCurveStyle('bt', { color: '#ff0000' });
+        first.updateCurveStyle('ror', { backgroundLineType: 'solid', backgroundWidth: 3 });
+        const afterChange = first.getRoastSettings().curveStyles;
+        expect(afterChange.bt).toEqual({ ...DEFAULT_CURVE_STYLES.bt, color: '#ff0000' });
+        expect(afterChange.ror).toEqual({
+            ...DEFAULT_CURVE_STYLES.ror,
+            backgroundLineType: 'solid',
+            backgroundWidth: 3,
+        });
+        expect(afterChange.et).toEqual(DEFAULT_CURVE_STYLES.et);
+        const persisted = vi.mocked(settingsSet).mock.lastCall?.[1] as ReturnType<typeof getRoastSettings>;
+        expect(persisted.curveStyles).toEqual(afterChange);
+
+        vi.resetModules();
+        vi.mocked(settingsGet).mockResolvedValueOnce(JSON.parse(JSON.stringify(persisted)));
+        const restarted = await import('./settings');
+        await Promise.resolve();
+        expect(restarted.getRoastSettings().curveStyles).toEqual(afterChange);
+
+        restarted.resetCurveStyles();
+        expect(restarted.getRoastSettings().curveStyles).toEqual(DEFAULT_CURVE_STYLES);
+        expect(restarted.getRoastSettings().temperatureUnit).toBe(persisted.temperatureUnit);
     });
 });

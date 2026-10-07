@@ -7,6 +7,7 @@ import {
 } from '@features/active-roast/lib/chart-config';
 import * as echarts from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_CURVE_STYLES } from '../curve-style';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams } from './types';
@@ -800,6 +801,33 @@ describe('buildRoastChartOption', () => {
         chart.dispose();
         expect(svg).toContain('#123456');
         expect(svg).toContain('stroke-dasharray');
+    });
+
+    it('applies user curve styles per channel without changing data, gaps, or the heat step roles', () => {
+        const curveStyles = {
+            ...DEFAULT_CURVE_STYLES,
+            bt: { ...DEFAULT_CURVE_STYLES.bt, color: '#ff0000' },
+            ror: { ...DEFAULT_CURVE_STYLES.ror, backgroundLineType: 'solid' as const, backgroundWidth: 3 },
+            heat: { ...DEFAULT_CURVE_STYLES.heat, color: '#112233', width: 2.5, lineType: 'dotted' as const },
+        };
+        const plain = seriesByName({ ...baseParams(), ...fullReference });
+        const styled = seriesByName({ ...baseParams(), ...fullReference, curveStyles });
+
+        expect(styled['BT Actual']?.lineStyle).toEqual({ color: '#ff0000', width: TEMP_CURVE_WIDTH, type: 'solid' });
+        expect(styled['BT Target']?.lineStyle).toEqual({ color: '#ff00008c', width: TEMP_CURVE_WIDTH, type: 'dashed' });
+        expect(styled['RoR Target']?.lineStyle).toEqual({ color: mockColors.rorTarget, width: 3, type: 'solid' });
+        expect(styled.RoR?.lineStyle).toEqual(plain.RoR?.lineStyle);
+        expect(styled['ET Actual']?.lineStyle).toEqual(plain['ET Actual']?.lineStyle);
+        expect(styled.Heat?.lineStyle).toEqual({ color: '#112233', width: 2.5, type: 'dotted' });
+        expect(styled['Heat set']).toMatchObject({ step: 'end', lineStyle: { color: '#112233', type: 'dashed' } });
+        expect(styled['Heat target']).toMatchObject({ step: 'end', lineStyle: { color: '#112233', type: 'dotted' } });
+        const lineNames = Object.keys(plain).filter((name) => (plain[name] as { type?: string }).type === 'line');
+        expect(lineNames).toContain('RoR Target');
+        for (const name of lineNames) {
+            const { lineStyle: _a, color: _c, ...rest } = plain[name] as NamedSeries & { color?: string };
+            const { lineStyle: _b, color: _d, ...styledRest } = styled[name] as NamedSeries & { color?: string };
+            expect(styledRest).toEqual(rest);
+        }
     });
 
     it('omits reference channels that were not stored', () => {

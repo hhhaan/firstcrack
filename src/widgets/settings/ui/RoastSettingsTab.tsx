@@ -31,6 +31,7 @@ import { Lock, Play } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
+import { CurveStyleSection } from './CurveStyleSection';
 import {
     SettingsCheckRow,
     SettingsOptionRow,
@@ -773,6 +774,8 @@ export const RoastSettingsTab = () => {
                     <RoastCheckRows options={profileSeriesOptions} />
                 </SettingsSection.Body>
             </SettingsSection>
+
+            <CurveStyleSection />
 
             <SettingsSection>
                 <SettingsSection.Header title={tk('eventMarkers')} description={tk('eventMarkersDescription')} />

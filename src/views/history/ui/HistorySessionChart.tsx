@@ -2,12 +2,14 @@ import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
+    CurveSwatch,
     computePhaseSegments,
     formatTemp,
     type PhaseSegment,
     type TemperatureUnit,
     toDisplayRoR,
     toDisplayTemp,
+    useCurveStyles,
     useRoastSettings,
 } from '@features/active-roast';
 import {
@@ -75,24 +77,14 @@ const reportTempBounds = (
     };
 };
 
-const sensorChannels = (points: readonly CurveSample[], unit: TemperatureUnit) =>
-    [
-        {
-            label: `BT · ${tempUnitLabel(unit)}`,
-            color: 'bg-(--color-sensor-bt)',
-            visible: points.some((p) => p.bt != null),
-        },
-        {
-            label: `ET · ${tempUnitLabel(unit)}`,
-            color: 'bg-(--color-sensor-et)',
-            visible: points.some((p) => p.et != null),
-        },
-        {
-            label: `RoR · ${rorUnitLabel(unit)}`,
-            color: 'bg-(--color-sensor-ror)',
-            visible: points.some((p) => p.ror != null),
-        },
-    ].filter((channel) => channel.visible);
+const sensorChannels = (
+    points: readonly CurveSample[],
+    unit: TemperatureUnit,
+): { key: 'bt' | 'et' | 'ror'; label: string; visible: boolean }[] => [
+    { key: 'bt', label: `BT · ${tempUnitLabel(unit)}`, visible: points.some((p) => p.bt != null) },
+    { key: 'et', label: `ET · ${tempUnitLabel(unit)}`, visible: points.some((p) => p.et != null) },
+    { key: 'ror', label: `RoR · ${rorUnitLabel(unit)}`, visible: points.some((p) => p.ror != null) },
+];
 
 function ChartMeta({
     session,
@@ -148,19 +140,20 @@ function ChartLegend({
     showTarget: boolean;
     profileName: string;
 }) {
-    const channels = sensorChannels(points, unit);
+    const curves = useCurveStyles();
+    const channels = sensorChannels(points, unit).filter((channel) => channel.visible);
     if (points.length === 0) return null;
     return (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-secondary">
             {channels.map((channel) => (
                 <span key={channel.label} className="inline-flex items-center gap-2">
-                    <span aria-hidden="true" className={`h-0.5 w-4 rounded-full ${channel.color}`} />
+                    <CurveSwatch style={curves[channel.key].current} />
                     {channel.label}
                 </span>
             ))}
             {showTarget && (
                 <span className="inline-flex min-w-0 items-center gap-2 text-muted">
-                    <span aria-hidden="true" className="w-4 shrink-0 border-t border-dashed border-muted" />
+                    <CurveSwatch style={curves.bt.background} />
                     {profileName}
                 </span>
             )}

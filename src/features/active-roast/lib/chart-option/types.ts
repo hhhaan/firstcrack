@@ -1,5 +1,6 @@
 import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import type { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
+import type { CurveStyles } from '@features/active-roast/lib/curve-style';
 
 import type { RoastNoteControls } from '@shared/types/roast';
 import type { RoastSettings } from '../../model/settings';
@@ -92,4 +93,6 @@ export interface ChartOptionParams {
     /** 1, 1.5, or 2. Event, phase, target-delta, and BBP labels on the plot. Axes stay put. */
     fontScale?: number;
     colors: ResolvedChartColors;
+    /** User line styles. Omitted = DESIGN.md defaults. */
+    curveStyles?: CurveStyles;
 }

@@ -182,14 +182,6 @@ export const CHART_COLORS = {
     markerLabelColor: 'var(--color-chart-marker-label)',
 } as const;
 
-export const CONTROL_COLORS = {
-    drum: 'var(--color-control-drum)',
-    heat: 'var(--color-control-heat)',
-    heatArea: 'var(--color-control-heat-area)',
-    fan: 'var(--color-control-fan)',
-    fanArea: 'var(--color-control-fan-area)',
-} as const;
-
 const CHART_EVENT_MARKERS = new Set([
     'Charge',
     'Yellow',

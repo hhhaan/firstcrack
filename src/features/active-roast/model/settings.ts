@@ -3,6 +3,13 @@ import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
+import {
+    type CurveChannel,
+    type CurveChannelStyle,
+    type CurveStyles,
+    DEFAULT_CURVE_STYLES,
+    normalizeCurveStyles,
+} from '../lib/curve-style';
 import { normalizeTemperatureTicks } from '../lib/temperature';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
@@ -74,6 +81,8 @@ export type RoastSettings = {
     showFcBand: boolean;
     bbpEnabled: boolean;
     eventMarkerStyle: EventMarkerStyle;
+    /** Per-channel line color, width, and dash for live and reference curves. */
+    curveStyles: CurveStyles;
     tempMinC: number;
     tempMaxC: number;
     /** Intervals use the displayed unit. */
@@ -191,6 +200,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showFcBand: true,
     bbpEnabled: true,
     eventMarkerStyle: 'both',
+    curveStyles: DEFAULT_CURVE_STYLES,
     tempMinC: 130,
     tempMaxC: 240,
     tempGridInterval: 10,
@@ -368,6 +378,7 @@ export const normalizeRoastSettings = (
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)
             ? merged.eventMarkerStyle
             : DEFAULT_SETTINGS.eventMarkerStyle,
+        curveStyles: normalizeCurveStyles(merged.curveStyles),
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
@@ -485,6 +496,14 @@ export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
     _emit();
     void _flush();
 };
+
+/** Patches one channel. Other channels keep their stored style. */
+export const updateCurveStyle = (channel: CurveChannel, patch: Partial<CurveChannelStyle>) =>
+    updateRoastSettings({
+        curveStyles: { ..._settings.curveStyles, [channel]: { ..._settings.curveStyles[channel], ...patch } },
+    });
+
+export const resetCurveStyles = () => updateRoastSettings({ curveStyles: DEFAULT_CURVE_STYLES });
 
 export const useRoastSettings = () => useSyncExternalStore(_subscribe, _getSnapshot);
 

@@ -1,6 +1,5 @@
 import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
-    CONTROL_COLORS,
     getResolvedChartColors,
     ROR_Y_MAX,
     ROR_Y_MIN,
@@ -24,10 +23,12 @@ import {
     noteLabelTopInsetPx,
 } from '@features/active-roast/lib/chart-option/markers';
 import { REMOVABLE_LOG_EVENTS, TP_MARKER_ID } from '@features/active-roast/lib/constants';
+import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
+import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
@@ -47,6 +48,7 @@ import {
     useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CurveSwatch } from './CurveSwatch';
 import { RoastNoteFields, type RoastNoteValues } from './RoastNoteFields';
 
 export type { RoastEventMarker };
@@ -236,12 +238,13 @@ const controlLegendItems = (
     drum: boolean,
     heat: boolean,
     fan: boolean,
-): { color: string; label: string }[] => {
+    curves: ResolvedCurveStyles,
+): { style: CurveLineStyle; label: string }[] => {
     if (!controlData || (!drum && !heat && !fan)) return [];
     return [
-        ...(drum ? [{ color: CONTROL_COLORS.drum, label: 'Drum' }] : []),
-        ...(heat ? [{ color: CONTROL_COLORS.heat, label: 'Heat' }] : []),
-        ...(fan ? [{ color: CONTROL_COLORS.fan, label: 'Fan' }] : []),
+        ...(drum ? [{ style: curves.drum.current, label: 'Drum' }] : []),
+        ...(heat ? [{ style: curves.heat.current, label: 'Heat' }] : []),
+        ...(fan ? [{ style: curves.fan.current, label: 'Fan' }] : []),
     ];
 };
 
@@ -311,6 +314,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const roastSettings = useRoastSettings();
+    const { curveStyles } = roastSettings;
+    const curves = useCurveStyles();
     const fontScale = roastSettings.fontScalePct / 100;
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
     const yRangeInterval = usesCustomTickList(roastSettings) ? undefined : axisSettings.tempGridInterval;
@@ -436,6 +441,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 hideChargeLabel,
                 fontScale,
                 colors,
+                curveStyles,
             }),
         [
             report,
@@ -485,6 +491,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             bbpRange,
             hideChargeLabel,
             fontScale,
+            curveStyles,
         ],
     );
 
@@ -524,7 +531,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         hideChargeLabel,
         fontScale,
     });
-    const controlLegend = controlLegendItems(controlData, showControlDrum, showControlHeat, showControlFan);
+    const controlLegend = controlLegendItems(controlData, showControlDrum, showControlHeat, showControlFan, curves);
     const prevStructureKey = useRef(structureKey);
     useEffect(() => {
         const chart = chartInstanceRef.current;
@@ -1157,7 +1164,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 >
                     {controlLegend.map((item) => (
                         <div key={item.label} className="flex items-center gap-1.5">
-                            <div style={{ width: 16, height: 2, background: item.color }} />
+                            <CurveSwatch style={item.style} />
                             <span className="text-[11px] text-muted tracking-[0.14px]">{item.label}</span>
                         </div>
                     ))}

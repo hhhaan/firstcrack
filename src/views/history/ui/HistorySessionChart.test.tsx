@@ -50,7 +50,15 @@ vi.mock('@features/active-roast', async () => ({
         showProfileHeat: true,
         showProfileFan: true,
     }),
+    useCurveStyles: () => {
+        const { CSS_CURVE_TOKENS, DEFAULT_CURVE_STYLES, resolveCurveStyles } = curveStyleModule;
+        return resolveCurveStyles(DEFAULT_CURVE_STYLES, CSS_CURVE_TOKENS);
+    },
+    CurveSwatch: () => null,
 }));
+const curveStyleModule = await vi.importActual<typeof import('@features/active-roast/lib/curve-style')>(
+    '@features/active-roast/lib/curve-style',
+);
 vi.mock('@features/active-roast/lib/serialize-roast-events', () => ({
     parseStoredRoastEvents: () => [],
     storedEventsToMarkers: () => [{ event: 'Charge', timeSec: 0 }],
