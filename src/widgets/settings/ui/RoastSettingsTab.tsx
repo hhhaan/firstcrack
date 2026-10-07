@@ -769,7 +769,7 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('profileSeries')} description={tk('profileSeriesDescription')} />
-                <SettingsSection.Body className="grid gap-1.5">
+                <SettingsSection.Body className="grid items-start gap-x-6 gap-y-1 @[480px]:grid-cols-2">
                     <RoastCheckRows options={profileSeriesOptions} />
                 </SettingsSection.Body>
             </SettingsSection>
