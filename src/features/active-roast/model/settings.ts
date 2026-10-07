@@ -8,6 +8,7 @@ import {
     type CurveChannelStyle,
     type CurveStyles,
     DEFAULT_CURVE_STYLES,
+    HEAT_CURRENT_LINE_TYPE,
     normalizeCurveStyles,
 } from '../lib/curve-style';
 import { normalizeTemperatureTicks } from '../lib/temperature';
@@ -378,6 +379,7 @@ export const normalizeRoastSettings = (
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)
             ? merged.eventMarkerStyle
             : DEFAULT_SETTINGS.eventMarkerStyle,
+        // curveStyles: invalid per-field values fall back to channel defaults (see normalizeCurveStyles), not prior settings.
         curveStyles: normalizeCurveStyles(merged.curveStyles),
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
@@ -498,10 +500,13 @@ export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
 };
 
 /** Patches one channel. Other channels keep their stored style. */
-export const updateCurveStyle = (channel: CurveChannel, patch: Partial<CurveChannelStyle>) =>
-    updateRoastSettings({
-        curveStyles: { ..._settings.curveStyles, [channel]: { ..._settings.curveStyles[channel], ...patch } },
+export const updateCurveStyle = (channel: CurveChannel, patch: Partial<CurveChannelStyle>) => {
+    const merged = { ..._settings.curveStyles[channel], ...patch };
+    if (channel === 'heat') merged.lineType = HEAT_CURRENT_LINE_TYPE;
+    return updateRoastSettings({
+        curveStyles: { ..._settings.curveStyles, [channel]: merged },
     });
+};
 
 export const resetCurveStyles = () => updateRoastSettings({ curveStyles: DEFAULT_CURVE_STYLES });
 

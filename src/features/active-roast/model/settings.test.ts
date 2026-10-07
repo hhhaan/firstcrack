@@ -383,6 +383,8 @@ describe('curve styles', () => {
         expect(persisted.curveStyles).toEqual(afterChange);
 
         vi.resetModules();
+        // Simulates Tauri settings.json round-trip (structuredClone is not available in all test runtimes).
+        // eslint-disable-next-line no-json-parse-stringify-clone -- intentional persistence simulation
         vi.mocked(settingsGet).mockResolvedValueOnce(JSON.parse(JSON.stringify(persisted)));
         const restarted = await import('./settings');
         await Promise.resolve();

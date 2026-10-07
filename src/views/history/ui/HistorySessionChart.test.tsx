@@ -131,7 +131,9 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
             filename: 'roast-graph-e2e-ethiopia-26-09-20.pdf',
             chartDataUrl: mocks.dataUrl,
             header: expect.objectContaining({ bean: 'E2E Ethiopia' }),
-            legend: expect.arrayContaining([{ color: expect.any(String), label: 'Heat' }]),
+            legend: expect.arrayContaining([
+                expect.objectContaining({ label: 'Heat', lineType: 'solid', color: expect.any(String) }),
+            ]),
         }),
     );
     expect(container.querySelector('[data-testid="curve"]')).toBeTruthy();

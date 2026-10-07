@@ -8,6 +8,7 @@ import {
     type CurveChannel,
     type CurveLineType,
     CurveSwatch,
+    HEAT_CURRENT_LINE_TYPE,
     resetCurveStyles,
     updateCurveStyle,
     useCurveStyles,
@@ -17,22 +18,22 @@ import { useThemeStore } from '@shared/store/theme';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsSection } from './SettingsSection';
 
-const CHANNEL_LABEL: Record<CurveChannel, string> = {
-    bt: 'BT',
-    et: 'ET',
-    ror: 'BT RoR',
-    etRor: 'ET RoR',
-    heat: 'settings.tabs.roast.controlHeat',
-    fan: 'settings.tabs.roast.controlFan',
-    drum: 'settings.tabs.roast.controlDrum',
+const CHANNEL_LABEL_KEY: Record<CurveChannel, string> = {
+    bt: 'curveStyleChannelBt',
+    et: 'curveStyleChannelEt',
+    ror: 'curveStyleChannelRor',
+    etRor: 'curveStyleChannelEtRor',
+    heat: 'controlHeat',
+    fan: 'controlFan',
+    drum: 'controlDrum',
 };
 
 /** `<input type="color">` only takes `#rrggbb`; theme tokens are oklch, so read them back through a canvas pixel. */
-const themeHex = (cssVar: string): string => {
+const readThemeHex = (cssVar: string): string => {
     const value = getComputedStyle(document.documentElement).getPropertyValue(cssVar.slice(4, -1)).trim();
     const ctx = value ? document.createElement('canvas').getContext('2d') : null;
     if (!ctx) return '#000000';
@@ -40,6 +41,72 @@ const themeHex = (cssVar: string): string => {
     ctx.fillRect(0, 0, 1, 1);
     const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
     return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+};
+
+const useThemeHexForChannels = (resolvedTheme: string) =>
+    useMemo(() => {
+        void resolvedTheme;
+        const map: Partial<Record<CurveChannel, string>> = {};
+        for (const channel of CURVE_CHANNELS) {
+            map[channel] = readThemeHex(CSS_CURVE_TOKENS[channel].current);
+        }
+        return map as Record<CurveChannel, string>;
+    }, [resolvedTheme]);
+
+const ColorInput = ({
+    value,
+    themeFallback,
+    label,
+    onCommit,
+}: {
+    value: string | null;
+    themeFallback: string;
+    label: string;
+    onCommit: (color: string) => void;
+}) => {
+    const [draft, setDraft] = useState<string | null>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingRef = useRef<string | null>(null);
+
+    useEffect(
+        () => () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        },
+        [],
+    );
+
+    const flush = (hex: string) => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = null;
+        pendingRef.current = null;
+        onCommit(hex);
+        setDraft(null);
+    };
+
+    const schedule = (hex: string) => {
+        setDraft(hex);
+        pendingRef.current = hex;
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => {
+            if (pendingRef.current) onCommit(pendingRef.current);
+            pendingRef.current = null;
+            timerRef.current = null;
+        }, 120);
+    };
+
+    return (
+        <input
+            type="color"
+            value={draft ?? value ?? themeFallback}
+            aria-label={label}
+            onChange={(event) => schedule(event.currentTarget.value)}
+            onBlur={() => {
+                const hex = draft ?? value ?? themeFallback;
+                flush(hex);
+            }}
+            className="h-8 w-10 cursor-pointer rounded-md border border-border-subtle bg-transparent p-0.5"
+        />
+    );
 };
 
 const WidthInput = ({ value, label, onCommit }: { value: number; label: string; onCommit: (v: number) => void }) => {
@@ -106,8 +173,8 @@ export const CurveStyleSection = () => {
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
     const { curveStyles } = useRoastSettings();
     const curves = useCurveStyles();
-    // Theme colors are read from CSS at render, so re-render when the theme flips.
-    useThemeStore((state) => state.resolvedTheme);
+    const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
+    const themeHexByChannel = useThemeHexForChannels(resolvedTheme);
     const headCls = 'px-2 pb-2 text-left text-[11px] font-medium text-muted';
 
     return (
@@ -141,9 +208,10 @@ export const CurveStyleSection = () => {
                         <tbody>
                             {CURVE_CHANNELS.map((channel) => {
                                 const style = curveStyles[channel];
-                                const name = t(CHANNEL_LABEL[channel]);
+                                const name = tk(CHANNEL_LABEL_KEY[channel]);
                                 const hasBackground = BACKGROUND_CHANNELS.includes(channel);
                                 const part = (key: string) => `${name} ${tk(key)}`;
+                                const heatCurrentLocked = channel === 'heat';
                                 return (
                                     <tr key={channel} className="border-t border-border-subtle">
                                         <th scope="row" className="px-2 py-2 text-left font-medium text-primary">
@@ -154,14 +222,11 @@ export const CurveStyleSection = () => {
                                         </th>
                                         <td className="px-2 py-2">
                                             <span className="flex items-center gap-1">
-                                                <input
-                                                    type="color"
-                                                    value={style.color ?? themeHex(CSS_CURVE_TOKENS[channel].current)}
-                                                    aria-label={part('curveStyleColor')}
-                                                    onChange={(event) =>
-                                                        updateCurveStyle(channel, { color: event.currentTarget.value })
-                                                    }
-                                                    className="h-8 w-10 cursor-pointer rounded-md border border-border-subtle bg-transparent p-0.5"
+                                                <ColorInput
+                                                    value={style.color}
+                                                    themeFallback={themeHexByChannel[channel]}
+                                                    label={part('curveStyleColor')}
+                                                    onCommit={(color) => updateCurveStyle(channel, { color })}
                                                 />
                                                 {style.color && (
                                                     <button
@@ -184,11 +249,17 @@ export const CurveStyleSection = () => {
                                             />
                                         </td>
                                         <td className="px-2 py-2">
-                                            <LineTypeSelect
-                                                value={style.lineType}
-                                                label={part('curveStyleCurrentLine')}
-                                                onChange={(lineType) => updateCurveStyle(channel, { lineType })}
-                                            />
+                                            {heatCurrentLocked ? (
+                                                <span className="inline-flex h-8 items-center text-[12px] text-muted">
+                                                    {t(`settings.tabs.roast.curveLineType.${HEAT_CURRENT_LINE_TYPE}`)}
+                                                </span>
+                                            ) : (
+                                                <LineTypeSelect
+                                                    value={style.lineType}
+                                                    label={part('curveStyleCurrentLine')}
+                                                    onChange={(lineType) => updateCurveStyle(channel, { lineType })}
+                                                />
+                                            )}
                                         </td>
                                         {hasBackground ? (
                                             <>

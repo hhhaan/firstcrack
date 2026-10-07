@@ -10,7 +10,7 @@ export type CurveLineType = (typeof CURVE_LINE_TYPES)[number];
 /** ET RoR has no stored reference curve. */
 export const BACKGROUND_CHANNELS: readonly CurveChannel[] = ['bt', 'et', 'ror', 'heat', 'fan', 'drum'];
 
-export const CURVE_WIDTH_MIN = 0.5;
+export const CURVE_WIDTH_MIN = 1;
 export const CURVE_WIDTH_MAX = 6;
 
 export type CurveChannelStyle = {
@@ -52,8 +52,12 @@ const isLineType = (value: unknown): value is CurveLineType =>
 const isWidth = (value: unknown): value is number =>
     typeof value === 'number' && Number.isFinite(value) && value >= CURVE_WIDTH_MIN && value <= CURVE_WIDTH_MAX;
 
+/** Heat actual must stay solid so it never matches Heat set (dashed) or Heat target (dotted). */
+export const HEAT_CURRENT_LINE_TYPE: CurveLineType = 'solid';
+
 const normalizeChannel = (raw: unknown, fallback: CurveChannelStyle): CurveChannelStyle => {
     const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof CurveChannelStyle, unknown>>;
+    // Invalid fields use DESIGN defaults for this channel, not any previously stored value on the object.
     return {
         color: isCurveColor(value.color) ? value.color.toLowerCase() : null,
         width: isWidth(value.width) ? value.width : fallback.width,
@@ -68,9 +72,11 @@ const normalizeChannel = (raw: unknown, fallback: CurveChannelStyle): CurveChann
 /** Each field falls back on its own, so one bad value never resets the rest of a channel. */
 export const normalizeCurveStyles = (raw: unknown): CurveStyles => {
     const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<CurveChannel, unknown>>;
-    return Object.fromEntries(
+    const styles = Object.fromEntries(
         CURVE_CHANNELS.map((channel) => [channel, normalizeChannel(value[channel], DEFAULT_CURVE_STYLES[channel])]),
     ) as CurveStyles;
+    styles.heat = { ...styles.heat, lineType: HEAT_CURRENT_LINE_TYPE };
+    return styles;
 };
 
 export type CurveLineStyle = { color: string; width: number; type: CurveLineType };
@@ -97,7 +103,7 @@ export const resolveCurveStyles = (styles: CurveStyles, tokens: CurveTokenColors
                     current: {
                         color: style.color ?? tokens[channel].current,
                         width: style.width,
-                        type: style.lineType,
+                        type: channel === 'heat' ? HEAT_CURRENT_LINE_TYPE : style.lineType,
                     },
                     background: {
                         color: style.color ? `${style.color}${BACKGROUND_ALPHA_HEX}` : tokens[channel].background,

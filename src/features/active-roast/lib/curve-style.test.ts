@@ -43,7 +43,7 @@ describe('normalizeCurveStyles', () => {
             color: null,
             width: TEMP_CURVE_WIDTH,
             lineType: 'dotted',
-            backgroundWidth: 0.5,
+            backgroundWidth: TEMP_CURVE_WIDTH,
             backgroundLineType: 'dashed',
         });
         expect(styles.et).toEqual(DEFAULT_CURVE_STYLES.et);
@@ -78,5 +78,22 @@ describe('resolveCurveStyles', () => {
             background: { color: '#00aaff8c', width: 3, type: 'solid' },
         });
         expect(custom.bt).toEqual(defaults.bt);
+    });
+
+    it('forces Heat current to solid even when stored as dotted or dashed', () => {
+        const stored = normalizeCurveStyles({
+            heat: { ...DEFAULT_CURVE_STYLES.heat, color: '#112233', lineType: 'dotted' },
+        });
+        expect(stored.heat.lineType).toBe('solid');
+        const resolved = resolveCurveStyles(stored, {
+            bt: { current: '#0', background: '#1' },
+            et: { current: '#0', background: '#1' },
+            ror: { current: '#0', background: '#1' },
+            etRor: { current: '#0', background: '#1' },
+            heat: { current: '#heat', background: '#heat-t' },
+            fan: { current: '#0', background: '#1' },
+            drum: { current: '#0', background: '#1' },
+        });
+        expect(resolved.heat.current).toEqual({ color: '#112233', width: CONTROL_CURVE_WIDTH, type: 'solid' });
     });
 });

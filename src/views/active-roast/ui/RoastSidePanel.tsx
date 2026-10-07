@@ -17,6 +17,7 @@ import { RoastAlertBanner } from './RoastAlertBanner';
 const TARGET_DELTA_COLORS: Record<TargetDeltaResult['status'], string> = {
     within: PHASE_COLORS.ready,
     over: PHASE_COLORS.danger,
+    // Target delta "under" stays on the legacy ET accent; live ET readout uses curve styles.
     under: SENSOR_COLORS.et,
 };
 
