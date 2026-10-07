@@ -17,6 +17,8 @@ export const TEMP_CURVE_WIDTH = 1.8;
 export const CONTROL_CURVE_WIDTH = 1.5;
 /** Vertical guides for heater, roast events, notes, and turning points. */
 export const EVENT_MARK_LINE_WIDTH = 1;
+/** Stored reference/profile curves fade to a translucent gray so they read as background. */
+export const REFERENCE_CURVE_OPACITY = 0.3;
 export const PHASE_BAR_FONT_SIZE = 10;
 export const PHASE_BAR_FONT_SIZE_NARROW = 9;
 export const PHASE_BAR_FONT_FAMILY = 'monospace';
@@ -120,6 +122,9 @@ export const getResolvedChartColors = (print = false) => {
         tooltipBg: gv('--color-chart-tooltip-bg', '#fff'),
         tooltipBorder: gv('--color-chart-tooltip-border', 'rgba(0,0,0,0.08)'),
         markerLabelColor: gv('--color-chart-marker-label', '#444'),
+
+        // Stored reference/profile curves — neutral gray solid background line.
+        reference: gv('--color-chart-axis-label', '#666'),
 
         // Phase bar (canvas — CSS vars do not resolve on canvas)
         phaseBarStroke: gv('--color-chart-phasebar-stroke', 'rgba(0,0,0,0.08)'),
