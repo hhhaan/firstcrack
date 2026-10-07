@@ -393,3 +393,20 @@ describe('curve styles', () => {
         expect(restarted.getRoastSettings().temperatureUnit).toBe(persisted.temperatureUnit);
     });
 });
+
+it('persists and restores both log panel states', async () => {
+    expect(normalizeRoastSettings({}).logExpanded).toBe(false);
+    for (const logExpanded of [true, false]) {
+        vi.resetModules();
+        vi.mocked(settingsGet).mockResolvedValueOnce({ logExpanded });
+        const settings = await import('./settings');
+        await Promise.resolve();
+        expect(settings.getRoastSettings().logExpanded).toBe(logExpanded);
+        settings.updateRoastSettings({ logExpanded: !logExpanded });
+        expect(settingsSet).toHaveBeenLastCalledWith(
+            'roast.settings',
+            expect.objectContaining({ logExpanded: !logExpanded }),
+            { debounce: true },
+        );
+    }
+});

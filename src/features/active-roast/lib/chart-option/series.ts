@@ -22,18 +22,6 @@ import * as echarts from 'echarts';
 import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
-// 커피 로스팅 차트에 최적화된 스무딩 설정
-// - BT(Bean Temp): 0.4 → 실측 느낌 유지, 과한 곡선화 방지
-// - ET(Environment Temp): 0.35 → BT보다 약간 덜 휘게
-// - RoR(Rate of Rise): 0.25 → 센서 노이즈 많아서 상대적으로 더 부드럽게
-// - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
-// - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
-export const getSmoothConfig = (strength: number = 0.4) => ({
-    smooth: strength,
-    smoothMonotone: 'x' as const,
-    sampling: 'lttb' as const,
-});
-
 export const lineSeriesBase = {
     showSymbol: false,
     emphasis: { disabled: true },
@@ -42,7 +30,7 @@ export const lineSeriesBase = {
 const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>
     values?.some((value) => value != null) ?? false;
 
-/** Stored reference: same channel color at the faded token, behind the live line. Gaps stay broken. */
+/** Stored reference behind the live curve. Default is gray and solid; curve styles can override it. Gaps stay broken. */
 const referenceLineSeries = (
     name: string,
     xs: number[],
@@ -61,7 +49,6 @@ const referenceLineSeries = (
     connectNulls: false,
     lineStyle: { ...style },
     ...lineSeriesBase,
-    smooth: false,
 });
 
 export interface TempSeriesParams {
@@ -138,7 +125,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, btActual[i]]),
             lineStyle: { ...curves.bt.current },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.4),
             markLine:
                 allMarkLines.length > 0 || tempBottomBorderLine
                     ? {
@@ -167,7 +153,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, etActual[i]]),
             lineStyle: { ...curves.et.current },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.35),
         },
         showRoR && {
             name: 'RoR',
@@ -177,7 +162,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             data: xs.map((x, i) => [x, rorActual[i]]),
             lineStyle: { ...curves.ror.current },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.25),
         },
         showRoR &&
             showRoRET && {
@@ -188,7 +172,6 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
                 lineStyle: { ...curves.etRor.current },
                 ...lineSeriesBase,
-                ...getSmoothConfig(0.25),
             },
     ].filter(Boolean) as object[];
 };
@@ -222,7 +205,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
     const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference } = controlData;
     const series: object[] = [];
 
-    // 참조(옅은 점선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
+    // 참조(회색 실선)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
     if (showTargetCurve && reference?.xs.length) {
         if (showProfileDrum && hasNumericSample(reference.drum)) {
             series.push(referenceLineSeries('Drum Target', reference.xs, reference.drum, curves.drum.background, 1, 2));
@@ -247,7 +230,6 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data: cxs.map((x, i) => [x, drumTemp[i]]),
             lineStyle: { ...curves.drum.current },
             ...lineSeriesBase,
-            smooth: 0.3,
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다
@@ -262,7 +244,6 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             lineStyle: { ...curves.heat.current, type: 'dotted' as const },
             ...lineSeriesBase,
             step: 'end' as const,
-            smooth: false,
         });
     }
     if (showControlHeat && heatSet?.some((v) => v != null)) {
@@ -276,7 +257,6 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             lineStyle: { ...curves.heat.current, type: 'dashed' as const },
             ...lineSeriesBase,
             step: 'end' as const,
-            smooth: false,
         });
     }
     if (showControlHeat) {
@@ -290,7 +270,6 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             lineStyle: { ...curves.heat.current },
             ...lineSeriesBase,
             step: 'end' as const,
-            smooth: false,
         });
     }
     if (showControlFan) {
@@ -304,7 +283,6 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             lineStyle: { ...curves.fan.current },
             ...lineSeriesBase,
             step: 'end' as const,
-            smooth: false,
         });
     }
     const guideOwner = series.find((item) => ['Drum', 'Heat', 'Fan'].includes((item as { name: string }).name));

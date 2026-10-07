@@ -5,6 +5,6 @@ export const CurveSwatch = ({ style }: { style: CurveLineStyle }) => (
     <span
         aria-hidden="true"
         className="inline-block w-4 shrink-0"
-        style={{ borderTop: `${style.width}px ${style.type} ${style.color}` }}
+        style={{ borderTop: `${style.width}px ${style.type} ${style.color}`, opacity: style.opacity }}
     />
 );

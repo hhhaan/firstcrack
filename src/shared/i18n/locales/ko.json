@@ -327,7 +327,7 @@
                 "alertAfterDrop": "배출 후",
                 "alertAfterDropDescription": "Drop 후 이 시간이 지나면 알립니다. 타이머는 로스팅 종료까지 계속 갑니다.",
                 "curveStyles": "곡선 스타일",
-                "curveStylesDescription": "채널별 색상·두께와, 현재 곡선·배경 참조 곡선의 선 모양을 따로 정합니다. 로스팅 화면과 기록 차트에 함께 적용됩니다. 배경 곡선은 채널 색을 옅게 씁니다.",
+                "curveStylesDescription": "채널별 색상·두께와, 현재 곡선·배경 참조 곡선의 선 모양을 따로 정합니다. 로스팅 화면과 기록 차트에 함께 적용됩니다. 배경 곡선은 회색 실선이며, 채널 색을 정하면 그 색을 옅게 씁니다.",
                 "curveStyleChannel": "채널",
                 "curveStyleChannelBt": "BT",
                 "curveStyleChannelEt": "ET",
@@ -1078,6 +1078,8 @@
             "markDrop": "⌘DD"
         },
         "log": {
+            "expand": "로스팅 로그 펼치기",
+            "collapse": "로스팅 로그 접기",
             "title": "로스팅 로그",
             "deleteNote": "메모 삭제"
         },

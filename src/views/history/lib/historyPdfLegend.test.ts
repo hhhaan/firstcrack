@@ -49,7 +49,7 @@ describe('historyPdfLegend', () => {
             { color: '#e53935', label: 'BT (°F)', lineType: 'solid' },
             { color: '#et-live', label: 'ET (°F)', lineType: 'solid' },
             { color: '#ror-live', label: 'RoR (°F/min)', lineType: 'solid' },
-            { color: '#e539358c', label: 'settings.tabs.roast.showTargetCurve', lineType: 'dashed' },
+            { color: '#e539358c', label: 'settings.tabs.roast.showTargetCurve', lineType: 'solid' },
             { color: '#drum-live', label: 'Drum', lineType: 'solid' },
             { color: '#aa4400', label: 'Heat', lineType: 'solid' },
             { color: '#fan-live', label: 'Fan', lineType: 'solid' },

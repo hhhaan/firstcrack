@@ -5,7 +5,6 @@ import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
-import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { endRoastLabel, markDropLabel, roastEventLabel, roastReadyLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
@@ -13,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
+import { RoastSidePanelLayout } from './RoastSidePanelLayout';
 
 const TARGET_DELTA_COLORS: Record<TargetDeltaResult['status'], string> = {
     within: PHASE_COLORS.ready,
@@ -112,7 +112,7 @@ export const RoastSidePanel = ({
     const curves = useCurveStyles();
 
     return (
-        <div className="w-44 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <RoastSidePanelLayout roastLogDisplayEntries={roastLogDisplayEntries} onRemoveLogEntry={onRemoveLogEntry}>
             <RoastAlertBanner alerts={activeAlerts} />
             {/* ET */}
             <div className="text-right">
@@ -396,10 +396,6 @@ export const RoastSidePanel = ({
                     +
                 </button>
             </div>
-
-            <div className="border-t border-border-subtle" />
-
-            <RoastLog variant="sidebar" entries={roastLogDisplayEntries} onRemoveEntry={onRemoveLogEntry} />
-        </div>
+        </RoastSidePanelLayout>
     );
 };

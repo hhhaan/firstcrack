@@ -327,7 +327,7 @@
                 "alertAfterDrop": "After drop",
                 "alertAfterDropDescription": "Remind this many minutes after Drop. The timer keeps running until End roast.",
                 "curveStyles": "Curve Styles",
-                "curveStylesDescription": "Color and width per channel, with separate line styles for the live curve and the background reference. Applies to Active Roast and History. The background follows the channel color at reduced opacity.",
+                "curveStylesDescription": "Color and width per channel, with separate line styles for the live curve and the background reference. Applies to Active Roast and History. The background is a gray solid line unless a channel color is set.",
                 "curveStyleChannel": "Channel",
                 "curveStyleChannelBt": "BT",
                 "curveStyleChannelEt": "ET",
@@ -702,6 +702,8 @@
             "drum": "Drum"
         },
         "log": {
+            "expand": "Expand roast log",
+            "collapse": "Collapse roast log",
             "title": "Roast Log",
             "deleteNote": "Delete note"
         },

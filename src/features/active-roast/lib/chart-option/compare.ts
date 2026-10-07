@@ -19,7 +19,7 @@ import {
     computeGridMargins,
     fmtSec,
 } from './axes';
-import { getSmoothConfig, lineSeriesBase } from './series';
+import { lineSeriesBase } from './series';
 
 export type CompareChartSeries = {
     id: string;
@@ -112,7 +112,6 @@ export const buildCompareChartOption = (
             lineStyle: { color, width: TEMP_CURVE_WIDTH },
             itemStyle: { color },
             ...lineSeriesBase,
-            ...getSmoothConfig(0.4),
             markPoint:
                 s.markers && s.markers.length > 0
                     ? {
@@ -156,7 +155,6 @@ export const buildCompareChartOption = (
                 lineStyle: { color, width: TEMP_CURVE_WIDTH, opacity: 0.6 },
                 itemStyle: { color },
                 ...lineSeriesBase,
-                ...getSmoothConfig(0.25),
             });
         }
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTROL_CURVE_WIDTH, TEMP_CURVE_WIDTH } from './chart-config';
+import { CONTROL_CURVE_WIDTH, REFERENCE_CURVE_OPACITY, TEMP_CURVE_WIDTH } from './chart-config';
 import {
     CSS_CURVE_TOKENS,
     CURVE_CHANNELS,
@@ -18,7 +18,7 @@ describe('normalizeCurveStyles', () => {
             width: TEMP_CURVE_WIDTH,
             lineType: 'solid',
             backgroundWidth: TEMP_CURVE_WIDTH,
-            backgroundLineType: 'dashed',
+            backgroundLineType: 'solid',
         });
         expect(DEFAULT_CURVE_STYLES.etRor.lineType).toBe('dashed');
         expect(DEFAULT_CURVE_STYLES.heat.width).toBe(CONTROL_CURVE_WIDTH);
@@ -44,7 +44,7 @@ describe('normalizeCurveStyles', () => {
             width: TEMP_CURVE_WIDTH,
             lineType: 'dotted',
             backgroundWidth: TEMP_CURVE_WIDTH,
-            backgroundLineType: 'dashed',
+            backgroundLineType: 'solid',
         });
         expect(styles.et).toEqual(DEFAULT_CURVE_STYLES.et);
         expect(styles.heat).toEqual(DEFAULT_CURVE_STYLES.heat);
@@ -63,7 +63,12 @@ describe('resolveCurveStyles', () => {
         const defaults = resolveCurveStyles(DEFAULT_CURVE_STYLES, CSS_CURVE_TOKENS);
         expect(defaults.bt).toEqual({
             current: { color: 'var(--color-sensor-bt)', width: TEMP_CURVE_WIDTH, type: 'solid' },
-            background: { color: 'var(--color-sensor-bt-target)', width: TEMP_CURVE_WIDTH, type: 'dashed' },
+            background: {
+                color: 'var(--color-chart-axis-label)',
+                width: TEMP_CURVE_WIDTH,
+                type: 'solid',
+                opacity: REFERENCE_CURVE_OPACITY,
+            },
         });
 
         const custom = resolveCurveStyles(

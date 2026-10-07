@@ -1,3 +1,4 @@
+import { REFERENCE_CURVE_OPACITY } from '@features/active-roast/lib/chart-config';
 import { describe, expect, it } from 'vitest';
 import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '../curve-style';
 import { mockChartColors as colors } from './chart-colors.fixture';
@@ -86,7 +87,9 @@ describe('createAxisTooltipFormatter', () => {
             { axisValue: 30, seriesName: 'ET Actual', value: [30, 140] },
         ]);
         expect(html).toContain('border-top:3px solid #ff0000;flex-shrink:0"></span>Bean Temp');
-        expect(html).toContain(`border-top:2.5px solid ${colors.rorTarget}`);
+        expect(html).toContain(
+            `border-top:2.5px solid ${colors.reference};opacity:${REFERENCE_CURVE_OPACITY};flex-shrink:0`,
+        );
         expect(html).toContain(`border-top:1.8px solid ${colors.etActual}`);
     });
 

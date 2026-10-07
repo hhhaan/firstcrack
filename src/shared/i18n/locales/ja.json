@@ -327,7 +327,7 @@
                 "alertAfterDrop": "排出後",
                 "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。",
                 "curveStyles": "カーブスタイル",
-                "curveStylesDescription": "チャンネルごとの色と太さ、現在のカーブと背景リファレンスの線種を個別に設定します。ロースト画面と履歴チャートに適用されます。背景カーブはチャンネル色を薄く表示します。",
+                "curveStylesDescription": "チャンネルごとの色と太さ、現在のカーブと背景リファレンスの線種を個別に設定します。ロースト画面と履歴チャートに適用されます。背景カーブは灰色の実線で、チャンネル色を指定するとその色を薄く表示します。",
                 "curveStyleChannel": "チャンネル",
                 "curveStyleChannelBt": "BT",
                 "curveStyleChannelEt": "ET",
@@ -702,6 +702,8 @@
             "drum": "ドラム"
         },
         "log": {
+            "expand": "焙煎ログを展開",
+            "collapse": "焙煎ログを折りたたむ",
             "title": "ローストログ",
             "deleteNote": "ノート削除"
         },
