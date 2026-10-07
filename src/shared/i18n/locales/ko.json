@@ -1054,7 +1054,6 @@
             "markDrop": "⌘DD"
         },
         "log": {
-            "resize": "로스팅 로그 폭 조절",
             "expand": "로스팅 로그 펼치기",
             "collapse": "로스팅 로그 접기",
             "title": "로스팅 로그",

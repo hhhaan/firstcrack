@@ -358,21 +358,16 @@ it('defaults legacy Charge/Drop thresholds to Standard and ignores stored °C va
 
 it('persists and restores both log panel states', async () => {
     expect(normalizeRoastSettings({}).logExpanded).toBe(false);
-    expect(normalizeRoastSettings({}).logPanelWidth).toBe(160);
-    expect(normalizeRoastSettings({ logPanelWidth: 100 }).logPanelWidth).toBe(160);
-    expect(normalizeRoastSettings({ logPanelWidth: 999 }).logPanelWidth).toBe(360);
-    expect(normalizeRoastSettings({ logPanelWidth: Number.NaN }).logPanelWidth).toBe(160);
     for (const logExpanded of [true, false]) {
         vi.resetModules();
-        vi.mocked(settingsGet).mockResolvedValueOnce({ logExpanded, logPanelWidth: 240 });
+        vi.mocked(settingsGet).mockResolvedValueOnce({ logExpanded });
         const settings = await import('./settings');
         await Promise.resolve();
         expect(settings.getRoastSettings().logExpanded).toBe(logExpanded);
-        expect(settings.getRoastSettings().logPanelWidth).toBe(240);
-        settings.updateRoastSettings({ logExpanded: !logExpanded, logPanelWidth: 280 });
+        settings.updateRoastSettings({ logExpanded: !logExpanded });
         expect(settingsSet).toHaveBeenLastCalledWith(
             'roast.settings',
-            expect.objectContaining({ logExpanded: !logExpanded, logPanelWidth: 280 }),
+            expect.objectContaining({ logExpanded: !logExpanded }),
             { debounce: true },
         );
     }

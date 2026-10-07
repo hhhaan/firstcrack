@@ -17,9 +17,6 @@ export type TemperatureUnit = 'C' | 'F';
 /** Labels drawn inside the roast chart. Stored as 100–200 (1×–2×). */
 export type FontScalePct = number;
 
-export const LOG_PANEL_WIDTH_MIN = 160;
-export const LOG_PANEL_WIDTH_MAX = 360;
-
 export const FONT_SCALE_MIN = 100;
 export const FONT_SCALE_MAX = 200;
 /** Settings slider. 1 is the stored minimum, 100 is the stored maximum. */
@@ -64,7 +61,6 @@ export type RoastSettings = {
     showRoRET: boolean;
     showControlChart: boolean;
     logExpanded: boolean;
-    logPanelWidth: number;
     /** Drum / Heat / Fan series on the control band */
     showControlDrum: boolean;
     showControlHeat: boolean;
@@ -187,7 +183,6 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showRoRET: false,
     showControlChart: true,
     logExpanded: false,
-    logPanelWidth: LOG_PANEL_WIDTH_MIN,
     showControlDrum: true,
     showControlHeat: true,
     showControlFan: true,
@@ -376,12 +371,6 @@ export const normalizeRoastSettings = (
             ? merged.eventMarkerStyle
             : DEFAULT_SETTINGS.eventMarkerStyle,
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
-        logPanelWidth: clampNum(
-            merged.logPanelWidth,
-            LOG_PANEL_WIDTH_MIN,
-            LOG_PANEL_WIDTH_MAX,
-            DEFAULT_SETTINGS.logPanelWidth,
-        ),
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),

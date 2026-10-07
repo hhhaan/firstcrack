@@ -1,9 +1,4 @@
-import {
-    LOG_PANEL_WIDTH_MAX,
-    LOG_PANEL_WIDTH_MIN,
-    updateRoastSettings,
-    useRoastSettings,
-} from '@features/active-roast/model/settings';
+import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Minus, Plus } from 'lucide-react';
@@ -20,8 +15,7 @@ export const RoastSidePanelLayout = ({
     onRemoveLogEntry: (id: string) => void;
 }) => {
     const { t } = useTranslation();
-    const { logExpanded, logPanelWidth } = useRoastSettings();
-    const dragRef = useRef<{ x: number; width: number } | null>(null);
+    const { logExpanded } = useRoastSettings();
     const logPanelId = useId();
     const logTriggerRef = useRef<HTMLButtonElement>(null);
     const logCloseRef = useRef<HTMLButtonElement>(null);
@@ -71,52 +65,8 @@ export const RoastSidePanelLayout = ({
                     id={logPanelId}
                     aria-label={t('activeRoast.log.title')}
                     data-testid="roast-log-panel"
-                    style={{ width: logPanelWidth }}
-                    className="relative flex min-h-0 shrink-0 self-stretch flex-col border-l border-border-subtle bg-roast-bg pl-3 pr-0 pb-5"
+                    className="flex w-40 min-h-0 shrink-0 self-stretch flex-col border-l border-border-subtle bg-roast-bg pl-3 pr-0 pb-5"
                 >
-                    <div
-                        role="separator"
-                        tabIndex={0}
-                        aria-label={t('activeRoast.log.resize')}
-                        aria-orientation="vertical"
-                        aria-controls={logPanelId}
-                        aria-valuemin={LOG_PANEL_WIDTH_MIN}
-                        aria-valuemax={LOG_PANEL_WIDTH_MAX}
-                        aria-valuenow={logPanelWidth}
-                        onPointerDown={(event) => {
-                            if (event.button !== 0) return;
-                            event.preventDefault();
-                            event.currentTarget.focus();
-                            dragRef.current = { x: event.clientX, width: logPanelWidth };
-                            event.currentTarget.setPointerCapture(event.pointerId);
-                        }}
-                        onPointerMove={(event) => {
-                            if (!dragRef.current) return;
-                            updateRoastSettings({
-                                logPanelWidth: dragRef.current.width + dragRef.current.x - event.clientX,
-                            });
-                        }}
-                        onLostPointerCapture={() => {
-                            dragRef.current = null;
-                        }}
-                        onKeyDown={(event) => {
-                            const width =
-                                event.key === 'Home'
-                                    ? LOG_PANEL_WIDTH_MIN
-                                    : event.key === 'End'
-                                      ? LOG_PANEL_WIDTH_MAX
-                                      : event.key === 'ArrowLeft'
-                                        ? logPanelWidth + 10
-                                        : event.key === 'ArrowRight'
-                                          ? logPanelWidth - 10
-                                          : null;
-                            if (width === null) return;
-                            event.preventDefault();
-                            event.stopPropagation();
-                            updateRoastSettings({ logPanelWidth: width });
-                        }}
-                        className="absolute -left-1 top-0 bottom-0 z-10 w-2 cursor-col-resize touch-none hover:bg-border-subtle focus-visible:bg-border-subtle focus-visible:outline-none"
-                    />
                     <div className="flex shrink-0 items-center justify-between py-1">
                         <h3 className="text-xs font-semibold uppercase text-muted">{t('activeRoast.log.title')}</h3>
                         <button

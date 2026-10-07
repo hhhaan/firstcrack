@@ -678,7 +678,6 @@
             "drum": "Drum"
         },
         "log": {
-            "resize": "Resize roast log",
             "expand": "Expand roast log",
             "collapse": "Collapse roast log",
             "title": "Roast Log",
