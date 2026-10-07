@@ -10,6 +10,7 @@ import * as echarts from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
 import { deadbandSpanForChannel, resolveControlUnits } from '../control-channels';
 import { canvasCurveTokens, controlLiveLineStyle, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '../curve-style';
+import { fullTimelineCoord, renderChangeLabels, zoomWindowCoord } from './change-labels.test-fixture';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams } from './types';
@@ -1044,24 +1045,7 @@ describe('buildRoastChartOption', () => {
                 },
             },
         });
-        const labelSeries = (
-            option.series as {
-                id?: string;
-                renderItem?: (
-                    params: unknown,
-                    api: unknown,
-                ) => { children?: { style?: { text?: string }; x?: number }[] };
-            }[]
-        ).find((series) => series.id === 'control-change-labels');
-        const width = 600;
-        const height = 80;
-        const rendered = labelSeries?.renderItem?.(
-            { dataIndex: 0, coordSys: { x: 0, y: 0, width, height } },
-            {
-                coord: ([x]: number[]) => [((x - xViewMin) / (xViewMax - xViewMin)) * width, height / 2],
-            },
-        );
-        const labels = (rendered?.children ?? [])
+        const labels = renderChangeLabels(option, zoomWindowCoord(xViewMin, xViewMax))
             .filter((child) => child.style?.text)
             .map((child) => ({ text: child.style?.text as string, x: child.x ?? 0 }));
         expect(labels.some((label) => label.text === '50' && label.x <= 8)).toBe(false);
@@ -1103,21 +1087,7 @@ describe('buildRoastChartOption', () => {
                     changeLabels,
                 },
             });
-            const labelSeries = (
-                option.series as {
-                    id?: string;
-                    renderItem?: (params: unknown, api: unknown) => { children?: { style?: { text?: string } }[] };
-                }[]
-            ).find((series) => series.id === 'control-change-labels');
-            const width = 600;
-            const height = 80;
-            const rendered = labelSeries?.renderItem?.(
-                { dataIndex: 0, coordSys: { x: 0, y: 0, width, height } },
-                {
-                    coord: ([x]: number[]) => [((x - xViewMin) / (xViewMax - xViewMin)) * width, height / 2],
-                },
-            );
-            return (rendered?.children ?? [])
+            return renderChangeLabels(option, zoomWindowCoord(xViewMin, xViewMax))
                 .map((child) => child.style?.text)
                 .filter((text): text is string => Boolean(text));
         };
@@ -1157,21 +1127,7 @@ describe('buildRoastChartOption', () => {
                 changeLabels,
             },
         });
-        const labelSeries = (
-            option.series as {
-                id?: string;
-                renderItem?: (params: unknown, api: unknown) => { children?: { style?: { text?: string } }[] };
-            }[]
-        ).find((series) => series.id === 'control-change-labels');
-        const width = 600;
-        const height = 80;
-        const rendered = labelSeries?.renderItem?.(
-            { dataIndex: 0, coordSys: { x: 0, y: 0, width, height } },
-            {
-                coord: ([x]: number[]) => [((x - xViewMin) / (xViewMax - xViewMin)) * width, height / 2],
-            },
-        );
-        const labels = (rendered?.children ?? [])
+        const labels = renderChangeLabels(option, zoomWindowCoord(xViewMin, xViewMax))
             .map((child) => child.style?.text)
             .filter((text): text is string => Boolean(text));
         expect(labels).not.toContain('502');
@@ -1197,20 +1153,7 @@ describe('buildRoastChartOption', () => {
                 },
             },
         });
-        const labelSeries = (
-            option.series as {
-                id?: string;
-                renderItem?: (
-                    params: unknown,
-                    api: unknown,
-                ) => { children?: { style?: { fill?: string; text?: string } }[] };
-            }[]
-        ).find((series) => series.id === 'control-change-labels');
-        const rendered = labelSeries?.renderItem?.(
-            { dataIndex: 0, coordSys: { x: 0, y: 0, width: 600, height: 80 } },
-            { coord: ([x]: number[]) => [(x / 120) * 600, 40] },
-        );
-        const fills = (rendered?.children ?? [])
+        const fills = renderChangeLabels(option, fullTimelineCoord(120))
             .filter((child) => child.style?.text === '60')
             .map((child) => child.style?.fill);
         expect(fills).toContain(curves.drum.current.color);
@@ -1244,21 +1187,8 @@ describe('buildRoastChartOption', () => {
         expect(byName.Heat?.lineStyle).toEqual(curves.heat.current);
         expect(byName.Fan?.lineStyle).toEqual(curves.fan.current);
         expect(byName['Heat target']?.lineStyle).toEqual(controlLiveLineStyle(curves.heat.current, 'heatTarget'));
-        const labelSeries = (
-            option.series as {
-                id?: string;
-                renderItem?: (
-                    params: unknown,
-                    api: unknown,
-                ) => { children?: { style?: { fill?: string; text?: string } }[] };
-            }[]
-        ).find((series) => series.id === 'control-change-labels');
-        const rendered = labelSeries?.renderItem?.(
-            { dataIndex: 0, coordSys: { x: 0, y: 0, width: 600, height: 80 } },
-            { coord: ([x]: number[]) => [(x / 120) * 600, 40] },
-        );
-        const fillFor = (text: string) =>
-            (rendered?.children ?? []).find((child) => child.style?.text === text)?.style?.fill;
+        const children = renderChangeLabels(option, fullTimelineCoord(120));
+        const fillFor = (text: string) => children.find((child) => child.style?.text === text)?.style?.fill;
         expect(fillFor('55')).toBe(heatColor);
         expect(fillFor('30')).toBe(fanColor);
     });

@@ -6,13 +6,14 @@ import { buildControlLiveReadout, buildControlReadoutGroups } from '@features/ac
 import {
     canvasCurveTokens,
     controlLiveLineStyle,
+    controlReadoutSwatchStyle,
     DEFAULT_CURVE_STYLES,
     resolveCurveStyles,
 } from '@features/active-roast/lib/curve-style';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ControlReadoutStrip, controlReadoutSwatchStyle } from './ControlReadoutStrip';
+import { ControlReadoutStrip } from './ControlReadoutStrip';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 

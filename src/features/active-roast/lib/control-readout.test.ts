@@ -1,6 +1,6 @@
-import { ROASTER_REGISTRY } from '@entities/machine';
 import { describe, expect, it } from 'vitest';
 import { layoutControlAxes, resolveControlUnits } from './control-channels';
+import { presetHeaterOnly, presetReadonlyDrumFan } from './control-preset-test-fixtures';
 import {
     buildControlLiveReadout,
     buildControlReadoutGroups,
@@ -9,22 +9,6 @@ import {
     controlLinkState,
     stepValueAt,
 } from './control-readout';
-
-const presetReadonlyDrumFan = Object.keys(ROASTER_REGISTRY).find((key) => {
-    const def = ROASTER_REGISTRY[key];
-    return (
-        def.capabilities.length === 0 &&
-        (def.readable_controls ?? []).includes('drum') &&
-        (def.readable_controls ?? []).includes('fan')
-    );
-});
-
-const presetHeaterOnly = Object.keys(ROASTER_REGISTRY).find((key) => {
-    const def = ROASTER_REGISTRY[key];
-    const caps = def.capabilities;
-    const readable = def.readable_controls ?? [];
-    return caps.length === 1 && caps[0] === 'heater' && readable.length === 1 && readable[0] === 'heater';
-});
 
 const live = (over: Partial<ControlLiveInput> = {}): ControlLiveInput => ({
     liveData: { heater: 62, fan: 40, drum: 55.5, heater_set: 65 },

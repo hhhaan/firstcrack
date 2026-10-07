@@ -1,27 +1,12 @@
 import type { ControlReadoutEntry, ControlReadoutGroups } from '@features/active-roast/lib/control-readout';
-import {
-    type ControlLiveLineRole,
-    controlLiveLineStyle,
-    type ResolvedCurveStyles,
-} from '@features/active-roast/lib/curve-style';
+import { controlReadoutSwatchStyle, type ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import { Clock, Unplug } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CurveSwatch } from './CurveSwatch';
 
-const readoutRole = (kind: ControlReadoutEntry['kind']): ControlLiveLineRole =>
-    kind === 'set' ? 'set' : kind === 'target' ? 'heatTarget' : 'measured';
-
-export const controlReadoutSwatchStyle = (
-    entry: Pick<ControlReadoutEntry, 'channel' | 'kind'>,
-    curves: ResolvedCurveStyles,
-) => controlLiveLineStyle(curves[entry.channel].current, readoutRole(entry.kind));
-
-const swatchStyle = (entry: ControlReadoutEntry, curves: ResolvedCurveStyles) =>
-    controlReadoutSwatchStyle(entry, curves);
-
 const Swatch = ({ entry, curves }: { entry: ControlReadoutEntry; curves: ResolvedCurveStyles }) => (
-    <CurveSwatch style={swatchStyle(entry, curves)} />
+    <CurveSwatch style={controlReadoutSwatchStyle(entry, curves)} />
 );
 
 const Entry = ({ entry, curves }: { entry: ControlReadoutEntry; curves: ResolvedCurveStyles }) => {

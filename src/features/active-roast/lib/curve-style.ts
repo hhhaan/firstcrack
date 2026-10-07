@@ -141,7 +141,7 @@ export const canvasCurveTokens = (colors: ResolvedChartColors): CurveTokenColors
     drum: { current: colors.controlDrum, background: colors.reference },
 });
 
-/** Live control curve roles on the roast chart (measured / Heat set / profile Heat target). */
+/** Live control curve roles on the roast chart (measured / Heat set / controlData.heatTarget step). */
 export type ControlLiveLineRole = 'measured' | 'set' | 'heatTarget';
 
 /** Single source for live control line + matching swatch styles (series, readout, tooltip). */
@@ -150,6 +150,20 @@ export const controlLiveLineStyle = (current: CurveLineStyle, role: ControlLiveL
     if (role === 'set') return { ...current, type: 'dashed' };
     return { ...current, type: 'dotted' };
 };
+
+export type ControlReadoutSwatchEntry = {
+    channel: 'drum' | 'heat' | 'fan';
+    kind: 'measured' | 'set' | 'target';
+};
+
+const readoutLineRole = (kind: ControlReadoutSwatchEntry['kind']): ControlLiveLineRole =>
+    kind === 'set' ? 'set' : kind === 'target' ? 'heatTarget' : 'measured';
+
+/** Readout strip swatch style — same rules as the live control series lines. */
+export const controlReadoutSwatchStyle = (
+    entry: ControlReadoutSwatchEntry,
+    curves: ResolvedCurveStyles,
+): CurveLineStyle => controlLiveLineStyle(curves[entry.channel].current, readoutLineRole(entry.kind));
 
 /** Inline CSS for a short line sample. Tooltip HTML and React legends share it. */
 export const curveSwatchCss = (style: CurveLineStyle): string => {
