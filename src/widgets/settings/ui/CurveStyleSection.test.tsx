@@ -37,10 +37,15 @@ describe('CurveStyleSection', () => {
         const line = container.querySelector<HTMLButtonElement>(
             `[aria-label="${label('curveStyleChannelEtRor', 'curveStyleCurrentLine')}"]`,
         );
+        const heatLine = container.querySelector<HTMLButtonElement>(
+            `[aria-label="${label('controlHeat', 'curveStyleCurrentLine')}"]`,
+        );
         const width = container.querySelector<HTMLInputElement>(
             `[aria-label="${label('curveStyleChannelEtRor', 'curveStyleCurrentWidth')}"]`,
         );
         expect(line?.disabled).toBe(false);
+        expect(heatLine?.disabled).toBe(false);
+        expect(heatLine?.textContent).toContain('curveLineType.solid');
         expect(width?.disabled).toBe(false);
         expect(width?.value).toBe('1.8');
 

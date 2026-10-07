@@ -23,10 +23,10 @@ export type CurveChannelStyle = {
 
 export type CurveStyles = Record<CurveChannel, CurveChannelStyle>;
 
-const channelDefault = (width: number, lineType: CurveLineType = 'solid'): CurveChannelStyle => ({
+const channelDefault = (width: number): CurveChannelStyle => ({
     color: null,
     width,
-    lineType,
+    lineType: 'solid',
     backgroundWidth: width,
     backgroundLineType: 'solid',
 });
@@ -35,7 +35,7 @@ export const DEFAULT_CURVE_STYLES: CurveStyles = {
     bt: channelDefault(TEMP_CURVE_WIDTH),
     et: channelDefault(TEMP_CURVE_WIDTH),
     ror: channelDefault(TEMP_CURVE_WIDTH),
-    etRor: channelDefault(TEMP_CURVE_WIDTH, 'dashed'),
+    etRor: channelDefault(TEMP_CURVE_WIDTH),
     heat: channelDefault(CONTROL_CURVE_WIDTH),
     fan: channelDefault(CONTROL_CURVE_WIDTH),
     drum: channelDefault(CONTROL_CURVE_WIDTH),
@@ -50,9 +50,6 @@ const isLineType = (value: unknown): value is CurveLineType =>
 
 const isWidth = (value: unknown): value is number =>
     typeof value === 'number' && Number.isFinite(value) && value >= CURVE_WIDTH_MIN && value <= CURVE_WIDTH_MAX;
-
-/** Heat actual must stay solid so it never matches Heat set (dashed) or Heat target (dotted). */
-export const HEAT_CURRENT_LINE_TYPE: CurveLineType = 'solid';
 
 const normalizeChannel = (raw: unknown, fallback: CurveChannelStyle): CurveChannelStyle => {
     const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof CurveChannelStyle, unknown>>;
@@ -74,7 +71,6 @@ export const normalizeCurveStyles = (raw: unknown): CurveStyles => {
     const styles = Object.fromEntries(
         CURVE_CHANNELS.map((channel) => [channel, normalizeChannel(value[channel], DEFAULT_CURVE_STYLES[channel])]),
     ) as CurveStyles;
-    styles.heat = { ...styles.heat, lineType: HEAT_CURRENT_LINE_TYPE };
     return styles;
 };
 
@@ -97,7 +93,7 @@ export const resolveCurveStyles = (styles: CurveStyles, tokens: CurveTokenColors
             const current: CurveLineStyle = {
                 color: style.color ?? tokens[channel].current,
                 width: style.width,
-                type: channel === 'heat' ? HEAT_CURRENT_LINE_TYPE : style.lineType,
+                type: style.lineType,
             };
             return [
                 channel,

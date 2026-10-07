@@ -854,11 +854,9 @@ describe('buildRoastChartOption', () => {
             type: 'dashed',
         });
         expect(styled['ET Actual']?.lineStyle).toEqual(plain['ET Actual']?.lineStyle);
-        expect(styled.Heat?.lineStyle).toEqual({ color: '#112233', width: 2.5, type: 'solid' });
+        expect(styled.Heat?.lineStyle).toEqual({ color: '#112233', width: 2.5, type: 'dotted' });
         expect(styled['Heat set']).toMatchObject({ step: 'end', lineStyle: { color: '#112233', type: 'dashed' } });
         expect(styled['Heat target']).toMatchObject({ step: 'end', lineStyle: { color: '#112233', type: 'dotted' } });
-        expect(styled.Heat?.lineStyle?.type).not.toBe(styled['Heat target']?.lineStyle?.type);
-        expect(styled.Heat?.lineStyle?.type).not.toBe(styled['Heat set']?.lineStyle?.type);
         const lineNames = Object.keys(plain).filter((name) => (plain[name] as { type?: string }).type === 'line');
         expect(lineNames).toContain('RoR Target');
         for (const name of lineNames) {

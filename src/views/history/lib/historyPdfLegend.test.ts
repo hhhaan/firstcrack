@@ -56,9 +56,9 @@ describe('historyPdfLegend', () => {
                 opacity: 0.3,
             },
             { color: '#drum-live', label: 'Drum', lineType: 'solid' },
-            { color: '#aa4400', label: 'Heat', lineType: 'solid' },
+            { color: '#aa4400', label: 'Heat', lineType: 'dotted' },
             { color: '#fan-live', label: 'Fan', lineType: 'solid' },
         ]);
-        expect(getRoastSettings().curveStyles.heat.lineType).toBe('solid');
+        expect(getRoastSettings().curveStyles.heat.lineType).toBe('dotted');
     });
 });

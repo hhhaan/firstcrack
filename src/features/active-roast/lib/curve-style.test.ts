@@ -20,7 +20,7 @@ describe('normalizeCurveStyles', () => {
             backgroundWidth: TEMP_CURVE_WIDTH,
             backgroundLineType: 'solid',
         });
-        expect(DEFAULT_CURVE_STYLES.etRor.lineType).toBe('dashed');
+        expect(DEFAULT_CURVE_STYLES.etRor.lineType).toBe('solid');
         expect(DEFAULT_CURVE_STYLES.heat.width).toBe(CONTROL_CURVE_WIDTH);
     });
 
@@ -91,11 +91,11 @@ describe('resolveCurveStyles', () => {
         expect(custom.bt).toEqual(defaults.bt);
     });
 
-    it('forces Heat current to solid even when stored as dotted or dashed', () => {
+    it('keeps a stored Heat line type', () => {
         const stored = normalizeCurveStyles({
             heat: { ...DEFAULT_CURVE_STYLES.heat, color: '#112233', lineType: 'dotted' },
         });
-        expect(stored.heat.lineType).toBe('solid');
+        expect(stored.heat.lineType).toBe('dotted');
         const resolved = resolveCurveStyles(stored, {
             bt: { current: '#0' },
             et: { current: '#0' },
@@ -105,11 +105,11 @@ describe('resolveCurveStyles', () => {
             fan: { current: '#0' },
             drum: { current: '#0' },
         });
-        expect(resolved.heat.current).toEqual({ color: '#112233', width: CONTROL_CURVE_WIDTH, type: 'solid' });
+        expect(resolved.heat.current).toEqual({ color: '#112233', width: CONTROL_CURVE_WIDTH, type: 'dotted' });
         expect(resolved.heat.background).toEqual({
             color: '#112233',
             width: CONTROL_CURVE_WIDTH,
-            type: 'solid',
+            type: 'dotted',
             opacity: REFERENCE_CURVE_OPACITY,
         });
     });

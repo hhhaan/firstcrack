@@ -7,7 +7,6 @@ import {
     type CurveChannel,
     type CurveLineType,
     CurveSwatch,
-    HEAT_CURRENT_LINE_TYPE,
     resetCurveStyles,
     updateCurveStyle,
     useCurveStyles,
@@ -151,7 +150,6 @@ export const CurveStyleSection = () => {
                                 const style = curveStyles[channel];
                                 const name = tk(CHANNEL_LABEL_KEY[channel]);
                                 const part = (key: string) => `${name} ${tk(key)}`;
-                                const heatCurrentLocked = channel === 'heat';
                                 return (
                                     <tr key={channel} className="border-t border-border-subtle">
                                         <th scope="row" className="px-2 py-2 text-left font-medium text-primary">
@@ -189,17 +187,11 @@ export const CurveStyleSection = () => {
                                             />
                                         </td>
                                         <td className="px-2 py-2">
-                                            {heatCurrentLocked ? (
-                                                <span className="inline-flex h-8 items-center text-[12px] text-muted">
-                                                    {t(`settings.tabs.roast.curveLineType.${HEAT_CURRENT_LINE_TYPE}`)}
-                                                </span>
-                                            ) : (
-                                                <LineTypeSelect
-                                                    value={style.lineType}
-                                                    label={part('curveStyleCurrentLine')}
-                                                    onChange={(lineType) => updateCurveStyle(channel, { lineType })}
-                                                />
-                                            )}
+                                            <LineTypeSelect
+                                                value={style.lineType}
+                                                label={part('curveStyleCurrentLine')}
+                                                onChange={(lineType) => updateCurveStyle(channel, { lineType })}
+                                            />
                                         </td>
                                     </tr>
                                 );

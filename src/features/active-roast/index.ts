@@ -13,7 +13,6 @@ export {
     CURVE_WIDTH_MIN,
     type CurveChannel,
     type CurveLineType,
-    HEAT_CURRENT_LINE_TYPE,
 } from './lib/curve-style';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
