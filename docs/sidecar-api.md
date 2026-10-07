@@ -74,7 +74,8 @@ interface TemperatureReading {
         timestamp_clock: 'sidecar-monotonic-seconds';
     display_ema_alpha: number;
     et_display_ema_alpha?: number; // legacy records use display_ema_alpha for ET too
-        ror_ema_alpha: number;
+        ror_ema_alpha: number; // BT RoR EMA. Runtime default 1
+        et_ror_ema_alpha?: number; // ET RoR EMA. Older recordings used ror_ema_alpha for both
         ror_window_sec: number;
         ror_warmup_reads: number;
     };
@@ -448,10 +449,12 @@ Request body:
   ror_window_sec?: number;
   bt_display_ema_alpha?: number; // 0.08–1; runtime default 1 (raw sample). PID stays at 0.16
   et_display_ema_alpha?: number; // 0.08–1; runtime default 1 (raw sample)
+  ror_ema_alpha?: number; // 0.08–1; BT RoR EMA. Runtime default 1 (sensor samples inside the span)
+  et_ror_ema_alpha?: number; // 0.08–1; ET RoR EMA. Runtime default 1
 }
 ```
 
-BT and ET display EMA changes take effect on the next fresh sample without resetting accumulated state. PID PV retains the fixed 0.16 BT EMA. RoR smoothing is independent of both display settings. The sample's `processing` metadata records the actual BT and ET display coefficients.
+BT and ET display EMA changes take effect on the next fresh sample without resetting accumulated state. PID PV retains the fixed 0.16 BT EMA. RoR and ET RoR EMA are independent of the display settings and of each other. The least-squares span stays `ror_window_sec`. The sample's `processing` metadata records the actual display and RoR coefficients.
 
 Response:
 
@@ -463,7 +466,7 @@ Error response: `{ "error": "invalid JSON" }` (status 400)
 
 Notes:
 
-- 지원 키는 `ror_window_sec`, `bt_display_ema_alpha`, `et_display_ema_alpha`다. 알 수 없는 키는 무시된다.
+- 지원 키는 `ror_window_sec`, `bt_display_ema_alpha`, `et_display_ema_alpha`, `ror_ema_alpha`, `et_ror_ema_alpha`다. 알 수 없는 키는 무시된다.
 - 숫자로 변환 불가한 값은 조용히 무시된다.
 
 ### POST /control
@@ -768,4 +771,4 @@ The first line stays the column header. Columns 9–13 are `et_raw`, `bt_raw`, `
 
 `# processing\t{JSON}` lines describe the calculation settings for following samples. They are written at the first archived sample with known settings and whenever settings change, and retained during Drop clipping and BBP saving. `# processing\tnull` clears the context when a sidecar supplies no settings. The archive reader validates these records and skips malformed metadata without discarding temperature samples. External TSV readers must skip comment lines.
 
-The metadata records the actual sidecar RoR window, RoR/display EMA alpha, warmup read count, units, timestamp clock, and algorithm version. Bump `MEASUREMENT_ALGORITHM_VERSION` when changing the sidecar measurement algorithm. Recorded samples are the frontend polling subset; this metadata does not promise exact recomputation of every sidecar/PID read. ET/RoR visibility settings affect only the live chart and tooltip; collection and archive writing continue.
+The metadata records the actual sidecar RoR window, BT RoR EMA, ET RoR EMA, display EMA alphas, warmup read count, units, timestamp clock, and algorithm version. Older archives omit `et_ror_ema_alpha`; those curves used `ror_ema_alpha` for both rates. Bump `MEASUREMENT_ALGORITHM_VERSION` when changing the sidecar measurement algorithm. Recorded samples are the frontend polling subset; this metadata does not promise exact recomputation of every sidecar/PID read. ET/RoR visibility settings affect only the live chart and tooltip; collection and archive writing continue.

@@ -244,6 +244,8 @@ class RoasterManager:
         self._bt_pid_ema: float | None = None
         self._bt_display_alpha: float = 1.0
         self._et_display_alpha: float = 1.0
+        self._ror_ema_alpha: float = 1.0
+        self._et_ror_ema_alpha: float = 1.0
         self._et_display_ema: float | None = None
         self._lock: asyncio.Lock = asyncio.Lock()
         # 센서 갱신 직렬화 — 프론트 폴링과 PID tick이 같은 순간에 읽어도
@@ -740,7 +742,8 @@ class RoasterManager:
                 "timestamp_clock": "sidecar-monotonic-seconds",
                 "display_ema_alpha": self._bt_display_alpha,
                 "et_display_ema_alpha": self._et_display_alpha,
-                "ror_ema_alpha": config.EMA_ALPHA,
+                "ror_ema_alpha": self._ror_ema_alpha,
+                "et_ror_ema_alpha": self._et_ror_ema_alpha,
                 "ror_window_sec": self._ror_window_secs,
                 "ror_warmup_reads": config.ROR_WARMUP_READS,
             },
@@ -1023,6 +1026,8 @@ class RoasterManager:
         for key, attr in (
             ("bt_display_ema_alpha", "_bt_display_alpha"),
             ("et_display_ema_alpha", "_et_display_alpha"),
+            ("ror_ema_alpha", "_ror_ema_alpha"),
+            ("et_ror_ema_alpha", "_et_ror_ema_alpha"),
         ):
             if key not in settings:
                 continue
@@ -1094,7 +1099,7 @@ class RoasterManager:
         if self._bt_ema is None:
             self._bt_ema = bt
         else:
-            self._bt_ema = config.EMA_ALPHA * bt + (1.0 - config.EMA_ALPHA) * self._bt_ema
+            self._bt_ema = self._ror_ema_alpha * bt + (1.0 - self._ror_ema_alpha) * self._bt_ema
         if self._bt_display_ema is None:
             self._bt_display_ema = bt
         else:
@@ -1112,7 +1117,7 @@ class RoasterManager:
         if self._et_ema is None:
             self._et_ema = et
         else:
-            self._et_ema = config.EMA_ALPHA * et + (1.0 - config.EMA_ALPHA) * self._et_ema
+            self._et_ema = self._et_ror_ema_alpha * et + (1.0 - self._et_ror_ema_alpha) * self._et_ema
         if self._et_display_ema is None:
             self._et_display_ema = et
         else:

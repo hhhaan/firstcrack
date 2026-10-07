@@ -6,7 +6,7 @@ config.py — 사이드카 전역 상수.
 
 # ── RoR / 평활화 ────────────────────────────────────────────────────────
 # EMA 계수: 낮을수록 더 부드럽고 lag 증가 (0 < α < 1)
-EMA_ALPHA = 0.2            # RoR 계산용
+# RoR·ET RoR EMA는 화면 설정이다. 기본 강도 0은 α 1(구간 안의 센서값).
 DISPLAY_ALPHA = 0.16       # PID BT EMA. 화면 기본 평활은 0(α 1)이다
 BT_DISPLAY_ALPHA_MIN = 0.08
 BT_DISPLAY_ALPHA_MAX = 1.0  # 1이면 표시값이 그 샘플의 센서값과 같다

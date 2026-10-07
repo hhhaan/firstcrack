@@ -98,6 +98,8 @@ export interface TemperatureProcessing {
     /** ET display EMA; old recordings use display_ema_alpha for both channels. */
     et_display_ema_alpha?: number;
     ror_ema_alpha: number;
+    /** ET RoR EMA. Older recordings used ror_ema_alpha for both. */
+    et_ror_ema_alpha?: number;
     ror_window_sec: number;
     ror_warmup_reads: number;
 }

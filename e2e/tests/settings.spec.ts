@@ -21,7 +21,7 @@ test('BT smoothing supports custom strength, keyboard input, reopening and reset
     await settings
         .locator('[data-settings-section]')
         .filter({
-            has: page.getByRole('heading', { name: 'BT smoothing strength', exact: true }),
+            has: page.getByRole('slider', { name: 'BT smoothing strength', exact: true }),
         })
         .screenshot({ path: testInfo.outputPath('bt-smoothing-custom.png') });
     await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
@@ -29,7 +29,7 @@ test('BT smoothing supports custom strength, keyboard input, reopening and reset
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
     await expect(value).toHaveValue('80');
     const btSection = settings.locator('[data-settings-section]').filter({
-        has: page.getByRole('heading', { name: 'BT smoothing strength', exact: true }),
+        has: page.getByRole('slider', { name: 'BT smoothing strength', exact: true }),
     });
     await btSection.getByRole('button', { name: 'Restore default (0)', exact: true }).click();
     await expect(value).toHaveValue('0');

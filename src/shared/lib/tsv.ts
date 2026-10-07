@@ -9,6 +9,7 @@ const processingSchema: z.ZodType<TemperatureProcessing> = z.object({
     display_ema_alpha: z.number().positive().max(1),
     et_display_ema_alpha: z.number().positive().max(1).optional(),
     ror_ema_alpha: z.number().positive().max(1),
+    et_ror_ema_alpha: z.number().positive().max(1).optional(),
     ror_window_sec: z.number().finite().positive(),
     ror_warmup_reads: z.number().int().nonnegative(),
 });

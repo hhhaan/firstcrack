@@ -50,6 +50,9 @@ export type RoastSettings = {
     /** Display smoothing strength, 0–100. 0 shows the sensor sample. */
     btSmoothing: number;
     etSmoothing: number;
+    /** RoR EMA strength, 0–100. 0 feeds sensor samples into the RoR span. */
+    rorSmoothing: number;
+    etRorSmoothing: number;
     temperatureUnit: TemperatureUnit;
     /** Stored chart scale: 100–200. Default 100 (slider 1%, actual 1×). */
     fontScalePct: FontScalePct;
@@ -177,6 +180,8 @@ const DEFAULT_SETTINGS: RoastSettings = {
     rorSpanSec: 30,
     btSmoothing: 0,
     etSmoothing: 0,
+    rorSmoothing: 0,
+    etRorSmoothing: 0,
     temperatureUnit: 'C',
     fontScalePct: FONT_SCALE_MIN,
     showET: true,
@@ -377,6 +382,8 @@ export const normalizeRoastSettings = (
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
         btSmoothing: Math.round(clampNum(merged.btSmoothing, 0, 100, DEFAULT_SETTINGS.btSmoothing)),
         etSmoothing: Math.round(clampNum(merged.etSmoothing, 0, 100, DEFAULT_SETTINGS.etSmoothing)),
+        rorSmoothing: Math.round(clampNum(merged.rorSmoothing, 0, 100, DEFAULT_SETTINGS.rorSmoothing)),
+        etRorSmoothing: Math.round(clampNum(merged.etRorSmoothing, 0, 100, DEFAULT_SETTINGS.etRorSmoothing)),
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: eventMarkerStyleOf(merged.eventMarkerStyle),
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),

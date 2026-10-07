@@ -23,6 +23,8 @@ vi.mock('@shared/lib/settings-store', () => ({
 it('restores and bounds display smoothing while preserving the original default', async () => {
     expect(normalizeRoastSettings({}).btSmoothing).toBe(0);
     expect(normalizeRoastSettings({}).etSmoothing).toBe(0);
+    expect(normalizeRoastSettings({}).rorSmoothing).toBe(0);
+    expect(normalizeRoastSettings({}).etRorSmoothing).toBe(0);
     for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, '80', null]) {
         const normalized = normalizeRoastSettings({
             btSmoothing: invalid,
@@ -30,6 +32,8 @@ it('restores and bounds display smoothing while preserving the original default'
         } as Partial<ReturnType<typeof getRoastSettings>>);
         expect(normalized.btSmoothing).toBe(0);
         expect(normalized.etSmoothing).toBe(0);
+        expect(normalized.rorSmoothing).toBe(0);
+        expect(normalized.etRorSmoothing).toBe(0);
     }
     expect(normalizeRoastSettings({ btSmoothing: -1, etSmoothing: -1 }).etSmoothing).toBe(0);
     expect(normalizeRoastSettings({ btSmoothing: 101, etSmoothing: 101 }).etSmoothing).toBe(100);
@@ -37,6 +41,9 @@ it('restores and bounds display smoothing while preserving the original default'
     expect(normalizeRoastSettings({ btSmoothing: -1 }).btSmoothing).toBe(0);
     expect(normalizeRoastSettings({ btSmoothing: 101 }).btSmoothing).toBe(100);
     expect(normalizeRoastSettings({ btSmoothing: 74.6 }).btSmoothing).toBe(75);
+    expect(normalizeRoastSettings({ rorSmoothing: -1, etRorSmoothing: 101 }).rorSmoothing).toBe(0);
+    expect(normalizeRoastSettings({ rorSmoothing: -1, etRorSmoothing: 101 }).etRorSmoothing).toBe(100);
+    expect(normalizeRoastSettings({ rorSmoothing: 43.6 }).rorSmoothing).toBe(44);
     expect([0, 50, 100].map(btSmoothingToAlpha)).toEqual([1, 0.16, 0.08]);
 
     vi.resetModules();

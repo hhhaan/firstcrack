@@ -279,9 +279,44 @@ class TestReadTemperatures:
         assert manager._et_display_alpha == 0.08
         await manager.disconnect()
 
+    async def test_ror_smoothing_changes_slope_without_changing_display(self, manager):
+        manager._adapter = FakeAdapter(readings=[
+            make_reading(bt=200.0, et=220.0, ts=10.0),
+            make_reading(bt=190.0, et=210.0, ts=11.0),
+        ])
+        manager._connected = True
+        manager._ror_warmup = 0
+        manager.update_settings({"ror_ema_alpha": 0.08, "et_ror_ema_alpha": 0.5})
+
+        raw = RoasterManager()
+        smooth = RoasterManager()
+        smooth._ror_ema_alpha = 0.08
+        smooth._et_ror_ema_alpha = 0.5
+        for other in (raw, smooth):
+            other._add_to_ror_window(10.0, 200.0)
+            other._add_to_et_ror_window(10.0, 220.0)
+
+        await manager.read_temperatures()
+        reading = await manager.read_temperatures()
+        for other in (raw, smooth):
+            other._add_to_ror_window(11.0, 190.0)
+            other._add_to_et_ror_window(11.0, 210.0)
+
+        assert reading["bt"] == 190.0
+        assert reading["et"] == 210.0
+        assert reading["ror"] == pytest.approx(round(smooth._compute_ror(), 2))
+        assert reading["ror_et"] == pytest.approx(round(smooth._compute_et_ror(), 2))
+        assert reading["ror"] != pytest.approx(round(raw._compute_ror(), 2))
+        assert reading["ror_et"] != pytest.approx(round(raw._compute_et_ror(), 2))
+        assert reading["processing"]["ror_ema_alpha"] == 0.08
+        assert reading["processing"]["et_ror_ema_alpha"] == 0.5
+        assert reading["processing"]["display_ema_alpha"] == 1.0
+
     @pytest.mark.parametrize("key,attr", [
         ("bt_display_ema_alpha", "_bt_display_alpha"),
         ("et_display_ema_alpha", "_et_display_alpha"),
+        ("ror_ema_alpha", "_ror_ema_alpha"),
+        ("et_ror_ema_alpha", "_et_ror_ema_alpha"),
     ])
     def test_display_smoothing_settings_reject_invalid_values_and_bound_numbers(self, manager, key, attr):
         manager.update_settings({key: 0.1})
@@ -332,7 +367,8 @@ class TestReadTemperatures:
             "timestamp_clock": "sidecar-monotonic-seconds",
             "display_ema_alpha": 1.0,
             "et_display_ema_alpha": 1.0,
-            "ror_ema_alpha": config.EMA_ALPHA,
+            "ror_ema_alpha": 1.0,
+            "et_ror_ema_alpha": 1.0,
             "ror_window_sec": 45,
             "ror_warmup_reads": config.ROR_WARMUP_READS,
         }
