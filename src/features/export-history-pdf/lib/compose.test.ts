@@ -43,6 +43,8 @@ it('loads bundled fonts, wraps a long Korean name, and keeps metadata, chart, le
         moveTo: vi.fn(),
         lineTo: vi.fn(),
         stroke: vi.fn(),
+        save: vi.fn(),
+        restore: vi.fn(),
     };
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,/9j/2Q==');
