@@ -69,8 +69,9 @@ export const TIME_X_INTERVAL_SEC = 60;
 export const AXIS_MINOR_SPLIT_NUMBER = 2;
 
 // ── Multi-grid layout proportions (controlData mode) ────────────────────────
-// Defaults match controlChartHeightPct=21 (control ~21%, gap 3% under temp).
-export const CONTROL_GRID_GAP_PCT = 3;
+// Defaults match controlChartHeightPct=21 (control ~21%, gap 5% under temp —
+// the gap holds the control axis unit names).
+export const CONTROL_GRID_GAP_PCT = 5;
 export const CONTROL_GRID_BOTTOM = 30;
 
 /** Map control band height % → temp/control grid tops. */
