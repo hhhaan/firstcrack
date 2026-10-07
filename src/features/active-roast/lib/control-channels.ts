@@ -38,6 +38,27 @@ export const resolveControlUnits = (limits?: ControlLimits): ControlUnits => ({
 
 export const DEFAULT_CONTROL_UNITS: ControlUnits = resolveControlUnits();
 
+export const controlLimitsReported = (limits?: ControlLimits): boolean =>
+    limits != null && (limits.drum != null || limits.heater != null || limits.fan != null);
+
+export type StickyControlLimitsState = { machineKey: string; limits: ControlLimits } | null;
+
+/** Keep last reported limits for a machine when sidecar drops them during offline/stale. */
+export const stickyControlLimits = (
+    state: StickyControlLimitsState,
+    machineKey: string | null | undefined,
+    limits: ControlLimits | undefined,
+): { state: StickyControlLimitsState; limits: ControlLimits | undefined } => {
+    const key = machineKey?.trim() || null;
+    if (!key) return { state: null, limits };
+    if (state?.machineKey !== key) state = null;
+    if (controlLimitsReported(limits)) {
+        return { state: { machineKey: key, limits: limits as ControlLimits }, limits };
+    }
+    if (state?.machineKey === key) return { state, limits: state.limits };
+    return { state, limits };
+};
+
 const isPercent = (unit: string) => unit === '%';
 
 /** yAxis indices on the control grid. 4 is an unlabeled own-scale axis for a third unit. */

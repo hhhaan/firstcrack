@@ -48,6 +48,10 @@ export interface UseChartPipelineReturn {
     visibleHeatPower: (number | null)[];
     visibleFanSpeed: (number | null)[];
     visibleHeatSet: (number | null)[];
+    fullControlXs: number[];
+    fullDrumTemp: (number | null)[];
+    fullHeatPower: (number | null)[];
+    fullFanSpeed: (number | null)[];
     maxTime: number;
     minTime: number;
     hoveredChartIndexRef: React.RefObject<number | null>;
@@ -142,6 +146,16 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         };
     }, [livePoints, effectiveZoomRange]);
 
+    const { fullControlXs, fullDrumTemp, fullHeatPower, fullFanSpeed } = useMemo(
+        () => ({
+            fullControlXs: livePoints.map((p) => p.time),
+            fullDrumTemp: livePoints.map((p) => p.drum),
+            fullHeatPower: livePoints.map((p) => p.heater),
+            fullFanSpeed: livePoints.map((p) => p.fan),
+        }),
+        [livePoints],
+    );
+
     return {
         chartData,
         targetSeries,
@@ -167,6 +181,10 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         visibleHeatPower,
         visibleFanSpeed,
         visibleHeatSet,
+        fullControlXs,
+        fullDrumTemp,
+        fullHeatPower,
+        fullFanSpeed,
         maxTime,
         minTime,
         hoveredChartIndexRef,

@@ -24,7 +24,11 @@ import {
 } from '@features/active-roast';
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { TP_MARKER_ID } from '@features/active-roast/lib/constants';
-import { resolveControlUnits } from '@features/active-roast/lib/control-channels';
+import {
+    resolveControlUnits,
+    type StickyControlLimitsState,
+    stickyControlLimits,
+} from '@features/active-roast/lib/control-channels';
 import {
     applyEventMarkerEdit,
     type EventMarkerPatch,
@@ -847,14 +851,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
     });
-    const controlLimits = machineControl.machine.limits;
-    const controlUnits = useMemo(() => resolveControlUnits(controlLimits), [controlLimits]);
+    const controlLimitsRaw = machineControl.machine.limits;
     const connectedMachine = useMemo(() => {
         const id = machineSnapshot?.machine_id;
         if (id) return machines.find((m) => m.id === id);
         const key = machineSnapshot?.machine_roaster_key;
         return key ? machines.find((m) => m.roasterKey === key) : undefined;
     }, [machines, machineSnapshot?.machine_id, machineSnapshot?.machine_roaster_key]);
+    const machineRoasterKey = connectedMachine?.roasterKey ?? machineSnapshot?.machine_roaster_key;
+    const stickyControlLimitsRef = useRef<StickyControlLimitsState>(null);
+    const controlLimits = useMemo(() => {
+        const next = stickyControlLimits(stickyControlLimitsRef.current, machineRoasterKey, controlLimitsRaw);
+        stickyControlLimitsRef.current = next.state;
+        return next.limits;
+    }, [machineRoasterKey, controlLimitsRaw]);
+    const controlUnits = useMemo(() => resolveControlUnits(controlLimits), [controlLimits]);
     const supportedControls = useMemo(
         () =>
             resolveSupportedControlChannels({
@@ -921,6 +932,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 referenceDrum: chart.visibleTargetDrum,
                 referenceHeater: chart.visibleTargetHeater,
                 referenceFan: chart.visibleTargetFan,
+                changeLabelXs: chart.fullControlXs,
+                changeLabelDrumTemp: chart.fullDrumTemp,
+                changeLabelHeatPower: chart.fullHeatPower,
+                changeLabelFanSpeed: chart.fullFanSpeed,
             }),
         [
             roastSettings.showControlChart,
@@ -943,6 +958,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             chart.visibleTargetDrum,
             chart.visibleTargetHeater,
             chart.visibleTargetFan,
+            chart.fullControlXs,
+            chart.fullDrumTemp,
+            chart.fullHeatPower,
+            chart.fullFanSpeed,
         ],
     );
     useLayoutEffect(() => {

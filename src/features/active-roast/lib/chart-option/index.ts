@@ -338,10 +338,16 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         });
         const sideOf = (channel: ControlChannel) =>
             [controlAxes.left, controlAxes.right, controlAxes.ownScale][controlAxes.axisOf[channel] - 2];
+        const labelSeries = controlData.changeLabels ?? {
+            xs: controlData.xs,
+            drumTemp: controlData.drumTemp,
+            heatPower: controlData.heatPower,
+            fanSpeed: controlData.fanSpeed,
+        };
         const measured: [ControlChannel, boolean, (number | null)[], string][] = [
-            ['drum', liveControlDrum, controlData.drumTemp, colors.controlDrum],
-            ['heat', liveControlHeat, controlData.heatPower, colors.controlHeat],
-            ['fan', liveControlFan, controlData.fanSpeed, colors.controlFan],
+            ['drum', liveControlDrum, labelSeries.drumTemp, colors.controlDrum],
+            ['heat', liveControlHeat, labelSeries.heatPower, colors.controlHeat],
+            ['fan', liveControlFan, labelSeries.fanSpeed, colors.controlFan],
         ];
         const units = params.controlUnits ?? DEFAULT_CONTROL_UNITS;
         // Always present so a zoom that culls every label still clears the previous frame.
@@ -354,7 +360,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                     return {
                         channel,
                         color,
-                        points: memoizedChangePoints(controlData.xs, values, deadband),
+                        points: memoizedChangePoints(labelSeries.xs, values, deadband),
                         min: side.min,
                         max: side.max,
                     };

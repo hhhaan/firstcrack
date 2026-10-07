@@ -121,6 +121,10 @@ type ControlFrameInput = {
     referenceDrum: (number | null)[];
     referenceHeater: (number | null)[];
     referenceFan: (number | null)[];
+    changeLabelXs?: number[];
+    changeLabelDrumTemp?: (number | null)[];
+    changeLabelHeatPower?: (number | null)[];
+    changeLabelFanSpeed?: (number | null)[];
 };
 
 const profileControlRequested = (input: ControlFrameInput) =>
@@ -131,11 +135,21 @@ const profileControlRequested = (input: ControlFrameInput) =>
 export const chartControlData = (input: ControlFrameInput): ControlData | undefined => {
     const liveOpen = anySeriesOn(input.showControlDrum, input.showControlHeat, input.showControlFan);
     if (!input.showControlChart || (!liveOpen && !profileControlRequested(input))) return undefined;
+    const changeLabels =
+        input.changeLabelXs && input.changeLabelXs.length > 0
+            ? {
+                  xs: input.changeLabelXs,
+                  drumTemp: input.changeLabelDrumTemp ?? [],
+                  heatPower: input.changeLabelHeatPower ?? [],
+                  fanSpeed: input.changeLabelFanSpeed ?? [],
+              }
+            : undefined;
     return {
         xs: input.controlXs,
         drumTemp: input.drumTemp,
         heatPower: input.heatPower,
         fanSpeed: input.fanSpeed,
+        changeLabels,
         heatSet: input.heatSet,
         heatTarget: input.bbpActive ? undefined : input.heatTarget,
         reference:

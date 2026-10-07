@@ -72,7 +72,16 @@ export const memoizedChangePoints = (
     return cached;
 };
 
-const sliceVisible = (points: readonly ChangePoint[], xMin: number, xMax: number) => {
+/** Change points on the full series, cropped to a visible x-window (zoom/pan safe). */
+export const changePointsInWindow = (
+    xs: readonly number[],
+    values: readonly (number | null)[],
+    deadband: number,
+    xMin: number,
+    xMax: number,
+): ChangePoint[] => sliceVisibleChangePoints(memoizedChangePoints(xs, values, deadband), xMin, xMax);
+
+export const sliceVisibleChangePoints = (points: readonly ChangePoint[], xMin: number, xMax: number) => {
     if (points.length === 0 || xMax < xMin) return [];
     let lo = 0;
     let hi = points.length;
@@ -221,7 +230,7 @@ export const buildChangeLabelSeries = (
         const visMin = dataXAt(rect.x);
         const visMax = dataXAt(rect.x + rect.width);
         const candidates = channels.flatMap(({ channel, color, points, min, max }) => {
-            const visible = sliceVisible(points, visMin, visMax);
+            const visible = sliceVisibleChangePoints(points, visMin, visMax);
             const yDenom = max - min;
             return visible.map((point) => {
                 const ratio = yDenom <= 0 ? 0 : (point.value - min) / yDenom;

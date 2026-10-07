@@ -18,11 +18,19 @@ export interface RoastEventMarker extends RoastNoteControls {
     note?: string;
 }
 
+export interface ControlChangeLabelSeries {
+    xs: number[];
+    drumTemp: (number | null)[];
+    heatPower: (number | null)[];
+    fanSpeed: (number | null)[];
+}
+
 export interface ControlData {
     xs: number[];
     drumTemp: (number | null)[];
     heatPower: (number | null)[];
     fanSpeed: (number | null)[];
+    changeLabels?: ControlChangeLabelSeries;
     /** 사이드카가 쓴 heater 세트포인트 — 실측(heatPower) 위에 점선. 구 기록엔 없다 */
     heatSet?: (number | null)[];
     heatTarget?: { xs: number[]; values: number[] };
