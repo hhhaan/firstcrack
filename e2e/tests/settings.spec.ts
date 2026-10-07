@@ -80,7 +80,7 @@ test('settings is a responsive page and preserves existing preferences and entry
     await expect(navigation.getByRole('status')).toHaveText('No settings found.');
     await expect(settings.getByRole('main').getByRole('status')).toHaveText('No settings found.');
     await search.fill('   ');
-    await expect(navigation.getByRole('button')).toHaveCount(7);
+    await expect(navigation.getByRole('button')).toHaveCount(13);
     await search.fill('');
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
 
@@ -152,6 +152,72 @@ test('settings is a responsive page and preserves existing preferences and entry
     await expect(settings).toBeVisible();
     await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
     await expect(settings).toBeHidden();
+});
+
+test('roasting submenus filter sections while search and saved preferences span every group', async ({
+    authedPage: page,
+}, testInfo) => {
+    await page.getByTestId('app-sidebar').getByRole('button', { name: 'Settings', exact: true }).click();
+    const settings = page.getByTestId('settings-page');
+    const navigation = settings.getByRole('navigation');
+    const main = settings.getByRole('main');
+    const roast = navigation.getByRole('button', { name: 'Roasting', exact: true });
+    await roast.click();
+    await expect(roast).toHaveAttribute('aria-expanded', 'true');
+    const submenus = navigation.getByRole('list', { name: 'Roasting', exact: true });
+    await expect(submenus.getByRole('button')).toHaveCount(6);
+    await submenus.getByRole('button', { name: 'Axes & controls', exact: true }).click();
+    await expect(main.getByRole('heading', { name: 'Axes & controls', exact: true })).toBeFocused();
+    await expect(main.getByRole('heading', { name: 'Axis ticks', exact: true })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Live Alarms', exact: true })).toBeHidden();
+    await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
+
+    const sensors = submenus.getByRole('button', { name: 'Sensors & RoR', exact: true });
+    await sensors.focus();
+    await sensors.press('Enter');
+    const strength = main.getByRole('spinbutton', { name: 'BT smoothing strength value', exact: true });
+    await strength.fill('65');
+    await strength.press('Enter');
+    await submenus.getByRole('button', { name: 'Alerts', exact: true }).click();
+    await expect(main.getByRole('heading', { name: 'Live Alarms', exact: true })).toBeVisible();
+    await expect(strength).toBeHidden();
+    await sensors.click();
+    await expect(strength).toHaveValue('65');
+
+    const search = settings.getByRole('searchbox', { name: 'Search settings', exact: true });
+    await search.fill('temperature unit');
+    await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeVisible();
+    await expect(search).toBeFocused();
+    await search.fill('Automatic detection');
+    await expect(main.getByRole('heading', { name: 'Auto Charge Detection', exact: true })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeHidden();
+    await search.fill('');
+    await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeVisible();
+    await expect(roast).toHaveAttribute('aria-current', 'page');
+
+    await page.setViewportSize({ width: 600, height: 700 });
+    for (const submenu of await submenus.getByRole('button').all()) {
+        await submenu.click();
+        await expect(main.getByRole('heading', { level: 2 }).first()).toBeVisible();
+        await expect
+            .poll(() => main.evaluate((element) => element.scrollWidth - element.clientWidth))
+            .toBeLessThanOrEqual(1);
+    }
+    await page.screenshot({
+        path: testInfo.outputPath('settings-roasting-submenu-narrow.png'),
+        animations: 'disabled',
+    });
+    await roast.click();
+    await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeVisible();
+    await navigation.getByRole('button', { name: 'General', exact: true }).click();
+    await expect(submenus).toHaveCount(0);
+    await settings.getByLabel('App language', { exact: true }).selectOption('ko');
+    await navigation.getByRole('button', { name: '로스팅', exact: true }).click();
+    await navigation.getByRole('button', { name: '알람', exact: true }).click();
+    await expect(main.getByRole('heading', { name: '알람', exact: true, level: 1 })).toBeFocused();
+    await expect(main.getByRole('heading', { name: '실시간 알람', exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.screenshot({ path: testInfo.outputPath('settings-roasting-submenu-ko.png'), animations: 'disabled' });
 });
 
 test('temperature grid switches between default and a custom tick list without losing saved values', async ({

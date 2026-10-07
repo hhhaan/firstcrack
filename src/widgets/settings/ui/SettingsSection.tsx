@@ -2,12 +2,13 @@ import { cn } from '@shared/lib/cn';
 import { SectionCard } from '@shared/ui/SectionCard';
 import type { ReactNode } from 'react';
 
-type SettingsSectionProps = { children: ReactNode; className?: string };
+type SettingsSectionProps = { children: ReactNode; className?: string; group?: string };
 
-export function SettingsSection({ children, className }: SettingsSectionProps) {
+export function SettingsSection({ children, className, group }: SettingsSectionProps) {
     return (
         <section
             data-settings-section
+            data-settings-group={group}
             className={cn(
                 'flex min-w-0 flex-col gap-2.5 in-[.settings-compact]:gap-2 in-[.settings-compact]:border-b in-[.settings-compact]:border-border in-[.settings-compact]:py-4 in-[.settings-compact]:first:pt-0 in-[.settings-compact]:last:border-b-0',
                 className,

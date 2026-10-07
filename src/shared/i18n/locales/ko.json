@@ -165,6 +165,14 @@
                 "confirmResets": "초기화 전 확인 요구"
             },
             "roast": {
+                "groups": {
+                    "general": "단위·수집 주기",
+                    "alerts": "알람",
+                    "automation": "자동 감지",
+                    "display": "차트 표시",
+                    "axes": "축·제어",
+                    "sensors": "센서·RoR"
+                },
                 "label": "로스팅",
                 "title": "로스팅 설정",
                 "description": "온도 단위, 알람, 투입·배출 감지, 차트 표시를 설정합니다.",

@@ -3,6 +3,9 @@ import { CreditCard, Flame, Info, LayoutDashboard, LifeBuoy, type LucideIcon, Us
 
 export type SettingsTabId = 'general' | 'roast' | 'account' | 'billing' | 'team' | 'software' | 'support';
 
+export const roastSettingsGroups = ['general', 'alerts', 'automation', 'display', 'axes', 'sensors'] as const;
+export type RoastSettingsGroup = (typeof roastSettingsGroups)[number];
+
 export interface TabConfig {
     id: SettingsTabId;
     label: string;

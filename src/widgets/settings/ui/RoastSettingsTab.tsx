@@ -375,7 +375,7 @@ const DisplaySmoothingSection = ({
     };
 
     return (
-        <SettingsSection>
+        <SettingsSection group="sensors">
             <SettingsSection.Header title={tk(setting)} description={tk(`${setting}Description`)} />
             <SettingsSection.Body className="grid gap-2">
                 <div className="flex items-center gap-3">
@@ -463,7 +463,7 @@ export const RoastSettingsTab = () => {
 
     return (
         <div className="settings-compact grid gap-0">
-            <SettingsSection>
+            <SettingsSection group="general">
                 <SettingsSection.Header title={tk('temperatureUnit')} description={tk('temperatureUnitDescription')} />
                 <SettingsSection.Body className="flex-row flex-wrap gap-x-6 gap-y-1">
                     {temperatureOptions.map((u) => (
@@ -479,7 +479,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="alerts">
                 <SettingsSection.Header title={tk('alerts')} description={tk('alertsDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     <SettingsCheckRow
@@ -600,7 +600,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="automation">
                 <SettingsSection.Header title={tk('autoCharge')} description={tk('autoChargeDescription')} />
                 <SettingsSection.Body className="grid gap-3">
                     <SettingsCheckRow
@@ -635,7 +635,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="automation">
                 <SettingsSection.Header title={tk('autoDrop')} description={autoDropDescription} />
                 <SettingsSection.Body className="grid gap-3">
                     <SettingsCheckRow
@@ -684,7 +684,7 @@ export const RoastSettingsTab = () => {
             </SettingsSection>
 
             {/* PID 미사용. 나중에 넣을 때 주석 해제.
-            <SettingsSection>
+            <SettingsSection group="automation">
                 <SettingsSection.Header title={tk('pidDropBehavior')} description={tk('pidDropBehaviorDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     {pidDropBehaviorOptions.map(({ value, labelKey, descKey }) => (
@@ -702,7 +702,7 @@ export const RoastSettingsTab = () => {
             </SettingsSection>
             */}
 
-            <SettingsSection>
+            <SettingsSection group="automation">
                 <SettingsSection.Header title={tk('bbp')} description={tk('bbpDescription')} />
                 <SettingsSection.Body className="grid gap-3">
                     <SettingsCheckRow
@@ -716,7 +716,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="automation">
                 <SettingsSection.Header
                     title={tk('phaseTemperatures')}
                     description={tk('phaseTemperaturesDescription')}
@@ -748,7 +748,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="automation">
                 <SettingsSection.Header title={tk('fcMarking')} description={tk('fcMarkingDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     <SettingsCheckRow
@@ -759,21 +759,21 @@ export const RoastSettingsTab = () => {
                     />
                 </SettingsSection.Body>
             </SettingsSection>
-            <SettingsSection>
+            <SettingsSection group="display">
                 <SettingsSection.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     <RoastCheckRows options={visibilityOptions} />
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="display">
                 <SettingsSection.Header title={tk('profileSeries')} description={tk('profileSeriesDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     <RoastCheckRows options={profileSeriesOptions} />
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="display">
                 <SettingsSection.Header title={tk('eventMarkers')} description={tk('eventMarkersDescription')} />
                 <SettingsSection.Body className="grid gap-x-6 gap-y-1 @[480px]:grid-cols-3">
                     {eventMarkerStyleOptions.map(({ value, labelKey, descKey }) => (
@@ -790,7 +790,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="display">
                 <SettingsSection.Header title={tk('fontScale')} description={tk('fontScaleDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     <div className="flex items-center gap-3">
@@ -813,7 +813,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="axes">
                 <SettingsSection.Header title={tk('axisRange')} description={tk('axisRangeDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     <RangeRow
@@ -844,7 +844,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="axes">
                 <SettingsSection.Header title={tk('axisTicks')} description={tk('axisTicksDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
                     <SettingsOptionRow justify="between" className={customTicksActive ? 'border-b-0!' : undefined}>
@@ -1068,7 +1068,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="axes">
                 <SettingsSection.Header title={tk('controlChart')} description={tk('controlChartDescription')} />
                 <SettingsSection.Body className="grid gap-3">
                     <div className="grid gap-1.5">
@@ -1101,7 +1101,7 @@ export const RoastSettingsTab = () => {
             <DisplaySmoothingSection setting="btSmoothing" committed={roastSettings.btSmoothing} />
             <DisplaySmoothingSection setting="etSmoothing" committed={roastSettings.etSmoothing} />
 
-            <SettingsSection>
+            <SettingsSection group="sensors">
                 <SettingsSection.Header title={tk('rorSpan')} description={tk('rorSpanDescription')} />
                 <SettingsSection.Body className="flex-row flex-wrap gap-x-6 gap-y-1">
                     {rorOptions.map((sec) => (
@@ -1117,7 +1117,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection>
+            <SettingsSection group="general">
                 <SettingsSection.Header title={tk('updateRate')} description={tk('updateRateDescription')} />
                 <SettingsSection.Body className="flex-row flex-wrap gap-x-6 gap-y-1">
                     {pollOptions.map((ms) => {

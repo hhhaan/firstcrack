@@ -165,6 +165,14 @@
                 "confirmResets": "リセット前の確認を必須にする"
             },
             "roast": {
+                "groups": {
+                    "general": "単位・取得間隔",
+                    "alerts": "アラート",
+                    "automation": "自動検出",
+                    "display": "チャート表示",
+                    "axes": "軸・制御",
+                    "sensors": "センサー・RoR"
+                },
                 "label": "焙煎",
                 "title": "焙煎設定",
                 "description": "温度単位、アラーム、投入・排出の検知、チャート表示を設定します。",

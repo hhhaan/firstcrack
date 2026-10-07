@@ -165,6 +165,14 @@
                 "confirmResets": "Require confirmation for resets"
             },
             "roast": {
+                "groups": {
+                    "general": "Units & sampling",
+                    "alerts": "Alerts",
+                    "automation": "Automatic detection",
+                    "display": "Chart display",
+                    "axes": "Axes & controls",
+                    "sensors": "Sensors & RoR"
+                },
                 "label": "Roasting",
                 "title": "Roast Settings",
                 "description": "Set the temperature unit, alerts, charge and drop detection, and what the chart shows.",

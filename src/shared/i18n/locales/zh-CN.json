@@ -165,6 +165,14 @@
                 "confirmResets": "重置前要求确认"
             },
             "roast": {
+                "groups": {
+                    "general": "单位与采样",
+                    "alerts": "警报",
+                    "automation": "自动检测",
+                    "display": "图表显示",
+                    "axes": "坐标轴与控制",
+                    "sensors": "传感器与 RoR"
+                },
                 "label": "烘焙",
                 "title": "烘焙设置",
                 "description": "设置温度单位、报警、投入与排出检测，以及图表显示。",
