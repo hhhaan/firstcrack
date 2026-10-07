@@ -165,7 +165,7 @@ test('roasting submenus filter sections while search and saved preferences span 
     await roast.click();
     await expect(roast).toHaveAttribute('aria-expanded', 'true');
     const submenus = navigation.getByRole('list', { name: 'Roasting', exact: true });
-    await expect(submenus.getByRole('button')).toHaveCount(6);
+    await expect(submenus.getByRole('button')).toHaveCount(7);
     await submenus.getByRole('button', { name: 'Axes & controls', exact: true }).click();
     await expect(main.getByRole('heading', { name: 'Axes & controls', exact: true })).toBeFocused();
     await expect(main.getByRole('heading', { name: 'Axis ticks', exact: true })).toBeVisible();
@@ -209,6 +209,12 @@ test('roasting submenus filter sections while search and saved preferences span 
     });
     await roast.click();
     await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeVisible();
+    await roast.click();
+    await expect(roast).toHaveAttribute('aria-expanded', 'false');
+    await expect(submenus).toHaveCount(0);
+    await roast.click();
+    await expect(roast).toHaveAttribute('aria-expanded', 'true');
+    await expect(submenus.getByRole('button')).toHaveCount(7);
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
     await expect(submenus).toHaveCount(0);
     await settings.getByLabel('App language', { exact: true }).selectOption('ko');

@@ -1,5 +1,6 @@
 import { cn } from '@shared/lib/cn';
 import { ArrowLeft, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getSearchTabs, type RoastSettingsGroup, roastSettingsGroups, type SettingsTabId } from './tabConfig';
 
@@ -31,7 +32,17 @@ export function SettingsSidebar({
 }) {
     const { t } = useTranslation();
     const tabs = getSearchTabs(t, query);
-    const showRoastGroups = activeTab === 'roast' && !query.trim();
+    const [roastNavOpen, setRoastNavOpen] = useState(true);
+    const showRoastGroups = activeTab === 'roast' && !query.trim() && roastNavOpen;
+    const selectTab = (id: SettingsTabId) => {
+        const onFullRoastPage = id === 'roast' && activeTab === 'roast' && activeRoastGroup === null && !query.trim();
+        if (onFullRoastPage) {
+            setRoastNavOpen((open) => !open);
+            return;
+        }
+        if (id === 'roast') setRoastNavOpen(true);
+        onTabChange(id);
+    };
     return (
         <aside className="flex w-[170px] shrink-0 flex-col overflow-y-auto border-r border-border-subtle bg-primary/[0.02] px-3 py-5 sm:w-[200px] lg:w-[220px]">
             <div className="mb-4 flex items-center gap-1.5 px-1">
@@ -79,7 +90,7 @@ export function SettingsSidebar({
                                         <div key={id}>
                                             <button
                                                 type="button"
-                                                onClick={() => onTabChange(id)}
+                                                onClick={() => selectTab(id)}
                                                 aria-current={
                                                     activeTab === id && (id !== 'roast' || activeRoastGroup === null)
                                                         ? 'page'
