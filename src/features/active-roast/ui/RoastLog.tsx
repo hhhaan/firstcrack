@@ -10,16 +10,18 @@ export const RoastLog = ({
     entries,
     variant,
     onRemoveEntry,
+    showHeading = true,
 }: {
     entries: LogEntry[];
     variant: 'sidebar' | 'main';
     onRemoveEntry?: (id: string) => void;
+    showHeading?: boolean;
 }) => {
     const isSidebar = variant === 'sidebar';
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {isSidebar && (
+            {isSidebar && showHeading && (
                 <h3
                     style={{
                         fontSize: 12,

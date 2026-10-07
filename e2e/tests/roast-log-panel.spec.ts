@@ -61,17 +61,12 @@ for (const machineControl of [false, true]) {
                 const position = await panel.evaluate((element) => getComputedStyle(element).position);
                 const after = await chart.boundingBox();
                 if (!after) throw new Error('Chart is missing after opening log');
-                if (viewport.width === 1024) {
-                    expect(position).toBe('absolute');
-                    expect(after?.width).toBe(before?.width);
-                } else {
-                    expect(position).toBe('static');
-                    expect(before.width - after.width).toBe(256);
-                    const logBox = await panel.boundingBox();
-                    const sideBox = await sidePanel.boundingBox();
-                    if (!logBox || !sideBox) throw new Error('Side panels are missing');
-                    expect(logBox.x).toBe(sideBox.x + sideBox.width);
-                }
+                expect(position).toBe('static');
+                expect(before.width - after.width).toBe(256);
+                const logBox = await panel.boundingBox();
+                const sideBox = await sidePanel.boundingBox();
+                if (!logBox || !sideBox) throw new Error('Side panels are missing');
+                expect(logBox.x).toBe(sideBox.x + sideBox.width);
                 if (machineControl) {
                     await expect(machineToggle).toBeVisible();
                     await machineToggle.click();
@@ -93,7 +88,7 @@ for (const machineControl of [false, true]) {
                             'position:fixed;bottom:4px;left:80px;z-index:9999;background:#fff;color:#171717;font:12px monospace;padding:4px;border:1px solid #777';
                         document.body.appendChild(badge);
                     },
-                    `Chart canvas ${Math.round(plot.width)} × ${Math.round(plot.height)} CSS px · ${viewport.width} × ${viewport.height} · ${position === 'absolute' ? 'overlay (layout width unchanged)' : 'docked log 256px'}`,
+                    `Chart canvas ${Math.round(plot.width)} × ${Math.round(plot.height)} CSS px · ${viewport.width} × ${viewport.height} · docked log 256px`,
                 );
                 await testInfo.attach(
                     `${viewport.width}-${dark ? 'dark' : 'light'}-chart-${Math.round(after.width)}x${Math.round(after.height)}`,
@@ -112,7 +107,7 @@ for (const machineControl of [false, true]) {
 
             await trigger.click();
             await page.setViewportSize({ width: 1024, height: 680 });
-            await expect.poll(() => panel.evaluate((element) => getComputedStyle(element).position)).toBe('absolute');
+            await expect.poll(() => panel.evaluate((element) => getComputedStyle(element).position)).toBe('static');
             await page.setViewportSize({ width: 1600, height: 1000 });
             await expect.poll(() => panel.evaluate((element) => getComputedStyle(element).position)).toBe('static');
             expect(await originalCanvas?.evaluate((element) => element.isConnected)).toBe(true);

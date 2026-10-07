@@ -141,6 +141,7 @@ describe('RoastSidePanel live readings (#358)', () => {
         const sidePanel = container.querySelector('[data-testid="roast-side-panel"]') as HTMLDivElement;
         const trigger = sidePanel.querySelector('[aria-expanded]') as HTMLButtonElement;
         const noteInput = sidePanel.querySelector('textarea');
+        expect(noteInput?.compareDocumentPosition(trigger)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
         expect(sidePanel.textContent).toContain('aroma');
         act(() => trigger.click());
         const log = container.querySelector('[data-testid="roast-log-panel"]') as HTMLElement;
