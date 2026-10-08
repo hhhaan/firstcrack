@@ -440,10 +440,12 @@ describe('RoastTempChart interactions', () => {
     });
 
     it.each([
-        ['0', '', '', { gas: '0' }],
-        ['', '50%', '', { airflow: '50%' }],
-        ['1.2 kPa', '30', '색 변화 확인', { gas: '1.2 kPa', airflow: '30' }],
-    ])('keeps all fields visible and records manual values %s / %s', (gas, airflow, note, controls) => {
+        ['0', '', '', '', { gas: '0' }],
+        ['', '50%', '', '', { airflow: '50%' }],
+        ['', '', '0', '', { drum: '0' }],
+        ['', '', ' 55.5 ', '', { drum: '55.5' }],
+        ['1.2 kPa', '30', '55', '색 변화 확인', { gas: '1.2 kPa', airflow: '30', drum: '55' }],
+    ])('keeps all fields visible and records manual values %s / %s / %s', (gas, airflow, drum, note, controls) => {
         const onAddNote = vi.fn();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, onAddNote })));
         act(() =>
@@ -452,7 +454,7 @@ describe('RoastTempChart interactions', () => {
                 ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
         );
         const form = container.querySelector('[data-chart-note-form]') as HTMLFormElement;
-        expect(form.querySelectorAll('input')).toHaveLength(2);
+        expect(form.querySelectorAll('input')).toHaveLength(3);
         expect(form.querySelectorAll('textarea')).toHaveLength(1);
         expect(form.querySelectorAll('[aria-pressed]')).toHaveLength(0);
         const setValue = (id: string, value: string) => {
@@ -466,6 +468,7 @@ describe('RoastTempChart interactions', () => {
         };
         setValue('#chart-note-gas', gas);
         setValue('#chart-note-airflow', airflow);
+        setValue('#chart-note-drum', drum);
         setValue('#chart-note-input', note);
         const input = container.querySelector('#chart-note-gas') as HTMLInputElement;
         act(() =>
@@ -498,6 +501,7 @@ describe('RoastTempChart interactions', () => {
                             note: 'color',
                             gas: '0',
                             airflow: '50%',
+                            drum: '55',
                         },
                     ],
                     onEventMarkerEdit,
@@ -510,6 +514,7 @@ describe('RoastTempChart interactions', () => {
         const gas = container.querySelector('#chart-marker-gas') as HTMLInputElement;
         expect(gas.value).toBe('0');
         expect((container.querySelector('#chart-marker-airflow') as HTMLInputElement).value).toBe('50%');
+        expect((container.querySelector('#chart-marker-drum') as HTMLInputElement).value).toBe('55');
         const comment = container.querySelector('#chart-marker-note') as HTMLTextAreaElement;
         expect(comment.value).toBe('color');
         act(() => {
@@ -524,6 +529,7 @@ describe('RoastTempChart interactions', () => {
             note: 'color',
             gas: '',
             airflow: '50%',
+            drum: '55',
         });
     });
 

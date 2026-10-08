@@ -69,7 +69,8 @@ export function applyEventMarkerEdit(
     const nextNote = patch.note;
     const hasTime = nextTimeSec != null;
     const allowNote = (target.event === 'Heater' || target.event === 'Note') && nextNote != null;
-    const allowControls = target.event === 'Note' && (patch.gas !== undefined || patch.airflow !== undefined);
+    const allowControls =
+        target.event === 'Note' && (patch.gas !== undefined || patch.airflow !== undefined || patch.drum !== undefined);
     if (!hasTime && !allowNote && !allowControls) return entries;
     if (
         hasTime &&
@@ -91,6 +92,7 @@ export function applyEventMarkerEdit(
             if (allowControls) {
                 if (patch.gas !== undefined) next.gas = patch.gas.trim() || undefined;
                 if (patch.airflow !== undefined) next.airflow = patch.airflow.trim() || undefined;
+                if (patch.drum !== undefined) next.drum = patch.drum.trim() || undefined;
             }
             if (!hasTime) return next;
             const newTimeStr = formatElapsed(boundedTimeSec);

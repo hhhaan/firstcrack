@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export type RoastNoteValues = { gas: string; airflow: string; note: string };
+export type RoastNoteValues = { gas: string; airflow: string; drum: string; note: string };
 
 const fitComment = (gas: HTMLInputElement, comment: HTMLTextAreaElement) => {
     comment.style.height = `${gas.offsetHeight}px`;
@@ -38,15 +38,20 @@ export const RoastNoteFields = ({
 
     return (
         <div className="grid grid-cols-[52px_minmax(0,1fr)] items-center gap-x-1 gap-y-1 px-1 text-[11px] text-muted">
-            {(['gas', 'airflow'] as const).map((field) => (
+            {(['gas', 'airflow', 'drum'] as const).map((field) => (
                 <label key={field} className="contents" htmlFor={`${prefix}-${field}`}>
-                    <span>{t(`activeRoast.noteEntry.${field}`)}</span>
+                    <span>
+                        {field === 'drum'
+                            ? `${t('activeRoast.controls.drum')} RPM`
+                            : t(`activeRoast.noteEntry.${field}`)}
+                    </span>
                     <input
                         ref={field === 'gas' ? gasRef : undefined}
                         id={`${prefix}-${field}`}
                         autoFocus={autoFocus && field === 'gas'}
                         value={values[field]}
-                        placeholder={t(`activeRoast.noteEntry.${field}Placeholder`)}
+                        placeholder={field === 'drum' ? 'RPM' : t(`activeRoast.noteEntry.${field}Placeholder`)}
+                        inputMode={field === 'drum' ? 'decimal' : undefined}
                         onChange={(event) => onChange({ ...values, [field]: event.target.value })}
                         className={inputClass}
                     />

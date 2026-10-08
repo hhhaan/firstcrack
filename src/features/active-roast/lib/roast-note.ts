@@ -7,6 +7,7 @@ export const formatRoastNote = (entry: RoastNoteControls & { note?: string | nul
         entry.gas && `${i18n.t('activeRoast.noteEntry.gas', { defaultValue: 'Gas' }) ?? 'Gas'} ${entry.gas}`,
         entry.airflow &&
             `${i18n.t('activeRoast.noteEntry.airflow', { defaultValue: 'Airflow' }) ?? 'Airflow'} ${entry.airflow}`,
+        entry.drum && `${i18n.t('activeRoast.controls.drum', { defaultValue: 'Drum' }) ?? 'Drum'} ${entry.drum} RPM`,
         entry.note,
     ]
         .filter(Boolean)

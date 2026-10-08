@@ -21,17 +21,29 @@ describe('serializeRoastEvents', () => {
             note: 'color',
             gas: '0',
             airflow: '1.2 kPa',
+            drum: '55.5',
         };
         const stored = parseStoredRoastEvents(JSON.parse(JSON.stringify(serializeRoastEvents([original]))));
-        expect(stored[0]).toMatchObject({ note: 'color', gas: '0', airflow: '1.2 kPa' });
-        expect(storedEventsToLogEntries(stored, 'C')[0]).toMatchObject({ note: 'color', gas: '0', airflow: '1.2 kPa' });
-        expect(storedEventsToMarkers(stored)[0]).toMatchObject({ note: 'color', gas: '0', airflow: '1.2 kPa' });
+        expect(stored[0]).toMatchObject({ note: 'color', gas: '0', airflow: '1.2 kPa', drum: '55.5' });
+        expect(storedEventsToLogEntries(stored, 'C')[0]).toMatchObject({
+            note: 'color',
+            gas: '0',
+            airflow: '1.2 kPa',
+            drum: '55.5',
+        });
+        expect(storedEventsToMarkers(stored)[0]).toMatchObject({
+            note: 'color',
+            gas: '0',
+            airflow: '1.2 kPa',
+            drum: '55.5',
+        });
         const legacy = parseStoredRoastEvents([
-            { id: 'old', type: 'Note', time_sec: 1, note: 'gas 80 fan 50%', gas: 80, airflow: {} },
+            { id: 'old', type: 'Note', time_sec: 1, note: 'gas 80 fan 50%', gas: 80, airflow: {}, drum: 55 },
         ])[0];
         expect(legacy.note).toBe('gas 80 fan 50%');
         expect(legacy.gas).toBeUndefined();
         expect(legacy.airflow).toBeUndefined();
+        expect(legacy.drum).toBeUndefined();
         vi.unstubAllGlobals();
     });
 

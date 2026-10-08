@@ -51,17 +51,26 @@ it('keeps roast events and the FC button stage across an error-boundary remount'
 });
 
 describe('useRoastLog markEvent', () => {
-    it('accepts manual values alone, including zero and arbitrary units at the selected time', async () => {
-        vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('manual') });
-        const hook = await renderHook('C', 180, 30);
-        act(() =>
-            hook
-                .get()
-                .markEvent('Note', '', undefined, { timeSec: 10, tempC: null }, { gas: ' 0 ', airflow: ' 1.2 kPa ' }),
-        );
-        expect(hook.get().logEntries[0]).toMatchObject({ timeSec: 10, note: '', gas: '0', airflow: '1.2 kPa' });
-        hook.unmount();
-    });
+    it.each([
+        [
+            { gas: ' 0 ', airflow: ' 1.2 kPa ', drum: ' 55.5 ' },
+            { gas: '0', airflow: '1.2 kPa', drum: '55.5' },
+        ],
+        [{ drum: ' 0 ' }, { drum: '0' }],
+    ])(
+        'accepts manual values alone, including zero and arbitrary units at the selected time: %j',
+        async (controls, expected) => {
+            vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('manual') });
+            const hook = await renderHook('C', 180, 30);
+            act(() => hook.get().markEvent('Note', '', undefined, { timeSec: 10, tempC: null }, controls));
+            expect(hook.get().logEntries[0]).toMatchObject({
+                timeSec: 10,
+                note: '',
+                ...expected,
+            });
+            hook.unmount();
+        },
+    );
 
     afterEach(() => vi.unstubAllGlobals());
 

@@ -24,6 +24,7 @@ export const serializeRoastEvents = (logEntries: LogEntry[]): StoredRoastEvent[]
             note: e.note || null,
             ...(e.gas ? { gas: e.gas } : {}),
             ...(e.airflow ? { airflow: e.airflow } : {}),
+            ...(e.drum ? { drum: e.drum } : {}),
         }))
         .sort((a, b) => a.time_sec - b.time_sec);
 
@@ -57,6 +58,7 @@ export const parseStoredRoastEvents = (raw: unknown): StoredRoastEvent[] => {
             note: optionalJsonString(o.note),
             ...(typeof o.gas === 'string' && o.gas ? { gas: o.gas } : {}),
             ...(typeof o.airflow === 'string' && o.airflow ? { airflow: o.airflow } : {}),
+            ...(typeof o.drum === 'string' && o.drum ? { drum: o.drum } : {}),
         });
     }
     return out;
@@ -87,6 +89,7 @@ export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: Tempe
             note: e.note ?? '',
             ...(e.gas ? { gas: e.gas } : {}),
             ...(e.airflow ? { airflow: e.airflow } : {}),
+            ...(e.drum ? { drum: e.drum } : {}),
         }));
 
 /** Stored events → chart markers. Live TP is a `turningPoints` overlay, not an eventMarker — include it here so history can draw it. */
@@ -104,4 +107,5 @@ export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: Temperat
             note: e.note ?? '',
             ...(e.gas ? { gas: e.gas } : {}),
             ...(e.airflow ? { airflow: e.airflow } : {}),
+            ...(e.drum ? { drum: e.drum } : {}),
         }));

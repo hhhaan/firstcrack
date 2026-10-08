@@ -47,7 +47,8 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
             const body = note.trim();
             const gas = event === 'Note' ? controls?.gas?.trim() : undefined;
             const airflow = event === 'Note' ? controls?.airflow?.trim() : undefined;
-            if (event === 'Note' && !body && !gas && !airflow) return;
+            const drum = event === 'Note' ? controls?.drum?.trim() : undefined;
+            if (event === 'Note' && !body && !gas && !airflow && !drum) return;
             if (
                 historical &&
                 (!Number.isFinite(historical.timeSec) ||
@@ -80,6 +81,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
                     note: event === 'Note' ? body : note,
                     ...(gas ? { gas } : {}),
                     ...(airflow ? { airflow } : {}),
+                    ...(drum ? { drum } : {}),
                 };
 
                 return [...prev, newEntry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));

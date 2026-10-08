@@ -135,6 +135,7 @@ export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
                 note: e.note,
                 ...(e.gas ? { gas: e.gas } : {}),
                 ...(e.airflow ? { airflow: e.airflow } : {}),
+                ...(e.drum ? { drum: e.drum } : {}),
             };
         });
 

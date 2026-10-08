@@ -4,6 +4,7 @@ import type { TemperatureProcessing } from './sidecar';
 export type RoastNoteControls = {
     gas?: string;
     airflow?: string;
+    drum?: string;
 };
 
 /** Live roast event log row (UI + in-memory). */

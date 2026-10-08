@@ -53,7 +53,7 @@ import { RoastNoteFields, type RoastNoteValues } from './RoastNoteFields';
 
 export type { RoastEventMarker };
 
-const emptyNote: RoastNoteValues = { gas: '', airflow: '', note: '' };
+const emptyNote: RoastNoteValues = { gas: '', airflow: '', drum: '', note: '' };
 
 type ChartAxisInput = Pick<
     RoastSettings,
@@ -336,6 +336,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         note: string;
         gas: string;
         airflow: string;
+        drum: string;
         heaterUnit: string;
     } | null>(null);
     const editFormRef = useRef<HTMLFormElement>(null);
@@ -779,6 +780,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 note: selected.event === 'Heater' ? heater.value : (selected.note ?? ''),
                 gas: selected.gas ?? '',
                 airflow: selected.airflow ?? '',
+                drum: selected.drum ?? '',
                 heaterUnit: heater.unit,
             });
             return true;
@@ -957,9 +959,14 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         const note = noteValues.note.trim();
         const gas = noteValues.gas.trim();
         const airflow = noteValues.airflow.trim();
-        if (!noteForm || (!note && !gas && !airflow) || !onAddNote) return;
-        if (gas || airflow)
-            onAddNote(note, noteForm.timeSec, { ...(gas ? { gas } : {}), ...(airflow ? { airflow } : {}) });
+        const drum = noteValues.drum.trim();
+        if (!noteForm || (!note && !gas && !airflow && !drum) || !onAddNote) return;
+        if (gas || airflow || drum)
+            onAddNote(note, noteForm.timeSec, {
+                ...(gas ? { gas } : {}),
+                ...(airflow ? { airflow } : {}),
+                ...(drum ? { drum } : {}),
+            });
         else onAddNote(note, noteForm.timeSec);
         setNoteForm(null);
         setNoteValues(emptyNote);
@@ -976,10 +983,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         };
         if (editForm.event === 'Note') {
             const body = editForm.note.trim();
-            if (!body && !editForm.gas.trim() && !editForm.airflow.trim()) return;
+            if (!body && !editForm.gas.trim() && !editForm.airflow.trim() && !editForm.drum.trim()) return;
             patch.note = body;
             patch.gas = editForm.gas.trim();
             patch.airflow = editForm.airflow.trim();
+            patch.drum = editForm.drum.trim();
         }
         onEventMarkerEdit(editForm.logId, patch);
         setEditForm(null);
