@@ -174,7 +174,7 @@ describe('HeaterEventsEditor', () => {
         };
         await type('1');
         await type('2');
-        expect(input.value).toBe('12:');
+        expect(input.value).toBe('12:00');
         await act(async () =>
             [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
         );
@@ -479,7 +479,7 @@ describe('HeaterEventsEditor', () => {
         expect(input.value).toBe('');
         await type('1');
         await type('2');
-        expect(input.value).toBe('12:');
+        expect(input.value).toBe('12:00');
         expect(input.selectionStart).toBe(3);
         await type('3');
         await type('4');

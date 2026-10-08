@@ -32,6 +32,42 @@ const finishTimeEdit = (value: string, caret: number, suppress: boolean): TimeEd
     suppress: suppress && /^\d{2}$/.test(value),
 });
 
+/**
+ * 화면에 빈 초를 0으로 채운다. 커서는 다음 숫자가 이어질 자리에 둔다.
+ * `5` → `5|:00`, `12:` → `12:|00`, `12:3` → `12:0|3`.
+ * 콜론을 지운 두 자리 분(`suppress`)은 그대로 둔다.
+ */
+const showSeconds = (value: string, caret: number, suppress: boolean): { value: string; caret: number } => {
+    if (suppress && /^\d{2}$/.test(value)) return { value, caret };
+    if (/^\d{1,3}$/.test(value)) return { value: `${value}:00`, caret };
+    const match = /^(\d{1,3}):(\d{0,2})$/.exec(value);
+    if (!match || match[2] === '60' || match[2].length === 2) return { value, caret };
+    const minutes = match[1];
+    if (match[2] === '') {
+        return { value: `${minutes}:00`, caret: caret === value.length ? minutes.length + 1 : caret };
+    }
+    return {
+        value: `${minutes}:0${match[2]}`,
+        caret: caret === value.length ? minutes.length + 2 : caret,
+    };
+};
+
+/** `showSeconds`가 채운 0만 걷어 내어 다음 입력을 같은 규칙으로 받는다. */
+const hidePadding = (value: string, caret: number): { value: string; caret: number } => {
+    const match = /^(\d{1,3}):(\d{2})$/.exec(value);
+    if (!match) return { value, caret };
+    const minutes = match[1];
+    const seconds = match[2];
+    const colon = minutes.length;
+    if (seconds === '00' && caret <= colon) return { value: minutes, caret };
+    if (seconds === '00' && caret === colon + 1) return { value: `${minutes}:`, caret: colon + 1 };
+    if (seconds === '00' && caret === colon + 2) return { value: `${minutes}:0`, caret: colon + 2 };
+    if (seconds.startsWith('0') && seconds !== '00' && caret === colon + 2) {
+        return { value: `${minutes}:${seconds[1]}`, caret: colon + 2 };
+    }
+    return { value, caret };
+};
+
 const spliceTime = (prev: string, start: number, end: number, suppress: boolean): TimeEdit => {
     const next = prev.slice(0, start) + prev.slice(end);
     if (!isPartialTime(next)) return finishTimeEdit(prev, end, suppress);
@@ -114,10 +150,21 @@ export const applyTimeEdit = (
     kind: TimeEditKind,
     suppress = false,
 ): TimeEdit => {
-    const from = clampIndex(prev, start);
-    const to = clampIndex(prev, Math.max(from, end));
-    if (kind !== 'insert') return deleteTime(prev, from, to, kind, suppress);
-    return insertTimeText(prev, from, to, text, suppress);
+    let value = prev;
+    let from = clampIndex(prev, start);
+    let to = clampIndex(prev, Math.max(from, end));
+    if (from === to) {
+        const bare = hidePadding(value, from);
+        value = bare.value;
+        from = bare.caret;
+        to = from;
+    }
+    const edited =
+        kind === 'insert'
+            ? insertTimeText(value, from, to, text, suppress)
+            : deleteTime(value, from, to, kind, suppress);
+    const shown = showSeconds(edited.value, edited.caret, edited.suppress);
+    return { ...edited, value: shown.value, caret: clampIndex(shown.value, shown.caret) };
 };
 
 export const parseEditTime = (value: string): number | null => {
