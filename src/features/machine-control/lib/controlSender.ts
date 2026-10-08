@@ -118,6 +118,7 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
     let inFlightWaiters: Waiter[] = [];
     let inFlight = false;
     let committedListener = onCommitted;
+    let appliedListener = onApplied;
     // dispose 세대 — 폐기 이후에 도착한 응답의 콜백을 무시한다. 그러지 않으면
     // 연결이 끊겨 상태를 비운 뒤에 늦게 온 응답이 옛 setpoint를 되살린다.
     let generation = 0;
@@ -127,6 +128,8 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
         const cmd = committed;
         if (Object.keys(cmd).length === 0) return;
         const gen = generation;
+        // A late ACK belongs to the observer/session that sent the command.
+        const appliedObserver = appliedListener;
         const sentWaiters = queuedWaiters;
         committed = {};
         queuedWaiters = [];
@@ -140,7 +143,7 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
                     settle(waiter, pickApplied(waiter.requested, applied));
                 }
                 inFlightWaiters = [];
-                notify(() => onApplied?.(applied));
+                notify(() => appliedObserver?.(applied));
             }
         } catch (err) {
             if (gen === generation) {
@@ -230,6 +233,9 @@ export const createControlSender = ({ send, onCommitted, onApplied, onError, onS
         },
         setOnCommitted(callback?: (command: ControlCommand) => void): void {
             committedListener = callback;
+        },
+        setOnApplied(callback?: (command: ControlCommand) => void): void {
+            appliedListener = callback;
         },
     };
 };

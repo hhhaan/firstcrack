@@ -47,7 +47,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
-import type { RoastNoteControls } from '@shared/types/roast';
+import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -833,6 +833,35 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [bbpActive, charged, livePoints, markEvent, roastEnded],
     );
 
+    const handleControlApplied = useCallback(
+        (applied: AppliedRoastControl) => {
+            const state = useRoastingStore.getState();
+            if (state.sessionId !== sessionId || state.phase !== 'roasting' || bbpActive) return;
+            const values: AppliedRoastControl = {};
+            for (const role of ['heater', 'fan', 'drum'] as const) {
+                const value = applied[role];
+                if (value !== undefined && Number.isFinite(value)) values[role] = value;
+            }
+            if (Object.keys(values).length === 0) return;
+            const timeSec =
+                state.roastStartMs > 0 ? Math.max(0, (Date.now() - state.roastStartMs) / 1000) : state.elapsed;
+            setLogEntries((entries) => [
+                ...entries,
+                {
+                    id: crypto.randomUUID(),
+                    event: 'Control',
+                    time: formatElapsed(timeSec),
+                    timeSec,
+                    temp: '',
+                    tempC: null,
+                    note: '',
+                    appliedControl: values,
+                },
+            ]);
+        },
+        [bbpActive, sessionId, setLogEntries],
+    );
+
     const machineControl = useMachineControlComposition({
         sidecarConnected,
         reconnecting,
@@ -857,6 +886,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         // eslint-disable-next-line react-hooks/purity -- fresh wall-clock must stop stale Replay before this commit's write effects
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
+        onApplied: handleControlApplied,
     });
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
@@ -920,6 +950,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         fanSpeed: chart.visibleFanSpeed,
         heatSet: chart.visibleHeatSet,
         heatTarget,
+        controlChanges: logEntries.flatMap((entry) =>
+            entry.event === 'Control' && entry.appliedControl
+                ? [{ timeSec: entry.timeSec ?? 0, values: entry.appliedControl }]
+                : [],
+        ),
         referenceXs: chart.visibleTargetXs,
         referenceDrum: chart.visibleTargetDrum,
         referenceHeater: chart.visibleTargetHeater,
