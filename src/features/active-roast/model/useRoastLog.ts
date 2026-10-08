@@ -1,7 +1,7 @@
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { type SetStateAction, useCallback, useState } from 'react';
-import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
+import { REMOVABLE_LOG_EVENTS, TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
 import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
@@ -107,7 +107,13 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
 
     const removeLogEntry = useCallback(
         (id: string) => {
-            setLogEntries((prev) => prev.filter((entry) => entry.id !== id));
+            setLogEntries((prev) => {
+                const target = prev.find((entry) => entry.id === id);
+                if (!target || !REMOVABLE_LOG_EVENTS.has(target.event)) return prev;
+                return TOGGLEABLE_LOG_EVENTS.has(target.event)
+                    ? withoutLogEvent(prev, target.event)
+                    : prev.filter((entry) => entry.id !== id);
+            });
         },
         [setLogEntries],
     );

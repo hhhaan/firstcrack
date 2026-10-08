@@ -74,6 +74,42 @@ describe('useRoastLog markEvent', () => {
 
     afterEach(() => vi.unstubAllGlobals());
 
+    it('deletes crack marks using existing dependencies and preserves lifecycle marks', async () => {
+        const hook = await renderHook('C', 180, 30);
+        const events = ['Charge', 'Yellow', 'FC Start', 'FC Rolling', 'FC End', 'Drop', 'End', 'Note'];
+        act(() =>
+            hook.get().setLogEntries(
+                events.map((event) => ({
+                    id: event,
+                    event,
+                    time: '0:09',
+                    timeSec: 9,
+                    temp: '151°C',
+                    tempC: 151,
+                    note: '',
+                })),
+            ),
+        );
+        act(() => hook.get().removeLogEntry('FC End'));
+        expect(hook.get().logEntries.map((entry) => entry.event)).toEqual([
+            'Charge',
+            'Yellow',
+            'FC Start',
+            'FC Rolling',
+            'Drop',
+            'End',
+            'Note',
+        ]);
+        act(() => hook.get().removeLogEntry('FC Start'));
+        expect(hook.get().logEntries.map((entry) => entry.event)).toEqual(['Charge', 'Yellow', 'Drop', 'End', 'Note']);
+        const remaining = hook.get().logEntries;
+        act(() => {
+            for (const id of ['Charge', 'Drop', 'End']) hook.get().removeLogEntry(id);
+        });
+        expect(hook.get().logEntries).toBe(remaining);
+        hook.unmount();
+    });
+
     it.each(['Yellow', 'FC Start', 'FC End'])(
         'adds a historical %s once while keeping current-time toggles',
         async (event) => {

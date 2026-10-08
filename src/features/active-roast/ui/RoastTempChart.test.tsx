@@ -832,43 +832,46 @@ describe('RoastTempChart interactions', () => {
         capture.mockRestore();
     });
 
-    it('deletes a Heater marker from the editor', () => {
-        const ref = createRef<RoastTempChartHandle>();
-        const onEventMarkerDelete = vi.fn();
-        act(() => {
-            root.render(
-                createElement(RoastTempChart, {
-                    ...baseProps,
-                    ref,
-                    xs: [0, 5, 8],
-                    eventMarkerStyle: 'line',
-                    eventMarkers: [
-                        {
-                            logId: 'heater-1',
-                            event: 'Heater',
-                            timeSec: 5,
-                            timeStr: '0:05',
-                            temp: '180°C',
-                            color: '#c00',
-                            note: '50%',
-                        },
-                    ],
-                    onEventMarkerDrag: vi.fn(),
-                    onEventMarkerEdit: vi.fn(),
-                    onEventMarkerDelete,
-                }),
-            );
-        });
+    it.each(['Note', 'Heater', 'Yellow', 'FC Start', 'FC Rolling', 'FC End'])(
+        'deletes %s marker from editor',
+        (event) => {
+            const ref = createRef<RoastTempChartHandle>();
+            const onEventMarkerDelete = vi.fn();
+            act(() => {
+                root.render(
+                    createElement(RoastTempChart, {
+                        ...baseProps,
+                        ref,
+                        xs: [0, 5, 8],
+                        eventMarkerStyle: 'line',
+                        eventMarkers: [
+                            {
+                                logId: 'heater-1',
+                                event,
+                                timeSec: 5,
+                                timeStr: '0:05',
+                                temp: '180°C',
+                                color: '#c00',
+                                note: '50%',
+                            },
+                        ],
+                        onEventMarkerDrag: vi.fn(),
+                        onEventMarkerEdit: vi.fn(),
+                        onEventMarkerDelete,
+                    }),
+                );
+            });
 
-        act(() => {
-            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
-        });
-        act(() => {
-            (container.querySelector('[data-chart-marker-delete]') as HTMLButtonElement).click();
-        });
-        expect(onEventMarkerDelete).toHaveBeenCalledWith('heater-1');
-        expect(container.querySelector('[data-chart-marker-edit]')).toBeNull();
-    });
+            act(() => {
+                expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+            });
+            act(() => {
+                (container.querySelector('[data-chart-marker-delete]') as HTMLButtonElement).click();
+            });
+            expect(onEventMarkerDelete).toHaveBeenCalledWith('heater-1');
+            expect(container.querySelector('[data-chart-marker-edit]')).toBeNull();
+        },
+    );
 
     it('keeps Delete off non-removable marker editors', () => {
         const ref = createRef<RoastTempChartHandle>();
@@ -881,8 +884,8 @@ describe('RoastTempChart interactions', () => {
                     eventMarkerStyle: 'line',
                     eventMarkers: [
                         {
-                            logId: 'yellow-1',
-                            event: 'Yellow',
+                            logId: 'drop-1',
+                            event: 'Drop',
                             timeSec: 5,
                             timeStr: '0:05',
                             temp: '180°C',

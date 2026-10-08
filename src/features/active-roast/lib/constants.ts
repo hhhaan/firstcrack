@@ -1,6 +1,6 @@
 /** Drop is a session-ending mark — undo is explicit cancel, not a toggle (#484). */
 export const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC Rolling', 'FC End']);
-export const REMOVABLE_LOG_EVENTS = new Set(['Note', 'Heater']);
+export const REMOVABLE_LOG_EVENTS = new Set(['Note', 'Heater', ...TOGGLEABLE_LOG_EVENTS]);
 /** Chart hit target for the turning-point mark, which is not a log-backed event marker. */
 export const TP_MARKER_ID = 'tp';
 
