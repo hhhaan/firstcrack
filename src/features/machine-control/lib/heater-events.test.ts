@@ -70,7 +70,8 @@ describe('parseEditTime', () => {
         expect(parseEditTime('5')).toBe(300);
         expect(parseEditTime('12')).toBe(720);
         expect(parseEditTime('12:')).toBe(720);
-        expect(parseEditTime('12:3')).toBe(723);
+        expect(parseEditTime('12:3')).toBe(750);
+        expect(parseEditTime('12:03')).toBe(723);
     });
 
     it('formatEditTime은 왕복된다', () => {
@@ -80,31 +81,47 @@ describe('parseEditTime', () => {
 });
 
 const typeInto = (chars: string) => {
-    let state = { value: '', caret: 0, suppress: false };
+    let state = { value: '', caret: 0, suppress: false, secondsOpen: false };
     for (const ch of chars) {
         const kind = ch === '\b' ? 'backspace' : 'insert';
-        state = applyTimeEdit(state.value, state.caret, state.caret, kind === 'insert' ? ch : '', kind, state.suppress);
+        state = applyTimeEdit(
+            state.value,
+            state.caret,
+            state.caret,
+            kind === 'insert' ? ch : '',
+            kind,
+            state.suppress,
+            state.secondsOpen,
+        );
     }
     return state;
 };
 
 describe('applyTimeEdit', () => {
     it('1234는 콜론 뒤로 넘어가 12:34가 된다', () => {
-        let state = { value: '', caret: 0, suppress: false };
+        let state = { value: '', caret: 0, suppress: false, secondsOpen: false };
         const seen: string[] = ['|'];
         for (const ch of '1234') {
-            state = applyTimeEdit(state.value, state.caret, state.caret, ch, 'insert', state.suppress);
+            state = applyTimeEdit(
+                state.value,
+                state.caret,
+                state.caret,
+                ch,
+                'insert',
+                state.suppress,
+                state.secondsOpen,
+            );
             seen.push(`${state.value.slice(0, state.caret)}|${state.value.slice(state.caret)}`);
         }
-        expect(seen.join(' ')).toBe('| 1|:00 12:|00 12:0|3 12:34|');
+        expect(seen.join(' ')).toBe('| 1| 12:00| 12:30| 12:34|');
         expect(parseEditTime(state.value)).toBe(754);
     });
 
     it('한 자리 분은 콜론을 직접 치고, 숫자만 이어지면 두 자리 분으로 본다', () => {
         expect(typeInto('0:16')).toMatchObject({ value: '0:16' });
         expect(parseEditTime('0:16')).toBe(16);
-        expect(typeInto('016').value).toBe('01:06');
-        expect(parseEditTime('01:6')).toBe(66);
+        expect(typeInto('016').value).toBe('01:60');
+        expect(parseEditTime('01:6')).toBe(120);
         expect(typeInto('1641').value).toBe('16:41');
         expect(typeInto('1230').value).toBe('12:30');
     });
@@ -112,8 +129,8 @@ describe('applyTimeEdit', () => {
     it('초 61·글자·두 번째 콜론은 넣지 않는다', () => {
         expect(typeInto('1260').value).toBe('12:60');
         expect(parseEditTime('12:60')).toBe(780);
-        expect(typeInto('1261').value).toBe('12:06');
-        expect(typeInto('1299').value).toBe('12:09');
+        expect(typeInto('1261').value).toBe('12:60');
+        expect(typeInto('1299').value).toBe('12:00');
         expect(typeInto('12a34').value).toBe('12:34');
         expect(typeInto('1:2:3').value).toBe('1:23');
     });

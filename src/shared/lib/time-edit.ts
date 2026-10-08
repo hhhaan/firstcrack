@@ -1,4 +1,4 @@
-/** 분, 또는 `분:` / `분:초`. 초가 없으면 0. 초 한 자리는 그대로 초다. */
+/** 분, 또는 `분:` / `분:초`. 초가 없으면 0. 초가 한 자리면 십 초다. */
 const SOFT_TIME_RE = /^(\d{1,3})(?::([0-5]?\d|60)?)?$/;
 const MINUTES_RE = /^\d{0,3}$/;
 
@@ -9,6 +9,8 @@ export type TimeEdit = {
     caret: number;
     /** 콜론을 지워 분 두 자리로 돌아온 뒤, 다음 숫자는 초가 아니라 분이다. */
     suppress: boolean;
+    /** 초의 십 자리만 들어온 상태. 다음 숫자는 일 초다. */
+    secondsOpen: boolean;
 };
 
 const clampIndex = (value: string, index: number) => Math.max(0, Math.min(index, value.length));
@@ -26,46 +28,51 @@ export const isPartialTime = (value: string): boolean => {
     return seconds.length === 2 && /^[0-5]\d$/.test(seconds);
 };
 
-const finishTimeEdit = (value: string, caret: number, suppress: boolean): TimeEdit => ({
+const finishTimeEdit = (value: string, caret: number, suppress: boolean, secondsOpen = false): TimeEdit => ({
     value,
     caret: clampIndex(value, caret),
     suppress: suppress && /^\d{2}$/.test(value),
+    secondsOpen,
 });
 
-/**
- * 화면에 빈 초를 0으로 채운다. 커서는 다음 숫자가 이어질 자리에 둔다.
- * `5` → `5|:00`, `12:` → `12:|00`, `12:3` → `12:0|3`.
- * 콜론을 지운 두 자리 분(`suppress`)은 그대로 둔다.
- */
-const showSeconds = (value: string, caret: number, suppress: boolean): { value: string; caret: number } => {
-    if (suppress && /^\d{2}$/.test(value)) return { value, caret };
-    if (/^\d{1,3}$/.test(value)) return { value: `${value}:00`, caret };
-    const match = /^(\d{1,3}):(\d{0,2})$/.exec(value);
-    if (!match || match[2] === '60' || match[2].length === 2) return { value, caret };
-    const minutes = match[1];
-    if (match[2] === '') {
-        return { value: `${minutes}:00`, caret: caret === value.length ? minutes.length + 1 : caret };
-    }
-    return {
-        value: `${minutes}:0${match[2]}`,
-        caret: caret === value.length ? minutes.length + 2 : caret,
-    };
+const atEnd = (value: string, suppress: boolean, secondsOpen: boolean): TimeEdit =>
+    finishTimeEdit(value, value.length, suppress, secondsOpen);
+
+/** 초의 첫 숫자. 0–5는 십 초(`3` → `30`), 6은 `60`만 된다. */
+const secondsTens = (digit: string): string | null => {
+    const n = Number(digit);
+    if (n <= 5) return `${digit}0`;
+    if (n === 6) return '60';
+    return null;
 };
 
-/** `showSeconds`가 채운 0만 걷어 내어 다음 입력을 같은 규칙으로 받는다. */
-const hidePadding = (value: string, caret: number): { value: string; caret: number } => {
-    const match = /^(\d{1,3}):(\d{2})$/.exec(value);
-    if (!match) return { value, caret };
-    const minutes = match[1];
-    const seconds = match[2];
-    const colon = minutes.length;
-    if (seconds === '00' && caret <= colon) return { value: minutes, caret };
-    if (seconds === '00' && caret === colon + 1) return { value: `${minutes}:`, caret: colon + 1 };
-    if (seconds === '00' && caret === colon + 2) return { value: `${minutes}:0`, caret: colon + 2 };
-    if (seconds.startsWith('0') && seconds !== '00' && caret === colon + 2) {
-        return { value: `${minutes}:${seconds[1]}`, caret: colon + 2 };
+const digitAtEnd = (value: string, digit: string, suppress: boolean, secondsOpen: boolean): TimeEdit | null => {
+    if (suppress && /^\d{2}$/.test(value)) return atEnd(value + digit, false, false);
+    if (/^\d$/.test(value)) return atEnd(`${value}${digit}:00`, false, false);
+    if (/^\d{2,3}$/.test(value)) {
+        const tens = secondsTens(digit);
+        return tens ? atEnd(`${value}:${tens}`, false, tens !== '60') : null;
     }
-    return { value, caret };
+    const clock = /^(\d{1,3}):(\d{2})$/.exec(value);
+    if (!clock) return null;
+    const minutes = clock[1];
+    const seconds = clock[2];
+    if (!secondsOpen && seconds === '00') {
+        const tens = secondsTens(digit);
+        return tens ? atEnd(`${minutes}:${tens}`, false, tens !== '60') : null;
+    }
+    if (!secondsOpen) return null;
+    const units = Number(`${seconds[0]}${digit}`);
+    if (units > 60) return null;
+    return atEnd(`${minutes}:${seconds[0]}${digit}`, false, false);
+};
+
+const backspaceAtEnd = (value: string, secondsOpen: boolean): TimeEdit => {
+    const clock = /^(\d{1,3}):(\d{2})$/.exec(value);
+    if (!clock) return atEnd(value.slice(0, -1), false, false);
+    if (secondsOpen || clock[2] === '60') return atEnd(`${clock[1]}:00`, false, false);
+    if (clock[2] === '00') return atEnd(clock[1], clock[1].length === 2, false);
+    return atEnd(`${clock[1]}:${clock[2][0]}0`, false, true);
 };
 
 const spliceTime = (prev: string, start: number, end: number, suppress: boolean): TimeEdit => {
@@ -94,54 +101,67 @@ const insertColon = (value: string, caret: number): TimeEdit | null => {
     if (value.includes(':')) return null;
     const before = value.slice(0, caret);
     if (!/^\d{1,3}$/.test(before)) return null;
+    if (value.slice(caret) === '') return atEnd(`${before}:00`, false, false);
     const next = `${before}:${value.slice(caret)}`;
     if (!isPartialTime(next)) return null;
-    return { value: next, caret: before.length + 1, suppress: false };
+    return finishTimeEdit(next, before.length + 1, false);
 };
 
-const insertDigit = (value: string, caret: number, ch: string, suppress: boolean): TimeEdit | null => {
-    const atEnd = caret === value.length;
-    const minutesOnly = !value.includes(':');
-    if (suppress && atEnd && /^\d{2}$/.test(value)) {
-        return { value: value + ch, caret: value.length + 1, suppress: false };
-    }
-    if (minutesOnly && atEnd && /^\d$/.test(value)) {
-        const minutes = value + ch;
-        return { value: `${minutes}:`, caret: minutes.length + 1, suppress: false };
-    }
-    if (minutesOnly && atEnd && /^\d{2,3}$/.test(value)) {
-        const next = `${value}:${ch}`;
-        if (!isPartialTime(next)) return null;
-        return { value: next, caret: next.length, suppress: false };
+const insertDigit = (
+    value: string,
+    caret: number,
+    ch: string,
+    suppress: boolean,
+    secondsOpen: boolean,
+): TimeEdit | null => {
+    if (caret === value.length) {
+        const stepped = digitAtEnd(value, ch, suppress, secondsOpen);
+        if (stepped) return stepped;
+        if (/^\d{1,3}:\d{2}$/.test(value)) return null;
     }
     const next = value.slice(0, caret) + ch + value.slice(caret);
     if (!isPartialTime(next)) return null;
-    return { value: next, caret: caret + 1, suppress: false };
+    return finishTimeEdit(next, caret + 1, false);
 };
 
-const insertTimeChar = (value: string, caret: number, ch: string, suppress: boolean): TimeEdit | null => {
+const insertTimeChar = (
+    value: string,
+    caret: number,
+    ch: string,
+    suppress: boolean,
+    secondsOpen: boolean,
+): TimeEdit | null => {
     if (ch === ':') return insertColon(value, caret);
     if (!/^\d$/.test(ch)) return null;
-    return insertDigit(value, caret, ch, suppress);
+    return insertDigit(value, caret, ch, suppress, secondsOpen);
 };
 
-const insertTimeText = (prev: string, start: number, end: number, text: string, suppress: boolean): TimeEdit => {
+const insertTimeText = (
+    prev: string,
+    start: number,
+    end: number,
+    text: string,
+    suppress: boolean,
+    secondsOpen: boolean,
+): TimeEdit => {
     const raw = text.replace(/[^\d:]/g, '');
     if (!raw) return finishTimeEdit(prev, start, suppress && start === end);
     let value = prev.slice(0, start) + prev.slice(end);
     let caret = start;
     let nextSuppress = start === end && suppress;
+    let open = start === end && secondsOpen;
     for (const ch of raw) {
-        const step = insertTimeChar(value, caret, ch, nextSuppress);
+        const step = insertTimeChar(value, caret, ch, nextSuppress, open);
         if (!step) continue;
         value = step.value;
         caret = step.caret;
         nextSuppress = step.suppress;
+        open = step.secondsOpen;
     }
-    return finishTimeEdit(value, caret, nextSuppress);
+    return finishTimeEdit(value, caret, nextSuppress, open);
 };
 
-/** 분 두 자리가 차면 커서가 콜론 뒤로 넘어간다. `1234` → `12:34`. */
+/** 분 두 자리가 차면 `mm:00`이 되고 커서는 끝이다. 초의 첫 숫자는 십 초다. `1234` → `12:34`. */
 export const applyTimeEdit = (
     prev: string,
     start: number,
@@ -149,27 +169,27 @@ export const applyTimeEdit = (
     text: string,
     kind: TimeEditKind,
     suppress = false,
+    secondsOpen = false,
 ): TimeEdit => {
-    let value = prev;
-    let from = clampIndex(prev, start);
-    let to = clampIndex(prev, Math.max(from, end));
-    if (from === to) {
-        const bare = hidePadding(value, from);
-        value = bare.value;
-        from = bare.caret;
-        to = from;
-    }
-    const edited =
-        kind === 'insert'
-            ? insertTimeText(value, from, to, text, suppress)
-            : deleteTime(value, from, to, kind, suppress);
-    const shown = showSeconds(edited.value, edited.caret, edited.suppress);
-    return { ...edited, value: shown.value, caret: clampIndex(shown.value, shown.caret) };
+    const from = clampIndex(prev, start);
+    const to = clampIndex(prev, Math.max(from, end));
+    if (kind === 'backspace' && from === to && from === prev.length) return backspaceAtEnd(prev, secondsOpen);
+    if (kind !== 'insert') return deleteTime(prev, from, to, kind, suppress);
+    const replacing = from !== to;
+    return insertTimeText(prev, from, to, text, replacing ? false : suppress, replacing ? false : secondsOpen);
+};
+
+/** 아직 초가 없는 분은 `m:00`으로 맞춘다. 포커스를 벗어날 때 쓴다. */
+export const commitEditTime = (value: string): string => {
+    const minutes = /^(\d{1,3}):?$/.exec(value.trim());
+    return minutes ? `${Number(minutes[1])}:00` : value;
 };
 
 export const parseEditTime = (value: string): number | null => {
     const match = SOFT_TIME_RE.exec(value.trim());
     if (!match) return null;
-    const seconds = match[2] == null || match[2] === '' ? 0 : Number(match[2]);
+    const raw = match[2];
+    const seconds = raw == null || raw === '' ? 0 : raw.length === 1 ? Number(raw) * 10 : Number(raw);
+    if (seconds > 60) return null;
     return Number(match[1]) * 60 + seconds;
 };

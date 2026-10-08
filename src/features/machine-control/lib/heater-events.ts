@@ -10,7 +10,14 @@ import {
     type ReplayTrigger,
 } from './replay';
 
-export { applyTimeEdit, isPartialTime, parseEditTime, type TimeEdit, type TimeEditKind } from '@shared/lib/time-edit';
+export {
+    applyTimeEdit,
+    commitEditTime,
+    isPartialTime,
+    parseEditTime,
+    type TimeEdit,
+    type TimeEditKind,
+} from '@shared/lib/time-edit';
 
 /** 입력 중 숫자. 숫자·점 하나·소수 `decimals`자리까지, 음수 허용 시에만 선행 `-`. */
 export const isDecimalDraft = (value: string, decimals: number, negative = false): boolean =>

@@ -480,7 +480,7 @@ describe('HeaterEventsEditor', () => {
         await type('1');
         await type('2');
         expect(input.value).toBe('12:00');
-        expect(input.selectionStart).toBe(3);
+        expect(input.selectionStart).toBe(5);
         await type('3');
         await type('4');
         expect(input.value).toBe('12:34');

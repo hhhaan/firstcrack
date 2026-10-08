@@ -32,7 +32,7 @@ import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
-import { applyTimeEdit, parseEditTime, type TimeEditKind } from '@shared/lib/time-edit';
+import { applyTimeEdit, commitEditTime, parseEditTime, type TimeEditKind } from '@shared/lib/time-edit';
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastNoteControls } from '@shared/types/roast';
 import * as echarts from 'echarts';
@@ -345,6 +345,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const editFormRef = useRef<HTMLFormElement>(null);
     const timeInputRef = useRef<HTMLInputElement>(null);
     const timeSuppress = useRef(false);
+    const timeSecondsOpen = useRef(false);
     const timeCaret = useRef<number | null>(null);
     const timeBypassLogged = useRef(false);
 
@@ -875,13 +876,23 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         const input = timeInputRef.current;
         if (!input) return;
         timeSuppress.current = false;
+        timeSecondsOpen.current = false;
         timeBypassLogged.current = false;
         let pasteClaimed = false;
         const editTime = (kind: TimeEditKind, text: string) => {
             const start = input.selectionStart ?? 0;
             const end = input.selectionEnd ?? start;
-            const res = applyTimeEdit(input.value, start, end, text, kind, timeSuppress.current);
+            const res = applyTimeEdit(
+                input.value,
+                start,
+                end,
+                text,
+                kind,
+                timeSuppress.current,
+                timeSecondsOpen.current,
+            );
             timeSuppress.current = res.suppress;
+            timeSecondsOpen.current = res.secondsOpen;
             timeCaret.current = res.caret;
             setEditForm((form) => (form ? { ...form, time: res.value } : form));
         };
@@ -921,11 +932,20 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             event.preventDefault();
             claimPaste(event.clipboardData?.getData('text') ?? '');
         };
+        const onBlur = () => {
+            const committed = commitEditTime(input.value);
+            if (committed === input.value) return;
+            timeSuppress.current = false;
+            timeSecondsOpen.current = false;
+            setEditForm((form) => (form ? { ...form, time: committed } : form));
+        };
         input.addEventListener('beforeinput', onBefore);
         input.addEventListener('paste', onPaste);
+        input.addEventListener('focusout', onBlur);
         return () => {
             input.removeEventListener('beforeinput', onBefore);
             input.removeEventListener('paste', onPaste);
+            input.removeEventListener('focusout', onBlur);
         };
     }, [markerLogId]);
 

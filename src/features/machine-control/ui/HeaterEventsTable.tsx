@@ -3,7 +3,14 @@ import { inputCls } from '@shared/ui/form-styles';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { applyTimeEdit, BT_DECIMALS, HEAT_DECIMALS, isDecimalDraft, type TimeEditKind } from '../lib/heater-events';
+import {
+    applyTimeEdit,
+    BT_DECIMALS,
+    commitEditTime,
+    HEAT_DECIMALS,
+    isDecimalDraft,
+    type TimeEditKind,
+} from '../lib/heater-events';
 import { MAX_EVENTS, type ReplayTrigger } from '../lib/replay';
 
 export type DraftRow = {
@@ -42,7 +49,7 @@ export const HeaterEventsTable = ({
     onDelete?: (key: string) => void;
 }) => {
     const { t } = useTranslation();
-    const timeSuppress = useRef(new WeakMap<HTMLInputElement, boolean>());
+    const timeEdit = useRef(new WeakMap<HTMLInputElement, { suppress: boolean; secondsOpen: boolean }>());
     const pasteClaimed = useRef(new WeakMap<HTMLInputElement, boolean>());
     const unhandledTimeInputs = useRef(new WeakSet<HTMLInputElement>());
     const caretFix = useRef<{ el: HTMLInputElement; caret: number } | null>(null);
@@ -67,8 +74,17 @@ export const HeaterEventsTable = ({
             if (!key) return;
             const start = input.selectionStart ?? 0;
             const end = input.selectionEnd ?? start;
-            const res = applyTimeEdit(input.value, start, end, text, kind, timeSuppress.current.get(input) ?? false);
-            timeSuppress.current.set(input, res.suppress);
+            const prior = timeEdit.current.get(input);
+            const res = applyTimeEdit(
+                input.value,
+                start,
+                end,
+                text,
+                kind,
+                prior?.suppress ?? false,
+                prior?.secondsOpen ?? false,
+            );
+            timeEdit.current.set(input, { suppress: res.suppress, secondsOpen: res.secondsOpen });
             caretFix.current = { el: input, caret: res.caret };
             onUpdate(key, { t: res.value });
         };
@@ -108,11 +124,22 @@ export const HeaterEventsTable = ({
             event.preventDefault();
             claimPaste(event.target, event.clipboardData?.getData('text') ?? '');
         };
+        const onBlur = (event: Event) => {
+            if (!isTimeInput(event.target)) return;
+            const committed = commitEditTime(event.target.value);
+            if (committed === event.target.value) return;
+            const key = event.target.dataset.timeKey;
+            if (!key) return;
+            timeEdit.current.set(event.target, { suppress: false, secondsOpen: false });
+            onUpdate(key, { t: committed });
+        };
         root.addEventListener('beforeinput', onBefore);
         root.addEventListener('paste', onPaste);
+        root.addEventListener('focusout', onBlur);
         return () => {
             root.removeEventListener('beforeinput', onBefore);
             root.removeEventListener('paste', onPaste);
+            root.removeEventListener('focusout', onBlur);
         };
     }, [onUpdate]);
     return (

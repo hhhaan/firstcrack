@@ -688,7 +688,7 @@ describe('RoastTempChart interactions', () => {
         act(() => typeMarkerTime(time, 'a'));
         expect(time.value).toBe('0:05');
         act(() => replaceMarkerTime(time, '0:61'));
-        expect(time.value).toBe('0:06');
+        expect(time.value).toBe('0:60');
         act(() => replaceMarkerTime(time, '0:60'));
         expect(time.value).toBe('0:60');
         act(() =>
@@ -739,7 +739,7 @@ describe('RoastTempChart interactions', () => {
         act(() => typeMarkerTime(time, '1'));
         act(() => typeMarkerTime(time, '2'));
         expect(time.value).toBe('12:00');
-        expect(time.selectionStart).toBe(3);
+        expect(time.selectionStart).toBe(5);
         act(() => typeMarkerTime(time, '3'));
         act(() => typeMarkerTime(time, '4'));
         expect(time.value).toBe('12:34');
