@@ -523,13 +523,13 @@
                 "version": "앱 버전",
                 "versionDescription": "현재 설치된 앱 버전입니다."
             },
-            "support": {
-                "label": "지원",
-                "title": "도움말 및 지원",
-                "description": "문의, 지원 요청, 제품 웹사이트를 확인할 수 있습니다.",
-                "contactTitle": "고객 지원",
-                "contactDescription": "제품, 결제, 기술 문의는 이메일로 연락해 주세요.",
-                "contactAction": "이메일 보내기",
+            "feedback": {
+                "label": "피드백",
+                "title": "피드백",
+                "description": "개선 의견이나 문제를 팀에 전달합니다.",
+                "contactTitle": "피드백 보내기",
+                "contactDescription": "앱을 사용하며 느낀 점이나 발견한 문제를 알려주세요.",
+                "contactAction": "피드백 보내기",
                 "websiteTitle": "웹사이트",
                 "websiteDescription": "제품 업데이트, 문서, 회사 정보를 확인합니다."
             }

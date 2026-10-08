@@ -7,7 +7,7 @@ import { getSearchTabs, type RoastSettingsGroup, roastSettingsGroups, type Setti
 const groups: { key: 'workspace' | 'account' | 'application'; tabs: SettingsTabId[] }[] = [
     { key: 'workspace', tabs: ['general', 'roast', 'team'] },
     { key: 'account', tabs: ['account', 'billing'] },
-    { key: 'application', tabs: ['software', 'support'] },
+    { key: 'application', tabs: ['software', 'feedback'] },
 ];
 
 export type SettingsNavigationProps = {

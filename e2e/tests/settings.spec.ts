@@ -18,12 +18,16 @@ test('settings shortcut, Feedback, and shortcut editing work through the app she
     const modifier = await page.evaluate(() => (/mac/i.test(navigator.userAgent) ? 'Meta' : 'Control'));
     const sidebar = page.getByTestId('app-sidebar');
     const settings = page.getByTestId('settings-page');
-    await sidebar.getByRole('button', { name: 'More', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath('sidebar-more.png'), animations: 'disabled' });
-    await page.getByRole('button', { name: 'Feedback', exact: true }).click();
-    await expect(settings.getByRole('heading', { name: 'Contact support', exact: true })).toBeVisible();
+    await expect(sidebar.getByRole('button', { name: 'More', exact: true })).toHaveCount(0);
+    await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
+    await settings
+        .getByRole('navigation', { name: 'Settings', exact: true })
+        .getByRole('button', { name: 'Feedback', exact: true })
+        .click();
+    await expect(settings.getByRole('heading', { name: 'Send feedback', exact: true })).toBeVisible();
+    await expect(settings.getByRole('button', { name: 'Send feedback', exact: true })).toBeVisible();
     await expect(settings.getByText('support@firstcrackiscoming.com', { exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('settings-feedback.png'), animations: 'disabled' });
     await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
 
     await page.keyboard.press(`${modifier}+,`);
@@ -88,7 +92,6 @@ test('settings shortcut, Feedback, and shortcut editing work through the app she
 test('BT smoothing supports custom strength, keyboard input, reopening and reset', async ({
     authedPage: page,
 }, testInfo) => {
-    await page.getByTestId('app-sidebar').getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
@@ -111,7 +114,6 @@ test('BT smoothing supports custom strength, keyboard input, reopening and reset
         })
         .screenshot({ path: testInfo.outputPath('bt-smoothing-custom.png') });
     await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
-    await page.getByTestId('app-sidebar').getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
     await expect(value).toHaveValue('80');
@@ -137,7 +139,6 @@ test('settings is a responsive page and preserves existing preferences and entry
 }, testInfo) => {
     await goNav(page, 'beans');
     const appRail = page.getByTestId('app-sidebar');
-    await appRail.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     const navigation = settings.getByRole('navigation', { name: 'Settings', exact: true });
@@ -182,7 +183,7 @@ test('settings is a responsive page and preserves existing preferences and entry
     await settings.getByLabel('앱 언어', { exact: true }).selectOption('en');
     await settings.getByLabel('Stock alert horizon', { exact: true }).fill('42');
 
-    for (const tab of ['Roasting', 'Team', 'Profile', 'Billing', 'Software', 'Support', 'General']) {
+    for (const tab of ['Roasting', 'Team', 'Profile', 'Billing', 'Software', 'Feedback', 'General']) {
         await navigation.getByRole('button', { name: tab, exact: true }).click();
         await expect(
             settings.getByRole('main').getByRole('heading', { name: tab, exact: true, level: 1 }),
@@ -220,7 +221,7 @@ test('settings is a responsive page and preserves existing preferences and entry
     await page.screenshot({ path: testInfo.outputPath('settings-narrow.png') });
     await navigation.getByRole('button', { name: 'Profile', exact: true }).click();
     await page.screenshot({ path: testInfo.outputPath('settings-profile-narrow.png') });
-    for (const tab of ['General', 'Roasting', 'Profile', 'Team', 'Billing', 'Software', 'Support']) {
+    for (const tab of ['General', 'Roasting', 'Profile', 'Team', 'Billing', 'Software', 'Feedback']) {
         await navigation.getByRole('button', { name: tab, exact: true }).click();
         const main = settings.getByRole('main');
         await expect
@@ -244,7 +245,6 @@ test('settings is a responsive page and preserves existing preferences and entry
 test('roasting submenus filter sections while search and saved preferences span every group', async ({
     authedPage: page,
 }, testInfo) => {
-    await page.getByTestId('app-sidebar').getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     const navigation = settings.getByRole('navigation');
@@ -317,7 +317,6 @@ test('roasting submenus filter sections while search and saved preferences span 
 test('temperature grid switches between default and a custom tick list without losing saved values', async ({
     authedPage: page,
 }, testInfo) => {
-    await page.getByTestId('app-sidebar').getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     const navigation = settings.getByRole('navigation', { name: 'Settings', exact: true });

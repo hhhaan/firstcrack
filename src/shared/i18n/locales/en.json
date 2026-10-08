@@ -523,13 +523,13 @@
                 "version": "App Version",
                 "versionDescription": "Currently installed app version."
             },
-            "support": {
-                "label": "Support",
-                "title": "Help & Support",
-                "description": "Get help, contact the team, or visit the product website.",
-                "contactTitle": "Contact support",
-                "contactDescription": "Reach out for product questions, billing, or technical issues.",
-                "contactAction": "Send email",
+            "feedback": {
+                "label": "Feedback",
+                "title": "Feedback",
+                "description": "Share ideas, report issues, or contact the team.",
+                "contactTitle": "Send feedback",
+                "contactDescription": "Tell us what could be better or report a problem with the app.",
+                "contactAction": "Send feedback",
                 "websiteTitle": "Website",
                 "websiteDescription": "Product updates, docs, and company information."
             }

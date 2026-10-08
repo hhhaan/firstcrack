@@ -19,7 +19,7 @@ async function openExternal(url: string, context: string) {
     }
 }
 
-export function SupportSettingsTab() {
+export function FeedbackSettingsTab() {
     const { t } = useTranslation();
 
     return (
@@ -27,8 +27,8 @@ export function SupportSettingsTab() {
             <SettingsSection>
                 <SettingsSection.Header
                     icon={<Mail size={16} strokeWidth={1.8} />}
-                    title={t('settings.tabs.support.contactTitle')}
-                    description={t('settings.tabs.support.contactDescription')}
+                    title={t('settings.tabs.feedback.contactTitle')}
+                    description={t('settings.tabs.feedback.contactDescription')}
                 />
                 <SettingsSection.Body className="flex flex-col gap-3">
                     <SettingsOptionRow tone="muted">
@@ -36,11 +36,11 @@ export function SupportSettingsTab() {
                     </SettingsOptionRow>
                     <button
                         type="button"
-                        onClick={() => void openExternal(`mailto:${SUPPORT_EMAIL}`, 'support open email')}
+                        onClick={() => void openExternal(`mailto:${SUPPORT_EMAIL}`, 'feedback open email')}
                         className={actionBtnCls}
                     >
                         <Mail size={14} strokeWidth={2} />
-                        {t('settings.tabs.support.contactAction')}
+                        {t('settings.tabs.feedback.contactAction')}
                         <ExternalLink size={13} strokeWidth={2} className="text-[#9CA3AF] dark:text-[#666] ml-auto" />
                     </button>
                 </SettingsSection.Body>
@@ -49,13 +49,13 @@ export function SupportSettingsTab() {
             <SettingsSection>
                 <SettingsSection.Header
                     icon={<ExternalLink size={16} strokeWidth={1.8} />}
-                    title={t('settings.tabs.support.websiteTitle')}
-                    description={t('settings.tabs.support.websiteDescription')}
+                    title={t('settings.tabs.feedback.websiteTitle')}
+                    description={t('settings.tabs.feedback.websiteDescription')}
                 />
                 <SettingsSection.Body>
                     <button
                         type="button"
-                        onClick={() => void openExternal(WEBSITE_URL, 'support open website')}
+                        onClick={() => void openExternal(WEBSITE_URL, 'feedback open website')}
                         className={actionBtnCls}
                     >
                         <span className="truncate">{WEBSITE_URL.replace(/^https?:\/\//, '')}</span>

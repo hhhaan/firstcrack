@@ -523,13 +523,13 @@
                 "version": "アプリバージョン",
                 "versionDescription": "現在インストールされているアプリのバージョンです。"
             },
-            "support": {
-                "label": "サポート",
-                "title": "ヘルプとサポート",
-                "description": "お問い合わせ、サポート、製品サイトを確認できます。",
-                "contactTitle": "サポートに連絡",
-                "contactDescription": "製品、請求、技術的な問題はメールでご連絡ください。",
-                "contactAction": "メールを送る",
+            "feedback": {
+                "label": "フィードバック",
+                "title": "フィードバック",
+                "description": "改善のアイデアや不具合をチームに伝えます。",
+                "contactTitle": "フィードバックを送信",
+                "contactDescription": "アプリへのご意見や見つけた問題をお知らせください。",
+                "contactAction": "フィードバックを送信",
                 "websiteTitle": "ウェブサイト",
                 "websiteDescription": "製品アップデート、ドキュメント、会社情報を確認します。"
             }

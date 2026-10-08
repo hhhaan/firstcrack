@@ -1,11 +1,11 @@
 import { AccountSettingsTab } from '@widgets/settings/ui/AccountSettingsTab';
 import { BillingSettingsTab } from '@widgets/settings/ui/BillingSettingsTab';
+import { FeedbackSettingsTab } from '@widgets/settings/ui/FeedbackSettingsTab';
 import { GeneralSettingsTab } from '@widgets/settings/ui/GeneralSettingsTab';
 import { RoastSettingsTab } from '@widgets/settings/ui/RoastSettingsTab';
 import { SettingsLayout } from '@widgets/settings/ui/SettingsLayout';
 import type { SettingsNavigationProps } from '@widgets/settings/ui/SettingsSidebar';
 import { SoftwareSettingsTab } from '@widgets/settings/ui/SoftwareSettingsTab';
-import { SupportSettingsTab } from '@widgets/settings/ui/SupportSettingsTab';
 import { TeamSettingsTab } from '@widgets/settings/ui/TeamSettingsTab';
 
 export function Settings({ activeTab, onTabChange, onClose }: SettingsNavigationProps) {
@@ -17,7 +17,7 @@ export function Settings({ activeTab, onTabChange, onClose }: SettingsNavigation
             {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}
             {activeTab === 'billing' && <BillingSettingsTab />}
             {activeTab === 'software' && <SoftwareSettingsTab />}
-            {activeTab === 'support' && <SupportSettingsTab />}
+            {activeTab === 'feedback' && <FeedbackSettingsTab />}
         </SettingsLayout>
     );
 }

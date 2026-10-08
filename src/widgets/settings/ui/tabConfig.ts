@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
-import { CreditCard, Flame, Info, LayoutDashboard, LifeBuoy, type LucideIcon, User, Users } from 'lucide-react';
+import { CreditCard, Flame, Info, LayoutDashboard, type LucideIcon, MessageSquare, User, Users } from 'lucide-react';
 
-export type SettingsTabId = 'general' | 'roast' | 'account' | 'billing' | 'team' | 'software' | 'support';
+export type SettingsTabId = 'general' | 'roast' | 'account' | 'billing' | 'team' | 'software' | 'feedback';
 
 export const roastSettingsGroups = ['general', 'alerts', 'automation', 'bbp', 'display', 'axes', 'sensors'] as const;
 export type RoastSettingsGroup = (typeof roastSettingsGroups)[number];
@@ -81,11 +81,11 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             description: tk('software', 'description'),
         },
         {
-            id: 'support',
-            label: tk('support', 'label'),
-            icon: LifeBuoy,
-            title: tk('support', 'title'),
-            description: tk('support', 'description'),
+            id: 'feedback',
+            label: tk('feedback', 'label'),
+            icon: MessageSquare,
+            title: tk('feedback', 'title'),
+            description: tk('feedback', 'description'),
         },
         /* TODO: notifications 탭 - 기능 구현 시 활성화
         {

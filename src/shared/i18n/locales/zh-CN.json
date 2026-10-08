@@ -523,13 +523,13 @@
                 "version": "应用版本",
                 "versionDescription": "当前安装的应用版本。"
             },
-            "support": {
-                "label": "支持",
-                "title": "帮助与支持",
-                "description": "获取帮助、联系团队或访问产品网站。",
-                "contactTitle": "联系支持",
-                "contactDescription": "如有产品、账单或技术问题，请通过邮件联系我们。",
-                "contactAction": "发送邮件",
+            "feedback": {
+                "label": "反馈",
+                "title": "反馈",
+                "description": "向团队分享建议或报告问题。",
+                "contactTitle": "发送反馈",
+                "contactDescription": "告诉我们您的改进建议或使用中遇到的问题。",
+                "contactAction": "发送反馈",
                 "websiteTitle": "网站",
                 "websiteDescription": "查看产品更新、文档和公司信息。"
             }

@@ -23,7 +23,7 @@ import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
-import { Check, Ellipsis, Lock, Send, Settings } from 'lucide-react';
+import { Check, Lock, Settings } from 'lucide-react';
 import { type ComponentType, type CSSProperties, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
@@ -66,7 +66,6 @@ export const Sidebar = ({
     const { t } = useTranslation();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
     const [wsOpen, setWsOpen] = useState(false);
-    const [moreOpen, setMoreOpen] = useState(false);
     const settingsKeys = useShortcutKeys('openSettings');
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId, setActiveOwner, memberships, authUserId } = useActiveWorkspace();
@@ -315,49 +314,25 @@ export const Sidebar = ({
 
             {/* Footer */}
             <div className={cn('py-2.5 border-t border-border-subtle dark:border-[#585d61]', rail ? 'px-3' : edgePad)}>
-                <Popover open={moreOpen} onOpenChange={setMoreOpen}>
-                    <PopoverTrigger asChild>
-                        <button
-                            type="button"
-                            aria-label={t('sidebar.more')}
-                            title={collapsed ? t('sidebar.more') : undefined}
-                            className="flex h-9 w-full items-center overflow-hidden rounded-lg bg-transparent text-secondary transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
-                        >
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center">
-                                <Ellipsis size={18} strokeWidth={1.5} />
-                            </span>
-                            {!collapsed && <span className="text-[13px]">{t('sidebar.more')}</span>}
-                        </button>
-                    </PopoverTrigger>
-                    <PopoverContent side="top" align="start" className="w-60 p-1.5" aria-label={t('sidebar.more')}>
-                        <button
-                            type="button"
-                            aria-label={t('sidebar.settings')}
-                            onClick={() => {
-                                setMoreOpen(false);
-                                onOpenSettings();
-                            }}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[13px] text-primary hover:bg-primary/5 cursor-pointer"
-                        >
-                            <Settings size={18} strokeWidth={1.5} />
-                            <span className="flex-1">{t('sidebar.settings')}</span>
-                            <kbd className="whitespace-nowrap font-sans text-xs text-muted">
+                <button
+                    type="button"
+                    aria-label={t('sidebar.settings')}
+                    title={`${t('sidebar.settings')} (${formatShortcut(settingsKeys)})`}
+                    onClick={() => onOpenSettings()}
+                    className="flex h-9 w-full items-center overflow-hidden rounded-lg bg-transparent text-secondary transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
+                >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center">
+                        <Settings size={18} strokeWidth={1.5} />
+                    </span>
+                    {!collapsed && (
+                        <>
+                            <span className="flex-1 text-left text-[13px]">{t('sidebar.settings')}</span>
+                            <kbd className="pr-2 whitespace-nowrap font-sans text-xs text-muted">
                                 {formatShortcut(settingsKeys)}
                             </kbd>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setMoreOpen(false);
-                                onOpenSettings('support');
-                            }}
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[13px] text-primary hover:bg-primary/5 cursor-pointer"
-                        >
-                            <Send size={18} strokeWidth={1.5} />
-                            {t('sidebar.feedback')}
-                        </button>
-                    </PopoverContent>
-                </Popover>
+                        </>
+                    )}
+                </button>
             </div>
         </aside>
     );
