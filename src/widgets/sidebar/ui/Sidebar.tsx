@@ -327,7 +327,7 @@ export const Sidebar = ({
                     {!collapsed && (
                         <>
                             <span className="flex-1 text-left text-[13px]">{t('sidebar.settings')}</span>
-                            <kbd className="pr-2 whitespace-nowrap font-sans text-xs text-muted">
+                            <kbd className="pr-2 whitespace-nowrap font-sans text-xs text-muted opacity-60">
                                 {formatShortcut(settingsKeys)}
                             </kbd>
                         </>
