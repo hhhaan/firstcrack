@@ -86,6 +86,8 @@ export const useRoastSummaryForm = ({
         mode: 'none',
         batchId: null,
     });
+    /** Avoid checkpoint writes until react-hook-form applies `reset(merged)` (prevents null clobber). */
+    const [colorCheckpointReady, setColorCheckpointReady] = useState(false);
     useEffect(() => {
         selectedBeanIdRef.current = selectedBeanId;
     }, [selectedBeanId]);
@@ -98,6 +100,7 @@ export const useRoastSummaryForm = ({
 
     useEffect(() => {
         if (open && summaryData) {
+            setColorCheckpointReady(false);
             const initial = summaryFormInitialValues(
                 handoffRef.current,
                 lastAdhocRef.current,
@@ -110,11 +113,16 @@ export const useRoastSummaryForm = ({
             prevLinkRef.current = { mode: merged.linkMode, batchId: merged.planBatchId };
             reset(merged);
             setBeanFieldEpoch((k) => k + 1);
+            queueMicrotask(() => {
+                setColorCheckpointReady(true);
+            });
+        } else {
+            setColorCheckpointReady(false);
         }
     }, [open, summaryData, reset, userId]);
 
     useEffect(() => {
-        if (!open || !summaryData?.sessionId || !userId) return;
+        if (!open || !summaryData?.sessionId || !userId || !colorCheckpointReady) return;
         const pending = readPendingRoastSave(userId, summaryData.sessionId);
         if (!pending) return;
         const nextWhole = normalizeRoastColorText(colorWhole ?? '');
@@ -129,7 +137,7 @@ export const useRoastSummaryForm = ({
                 formData: { ...pending.params.formData, colorWhole: nextWhole, colorGround: nextGround },
             },
         });
-    }, [open, summaryData?.sessionId, userId, colorWhole, colorGround]);
+    }, [open, summaryData?.sessionId, userId, colorWhole, colorGround, colorCheckpointReady]);
 
     const linkedBatch = useMemo(() => {
         if (hasHandoff || linkMode !== 'schedule' || !formPlanBatchId) return null;

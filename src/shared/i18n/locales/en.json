@@ -1128,7 +1128,6 @@
             "summary": "Summary",
             "colorWhole": "Color (whole)",
             "colorGround": "Color (ground)",
-            "colorInvalid": "Enter a number that is 0 or greater.",
             "colorTooLong": "Color text is too long.",
             "keyEvents": "Key events",
             "heatRecord": "Heat record",

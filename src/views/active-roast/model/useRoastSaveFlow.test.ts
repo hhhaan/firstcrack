@@ -194,6 +194,26 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(h.onResetActiveRoast).toHaveBeenCalledTimes(2);
     });
 
+    it('forwards summary color strings into pending checkpoint and save RPC payload', async () => {
+        const sessionId = '11111111-1111-4111-8111-111111111111';
+        const h = renderFlow({ sessionId });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId }));
+        const formWithColors: RoastSummaryForm = {
+            ...form,
+            colorWhole: '58.4, 58.7, 59.0',
+            colorGround: 'WB 58.4 (avg)',
+        };
+        await act(async () => h.api.handleSave(formWithColors));
+        const saved = mocks.resumeSave.mock.calls[0][0] as PendingRoastSave;
+        expect(saved.params.formData).toMatchObject({
+            colorWhole: '58.4, 58.7, 59.0',
+            colorGround: 'WB 58.4 (avg)',
+        });
+        const checkpoint = listPendingRoastSaves().find((p) => p.params.sessionId === sessionId);
+        expect(checkpoint?.params.formData.colorWhole).toBe('58.4, 58.7, 59.0');
+        expect(checkpoint?.params.formData.colorGround).toBe('WB 58.4 (avg)');
+    });
+
     it('keeps both draft and submitted owner bound to the Charge session after workspace changes', async () => {
         useRoastingStore.setState({ sessionOwnerId: 'charge-owner' });
         const h = renderFlow({ sessionId: 'charged-session' });

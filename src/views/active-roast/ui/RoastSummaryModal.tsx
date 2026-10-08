@@ -1,4 +1,5 @@
 import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
+import { ROAST_COLOR_INPUT_MAX_LENGTH } from '@features/active-roast/lib/roastColorText';
 import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { isDeductDisplayEligible } from '@features/active-roast/lib/summaryPrefill';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
@@ -451,6 +452,7 @@ export const RoastSummaryModal = ({
                         <input
                             type="text"
                             data-testid="roast-summary-color-whole"
+                            maxLength={ROAST_COLOR_INPUT_MAX_LENGTH}
                             {...register('colorWhole')}
                             placeholder="—"
                             className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
@@ -462,6 +464,7 @@ export const RoastSummaryModal = ({
                         <input
                             type="text"
                             data-testid="roast-summary-color-ground"
+                            maxLength={ROAST_COLOR_INPUT_MAX_LENGTH}
                             {...register('colorGround')}
                             placeholder="—"
                             className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"

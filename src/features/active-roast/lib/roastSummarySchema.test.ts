@@ -89,10 +89,14 @@ describe('buildRoastSummarySchema roast color', () => {
         ).toEqual([]);
     });
 
-    it('rejects color text over the max length', () => {
+    it('rejects color text over the max length (trimmed)', () => {
         const issues = issuesFor(form({ colorGround: 'x'.repeat(121) }));
         expect(issues).toHaveLength(1);
         expect(issues[0].path).toEqual(['colorGround']);
+    });
+
+    it('accepts max-length color with surrounding spaces', () => {
+        expect(issuesFor(form({ colorWhole: `  ${'9'.repeat(120)}  ` }))).toEqual([]);
     });
 });
 

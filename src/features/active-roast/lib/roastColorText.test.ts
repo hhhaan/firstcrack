@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeRoastColorText, ROAST_COLOR_MAX_LENGTH } from './roastColorText';
+import { isRoastColorTooLong, normalizeRoastColorText, ROAST_COLOR_MAX_LENGTH } from './roastColorText';
 
 describe('normalizeRoastColorText', () => {
     it('returns null for blank input', () => {
@@ -24,5 +24,12 @@ describe('normalizeRoastColorText', () => {
 describe('ROAST_COLOR_MAX_LENGTH', () => {
     it('matches bean label cap', () => {
         expect(ROAST_COLOR_MAX_LENGTH).toBe(120);
+    });
+});
+
+describe('isRoastColorTooLong', () => {
+    it('measures trimmed length only', () => {
+        expect(isRoastColorTooLong(`  ${'a'.repeat(120)}  `)).toBe(false);
+        expect(isRoastColorTooLong(`  ${'a'.repeat(121)}  `)).toBe(true);
     });
 });

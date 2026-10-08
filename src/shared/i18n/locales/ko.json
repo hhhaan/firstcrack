@@ -825,7 +825,6 @@
             "summary": "요약",
             "colorWhole": "색도 (홀빈)",
             "colorGround": "색도 (분쇄)",
-            "colorInvalid": "0 이상의 숫자만 입력하세요.",
             "colorTooLong": "색도 입력이 너무 깁니다.",
             "keyEvents": "주요 이벤트",
             "heatRecord": "화력 기록",

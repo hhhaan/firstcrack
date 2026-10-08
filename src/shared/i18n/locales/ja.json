@@ -1128,7 +1128,6 @@
             "summary": "概要",
             "colorWhole": "色度 (ホール)",
             "colorGround": "色度 (粉砕)",
-            "colorInvalid": "0以上の数値を入力してください。",
             "colorTooLong": "色度の入力が長すぎます。",
             "keyEvents": "主要イベント",
             "heatRecord": "火力記録",

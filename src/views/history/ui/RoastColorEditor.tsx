@@ -1,6 +1,10 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateRoastSession } from '@entities/roast';
-import { normalizeRoastColorText, ROAST_COLOR_MAX_LENGTH } from '@features/active-roast/lib/roastColorText';
+import {
+    isRoastColorTooLong,
+    normalizeRoastColorText,
+    ROAST_COLOR_INPUT_MAX_LENGTH,
+} from '@features/active-roast/lib/roastColorText';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { formErrorCls } from '@shared/ui/form-styles';
 import { useState } from 'react';
@@ -23,12 +27,12 @@ const ColorField = ({
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { mutateAsync: updateSession, isPending } = useUpdateRoastSession(workspaceOwnerId);
     const stored = session[column];
-    const [draft, setDraft] = useState(() => (stored != null ? stored : ''));
+    const [draft, setDraft] = useState(() => stored ?? '');
     const [tooLong, setTooLong] = useState(false);
 
     const commit = async () => {
         const next = normalizeRoastColorText(draft);
-        if (draft.trim().length > ROAST_COLOR_MAX_LENGTH) {
+        if (isRoastColorTooLong(draft)) {
             setTooLong(true);
             return;
         }
@@ -38,7 +42,7 @@ const ColorField = ({
         try {
             await updateSession({ id: session.id, [column]: next });
         } catch {
-            setDraft(stored != null ? stored : '');
+            setDraft(stored ?? '');
         }
     };
 
@@ -58,7 +62,7 @@ const ColorField = ({
                 disabled={isPending}
                 placeholder="—"
                 aria-label={t(labelKey)}
-                maxLength={ROAST_COLOR_MAX_LENGTH}
+                maxLength={ROAST_COLOR_INPUT_MAX_LENGTH}
                 onChange={(e) => {
                     setDraft(e.target.value);
                     setTooLong(false);

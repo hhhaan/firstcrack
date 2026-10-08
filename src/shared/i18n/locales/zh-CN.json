@@ -1128,7 +1128,6 @@
             "summary": "概要",
             "colorWhole": "色值（整豆）",
             "colorGround": "色值（研磨）",
-            "colorInvalid": "请输入大于等于 0 的数字。",
             "colorTooLong": "色值输入过长。",
             "keyEvents": "关键事件",
             "heatRecord": "火力记录",

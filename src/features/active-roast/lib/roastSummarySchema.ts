@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ROAST_COLOR_MAX_LENGTH } from './roastColorText';
+import { isRoastColorTooLong } from './roastColorText';
 
 /**
  * Physical sanity ceiling for a single batch, in kg. Commercial roasters top out
@@ -57,10 +57,21 @@ export const buildRoastSummarySchema = ({ t, hasHandoff }: BuildRoastSummarySche
         .extend({
             weightGrams: weightKg,
             outputWeightKg: z.union([weightKg, z.nan()]).optional(),
-            colorWhole: z.string().max(ROAST_COLOR_MAX_LENGTH, t('activeRoast.summary.colorTooLong')).optional(),
-            colorGround: z.string().max(ROAST_COLOR_MAX_LENGTH, t('activeRoast.summary.colorTooLong')).optional(),
+            colorWhole: z.string().optional(),
+            colorGround: z.string().optional(),
         })
         .superRefine((data, ctx) => {
+            for (const path of ['colorWhole', 'colorGround'] as const) {
+                const value = data[path];
+                if (value !== undefined && isRoastColorTooLong(value)) {
+                    ctx.addIssue({
+                        code: 'custom',
+                        path: [path],
+                        message: t('activeRoast.summary.colorTooLong'),
+                    });
+                }
+            }
+
             const output = data.outputWeightKg;
             // No `weightGrams > 0` guard: weight 0 + output 5 is exactly the combo the
             // DB check rejects with 23514, so it has to fail here too.
