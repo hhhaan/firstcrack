@@ -46,6 +46,7 @@ export const useMachineControl = (
     sidecarConnected: boolean,
     feedback: MachineFeedback,
     onCommitted?: (committed: ControlCommand) => void,
+    onApplied?: (applied: ControlCommand) => void,
 ) => {
     const [capability, setCapability] = useState<ControlCapability | null>(null);
     /**
@@ -77,6 +78,14 @@ export const useMachineControl = (
     );
 
     useEffect(() => sender.setOnCommitted(onCommitted), [onCommitted, sender]);
+    const handleApplied = useCallback(
+        (applied: ControlCommand) => {
+            setTracking((t) => ({ ...t, desired: { ...t.desired, ...applied } }));
+            onApplied?.(applied);
+        },
+        [onApplied],
+    );
+    useEffect(() => sender.setOnApplied(handleApplied), [handleApplied, sender]);
 
     useEffect(() => () => sender.dispose(), [sender]);
 

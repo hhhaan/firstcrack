@@ -314,6 +314,10 @@ describe('ActiveRoast running clock (#627)', () => {
             expect(latest().replay.plan?.events).toEqual(events);
             expect(latest().replay.active).toBe(true);
             expect(latest().replay.firedCount).toBe(1);
+            expect(
+                useRoastingStore.getState().logState.entries.filter((entry) => entry.event === 'Control'),
+            ).toMatchObject([{ appliedControl: { heater: 45 } }]);
+
             expect(write).toHaveBeenCalledOnce();
             expect(clockText(host)).toContain('0:07');
             expect(useRoastingStore.getState().sessionId).toBe('sess-remount');

@@ -101,6 +101,7 @@ const canEditChartMarkers = (charged: boolean, roastEnded: boolean, bbpActive: b
 const anySeriesOn = (drum: boolean, heat: boolean, fan: boolean) => drum || heat || fan;
 
 type ControlFrameInput = {
+    controlChanges?: ControlData['changes'];
     showControlChart: boolean;
     showControlDrum: boolean;
     showControlHeat: boolean;
@@ -137,6 +138,7 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
         heatPower: input.heatPower,
         fanSpeed: input.fanSpeed,
         heatSet: input.heatSet,
+        changes: input.bbpActive ? undefined : input.controlChanges,
         heatTarget: input.bbpActive ? undefined : input.heatTarget,
         reference:
             input.referenceXs.length > 0
@@ -151,6 +153,7 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
 };
 
 export const buildChartFrame = <TTurningPoint>(input: {
+    controlChanges?: ControlData['changes'];
     isFullscreen: boolean;
     bbpActive: boolean;
     bbpNowSec: number;

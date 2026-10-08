@@ -761,3 +761,37 @@ describe('createControlSender 미전송 Replay heater 취소 (#368 R03)', () => 
         expect(d.calls.some((cmd) => cmd.heater === 50)).toBe(false);
     });
 });
+
+describe('applied control chart observers', () => {
+    it('notifies only after ACK with the clamped values, and keeps the observer from the sent request', async () => {
+        const d = deferredSend();
+        const first = vi.fn();
+        const nextSession = vi.fn();
+        const sender = createControlSender({ send: d.send, onApplied: first });
+        sender.queue('heater', 120);
+        const pending = sender.commitNow();
+        expect(first).not.toHaveBeenCalled();
+        sender.setOnApplied(nextSession);
+        d.resolve({ heater: 100 });
+        await pending;
+        expect(first).toHaveBeenCalledWith({ heater: 100 });
+        expect(nextSession).not.toHaveBeenCalled();
+        sender.queue('fan', 50);
+        const failed = sender.commitNow();
+        d.reject(new Error('write failed'));
+        await expect(failed).resolves.toBeNull();
+        expect(nextSession).not.toHaveBeenCalled();
+    });
+    it('does not notify a disposed generation', async () => {
+        const d = deferredSend();
+        const onApplied = vi.fn();
+        const sender = createControlSender({ send: d.send, onApplied });
+        sender.queue('drum', 55);
+        const pending = sender.commitNow();
+        sender.dispose();
+        d.resolve({ drum: 55 });
+        await pending;
+        await Promise.resolve();
+        expect(onApplied).not.toHaveBeenCalled();
+    });
+});

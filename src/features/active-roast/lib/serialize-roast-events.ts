@@ -3,7 +3,7 @@ import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/tempera
 import { parseTimeSec } from '@features/active-roast/lib/time';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatElapsed } from '@shared/lib/format';
-import type { LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
+import type { AppliedRoastControl, LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
 
 const formatStoredEventTemp = (tempC: number | null | undefined, unit: TemperatureUnit): string =>
     tempC != null && Number.isFinite(tempC) ? `${Math.round(toDisplayTemp(tempC, unit))}${tempUnitLabel(unit)}` : '—';
@@ -22,6 +22,7 @@ export const serializeRoastEvents = (logEntries: LogEntry[]): StoredRoastEvent[]
             time_sec: logEntryTimeSec(e),
             temp_c: e.tempC ?? null,
             note: e.note || null,
+            ...(e.appliedControl ? { applied_control: e.appliedControl } : {}),
             ...(e.gas ? { gas: e.gas } : {}),
             ...(e.airflow ? { airflow: e.airflow } : {}),
         }))
@@ -49,12 +50,21 @@ export const parseStoredRoastEvents = (raw: unknown): StoredRoastEvent[] => {
         const type = typeof o.type === 'string' ? o.type : null;
         const timeSec = typeof o.time_sec === 'number' && Number.isFinite(o.time_sec) ? o.time_sec : null;
         if (!type || timeSec == null) continue;
+        const applied = o.applied_control;
+        const appliedControl: AppliedRoastControl = {};
+        if (applied && typeof applied === 'object') {
+            for (const role of ['heater', 'fan', 'drum'] as const) {
+                const value = (applied as Record<string, unknown>)[role];
+                if (typeof value === 'number' && Number.isFinite(value)) appliedControl[role] = value;
+            }
+        }
         out.push({
             id: typeof o.id === 'string' ? o.id : crypto.randomUUID(),
             type,
             time_sec: timeSec,
             temp_c: optionalJsonNumber(o.temp_c),
             note: optionalJsonString(o.note),
+            ...(Object.keys(appliedControl).length ? { applied_control: appliedControl } : {}),
             ...(typeof o.gas === 'string' && o.gas ? { gas: o.gas } : {}),
             ...(typeof o.airflow === 'string' && o.airflow ? { airflow: o.airflow } : {}),
         });
@@ -76,6 +86,7 @@ export type HistoryEventMarker = RoastNoteControls & {
 /** Stored events → read-only log rows for profile/history UI. */
 export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: TemperatureUnit): LogEntry[] =>
     [...events]
+        .filter((e) => e.type !== 'Control')
         .sort((a, b) => a.time_sec - b.time_sec)
         .map((e) => ({
             id: e.id,
@@ -88,6 +99,14 @@ export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: Tempe
             ...(e.gas ? { gas: e.gas } : {}),
             ...(e.airflow ? { airflow: e.airflow } : {}),
         }));
+
+/** Only explicit acknowledged app writes supply control-chart change labels. */
+export const storedEventsToControlChanges = (events: StoredRoastEvent[]) =>
+    events.flatMap((event) =>
+        event.type === 'Control' && event.applied_control
+            ? [{ timeSec: event.time_sec, values: event.applied_control }]
+            : [],
+    );
 
 /** Stored events → chart markers. Live TP is a `turningPoints` overlay, not an eventMarker — include it here so history can draw it. */
 export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: TemperatureUnit = 'C'): HistoryEventMarker[] =>

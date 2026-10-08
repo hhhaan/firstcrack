@@ -1,5 +1,8 @@
 import type { TemperatureProcessing } from './sidecar';
 
+/** Logical values acknowledged by an app control write, independent of sensor feedback. */
+export type AppliedRoastControl = Partial<Record<'heater' | 'fan' | 'drum', number>>;
+
 /** Manual observations only; never sent as machine control commands. */
 export type RoastNoteControls = {
     gas?: string;
@@ -8,6 +11,7 @@ export type RoastNoteControls = {
 
 /** Live roast event log row (UI + in-memory). */
 export interface LogEntry extends RoastNoteControls {
+    appliedControl?: AppliedRoastControl;
     id?: string;
     /** Display "m:ss" (derived). */
     time: string;
@@ -26,6 +30,7 @@ export interface LogEntry extends RoastNoteControls {
 
 /** Persisted on roast_sessions.events jsonb. */
 export type StoredRoastEvent = RoastNoteControls & {
+    applied_control?: AppliedRoastControl;
     id: string;
     type: string;
     time_sec: number;

@@ -4,6 +4,7 @@ import {
     logEntryTimeSec,
     parseStoredRoastEvents,
     serializeRoastEvents,
+    storedEventsToControlChanges,
     storedEventsToLogEntries,
     storedEventsToMarkers,
 } from './serialize-roast-events';
@@ -259,5 +260,32 @@ describe('storedEventsToMarkers', () => {
         expect(fMarkers[0].temp).toBe('410');
 
         vi.unstubAllGlobals();
+    });
+});
+
+describe('acknowledged control provenance', () => {
+    it('round trips successful writes without exposing them as narrative log rows or inventing old commands', () => {
+        const entries: LogEntry[] = [
+            {
+                id: 'ack',
+                event: 'Control',
+                time: '1:02',
+                timeSec: 62.5,
+                temp: '',
+                note: '',
+                appliedControl: { heater: 0, fan: 1.2, drum: 55 },
+            },
+        ];
+        const stored = parseStoredRoastEvents(JSON.parse(JSON.stringify(serializeRoastEvents(entries))));
+        expect(storedEventsToControlChanges(stored)).toEqual([
+            { timeSec: 62.5, values: { heater: 0, fan: 1.2, drum: 55 } },
+        ]);
+        expect(storedEventsToLogEntries(stored, 'C')).toEqual([]);
+        const legacy = parseStoredRoastEvents([{ id: 'old', type: 'Heater', time_sec: 60, note: '80%' }]);
+        expect(storedEventsToControlChanges(legacy)).toEqual([]);
+        const corrupt = parseStoredRoastEvents([
+            { type: 'Control', time_sec: 60, applied_control: { heater: '80', fan: null, drum: Number.NaN } },
+        ]);
+        expect(storedEventsToControlChanges(corrupt)).toEqual([]);
     });
 });

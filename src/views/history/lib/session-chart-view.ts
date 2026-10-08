@@ -51,6 +51,7 @@ export const historyXView = (input: {
 });
 
 export const historyControls = (input: {
+    changes?: ControlData['changes'];
     points: { t: number; heater: number | null; fan: number | null; drum: number | null }[];
     heatSet: (number | null)[];
     referenceControls: boolean;
@@ -69,6 +70,7 @@ export const historyControls = (input: {
     return {
         hasControls,
         controlData: {
+            changes: input.changes,
             xs: input.points.map((point) => point.t),
             drumTemp: input.points.map((point) => point.drum),
             heatPower: input.points.map((point) => point.heater),
