@@ -1,3 +1,4 @@
+import { formatElapsed } from '@shared/lib/format';
 import { parseEditTime } from '@shared/lib/time-edit';
 import type { LogEntry } from '@shared/types/roast';
 import { useState } from 'react';
@@ -78,14 +79,32 @@ export function RoastLogEntryEditor({
                     event.preventDefault();
                     onClose();
                 }
+                if (
+                    (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
+                    event.target instanceof HTMLInputElement
+                ) {
+                    event.preventDefault();
+                    const field = event.target.name === 'time' ? 'time' : 'temp';
+                    const value = field === 'time' ? parseEditTime(draft.time) : Number(draft.temp);
+                    if (draft[field].trim() === '' || value == null || !Number.isFinite(value)) return;
+                    const direction = event.key === 'ArrowUp' ? 1 : -1;
+                    change(
+                        field,
+                        field === 'time'
+                            ? formatElapsed(Math.max(0, Math.min(options.maxTimeSec, value + direction)))
+                            : (value + direction * 0.1).toFixed(1),
+                    );
+                }
             }}
         >
             <label className="flex items-center justify-between gap-1">
                 {t('activeRoast.noteEntry.time')}
                 <input
                     autoFocus
+                    name="time"
                     aria-label={t('activeRoast.noteEntry.time')}
-                    className="w-20 min-w-0 rounded border border-border-subtle bg-surface px-1.5 py-1 font-mono"
+                    className="w-20 min-w-0 rounded border-[0.5px] border-border-subtle bg-surface px-1.5 py-1 font-mono outline-none focus:border-muted"
+                    onFocus={(event) => event.currentTarget.select()}
                     value={draft.time}
                     aria-invalid={draft.field === 'time' && !draft.valid}
                     onChange={(event) => change('time', event.target.value)}
@@ -96,7 +115,9 @@ export function RoastLogEntryEditor({
                 <input
                     aria-label={`${t('activeRoast.summary.temperature')} °${options.unit}`}
                     inputMode="decimal"
-                    className="w-20 min-w-0 rounded border border-border-subtle bg-surface px-1.5 py-1 font-mono"
+                    name="temp"
+                    className="w-20 min-w-0 rounded border-[0.5px] border-border-subtle bg-surface px-1.5 py-1 font-mono outline-none focus:border-muted"
+                    onFocus={(event) => event.currentTarget.select()}
                     value={draft.temp}
                     aria-invalid={draft.field === 'temp' && !draft.valid}
                     onChange={(event) => change('temp', event.target.value)}

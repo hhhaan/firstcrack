@@ -5,7 +5,7 @@ import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
 import { Pencil, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type RoastLogEditOptions, RoastLogEntryEditor } from './RoastLogEntryEditor';
 
@@ -25,6 +25,7 @@ export const RoastLog = ({
     const isSidebar = variant === 'sidebar';
     const { t } = useTranslation();
     const [editingId, setEditingId] = useState<string | null>(null);
+    const editTriggerRef = useRef<HTMLButtonElement | null>(null);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -49,14 +50,24 @@ export const RoastLog = ({
                 const canEdit = !!editOptions && !!entry.id && !entry.current && entry.event !== 'Charge';
                 const editor =
                     canEdit && editingId === entry.id ? (
-                        <RoastLogEntryEditor entry={entry} options={editOptions} onClose={() => setEditingId(null)} />
+                        <RoastLogEntryEditor
+                            entry={entry}
+                            options={editOptions}
+                            onClose={() => {
+                                setEditingId(null);
+                                editTriggerRef.current?.focus();
+                            }}
+                        />
                     ) : null;
                 const editButton = canEdit ? (
                     <button
                         type="button"
                         aria-label={`${t('common.edit')} ${roastEventLabel(entry.event)}`}
                         aria-expanded={editingId === entry.id}
-                        onClick={() => setEditingId(editingId === entry.id ? null : (entry.id ?? null))}
+                        onClick={(event) => {
+                            editTriggerRef.current = event.currentTarget;
+                            setEditingId(editingId === entry.id ? null : (entry.id ?? null));
+                        }}
                         className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
                     >
                         <Pencil size={12} />

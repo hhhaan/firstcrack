@@ -118,14 +118,33 @@ describe('RoastLog removable entries', () => {
             expect(buttons).toHaveLength(1);
             act(() => buttons[0].click());
             const inputs = container.querySelectorAll('input');
+            expect(document.activeElement).toBe(inputs[0]);
+            expect([inputs[0].selectionStart, inputs[0].selectionEnd]).toEqual([0, inputs[0].value.length]);
+            act(() => inputs[1].focus());
+            expect([inputs[1].selectionStart, inputs[1].selectionEnd]).toEqual([0, inputs[1].value.length]);
             const setValue = (input: HTMLInputElement, value: string) =>
                 act(() => {
                     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
                     input.dispatchEvent(new Event('input', { bubbles: true }));
                 });
+            const nudge = (input: HTMLInputElement, key: string) =>
+                act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })));
+            nudge(inputs[0], 'ArrowDown');
+            expect(inputs[0].value).toBe('0:59');
+            nudge(inputs[0], 'ArrowUp');
+            expect(inputs[0].value).toBe('1:00');
+            setValue(inputs[0], '0:00');
+            nudge(inputs[0], 'ArrowDown');
+            expect(inputs[0].value).toBe('0:00');
             setValue(inputs[0], '1:10');
+            nudge(inputs[0], 'ArrowUp');
+            expect(inputs[0].value).toBe('1:10');
             expect(inputs[1].value).toBe('374.0');
             setValue(inputs[1], '365');
+            nudge(inputs[1], 'ArrowUp');
+            expect(inputs[1].value).toBe('365.1');
+            nudge(inputs[1], 'ArrowDown');
+            expect(inputs[1].value).toBe('365.0');
             expect(inputs[0].value).toBe('1:05');
             act(() =>
                 container
@@ -134,6 +153,7 @@ describe('RoastLog removable entries', () => {
             );
             expect(onEditEntry).toHaveBeenCalledWith('fc', { timeSec: 65, tempC: 185 });
             expect(container.querySelector('form')).toBeNull();
+            expect(document.activeElement).toBe(buttons[0]);
             act(() => buttons[0].click());
             setValue(container.querySelectorAll('input')[1], '999');
             expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
@@ -144,6 +164,7 @@ describe('RoastLog removable entries', () => {
             );
             expect(container.querySelector('form')).toBeNull();
             expect(onEditEntry).toHaveBeenCalledTimes(1);
+            expect(document.activeElement).toBe(buttons[0]);
         },
     );
 });
