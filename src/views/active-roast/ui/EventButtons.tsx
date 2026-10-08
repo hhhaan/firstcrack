@@ -4,6 +4,18 @@ import { formatShortcut, type ShortcutId, useShortcutStore } from '@shared/store
 import { useThemeStore } from '@shared/store/theme';
 import type { LogEntry } from '@shared/types/roast';
 
+/** Drop is a double tap. Show the key twice (`⌘D ×2` → `DD`) and leave the gesture alone. */
+function formatDoubleTapShortcut(keys: readonly string[]): string {
+    return formatShortcut(keys)
+        .split(' / ')
+        .map((label) => {
+            const tail = label.split('+').pop() ?? label;
+            const key = tail.replace(/^[⌘⌥⇧]+/, '');
+            return key.length === 1 ? key + key : key;
+        })
+        .join(' / ');
+}
+
 export type EventButtonDef = {
     label: string;
     event: string | null;
@@ -153,8 +165,7 @@ export const EventButtons = ({
                                 }}
                             >
                                 <span>
-                                    {formatShortcut(keys)}
-                                    {shortcutId === 'drop' ? ' ×2' : ''}
+                                    {shortcutId === 'drop' ? formatDoubleTapShortcut(keys) : formatShortcut(keys)}
                                 </span>
                             </span>
                         </button>
