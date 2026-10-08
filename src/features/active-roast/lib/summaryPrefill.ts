@@ -1,5 +1,6 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LastAdhocSave } from '../model/batch';
+import type { SaveRoastFormData } from '../model/useSaveRoast';
 import type { RoastSummaryForm } from './roastSummarySchema';
 
 /** 저장 폼 프리필. 우선순위: 스케줄 핸드오프 > (bean은 헤더 선택 >) 직전 애드혹 배치 > 빈값. */
@@ -33,8 +34,8 @@ export const summaryFormInitialValues = (
         linkMode: handoff ? 'schedule' : 'none',
         planBatchId: handoff?.planBatchId ?? null,
         deductStock: Boolean(handoff) || prefill.beanId != null,
-        colorWhole: undefined,
-        colorGround: undefined,
+        colorWhole: '',
+        colorGround: '',
     };
 };
 
@@ -66,6 +67,19 @@ export const scheduleLinkFieldPatch = (input: {
 };
 
 /** Checkbox visibility. Inventory truth is the save path, not this flag. */
+/** Restore color strings from a durable pending checkpoint (crash / modal reopen). */
+export const mergePendingSummaryColors = (
+    form: RoastSummaryForm,
+    pending: SaveRoastFormData | null | undefined,
+): RoastSummaryForm => {
+    if (!pending) return form;
+    return {
+        ...form,
+        colorWhole: pending.colorWhole !== undefined ? (pending.colorWhole ?? '') : form.colorWhole,
+        colorGround: pending.colorGround !== undefined ? (pending.colorGround ?? '') : form.colorGround,
+    };
+};
+
 export const isDeductDisplayEligible = (input: {
     customBean: boolean;
     deductionKg: number;

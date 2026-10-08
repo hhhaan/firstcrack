@@ -1687,9 +1687,9 @@ export type Database = {
                     bean_label: string | null;
                     charge_temp_celsius: number | null;
                     /** Whole-bean roast color. Manual entry, no meter. Omitted until recorded. */
-                    color_whole?: number | null;
+                    color_whole?: string | null;
                     /** Ground roast color. Manual entry, no meter. Omitted until recorded. */
-                    color_ground?: number | null;
+                    color_ground?: string | null;
                     created_at: string;
                     created_by: string | null;
                     drop_temp_celsius: number | null;
@@ -1723,8 +1723,8 @@ export type Database = {
                     bean_id?: string | null;
                     bean_label?: string | null;
                     charge_temp_celsius?: number | null;
-                    color_whole?: number | null;
-                    color_ground?: number | null;
+                    color_whole?: string | null;
+                    color_ground?: string | null;
                     created_at?: string;
                     created_by?: string | null;
                     drop_temp_celsius?: number | null;
@@ -1758,8 +1758,8 @@ export type Database = {
                     bean_id?: string | null;
                     bean_label?: string | null;
                     charge_temp_celsius?: number | null;
-                    color_whole?: number | null;
-                    color_ground?: number | null;
+                    color_whole?: string | null;
+                    color_ground?: string | null;
                     created_at?: string;
                     created_by?: string | null;
                     drop_temp_celsius?: number | null;
@@ -2254,9 +2254,9 @@ export type Database = {
                     bean_id: string | null;
                     charge_temp_celsius: number | null;
                     /** Whole-bean roast color. Manual entry, no meter. Omitted until recorded. */
-                    color_whole?: number | null;
+                    color_whole?: string | null;
                     /** Ground roast color. Manual entry, no meter. Omitted until recorded. */
-                    color_ground?: number | null;
+                    color_ground?: string | null;
                     created_at: string;
                     created_by: string | null;
                     drop_temp_celsius: number | null;

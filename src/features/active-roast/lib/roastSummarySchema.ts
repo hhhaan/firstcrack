@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ROAST_COLOR_MAX_LENGTH } from './roastColorText';
 
 /**
  * Physical sanity ceiling for a single batch, in kg. Commercial roasters top out
@@ -26,10 +27,10 @@ const roastSummaryShape = z.object({
     linkMode: z.enum(['schedule', 'none']),
     planBatchId: z.string().nullable(),
     deductStock: z.boolean(),
-    /** Whole-bean roast color. Blank → NaN → not recorded. */
-    colorWhole: z.union([z.number(), z.nan()]).optional(),
-    /** Ground roast color. Blank → NaN → not recorded. */
-    colorGround: z.union([z.number(), z.nan()]).optional(),
+    /** Whole-bean roast color (free text). Blank → not recorded. */
+    colorWhole: z.string().optional(),
+    /** Ground roast color (free text). Blank → not recorded. */
+    colorGround: z.string().optional(),
 });
 
 export type RoastSummaryForm = z.infer<typeof roastSummaryShape>;
@@ -56,8 +57,8 @@ export const buildRoastSummarySchema = ({ t, hasHandoff }: BuildRoastSummarySche
         .extend({
             weightGrams: weightKg,
             outputWeightKg: z.union([weightKg, z.nan()]).optional(),
-            colorWhole: z.union([z.number().min(0), z.nan()]).optional(),
-            colorGround: z.union([z.number().min(0), z.nan()]).optional(),
+            colorWhole: z.string().max(ROAST_COLOR_MAX_LENGTH, t('activeRoast.summary.colorTooLong')).optional(),
+            colorGround: z.string().max(ROAST_COLOR_MAX_LENGTH, t('activeRoast.summary.colorTooLong')).optional(),
         })
         .superRefine((data, ctx) => {
             const output = data.outputWeightKg;

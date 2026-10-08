@@ -75,11 +75,22 @@ describe('buildRoastSummarySchema output vs input', () => {
 
 describe('buildRoastSummarySchema roast color', () => {
     it('accepts a blank color', () => {
-        expect(issuesFor(form({ colorWhole: Number.NaN, colorGround: undefined }))).toEqual([]);
+        expect(issuesFor(form({ colorWhole: '', colorGround: undefined }))).toEqual([]);
     });
 
-    it('rejects a negative color', () => {
-        const issues = issuesFor(form({ colorGround: -1 }));
+    it('accepts free-text color strings', () => {
+        expect(
+            issuesFor(
+                form({
+                    colorWhole: '58.4, 58.7, 59.0',
+                    colorGround: 'WB 58.4 (avg)',
+                }),
+            ),
+        ).toEqual([]);
+    });
+
+    it('rejects color text over the max length', () => {
+        const issues = issuesFor(form({ colorGround: 'x'.repeat(121) }));
         expect(issues).toHaveLength(1);
         expect(issues[0].path).toEqual(['colorGround']);
     });

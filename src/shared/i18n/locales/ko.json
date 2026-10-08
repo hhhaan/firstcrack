@@ -826,6 +826,7 @@
             "colorWhole": "색도 (홀빈)",
             "colorGround": "색도 (분쇄)",
             "colorInvalid": "0 이상의 숫자만 입력하세요.",
+            "colorTooLong": "색도 입력이 너무 깁니다.",
             "keyEvents": "주요 이벤트",
             "heatRecord": "화력 기록",
             "show": "상세 보기",
@@ -1153,6 +1154,7 @@
             "colorWhole": "색도 (홀빈)",
             "colorGround": "색도 (분쇄)",
             "colorHint": "Agtron 등 측정값. 선택 입력.",
+            "colorTooLong": "색도 입력이 너무 깁니다.",
             "levels": {
                 "light": "라이트",
                 "mediumLight": "미디엄 라이트",

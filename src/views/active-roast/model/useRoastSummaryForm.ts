@@ -1,9 +1,15 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useDayBatches } from '@entities/plan';
+import { normalizeRoastColorText } from '@features/active-roast/lib/roastColorText';
 import { buildRoastSummarySchema, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
-import { scheduleLinkFieldPatch, summaryFormInitialValues } from '@features/active-roast/lib/summaryPrefill';
+import {
+    mergePendingSummaryColors,
+    scheduleLinkFieldPatch,
+    summaryFormInitialValues,
+} from '@features/active-roast/lib/summaryPrefill';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
+import { readPendingRoastSave, writePendingRoastSave } from '@features/active-roast/model/pendingRoastSave';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
@@ -57,12 +63,14 @@ export const useRoastSummaryForm = ({
             linkMode: hasHandoff ? 'schedule' : 'none',
             planBatchId: planBatchHandoff?.planBatchId ?? null,
             deductStock: hasHandoff || selectedBeanId != null,
-            colorWhole: undefined,
-            colorGround: undefined,
+            colorWhole: '',
+            colorGround: '',
         },
     });
     const { watch, setValue, reset } = form;
 
+    const colorWhole = watch('colorWhole');
+    const colorGround = watch('colorGround');
     const linkMode = watch('linkMode');
     const formPlanBatchId = watch('planBatchId');
 
@@ -95,12 +103,33 @@ export const useRoastSummaryForm = ({
                 lastAdhocRef.current,
                 selectedBeanIdRef.current,
             );
-            openedBaseRef.current = { weightGrams: initial.weightGrams, beanId: initial.beanId };
-            prevLinkRef.current = { mode: initial.linkMode, batchId: initial.planBatchId };
-            reset(initial);
+            const sessionId = summaryData.sessionId;
+            const pending = sessionId && userId ? readPendingRoastSave(userId, sessionId) : null;
+            const merged = mergePendingSummaryColors(initial, pending?.params.formData);
+            openedBaseRef.current = { weightGrams: merged.weightGrams, beanId: merged.beanId };
+            prevLinkRef.current = { mode: merged.linkMode, batchId: merged.planBatchId };
+            reset(merged);
             setBeanFieldEpoch((k) => k + 1);
         }
-    }, [open, summaryData, reset]);
+    }, [open, summaryData, reset, userId]);
+
+    useEffect(() => {
+        if (!open || !summaryData?.sessionId || !userId) return;
+        const pending = readPendingRoastSave(userId, summaryData.sessionId);
+        if (!pending) return;
+        const nextWhole = normalizeRoastColorText(colorWhole ?? '');
+        const nextGround = normalizeRoastColorText(colorGround ?? '');
+        if (pending.params.formData.colorWhole === nextWhole && pending.params.formData.colorGround === nextGround) {
+            return;
+        }
+        writePendingRoastSave({
+            ...pending,
+            params: {
+                ...pending.params,
+                formData: { ...pending.params.formData, colorWhole: nextWhole, colorGround: nextGround },
+            },
+        });
+    }, [open, summaryData?.sessionId, userId, colorWhole, colorGround]);
 
     const linkedBatch = useMemo(() => {
         if (hasHandoff || linkMode !== 'schedule' || !formPlanBatchId) return null;

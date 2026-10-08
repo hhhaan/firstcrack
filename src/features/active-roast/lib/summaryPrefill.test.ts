@@ -1,7 +1,9 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
+import type { SaveRoastFormData } from '../model/useSaveRoast';
 import {
     isDeductDisplayEligible,
+    mergePendingSummaryColors,
     scheduleLinkFieldPatch,
     summaryFormInitialValues,
     summaryPrefill,
@@ -91,5 +93,28 @@ describe('summary form policy', () => {
         expect(
             isDeductDisplayEligible({ customBean: false, deductionKg: 0, resolvedBeanId: 'bean-1', blendId: null }),
         ).toBe(false);
+    });
+});
+
+describe('mergePendingSummaryColors', () => {
+    const base = summaryFormInitialValues(null, null, null);
+
+    it('restores free-text colors from pending form data', () => {
+        const pending = {
+            colorWhole: '58.4, 58.7, 59.0',
+            colorGround: 'WB 58.4 (avg)',
+        } as SaveRoastFormData;
+        expect(mergePendingSummaryColors(base, pending)).toMatchObject({
+            colorWhole: '58.4, 58.7, 59.0',
+            colorGround: 'WB 58.4 (avg)',
+        });
+    });
+
+    it('maps cleared pending nulls to empty form fields', () => {
+        const pending = { colorWhole: null, colorGround: null } as SaveRoastFormData;
+        expect(mergePendingSummaryColors(base, pending)).toMatchObject({
+            colorWhole: '',
+            colorGround: '',
+        });
     });
 });
