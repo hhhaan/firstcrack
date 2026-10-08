@@ -68,11 +68,29 @@ export const RoastLog = ({
                             editTriggerRef.current = event.currentTarget;
                             setEditingId(editingId === entry.id ? null : (entry.id ?? null));
                         }}
-                        className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                        className="flex size-6 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
                     >
-                        <Pencil size={12} />
+                        <Pencil size={14} />
                     </button>
                 ) : null;
+                const actions = (
+                    <div className="flex h-6 shrink-0 items-center gap-0.5">
+                        {editButton ?? <span aria-hidden="true" className="size-6" />}
+                        {canRemove ? (
+                            <button
+                                type="button"
+                                // biome-ignore lint/style/noNonNullAssertion: error already checked above
+                                onClick={() => onRemoveEntry(entry.id!)}
+                                aria-label={`Delete ${roastEventLabel(entry.event).toLowerCase()}`}
+                                className="flex size-6 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                            >
+                                <X size={14} />
+                            </button>
+                        ) : (
+                            <span aria-hidden="true" className="size-6" />
+                        )}
+                    </div>
+                );
                 const categoryTextColor = entry.current
                     ? STATUS_COLORS.active
                     : isControlEvent(entry.event)
@@ -88,9 +106,9 @@ export const RoastLog = ({
                                 borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : undefined,
                             }}
                         >
-                            <div className="flex items-start gap-1.5">
+                            <div className="flex items-center gap-1.5">
                                 <span
-                                    className="mt-1.5 size-1.5 shrink-0 rounded-full"
+                                    className="size-1.5 shrink-0 rounded-full"
                                     style={{
                                         background: entry.current
                                             ? STATUS_COLORS.active
@@ -103,18 +121,7 @@ export const RoastLog = ({
                                 >
                                     {roastEventLabel(entry.event)}
                                 </span>
-                                {editButton}
-                                {canRemove && (
-                                    <button
-                                        type="button"
-                                        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-                                        onClick={() => onRemoveEntry(entry.id!)}
-                                        aria-label={`Delete ${roastEventLabel(entry.event).toLowerCase()}`}
-                                        className="shrink-0 p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                )}
+                                {actions}
                             </div>
                             <div className="flex flex-wrap gap-x-1 text-xs font-mono text-muted">
                                 <span>{entry.time}</span>
@@ -225,18 +232,7 @@ export const RoastLog = ({
                                 </div>
                             )}
                         </div>
-                        {editButton}
-                        {canRemove && (
-                            <button
-                                type="button"
-                                // biome-ignore lint/style/noNonNullAssertion: error already checked above
-                                onClick={() => onRemoveEntry(entry.id!)}
-                                aria-label={`Delete ${roastEventLabel(entry.event).toLowerCase()}`}
-                                className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
-                            >
-                                <X size={12} />
-                            </button>
-                        )}
+                        {actions}
                         {editor && <div className="w-full">{editor}</div>}
                     </div>
                 );
