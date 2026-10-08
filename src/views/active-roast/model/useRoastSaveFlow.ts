@@ -152,8 +152,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     linkedBatch,
                     deductStock: formData.deductStock,
                     linkedBatchId: !frozenHandoff && formData.linkMode === 'schedule' ? formData.planBatchId : null,
-                    colorWhole: formData.colorWhole,
-                    colorGround: formData.colorGround,
                 };
                 const pending = existing
                     ? {

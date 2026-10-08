@@ -73,33 +73,6 @@ describe('buildRoastSummarySchema output vs input', () => {
     });
 });
 
-describe('buildRoastSummarySchema roast color', () => {
-    it('accepts a blank color', () => {
-        expect(issuesFor(form({ colorWhole: '', colorGround: undefined }))).toEqual([]);
-    });
-
-    it('accepts free-text color strings', () => {
-        expect(
-            issuesFor(
-                form({
-                    colorWhole: '58.4, 58.7, 59.0',
-                    colorGround: 'WB 58.4 (avg)',
-                }),
-            ),
-        ).toEqual([]);
-    });
-
-    it('rejects color text over the max length (trimmed)', () => {
-        const issues = issuesFor(form({ colorGround: 'x'.repeat(121) }));
-        expect(issues).toHaveLength(1);
-        expect(issues[0].path).toEqual(['colorGround']);
-    });
-
-    it('accepts max-length color with surrounding spaces', () => {
-        expect(issuesFor(form({ colorWhole: `  ${'9'.repeat(120)}  ` }))).toEqual([]);
-    });
-});
-
 describe('buildRoastSummarySchema existing refinements', () => {
     it('still requires a bean name when weight is set', () => {
         const issues = issuesFor(form({ beanId: null, beanLabel: '  ' }));

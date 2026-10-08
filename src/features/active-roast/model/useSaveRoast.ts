@@ -6,7 +6,6 @@ import { invalidateScheduledBatchQueries, planBatchApi } from '@entities/plan';
 import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
 import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
-import { normalizeRoastColorText } from '@features/active-roast/lib/roastColorText';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { i18n } from '@shared/i18n';
@@ -70,10 +69,6 @@ export type SaveRoastFormData = {
     linkedBatchId?: string | null;
     /** When true, server deducts green in the same TX as session save (C1). */
     deductStock?: boolean;
-    /** Whole-bean color (free text). null = not recorded. */
-    colorWhole?: string | null;
-    /** Ground color (free text). null = not recorded. */
-    colorGround?: string | null;
 };
 
 export interface SaveRoastParams {
@@ -216,8 +211,6 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
         plan_batch_id: effectiveBatch?.planBatchId ?? null,
         events: serializeRoastEvents(payloadParams.logEntries),
-        color_whole: normalizeRoastColorText(formData.colorWhole),
-        color_ground: normalizeRoastColorText(formData.colorGround),
         ...copyMachineSnapshot(payloadParams.machineSnapshot ?? EMPTY_MACHINE_SNAPSHOT),
     };
 

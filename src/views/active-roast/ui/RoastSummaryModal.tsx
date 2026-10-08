@@ -1,5 +1,4 @@
 import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
-import { ROAST_COLOR_INPUT_MAX_LENGTH } from '@features/active-roast/lib/roastColorText';
 import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { isDeductDisplayEligible } from '@features/active-roast/lib/summaryPrefill';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
@@ -444,34 +443,6 @@ export const RoastSummaryModal = ({
                             </button>
                         ))}
                     </div>
-                </div>
-
-                <div className="mb-3.5 grid grid-cols-2 gap-2">
-                    <div>
-                        <div className={sectionLabelClass}>{t('activeRoast.summary.colorWhole')}</div>
-                        <input
-                            type="text"
-                            data-testid="roast-summary-color-whole"
-                            maxLength={ROAST_COLOR_INPUT_MAX_LENGTH}
-                            {...register('colorWhole')}
-                            placeholder="—"
-                            className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
-                        />
-                        {errors.colorWhole && <p className={formErrorCls}>{errors.colorWhole.message}</p>}
-                    </div>
-                    <div>
-                        <div className={sectionLabelClass}>{t('activeRoast.summary.colorGround')}</div>
-                        <input
-                            type="text"
-                            data-testid="roast-summary-color-ground"
-                            maxLength={ROAST_COLOR_INPUT_MAX_LENGTH}
-                            {...register('colorGround')}
-                            placeholder="—"
-                            className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
-                        />
-                        {errors.colorGround && <p className={formErrorCls}>{errors.colorGround.message}</p>}
-                    </div>
-                    <p className="col-span-2 text-[11px] text-muted">{t('activeRoast.summary.colorHint')}</p>
                 </div>
 
                 <div className="mb-3.5">

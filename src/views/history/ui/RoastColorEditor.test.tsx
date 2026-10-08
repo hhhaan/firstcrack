@@ -79,6 +79,20 @@ describe('RoastColorEditor', () => {
         expect(update).toHaveBeenCalledWith({ id: 's1', color_whole: null });
     });
 
+    it('rejects trimmed text longer than 120 characters', async () => {
+        await render();
+        const input = field('history-color-whole');
+        await act(async () => {
+            input.focus();
+        });
+        await type(input, `  ${'x'.repeat(121)}  `);
+        await act(async () => {
+            input.blur();
+        });
+        expect(update).not.toHaveBeenCalled();
+        expect(host.textContent).toContain('history.expanded.colorTooLong');
+    });
+
     it('preserves non-numeric free text', async () => {
         await render();
         const input = field('history-color-ground');

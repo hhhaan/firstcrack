@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { isRoastColorTooLong } from './roastColorText';
 
 /**
  * Physical sanity ceiling for a single batch, in kg. Commercial roasters top out
@@ -27,10 +26,6 @@ const roastSummaryShape = z.object({
     linkMode: z.enum(['schedule', 'none']),
     planBatchId: z.string().nullable(),
     deductStock: z.boolean(),
-    /** Whole-bean roast color (free text). Blank → not recorded. */
-    colorWhole: z.string().optional(),
-    /** Ground roast color (free text). Blank → not recorded. */
-    colorGround: z.string().optional(),
 });
 
 export type RoastSummaryForm = z.infer<typeof roastSummaryShape>;
@@ -57,21 +52,8 @@ export const buildRoastSummarySchema = ({ t, hasHandoff }: BuildRoastSummarySche
         .extend({
             weightGrams: weightKg,
             outputWeightKg: z.union([weightKg, z.nan()]).optional(),
-            colorWhole: z.string().optional(),
-            colorGround: z.string().optional(),
         })
         .superRefine((data, ctx) => {
-            for (const path of ['colorWhole', 'colorGround'] as const) {
-                const value = data[path];
-                if (value !== undefined && isRoastColorTooLong(value)) {
-                    ctx.addIssue({
-                        code: 'custom',
-                        path: [path],
-                        message: t('activeRoast.summary.colorTooLong'),
-                    });
-                }
-            }
-
             const output = data.outputWeightKg;
             // No `weightGrams > 0` guard: weight 0 + output 5 is exactly the combo the
             // DB check rejects with 23514, so it has to fail here too.
