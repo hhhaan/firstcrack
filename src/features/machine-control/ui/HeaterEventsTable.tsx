@@ -21,6 +21,7 @@ export const HeaterEventsTable = ({
     rows,
     selected,
     lockedCount,
+    invalidCell,
     allowNegativeHeat,
     onAddStep,
     onSelect,
@@ -33,6 +34,7 @@ export const HeaterEventsTable = ({
     rows: DraftRow[];
     selected: number;
     lockedCount: number;
+    invalidCell?: { row: number; field: 'time' | 'bt' | 'heat' } | null;
     allowNegativeHeat: boolean;
     onAddStep?: () => void;
     onSelect: (index: number) => void;
@@ -159,6 +161,8 @@ export const HeaterEventsTable = ({
                     <tbody>
                         {rows.map((row, i) => {
                             const locked = i < lockedCount;
+                            const cellInvalid = (field: 'time' | 'bt' | 'heat') =>
+                                invalidCell?.row === i + 1 && invalidCell.field === field;
                             const cellClass =
                                 i === selected
                                     ? 'border-(--color-control-heat) bg-surface-warm-solid'
@@ -189,7 +193,8 @@ export const HeaterEventsTable = ({
                                                 onUpdate(row.key, { t: event.target.value });
                                             }}
                                             data-time-key={row.key}
-                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
+                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('time') ? ' border-red-500' : ''}`}
+                                            aria-invalid={cellInvalid('time') || undefined}
                                             inputMode="numeric"
                                             autoComplete="off"
                                             spellCheck={false}
@@ -204,7 +209,8 @@ export const HeaterEventsTable = ({
                                                 if (isDecimalDraft(e.target.value, BT_DECIMALS))
                                                     onUpdate(row.key, { bt: e.target.value });
                                             }}
-                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
+                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('bt') ? ' border-red-500' : ''}`}
+                                            aria-invalid={cellInvalid('bt') || undefined}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.bt')}
                                             readOnly={locked}
@@ -217,7 +223,8 @@ export const HeaterEventsTable = ({
                                                 if (isDecimalDraft(e.target.value, HEAT_DECIMALS, allowNegativeHeat))
                                                     onUpdate(row.key, { heater: e.target.value });
                                             }}
-                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs`}
+                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('heat') ? ' border-red-500' : ''}`}
+                                            aria-invalid={cellInvalid('heat') || undefined}
                                             inputMode="decimal"
                                             aria-label={t('heaterEventsEditor.heat')}
                                             readOnly={locked}

@@ -4,6 +4,7 @@ import {
     carryReplayEventIds,
     editedHeatSet,
     formatEditTime,
+    type HeaterBounds,
     heaterEventsToJson,
     heaterFitsBounds,
     normalizeHeaterPlan,
@@ -16,6 +17,7 @@ import {
     remapReplayIndex,
     resolveHeaterBounds,
     resolveReplayPlan,
+    validateHeaterDraft,
     withEditedHeaterLog,
 } from './heater-events';
 import { extractReplayEvents, judgeReplay, type ReplayPoint } from './replay';
@@ -189,6 +191,40 @@ describe('parseFiniteNumber', () => {
         expect(parseFiniteNumber(Number.POSITIVE_INFINITY)).toBeNull();
         expect(parseFiniteNumber('50')).toBe(50);
         expect(parseFiniteNumber(0)).toBe(0);
+    });
+});
+
+describe('validateHeaterDraft', () => {
+    const bounds = { min: 0, max: 100 };
+    const row = (heater: string, t = '1:00', bt = '180') => ({ t, bt, heater, trigger: 'time' as const });
+    const issueOf = (rows: ReturnType<typeof row>[], limits: HeaterBounds = bounds) => {
+        const result = validateHeaterDraft(rows, 'C', limits);
+        if (result.ok) throw new Error('expected a draft issue');
+        return result.issue;
+    };
+
+    it('names the first broken field instead of one invalid result', () => {
+        expect(issueOf([row('80', '12:')])).toEqual({ code: 'time', row: 1 });
+        expect(issueOf([row('80', '5')])).toEqual({ code: 'time', row: 1 });
+        expect(issueOf([row('80', '1:00', '')])).toEqual({ code: 'bt', row: 1 });
+        expect(issueOf([row('')])).toEqual({ code: 'heat-empty', row: 1 });
+        expect(issueOf([row('80'), row('101')])).toEqual({ code: 'heat-range', row: 2 });
+        expect(issueOf([row('50.5')], { min: 0, max: 100, step: 1 })).toEqual({ code: 'heat-step', row: 1 });
+    });
+
+    it('saves a positive then zero plan when the device min is 0, and rejects an all-zero plan', () => {
+        const saved = validateHeaterDraft([row('80', '0:00'), row('0', '3:00', '190')], 'C', bounds);
+        expect(saved.ok).toBe(true);
+        if (!saved.ok) return;
+        expect(saved.events.map((event) => event.heater)).toEqual([80, 0]);
+        expect(issueOf([row('0')])).toEqual({ code: 'all-zero' });
+    });
+
+    it('rejects logical 0 when the live device min is still 1', () => {
+        expect(issueOf([row('80', '0:00'), row('0', '3:00')], { min: 1, max: 100 })).toEqual({
+            code: 'heat-range',
+            row: 2,
+        });
     });
 });
 

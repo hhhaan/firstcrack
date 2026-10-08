@@ -1,6 +1,14 @@
+import { parseEditTime } from '@shared/lib/time-edit';
 import type { Json } from '@shared/types/database.types';
 import type { StoredRoastEvent } from '@shared/types/roast';
-import { extractReplayEvents, MAX_EVENTS, type ReplayEvent, type ReplayPlan, type ReplayPoint } from './replay';
+import {
+    extractReplayEvents,
+    MAX_EVENTS,
+    type ReplayEvent,
+    type ReplayPlan,
+    type ReplayPoint,
+    type ReplayTrigger,
+} from './replay';
 
 export { applyTimeEdit, isPartialTime, parseEditTime, type TimeEdit, type TimeEditKind } from '@shared/lib/time-edit';
 
@@ -41,14 +49,70 @@ export const parseFiniteNumber = (value: unknown): number | null => {
     return Number.isFinite(n) ? n : null;
 };
 
+const heaterOffStep = (heater: number, bounds: HeaterBounds): boolean => {
+    if (bounds.step == null || bounds.step <= 0) return false;
+    const n = (heater - bounds.min) / bounds.step;
+    return Math.abs(n - Math.round(n)) > 1e-6;
+};
+
 export const heaterFitsBounds = (heater: number, bounds: HeaterBounds): boolean => {
     if (!Number.isFinite(heater)) return false;
     if (heater < bounds.min || heater > bounds.max) return false;
-    if (bounds.step != null && bounds.step > 0) {
-        const n = (heater - bounds.min) / bounds.step;
-        if (Math.abs(n - Math.round(n)) > 1e-6) return false;
+    return !heaterOffStep(heater, bounds);
+};
+
+export type HeaterDraftIssue =
+    | { code: 'time' | 'bt' | 'heat-empty' | 'heat-range' | 'heat-step'; row: number }
+    | { code: 'all-zero' | 'too-many' };
+
+export type HeaterDraftInput = {
+    t: string;
+    bt: string;
+    heater: string;
+    trigger: ReplayTrigger;
+    id?: string;
+};
+
+/** Parsed events that still violate the plan rules. Row numbers are 1-based. */
+export const issueForHeaterEvents = (events: ReplayEvent[], bounds: HeaterBounds): HeaterDraftIssue | null => {
+    if (events.length > MAX_EVENTS) return { code: 'too-many' };
+    for (let i = 0; i < events.length; i++) {
+        const heater = events[i].heater;
+        if (!Number.isFinite(heater) || heater < bounds.min || heater > bounds.max) {
+            return { code: 'heat-range', row: i + 1 };
+        }
+        if (heaterOffStep(heater, bounds)) return { code: 'heat-step', row: i + 1 };
     }
-    return true;
+    if (events.length > 0 && !events.some((event) => event.heater > 0)) return { code: 'all-zero' };
+    return null;
+};
+
+/**
+ * First failing row and field. An empty draft is valid and means "clear the plan".
+ * Logical 0 is in range when `bounds.min` is 0; a plan with no positive step stays `all-zero`.
+ */
+export const validateHeaterDraft = (
+    rows: readonly HeaterDraftInput[],
+    unit: 'C' | 'F',
+    bounds: HeaterBounds,
+): { ok: true; events: ReplayEvent[] } | { ok: false; issue: HeaterDraftIssue } => {
+    const events: ReplayEvent[] = [];
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNo = i + 1;
+        const t = parseEditTime(row.t);
+        if (t == null) return { ok: false, issue: { code: 'time', row: rowNo } };
+        const btDisplay = parseFiniteNumber(row.bt);
+        const bt = btDisplay == null ? Number.NaN : fromDisplayBt(btDisplay, unit);
+        if (btDisplay == null || !Number.isFinite(bt)) return { ok: false, issue: { code: 'bt', row: rowNo } };
+        const heater = parseFiniteNumber(row.heater);
+        if (heater == null) return { ok: false, issue: { code: 'heat-empty', row: rowNo } };
+        if (heater < bounds.min || heater > bounds.max) return { ok: false, issue: { code: 'heat-range', row: rowNo } };
+        if (heaterOffStep(heater, bounds)) return { ok: false, issue: { code: 'heat-step', row: rowNo } };
+        events.push({ t, bt, heater, trigger: row.trigger, ...(row.id ? { id: row.id } : {}) });
+    }
+    const issue = issueForHeaterEvents(events, bounds);
+    return issue ? { ok: false, issue } : { ok: true, events };
 };
 
 const asFinite = parseFiniteNumber;

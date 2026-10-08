@@ -7,16 +7,16 @@ import { useTranslation } from 'react-i18next';
 import {
     BT_DECIMALS,
     formatEditTime,
-    fromDisplayBt,
     HEAT_DECIMALS,
     type HeaterBounds,
+    type HeaterDraftIssue,
     heaterFitsBounds,
     isDecimalDraft,
-    normalizeHeaterPlan,
-    parseEditTime,
+    issueForHeaterEvents,
     parseFiniteNumber,
     type ReplayPlanSource,
     toDisplayBt,
+    validateHeaterDraft,
 } from '../lib/heater-events';
 import { eventTrigger, MAX_EVENTS, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 import { type DraftRow, HeaterEventsTable } from './HeaterEventsTable';
@@ -54,19 +54,14 @@ const toDraft = (events: ReplayEvent[], tpTime: number, unit: 'C' | 'F'): DraftR
         trigger: eventTrigger(e, tpTime),
     }));
 
-const parseRows = (rows: DraftRow[], unit: 'C' | 'F', bounds: HeaterBounds): ReplayEvent[] | null => {
-    const events: ReplayEvent[] = [];
-    for (const row of rows) {
-        const t = parseEditTime(row.t);
-        const btDisplay = parseFiniteNumber(row.bt);
-        const heater = parseFiniteNumber(row.heater);
-        if (t == null || btDisplay == null || heater == null) return null;
-        const bt = fromDisplayBt(btDisplay, unit);
-        if (!Number.isFinite(bt)) return null;
-        if (!heaterFitsBounds(heater, bounds)) return null;
-        events.push({ t, bt, heater, trigger: row.trigger, id: row.key });
-    }
-    return events;
+const draftInputs = (rows: DraftRow[]) =>
+    rows.map((row) => ({ t: row.t, bt: row.bt, heater: row.heater, trigger: row.trigger, id: row.key }));
+
+const invalidField = (issue: HeaterDraftIssue): 'time' | 'bt' | 'heat' | null => {
+    if (issue.code === 'time') return 'time';
+    if (issue.code === 'bt') return 'bt';
+    if (issue.code === 'heat-empty' || issue.code === 'heat-range' || issue.code === 'heat-step') return 'heat';
+    return null;
 };
 
 export const HeaterEventsEditor = ({
@@ -98,6 +93,7 @@ export const HeaterEventsEditor = ({
     const { t } = useTranslation();
     const [rows, setRows] = useState<DraftRow[]>(() => toDraft(events, tpTime, unit));
     const [error, setError] = useState<string | null>(null);
+    const [invalidCell, setInvalidCell] = useState<{ row: number; field: 'time' | 'bt' | 'heat' } | null>(null);
     const [ruleBt, setRuleBt] = useState(() => String(toDisplayBt(192, unit)));
     const [ruleHeater, setRuleHeater] = useState('50');
     const [selected, setSelected] = useState(0);
@@ -117,16 +113,49 @@ export const HeaterEventsEditor = ({
         return () => window.removeEventListener('keydown', onKey, true);
     }, []);
 
-    const parsed = useMemo(() => parseRows(rows, unit, heaterBounds) ?? [], [rows, unit, heaterBounds]);
+    const parsed = useMemo(() => {
+        const draft = validateHeaterDraft(draftInputs(rows), unit, heaterBounds);
+        return draft.ok ? draft.events : [];
+    }, [rows, unit, heaterBounds]);
+
+    const clearError = () => {
+        setError(null);
+        setInvalidCell(null);
+    };
+
+    const issueText = (issue: HeaterDraftIssue): string => {
+        if (issue.code === 'time') return t('heaterEventsEditor.timeInvalid', { row: issue.row });
+        if (issue.code === 'bt') return t('heaterEventsEditor.btInvalid', { row: issue.row });
+        if (issue.code === 'heat-empty') return t('heaterEventsEditor.heatEmpty', { row: issue.row });
+        if (issue.code === 'heat-range') {
+            return t('heaterEventsEditor.heatRange', {
+                row: issue.row,
+                min: heaterBounds.min,
+                max: heaterBounds.max,
+                unit: heaterUnit,
+            });
+        }
+        if (issue.code === 'heat-step') {
+            return t('heaterEventsEditor.heatStep', { row: issue.row, step: heaterBounds.step, unit: heaterUnit });
+        }
+        if (issue.code === 'all-zero') return t('heaterEventsEditor.allZero');
+        return t('heaterEventsEditor.tooMany');
+    };
+
+    const showIssue = (issue: HeaterDraftIssue) => {
+        const field = invalidField(issue);
+        setInvalidCell(field && 'row' in issue ? { row: issue.row, field } : null);
+        setError(issueText(issue));
+    };
 
     const update = (key: string, patch: Partial<DraftRow>) => {
         setRows((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
-        setError(null);
+        clearError();
     };
 
     const addStep = () => {
         setSelected(rows.length);
-        setError(null);
+        clearError();
         const last = parsed[parsed.length - 1];
         setRows((prev) => [
             ...prev,
@@ -143,8 +172,30 @@ export const HeaterEventsEditor = ({
     const addBtRule = () => {
         const bt = parseFiniteNumber(ruleBt);
         const heater = parseFiniteNumber(ruleHeater);
-        if (bt == null || heater == null || !heaterFitsBounds(heater, heaterBounds)) {
-            setError(t('heaterEventsEditor.invalid'));
+        if (bt == null) {
+            setInvalidCell(null);
+            setError(t('heaterEventsEditor.ruleBt'));
+            return;
+        }
+        if (heater == null) {
+            setInvalidCell(null);
+            setError(t('heaterEventsEditor.ruleHeatEmpty'));
+            return;
+        }
+        if (heater < heaterBounds.min || heater > heaterBounds.max) {
+            setInvalidCell(null);
+            setError(
+                t('heaterEventsEditor.ruleHeatRange', {
+                    min: heaterBounds.min,
+                    max: heaterBounds.max,
+                    unit: heaterUnit,
+                }),
+            );
+            return;
+        }
+        if (!heaterFitsBounds(heater, heaterBounds)) {
+            setInvalidCell(null);
+            setError(t('heaterEventsEditor.ruleHeatStep', { step: heaterBounds.step, unit: heaterUnit }));
             return;
         }
         setSelected(rows.length);
@@ -158,18 +209,21 @@ export const HeaterEventsEditor = ({
                 trigger: 'bt',
             },
         ]);
-        setError(null);
+        clearError();
     };
 
     const handleApply = async (next: ReplayEvent[] | null) => {
-        if (next && next.length > 0 && !normalizeHeaterPlan(next, tpTime, heaterBounds)) {
-            setError(t(next.length > MAX_EVENTS ? 'heaterEventsEditor.tooMany' : 'heaterEventsEditor.invalid'));
-            return;
+        if (next && next.length > 0) {
+            const issue = issueForHeaterEvents(next, heaterBounds);
+            if (issue) {
+                showIssue(issue);
+                return;
+            }
         }
         // State lags a same-tick double click; the ref blocks the second write.
         if (inFlight.current) return;
         inFlight.current = true;
-        setError(null);
+        clearError();
         setBusy(true);
         try {
             await onApply(next && next.length > 0 ? next : null);
@@ -182,12 +236,12 @@ export const HeaterEventsEditor = ({
     };
 
     const submit = () => {
-        const next = parseRows(rows, unit, heaterBounds);
-        if (!next) {
-            setError(t('heaterEventsEditor.invalid'));
+        const draft = validateHeaterDraft(draftInputs(rows), unit, heaterBounds);
+        if (!draft.ok) {
+            showIssue(draft.issue);
             return;
         }
-        void handleApply(next);
+        void handleApply(draft.events);
     };
 
     const sourceLabel =
@@ -330,6 +384,7 @@ export const HeaterEventsEditor = ({
                         rows={rows}
                         selected={selected}
                         lockedCount={lockedCount}
+                        invalidCell={invalidCell}
                         allowNegativeHeat={heaterBounds.min < 0}
                         onAddStep={fixedRows ? undefined : addStep}
                         onSelect={setSelected}

@@ -11,7 +11,11 @@ import { ProfileHeaterEventsEditor } from './ProfileHeaterEventsEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key: string, vars?: Record<string, unknown>) => (vars ? `${key}|${JSON.stringify(vars)}` : key),
+    }),
+}));
 vi.mock('@shared/lib/sidecar', () => ({ sidecar: { getStatus: vi.fn() } }));
 
 const STATUS: SidecarStatus = {
@@ -105,7 +109,9 @@ describe('ProfileHeaterEventsEditor status query', () => {
         expect(await waitForEditor()).not.toBeNull();
         await saveHeater('50');
         expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+            'heaterEventsEditor.heatRange|{"row":1,"min":1,"max":10,"unit":"step"}',
+        );
         expect(qc.getQueryState(sidecarStatusKey)?.status).toBe('success');
     });
 
@@ -133,6 +139,53 @@ describe('ProfileHeaterEventsEditor status query', () => {
         expect(await waitForEditor()).not.toBeNull();
         await saveHeater('50');
         expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+            'heaterEventsEditor.heatRange|{"row":1,"min":1,"max":10,"unit":"step"}',
+        );
+    });
+
+    it('saves a positive then zero plan when the connected W60A reports min 0', async () => {
+        vi.mocked(sidecar.getStatus).mockResolvedValue({
+            ...STATUS,
+            roaster: 'giesen_w45a_w60a',
+            display_name: 'Giesen W45A / W60A',
+            control: { writable: true, limits: { heater: { min: 0, max: 100, unit: '%' } } },
+        });
+        const onApply = vi.fn();
+        await act(async () => {
+            root.render(
+                createElement(
+                    QueryClientProvider,
+                    { client: qc },
+                    createElement(ProfileHeaterEventsEditor, {
+                        profile: { machine_roaster_key: 'giesen_w45a_w60a' },
+                        events: [{ t: 0, bt: 100, heater: 80, trigger: 'time' as const }],
+                        tpTime: 60,
+                        btPoints: [],
+                        source: 'profile',
+                        unit: 'C',
+                        onClose: () => {},
+                        onApply,
+                    }),
+                ),
+            );
+        });
+        expect(await waitForEditor()).not.toBeNull();
+        await act(async () =>
+            [...document.querySelectorAll('button')]
+                .find((b) => b.textContent === 'heaterEventsEditor.addStep')
+                ?.click(),
+        );
+        const heats = document.querySelectorAll<HTMLInputElement>('tbody input[aria-label="heaterEventsEditor.heat"]');
+        const off = heats[heats.length - 1];
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(off, '0');
+            off.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await act(async () =>
+            [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+        );
+        expect(onApply).toHaveBeenCalledOnce();
+        expect(onApply.mock.calls[0][0].map((event: { heater: number }) => event.heater)).toEqual([80, 0]);
     });
 });

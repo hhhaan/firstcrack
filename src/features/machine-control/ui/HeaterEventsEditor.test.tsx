@@ -9,7 +9,11 @@ import { HeaterEventsEditor } from './HeaterEventsEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key: string, vars?: Record<string, unknown>) => (vars ? `${key}|${JSON.stringify(vars)}` : key),
+    }),
+}));
 
 describe('HeaterEventsEditor', () => {
     let host: HTMLDivElement;
@@ -89,6 +93,94 @@ describe('HeaterEventsEditor', () => {
                 (input) => input.value,
             ),
         ).toEqual(['80', '0']);
+        await act(async () => root.unmount());
+    });
+
+    it('keeps the editor open and names an all-zero plan separately from a range error', async () => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        const onApply = vi.fn();
+        await act(async () => {
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'profile',
+                    events: [{ t: 0, bt: 180, heater: 80, trigger: 'time' as const }],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'profile',
+                    unit: 'C',
+                    heaterMin: 0,
+                    heaterMax: 100,
+                    onClose: () => {},
+                    onApply,
+                }),
+            );
+        });
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]') as HTMLInputElement;
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '0');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await act(async () =>
+            [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+        );
+        expect(onApply).not.toHaveBeenCalled();
+        expect(document.querySelector('[data-testid="heater-events-editor"]')).not.toBeNull();
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.allZero');
+        await act(async () => root.unmount());
+    });
+
+    it('names an unfinished m:ss time instead of a generic value error', async () => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        const onApply = vi.fn();
+        await act(async () => {
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'profile',
+                    events: [{ t: 16, bt: 180, heater: 65, trigger: 'time' as const }],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'profile',
+                    unit: 'C',
+                    heaterMin: 0,
+                    heaterMax: 100,
+                    onClose: () => {},
+                    onApply,
+                }),
+            );
+        });
+        const input = document.querySelector('tbody input[aria-label="heaterEventsEditor.time"]') as HTMLInputElement;
+        input.focus();
+        input.setSelectionRange(0, input.value.length);
+        await act(async () => {
+            input.dispatchEvent(
+                new InputEvent('beforeinput', {
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: 'deleteContentBackward',
+                }),
+            );
+        });
+        const type = async (data: string) => {
+            input.focus();
+            await act(async () => {
+                input.dispatchEvent(
+                    new InputEvent('beforeinput', { bubbles: true, cancelable: true, data, inputType: 'insertText' }),
+                );
+            });
+        };
+        await type('1');
+        await type('2');
+        expect(input.value).toBe('12:');
+        await act(async () =>
+            [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+        );
+        expect(onApply).not.toHaveBeenCalled();
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.timeInvalid|{"row":1}');
+        expect(input.getAttribute('aria-invalid')).toBe('true');
         await act(async () => root.unmount());
     });
 
@@ -186,7 +278,12 @@ describe('HeaterEventsEditor', () => {
                 ?.click(),
         );
         expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        const alert = document.querySelector('[role="alert"]')?.textContent;
+        expect(alert).toBe(
+            value === ''
+                ? 'heaterEventsEditor.heatEmpty|{"row":1}'
+                : 'heaterEventsEditor.heatRange|{"row":1,"min":0,"max":100,"unit":"%"}',
+        );
         await act(async () => root.unmount());
     });
 
@@ -258,7 +355,9 @@ describe('HeaterEventsEditor', () => {
                 ?.click(),
         );
         expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+            'heaterEventsEditor.heatRange|{"row":1,"min":1,"max":100,"unit":"%"}',
+        );
         expect(input.value).toBe('150');
         await act(async () => root.unmount());
     });
@@ -291,7 +390,9 @@ describe('HeaterEventsEditor', () => {
             [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
         );
         expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+            'heaterEventsEditor.heatRange|{"row":1,"min":0,"max":100,"unit":"%"}',
+        );
         expect(input.value).toBe('150');
         await act(async () => root.unmount());
     });
@@ -329,7 +430,10 @@ describe('HeaterEventsEditor', () => {
                 ?.click(),
         );
         expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+            'heaterEventsEditor.heatStep|{"row":1,"step":1,"unit":"%"}',
+        );
+        expect(input.getAttribute('aria-invalid')).toBe('true');
         await act(async () => root.unmount());
     });
 
@@ -465,7 +569,9 @@ describe('HeaterEventsEditor', () => {
         await setHeat('50');
         await save();
         expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.invalid');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+            'heaterEventsEditor.heatRange|{"row":2,"min":0,"max":10,"unit":"kPa"}',
+        );
 
         await setHeat('6.5');
         await save();
