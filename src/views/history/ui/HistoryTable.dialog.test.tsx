@@ -71,8 +71,8 @@ const session = (index: number): RoastSessionWithRelations =>
         charge_temp_celsius: 200,
         bean_label: null,
         profile_id: null,
-        color_whole: 58.4,
-        color_ground: 63,
+        color_whole: '58.4',
+        color_ground: '63',
     }) as unknown as RoastSessionWithRelations;
 
 describe('HistorySessionDetail edit dialog', () => {
