@@ -192,6 +192,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 - **영문:** `html[lang='en']` → SUIT 제외: `"Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`
 - **`font-variant-numeric: tabular-nums lining-nums`** — `body` + 전역 `*`. **컴포넌트에서 재선언 금지.**
 - `font-kerning: normal`; `font-feature-settings: "kern" 1, "tnum" 1, "lnum" 1, "zero" 1`
+- 로스팅 우측 패널 숫자: Inconsolata, `letter-spacing: -0.03em`.
 - body: `16px` / `line-height: 1.5` / `color: var(--color-primary)` / `background: var(--color-surface)`
 
 #### Type scale (구현 관례)

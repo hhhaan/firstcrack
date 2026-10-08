@@ -29,6 +29,7 @@
 
 /* 본문 "zero" 1은 점 0이다. 우측 패널 Inconsolata만 기본 사선 0을 쓴다. */
 .font-inconsolata {
+    letter-spacing: -0.03em;
     font-feature-settings:
         "kern" 1,
         "tnum" 1,
