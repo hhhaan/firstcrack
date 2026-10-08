@@ -74,7 +74,7 @@ export const RoastLog = ({
                     </button>
                 ) : null;
                 const actions = (
-                    <div className="flex h-6 shrink-0 items-center gap-0.5">
+                    <div className="flex h-6 shrink-0 items-center">
                         {editButton ?? <span aria-hidden="true" className="size-6" />}
                         {canRemove ? (
                             <button
