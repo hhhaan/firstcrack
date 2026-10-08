@@ -719,6 +719,9 @@
     },
     "activeRoast": {
         "noteEntry": {
+            "events": "Events",
+            "eventRecorded": "Recorded: {{event}}",
+            "futureEventHint": "Events can only be recorded up to the current time.",
             "title": "Add record",
             "editTitle": "Edit record",
             "time": "Time",

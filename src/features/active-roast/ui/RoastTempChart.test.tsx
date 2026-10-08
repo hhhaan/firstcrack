@@ -401,6 +401,8 @@ describe('RoastTempChart interactions', () => {
         });
         const button = container.querySelector(`[data-chart-note-event="${event}"]`) as HTMLButtonElement;
         expect(button.textContent).toBe(label);
+        expect(button.querySelector('svg')).toBeNull();
+        expect(container.querySelector('#chart-note-future-hint')).toBeNull();
         expect(button.disabled).toBe(false);
         const enter = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' });
         act(() => button.dispatchEvent(enter));
@@ -419,6 +421,7 @@ describe('RoastTempChart interactions', () => {
             ),
         );
         expect(button.disabled).toBe(true);
+        expect(button.querySelector('svg')).not.toBeNull();
         act(() => button.click());
         expect(onAddEvent).toHaveBeenCalledTimes(1);
     });
@@ -442,8 +445,10 @@ describe('RoastTempChart interactions', () => {
         );
         const buttons = container.querySelectorAll<HTMLButtonElement>('[data-chart-note-event]');
         expect(buttons).toHaveLength(3);
+        expect(container.querySelector('#chart-note-future-hint')).not.toBeNull();
         for (const button of buttons) {
             expect(button.disabled).toBe(true);
+            expect(button.getAttribute('aria-describedby')).toBe('chart-note-future-hint');
             act(() => button.click());
         }
         expect(onAddEvent).not.toHaveBeenCalled();

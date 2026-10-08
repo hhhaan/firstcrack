@@ -36,6 +36,7 @@ import { applyTimeEdit, parseEditTime, type TimeEditKind } from '@shared/lib/tim
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastNoteControls } from '@shared/types/roast';
 import * as echarts from 'echarts';
+import { Check } from 'lucide-react';
 import type React from 'react';
 import {
     forwardRef,
@@ -1053,6 +1054,50 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         <span className="font-medium">{t('activeRoast.noteEntry.title')}</span>
                         <span className="font-mono text-muted">{formatElapsed(noteForm.timeSec)}</span>
                     </div>
+                    {onAddEvent && (
+                        <div
+                            className="flex items-center gap-1 px-1"
+                            role="group"
+                            aria-label={t('activeRoast.noteEntry.events')}
+                        >
+                            <span className="w-[52px] shrink-0 text-[11px] text-muted">
+                                {t('activeRoast.noteEntry.events')}
+                            </span>
+                            {[
+                                ['CC', 'Yellow'],
+                                ['FC', 'FC Start'],
+                                ['SC', 'FC End'],
+                            ].map(([label, event]) => {
+                                const recorded = eventMarkers.some((marker) => marker.event === event);
+                                const description = recorded
+                                    ? t('activeRoast.noteEntry.eventRecorded', { event: roastEventLabel(event) })
+                                    : roastEventLabel(event);
+                                return (
+                                    <button
+                                        key={event}
+                                        type="button"
+                                        data-chart-note-event={event}
+                                        aria-label={description}
+                                        title={description}
+                                        aria-describedby={
+                                            noteForm.timeSec > currentTimeSec ? 'chart-note-future-hint' : undefined
+                                        }
+                                        disabled={noteForm.timeSec > currentTimeSec || recorded}
+                                        onClick={() => onAddEvent(event, noteForm.timeSec)}
+                                        className={`flex h-7 cursor-pointer items-center justify-center gap-1 rounded border px-2 text-[11px] font-semibold disabled:cursor-default ${recorded ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border bg-surface text-secondary hover:bg-main-bg disabled:opacity-40'}`}
+                                    >
+                                        {recorded && <Check className="size-3" aria-hidden="true" />}
+                                        {label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                    {onAddEvent && noteForm.timeSec > currentTimeSec && (
+                        <p id="chart-note-future-hint" className="m-0 px-1 text-[10px] text-muted">
+                            {t('activeRoast.noteEntry.futureEventHint')}
+                        </p>
+                    )}
                     <RoastNoteFields
                         values={noteValues}
                         onChange={setNoteValues}
@@ -1060,37 +1105,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         commentId="chart-note-input"
                         autoFocus
                     />
-                    {onAddEvent && (
-                        <div className="grid grid-cols-3 gap-1 px-1">
-                            {[
-                                ['CC', 'Yellow'],
-                                ['FC', 'FC Start'],
-                                ['SC', 'FC End'],
-                            ].map(([label, event]) => (
-                                <button
-                                    key={event}
-                                    type="button"
-                                    data-chart-note-event={event}
-                                    aria-label={roastEventLabel(event)}
-                                    title={roastEventLabel(event)}
-                                    disabled={
-                                        noteForm.timeSec > currentTimeSec ||
-                                        eventMarkers.some((marker) => marker.event === event)
-                                    }
-                                    onClick={() => onAddEvent(event, noteForm.timeSec)}
-                                    className="cursor-pointer rounded border border-border bg-surface px-2 py-1 text-[11px] font-semibold text-secondary hover:bg-main-bg disabled:cursor-default disabled:opacity-40"
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                    )}
                     <div className="flex items-center justify-between gap-1 px-1">
                         <span className="text-[11px] text-muted">{t('activeRoast.noteEntry.keyboardHint')}</span>
                         <button
                             type="submit"
                             disabled={!Object.values(noteValues).some((value) => value.trim())}
-                            className="rounded px-2 text-xs text-(--color-text-primary) disabled:opacity-40"
+                            className="shrink-0 cursor-pointer rounded bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-default disabled:opacity-40"
                         >
                             {t('common.add')}
                         </button>
