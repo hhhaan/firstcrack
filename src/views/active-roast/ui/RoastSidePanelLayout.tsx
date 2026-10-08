@@ -1,5 +1,6 @@
 import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
+import type { RoastLogEditOptions } from '@features/active-roast/ui/RoastLogEntryEditor';
 import type { LogEntry } from '@shared/types/roast';
 import { Minus, Plus } from 'lucide-react';
 import { type ReactNode, useEffect, useId, useRef } from 'react';
@@ -9,10 +10,12 @@ export const RoastSidePanelLayout = ({
     children,
     roastLogDisplayEntries,
     onRemoveLogEntry,
+    logEditOptions,
 }: {
     children: ReactNode;
     roastLogDisplayEntries: LogEntry[];
     onRemoveLogEntry: (id: string) => void;
+    logEditOptions?: RoastLogEditOptions;
 }) => {
     const { t } = useTranslation();
     const { logExpanded } = useRoastSettings();
@@ -56,6 +59,7 @@ export const RoastSidePanelLayout = ({
                             showHeading={false}
                             entries={roastLogDisplayEntries}
                             onRemoveEntry={onRemoveLogEntry}
+                            editOptions={logEditOptions}
                         />
                     </>
                 )}
@@ -84,6 +88,7 @@ export const RoastSidePanelLayout = ({
                             variant="panel"
                             entries={[...roastLogDisplayEntries].reverse()}
                             onRemoveEntry={onRemoveLogEntry}
+                            editOptions={logEditOptions}
                         />
                     </div>
                 </section>

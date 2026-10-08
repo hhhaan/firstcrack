@@ -4,20 +4,27 @@ import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
-import { X } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { type RoastLogEditOptions, RoastLogEntryEditor } from './RoastLogEntryEditor';
 
 export const RoastLog = ({
     entries,
     variant,
     onRemoveEntry,
+    editOptions,
     showHeading = true,
 }: {
     entries: LogEntry[];
     variant: 'sidebar' | 'main' | 'panel';
     onRemoveEntry?: (id: string) => void;
+    editOptions?: RoastLogEditOptions;
     showHeading?: boolean;
 }) => {
     const isSidebar = variant === 'sidebar';
+    const { t } = useTranslation();
+    const [editingId, setEditingId] = useState<string | null>(null);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -39,6 +46,22 @@ export const RoastLog = ({
                 const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
                 const canRemove =
                     REMOVABLE_LOG_EVENTS.has(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
+                const canEdit = !!editOptions && !!entry.id && !entry.current && entry.event !== 'Charge';
+                const editor =
+                    canEdit && editingId === entry.id ? (
+                        <RoastLogEntryEditor entry={entry} options={editOptions} onClose={() => setEditingId(null)} />
+                    ) : null;
+                const editButton = canEdit ? (
+                    <button
+                        type="button"
+                        aria-label={`${t('common.edit')} ${roastEventLabel(entry.event)}`}
+                        aria-expanded={editingId === entry.id}
+                        onClick={() => setEditingId(editingId === entry.id ? null : (entry.id ?? null))}
+                        className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                    >
+                        <Pencil size={12} />
+                    </button>
+                ) : null;
                 const categoryTextColor = entry.current
                     ? STATUS_COLORS.active
                     : isControlEvent(entry.event)
@@ -69,6 +92,7 @@ export const RoastLog = ({
                                 >
                                     {roastEventLabel(entry.event)}
                                 </span>
+                                {editButton}
                                 {canRemove && (
                                     <button
                                         type="button"
@@ -96,6 +120,7 @@ export const RoastLog = ({
                                     {note}
                                 </div>
                             )}
+                            {editor}
                         </div>
                     );
                 }
@@ -105,6 +130,7 @@ export const RoastLog = ({
                         key={key}
                         style={{
                             display: 'flex',
+                            flexWrap: 'wrap',
                             gap: isSidebar ? 10 : 12,
                             padding: isSidebar ? '8px 0' : '10px 0',
                             borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
@@ -188,6 +214,7 @@ export const RoastLog = ({
                                 </div>
                             )}
                         </div>
+                        {editButton}
                         {canRemove && (
                             <button
                                 type="button"
@@ -199,6 +226,7 @@ export const RoastLog = ({
                                 <X size={12} />
                             </button>
                         )}
+                        {editor && <div className="w-full">{editor}</div>}
                     </div>
                 );
             })}

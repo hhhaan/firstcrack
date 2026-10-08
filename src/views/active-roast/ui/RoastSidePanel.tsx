@@ -5,6 +5,7 @@ import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
+import type { RoastLogEditOptions } from '@features/active-roast/ui/RoastLogEntryEditor';
 import { endRoastLabel, markDropLabel, roastEventLabel, roastReadyLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
@@ -54,6 +55,7 @@ interface RoastSidePanelProps {
     onCycleFc: () => void;
     onHandleDrop: () => void;
     onRemoveLogEntry: (id: string) => void;
+    logEditOptions?: RoastLogEditOptions;
     onEnterStandby: () => void;
     onManualCharge: () => void;
     onEndRoast: () => void;
@@ -94,6 +96,7 @@ export const RoastSidePanel = ({
     onCycleFc,
     onHandleDrop,
     onRemoveLogEntry,
+    logEditOptions,
     onEnterStandby,
     onManualCharge,
     onEndRoast,
@@ -112,7 +115,11 @@ export const RoastSidePanel = ({
     const curves = useCurveStyles();
 
     return (
-        <RoastSidePanelLayout roastLogDisplayEntries={roastLogDisplayEntries} onRemoveLogEntry={onRemoveLogEntry}>
+        <RoastSidePanelLayout
+            roastLogDisplayEntries={roastLogDisplayEntries}
+            onRemoveLogEntry={onRemoveLogEntry}
+            logEditOptions={logEditOptions}
+        >
             <RoastAlertBanner alerts={activeAlerts} />
             {/* ET */}
             <div className="text-right">

@@ -1075,6 +1075,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onCycleFc={cycleFc}
                         onHandleDrop={markDrop}
                         onRemoveLogEntry={removeLogEntry}
+                        logEditOptions={
+                            chartFrame.onEventMarkerEdit
+                                ? { unit, livePoints, maxTimeSec: elapsed, onEditEntry: handleEventMarkerEdit }
+                                : undefined
+                        }
                         onEnterStandby={lifecycle.handleEnterStandby}
                         onManualCharge={lifecycle.handleManualCharge}
                         onEndRoast={handleEndRoastClick}

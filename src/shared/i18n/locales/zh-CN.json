@@ -762,6 +762,7 @@
             "expand": "展开烘焙日志",
             "collapse": "收起烘焙日志",
             "title": "烘焙记录",
+            "editRangeHint": "时间请输入 m:ss 格式，温度需在实测曲线范围内。",
             "deleteNote": "删除备注"
         },
         "phase": {

@@ -31,8 +31,36 @@ export function nearestLivePointAt(
 
 export type EventMarkerPatch = RoastNoteControls & {
     timeSec?: number;
+    tempC?: number;
     note?: string;
 };
+
+/** Resolve repeated temperatures on the branch closest to the event being edited. */
+function liveTimeAtTemperature(
+    livePoints: ReadonlyArray<MarkerDragLivePoint>,
+    tempC: number,
+    nearTimeSec: number,
+    maxTimeSec: number,
+): number | null {
+    if (!Number.isFinite(tempC) || !Number.isFinite(nearTimeSec) || !Number.isFinite(maxTimeSec) || maxTimeSec < 0)
+        return null;
+    const points = livePoints
+        .filter((p) => Number.isFinite(p.time) && Number.isFinite(p.bt) && p.time >= 0 && p.time <= maxTimeSec)
+        .sort((a, b) => a.time - b.time);
+    let best: number | null = null;
+    const consider = (time: number) => {
+        if (best == null || Math.abs(time - nearTimeSec) < Math.abs(best - nearTimeSec)) best = time;
+    };
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        if (point.bt === tempC) consider(point.time);
+        const previous = points[i - 1];
+        if (!previous || previous.bt === point.bt || point.time - previous.time > NEAREST_BT_MAX_SEC * 2) continue;
+        const ratio = (tempC - previous.bt) / (point.bt - previous.bt);
+        if (ratio >= 0 && ratio <= 1) consider(previous.time + ratio * (point.time - previous.time));
+    }
+    return best == null ? null : Math.round(best);
+}
 
 /**
  * Apply chart event-marker drag: sync time + BT from nearest live sample, re-sort by time.
@@ -50,8 +78,9 @@ export function applyEventMarkerDrag(
 }
 
 /**
- * Patch a log event from the chart editor. Charge stays immutable.
- * Time changes snap BT to the nearest live sample. Note applies to Heater/Note only.
+ * Patch an event from the chart or log editor. Charge stays immutable.
+ * Time changes snap BT to a sample; temperature changes resolve the closest curve crossing.
+ * Note applies to Heater/Note only.
  */
 export function applyEventMarkerEdit(
     entries: LogEntry[],
@@ -63,9 +92,15 @@ export function applyEventMarkerEdit(
 ): LogEntry[] {
     if (!logId) return entries;
     const target = entries.find((entry) => entry.id === logId);
-    if (!target || target.event === 'Charge') return entries;
+    if (!target || target.current || target.event === 'Charge') return entries;
 
-    const nextTimeSec = patch.timeSec;
+    const nextTemp = patch.tempC;
+    const hasTemp = nextTemp !== undefined;
+    const nextTimeSec =
+        nextTemp !== undefined
+            ? liveTimeAtTemperature(livePoints, nextTemp, patch.timeSec ?? logEntryTimeSec(target), maxTimeSec)
+            : patch.timeSec;
+    if (hasTemp && nextTimeSec == null) return entries;
     const nextNote = patch.note;
     const hasTime = nextTimeSec != null;
     const allowNote = (target.event === 'Heater' || target.event === 'Note') && nextNote != null;
@@ -106,8 +141,8 @@ export function applyEventMarkerEdit(
                 ...next,
                 time: newTimeStr,
                 timeSec: boundedTimeSec,
-                temp: formatTemp(nearest.bt, unit),
-                tempC: nearest.bt,
+                temp: formatTemp(nextTemp ?? nearest.bt, unit),
+                tempC: nextTemp ?? nearest.bt,
             };
         })
         .sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));

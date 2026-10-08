@@ -166,3 +166,49 @@ it('edits manual Note fields independently and preserves them when moving time',
     expect(stopped[0]).toMatchObject({ note: 'color', airflow: '1.2 kPa', drum: '0' });
     expect(applyEventMarkerEdit(stopped, 'manual', { drum: ' ' }, [], 'C', 30)[0].drum).toBeUndefined();
 });
+
+describe('temperature edits on the measured curve', () => {
+    const curve = [
+        { time: 0, bt: 200 },
+        { time: 10, bt: 100 },
+        { time: 20, bt: 150 },
+        { time: 30, bt: 200 },
+    ];
+    it('selects the nearest crossing, interpolates time, preserves data and reorders', () => {
+        const original = entry('fc', 'FC Start', 28, 190, 'crack');
+        const other = entry('yellow', 'Yellow', 22, 160);
+        const result = applyEventMarkerEdit([other, original], 'fc', { tempC: 175 }, curve, 'F', 30);
+        expect(result[1]).toMatchObject({
+            id: 'fc',
+            time: '0:25',
+            timeSec: 25,
+            tempC: 175,
+            temp: '347.0°F',
+            note: 'crack',
+        });
+        const cooling = applyEventMarkerEdit([original], 'fc', { tempC: 175, timeSec: 2 }, curve, 'C', 30);
+        expect(cooling[0].timeSec).toBe(3);
+        expect(result[0]).toBe(other);
+    });
+    it('rejects unmatched, nonfinite, future and missing-curve temperatures', () => {
+        const entries = [entry('fc', 'FC Start', 20, 150)];
+        for (const tempC of [99, 201, Number.NaN, Number.POSITIVE_INFINITY]) {
+            expect(applyEventMarkerEdit(entries, 'fc', { tempC }, curve, 'C', 30)).toBe(entries);
+        }
+        expect(applyEventMarkerEdit(entries, 'fc', { tempC: 175 }, [], 'C', 30)).toBe(entries);
+        expect(
+            applyEventMarkerEdit(
+                entries,
+                'fc',
+                { tempC: 125 },
+                [
+                    { time: 0, bt: 100 },
+                    { time: 100, bt: 150 },
+                ],
+                'C',
+                100,
+            ),
+        ).toBe(entries);
+        expect(applyEventMarkerEdit(entries, 'fc', { tempC: 175 }, curve.slice(2), 'C', 20)).toBe(entries);
+    });
+});

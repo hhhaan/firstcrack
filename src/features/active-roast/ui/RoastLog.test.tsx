@@ -88,4 +88,62 @@ describe('RoastLog removable entries', () => {
         });
         expect(onRemoveEntry.mock.calls).toEqual([['heater-1'], ['note-1']]);
     });
+    it.each(['sidebar', 'main', 'panel'] as const)(
+        'edits time and temperature together in %s and cancels without saving',
+        (variant) => {
+            const onEditEntry = vi.fn();
+            act(() =>
+                root.render(
+                    createElement(RoastLog, {
+                        variant,
+                        entries: [
+                            entry('Charge', 'charge'),
+                            entry('FC Start', 'fc'),
+                            { ...entry('Now', 'now'), current: true },
+                        ],
+                        editOptions: {
+                            unit: 'F',
+                            livePoints: [
+                                { time: 50, bt: 170 },
+                                { time: 60, bt: 180 },
+                                { time: 70, bt: 190 },
+                            ],
+                            maxTimeSec: 70,
+                            onEditEntry,
+                        },
+                    }),
+                ),
+            );
+            const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+            expect(buttons).toHaveLength(1);
+            act(() => buttons[0].click());
+            const inputs = container.querySelectorAll('input');
+            const setValue = (input: HTMLInputElement, value: string) =>
+                act(() => {
+                    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            setValue(inputs[0], '1:10');
+            expect(inputs[1].value).toBe('374.0');
+            setValue(inputs[1], '365');
+            expect(inputs[0].value).toBe('1:05');
+            act(() =>
+                container
+                    .querySelector('form')
+                    ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+            );
+            expect(onEditEntry).toHaveBeenCalledWith('fc', { timeSec: 65, tempC: 185 });
+            expect(container.querySelector('form')).toBeNull();
+            act(() => buttons[0].click());
+            setValue(container.querySelectorAll('input')[1], '999');
+            expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+            act(() =>
+                container
+                    .querySelector('input')
+                    ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+            );
+            expect(container.querySelector('form')).toBeNull();
+            expect(onEditEntry).toHaveBeenCalledTimes(1);
+        },
+    );
 });

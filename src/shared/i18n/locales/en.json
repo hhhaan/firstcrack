@@ -762,6 +762,7 @@
             "expand": "Expand roast log",
             "collapse": "Collapse roast log",
             "title": "Roast Log",
+            "editRangeHint": "Enter time as m:ss and temperature within the measured curve range.",
             "deleteNote": "Delete note"
         },
         "phase": {

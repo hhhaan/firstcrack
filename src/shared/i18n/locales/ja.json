@@ -762,6 +762,7 @@
             "expand": "焙煎ログを展開",
             "collapse": "焙煎ログを折りたたむ",
             "title": "ローストログ",
+            "editRangeHint": "時間はm:ss形式、温度は測定曲線の範囲内で入力してください。",
             "deleteNote": "ノート削除"
         },
         "phase": {
