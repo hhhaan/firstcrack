@@ -131,7 +131,7 @@ describe('HeaterEventsEditor', () => {
         await act(async () => root.unmount());
     });
 
-    it('names an unfinished m:ss time instead of a generic value error', async () => {
+    it('saves a trailing colon as minutes and zero seconds', async () => {
         host = document.createElement('div');
         document.body.appendChild(host);
         const root = createRoot(host);
@@ -178,9 +178,9 @@ describe('HeaterEventsEditor', () => {
         await act(async () =>
             [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
         );
-        expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.timeInvalid|{"row":1}');
-        expect(input.getAttribute('aria-invalid')).toBe('true');
+        expect(onApply).toHaveBeenCalledOnce();
+        expect(onApply.mock.calls[0][0][0].t).toBe(720);
+        expect(document.querySelector('[role="alert"]')).toBeNull();
         await act(async () => root.unmount());
     });
 

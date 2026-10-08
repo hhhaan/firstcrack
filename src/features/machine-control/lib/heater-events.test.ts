@@ -66,6 +66,11 @@ describe('parseEditTime', () => {
         expect(parseEditTime('12:05')).toBe(725);
         expect(parseEditTime('1:99')).toBeNull();
         expect(parseEditTime('abc')).toBeNull();
+        expect(parseEditTime('')).toBeNull();
+        expect(parseEditTime('5')).toBe(300);
+        expect(parseEditTime('12')).toBe(720);
+        expect(parseEditTime('12:')).toBe(720);
+        expect(parseEditTime('12:3')).toBe(723);
     });
 
     it('formatEditTime은 왕복된다', () => {
@@ -204,8 +209,8 @@ describe('validateHeaterDraft', () => {
     };
 
     it('names the first broken field instead of one invalid result', () => {
-        expect(issueOf([row('80', '12:')])).toEqual({ code: 'time', row: 1 });
-        expect(issueOf([row('80', '5')])).toEqual({ code: 'time', row: 1 });
+        expect(issueOf([row('80', '1:99')])).toEqual({ code: 'time', row: 1 });
+        expect(issueOf([row('80', 'abc')])).toEqual({ code: 'time', row: 1 });
         expect(issueOf([row('80', '1:00', '')])).toEqual({ code: 'bt', row: 1 });
         expect(issueOf([row('')])).toEqual({ code: 'heat-empty', row: 1 });
         expect(issueOf([row('80'), row('101')])).toEqual({ code: 'heat-range', row: 2 });

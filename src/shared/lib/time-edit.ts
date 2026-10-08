@@ -1,4 +1,5 @@
-const TIME_RE = /^(\d{1,3}):([0-5]?\d|60)$/;
+/** 분, 또는 `분:` / `분:초`. 초가 없으면 0. 초 한 자리는 그대로 초다. */
+const SOFT_TIME_RE = /^(\d{1,3})(?::([0-5]?\d|60)?)?$/;
 const MINUTES_RE = /^\d{0,3}$/;
 
 export type TimeEditKind = 'insert' | 'backspace' | 'delete';
@@ -120,8 +121,8 @@ export const applyTimeEdit = (
 };
 
 export const parseEditTime = (value: string): number | null => {
-    const trimmed = value.trim();
-    const match = TIME_RE.exec(trimmed);
+    const match = SOFT_TIME_RE.exec(value.trim());
     if (!match) return null;
-    return Number(match[1]) * 60 + Number(match[2]);
+    const seconds = match[2] == null || match[2] === '' ? 0 : Number(match[2]);
+    return Number(match[1]) * 60 + seconds;
 };
