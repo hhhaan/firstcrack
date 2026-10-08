@@ -19,6 +19,7 @@ import {
 } from '@features/active-roast/lib/reference-curve';
 import {
     parseStoredRoastEvents,
+    storedEventsToControlChanges,
     storedEventsToLogEntries,
     storedEventsToMarkers,
 } from '@features/active-roast/lib/serialize-roast-events';
@@ -264,6 +265,7 @@ export function HistorySessionChart({
         [points, session],
     );
     const { hasControls, controlData } = historyControls({
+        changes: storedEventsToControlChanges(storedEvents),
         points,
         heatSet,
         referenceControls,

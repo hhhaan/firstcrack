@@ -39,6 +39,7 @@ export interface MachineControlCompositionInput {
     onHeaterCommitted?: (value: number, unit: string) => void;
     /** Raw applied command. Tests use this; the heater log uses onHeaterCommitted. */
     onCommitted?: (committed: ControlCommand) => void;
+    onApplied?: (applied: ControlCommand) => void;
 }
 
 /**
@@ -66,6 +67,7 @@ export const useMachineControlComposition = ({
     nowMs,
     onHeaterCommitted,
     onCommitted,
+    onApplied,
 }: MachineControlCompositionInput) => {
     const heaterUnitRef = useRef('%');
     const handleCommitted = useCallback(
@@ -75,7 +77,7 @@ export const useMachineControlComposition = ({
         },
         [onCommitted, onHeaterCommitted],
     );
-    const machine = useMachineControl(sidecarConnected, liveData, handleCommitted);
+    const machine = useMachineControl(sidecarConnected, liveData, handleCommitted, onApplied);
     useEffect(() => {
         heaterUnitRef.current = machine.limits.heater?.unit ?? '%';
     }, [machine.limits.heater?.unit]);

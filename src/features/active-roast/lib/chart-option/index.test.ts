@@ -837,67 +837,50 @@ describe('buildRoastChartOption', () => {
         }
     });
 
-    it('labels heat and fan only when the rounded value changes, fading the profile copy', () => {
+    it('labels only acknowledged app writes and the current measurement, including zero and decimals', () => {
         const byName = seriesByName({
             ...baseParams(),
             fontScale: 1.5,
             controlData: {
                 xs: [0, 30, 60, 90],
                 drumTemp: [40, 41, 42, 43],
-                heatPower: [39, 39.2, 32, 32],
-                fanSpeed: [70, 70, 70, 70],
+                heatPower: [39, 39.2, 32, 31.9],
+                fanSpeed: [70, 69.4, 70.6, 70],
                 heatSet: [39, 39, 32, 32],
-                heatTarget: { xs: [0, 90], values: [80, 60] },
-                reference: {
-                    xs: [0, 30, 60, 90],
-                    drum: [40, 41, 42, 43],
-                    heater: [70, 70, 70, 70],
-                    fan: [39, 36, 36, 13],
-                },
+                changes: [{ timeSec: 42.5, values: { heater: 0, fan: 1.2, drum: 55 } }],
+                reference: { xs: [0, 90], drum: [40, 45], heater: [70, 60], fan: [39, 13] },
             },
         });
         const marks = (name: string) =>
             (
                 byName[name] as {
-                    markPoint?: {
-                        data: {
-                            symbol: string;
-                            itemStyle: { color: string };
-                            label: { formatter: string; opacity?: number; color: string; fontSize: number };
-                        }[];
-                    };
+                    markPoint?: { data: { coord: number[]; label: { formatter: string; fontSize: number } }[] };
                 }
             ).markPoint?.data ?? [];
-
-        expect(marks('Heat').map((mark) => mark.label.formatter)).toEqual(['39', '32', '32']);
-        expect(marks('Heat').map((mark) => mark.itemStyle.color)).toEqual([
-            mockColors.controlHeat,
-            'transparent',
-            mockColors.controlHeat,
+        expect(marks('Heat').map((mark) => [mark.coord, mark.label.formatter])).toEqual([
+            [[42.5, 0], '0'],
+            [[90, 31.9], '31.9'],
         ]);
-        expect(marks('Heat')[0]?.label.opacity).toBe(1);
-        expect(marks('Fan')[0]?.label.opacity).toBe(1);
-        expect(marks('Heat')[0]?.label.color).toBe(mockColors.controlHeat);
-        expect(marks('Heat')[0]?.label.fontSize).toBe(15);
-        expect(marks('Fan').map((mark) => mark.label.formatter)).toEqual(['70']);
-        expect(marks('Fan')[0]?.symbol).toBe('circle');
-        expect(marks('Heater Target').map((mark) => mark.label.formatter)).toEqual(['70']);
-        expect(marks('Heater Target')[0]?.label).toMatchObject({
-            opacity: REFERENCE_CURVE_OPACITY,
-            color: mockColors.controlHeat,
-        });
-        expect(marks('Fan Target').map((mark) => mark.label.formatter)).toEqual(['39', '36', '13']);
-        expect(marks('Fan Target').every((mark) => mark.label.opacity === REFERENCE_CURVE_OPACITY)).toBe(true);
-        expect(byName['Heater Target']).toMatchObject({ step: 'end' });
-        expect(marks('Drum').map((mark) => mark.label.formatter)).toEqual(['40', '41', '42', '43']);
-        expect(marks('Drum')[0]?.label.opacity).toBe(1);
-        expect(marks('Drum')[0]?.label.color).toBe(mockColors.controlDrum);
-        expect(byName.Drum).toMatchObject({ step: 'end' });
-        expect(marks('Drum Target').map((mark) => mark.label.formatter)).toEqual(['40', '41', '42', '43']);
-        expect(marks('Drum Target').every((mark) => mark.label.opacity === REFERENCE_CURVE_OPACITY)).toBe(true);
-        expect(byName['Drum Target']).toMatchObject({ step: 'end' });
+        expect(marks('Fan').map((mark) => mark.label.formatter)).toEqual(['1.2', '70']);
+        expect(marks('Drum').map((mark) => mark.label.formatter)).toEqual(['55', '43']);
+        expect(marks('Heat')[0].label.fontSize).toBe(15);
+        for (const name of ['Drum Target', 'Heater Target', 'Fan Target']) expect(marks(name)).toEqual([]);
         expect(byName['Heat set']).not.toHaveProperty('markPoint');
-        expect(byName['Heat target']).not.toHaveProperty('markPoint');
+    });
+
+    it('never turns PLC noise into change labels without app writes', () => {
+        const byName = seriesByName({
+            ...baseParams(),
+            controlData: {
+                xs: [0, 1, 2, 3],
+                drumTemp: [55.49, 55.51, 55.49, 55.51],
+                heatPower: [80, 60, 70, 60],
+                fanSpeed: [30, 31, 30, null],
+            },
+        });
+        expect((byName.Drum as { markPoint: { data: unknown[] } }).markPoint.data).toHaveLength(1);
+        expect((byName.Heat as { markPoint: { data: unknown[] } }).markPoint.data).toHaveLength(1);
+        expect((byName.Fan as { markPoint: { data: unknown[] } }).markPoint.data).toHaveLength(0);
     });
 
     it('omits reference channels that were not stored', () => {

@@ -152,7 +152,9 @@ export const buildRoastLogDisplayEntries = (
     roastPhaseName: string,
     unit: TemperatureUnit,
 ): RoastLogDisplayEntry[] => {
-    const sorted = [...logEntries].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+    const sorted = logEntries
+        .filter((e) => e.event !== 'Control')
+        .sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
     return [
         ...sorted,
         ...(!roastEnded && charged
