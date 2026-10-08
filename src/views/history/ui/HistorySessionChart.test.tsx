@@ -63,6 +63,7 @@ vi.mock('@features/active-roast/lib/serialize-roast-events', () => ({
     parseStoredRoastEvents: () => [],
     storedEventsToMarkers: () => [{ event: 'Charge', timeSec: 0 }],
     storedEventsToLogEntries: () => [],
+    storedEventsToControlChanges: () => [{ timeSec: 30, values: { heater: 0, fan: 1.2, drum: 55 } }],
 }));
 vi.mock('@shared/store/theme', () => ({ useThemeStore: () => 'light' }));
 vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
@@ -152,7 +153,11 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
             xViewMin: -92,
             xViewMax: 120,
             eventMarkers: [{ event: 'Charge', timeSec: 0 }],
-            controlData: expect.objectContaining({ xs: [-90, -2, 0, 60], heatPower: [20, 20, 20, 20] }),
+            controlData: expect.objectContaining({
+                xs: [-90, -2, 0, 60],
+                heatPower: [20, 20, 20, 20],
+                changes: [{ timeSec: 30, values: { heater: 0, fan: 1.2, drum: 55 } }],
+            }),
         }),
     );
     expect(mocks.chart).toHaveBeenLastCalledWith(
