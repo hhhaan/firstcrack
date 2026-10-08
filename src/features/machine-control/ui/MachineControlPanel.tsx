@@ -1,4 +1,11 @@
 import { FEATURE, useFeature } from '@shared/lib/features';
+import {
+    formatShortcut,
+    SHORTCUT_HOTKEY_OPTIONS,
+    shortcutHotkeys,
+    useShortcutKeys,
+    useShortcutStore,
+} from '@shared/store/keyboard-shortcuts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -44,16 +51,18 @@ export const MachineControlPanel = ({
     const { writable, limits, desired, unacknowledged, sending } = machine;
     const [collapsed, setCollapsed] = useState(false);
     const [heatEditorOpen, setHeatEditorOpen] = useState(false);
+    const toggleControlKeys = useShortcutKeys('toggleControl');
+    const shortcutsBlocked = useShortcutStore((state) => state.recording || state.dialogOpen);
 
     const hasChannel = MACHINE_CONTROL_CHANNEL_ROLES.some((role) => limits[role] != null);
     const panelVisible = isMachineControlPanelShown({ pidActive, entitled, writable, hasChannel });
     useHotkeys(
-        't',
+        shortcutHotkeys(toggleControlKeys),
         (e) => {
             e.preventDefault();
             setCollapsed((collapsed) => !collapsed);
         },
-        { enabled: hotkeysEnabled && panelVisible },
+        { enabled: hotkeysEnabled && panelVisible && !shortcutsBlocked, ...SHORTCUT_HOTKEY_OPTIONS },
         [hotkeysEnabled, panelVisible],
     );
     if (!panelVisible) return null;
@@ -84,8 +93,8 @@ export const MachineControlPanel = ({
                     onClick={() => setCollapsed((c) => !c)}
                     aria-label={collapsed ? 'Expand machine control' : 'Collapse machine control'}
                     aria-expanded={!collapsed}
-                    aria-keyshortcuts="t"
-                    title={collapsed ? 'Expand machine control (T)' : 'Collapse machine control (T)'}
+                    aria-keyshortcuts={toggleControlKeys[0]}
+                    title={`${collapsed ? 'Expand' : 'Collapse'} machine control (${formatShortcut(toggleControlKeys)})`}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent"
                 >
                     {collapsed ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}

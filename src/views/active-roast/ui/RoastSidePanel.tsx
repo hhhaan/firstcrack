@@ -328,7 +328,7 @@ export const RoastSidePanel = ({
                         {
                             label: roastEventLabel('Yellow'),
                             event: 'Yellow',
-                            shortcutKey: '1',
+                            shortcutId: 'yellow',
                             pressKey: 'Mark Yellow',
                             onClick: () => {
                                 if (!canMark) return;
@@ -340,7 +340,7 @@ export const RoastSidePanel = ({
                                 fcDualStage != null ? fcDualButtonLabel(fcDualStage, fcDualUnwind) : 'FC Start',
                             ),
                             event: 'FC Start',
-                            shortcutKey: '2',
+                            shortcutId: 'fcStart',
                             pressKey: 'Mark FC Start',
                             onClick: () => {
                                 if (!canMark) return;
@@ -352,7 +352,7 @@ export const RoastSidePanel = ({
                         {
                             label: roastEventLabel('FC End'),
                             event: 'FC End',
-                            shortcutKey: '3',
+                            shortcutId: 'fcEnd',
                             pressKey: 'Mark FC End',
                             onClick: () => {
                                 if (!canMark) return;
@@ -362,7 +362,7 @@ export const RoastSidePanel = ({
                         {
                             label: markDropLabel(),
                             event: 'Drop',
-                            shortcutKey: 'DD',
+                            shortcutId: 'drop',
                             pressKey: 'Mark Drop',
                             onClick: () => {
                                 if (!canMark) return;

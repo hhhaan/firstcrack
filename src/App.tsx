@@ -8,11 +8,18 @@ import { useOAuthDeepLink } from './features/auth';
 import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useActiveWorkspace } from './entities/organization';
 import { useSidecarDeadListener } from './features/sidecar';
 import { useUpdateChecker } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
+import {
+    SHORTCUT_HOTKEY_OPTIONS,
+    shortcutHotkeys,
+    useShortcutKeys,
+    useShortcutStore,
+} from './shared/store/keyboard-shortcuts';
 import { useThemeStore } from './shared/store/theme';
 import type { View } from './shared/types/view';
 import { ErrorBoundary, ViewErrorBoundary } from './shared/ui/ErrorBoundary';
@@ -31,6 +38,7 @@ import { Schedule } from './views/schedule/Schedule';
 import { Settings } from './views/settings/Settings';
 import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
 import { PendingRoastRecovery } from './widgets/pending-roast-recovery';
+import { KeyboardShortcutsModal } from './widgets/settings/ui/KeyboardShortcutsModal';
 import type { SettingsTabId } from './widgets/settings/ui/tabConfig';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 
@@ -129,6 +137,44 @@ export const App = () => {
         setView('settings');
     };
 
+    const settingsKeys = useShortcutKeys('openSettings');
+    const shortcutsKeys = useShortcutKeys('openShortcuts');
+    const sidebarKeys = useShortcutKeys('toggleSidebar');
+    const shortcutsOpen = useShortcutStore((s) => s.dialogOpen);
+    const recordingShortcut = useShortcutStore((s) => s.recording);
+    const setShortcutsOpen = useShortcutStore((s) => s.setDialogOpen);
+    const appKeysEnabled = Boolean(user) && !loading && !oauthPending && !recordingShortcut;
+    useHotkeys(shortcutHotkeys(settingsKeys), () => openSettings(), {
+        ...SHORTCUT_HOTKEY_OPTIONS,
+        enabled: appKeysEnabled && !shortcutsOpen,
+        enableOnFormTags: settingsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key)),
+        preventDefault: true,
+    });
+    useHotkeys(shortcutHotkeys(shortcutsKeys), () => setShortcutsOpen(true), {
+        ...SHORTCUT_HOTKEY_OPTIONS,
+        enabled: appKeysEnabled,
+        enableOnFormTags: shortcutsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key)),
+        preventDefault: true,
+    });
+    useHotkeys(shortcutHotkeys(sidebarKeys), () => setSidebarCollapsed((current) => !current), {
+        ...SHORTCUT_HOTKEY_OPTIONS,
+        enabled: appKeysEnabled && !shortcutsOpen && view !== 'settings',
+        preventDefault: true,
+    });
+    useHotkeys(
+        'escape',
+        (event) => {
+            if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+            event.preventDefault();
+            setView(settingsReturnView.current);
+        },
+        {
+            enabled: appKeysEnabled && view === 'settings' && !shortcutsOpen,
+            enableOnFormTags: true,
+            enableOnContentEditable: true,
+        },
+    );
+
     const openComparePlans = () => {
         void openUrl(COMPARE_PLANS_URL).catch((err) => {
             logger.capture(err, { context: 'open compare plans' });
@@ -218,6 +264,7 @@ export const App = () => {
             >
                 {/* VOC: restore first-run theme picker — {theme === null && <ThemeSelectModal />} */}
                 <PendingRoastRecovery />
+                {shortcutsOpen && <KeyboardShortcutsModal />}
                 <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     {view !== 'settings' && (
                         <Sidebar

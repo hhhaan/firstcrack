@@ -1,10 +1,12 @@
 import { setLanguage, supportedLanguages } from '@shared/i18n';
 import { inventoryStore } from '@shared/lib/inventoryStore';
 import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
+import { useShortcutStore } from '@shared/store/keyboard-shortcuts';
 // VOC: restore dark/system picker
 // import { type Theme, useThemeStore } from '@shared/store/theme';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls } from '@shared/ui/form-styles';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsRow, SettingsSection } from './SettingsSection';
@@ -164,6 +166,20 @@ export const GeneralSettingsTab = () => {
                         className={`${inputCls} w-20 rounded-lg py-1.5 text-[13px]`}
                     />
                     <span className="text-[12px] text-muted">{t('settings.tabs.general.days')}</span>
+                </SettingsRow>
+                <SettingsRow
+                    controlId="settings-shortcuts"
+                    label={t('shortcuts.title')}
+                    description={t('shortcuts.description')}
+                >
+                    <SurfaceButton
+                        id="settings-shortcuts"
+                        aria-label={t('shortcuts.edit')}
+                        aria-describedby="settings-shortcuts-description"
+                        onClick={() => useShortcutStore.getState().setDialogOpen(true)}
+                    >
+                        {t('shortcuts.edit')}
+                    </SurfaceButton>
                 </SettingsRow>
             </SettingsSection.Body>
         </SettingsSection>

@@ -22,7 +22,12 @@ function searchText(value: unknown): string {
 export function getSearchTabs(t: TFunction, query: string) {
     const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
     return getTabs(t).filter((tab) => {
-        const text = searchText(t(`settings.tabs.${tab.id}`, { returnObjects: true })).toLocaleLowerCase();
+        const shortcutText =
+            tab.id === 'general'
+                ? [t('shortcuts.title'), t('shortcuts.description'), t('shortcuts.edit')].join(' ')
+                : '';
+        const text =
+            `${searchText(t(`settings.tabs.${tab.id}`, { returnObjects: true }))} ${shortcutText}`.toLocaleLowerCase();
         return terms.every((term) => text.includes(term));
     });
 }

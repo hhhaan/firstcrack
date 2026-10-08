@@ -1,4 +1,10 @@
 import { i18n } from '@shared/i18n';
+import {
+    SHORTCUT_HOTKEY_OPTIONS,
+    shortcutHotkeys,
+    useShortcutKeys,
+    useShortcutStore,
+} from '@shared/store/keyboard-shortcuts';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useEffect, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -102,25 +108,42 @@ export const useRoastKeyboardShortcuts = ({
     onCycleFc,
     onMarkDrop,
 }: UseRoastKeyboardShortcutsParams) => {
-    const enabled = isRoastShortcutBaseEnabled({
-        isActive,
-        showEndRoastModal,
-        showSummaryModal,
-        showContinueModal,
-    });
-    const canCharge = isRoastChargeShortcutEnabled({
-        isActive,
-        showEndRoastModal,
-        showContinueModal,
-        phase,
-    });
-    const canMark = isRoastMarkShortcutEnabled({
-        isActive,
-        showEndRoastModal,
-        showSummaryModal,
-        showContinueModal,
-        phase,
-    });
+    const recording = useShortcutStore((state) => state.recording);
+    const dialogOpen = useShortcutStore((state) => state.dialogOpen);
+    const fullscreenKeys = useShortcutKeys('toggleFullscreen');
+    const exitFullscreenKeys = useShortcutKeys('exitFullscreen');
+    const chargeKeys = useShortcutKeys('charge');
+    const yellowKeys = useShortcutKeys('yellow');
+    const fcStartKeys = useShortcutKeys('fcStart');
+    const fcEndKeys = useShortcutKeys('fcEnd');
+    const dropKeys = useShortcutKeys('drop');
+    const chargeEnabledOnFormTags = chargeKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
+    const shortcutsEnabled = !recording && !dialogOpen;
+    const enabled =
+        shortcutsEnabled &&
+        isRoastShortcutBaseEnabled({
+            isActive,
+            showEndRoastModal,
+            showSummaryModal,
+            showContinueModal,
+        });
+    const canCharge =
+        shortcutsEnabled &&
+        isRoastChargeShortcutEnabled({
+            isActive,
+            showEndRoastModal,
+            showContinueModal,
+            phase,
+        });
+    const canMark =
+        shortcutsEnabled &&
+        isRoastMarkShortcutEnabled({
+            isActive,
+            showEndRoastModal,
+            showSummaryModal,
+            showContinueModal,
+            phase,
+        });
     const dropArmRef = useRef<number | null>(null);
 
     useEffect(() => {
@@ -152,82 +175,82 @@ export const useRoastKeyboardShortcuts = ({
 
     // Escape → exit fullscreen (only when fullscreen and no modal open)
     useHotkeys(
-        'escape',
+        shortcutHotkeys(exitFullscreenKeys),
         (e) => {
             e.preventDefault();
             onExitFullscreen();
         },
-        { enabled: enabled && isFullscreen },
+        { enabled: enabled && isFullscreen, ...SHORTCUT_HOTKEY_OPTIONS },
         [enabled, isFullscreen, onExitFullscreen],
     );
 
     // F → toggle fullscreen (case-insensitive — library normalises via toLowerCase)
     useHotkeys(
-        'f',
+        shortcutHotkeys(fullscreenKeys),
         (e) => {
             e.preventDefault();
             onToggleFullscreen();
         },
-        { enabled },
+        { enabled, ...SHORTCUT_HOTKEY_OPTIONS },
         [enabled, onToggleFullscreen],
     );
 
     // Ctrl/Meta + Enter → enter standby or charge
     useHotkeys(
-        'mod+enter',
+        shortcutHotkeys(chargeKeys),
         (e) => {
             e.preventDefault();
             if (phase === 'preheating') onEnterStandby();
             else if (phase === 'standby') onManualCharge();
         },
-        { enabled: canCharge, enableOnFormTags: true },
+        { enabled: canCharge, enableOnFormTags: chargeEnabledOnFormTags, ...SHORTCUT_HOTKEY_OPTIONS },
         [canCharge, phase, onEnterStandby, onManualCharge],
     );
 
     // Ctrl/Meta + 1 → Mark Yellow
     useHotkeys(
-        'mod+1',
+        shortcutHotkeys(yellowKeys),
         (e) => {
             e.preventDefault();
             onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
         },
-        { enabled: canMark },
+        { enabled: canMark, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkEvent],
     );
 
     // Ctrl/Meta + 2 → Mark FC Start (or dual-mark cycle when onCycleFc provided)
     useHotkeys(
-        'mod+2',
+        shortcutHotkeys(fcStartKeys),
         (e) => {
             e.preventDefault();
             if (onCycleFc) onCycleFc();
             else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
         },
-        { enabled: canMark },
+        { enabled: canMark, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkEvent, onCycleFc],
     );
 
     // Ctrl/Meta + 3 → Mark FC End
     useHotkeys(
-        'mod+3',
+        shortcutHotkeys(fcEndKeys),
         (e) => {
             e.preventDefault();
             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
         },
-        { enabled: canMark },
+        { enabled: canMark, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkEvent],
     );
 
     // Ctrl/Meta + D, D → Mark Drop. One tap arms; the second tap inside the window fires.
     useHotkeys(
-        'mod+d',
+        shortcutHotkeys(dropKeys),
         (e) => {
             e.preventDefault();
             const next = nextDropDoubleTap(dropArmRef.current, Date.now(), e.repeat);
             dropArmRef.current = next.armedAt;
             if (next.fire) onMarkDrop();
         },
-        { enabled: canMark },
+        { enabled: canMark, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkDrop],
     );
 };

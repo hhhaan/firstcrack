@@ -1,4 +1,45 @@
 {
+    "shortcuts": {
+        "title": "キーボードショートカット",
+        "description": "アプリと焙煎操作のショートカットを確認・変更",
+        "edit": "ショートカットを編集",
+        "search": "ショートカットを検索",
+        "restore": "すべて既定値に戻す",
+        "pressKeys": "キーを押してください…",
+        "recordingHint": "新しいキーの組み合わせを押してください。Escでキャンセルできます。",
+        "change": "ショートカットを変更: {{action}}",
+        "fixed": "変更できないショートカット",
+        "doubleTap": "400ms以内に2回押す",
+        "noResults": "一致するショートカットはありません",
+        "groups": {
+            "app": "アプリ",
+            "roast": "焙煎",
+            "chart": "チャート"
+        },
+        "errors": {
+            "conflict": "別の操作に割り当てられているショートカットです。",
+            "reserved": "予約済みのキーです。別のショートカットを選んでください。",
+            "invalid": "文字・数字・矢印・ファンクションキーと修飾キーを使用してください。"
+        },
+        "actions": {
+            "openSettings": "設定を開く",
+            "openShortcuts": "キーボードショートカットを開く",
+            "toggleSidebar": "左サイドバーの表示切替",
+            "toggleFullscreen": "焙煎の全画面表示切替",
+            "exitFullscreen": "全画面表示を終了",
+            "charge": "焙煎準備 / 投入",
+            "yellow": "Yellowを記録",
+            "fcStart": "FC Start / Rollingを記録",
+            "fcEnd": "FC Endを記録",
+            "drop": "排出を記録",
+            "toggleControl": "マシン制御パネルの表示切替",
+            "zoomIn": "チャートを拡大",
+            "zoomOut": "チャートを縮小",
+            "resetZoom": "チャートのズームをリセット",
+            "panLeft": "チャートを左へ移動",
+            "panRight": "チャートを右へ移動"
+        }
+    },
     "bbp": {
         "history": "このCharge直前のBBP",
         "duration": "BBP時間",
@@ -62,6 +103,8 @@
         "sidecarDeadRestart": "アプリを再起動してください。"
     },
     "sidebar": {
+        "more": "その他",
+        "feedback": "フィードバック",
         "roasteryDashboard": "ロースタリーダッシュボード",
         "expand": "サイドバーを展開",
         "collapse": "サイドバーを折りたたむ",
@@ -851,7 +894,7 @@
             "steps": {
                 "fullscreen": {
                     "title": "全画面ショートカット",
-                    "description": "ロースト中は F キーでチャートを全画面表示できます。Esc で終了します。"
+                    "description": "ロースト中は {{shortcut}} キーでチャートを全画面表示できます。Esc で終了します。"
                 },
                 "settings": {
                     "title": "ロースト設定",

@@ -1,3 +1,10 @@
+import {
+    formatShortcut,
+    SHORTCUT_HOTKEY_OPTIONS,
+    shortcutHotkeys,
+    useShortcutKeys,
+    useShortcutStore,
+} from '@shared/store/keyboard-shortcuts';
 import { Maximize2, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -26,7 +33,6 @@ const STEPS: TourStepDef[] = [
         id: 'fullscreen',
         selector: '[data-tour="active-roast-chart"]',
         icon: Maximize2,
-        kbd: 'F',
         stagePadding: 6,
         stageRadius: 10,
     },
@@ -60,6 +66,8 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
     const sessionDismissed = useActiveRoastOnboardingStore((s) => s.sessionDismissed);
     const markTourSeen = useActiveRoastOnboardingStore((s) => s.markFullscreenHintSeen);
     const dismissForSession = useActiveRoastOnboardingStore((s) => s.dismissForSession);
+    const fullscreenKeys = useShortcutKeys('toggleFullscreen');
+    const shortcutsBlocked = useShortcutStore((state) => state.recording || state.dialogOpen);
 
     const shouldShow = isActive && !tourSeen && !sessionDismissed;
     const [stepIndex, setStepIndex] = useState(0);
@@ -90,11 +98,14 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
     }, [isLast, dismissSession]);
 
     useHotkeys(
-        'f',
+        shortcutHotkeys(fullscreenKeys),
         () => {
             if (step.id === 'fullscreen') dismissSession();
         },
-        { enabled: shouldShow && !!target && step.id === 'fullscreen' },
+        {
+            enabled: shouldShow && !!target && step.id === 'fullscreen' && !shortcutsBlocked,
+            ...SHORTCUT_HOTKEY_OPTIONS,
+        },
     );
 
     useEffect(() => {
@@ -149,7 +160,9 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
         const id = step.id;
         return {
             title: t(`activeRoast.onboarding.steps.${id}.title`),
-            description: t(`activeRoast.onboarding.steps.${id}.description`),
+            description: t(`activeRoast.onboarding.steps.${id}.description`, {
+                shortcut: formatShortcut(fullscreenKeys),
+            }),
             dontShowAgain: t('activeRoast.onboarding.dontShowAgain'),
             primary: isLast ? t('activeRoast.onboarding.done') : t('activeRoast.onboarding.next'),
             progress: t('activeRoast.onboarding.progress', {
@@ -157,7 +170,7 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
                 total: STEPS.length,
             }),
         };
-    }, [t, step.id, isLast, stepIndex]);
+    }, [t, step.id, isLast, stepIndex, fullscreenKeys]);
 
     if (!shouldShow || !target) return null;
 
@@ -172,7 +185,7 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
             onDontShowAgain={dontShowAgain}
             onDismiss={dismissSession}
             icon={step.icon}
-            kbd={step.kbd}
+            kbd={step.id === 'fullscreen' ? formatShortcut(fullscreenKeys) : step.kbd}
             stepIndex={stepIndex}
             stepCount={STEPS.length}
             stepProgressLabel={copy.progress}

@@ -1,4 +1,45 @@
 {
+    "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "description": "View and edit shortcuts for the app and roasting controls",
+        "edit": "Edit shortcuts",
+        "search": "Search shortcuts",
+        "restore": "Restore all defaults",
+        "pressKeys": "Press keys…",
+        "recordingHint": "Press a new key combination. Escape cancels.",
+        "change": "Change shortcut: {{action}}",
+        "fixed": "Fixed shortcut",
+        "doubleTap": "Press twice within 400 ms",
+        "noResults": "No matching shortcuts",
+        "groups": {
+            "app": "App",
+            "roast": "Roasting",
+            "chart": "Chart"
+        },
+        "errors": {
+            "conflict": "This shortcut is already assigned to another action.",
+            "reserved": "This key combination is reserved. Choose another shortcut.",
+            "invalid": "Choose a letter, number, arrow, or function key with optional modifiers."
+        },
+        "actions": {
+            "openSettings": "Open settings",
+            "openShortcuts": "Open keyboard shortcuts",
+            "toggleSidebar": "Toggle left sidebar",
+            "toggleFullscreen": "Toggle roast fullscreen",
+            "exitFullscreen": "Exit fullscreen",
+            "charge": "Roast ready / Charge",
+            "yellow": "Mark Yellow",
+            "fcStart": "Mark FC Start / Rolling",
+            "fcEnd": "Mark FC End",
+            "drop": "Mark Drop",
+            "toggleControl": "Toggle machine control",
+            "zoomIn": "Zoom in chart",
+            "zoomOut": "Zoom out chart",
+            "resetZoom": "Reset chart zoom",
+            "panLeft": "Pan chart left",
+            "panRight": "Pan chart right"
+        }
+    },
     "bbp": {
         "history": "BBP before this Charge",
         "duration": "BBP duration",
@@ -62,6 +103,8 @@
         "sidecarDeadRestart": "Please restart the app."
     },
     "sidebar": {
+        "more": "More",
+        "feedback": "Feedback",
         "roasteryDashboard": "Roastery Dashboard",
         "expand": "Expand sidebar",
         "collapse": "Collapse sidebar",
@@ -851,7 +894,7 @@
             "steps": {
                 "fullscreen": {
                     "title": "Fullscreen shortcut",
-                    "description": "During a roast, press F to view the chart fullscreen. Press Esc to exit."
+                    "description": "During a roast, press {{shortcut}} to view the chart fullscreen. Press Esc to exit."
                 },
                 "settings": {
                     "title": "Roast settings",

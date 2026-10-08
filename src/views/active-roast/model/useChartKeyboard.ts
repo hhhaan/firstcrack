@@ -1,4 +1,10 @@
 import { MIN_VISIBLE_SECS } from '@features/active-roast/model/useChartZoom';
+import {
+    SHORTCUT_HOTKEY_OPTIONS,
+    shortcutHotkeys,
+    useShortcutKeys,
+    useShortcutStore,
+} from '@shared/store/keyboard-shortcuts';
 import type { RefObject } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
@@ -27,7 +33,14 @@ export const useChartKeyboard = ({
     visibleChartData,
     hoveredChartIndexRef,
 }: UseChartKeyboardParams) => {
-    const chartKeysEnabled = isActive && !showEndRoastModal && !showSummaryModal;
+    const recording = useShortcutStore((state) => state.recording);
+    const dialogOpen = useShortcutStore((state) => state.dialogOpen);
+    const zoomInKeys = useShortcutKeys('zoomIn');
+    const zoomOutKeys = useShortcutKeys('zoomOut');
+    const resetZoomKeys = useShortcutKeys('resetZoom');
+    const panLeftKeys = useShortcutKeys('panLeft');
+    const panRightKeys = useShortcutKeys('panRight');
+    const chartKeysEnabled = isActive && !showEndRoastModal && !showSummaryModal && !recording && !dialogOpen;
 
     const zoomChart = (zoomFactor: number) => {
         if (maxTime <= 0) return;
@@ -67,52 +80,52 @@ export const useChartKeyboard = ({
     };
 
     useHotkeys(
-        '+, =',
+        shortcutHotkeys(zoomInKeys),
         (e) => {
             e.preventDefault();
             zoomChart(0.8);
         },
-        { enabled: chartKeysEnabled },
+        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, maxTime, zoomChart],
     );
 
     useHotkeys(
-        '-, _',
+        shortcutHotkeys(zoomOutKeys),
         (e) => {
             e.preventDefault();
             zoomChart(1.25);
         },
-        { enabled: chartKeysEnabled },
+        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, maxTime, zoomChart],
     );
 
     useHotkeys(
-        '0',
+        shortcutHotkeys(resetZoomKeys),
         (e) => {
             e.preventDefault();
             setZoomRange(null);
         },
-        { enabled: chartKeysEnabled },
+        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, setZoomRange],
     );
 
     useHotkeys(
-        'left',
+        shortcutHotkeys(panLeftKeys),
         (e) => {
             e.preventDefault();
             panChart(-1);
         },
-        { enabled: chartKeysEnabled },
+        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, panChart],
     );
 
     useHotkeys(
-        'right',
+        shortcutHotkeys(panRightKeys),
         (e) => {
             e.preventDefault();
             panChart(1);
         },
-        { enabled: chartKeysEnabled },
+        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, panChart],
     );
 };

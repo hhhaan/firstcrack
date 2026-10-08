@@ -1,4 +1,45 @@
 {
+    "shortcuts": {
+        "title": "키보드 단축키",
+        "description": "앱과 로스팅 조작에 사용할 단축키 확인·변경",
+        "edit": "단축키 편집",
+        "search": "단축키 검색",
+        "restore": "모두 기본값으로 복원",
+        "pressKeys": "키를 눌러 주세요…",
+        "recordingHint": "새 키 조합을 누르세요. Esc로 취소할 수 있습니다.",
+        "change": "단축키 변경: {{action}}",
+        "fixed": "변경할 수 없는 단축키",
+        "doubleTap": "400ms 안에 두 번 누르기",
+        "noResults": "일치하는 단축키가 없습니다",
+        "groups": {
+            "app": "앱",
+            "roast": "로스팅",
+            "chart": "차트"
+        },
+        "errors": {
+            "conflict": "다른 동작에 지정된 단축키입니다.",
+            "reserved": "예약된 키 조합입니다. 다른 단축키를 선택하세요.",
+            "invalid": "문자·숫자·방향키·기능키와 보조 키 조합을 사용하세요."
+        },
+        "actions": {
+            "openSettings": "설정 열기",
+            "openShortcuts": "키보드 단축키 열기",
+            "toggleSidebar": "왼쪽 사이드바 표시·숨김",
+            "toggleFullscreen": "로스팅 전체 화면 전환",
+            "exitFullscreen": "전체 화면 종료",
+            "charge": "로스팅 준비 / 투입",
+            "yellow": "Yellow 기록",
+            "fcStart": "FC Start / Rolling 기록",
+            "fcEnd": "FC End 기록",
+            "drop": "배출 기록",
+            "toggleControl": "머신 제어 패널 표시·숨김",
+            "zoomIn": "차트 확대",
+            "zoomOut": "차트 축소",
+            "resetZoom": "차트 확대 초기화",
+            "panLeft": "차트 왼쪽 이동",
+            "panRight": "차트 오른쪽 이동"
+        }
+    },
     "bbp": {
         "history": "이 Charge 직전 BBP",
         "duration": "BBP 시간",
@@ -62,6 +103,8 @@
         "sidecarDeadRestart": "앱을 재시작해 주세요."
     },
     "sidebar": {
+        "more": "더 보기",
+        "feedback": "피드백",
         "roasteryDashboard": "로스터리 대시보드",
         "expand": "사이드바 열기",
         "collapse": "사이드바 닫기",
@@ -1200,7 +1243,7 @@
             "steps": {
                 "fullscreen": {
                     "title": "전체 화면 단축키",
-                    "description": "로스트 중에는 F 키를 눌러 차트를 전체 화면으로 볼 수 있어요. Esc로 종료합니다."
+                    "description": "로스트 중에는 {{shortcut}} 키를 눌러 차트를 전체 화면으로 볼 수 있어요. Esc로 종료합니다."
                 },
                 "settings": {
                     "title": "로스트 설정",

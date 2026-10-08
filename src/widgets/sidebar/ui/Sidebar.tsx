@@ -9,7 +9,6 @@ import {
     Dashboard,
     Fire,
     RecentlyViewed,
-    Settings,
     ShoppingCart,
     SidePanelClose,
     SidePanelOpen,
@@ -19,11 +18,12 @@ import { useActiveWorkspace } from '@entities/organization';
 import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { useAuthStore } from '@shared/store/auth';
+import { formatShortcut, useShortcutKeys } from '@shared/store/keyboard-shortcuts';
 import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
-import { Check, Lock } from 'lucide-react';
+import { Check, Ellipsis, Lock, Send, Settings } from 'lucide-react';
 import { type ComponentType, type CSSProperties, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
@@ -66,6 +66,8 @@ export const Sidebar = ({
     const { t } = useTranslation();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
     const [wsOpen, setWsOpen] = useState(false);
+    const [moreOpen, setMoreOpen] = useState(false);
+    const settingsKeys = useShortcutKeys('openSettings');
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId, setActiveOwner, memberships, authUserId } = useActiveWorkspace();
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
@@ -313,49 +315,49 @@ export const Sidebar = ({
 
             {/* Footer */}
             <div className={cn('py-2.5 border-t border-border-subtle dark:border-[#585d61]', rail ? 'px-3' : edgePad)}>
-                <button
-                    type="button"
-                    onClick={() => onOpenSettings()}
-                    aria-label={t('sidebar.settings')}
-                    aria-current={activeView === 'settings' ? 'page' : undefined}
-                    title={collapsed ? t('sidebar.settings') : undefined}
-                    className={cn(
-                        'w-full flex items-center rounded-lg border-none cursor-pointer',
-                        'bg-transparent transition-colors h-9 overflow-hidden',
-                        'hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary',
-                    )}
-                    style={{
-                        transitionProperty: 'background',
-                        transitionDuration: '140ms',
-                    }}
-                >
-                    <div className="w-9 h-9 shrink-0 flex items-center justify-center">
-                        <div className="w-6 h-6 rounded-full bg-surface-warm-solid flex items-center justify-center text-[10px] font-semibold text-secondary shrink-0">
-                            H
-                        </div>
-                    </div>
-                    <div
-                        className={cn(
-                            'flex-1 min-w-0 text-left transition-all duration-220 overflow-hidden whitespace-nowrap',
-                            collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[calc(100%-72px)]',
-                        )}
-                    >
-                        <div className="text-[13px] font-medium text-primary tracking-[0.14px] leading-tight">
-                            {t('sidebar.settings')}
-                        </div>
-                        <div className="text-[11px] text-muted tracking-[0.14px] truncate leading-tight">
-                            {t('sidebar.workspacePreferences')}
-                        </div>
-                    </div>
-                    <div
-                        className={cn(
-                            'w-9 h-9 shrink-0 flex items-center justify-center transition-all duration-220',
-                            collapsed ? 'opacity-0 max-w-0' : 'opacity-100',
-                        )}
-                    >
-                        <Settings size={16} className="text-muted dark:text-[#e5e5e5]" />
-                    </div>
-                </button>
+                <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+                    <PopoverTrigger asChild>
+                        <button
+                            type="button"
+                            aria-label={t('sidebar.more')}
+                            title={collapsed ? t('sidebar.more') : undefined}
+                            className="flex h-9 w-full items-center overflow-hidden rounded-lg bg-transparent text-secondary transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
+                        >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center">
+                                <Ellipsis size={18} strokeWidth={1.5} />
+                            </span>
+                            {!collapsed && <span className="text-[13px]">{t('sidebar.more')}</span>}
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="start" className="w-60 p-1.5" aria-label={t('sidebar.more')}>
+                        <button
+                            type="button"
+                            aria-label={t('sidebar.settings')}
+                            onClick={() => {
+                                setMoreOpen(false);
+                                onOpenSettings();
+                            }}
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[13px] text-primary hover:bg-primary/5 cursor-pointer"
+                        >
+                            <Settings size={18} strokeWidth={1.5} />
+                            <span className="flex-1">{t('sidebar.settings')}</span>
+                            <kbd className="whitespace-nowrap font-sans text-xs text-muted">
+                                {formatShortcut(settingsKeys)}
+                            </kbd>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setMoreOpen(false);
+                                onOpenSettings('support');
+                            }}
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[13px] text-primary hover:bg-primary/5 cursor-pointer"
+                        >
+                            <Send size={18} strokeWidth={1.5} />
+                            {t('sidebar.feedback')}
+                        </button>
+                    </PopoverContent>
+                </Popover>
             </div>
         </aside>
     );

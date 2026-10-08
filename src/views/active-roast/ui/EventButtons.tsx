@@ -1,13 +1,13 @@
 import type { FcDualStage } from '@features/active-roast/lib/fc-dual-mark';
 import { isAppleOs } from '@shared/lib/mod-key';
+import { formatShortcut, type ShortcutId, useShortcutStore } from '@shared/store/keyboard-shortcuts';
 import { useThemeStore } from '@shared/store/theme';
 import type { LogEntry } from '@shared/types/roast';
 
 export type EventButtonDef = {
     label: string;
     event: string | null;
-    /** Key only, e.g. `1` / `D` — mod glyph rendered per OS */
-    shortcutKey: string;
+    shortcutId: ShortcutId;
     pressKey: string;
     onClick: () => void;
     /** 이벤트 고유 색상 (sidebar variant에서 미등록 상태 배경/테두리로 사용) */
@@ -17,13 +17,6 @@ export type EventButtonDef = {
     /** Extra gate on top of the panel-wide `disabled`. */
     disabled?: boolean;
 };
-
-function eventKeyshortcuts(shortcutKey: string): string {
-    const doubled = shortcutKey.length === 2 && shortcutKey[0] === shortcutKey[1];
-    const key = doubled ? shortcutKey[0] : shortcutKey;
-    const chord = (mod: string) => (doubled ? `${mod}+${key} ${mod}+${key}` : `${mod}+${key}`);
-    return `${chord('Meta')} ${chord('Control')}`;
-}
 
 export const EventButtons = ({
     buttons,
@@ -42,13 +35,15 @@ export const EventButtons = ({
     const isSidebar = variant === 'sidebar';
     const isDark = useThemeStore((s) => s.resolvedTheme) === 'dark';
     const apple = isAppleOs();
+    const bindings = useShortcutStore((s) => s.bindings);
 
     const registeredEvents = new Set(logEntries.map((entry) => entry.event));
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isSidebar ? 8 : 10 }}>
             {buttons.map(
-                ({ label, event, shortcutKey, pressKey, onClick, color, dualStage, disabled: buttonDisabled }) => {
+                ({ label, event, shortcutId, pressKey, onClick, color, dualStage, disabled: buttonDisabled }) => {
+                    const keys = bindings[shortcutId];
                     const off = disabled || !!buttonDisabled;
                     const registered = event ? registeredEvents.has(event) : false;
                     const pressed = pressedButtons.has(pressKey);
@@ -92,10 +87,12 @@ export const EventButtons = ({
                     return (
                         <button
                             type="button"
-                            key={shortcutKey}
+                            key={shortcutId}
                             onClick={onClick}
                             disabled={off}
-                            aria-keyshortcuts={eventKeyshortcuts(shortcutKey)}
+                            aria-keyshortcuts={keys
+                                .map((key) => key.replace(/\bmod\b/g, apple ? 'Meta' : 'Control'))
+                                .join(' ')}
                             style={{
                                 display: 'flex',
                                 flexDirection: isSidebar ? 'column' : 'row',
@@ -155,10 +152,10 @@ export const EventButtons = ({
                                     transition: 'color 0.15s',
                                 }}
                             >
-                                <span style={apple ? { fontSize: '1.3em', lineHeight: 1 } : undefined}>
-                                    {apple ? '⌘' : 'Ctrl'}
+                                <span>
+                                    {formatShortcut(keys)}
+                                    {shortcutId === 'drop' ? ' ×2' : ''}
                                 </span>
-                                <span>{apple ? shortcutKey : `+${shortcutKey}`}</span>
                             </span>
                         </button>
                     );

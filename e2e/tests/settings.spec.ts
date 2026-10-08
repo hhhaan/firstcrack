@@ -1,9 +1,95 @@
+import { devices } from '@playwright/test';
 import { expect, goNav, test } from '../fixtures/app';
+
+// Match the host platform so the shortcut matcher and native modifier labels agree.
+test.use({
+    userAgent:
+        process.platform === 'darwin'
+            ? devices['Desktop Chrome'].userAgent.replace(
+                  'Windows NT 10.0; Win64; x64',
+                  'Macintosh; Intel Mac OS X 10_15_7',
+              )
+            : devices['Desktop Chrome'].userAgent,
+});
+
+test('settings shortcut, Feedback, and shortcut editing work through the app shell', async ({
+    authedPage: page,
+}, testInfo) => {
+    const modifier = await page.evaluate(() => (/mac/i.test(navigator.userAgent) ? 'Meta' : 'Control'));
+    const sidebar = page.getByTestId('app-sidebar');
+    const settings = page.getByTestId('settings-page');
+    await sidebar.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('sidebar-more.png'), animations: 'disabled' });
+    await page.getByRole('button', { name: 'Feedback', exact: true }).click();
+    await expect(settings.getByRole('heading', { name: 'Contact support', exact: true })).toBeVisible();
+    await expect(settings.getByText('support@firstcrackiscoming.com', { exact: true })).toBeVisible();
+    await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+
+    await page.keyboard.press(`${modifier}+,`);
+    await expect(settings).toBeVisible();
+    const settingsSearch = settings.getByRole('searchbox', { name: 'Search settings', exact: true });
+    await settingsSearch.fill('keyboard shortcuts');
+    await expect(settings.getByRole('button', { name: 'Edit shortcuts', exact: true })).toBeVisible();
+    await settingsSearch.fill('');
+    await settings.getByRole('button', { name: 'Edit shortcuts', exact: true }).click();
+    const modal = page.getByTestId('keyboard-shortcuts-modal');
+    const search = modal.getByRole('searchbox', { name: 'Search shortcuts', exact: true });
+    await expect(search).toBeFocused();
+    await search.fill('Open settings');
+    const changeSettings = modal.getByRole('button', { name: 'Change shortcut: Open settings', exact: true });
+    await expect(modal.locator('[data-shortcut]')).toHaveCount(1);
+    await changeSettings.click();
+    await page.keyboard.press(`${modifier}+/`);
+    await expect(modal.getByRole('alert')).toHaveText('This shortcut is already assigned to another action.');
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeVisible();
+    await expect(modal.getByRole('alert')).toHaveCount(0);
+    await changeSettings.click();
+    await page.keyboard.press(`${modifier}+Shift+p`);
+    await expect(changeSettings).toHaveAttribute('aria-pressed', 'false');
+    await search.fill('no-such-shortcut');
+    await expect(modal.getByText('No matching shortcuts', { exact: true })).toBeVisible();
+    await search.fill('');
+    await expect(modal.getByRole('button', { name: 'Restore all defaults', exact: true })).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath('keyboard-shortcuts-edited.png'), animations: 'disabled' });
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeHidden();
+    await expect(settings).toBeVisible();
+    await settingsSearch.focus();
+    await page.keyboard.press('Escape');
+    await expect(settings).toBeHidden();
+    await page.keyboard.press(`${modifier}+,`);
+    await expect(settings).toBeHidden();
+    await page.keyboard.press(`${modifier}+Shift+p`);
+    await expect(settings).toBeVisible();
+
+    await page.reload();
+    await expect(sidebar).toBeVisible();
+    await page.keyboard.press(`${modifier}+,`);
+    await expect(settings).toBeHidden();
+    await page.keyboard.press(`${modifier}+Shift+p`);
+    await expect(settings).toBeVisible();
+
+    await page.keyboard.press(`${modifier}+/`);
+    await modal.getByRole('button', { name: 'Restore all defaults', exact: true }).click();
+    await expect(modal.getByRole('button', { name: 'Restore all defaults', exact: true })).toBeDisabled();
+    await page.setViewportSize({ width: 600, height: 700 });
+    await expect
+        .poll(() => modal.evaluate((element) => element.scrollWidth - element.clientWidth))
+        .toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath('keyboard-shortcuts-narrow.png'), animations: 'disabled' });
+    await page.keyboard.press('Escape');
+    await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+    await page.keyboard.press(`${modifier}+,`);
+    await expect(settings).toBeVisible();
+});
 
 test('BT smoothing supports custom strength, keyboard input, reopening and reset', async ({
     authedPage: page,
 }, testInfo) => {
-    await page.getByTestId('app-sidebar').getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByTestId('app-sidebar').getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
     const slider = settings.getByRole('slider', { name: 'BT smoothing strength', exact: true });
@@ -25,7 +111,8 @@ test('BT smoothing supports custom strength, keyboard input, reopening and reset
         })
         .screenshot({ path: testInfo.outputPath('bt-smoothing-custom.png') });
     await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
-    await page.getByTestId('app-sidebar').getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByTestId('app-sidebar').getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
     await expect(value).toHaveValue('80');
     const btSection = settings.locator('[data-settings-section]').filter({
@@ -50,7 +137,8 @@ test('settings is a responsive page and preserves existing preferences and entry
 }, testInfo) => {
     await goNav(page, 'beans');
     const appRail = page.getByTestId('app-sidebar');
-    await appRail.getByRole('button', { name: 'Settings', exact: true }).click();
+    await appRail.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     const navigation = settings.getByRole('navigation', { name: 'Settings', exact: true });
     await expect(settings).toBeVisible();
@@ -80,7 +168,7 @@ test('settings is a responsive page and preserves existing preferences and entry
     await expect(navigation.getByRole('status')).toHaveText('No settings found.');
     await expect(settings.getByRole('main').getByRole('status')).toHaveText('No settings found.');
     await search.fill('   ');
-    await expect(navigation.getByRole('button')).toHaveCount(13);
+    await expect(navigation.getByRole('button')).toHaveCount(14);
     await search.fill('');
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
 
@@ -149,15 +237,15 @@ test('settings is a responsive page and preserves existing preferences and entry
     await page.getByRole('button', { name: 'Open roast settings', exact: true }).click();
     await expect(settings.getByRole('main').getByRole('heading', { name: 'Roasting', exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(settings).toBeVisible();
-    await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
     await expect(settings).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Open roast settings', exact: true })).toBeVisible();
 });
 
 test('roasting submenus filter sections while search and saved preferences span every group', async ({
     authedPage: page,
 }, testInfo) => {
-    await page.getByTestId('app-sidebar').getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByTestId('app-sidebar').getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     const navigation = settings.getByRole('navigation');
     const main = settings.getByRole('main');
@@ -229,7 +317,8 @@ test('roasting submenus filter sections while search and saved preferences span 
 test('temperature grid switches between default and a custom tick list without losing saved values', async ({
     authedPage: page,
 }, testInfo) => {
-    await page.getByTestId('app-sidebar').getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByTestId('app-sidebar').getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     const navigation = settings.getByRole('navigation', { name: 'Settings', exact: true });
     await navigation.getByRole('button', { name: 'Roasting', exact: true }).click();
