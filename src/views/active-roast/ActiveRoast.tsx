@@ -823,6 +823,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [bbpActive, charged, markEvent, roastEnded],
     );
 
+    const handleChartEvent = useCallback(
+        (event: string, timeSec: number) => {
+            if (!charged || roastEnded || bbpActive) return;
+            const nearest = nearestLivePointAt(livePoints, timeSec);
+            const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
+            markEvent(event, '', undefined, { timeSec, tempC });
+        },
+        [bbpActive, charged, livePoints, markEvent, roastEnded],
+    );
+
     const machineControl = useMachineControlComposition({
         sidecarConnected,
         reconnecting,
@@ -925,6 +935,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onEventMarkerEdit: handleEventMarkerEdit,
         onEventMarkerDelete: removeLogEntry,
         onAddNote: handleChartNote,
+        onAddEvent: handleChartEvent,
     });
 
     // ── 렌더 ──────────────────────────────────────────────────────
@@ -1015,6 +1026,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onEventMarkerEdit={chartFrame.onEventMarkerEdit}
                         onEventMarkerDelete={chartFrame.onEventMarkerDelete}
                         onAddNote={chartFrame.onAddNote}
+                        onAddEvent={chartFrame.onAddEvent}
                     />
 
                     {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}

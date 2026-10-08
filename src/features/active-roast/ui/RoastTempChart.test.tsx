@@ -380,6 +380,75 @@ describe('RoastTempChart interactions', () => {
         expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 500, pointerId: 6 })).toBe(false);
     });
 
+    it.each([
+        ['CC', 'Yellow'],
+        ['FC', 'FC Start'],
+        ['SC', 'FC End'],
+    ])('adds %s at the clicked time, keeps the draft and disables an existing mark', (label, event) => {
+        const onAddNote = vi.fn();
+        const onAddEvent = vi.fn();
+        const props = { ...baseProps, onAddNote, onAddEvent };
+        act(() => root.render(createElement(RoastTempChart, props)));
+        act(() =>
+            container
+                .querySelector('[tabindex="-1"]')
+                ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
+        );
+        const input = container.querySelector('#chart-note-input') as HTMLTextAreaElement;
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(input, 'memo');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        const button = container.querySelector(`[data-chart-note-event="${event}"]`) as HTMLButtonElement;
+        expect(button.textContent).toBe(label);
+        expect(button.disabled).toBe(false);
+        const enter = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' });
+        act(() => button.dispatchEvent(enter));
+        expect(enter.defaultPrevented).toBe(false);
+        expect(onAddNote).not.toHaveBeenCalled();
+        act(() => button.click());
+        expect(onAddEvent).toHaveBeenCalledWith(event, 9);
+        expect(input.value).toBe('memo');
+        expect(container.querySelector('[data-chart-note-form]')).not.toBeNull();
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...props,
+                    eventMarkers: [{ event, timeSec: 9, timeStr: '0:09', temp: '180°C', color: '#888' }],
+                }),
+            ),
+        );
+        expect(button.disabled).toBe(true);
+        act(() => button.click());
+        expect(onAddEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('disables phase marks at future note times', () => {
+        const onAddEvent = vi.fn();
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    currentTimeSec: 6,
+                    onAddNote: vi.fn(),
+                    onAddEvent,
+                }),
+            ),
+        );
+        act(() =>
+            container
+                .querySelector('[tabindex="-1"]')
+                ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
+        );
+        const buttons = container.querySelectorAll<HTMLButtonElement>('[data-chart-note-event]');
+        expect(buttons).toHaveLength(3);
+        for (const button of buttons) {
+            expect(button.disabled).toBe(true);
+            act(() => button.click());
+        }
+        expect(onAddEvent).not.toHaveBeenCalled();
+    });
+
     it('records a Note at the click time even when that time is ahead of the live curve', () => {
         const onAddNote = vi.fn();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, currentTimeSec: 6, onAddNote })));

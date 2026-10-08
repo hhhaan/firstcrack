@@ -111,6 +111,7 @@ interface Props {
     onEventMarkerEdit?: (logId: string, patch: EventMarkerPatch) => void;
     onEventMarkerDelete?: (logId: string) => void;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
+    onAddEvent?: (event: string, timeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
     showProfileBt?: boolean;
@@ -268,6 +269,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onEventMarkerEdit,
         onEventMarkerDelete,
         onAddNote,
+        onAddEvent,
         hideChargeLabel = false,
         showET = true,
         showTargetCurve = true,
@@ -995,6 +997,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     }, [currentTimeSec, editForm, onEventMarkerEdit, xs, xViewMax]);
 
     const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>, submit: () => void) => {
+        if (event.key === 'Enter' && event.target instanceof HTMLButtonElement && event.target.type === 'button')
+            return;
         if (event.key === 'Escape') {
             event.preventDefault();
             setNoteForm(null);
@@ -1056,6 +1060,31 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         commentId="chart-note-input"
                         autoFocus
                     />
+                    {onAddEvent && (
+                        <div className="grid grid-cols-3 gap-1 px-1">
+                            {[
+                                ['CC', 'Yellow'],
+                                ['FC', 'FC Start'],
+                                ['SC', 'FC End'],
+                            ].map(([label, event]) => (
+                                <button
+                                    key={event}
+                                    type="button"
+                                    data-chart-note-event={event}
+                                    aria-label={roastEventLabel(event)}
+                                    title={roastEventLabel(event)}
+                                    disabled={
+                                        noteForm.timeSec > currentTimeSec ||
+                                        eventMarkers.some((marker) => marker.event === event)
+                                    }
+                                    onClick={() => onAddEvent(event, noteForm.timeSec)}
+                                    className="cursor-pointer rounded border border-border bg-surface px-2 py-1 text-[11px] font-semibold text-secondary hover:bg-main-bg disabled:cursor-default disabled:opacity-40"
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex items-center justify-between gap-1 px-1">
                         <span className="text-[11px] text-muted">{t('activeRoast.noteEntry.keyboardHint')}</span>
                         <button

@@ -74,6 +74,22 @@ describe('useRoastLog markEvent', () => {
 
     afterEach(() => vi.unstubAllGlobals());
 
+    it.each(['Yellow', 'FC Start', 'FC End'])(
+        'adds a historical %s once while keeping current-time toggles',
+        async (event) => {
+            const hook = await renderHook('C', 180, 30);
+            act(() => {
+                hook.get().markEvent(event, '', undefined, { timeSec: 9, tempC: 151 });
+                hook.get().markEvent(event, '', undefined, { timeSec: 9, tempC: 151 });
+            });
+            expect(hook.get().logEntries).toHaveLength(1);
+            expect(hook.get().logEntries[0]).toMatchObject({ event, timeSec: 9, tempC: 151 });
+            act(() => hook.get().markEvent(event, 'toggle'));
+            expect(hook.get().logEntries).toHaveLength(0);
+            hook.unmount();
+        },
+    );
+
     it('keeps existing current-time callers and explicitly inserts a sorted historical Note', async () => {
         const randomUUID = vi.fn().mockReturnValueOnce('current-id').mockReturnValueOnce('note-id');
         vi.stubGlobal('crypto', { randomUUID });

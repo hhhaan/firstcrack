@@ -50,6 +50,7 @@ const chartInput = {
     onEventMarkerEdit: () => {},
     onEventMarkerDelete: () => {},
     onAddNote: () => {},
+    onAddEvent: () => {},
 };
 
 describe('buildChartFrame', () => {
@@ -60,6 +61,7 @@ describe('buildChartFrame', () => {
         expect(frame.showFcBand).toBe(true);
         expect(frame.controlData?.heatTarget).toEqual({ xs: [0], values: [80] });
         expect(frame.onAddNote).toBe(chartInput.onAddNote);
+        expect(frame.onAddEvent).toBe(chartInput.onAddEvent);
         expect(frame.bbpRange?.label).toBe('PREHEAT');
     });
 
@@ -79,6 +81,7 @@ describe('buildChartFrame', () => {
         expect(frame.showFcBand).toBe(false);
         expect(frame.controlData?.heatTarget).toBeUndefined();
         expect(frame.onEventMarkerDrag).toBeUndefined();
+        expect(frame.onAddEvent).toBeUndefined();
         expect(frame.bbpRange?.label).toBe('BBP');
     });
 
