@@ -96,7 +96,7 @@ describe('HeaterEventsEditor', () => {
         await act(async () => root.unmount());
     });
 
-    it('keeps the editor open and names an all-zero plan separately from a range error', async () => {
+    it('saves a lone 0 when the device accepts it', async () => {
         host = document.createElement('div');
         document.body.appendChild(host);
         const root = createRoot(host);
@@ -125,9 +125,9 @@ describe('HeaterEventsEditor', () => {
         await act(async () =>
             [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
         );
-        expect(onApply).not.toHaveBeenCalled();
-        expect(document.querySelector('[data-testid="heater-events-editor"]')).not.toBeNull();
-        expect(document.querySelector('[role="alert"]')?.textContent).toBe('heaterEventsEditor.allZero');
+        expect(onApply).toHaveBeenCalledOnce();
+        expect(onApply.mock.calls[0][0].map((event: { heater: number }) => event.heater)).toEqual([0]);
+        expect(document.querySelector('[role="alert"]')).toBeNull();
         await act(async () => root.unmount());
     });
 

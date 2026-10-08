@@ -138,7 +138,6 @@ export const HeaterEventsEditor = ({
         if (issue.code === 'heat-step') {
             return t('heaterEventsEditor.heatStep', { row: issue.row, step: heaterBounds.step, unit: heaterUnit });
         }
-        if (issue.code === 'all-zero') return t('heaterEventsEditor.allZero');
         return t('heaterEventsEditor.tooMany');
     };
 

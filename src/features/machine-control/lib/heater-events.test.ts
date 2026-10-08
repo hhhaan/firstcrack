@@ -164,8 +164,8 @@ describe('resolveReplayPlan', () => {
         expect(hit).toEqual({ nextIndex: 1, heater: 50 });
     });
 
-    it('양수 화력이 없으면 null', () => {
-        expect(normalizeHeaterPlan([{ t: 0, bt: 180, heater: 0 }], 60)).toBeNull();
+    it('0만 있는 편집본도 끄기 명령으로 남긴다', () => {
+        expect(normalizeHeaterPlan([{ t: 0, bt: 180, heater: 0 }], 60)?.events).toEqual([{ t: 0, bt: 180, heater: 0 }]);
     });
 });
 
@@ -212,12 +212,15 @@ describe('validateHeaterDraft', () => {
         expect(issueOf([row('50.5')], { min: 0, max: 100, step: 1 })).toEqual({ code: 'heat-step', row: 1 });
     });
 
-    it('saves a positive then zero plan when the device min is 0, and rejects an all-zero plan', () => {
+    it('saves a 0 with no earlier positive step when the device min is 0', () => {
         const saved = validateHeaterDraft([row('80', '0:00'), row('0', '3:00', '190')], 'C', bounds);
         expect(saved.ok).toBe(true);
         if (!saved.ok) return;
         expect(saved.events.map((event) => event.heater)).toEqual([80, 0]);
-        expect(issueOf([row('0')])).toEqual({ code: 'all-zero' });
+        const onlyZero = validateHeaterDraft([row('0')], 'C', bounds);
+        expect(onlyZero.ok).toBe(true);
+        const leadingZero = validateHeaterDraft([row('0', '0:00'), row('80', '3:00')], 'C', bounds);
+        expect(leadingZero.ok).toBe(true);
     });
 
     it('rejects logical 0 when the live device min is still 1', () => {
@@ -270,6 +273,29 @@ describe('resolveReplayPlan invalid override', () => {
         expect(resolved.overrideInvalid).toBe(true);
         expect(resolved.plan).toBeNull();
         expect(resolved.source).toBe('batch');
+    });
+
+    it('양수 다음 0과, 0만 있는 편집본을 재생한다', () => {
+        const off = resolveReplayPlan({
+            points,
+            batchEvents: [
+                { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                { t: 180, bt: 200, heater: 0, trigger: 'time' },
+            ],
+            heaterMin: 0,
+            heaterMax: 100,
+        });
+        expect(off.overrideInvalid).toBe(false);
+        expect(off.plan?.events.map((event) => event.heater)).toEqual([80, 0]);
+        const onlyZero = resolveReplayPlan({
+            points,
+            batchEvents: [{ t: 0, bt: 180, heater: 0, trigger: 'time' }],
+            heaterMin: 0,
+            heaterMax: 100,
+        });
+        expect(onlyZero.overrideInvalid).toBe(false);
+        expect(onlyZero.plan?.events.map((event) => event.heater)).toEqual([0]);
+        expect(onlyZero.source).toBe('batch');
     });
 
     it('원본 복원(null)만 TSV로 돌아간다', () => {

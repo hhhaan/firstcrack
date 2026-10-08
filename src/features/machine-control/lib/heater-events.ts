@@ -63,7 +63,7 @@ export const heaterFitsBounds = (heater: number, bounds: HeaterBounds): boolean 
 
 export type HeaterDraftIssue =
     | { code: 'time' | 'bt' | 'heat-empty' | 'heat-range' | 'heat-step'; row: number }
-    | { code: 'all-zero' | 'too-many' };
+    | { code: 'too-many' };
 
 export type HeaterDraftInput = {
     t: string;
@@ -83,13 +83,13 @@ export const issueForHeaterEvents = (events: ReplayEvent[], bounds: HeaterBounds
         }
         if (heaterOffStep(heater, bounds)) return { code: 'heat-step', row: i + 1 };
     }
-    if (events.length > 0 && !events.some((event) => event.heater > 0)) return { code: 'all-zero' };
     return null;
 };
 
 /**
  * First failing row and field. An empty draft is valid and means "clear the plan".
- * Logical 0 is in range when `bounds.min` is 0; a plan with no positive step stays `all-zero`.
+ * Logical 0 is in range when `bounds.min` is 0. A 0 step is a gas cut even when the
+ * plan never turned the burner on — the machine may already be firing.
  */
 export const validateHeaterDraft = (
     rows: readonly HeaterDraftInput[],
@@ -318,14 +318,13 @@ export const remapReplayIndex = (oldEvents: ReplayEvent[], consumed: number, new
     return Math.min(limit, newEvents.length);
 };
 
-/** 정렬·상한·기기 범위. 빈 배열/과다/양수 화력 없음/범위 밖 → null. */
+/** 정렬·상한·기기 범위. 빈 배열/과다/범위 밖 → null. 0만 있는 편집본도 끄기 명령으로 유지한다. */
 export const normalizeHeaterPlan = (
     events: ReplayEvent[],
     tpTime: number,
     bounds?: HeaterBounds,
 ): ReplayPlan | null => {
     if (events.length === 0 || events.length > MAX_EVENTS) return null;
-    if (!events.some((e) => e.heater > 0)) return null;
     if (bounds && events.some((e) => !heaterFitsBounds(e.heater, bounds))) return null;
     const sorted = [...events].sort((a, b) => a.t - b.t || a.bt - b.bt);
     return { events: sorted, tpTime };
