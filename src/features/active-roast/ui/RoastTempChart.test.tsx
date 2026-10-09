@@ -384,16 +384,19 @@ describe('RoastTempChart interactions', () => {
         ['CC', 'Yellow'],
         ['FC', 'FC Start'],
         ['SC', 'FC End'],
-    ])('adds %s at the clicked time, keeps the draft and disables an existing mark', (label, event) => {
+    ])('adds %s at the clicked time and closes the form', (label, event) => {
         const onAddNote = vi.fn();
         const onAddEvent = vi.fn();
         const props = { ...baseProps, onAddNote, onAddEvent };
+        const openForm = () => {
+            act(() =>
+                container
+                    .querySelector('[tabindex="-1"]')
+                    ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
+            );
+        };
         act(() => root.render(createElement(RoastTempChart, props)));
-        act(() =>
-            container
-                .querySelector('[tabindex="-1"]')
-                ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
-        );
+        openForm();
         const input = container.querySelector('#chart-note-input') as HTMLTextAreaElement;
         act(() => {
             Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(input, 'memo');
@@ -410,8 +413,8 @@ describe('RoastTempChart interactions', () => {
         expect(onAddNote).not.toHaveBeenCalled();
         act(() => button.click());
         expect(onAddEvent).toHaveBeenCalledWith(event, 9);
-        expect(input.value).toBe('memo');
-        expect(container.querySelector('[data-chart-note-form]')).not.toBeNull();
+        expect(container.querySelector('[data-chart-note-form]')).toBeNull();
+
         act(() =>
             root.render(
                 createElement(RoastTempChart, {
@@ -420,10 +423,13 @@ describe('RoastTempChart interactions', () => {
                 }),
             ),
         );
-        expect(button.disabled).toBe(true);
-        expect(button.querySelector('svg')).not.toBeNull();
-        act(() => button.click());
+        openForm();
+        const recorded = container.querySelector(`[data-chart-note-event="${event}"]`) as HTMLButtonElement;
+        expect(recorded.disabled).toBe(false);
+        expect(recorded.querySelector('svg')).not.toBeNull();
+        act(() => recorded.click());
         expect(onAddEvent).toHaveBeenCalledTimes(1);
+        expect(container.querySelector('[data-chart-note-form]')).toBeNull();
     });
 
     it('disables phase marks at future note times', () => {

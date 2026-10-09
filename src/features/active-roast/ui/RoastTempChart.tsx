@@ -1108,8 +1108,13 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                         aria-describedby={
                                             noteForm.timeSec > currentTimeSec ? 'chart-note-future-hint' : undefined
                                         }
-                                        disabled={noteForm.timeSec > currentTimeSec || recorded}
-                                        onClick={() => onAddEvent(event, noteForm.timeSec)}
+                                        disabled={noteForm.timeSec > currentTimeSec}
+                                        onClick={() => {
+                                            if (!recorded) onAddEvent(event, noteForm.timeSec);
+                                            setNoteForm(null);
+                                            setNoteValues(emptyNote);
+                                            chartRef.current?.focus();
+                                        }}
                                         className={`flex h-7 cursor-pointer items-center justify-center gap-1 rounded border px-2 text-[11px] font-semibold disabled:cursor-default ${recorded ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border bg-surface text-secondary hover:bg-main-bg disabled:opacity-40'}`}
                                     >
                                         {recorded && <Check className="size-3" aria-hidden="true" />}
