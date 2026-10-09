@@ -72,6 +72,7 @@ class S7Adapter:
         slot: int = 0,
         channels: list[dict[str, Any]] | None = None,
         write_map: dict[str, dict[str, Any]] | None = None,
+        w60a_discharge: str = "off",
         **_: Any,
     ) -> None:
         self._host = host
@@ -81,6 +82,7 @@ class S7Adapter:
         self._channels = channels or []
         self._validate_channels()
         self._write_map = write_map or {}
+        self._w60a_discharge = w60a_discharge == "on"
         self._plc: Any = None
         # snap7 클라이언트는 스레드 세이프하지 않다. read()의 asyncio.wait_for 타임아웃은
         # executor 스레드를 중단시키지 못하므로(manager H7), 타임아웃 직후 들어온 쓰기가
@@ -523,6 +525,29 @@ class S7Adapter:
     def write_map(self) -> dict[str, dict[str, Any]]:
         """쓰기 가능한 role → spec. 빈 dict면 이 머신은 쓰기 미지원."""
         return self._write_map
+
+    async def discharge(self, action: str) -> None:
+        if not self._w60a_discharge or action not in ("open", "close"):
+            raise ValueError("W60A discharge control is disabled or invalid")
+        plc, session = self._plc, self._session
+        if plc is None:
+            raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
+
+        def _do_write() -> None:
+            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+                raise TimeoutError("S7 I/O 락 대기 시간 초과")
+            try:
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed before discharge")
+                # Artisan W60A: DB2.30 command word, latched 5/6 (no reset-to-zero).
+                self._write_channel_sync(
+                    "discharge", {"db": 2, "offset": 30, "type": 0, "div": 0},
+                    5 if action == "open" else 6, plc,
+                )
+            finally:
+                self._io_lock.release()
+
+        await asyncio.get_running_loop().run_in_executor(None, _do_write)
 
     @property
     def connected(self) -> bool:

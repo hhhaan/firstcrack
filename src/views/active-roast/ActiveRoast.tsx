@@ -122,6 +122,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
     const bbpEnabled = bbpFeatureEnabled(useFeature(FEATURE.bbp), roastSettings.bbpEnabled);
+    const machineControlEntitled = useFeature(FEATURE.machineControl);
     const bbpElapsed = useBbpTimer();
     const bbpTimer = bbpElapsedWhenEnabled(bbpEnabled, bbpElapsed);
     const bbpActive = useBbpStore((s) => s.active);
@@ -413,6 +414,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const dropCancelable = useRoastingStore(selectDropCancelable);
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
+    const openDischargeRef = useRef<() => void>(() => {});
 
     const {
         triggerCharge: startChargeAction,
@@ -464,7 +466,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const applyDrop = useCallback(
         (onset?: { timeSec: number; bt: number }) => {
-            lifecycle.finishDrop({
+            return lifecycle.finishDrop({
                 livePoints,
                 onset,
                 commitSummary: saveFlow.confirmEndRoast,
@@ -478,7 +480,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [applyDrop]);
 
     const markDrop = useCallback(() => {
-        applyDrop();
+        if (applyDrop()) openDischargeRef.current();
     }, [applyDrop]);
 
     useEffect(() => {
@@ -896,7 +898,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
-    }, [machineControl.replay.active, machineControl.replay.stop]);
+        openDischargeRef.current = () => {
+            if (machineControlEntitled) void machineControl.discharge.send('open');
+        };
+    }, [
+        machineControl.replay.active,
+        machineControl.replay.stop,
+        machineControl.discharge.send,
+        machineControlEntitled,
+    ]);
 
     const handleCancelDrop = useCallback(() => {
         const sessionId = saveFlow.flow.summaryData?.sessionId;

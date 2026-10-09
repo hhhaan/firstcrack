@@ -546,6 +546,29 @@ Notes:
 - Kaleido/Modbus/Phidget/Probat adapter의 `control()`은 아직 no-op이다. Virtual은
   명령값을 저장해 이후 판독에 반영한다(실기 없이 제어 UI를 확인하는 용도).
 
+### POST /discharge
+
+Giesen **W60A 배출문** 열기·닫기. `giesen_w45a_w60a` 기기 설정의 `W60A discharge door`를
+`Manual + open on manual Drop (W60A only)`로 선택하고 다시 연결해야 사용할 수 있다.
+기본값은 `off`이며, 배출문 액추에이터가 장착된 W60A에서만 켠다. W45A와 다른 기종에는 적용하지 않는다.
+활성화 여부는 `GET /status.control.discharge`로 확인한다.
+
+```json
+{ "action": "open" }
+```
+
+- `open` → S7 INT16 `DB2.30 = 5`, `close` → `DB2.30 = 6`.
+- 응답 `200 { "ok": true }`는 PLC 쓰기 확인이며 실제 문 위치를 보장하지 않는다.
+- 잘못된 요청 `400`, 미연결·미활성화·연결 변경 `409`, PLC 쓰기 실패 `502`.
+- 명령 후 `0`을 쓰거나 자동 재전송하지 않는다. 냉각 트레이의 RELEASE는 포함하지 않는다.
+
+앱 제어 패널에서 수동 열기·닫기를 제공한다. 사용자가 **Drop 버튼 또는 단축키**로 배출을 확정하면
+열기 명령을 한 번 보낸다. 자동 Drop 감지, 이벤트 편집, 연결·재연결, 배출 취소, Charge는 문을 조작하지 않는다.
+문 명령에 실패해도 완료한 로스트와 저장 흐름은 유지하며 조작반 확인 안내를 표시한다.
+
+명령 출처: [Artisan W60A 설정](https://github.com/artisan-roaster-scope/artisan/blob/master/src/includes/Machines/Giesen/W60A.aset).
+실제 액추에이터의 동작과 펌웨어별 호환성은 실기 검증이 필요하다.
+
 ### POST /pid/on · /pid/off · /pid/sv
 
 소프트웨어 PID. BT를 목표 온도(SV)로 추종하도록 heater duty를 계산해 쓴다.

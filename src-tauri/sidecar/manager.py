@@ -871,6 +871,24 @@ class RoasterManager:
         """실제로 하드웨어에 쓸 수 있는지. write_map ∩ WRITABLE_PROTOCOLS."""
         return bool(self.write_limits()) and self._protocol in WRITABLE_PROTOCOLS
 
+    def discharge_enabled(self) -> bool:
+        # The shared W45A/W60A preset requires explicit confirmation of W60A hardware.
+        return (
+            self._roaster_key == "giesen_w45a_w60a"
+            and self._protocol == "s7"
+            and self._merged_params.get("w60a_discharge") == "on"
+        )
+
+    async def discharge(self, action: str) -> None:
+        if action not in ("open", "close"):
+            raise ControlRangeError("배출문 명령은 open 또는 close여야 합니다.")
+        adapter, epoch = self._adapter, self._connection_epoch
+        if not self._connected or adapter is None or self._resetting or not self.discharge_enabled():
+            raise ControlUnavailable("연결된 W60A의 배출문 제어를 기기 설정에서 켜세요.")
+        await adapter.discharge(action)
+        if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
+            raise ControlUnavailable("배출문 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+
     async def control(
         self,
         heater: float | None = None,
@@ -1162,6 +1180,7 @@ class RoasterManager:
             "control": {
                 "writable": self._control_writable(),
                 "limits": self.write_limits(),
+                "discharge": self.discharge_enabled(),
                 "pid": self.pid_capability(),
             },
             "uptime": uptime,
