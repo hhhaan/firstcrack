@@ -146,19 +146,19 @@ export const App = () => {
     const appKeysEnabled = Boolean(user) && !loading && !oauthPending && !recordingShortcut;
     useHotkeys(shortcutHotkeys(settingsKeys), () => openSettings(), {
         ...SHORTCUT_HOTKEY_OPTIONS,
-        enabled: appKeysEnabled && !shortcutsOpen,
+        enabled: appKeysEnabled && !shortcutsOpen && settingsKeys.length > 0,
         enableOnFormTags: settingsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key)),
         preventDefault: true,
     });
     useHotkeys(shortcutHotkeys(shortcutsKeys), () => setShortcutsOpen(true), {
         ...SHORTCUT_HOTKEY_OPTIONS,
-        enabled: appKeysEnabled,
+        enabled: appKeysEnabled && shortcutsKeys.length > 0,
         enableOnFormTags: shortcutsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key)),
         preventDefault: true,
     });
     useHotkeys(shortcutHotkeys(sidebarKeys), () => setSidebarCollapsed((current) => !current), {
         ...SHORTCUT_HOTKEY_OPTIONS,
-        enabled: appKeysEnabled && !shortcutsOpen && view !== 'settings',
+        enabled: appKeysEnabled && !shortcutsOpen && view !== 'settings' && sidebarKeys.length > 0,
         preventDefault: true,
     });
     useHotkeys(

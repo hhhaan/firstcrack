@@ -103,7 +103,8 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
             if (step.id === 'fullscreen') dismissSession();
         },
         {
-            enabled: shouldShow && !!target && step.id === 'fullscreen' && !shortcutsBlocked,
+            enabled:
+                shouldShow && !!target && step.id === 'fullscreen' && !shortcutsBlocked && fullscreenKeys.length > 0,
             ...SHORTCUT_HOTKEY_OPTIONS,
         },
     );

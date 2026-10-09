@@ -31,6 +31,8 @@ export type ShortcutBindingResult = 'conflict' | 'reserved' | 'invalid' | undefi
 export type ShortcutBindings = Record<ShortcutId, string[]>;
 
 const STORE_KEY = 'keyboard.bindings';
+const DISABLED_STORE_KEY = 'keyboard.disabled';
+const EMPTY_KEYS: string[] = [];
 const RESERVED_KEYS = new Set(['escape', 'tab', 'backspace', 'f5', 'mod+r', 'mod+shift+r']);
 const DEFAULT_BINDINGS = Object.fromEntries(
     SHORTCUTS.map(({ id, defaultKeys }) => [id, [...defaultKeys]]),
@@ -144,29 +146,32 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
 
 interface ShortcutState {
     bindings: ShortcutBindings;
+    disabled: ShortcutId[];
     recording: boolean;
     dialogOpen: boolean;
     hydrated: boolean;
     setRecording: (recording: boolean) => void;
     setDialogOpen: (dialogOpen: boolean) => void;
     setBinding: (id: ShortcutId, key: string) => ShortcutBindingResult;
+    setEnabled: (id: ShortcutId, enabled: boolean) => void;
     resetBindings: () => void;
 }
 
 let editVersion = 0;
 
-const persistBindings = (bindings: ShortcutBindings) => {
+const persistSetting = (key: string, value: ShortcutBindings | ShortcutId[]) => {
     editVersion += 1;
     try {
-        localStorage.setItem(STORE_KEY, JSON.stringify(bindings));
+        localStorage.setItem(key, JSON.stringify(value));
     } catch {
         // Desktop settings remain authoritative when browser storage is unavailable.
     }
-    void settingsSet(STORE_KEY, bindings).catch(() => undefined);
+    void settingsSet(key, value).catch(() => undefined);
 };
 
 export const useShortcutStore = create<ShortcutState>((set, get) => ({
     bindings: structuredClone(DEFAULT_BINDINGS),
+    disabled: [],
     recording: false,
     dialogOpen: false,
     hydrated: false,
@@ -187,31 +192,44 @@ export const useShortcutStore = create<ShortcutState>((set, get) => ({
             return 'conflict';
         const bindings = { ...get().bindings, [id]: [canonical] };
         set({ bindings });
-        persistBindings(bindings);
+        persistSetting(STORE_KEY, bindings);
+    },
+    setEnabled: (id, enabled) => {
+        const disabled = get().disabled.filter((shortcutId) => shortcutId !== id);
+        if (!enabled) disabled.push(id);
+        set({ disabled });
+        persistSetting(DISABLED_STORE_KEY, disabled);
     },
     resetBindings: () => {
         const bindings = structuredClone(DEFAULT_BINDINGS);
-        set({ bindings });
-        persistBindings(bindings);
+        set({ bindings, disabled: [] });
+        persistSetting(STORE_KEY, bindings);
+        persistSetting(DISABLED_STORE_KEY, []);
     },
 }));
 
 export async function hydrateShortcutBindings(): Promise<void> {
     const startedAtVersion = editVersion;
-    let stored: unknown;
-    try {
-        stored = await settingsGet<unknown>(STORE_KEY);
-        if (stored == null) stored = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null');
-    } catch {
-        try {
-            stored = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null');
-        } catch {
-            stored = undefined;
-        }
-    }
+    const [stored, disabled] = await Promise.all(
+        [STORE_KEY, DISABLED_STORE_KEY].map(async (key) => {
+            try {
+                const value = await settingsGet<unknown>(key);
+                return value ?? JSON.parse(localStorage.getItem(key) ?? 'null');
+            } catch {
+                try {
+                    return JSON.parse(localStorage.getItem(key) ?? 'null');
+                } catch {
+                    return undefined;
+                }
+            }
+        }),
+    );
     if (startedAtVersion === editVersion) {
         useShortcutStore.setState((state) => ({
             bindings: { ...state.bindings, ...parseShortcutBindings(stored) },
+            disabled: SHORTCUTS.filter(({ id }) => Array.isArray(disabled) && disabled.includes(id)).map(
+                ({ id }) => id,
+            ),
             hydrated: true,
         }));
     } else {
@@ -221,7 +239,8 @@ export async function hydrateShortcutBindings(): Promise<void> {
 
 void hydrateShortcutBindings();
 
-export const useShortcutKeys = (id: ShortcutId): string[] => useShortcutStore((state) => state.bindings[id]);
+export const useShortcutKeys = (id: ShortcutId): string[] =>
+    useShortcutStore((state) => (state.disabled.includes(id) ? EMPTY_KEYS : state.bindings[id]));
 
 export function eventToShortcut(
     event: {

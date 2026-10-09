@@ -48,6 +48,7 @@ export const EventButtons = ({
     const isDark = useThemeStore((s) => s.resolvedTheme) === 'dark';
     const apple = isAppleOs();
     const bindings = useShortcutStore((s) => s.bindings);
+    const disabledShortcuts = useShortcutStore((s) => s.disabled);
 
     const registeredEvents = new Set(logEntries.map((entry) => entry.event));
 
@@ -55,7 +56,7 @@ export const EventButtons = ({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isSidebar ? 8 : 10 }}>
             {buttons.map(
                 ({ label, event, shortcutId, pressKey, onClick, color, dualStage, disabled: buttonDisabled }) => {
-                    const keys = bindings[shortcutId];
+                    const keys = disabledShortcuts.includes(shortcutId) ? [] : bindings[shortcutId];
                     const off = disabled || !!buttonDisabled;
                     const registered = event ? registeredEvents.has(event) : false;
                     const pressed = pressedButtons.has(pressKey);

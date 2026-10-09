@@ -62,7 +62,10 @@ export const MachineControlPanel = ({
             e.preventDefault();
             setCollapsed((collapsed) => !collapsed);
         },
-        { enabled: hotkeysEnabled && panelVisible && !shortcutsBlocked, ...SHORTCUT_HOTKEY_OPTIONS },
+        {
+            enabled: hotkeysEnabled && panelVisible && !shortcutsBlocked && toggleControlKeys.length > 0,
+            ...SHORTCUT_HOTKEY_OPTIONS,
+        },
         [hotkeysEnabled, panelVisible],
     );
     if (!panelVisible) return null;

@@ -4,6 +4,7 @@
         "description": "查看和修改应用及烘焙操作的快捷键",
         "edit": "编辑快捷键",
         "search": "搜索快捷键",
+        "editHint": "选择组合键后，按下新按键即可修改。使用开关启用或停用各快捷键。",
         "restore": "全部恢复默认值",
         "pressKeys": "请按键…",
         "recordingHint": "请按新的组合键。按 Esc 取消。",

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { settingsGet } from '@shared/lib/settings-store';
+import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -18,6 +18,7 @@ import {
     parseShortcutBindings,
     SHORTCUT_HOTKEY_OPTIONS,
     shortcutHotkeys,
+    useShortcutKeys,
     useShortcutStore,
 } from './keyboard-shortcuts';
 
@@ -109,11 +110,66 @@ describe('keyboard shortcuts', () => {
             setItem: (key: string, value: string) => values.set(key, value),
         });
         localStorage.setItem('keyboard.bindings', JSON.stringify({ yellow: ['mod+4'] }));
+        localStorage.setItem('keyboard.disabled', JSON.stringify(['yellow', 'unknown', true, 'yellow']));
         vi.mocked(settingsGet).mockResolvedValue(null as never);
 
         await hydrateShortcutBindings();
 
         expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+4']);
+        expect(useShortcutStore.getState().disabled).toEqual(['yellow']);
+    });
+
+    it('disables mounted hotkeys without losing their edited bindings, and restores defaults', () => {
+        const hit = vi.fn();
+        const root = createRoot(document.createElement('div'));
+        const Hotkey = () => {
+            const keys = useShortcutKeys('yellow');
+            useHotkeys(shortcutHotkeys(keys), hit, { enabled: keys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS });
+            return null;
+        };
+        const press = () =>
+            act(() => {
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
+                document.dispatchEvent(new KeyboardEvent('keyup', { key: 'x', bubbles: true }));
+            });
+        useShortcutStore.getState().setBinding('yellow', 'x');
+        act(() => root.render(createElement(Hotkey)));
+        press();
+        expect(hit).toHaveBeenCalledTimes(1);
+
+        act(() => useShortcutStore.getState().setEnabled('yellow', false));
+        press();
+        expect(hit).toHaveBeenCalledTimes(1);
+        expect(useShortcutStore.getState().bindings.yellow).toEqual(['x']);
+        expect(settingsSet).toHaveBeenLastCalledWith('keyboard.disabled', ['yellow']);
+
+        act(() => useShortcutStore.getState().setEnabled('yellow', true));
+        press();
+        expect(hit).toHaveBeenCalledTimes(2);
+
+        act(() => {
+            useShortcutStore.getState().setEnabled('yellow', false);
+            useShortcutStore.getState().resetBindings();
+        });
+        expect(useShortcutStore.getState().disabled).toEqual([]);
+        expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+1']);
+        act(() => root.unmount());
+    });
+
+    it('ignores malformed saved toggle state', async () => {
+        vi.mocked(settingsGet).mockImplementation(async (key) => (key === 'keyboard.disabled' ? { yellow: true } : {}));
+        await hydrateShortcutBindings();
+        expect(useShortcutStore.getState().disabled).toEqual([]);
+    });
+
+    it('does not overwrite a toggle changed while hydration is pending', async () => {
+        let resolve!: (value: unknown) => void;
+        vi.mocked(settingsGet).mockImplementationOnce(() => new Promise((done) => (resolve = done)) as never);
+        const hydration = hydrateShortcutBindings();
+        useShortcutStore.getState().setEnabled('yellow', false);
+        resolve({});
+        await hydration;
+        expect(useShortcutStore.getState().disabled).toEqual(['yellow']);
     });
 
     it('does not overwrite an edit made while hydration is pending', async () => {

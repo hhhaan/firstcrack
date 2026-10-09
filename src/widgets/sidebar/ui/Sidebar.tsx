@@ -317,7 +317,11 @@ export const Sidebar = ({
                 <button
                     type="button"
                     aria-label={t('sidebar.settings')}
-                    title={`${t('sidebar.settings')} (${formatShortcut(settingsKeys)})`}
+                    title={
+                        settingsKeys.length
+                            ? `${t('sidebar.settings')} (${formatShortcut(settingsKeys)})`
+                            : t('sidebar.settings')
+                    }
                     onClick={() => onOpenSettings()}
                     className="flex h-9 w-full items-center overflow-hidden rounded-lg bg-transparent text-secondary transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
                 >

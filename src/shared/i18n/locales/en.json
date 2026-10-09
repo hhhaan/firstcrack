@@ -4,6 +4,7 @@
         "description": "View and edit shortcuts for the app and roasting controls",
         "edit": "Edit shortcuts",
         "search": "Search shortcuts",
+        "editHint": "Select a key combination, then press new keys to change it. Use the toggles to turn shortcuts on or off.",
         "restore": "Restore all defaults",
         "pressKeys": "Press keys…",
         "recordingHint": "Press a new key combination. Escape cancels.",

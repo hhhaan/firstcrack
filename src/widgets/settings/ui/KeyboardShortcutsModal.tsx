@@ -11,17 +11,21 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { RotateCcw, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { settingsOptionSwitchCls } from './SettingsOptionRow';
 
 export function KeyboardShortcutsModal() {
     const { t } = useTranslation();
-    const { bindings, setBinding, resetBindings, setRecording, setDialogOpen } = useShortcutStore();
+    const { bindings, disabled, setEnabled, setBinding, resetBindings, setRecording, setDialogOpen } =
+        useShortcutStore();
     const [query, setQuery] = useState('');
     const [editingId, setEditingId] = useState<ShortcutId | null>(null);
     const [error, setError] = useState<string | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const recordingButtonRef = useRef<HTMLButtonElement | null>(null);
-    const changed = SHORTCUTS.some(({ id, defaultKeys }) => bindings[id].join('|') !== defaultKeys.join('|'));
+    const changed =
+        disabled.length > 0 ||
+        SHORTCUTS.some(({ id, defaultKeys }) => bindings[id].join('|') !== defaultKeys.join('|'));
     const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
     const matches = SHORTCUTS.filter(({ id }) => {
         const text = `${t(`shortcuts.actions.${id}`)} ${formatShortcut(bindings[id])}`.toLocaleLowerCase();
@@ -99,10 +103,12 @@ export function KeyboardShortcutsModal() {
                     titleId="keyboard-shortcuts-title"
                     onClose={() => setDialogOpen(false)}
                     closeLabel={t('common.close')}
-                    className="px-6 pt-6 pb-5"
+                    className="px-6 pt-8 pb-4 sm:px-8"
+                    titleClassName="m-0 font-(--font-display) text-[28px] font-light tracking-[-0.03em] text-primary"
                 />
-                <div className="px-6 pb-4">
-                    <label className="flex items-center gap-2 rounded-xl border border-border bg-surface/50 px-3 py-2.5 text-muted">
+                <div className="px-6 pb-6 sm:px-8">
+                    <p className="m-0 mb-5 text-[13px] leading-relaxed text-secondary">{t('shortcuts.editHint')}</p>
+                    <label className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface/50 px-3 py-2.5 text-muted">
                         <Search size={17} strokeWidth={1.5} aria-hidden />
                         <input
                             ref={searchRef}
@@ -126,19 +132,44 @@ export function KeyboardShortcutsModal() {
                         </p>
                     )}
                 </div>
-                <div className="min-h-0 overflow-y-auto px-6 pb-4">
+                <div className="min-h-0 overflow-y-auto px-6 pb-4 sm:px-8">
                     {(['app', 'roast', 'chart'] as const).map((group) => {
                         const rows = matches.filter((shortcut) => shortcut.group === group);
                         if (!rows.length) return null;
                         return (
-                            <section key={group} className="mb-4 last:mb-0">
-                                <h3 className="m-0 mb-2 text-xs font-medium text-muted">
+                            <section
+                                key={group}
+                                className="mb-7 last:mb-0"
+                                aria-labelledby={`shortcuts-group-${group}`}
+                            >
+                                <h3
+                                    id={`shortcuts-group-${group}`}
+                                    className="m-0 mb-2 text-[13px] font-medium text-muted"
+                                >
                                     {t(`shortcuts.groups.${group}`)}
                                 </h3>
                                 {rows.map(({ id, editable }) => (
-                                    <div key={id} className="flex min-h-12 items-center justify-between gap-4 py-2">
-                                        <div className="min-w-0 text-[13px] text-primary">
-                                            {t(`shortcuts.actions.${id}`)}
+                                    <div
+                                        key={id}
+                                        className="flex min-h-16 items-center gap-4 border-b border-border-subtle py-4 last:border-b-0"
+                                    >
+                                        <input
+                                            id={`shortcut-enabled-${id}`}
+                                            type="checkbox"
+                                            role="switch"
+                                            checked={!disabled.includes(id)}
+                                            aria-checked={!disabled.includes(id)}
+                                            onChange={(event) => setEnabled(id, event.currentTarget.checked)}
+                                            disabled={editingId !== null}
+                                            aria-label={t(`shortcuts.actions.${id}`)}
+                                            className={settingsOptionSwitchCls}
+                                        />
+                                        <div
+                                            className={`min-w-0 flex-1 text-sm ${disabled.includes(id) ? 'text-muted' : 'text-primary'}`}
+                                        >
+                                            <label htmlFor={`shortcut-enabled-${id}`} className="cursor-pointer">
+                                                {t(`shortcuts.actions.${id}`)}
+                                            </label>
                                             {id === 'drop' && (
                                                 <p className="m-0 mt-1 text-xs text-muted">
                                                     {t('shortcuts.doubleTap')}
@@ -158,7 +189,7 @@ export function KeyboardShortcutsModal() {
                                                 setError(null);
                                                 setRecording(true);
                                             }}
-                                            className="shrink-0 rounded-xl bg-surface px-3 py-2 text-xs text-secondary ring-primary/30 hover:text-primary aria-pressed:ring-2 disabled:cursor-default disabled:opacity-60 dark:bg-surface-elevated cursor-pointer"
+                                            className="shrink-0 cursor-pointer rounded-lg bg-transparent px-2 py-2 text-sm text-secondary ring-primary/30 transition-colors hover:bg-surface hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-pressed:bg-surface aria-pressed:ring-2 disabled:cursor-default disabled:opacity-60"
                                         >
                                             <kbd className="whitespace-nowrap font-sans">
                                                 {editingId === id
@@ -177,7 +208,7 @@ export function KeyboardShortcutsModal() {
                         </p>
                     )}
                 </div>
-                <footer className="border-t border-border-subtle px-6 py-4">
+                <footer className="border-t border-border-subtle px-6 py-4 sm:px-8">
                     <button
                         type="button"
                         disabled={!changed || editingId !== null}

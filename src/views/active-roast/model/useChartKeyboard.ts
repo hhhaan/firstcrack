@@ -85,7 +85,7 @@ export const useChartKeyboard = ({
             e.preventDefault();
             zoomChart(0.8);
         },
-        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: chartKeysEnabled && zoomInKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, maxTime, zoomChart],
     );
 
@@ -95,7 +95,7 @@ export const useChartKeyboard = ({
             e.preventDefault();
             zoomChart(1.25);
         },
-        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: chartKeysEnabled && zoomOutKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, maxTime, zoomChart],
     );
 
@@ -105,7 +105,7 @@ export const useChartKeyboard = ({
             e.preventDefault();
             setZoomRange(null);
         },
-        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: chartKeysEnabled && resetZoomKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, setZoomRange],
     );
 
@@ -115,7 +115,7 @@ export const useChartKeyboard = ({
             e.preventDefault();
             panChart(-1);
         },
-        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: chartKeysEnabled && panLeftKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, panChart],
     );
 
@@ -125,7 +125,7 @@ export const useChartKeyboard = ({
             e.preventDefault();
             panChart(1);
         },
-        { enabled: chartKeysEnabled, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: chartKeysEnabled && panRightKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, panChart],
     );
 };

@@ -89,3 +89,4 @@ export function SettingsCheckRow({
 
 export const settingsOptionLabelCls = labelCls;
 export const settingsOptionDescCls = descCls;
+export const settingsOptionSwitchCls = switchCls;

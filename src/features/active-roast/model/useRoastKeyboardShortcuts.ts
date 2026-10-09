@@ -180,7 +180,7 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onExitFullscreen();
         },
-        { enabled: enabled && isFullscreen, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: enabled && isFullscreen && exitFullscreenKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [enabled, isFullscreen, onExitFullscreen],
     );
 
@@ -191,7 +191,7 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onToggleFullscreen();
         },
-        { enabled, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: enabled && fullscreenKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [enabled, onToggleFullscreen],
     );
 
@@ -203,7 +203,11 @@ export const useRoastKeyboardShortcuts = ({
             if (phase === 'preheating') onEnterStandby();
             else if (phase === 'standby') onManualCharge();
         },
-        { enabled: canCharge, enableOnFormTags: chargeEnabledOnFormTags, ...SHORTCUT_HOTKEY_OPTIONS },
+        {
+            enabled: canCharge && chargeKeys.length > 0,
+            enableOnFormTags: chargeEnabledOnFormTags,
+            ...SHORTCUT_HOTKEY_OPTIONS,
+        },
         [canCharge, phase, onEnterStandby, onManualCharge],
     );
 
@@ -214,7 +218,7 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
         },
-        { enabled: canMark, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: canMark && yellowKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkEvent],
     );
 
@@ -226,7 +230,7 @@ export const useRoastKeyboardShortcuts = ({
             if (onCycleFc) onCycleFc();
             else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
         },
-        { enabled: canMark, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: canMark && fcStartKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkEvent, onCycleFc],
     );
 
@@ -237,7 +241,7 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
         },
-        { enabled: canMark, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: canMark && fcEndKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkEvent],
     );
 
@@ -250,7 +254,7 @@ export const useRoastKeyboardShortcuts = ({
             dropArmRef.current = next.armedAt;
             if (next.fire) onMarkDrop();
         },
-        { enabled: canMark, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: canMark && dropKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkDrop],
     );
 };

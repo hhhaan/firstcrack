@@ -12,6 +12,52 @@ test.use({
             : devices['Desktop Chrome'].userAgent,
 });
 
+test('shortcut toggles preserve edited keys across reloads and restore defaults', async ({
+    authedPage: page,
+}, testInfo) => {
+    const modifier = await page.evaluate(() => (/mac/i.test(navigator.userAgent) ? 'Meta' : 'Control'));
+    const modal = page.getByTestId('keyboard-shortcuts-modal');
+    const settings = page.getByTestId('settings-page');
+    await page.keyboard.press(`${modifier}+/`);
+    await expect(modal.getByRole('switch')).toHaveCount(16);
+    const toggle = modal.getByRole('switch', { name: 'Open settings', exact: true });
+    const binding = modal.getByRole('button', { name: 'Change shortcut: Open settings', exact: true });
+    await binding.click();
+    await page.keyboard.press(`${modifier}+Shift+p`);
+    const editedKeys = await binding.innerText();
+    await toggle.uncheck();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press(`${modifier}+Shift+p`);
+    await expect(settings).toBeHidden();
+
+    await page.reload();
+    await expect(page.getByTestId('app-sidebar')).toBeVisible();
+    await page.keyboard.press(`${modifier}+/`);
+    await expect(toggle).not.toBeChecked();
+    await expect(binding).toHaveText(editedKeys);
+    await page.screenshot({ path: testInfo.outputPath('keyboard-shortcuts-toggles.png'), animations: 'disabled' });
+    await toggle.check();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press(`${modifier}+Shift+p`);
+    await expect(settings).toBeVisible();
+    await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+
+    await page.keyboard.press(`${modifier}+/`);
+    await toggle.uncheck();
+    await modal.getByRole('button', { name: 'Restore all defaults', exact: true }).click();
+    await expect(toggle).toBeChecked();
+    await expect(binding).not.toHaveText(editedKeys);
+    await expect(modal.getByRole('button', { name: 'Restore all defaults', exact: true })).toBeDisabled();
+    await page.setViewportSize({ width: 600, height: 700 });
+    await expect
+        .poll(() => modal.evaluate((element) => element.scrollWidth - element.clientWidth))
+        .toBeLessThanOrEqual(1);
+    await page.screenshot({
+        path: testInfo.outputPath('keyboard-shortcuts-toggles-narrow.png'),
+        animations: 'disabled',
+    });
+});
+
 test('settings shortcut, Feedback, and shortcut editing work through the app shell', async ({
     authedPage: page,
 }, testInfo) => {
