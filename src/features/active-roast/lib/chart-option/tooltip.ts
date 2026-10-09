@@ -59,6 +59,7 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
         'BT Target': { style: curves.bt.background, label: 'Target BT', format: temp, visible: true },
         'ET Target': { style: curves.et.background, label: 'Target ET', format: temp, visible: true },
         'RoR Target': { style: curves.ror.background, label: 'Target RoR', format: ror, visible: true },
+        'ET RoR Target': { style: curves.etRor.background, label: 'Target ET RoR', format: ror, visible: true },
         'Drum Target': {
             style: curves.drum.background,
             label: 'Target Drum',

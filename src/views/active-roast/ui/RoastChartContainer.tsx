@@ -33,10 +33,12 @@ interface RoastChartContainerProps {
     targetBt: number[];
     targetEt?: (number | null)[];
     targetRor?: (number | null)[];
+    targetEtRor?: (number | null)[];
     showTargetCurve: boolean;
     showProfileBt?: boolean;
     showProfileEt?: boolean;
     showProfileRor?: boolean;
+    showProfileEtRor?: boolean;
     showProfileDrum?: boolean;
     showProfileHeat?: boolean;
     showProfileFan?: boolean;
@@ -90,10 +92,12 @@ export const RoastChartContainer = ({
     targetBt,
     targetEt,
     targetRor,
+    targetEtRor,
     showTargetCurve,
     showProfileBt = true,
     showProfileEt = true,
     showProfileRor = true,
+    showProfileEtRor = true,
     showProfileDrum = true,
     showProfileHeat = true,
     showProfileFan = true,
@@ -245,6 +249,7 @@ export const RoastChartContainer = ({
                 targetBt={targetBt}
                 targetEt={targetEt}
                 targetRor={targetRor}
+                targetEtRor={targetEtRor}
                 btActual={btActual}
                 etActual={etActual}
                 rorActual={rorActual}
@@ -266,6 +271,7 @@ export const RoastChartContainer = ({
                 showProfileBt={showProfileBt}
                 showProfileEt={showProfileEt}
                 showProfileRor={showProfileRor}
+                showProfileEtRor={showProfileEtRor}
                 showProfileDrum={showProfileDrum}
                 showProfileHeat={showProfileHeat}
                 showProfileFan={showProfileFan}

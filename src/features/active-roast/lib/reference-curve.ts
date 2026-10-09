@@ -8,6 +8,7 @@ export interface ReferenceCurvePoint {
     bt: number;
     et: number | null;
     ror: number | null;
+    rorEt: number | null;
     heater: number | null;
     fan: number | null;
     drum: number | null;
@@ -18,7 +19,7 @@ const storedNumber = (value: number | null | undefined): number | null =>
 
 /**
  * Channels that were actually stored. Does not copy heaterSet (Heat target / Heat set own that)
- * and does not invent ET RoR or fill gaps with 0.
+ * and does not fill gaps with 0. ET RoR is only the stored ror_et column.
  */
 export const referenceCurveFromPoints = (points: readonly TsvPoint[]): ReferenceCurvePoint[] =>
     points.map((p) => ({
@@ -26,6 +27,7 @@ export const referenceCurveFromPoints = (points: readonly TsvPoint[]): Reference
         bt: p.bt,
         et: storedNumber(p.et),
         ror: storedNumber(p.ror),
+        rorEt: storedNumber(p.rorEt),
         heater: storedNumber(p.heater),
         fan: storedNumber(p.fan),
         drum: storedNumber(p.drum),
@@ -41,6 +43,7 @@ export const toDisplayReferenceCurve = (curve: readonly ReferenceCurvePoint[], u
     bt: curve.map((p) => toDisplayTemp(p.bt, unit)),
     et: curve.map((p) => (p.et == null ? null : toDisplayTemp(p.et, unit))),
     ror: curve.map((p) => (p.ror == null ? null : toDisplayRoR(p.ror, unit))),
+    rorEt: curve.map((p) => (p.rorEt == null ? null : toDisplayRoR(p.rorEt, unit))),
     heater: curve.map((p) => p.heater),
     fan: curve.map((p) => p.fan),
     drum: curve.map((p) => p.drum),

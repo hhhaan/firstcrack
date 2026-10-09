@@ -62,6 +62,7 @@ export type RoastSettings = {
     showProfileBt: boolean;
     showProfileEt: boolean;
     showProfileRor: boolean;
+    showProfileEtRor: boolean;
     showProfileDrum: boolean;
     showProfileHeat: boolean;
     showProfileFan: boolean;
@@ -189,6 +190,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showProfileBt: true,
     showProfileEt: true,
     showProfileRor: true,
+    showProfileEtRor: true,
     showProfileDrum: true,
     showProfileHeat: true,
     showProfileFan: true,
@@ -395,6 +397,7 @@ export const normalizeRoastSettings = (
         showProfileBt: asBool(merged.showProfileBt, DEFAULT_SETTINGS.showProfileBt),
         showProfileEt: asBool(merged.showProfileEt, DEFAULT_SETTINGS.showProfileEt),
         showProfileRor: asBool(merged.showProfileRor, DEFAULT_SETTINGS.showProfileRor),
+        showProfileEtRor: asBool(merged.showProfileEtRor, DEFAULT_SETTINGS.showProfileEtRor),
         showProfileDrum: asBool(merged.showProfileDrum, DEFAULT_SETTINGS.showProfileDrum),
         showProfileHeat: asBool(merged.showProfileHeat, DEFAULT_SETTINGS.showProfileHeat),
         showProfileFan: asBool(merged.showProfileFan, DEFAULT_SETTINGS.showProfileFan),

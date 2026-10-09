@@ -118,6 +118,7 @@ interface Props {
     showProfileBt?: boolean;
     showProfileEt?: boolean;
     showProfileRor?: boolean;
+    showProfileEtRor?: boolean;
     showProfileDrum?: boolean;
     showProfileHeat?: boolean;
     showProfileFan?: boolean;
@@ -126,6 +127,7 @@ interface Props {
     targetBt?: (number | null)[];
     targetEt?: (number | null)[];
     targetRor?: (number | null)[];
+    targetEtRor?: (number | null)[];
     showRoR?: boolean;
     showRoRET?: boolean;
     rorEtActual?: (number | null)[];
@@ -193,12 +195,20 @@ const chartStructureKey = (input: {
     showControlDrum: boolean;
     showControlHeat: boolean;
     showControlFan: boolean;
+    showProfileBt: boolean;
+    showProfileEt: boolean;
+    showProfileRor: boolean;
+    showProfileEtRor: boolean;
+    showProfileDrum: boolean;
+    showProfileHeat: boolean;
+    showProfileFan: boolean;
     hasPhaseSegments: boolean;
     showFcBand: boolean;
     targetXs: number[] | undefined;
     targetBt: (number | null)[] | undefined;
     targetEt: (number | null)[] | undefined;
     targetRor: (number | null)[] | undefined;
+    targetEtRor: (number | null)[] | undefined;
     referenceHeater: (number | null)[] | undefined;
     referenceFan: (number | null)[] | undefined;
     referenceDrum: (number | null)[] | undefined;
@@ -222,11 +232,19 @@ const chartStructureKey = (input: {
         input.showControlDrum,
         input.showControlHeat,
         input.showControlFan,
+        input.showProfileBt,
+        input.showProfileEt,
+        input.showProfileRor,
+        input.showProfileEtRor,
+        input.showProfileDrum,
+        input.showProfileHeat,
+        input.showProfileFan,
         input.hasPhaseSegments,
         input.showFcBand,
         !!(input.targetXs?.length && input.targetBt?.length),
         seriesPresent(input.targetEt),
         seriesPresent(input.targetRor),
+        seriesPresent(input.targetEtRor),
         seriesPresent(input.referenceHeater),
         seriesPresent(input.referenceFan),
         seriesPresent(input.referenceDrum),
@@ -277,6 +295,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showProfileBt,
         showProfileEt,
         showProfileRor,
+        showProfileEtRor,
         showProfileDrum,
         showProfileHeat,
         showProfileFan,
@@ -285,6 +304,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         targetBt,
         targetEt,
         targetRor,
+        targetEtRor,
         showRoR = true,
         showRoRET = false,
         rorEtActual = [],
@@ -310,6 +330,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const profileBt = profileShown(showProfileBt);
     const profileEt = profileShown(showProfileEt);
     const profileRor = profileShown(showProfileRor);
+    const profileEtRor = profileShown(showProfileEtRor);
     const profileDrum = profileShown(showProfileDrum);
     const profileHeat = profileShown(showProfileHeat);
     const profileFan = profileShown(showProfileFan);
@@ -417,6 +438,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 showProfileBt: profileBt,
                 showProfileEt: profileEt,
                 showProfileRor: profileRor,
+                showProfileEtRor: profileEtRor,
                 showProfileDrum: profileDrum,
                 showProfileHeat: profileHeat,
                 showProfileFan: profileFan,
@@ -425,6 +447,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 targetBt,
                 targetEt,
                 targetRor,
+                targetEtRor,
                 showRoR,
                 showRoRET,
                 rorEtActual,
@@ -458,6 +481,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             targetBt,
             targetEt,
             targetRor,
+            targetEtRor,
             btActual,
             etActual,
             rorActual,
@@ -472,6 +496,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             profileBt,
             profileEt,
             profileRor,
+            profileEtRor,
             profileDrum,
             profileHeat,
             profileFan,
@@ -524,12 +549,20 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showControlDrum,
         showControlHeat,
         showControlFan,
+        showProfileBt: profileBt,
+        showProfileEt: profileEt,
+        showProfileRor: profileRor,
+        showProfileEtRor: profileEtRor,
+        showProfileDrum: profileDrum,
+        showProfileHeat: profileHeat,
+        showProfileFan: profileFan,
         hasPhaseSegments: phaseSegments.length > 0,
         showFcBand,
         targetXs,
         targetBt,
         targetEt,
         targetRor,
+        targetEtRor,
         referenceHeater: controlData?.reference?.heater,
         referenceFan: controlData?.reference?.fan,
         referenceDrum: controlData?.reference?.drum,

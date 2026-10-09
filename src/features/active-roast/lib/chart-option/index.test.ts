@@ -645,6 +645,7 @@ describe('buildRoastChartOption', () => {
         targetBt: [100, 120, 140],
         targetEt: [110, null, 150],
         targetRor: [8, 6, null],
+        targetEtRor: [4, 3, null],
         controlData: {
             xs: [0, 60],
             drumTemp: [40, 45],
@@ -759,7 +760,21 @@ describe('buildRoastChartOption', () => {
             lineStyle: { type: 'dotted', color: mockColors.controlHeat },
         });
         expect(byName['Heat set']?.lineStyle).toMatchObject({ type: 'dashed', color: mockColors.controlHeat });
-        expect(byName['ET RoR Target']).toBeUndefined();
+        expect(byName['ET RoR Target']).toMatchObject({
+            yAxisIndex: 1,
+            connectNulls: false,
+            data: [
+                [0, 4],
+                [30, 3],
+                [60, null],
+            ],
+            lineStyle: {
+                color: mockColors.etActual,
+                width: TEMP_CURVE_WIDTH,
+                type: 'solid',
+                opacity: REFERENCE_CURVE_OPACITY,
+            },
+        });
         const names = Object.keys(byName);
         expect(names.indexOf('Heater Target')).toBeLessThan(names.indexOf('Heat target'));
         expect(names.indexOf('Heat target')).toBeLessThan(names.indexOf('Heat set'));
@@ -963,7 +978,15 @@ describe('buildRoastChartOption', () => {
 
     it('hides reference curves from the profile channel toggles, not the live series toggles', () => {
         const hidden = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showTargetCurve: false }));
-        for (const name of ['BT Target', 'ET Target', 'RoR Target', 'Drum Target', 'Heater Target', 'Fan Target']) {
+        for (const name of [
+            'BT Target',
+            'ET Target',
+            'RoR Target',
+            'ET RoR Target',
+            'Drum Target',
+            'Heater Target',
+            'Fan Target',
+        ]) {
             expect(hidden).not.toContain(name);
         }
         expect(hidden).toContain('Heat target');
@@ -987,6 +1010,14 @@ describe('buildRoastChartOption', () => {
         const profileRorOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileRor: false }));
         expect(profileRorOff).not.toContain('RoR Target');
         expect(profileRorOff).toContain('RoR');
+        expect(profileRorOff).toContain('ET RoR Target');
+
+        const profileEtRorOff = Object.keys(
+            seriesByName({ ...baseParams(), ...fullReference, showProfileEtRor: false }),
+        );
+        expect(profileEtRorOff).not.toContain('ET RoR Target');
+        expect(profileEtRorOff).toContain('ET RoR');
+        expect(profileEtRorOff).toContain('RoR Target');
 
         const heatOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showControlHeat: false }));
         expect(heatOff).toContain('Heater Target');

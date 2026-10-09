@@ -256,6 +256,8 @@
                 "profileEtDescription": "曲线环境温度",
                 "profileRor": "RoR",
                 "profileRorDescription": "曲线 BT RoR",
+                "profileEtRor": "ET RoR",
+                "profileEtRorDescription": "曲线 ET RoR",
                 "profileDrum": "滚筒",
                 "profileDrumDescription": "曲线滚筒转速",
                 "profileHeat": "火力",

@@ -113,9 +113,11 @@ export interface TempSeriesParams {
     targetBt?: (number | null)[];
     targetEt?: (number | null)[];
     targetRor?: (number | null)[];
+    targetEtRor?: (number | null)[];
     showProfileBt?: boolean;
     showProfileEt?: boolean;
     showProfileRor?: boolean;
+    showProfileEtRor?: boolean;
     showET: boolean;
     showRoR: boolean;
     showRoRET: boolean;
@@ -138,9 +140,11 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
         targetBt,
         targetEt,
         targetRor,
+        targetEtRor,
         showProfileBt = true,
         showProfileEt = true,
         showProfileRor = true,
+        showProfileEtRor = true,
         showET,
         showRoR,
         showRoRET,
@@ -167,6 +171,11 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             targetXs?.length &&
             hasNumericSample(targetRor) &&
             referenceLineSeries('RoR Target', targetXs, targetRor ?? [], curves.ror.background, 0, 1),
+        showTargetCurve &&
+            showProfileEtRor &&
+            targetXs?.length &&
+            hasNumericSample(targetEtRor) &&
+            referenceLineSeries('ET RoR Target', targetXs, targetEtRor ?? [], curves.etRor.background, 0, 1),
         {
             name: 'BT Actual',
             type: 'line',

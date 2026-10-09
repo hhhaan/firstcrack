@@ -40,6 +40,7 @@ export interface UseChartPipelineReturn {
     visibleTargetBt: number[];
     visibleTargetEt: (number | null)[];
     visibleTargetRor: (number | null)[];
+    visibleTargetEtRor: (number | null)[];
     visibleTargetHeater: (number | null)[];
     visibleTargetFan: (number | null)[];
     visibleTargetDrum: (number | null)[];
@@ -159,6 +160,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         visibleTargetBt: visibleReference.bt,
         visibleTargetEt: visibleReference.et,
         visibleTargetRor: visibleReference.ror,
+        visibleTargetEtRor: visibleReference.rorEt,
         visibleTargetHeater: visibleReference.heater,
         visibleTargetFan: visibleReference.fan,
         visibleTargetDrum: visibleReference.drum,

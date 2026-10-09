@@ -59,6 +59,7 @@ export interface ChartOptionParams {
     showProfileBt?: boolean;
     showProfileEt?: boolean;
     showProfileRor?: boolean;
+    showProfileEtRor?: boolean;
     showProfileDrum?: boolean;
     showProfileHeat?: boolean;
     showProfileFan?: boolean;
@@ -69,6 +70,7 @@ export interface ChartOptionParams {
     /** Stored reference ET/RoR on the same times as targetXs. Null = unstored sample, not zero. */
     targetEt?: (number | null)[];
     targetRor?: (number | null)[];
+    targetEtRor?: (number | null)[];
     showRoR: boolean;
     showRoRET: boolean;
     rorEtActual: (number | null)[];

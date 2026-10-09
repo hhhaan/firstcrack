@@ -256,6 +256,8 @@
                 "profileEtDescription": "プロファイルの環境温度",
                 "profileRor": "RoR",
                 "profileRorDescription": "プロファイルの BT RoR",
+                "profileEtRor": "ET RoR",
+                "profileEtRorDescription": "プロファイルの ET RoR",
                 "profileDrum": "ドラム",
                 "profileDrumDescription": "プロファイルのドラム RPM",
                 "profileHeat": "ヒーター",

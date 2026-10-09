@@ -134,6 +134,7 @@ const profileSeriesOptions: RoastCheckOption[] = (
         ['showProfileBt', 'profileBt'],
         ['showProfileEt', 'profileEt'],
         ['showProfileRor', 'profileRor'],
+        ['showProfileEtRor', 'profileEtRor'],
         ['showProfileDrum', 'profileDrum'],
         ['showProfileHeat', 'profileHeat'],
         ['showProfileFan', 'profileFan'],

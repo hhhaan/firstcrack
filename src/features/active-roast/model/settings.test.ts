@@ -216,6 +216,7 @@ describe('normalize — profile channels', () => {
             showProfileBt: true,
             showProfileEt: true,
             showProfileRor: true,
+            showProfileEtRor: true,
             showProfileDrum: true,
             showProfileHeat: true,
             showProfileFan: true,

@@ -256,6 +256,8 @@
                 "profileEtDescription": "프로파일에 기록된 환경 온도",
                 "profileRor": "RoR",
                 "profileRorDescription": "프로파일의 원두 온도 상승률",
+                "profileEtRor": "ET RoR",
+                "profileEtRorDescription": "프로파일의 환경 온도 상승률",
                 "profileDrum": "드럼",
                 "profileDrumDescription": "프로파일에 기록된 드럼 회전 속도",
                 "profileHeat": "히터",

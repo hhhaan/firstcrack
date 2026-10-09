@@ -204,6 +204,7 @@ export function HistorySessionChart({
         showProfileBt,
         showProfileEt,
         showProfileRor,
+        showProfileEtRor,
         showProfileDrum,
         showProfileHeat,
         showProfileFan,
@@ -343,10 +344,12 @@ export function HistorySessionChart({
                     targetBt={displayedTarget.bt}
                     targetEt={displayedTarget.et}
                     targetRor={displayedTarget.ror}
+                    targetEtRor={displayedTarget.rorEt}
                     showTargetCurve={targetVisible}
                     showProfileBt={showProfileBt}
                     showProfileEt={showProfileEt}
                     showProfileRor={showProfileRor}
+                    showProfileEtRor={showProfileEtRor}
                     showProfileDrum={showProfileDrum}
                     showProfileHeat={showProfileHeat}
                     showProfileFan={showProfileFan}

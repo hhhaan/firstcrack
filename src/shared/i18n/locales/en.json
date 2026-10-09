@@ -256,6 +256,8 @@
                 "profileEtDescription": "Profile environment temperature",
                 "profileRor": "RoR",
                 "profileRorDescription": "Profile BT RoR",
+                "profileEtRor": "ET RoR",
+                "profileEtRorDescription": "Profile ET RoR",
                 "profileDrum": "Drum",
                 "profileDrumDescription": "Profile drum RPM",
                 "profileHeat": "Heater",
