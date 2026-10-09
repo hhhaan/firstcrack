@@ -99,7 +99,7 @@ const typeInto = (chars: string) => {
 };
 
 describe('applyTimeEdit', () => {
-    it('1234는 콜론 뒤로 넘어가 12:34가 된다', () => {
+    it('네 칸을 왼쪽부터 채운다', () => {
         let state = { value: '', caret: 0, suppress: false, secondsOpen: false, digits: '' };
         const seen: string[] = ['|'];
         for (const ch of '1234') {
@@ -115,39 +115,27 @@ describe('applyTimeEdit', () => {
             );
             seen.push(`${state.value.slice(0, state.caret)}|${state.value.slice(state.caret)}`);
         }
-        expect(seen.join(' ')).toBe('| 1| 12:00| 1:23| 12:34|');
-        expect(typeInto('530').value).toBe('5:30');
-        expect(typeInto('5:30').value).toBe('5:30');
+        expect(seen.join(' ')).toBe('| 1|0:00 12:|00 12:3|0 12:34|');
         expect(parseEditTime(state.value)).toBe(754);
-    });
-
-    it('한 자리 분은 콜론을 직접 치고, 숫자만 이어지면 두 자리 분으로 본다', () => {
-        expect(typeInto('0:16')).toMatchObject({ value: '0:16' });
-        expect(parseEditTime('0:16')).toBe(16);
-        expect(typeInto('016').value).toBe('0:16');
-        expect(parseEditTime('01:6')).toBe(120);
-        expect(typeInto('1641').value).toBe('16:41');
+        expect(typeInto('0530').value).toBe('05:30');
+        expect(parseEditTime('05:30')).toBe(330);
         expect(typeInto('1230').value).toBe('12:30');
+        expect(typeInto('1641').value).toBe('16:41');
+        expect(typeInto('0016').value).toBe('00:16');
     });
 
-    it('초 61·글자·두 번째 콜론은 넣지 않는다', () => {
+    it('초 61과 글자는 넣지 않고 백스페이스는 마지막 칸을 지운다', () => {
         expect(typeInto('1260').value).toBe('12:60');
         expect(parseEditTime('12:60')).toBe(780);
-        expect(typeInto('1261').value).toBe('1:26');
-        expect(typeInto('1299').value).toBe('1:29');
+        expect(typeInto('1261').value).toBe('12:60');
+        expect(typeInto('1299').value).toBe('12:00');
         expect(typeInto('12a34').value).toBe('12:34');
-        expect(typeInto('1:2:3').value).toBe('1:23');
+        expect(typeInto('1234\b').value).toBe('12:30');
     });
 
-    it('콜론을 지우면 다음 숫자는 분이 된다', () => {
-        expect(typeInto('12\b345').value).toBe('13:45');
-        expect(typeInto('10\b0:05').value).toBe('10:05');
-    });
-
-    it('선택을 1234로 바꾸고 분 한가운데 숫자를 받는다', () => {
+    it('전체를 1234로 바꾸고 칸 하나를 덮어쓴다', () => {
         expect(applyTimeEdit('0:16', 0, 4, '1234', 'insert', false)).toMatchObject({ value: '12:34', caret: 5 });
-        expect(applyTimeEdit('12:34', 1, 1, '0', 'insert', false)).toMatchObject({ value: '102:34', caret: 2 });
-        expect(applyTimeEdit('199:34', 3, 3, '9', 'insert', false).value).toBe('199:34');
+        expect(applyTimeEdit('12:34', 5, 5, '0', 'insert', false).value).toBe('12:34');
     });
 });
 

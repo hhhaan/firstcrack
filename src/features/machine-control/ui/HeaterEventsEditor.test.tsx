@@ -476,11 +476,11 @@ describe('HeaterEventsEditor', () => {
                 }),
             );
         });
-        expect(input.value).toBe('');
+        expect(input.value).toBe('00:00');
         await type('1');
         await type('2');
         expect(input.value).toBe('12:00');
-        expect(input.selectionStart).toBe(5);
+        expect(input.selectionStart).toBe(3);
         await type('3');
         await type('4');
         expect(input.value).toBe('12:34');
