@@ -131,6 +131,23 @@ describe('applyTimeEdit', () => {
         expect(typeInto('1299').value).toBe('12:00');
         expect(typeInto('12a34').value).toBe('12:34');
         expect(typeInto('1234\b').value).toBe('12:30');
+        const five = typeInto('0530');
+        const erased = applyTimeEdit(
+            five.value,
+            five.caret,
+            five.caret,
+            '',
+            'backspace',
+            five.suppress,
+            false,
+            five.digits,
+        );
+        expect(erased.digits).toBe('053');
+        expect(erased.caret).toBe(4);
+        const atEnd = typeInto('12');
+        expect(applyTimeEdit(atEnd.value, 5, 5, '', 'backspace', atEnd.suppress, false, atEnd.digits).value).toBe(
+            '10:00',
+        );
     });
 
     it('전체를 1234로 바꾸고 칸 하나를 덮어쓴다', () => {

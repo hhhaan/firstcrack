@@ -49,6 +49,13 @@ const slotsOf = (value: string): string | null => {
     return match[1].padStart(2, '0') + match[2];
 };
 
+/** 커서 바로 앞 칸을 지운다. 끝의 0도 지운 것으로 치고 커서를 왼쪽으로 옮긴다. */
+const slotsAfterBackspace = (caret: number, slots: string): string | null => {
+    if (caret <= 0 || slots.length === 0) return null;
+    const keep = caret <= 1 ? 0 : caret <= 3 ? 1 : caret === 4 ? 2 : 3;
+    return slots.slice(0, keep >= slots.length ? slots.length - 1 : keep);
+};
+
 const secondsFit = (slots: string): boolean => {
     if (slots.length <= 2) return true;
     if (slots.length === 3) return Number(slots[2]) <= 6;
@@ -86,8 +93,9 @@ export const applyTimeEdit = (
 
     if (kind !== 'insert') {
         if (replacing && from === 0 && to >= prev.length) return showSlots('');
-        if (!replacing && kind === 'backspace' && slots.length > 0 && from === caretFor(slots.length)) {
-            return showSlots(slots.slice(0, -1));
+        if (!replacing && kind === 'backspace') {
+            const next = slotsAfterBackspace(from, slots);
+            if (next != null) return showSlots(next);
         }
         return keep();
     }

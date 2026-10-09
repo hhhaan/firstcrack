@@ -93,6 +93,7 @@ export const HeaterEventsTable = ({
                 digits: res.digits,
             });
             caretFix.current = { el: input, caret: res.caret };
+            input.setSelectionRange(res.caret, res.caret);
             onUpdate(key, { t: res.value });
         };
         const claimPaste = (input: HTMLInputElement, text: string) => {

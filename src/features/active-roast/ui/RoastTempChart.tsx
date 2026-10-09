@@ -898,6 +898,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             timeSecondsOpen.current = res.secondsOpen;
             timeDigits.current = res.digits;
             timeCaret.current = res.caret;
+            input.setSelectionRange(res.caret, res.caret);
             setEditForm((form) => (form ? { ...form, time: res.value } : form));
         };
         const claimPaste = (text: string) => {
