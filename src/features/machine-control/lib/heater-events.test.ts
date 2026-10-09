@@ -81,7 +81,7 @@ describe('parseEditTime', () => {
 });
 
 const typeInto = (chars: string) => {
-    let state = { value: '', caret: 0, suppress: false, secondsOpen: false };
+    let state = { value: '', caret: 0, suppress: false, secondsOpen: false, digits: '' };
     for (const ch of chars) {
         const kind = ch === '\b' ? 'backspace' : 'insert';
         state = applyTimeEdit(
@@ -92,6 +92,7 @@ const typeInto = (chars: string) => {
             kind,
             state.suppress,
             state.secondsOpen,
+            state.digits,
         );
     }
     return state;
@@ -99,7 +100,7 @@ const typeInto = (chars: string) => {
 
 describe('applyTimeEdit', () => {
     it('1234는 콜론 뒤로 넘어가 12:34가 된다', () => {
-        let state = { value: '', caret: 0, suppress: false, secondsOpen: false };
+        let state = { value: '', caret: 0, suppress: false, secondsOpen: false, digits: '' };
         const seen: string[] = ['|'];
         for (const ch of '1234') {
             state = applyTimeEdit(
@@ -110,17 +111,20 @@ describe('applyTimeEdit', () => {
                 'insert',
                 state.suppress,
                 state.secondsOpen,
+                state.digits,
             );
             seen.push(`${state.value.slice(0, state.caret)}|${state.value.slice(state.caret)}`);
         }
-        expect(seen.join(' ')).toBe('| 1| 12:00| 12:30| 12:34|');
+        expect(seen.join(' ')).toBe('| 1| 12:00| 1:23| 12:34|');
+        expect(typeInto('530').value).toBe('5:30');
+        expect(typeInto('5:30').value).toBe('5:30');
         expect(parseEditTime(state.value)).toBe(754);
     });
 
     it('한 자리 분은 콜론을 직접 치고, 숫자만 이어지면 두 자리 분으로 본다', () => {
         expect(typeInto('0:16')).toMatchObject({ value: '0:16' });
         expect(parseEditTime('0:16')).toBe(16);
-        expect(typeInto('016').value).toBe('01:60');
+        expect(typeInto('016').value).toBe('0:16');
         expect(parseEditTime('01:6')).toBe(120);
         expect(typeInto('1641').value).toBe('16:41');
         expect(typeInto('1230').value).toBe('12:30');
@@ -129,15 +133,15 @@ describe('applyTimeEdit', () => {
     it('초 61·글자·두 번째 콜론은 넣지 않는다', () => {
         expect(typeInto('1260').value).toBe('12:60');
         expect(parseEditTime('12:60')).toBe(780);
-        expect(typeInto('1261').value).toBe('12:60');
-        expect(typeInto('1299').value).toBe('12:00');
+        expect(typeInto('1261').value).toBe('1:26');
+        expect(typeInto('1299').value).toBe('1:29');
         expect(typeInto('12a34').value).toBe('12:34');
         expect(typeInto('1:2:3').value).toBe('1:23');
     });
 
     it('콜론을 지우면 다음 숫자는 분이 된다', () => {
-        expect(typeInto('12\b345').value).toBe('123:45');
-        expect(typeInto('10\b0:05').value).toBe('100:05');
+        expect(typeInto('12\b345').value).toBe('13:45');
+        expect(typeInto('10\b0:05').value).toBe('10:05');
     });
 
     it('선택을 1234로 바꾸고 분 한가운데 숫자를 받는다', () => {

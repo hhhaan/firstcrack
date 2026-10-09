@@ -49,7 +49,9 @@ export const HeaterEventsTable = ({
     onDelete?: (key: string) => void;
 }) => {
     const { t } = useTranslation();
-    const timeEdit = useRef(new WeakMap<HTMLInputElement, { suppress: boolean; secondsOpen: boolean }>());
+    const timeEdit = useRef(
+        new WeakMap<HTMLInputElement, { suppress: boolean; secondsOpen: boolean; digits: string }>(),
+    );
     const pasteClaimed = useRef(new WeakMap<HTMLInputElement, boolean>());
     const unhandledTimeInputs = useRef(new WeakSet<HTMLInputElement>());
     const caretFix = useRef<{ el: HTMLInputElement; caret: number } | null>(null);
@@ -83,8 +85,13 @@ export const HeaterEventsTable = ({
                 kind,
                 prior?.suppress ?? false,
                 prior?.secondsOpen ?? false,
+                prior?.digits ?? '',
             );
-            timeEdit.current.set(input, { suppress: res.suppress, secondsOpen: res.secondsOpen });
+            timeEdit.current.set(input, {
+                suppress: res.suppress,
+                secondsOpen: res.secondsOpen,
+                digits: res.digits,
+            });
             caretFix.current = { el: input, caret: res.caret };
             onUpdate(key, { t: res.value });
         };
@@ -130,7 +137,7 @@ export const HeaterEventsTable = ({
             if (committed === event.target.value) return;
             const key = event.target.dataset.timeKey;
             if (!key) return;
-            timeEdit.current.set(event.target, { suppress: false, secondsOpen: false });
+            timeEdit.current.set(event.target, { suppress: false, secondsOpen: false, digits: '' });
             onUpdate(key, { t: committed });
         };
         root.addEventListener('beforeinput', onBefore);

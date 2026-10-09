@@ -346,6 +346,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const timeInputRef = useRef<HTMLInputElement>(null);
     const timeSuppress = useRef(false);
     const timeSecondsOpen = useRef(false);
+    const timeDigits = useRef('');
     const timeCaret = useRef<number | null>(null);
     const timeBypassLogged = useRef(false);
 
@@ -877,6 +878,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         if (!input) return;
         timeSuppress.current = false;
         timeSecondsOpen.current = false;
+        timeDigits.current = '';
         timeBypassLogged.current = false;
         let pasteClaimed = false;
         const editTime = (kind: TimeEditKind, text: string) => {
@@ -890,9 +892,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 kind,
                 timeSuppress.current,
                 timeSecondsOpen.current,
+                timeDigits.current,
             );
             timeSuppress.current = res.suppress;
             timeSecondsOpen.current = res.secondsOpen;
+            timeDigits.current = res.digits;
             timeCaret.current = res.caret;
             setEditForm((form) => (form ? { ...form, time: res.value } : form));
         };
@@ -937,6 +941,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (committed === input.value) return;
             timeSuppress.current = false;
             timeSecondsOpen.current = false;
+            timeDigits.current = '';
             setEditForm((form) => (form ? { ...form, time: committed } : form));
         };
         input.addEventListener('beforeinput', onBefore);
