@@ -80,6 +80,74 @@ describe('ChannelChip (#436)', () => {
     it('미지원이면 대시를 보여 준다', () => {
         const { container, unmount } = renderChip({ unsupported: true, value: undefined, feedback: null });
         expect(container.textContent).toContain('—');
+        expect(container.querySelector('[data-channel-input]')).toBeNull();
+        unmount();
+    });
+
+    it('숫자 입력은 Enter에서만 보낸다', () => {
+        const { container, onChange, onCommit, unmount } = renderChip({ value: 20, feedback: 20 });
+        const input = container.querySelector('[data-channel-input]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => input.focus());
+        act(() => {
+            setValue?.call(input, '35');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(onChange).not.toHaveBeenCalled();
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('fan', 35);
+        expect(onCommit).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
+    it('포커스를 벗어나거나 Escape면 전송 없이 취소한다', () => {
+        const { container, onChange, onCommit, unmount } = renderChip({ role: 'drum', value: 50, feedback: 50 });
+        const input = container.querySelector('[data-channel-input]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => input.focus());
+        act(() => {
+            setValue?.call(input, '12');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() => input.blur());
+        expect(input.value).toBe('50');
+        expect(onChange).not.toHaveBeenCalled();
+        act(() => input.focus());
+        act(() => {
+            setValue?.call(input, '12');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+        expect(onCommit).not.toHaveBeenCalled();
+        expect(input.value).toBe('50');
+        unmount();
+    });
+
+    it('화살표는 1단위로 고치고 Enter 전에 보내지 않는다', () => {
+        const { container, onChange, unmount } = renderChip({ value: 20, feedback: 20 });
+        const input = container.querySelector('[data-channel-input]') as HTMLInputElement;
+        act(() => input.focus());
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true })));
+        expect(input.value).toBe('21');
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
+        expect(input.value).toBe('20');
+        expect(onChange).not.toHaveBeenCalled();
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('fan', 20);
+        unmount();
+    });
+
+    it('글자를 버리고 min/max로 자른다', () => {
+        const { container, onChange, unmount } = renderChip({ value: 20, feedback: 20 });
+        const input = container.querySelector('[data-channel-input]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => {
+            setValue?.call(input, '12a9');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(input.value).toBe('129');
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('fan', 100);
         unmount();
     });
 });

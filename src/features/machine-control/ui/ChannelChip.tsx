@@ -1,6 +1,6 @@
 import type { ControlLimit } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { ControlRole } from '../lib/controlSender';
 import { isPercentUnit, stepPercent } from '../lib/snapPercent';
 import { useHoldRepeat } from '../lib/useHoldRepeat';
@@ -42,6 +42,8 @@ export const ChannelChip = ({
     const locked = disabled || unsupported;
 
     const valueRef = useRef(current);
+    const [draft, setDraft] = useState<string | null>(null);
+    const maxDigits = String(Math.floor(Math.max(Math.abs(min), Math.abs(max), 1))).length;
     const stepBy = (delta: number) => {
         if (locked) return;
         const next = isPercentUnit(limit.unit)
@@ -67,6 +69,18 @@ export const ChannelChip = ({
         },
     );
 
+    const commitType = () => {
+        if (locked || !draft) {
+            setDraft(null);
+            return;
+        }
+        const next = Math.min(max, Math.max(min, Math.round(Number(draft))));
+        valueRef.current = next;
+        onChange(role, next);
+        onCommit();
+        setDraft(null);
+    };
+
     return (
         <div
             className={cn(
@@ -86,14 +100,44 @@ export const ChannelChip = ({
                 >
                     −
                 </button>
-                <span
-                    className={cn(
-                        'min-w-6 text-center font-mono text-[12px] font-semibold',
-                        unacknowledged ? 'text-red-500' : 'text-primary',
-                    )}
-                >
-                    {unsupported ? '—' : Math.round(current)}
-                </span>
+                {unsupported ? (
+                    <span className="min-w-6 text-center font-mono text-[12px] font-semibold text-primary">—</span>
+                ) : (
+                    <input
+                        data-channel-input
+                        type="text"
+                        inputMode="numeric"
+                        disabled={locked}
+                        aria-label={`${ROLE_LABEL[role]} setpoint value`}
+                        value={draft ?? String(Math.round(current))}
+                        onChange={(e) => {
+                            if (locked) return;
+                            setDraft(e.target.value.replace(/\D/g, '').slice(0, maxDigits));
+                        }}
+                        onBlur={() => setDraft(null)}
+                        onFocus={(e) => {
+                            e.currentTarget.select();
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                commitType();
+                                e.currentTarget.blur();
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.currentTarget.blur();
+                            } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                const next = Number(draft || current) + (e.key === 'ArrowUp' ? 1 : -1);
+                                setDraft(String(Math.min(max, Math.max(min, next))));
+                            }
+                        }}
+                        className={cn(
+                            'w-[3ch] border-0 bg-transparent p-0 text-center font-mono text-[12px] font-semibold tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed',
+                            unacknowledged ? 'text-red-500' : 'text-primary',
+                        )}
+                    />
+                )}
                 <button
                     type="button"
                     data-step="5"
