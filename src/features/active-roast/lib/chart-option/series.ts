@@ -23,7 +23,11 @@ import type { ControlData, ResolvedChartColors } from './types';
 
 export const lineSeriesBase = {
     showSymbol: false,
-    emphasis: { disabled: true },
+    // Axis highlight still builds a temp symbol when showSymbol is false.
+    // 'none' draws nothing. scale:false stops the default emphasis grow.
+    symbol: 'none' as const,
+    symbolSize: 0,
+    emphasis: { disabled: true, scale: false },
 };
 
 const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>

@@ -837,6 +837,54 @@ describe('buildRoastChartOption', () => {
         }
     });
 
+    it('draws no hover dot on axis highlight', () => {
+        const curveStyles = {
+            ...DEFAULT_CURVE_STYLES,
+            bt: { ...DEFAULT_CURVE_STYLES.bt, color: '#ff0000' },
+        };
+        const byName = seriesByName({ ...baseParams(), ...fullReference, curveStyles });
+        for (const name of ['BT Actual', 'BT Target', 'ET Actual', 'RoR', 'Heat', 'Heat set', 'Drum Target']) {
+            expect(byName[name]).toMatchObject({
+                showSymbol: false,
+                symbol: 'none',
+                symbolSize: 0,
+                emphasis: { disabled: true, scale: false },
+            });
+            expect(byName[name]).not.toHaveProperty('itemStyle');
+        }
+        const changeDot = (
+            byName.Heat as {
+                markPoint?: { data: { symbolSize: number; itemStyle: { color: string } }[] };
+            }
+        ).markPoint?.data[0];
+        expect(changeDot).toMatchObject({ symbol: 'circle', symbolSize: 4, itemStyle: { color: 'transparent' } });
+
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            ...fullReference,
+            curveStyles,
+            xs: [0, 30, 60],
+            btActual: [100, 140, 180],
+            etActual: [110, 150, 190],
+            rorActual: [8, 6, 4],
+        });
+        const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 800, height: 480 });
+        chart.setOption(option);
+        const series = option.series as { name?: string }[];
+        for (const name of ['BT Actual', 'BT Target', 'ET Actual', 'RoR', 'Heat']) {
+            chart.dispatchAction({
+                type: 'highlight',
+                seriesIndex: series.findIndex((item) => item.name === name),
+                dataIndex: 1,
+            });
+        }
+        const hovered = chart.renderToSVGString();
+        chart.dispose();
+        expect(hovered).toContain('stroke="#ff0000"');
+        expect(hovered).not.toContain('fill="#ff0000"');
+        expect(hovered).not.toContain('fill-opacity="0.3"');
+    });
+
     it('labels only acknowledged app writes and the current measurement, including zero and decimals', () => {
         const byName = seriesByName({
             ...baseParams(),
