@@ -2,7 +2,7 @@ import { useToastStore } from '@shared/store/toast';
 import { AlertCircle, CheckCircle, Info, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-/** Global feedback surface. Sits above modals (ModalShell is z-1000). */
+/** Global feedback surface. Above modal overlays (z-[10000]) and spotlight tour (z-[10050]). */
 export const ToastViewport = () => {
     const { t } = useTranslation();
     const toasts = useToastStore((s) => s.toasts);
@@ -13,7 +13,7 @@ export const ToastViewport = () => {
     if (toasts.length === 0) return null;
 
     return (
-        <div className="pointer-events-none fixed bottom-6 left-1/2 z-1100 flex w-full max-w-[440px] -translate-x-1/2 flex-col gap-2 px-4">
+        <div className="pointer-events-none fixed bottom-6 left-1/2 z-[10051] flex w-full max-w-[440px] -translate-x-1/2 flex-col gap-2 px-4">
             {toasts.map((toast) => (
                 <div
                     key={toast.id}

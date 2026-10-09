@@ -70,7 +70,7 @@ async def test_manager_rejects_unavailable_discharge(manager, block):
     if block == "disabled":
         manager._merged_params = {}
     elif block == "other_model":
-        manager._roaster_key = "giesen_w6a_pro"
+        manager._roaster_key = "giesen_w6a_pro"  # gitleaks:allow
     elif block == "disconnected":
         manager._connected = False
     else:

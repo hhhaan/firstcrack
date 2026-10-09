@@ -797,7 +797,7 @@ export const ROASTER_REGISTRY: RoastersResponse = Object.fromEntries(
                 ...(key === 'giesen_w45a_w60a'
                     ? [
                           {
-                              key: 'w60a_discharge',
+                              key: 'w60a_discharge', // gitleaks:allow
                               label: 'W60A discharge door',
                               type: 'select' as const,
                               required: false,
