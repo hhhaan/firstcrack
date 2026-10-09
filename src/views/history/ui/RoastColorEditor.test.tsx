@@ -20,7 +20,7 @@ vi.mock('@entities/roast', () => ({
 
 const session = {
     id: 's1',
-    color_whole: 58.4,
+    color_whole: '58.4',
     color_ground: null,
 } as RoastSessionWithRelations;
 
@@ -59,11 +59,11 @@ describe('RoastColorEditor', () => {
         await act(async () => {
             input.focus();
         });
-        await type(input, '60');
+        await type(input, '58.4, 58.7, 59.0');
         await act(async () => {
             input.blur();
         });
-        expect(update).toHaveBeenCalledWith({ id: 's1', color_whole: 60 });
+        expect(update).toHaveBeenCalledWith({ id: 's1', color_whole: '58.4, 58.7, 59.0' });
     });
 
     it('clears a color when the field is emptied', async () => {
@@ -79,17 +79,30 @@ describe('RoastColorEditor', () => {
         expect(update).toHaveBeenCalledWith({ id: 's1', color_whole: null });
     });
 
-    it('does not write a negative color', async () => {
+    it('rejects trimmed text longer than 120 characters', async () => {
+        await render();
+        const input = field('history-color-whole');
+        await act(async () => {
+            input.focus();
+        });
+        await type(input, `  ${'x'.repeat(121)}  `);
+        await act(async () => {
+            input.blur();
+        });
+        expect(update).not.toHaveBeenCalled();
+        expect(host.textContent).toContain('history.expanded.colorTooLong');
+    });
+
+    it('preserves non-numeric free text', async () => {
         await render();
         const input = field('history-color-ground');
         await act(async () => {
             input.focus();
         });
-        await type(input, '-1');
+        await type(input, 'WB 58.4 (avg)');
         await act(async () => {
             input.blur();
         });
-        expect(update).not.toHaveBeenCalled();
-        expect(host.textContent).toContain('history.expanded.colorInvalid');
+        expect(update).toHaveBeenCalledWith({ id: 's1', color_ground: 'WB 58.4 (avg)' });
     });
 });

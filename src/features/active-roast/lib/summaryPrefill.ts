@@ -33,8 +33,6 @@ export const summaryFormInitialValues = (
         linkMode: handoff ? 'schedule' : 'none',
         planBatchId: handoff?.planBatchId ?? null,
         deductStock: Boolean(handoff) || prefill.beanId != null,
-        colorWhole: undefined,
-        colorGround: undefined,
     };
 };
 

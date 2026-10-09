@@ -292,6 +292,14 @@ describe('saveRoastCore', () => {
         expect(arg.session.id).toBe('11111111-1111-4111-8111-111111111111');
     });
 
+    it('summary save RPC payload omits roast color columns (History-only)', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, baseParams);
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session).not.toHaveProperty('color_whole');
+        expect(arg.session).not.toHaveProperty('color_ground');
+    });
+
     it('drop_temp: Drop 로그 tempC 우선 (라이브 rawBT 무시) (#173)', async () => {
         const deps = makeDeps();
         await saveRoastCore(deps, {

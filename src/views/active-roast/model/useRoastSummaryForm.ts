@@ -57,8 +57,6 @@ export const useRoastSummaryForm = ({
             linkMode: hasHandoff ? 'schedule' : 'none',
             planBatchId: planBatchHandoff?.planBatchId ?? null,
             deductStock: hasHandoff || selectedBeanId != null,
-            colorWhole: undefined,
-            colorGround: undefined,
         },
     });
     const { watch, setValue, reset } = form;
