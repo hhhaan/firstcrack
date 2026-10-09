@@ -4,14 +4,14 @@ import { formatShortcut, type ShortcutId, useShortcutStore } from '@shared/store
 import { useThemeStore } from '@shared/store/theme';
 import type { LogEntry } from '@shared/types/roast';
 
-/** Drop is a double tap. Show the key twice (`⌘D ×2` → `DD`) and leave the gesture alone. */
+/** Drop is a double tap. Repeat the key while preserving modifiers (`⌘D` → `⌘DD`). */
 function formatDoubleTapShortcut(keys: readonly string[]): string {
     return formatShortcut(keys)
         .split(' / ')
         .map((label) => {
             const tail = label.split('+').pop() ?? label;
             const key = tail.replace(/^[⌘⌥⇧]+/, '');
-            return key.length === 1 ? key + key : key;
+            return key.length === 1 ? label + key : label;
         })
         .join(' / ');
 }
