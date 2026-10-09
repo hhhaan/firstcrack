@@ -54,7 +54,8 @@ const controlMarks = (
         coord: [time, value] as [number, number],
         symbol: 'circle' as const,
         symbolSize: scaleChartPx(CONTROL_CHANGE_DOT_PX, fontScale),
-        itemStyle: { color: current ? style.color : 'transparent', opacity: style.opacity ?? 1 },
+        // ECharts drops the label when the symbol is none or size 0. Keep a transparent circle.
+        itemStyle: { color: 'transparent', borderWidth: 0, opacity: style.opacity ?? 1 },
         label: {
             ...text,
             position: current ? ('left' as const) : ('top' as const),
