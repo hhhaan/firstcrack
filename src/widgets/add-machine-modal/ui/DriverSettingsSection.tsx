@@ -152,7 +152,7 @@ export const DriverSettingsSection = ({
                     className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated"
                 >
                     <summary className="cursor-pointer text-[13px] font-semibold text-secondary">
-                        {t('addMachine.addressMap')}
+                        {t(showAddressMap ? 'addMachine.addressMap' : 'addMachine.supportedAddressMap')}
                     </summary>
                     <div className="grid grid-cols-2 gap-4 mt-4">
                         <p className="col-span-2 text-[11px] text-muted leading-relaxed m-0">

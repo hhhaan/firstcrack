@@ -600,6 +600,7 @@
         "protocol": "プロトコル",
         "selectProtocol": "プロトコルを選択...",
         "addressMap": "BT / ET アドレスマップ",
+        "supportedAddressMap": "チャネルアドレス",
         "addressMapHint": "機器マニュアルまたはArtisan設定に従いレジスタ/チャネルを直接入力してください。ETは空欄で無効です。",
         "supportedAddressHint": "変更するアドレスのみ入力してください。空欄はモデルの既定値を使用します。",
         "invalidAddress": "{{field}} に有効なアドレスを入力してください",

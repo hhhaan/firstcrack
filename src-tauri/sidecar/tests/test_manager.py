@@ -32,11 +32,38 @@ def test_supported_address_overrides_keep_other_channels_and_registry_defaults()
     assert defaults["BT"]["offset"] != 200
 
 
-@pytest.mark.parametrize("overrides", [{"bt_register": -1}, {"bt_register": True}, {"et_register": 3}])
-def test_supported_address_overrides_reject_invalid_or_missing_channels(overrides):
+@pytest.mark.parametrize("overrides", [{"bt_register": -1}, {"bt_register": True}])
+def test_supported_address_overrides_reject_invalid_channels(overrides):
     defaults = ROASTER_REGISTRY["probat_probatone"]["default_params"]
     with pytest.raises(ValueError):
         _merge_connect_params(defaults, overrides)
+
+
+def test_supported_address_override_adds_missing_channel_from_bt_template():
+    defaults = ROASTER_REGISTRY["probat_probatone"]["default_params"]
+    merged = _merge_connect_params(defaults, {"et_register": 3, "heater_register": 10})
+    bt = defaults["modbus_registers"]["BT"]
+    assert merged["modbus_registers"]["ET"]["register"] == 3
+    assert merged["modbus_registers"]["ET"]["func"] == bt["func"]
+    assert merged["modbus_registers"]["ET"]["div"] == bt["div"]
+    assert merged["modbus_registers"]["heater"]["register"] == 10
+    assert defaults["modbus_registers"]["ET"] is None
+
+
+def test_supported_s7_override_adds_missing_fan_channel():
+    defaults = {
+        "channels": [
+            {"role": "BT", "db": 3, "offset": 10, "area": 6, "type": 1, "div": 0},
+        ]
+    }
+    merged = _merge_connect_params(defaults, {"fan_db": 9, "fan_offset": 12})
+    fan = next(channel for channel in merged["channels"] if channel["role"] == "fan")
+    assert fan["db"] == 9
+    assert fan["offset"] == 12
+    assert fan["area"] == 6
+    assert defaults["channels"] == [
+        {"role": "BT", "db": 3, "offset": 10, "area": 6, "type": 1, "div": 0},
+    ]
 
 
 # ---------------------------------------------------------------------------

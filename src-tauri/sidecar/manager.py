@@ -191,33 +191,56 @@ def _merge_connect_params(
         if not _has_real_map(params[key]) and key in defaults:
             merged[key] = defaults[key]
 
-    for role in ("BT", "ET"):
-        key = f"{role.lower()}_register"
+    # Form prefix → registry role. BT/ET stay uppercase; control roles match the adapters.
+    for prefix, role in (
+        ("bt", "BT"),
+        ("et", "ET"),
+        ("heater", "heater"),
+        ("fan", "fan"),
+        ("drum", "drum"),
+    ):
+        key = f"{prefix}_register"
         if key in params:
             value = params[key]
             if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 65535:
                 raise ValueError(f"{key} must be an integer from 0 to 65535")
             registers = merged.get("modbus_registers")
-            channel = registers.get(role) if isinstance(registers, dict) else None
-            if not isinstance(channel, dict):
+            if not isinstance(registers, dict):
                 raise ValueError(f"{role} register is not available for this model")
-            merged["modbus_registers"] = {
-                **merged["modbus_registers"], role: {**channel, "register": value}
-            }
+            channel = registers.get(role)
+            if not isinstance(channel, dict):
+                template = registers.get("BT")
+                channel = _modbus_channel_from_template(template, value)
+            else:
+                channel = {**channel, "register": value}
+            merged["modbus_registers"] = {**registers, role: channel}
 
         for field, max_value in (("db", 65535), ("offset", 2147483647)):
-            key = f"{role.lower()}_{field}"
+            key = f"{prefix}_{field}"
             if key not in params:
                 continue
             value = params[key]
             if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= max_value:
                 raise ValueError(f"{key} must be an integer from 0 to {max_value}")
             channels = merged.get("channels")
-            if not isinstance(channels, list) or not any(
-                isinstance(channel, dict) and channel.get("role") == role
-                for channel in channels
-            ):
+            if not isinstance(channels, list):
                 raise ValueError(f"{role} channel is not available for this model")
+            if not any(isinstance(channel, dict) and channel.get("role") == role for channel in channels):
+                template = next(
+                    (channel for channel in channels if isinstance(channel, dict) and channel.get("role") == "BT"),
+                    {},
+                )
+                channels = [
+                    *channels,
+                    {
+                        "role": role,
+                        "db": template.get("db", 0),
+                        "offset": template.get("offset", 0),
+                        "area": 6,
+                        "type": 0,
+                        "div": 0,
+                    },
+                ]
             merged["channels"] = [
                 {**channel, field: value}
                 if isinstance(channel, dict) and channel.get("role") == role
@@ -225,6 +248,24 @@ def _merge_connect_params(
                 for channel in channels
             ]
     return merged
+
+
+def _modbus_channel_from_template(template: Any, register: int) -> dict[str, Any]:
+    """New read channel. Decode settings follow BT so a preset variant only needs an address."""
+    channel: dict[str, Any] = {
+        "register": register,
+        "func": 3,
+        "unit_id": 1,
+        "float": False,
+        "div": 0,
+        "mode": "C",
+    }
+    if isinstance(template, dict):
+        for key in ("func", "unit_id", "float", "div", "mode", "bcd"):
+            if key in template:
+                channel[key] = template[key]
+    channel["register"] = register
+    return channel
 
 
 class RoasterManager:

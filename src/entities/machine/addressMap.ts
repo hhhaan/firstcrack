@@ -85,19 +85,39 @@ export const S7_ADDRESS_FORM_FIELDS: RoasterFormField[] = [
     { key: 'et_div', label: 'ET Scale', type: 'select', required: false, options: DIV_OPTIONS },
 ];
 
-/** Optional per-machine address overrides for supported models. Empty keeps the registry default. */
+const modbusRegister = (key: string, label: string): RoasterFormField => ({
+    key,
+    label,
+    type: 'number',
+    required: false,
+});
+
+const s7Address = (prefix: string, label: string): RoasterFormField[] => [
+    { key: `${prefix}_db`, label: `${label} DB`, type: 'number', required: false },
+    { key: `${prefix}_offset`, label: `${label} Offset`, type: 'number', required: false },
+];
+
+/**
+ * Optional address overrides for a supported model.
+ * Empty keeps the registry channel. A filled value updates that channel, or adds it
+ * when the preset did not ship one.
+ */
 export const supportedAddressFieldsForProtocol = (protocol: string): RoasterFormField[] => {
     if (protocol === 'modbus')
         return [
-            { key: 'bt_register', label: 'BT Register', type: 'number', required: false },
-            { key: 'et_register', label: 'ET Register', type: 'number', required: false },
+            modbusRegister('bt_register', 'BT Register'),
+            modbusRegister('et_register', 'ET Register'),
+            modbusRegister('heater_register', 'Heater Register'),
+            modbusRegister('fan_register', 'Fan Register'),
+            modbusRegister('drum_register', 'Drum Register'),
         ];
     if (protocol === 's7')
         return [
-            { key: 'bt_db', label: 'BT DB', type: 'number', required: false },
-            { key: 'bt_offset', label: 'BT Offset', type: 'number', required: false },
-            { key: 'et_db', label: 'ET DB', type: 'number', required: false },
-            { key: 'et_offset', label: 'ET Offset', type: 'number', required: false },
+            ...s7Address('bt', 'BT'),
+            ...s7Address('et', 'ET'),
+            ...s7Address('heater', 'Heater'),
+            ...s7Address('fan', 'Fan'),
+            ...s7Address('drum', 'Drum'),
         ];
     return [];
 };
