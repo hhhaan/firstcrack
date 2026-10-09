@@ -59,6 +59,7 @@ Prefer `SKIP_VERIFY=1` over `--no-verify` (keeps other hooks; explicit intent in
 - `sales_channel_secrets`, Polar/billing columns, service role: server/EF only — see `supabase/AGENTS.md`
 
 ## Agent domain docs (English)
+Roast-session language (temperatures, phases, controls, replay): `CONTEXT.md`. Read it before naming those terms.
 Read before changing write paths:
 - Inventory ledgers: `docs/inventory-architecture.md` · `docs/agent/inventory-ledger.md`
 - Roast save / stock: `docs/agent/active-roast-save.md`
