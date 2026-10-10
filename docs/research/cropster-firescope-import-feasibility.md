@@ -154,9 +154,58 @@ FC의 활성 factory는 `virtual`, `kaleido`, `s7`, `modbus`, `probat_ws`, `phid
 
 **모든 연결 주소가 사용자 DB의 register 목록으로 저장되는 것은 아니다.** Modbus는 register/unit ID, S7은 DB/offset, Phidget는 channel/hub/센서 타입, WebSocket은 IP/port와 전용 node 의미를 가져와야 한다. Probat handshake와 Bullet USB 규약처럼 드라이버에 고정된 값도 있다. DB에 저장된 통신·센서 설정의 추출과 해당 드라이버의 동작 재현을 별도 판정한다. 공식 연결 가이드도 serial port, Ethernet 설정, Phidget 설치로 절차가 나뉜다. [serial 가이드](https://docs.firescope.io/roasting-machine/autonics), [Probat Type3 가이드](https://docs.firescope.io/roasting-machine/probat-probatone-type3)
 
-매핑 순서는 **`connection.driver` → 선택된 `connection.type`/하위 subtype → 센서 schema**다. Firescope 자체도 driver를 protocol보다 먼저 선택한다. 알려진 전용 driver를 무시하고 `protocol=modbus/phidget/websocket`만 보고 일반 adapter로 내리지 않는다. driver가 없을 때만 검증된 버전의 protocol fallback을 사용하며, 알 수 없는 driver/mode는 `unsupported`로 남긴다. Firescope의 unknown → Dummy fallback을 FC import에서 재현하지 않는다. FC Modbus도 알 수 없는 mode가 RTU로 내려갈 수 있으므로 import 경계에서 enum을 제한한다. stopBits 1.5는 FC 생성자에서 int로 축소되므로 수정·검증 전 동일 동작 지원으로 표시하지 않는다.
+매핑 순서는 **`connection.driver` → 선택된 `connection.type`/하위 subtype → 센서 schema**다. Firescope 자체도 driver를 protocol보다 먼저 선택한다. 알려진 전용 driver를 무시하고 `protocol=modbus/phidget/websocket`만 보고 일반 adapter로 내리지 않는다. 현재 importer는 driver가 없어도 차단하며 protocol fallback을 하지 않는다. 알 수 없는 driver/mode는 적용하지 않는다. Firescope의 unknown → Dummy fallback을 FC import에서 재현하지 않는다. FC Modbus도 알 수 없는 mode가 RTU로 내려갈 수 있으므로 import 경계에서 enum을 제한한다. stopBits 1.5는 FC 생성자에서 int로 축소되므로 수정·검증 전 동일 동작 지원으로 표시하지 않는다.
 
 이번 실제 DB의 실머신 3대는 일반 Modbus RTU/TCP와 S7였다. ASCII·UDP·Phidget·Probat·Bullet의 설정된 사용자 샘플이나 실제 장비는 확인하지 않았다. 후속 검증은 각 driver의 합성 설정 변환·저장·재편집 후 값 보존, 지원 transport의 실제 측정값, 전용 handshake/message/decode를 확인하는 순서다. Intel·ARM 양쪽에서 serial/USB/Phidget 의존성까지 확인한다.
+
+#### 현재 제품의 지원 범위와 연결 성공의 구분
+
+2026-10-10 설치본 **Firescope 1.0.2의 F1 코드**와 현재 [FC importer](../../src/entities/machine/firescope.ts)를 재대조했다. “가져오기 가능”은 설정 변환·저장을 뜻한다. **이번 조사에서 실제 로스터에 연결하지 않았으며, 모든 행의 실기기 호환성은 미검증이다.** 다른 Firescope 버전·서버 preset 전체로 일반화하지 않는다.
+
+| 기능/데이터 | Firescope 설치본 | FC 현재 실행 경로 | 현재 Firescope 가져오기 |
+|---|---|---|---|
+| 일반 Modbus RTU / ASCII / TCP / UDP | 네 방식 구현 | 네 방식 구현 | `ModbusDriver`·`EasysterSmartDriver`만 조건부 가능 |
+| Modbus FC3/FC4 signed16 | `integer`, 1 register | signed 옵션 구현 | BT 필수·ET 선택; 주소·ID·단위·배율 검증 후 가능 |
+| Modbus BCD | `bcd`, 1 register | bcd16/bcd32 읽기 구현 | **차단**; 런타임 지원과 importer 지원은 다름 |
+| Modbus float32 / float32-le | 2 registers, 센서별 word order | float 읽기·adapter 전체 word order 구현 | **차단**; 센서별 order/배율 동등성 미구현 |
+| decimalPlace 배율 | Modbus/S7 모두 값 ÷ 10^decimalPlace | 정수 div 0/1/2; S7 INT/REAL에도 적용 | 0/1/2만 허용. **FC Modbus float는 현재 div 미적용** |
+| compensation | 온도 단위 변환 **후** 보정 | importer와 연결된 동등 보정 경로 없음 | 0/생략만 허용; 비0·잘못된 값 차단 |
+| 센서 온도 단위 | 저장 단위→머신 표시 단위 변환 | Modbus C/F→C; S7은 이 단위 변환 없음 | Modbus C/F, S7 C만 허용 |
+| S7 INT / REAL | DB번호+byte offset, rack0, slot 기본1 | DB INT/REAL 읽기·div 구현 | `S7Driver` Ethernet/TCP만 조건부 가능; source slot 유지 |
+| BT/ET 외 압력·화력·드럼 등 | label별 센서·단위 | Modbus/S7 모두 명시적으로 매핑된 heater/fan/drum feedback 읽기 경로 있음 | **추가 채널은 모두 제외**. 역할·단위 매핑 미구현; Pa 압력이나 Hz 회전값을 fan/drum %로 추정하지 않음 |
+| 일반 Modbus / Easyster 쓰기 | integer/float register 또는 전용 주소 쓰기 | Modbus control은 실장비 쓰기 미지원 | 쓰기 설정을 생성하지 않음 |
+| S7 쓰기 | label에 대응하는 DB 항목 쓰기 | 검증된 write_map 기반 실행 경로 있음 | **가져오기는 write_map/PID/제어 capabilities 미생성** |
+| Phidget / Diedrich | hub·센서타입·RTD·전압비 변환 | 일부 TemperatureSensor 읽기만 대응 | 해당 driver 전체 차단 |
+| Probat PLC / Probat WebSocket | 전용 handshake/watchdog 또는 메시지 규약 | 일반 Modbus / 다른 Probat WS 경로 있음 | 해당 driver 전체 차단; 전용 규약 동등성 미확정 |
+| Bullet R1 USB | 전용 USB packet | 활성 adapter 없음 | 차단 |
+| 그래프·indicator·이벤트 | 축·색상·RoR·자동 이벤트 등 | FC에도 각종 표시·이벤트 기능 있음 | 단위·온도/시간 범위·시간 눈금·곡선 색상·ET 표시만 매핑. indicator 전체와 RoR interval·감지/평활화는 동등 매핑 미구현 |
+
+지원 판단 근거: [FC Modbus 읽기](../../src-tauri/sidecar/adapters/modbus.py), [S7 읽기/feedback/쓰기](../../src-tauri/sidecar/adapters/s7.py), [factory와 쓰기 allowlist](../../src-tauri/sidecar/adapters/__init__.py), [현재 매퍼](../../src/entities/machine/firescope.ts). 입력 타입이 미지원이면 해당 BT/ET를 조용히 제거하고 머신을 적용하지 않고, 머신 적용 자체를 막는다. 추가 채널 제외는 별도 비차단 표시다.
+
+추가 조건: 선택된 `connection.type` 하위 객체만 읽는다. serial port·baud·data bits·parity 및 stop bits 1/2, Modbus register 0–65535·unit ID 0–247·FC3/4를 검사한다. BT/ET 중복·필수값 누락·알 수 없는 driver는 차단한다. 유효범위 검사는 실제 장비 주소 검증이 아니다. 범위 안의 잘못된 register도 장비 예외나 다른 값을 돌려줄 수 있다.
+
+F1 재확인 근거는 `/Applications/Firescope.app/Contents/Resources/app.asar` 내부다:
+
+- `out-tsc/app/driver/drivers/modbus.driver.js:83–129`: FC3/4·register 수·signed/BCD/float decode·모든 타입 배율. `182–202`: 쓰기 분기.
+- `out-tsc/app/driver/driver.interface.js:3–6`: `integer`, `bcd`, `float32`, `float32-le`. `out-tsc/app/driver/utils.js:29–50`: float word swap·big-endian byte 기본·signed16.
+- `out-tsc/app/driver/drivers/s7.driver.js:12–14,24–35,46–81`: DB/offset·연결·배율·쓰기·INT/REAL. `base.driver.js:29–30`: slot 기본1.
+- `out-tsc/app/driver/drivers/phidget.sensor.js:83–120`: subtype·hub/channel·RTD·전압비 변환. [공식 Phidget/Diedrich 안내](https://docs.firescope.io/roasting-machine/phidget)는 별도 드라이버/Network Server 준비를 요구하지만 FC와의 설정 동등성 근거는 아니다.
+- `dist/main.2e097f7be22c8cee.js`의 `isTemperature`→`convert`→`compensate`: 표시 단위 변환 뒤 보정. 원본 전체나 사용자 데이터를 문서에 복사하지 않았다.
+
+**연결 실패 우려에 대한 해석:** “설정을 찾음”→“FC 형식으로 변환 가능”→“장비가 연결되고 값이 동일함”은 서로 다른 단계다. importer는 앞의 두 단계만 확인한다. 지원되는 일반 Modbus/S7도 과거 port/IP 변경, serial 권한·드라이버·포트 점유, 장비 전원/네트워크, unit ID·register·PLC 접근 조건에 따라 연결/읽기가 실패할 수 있다. 가져오는 동안 연결·시험 쓰기는 수행하지 않는다. 실제 연결 후 BT/ET의 단위·배율·값을 장비 표시와 대조하기 전에는 실기 검증 완료라고 표현하지 않는다. 추가 센서와 제어 기능까지 Firescope와 같아졌다고 안내하지 않는다.
+
+현재 [연결 매니저](../../src-tauri/sidecar/manager.py)는 adapter.connect 성공 뒤 connected 상태를 표시하며 이 단계에서 BT/ET를 읽지 않는다. Modbus는 serial/socket 연결, S7은 TCP 도달 및 PLC 실행 상태까지 확인하지만, 가져온 register·DB/offset에서 온도가 올바르게 읽히는지는 이후 읽기로 확인해야 한다. 따라서 Live 표시만으로 센서 주소·해석·측정값의 동등성을 확정하지 않는다.
+
+**후속 로컬 재검색:** 앞선 “3대”는 그때의 snapshot 관찰이다. 후속 읽기 전용 재검색에서는 **4개 후보**를 발견했고, 현재 mapper의 메모리상 실행에서 모두 draft 생성·차단 오류 없음·`capabilities=[]`를 확인했다. 아래 판정은 저장까지도 아닌 **변환 결과**이며 실제 측정은 미검증이다. 개인 이름·주소·raw ID는 기록하지 않는다.
+
+| 후보 | BT/ET 변환 | 가져오지 않는 추가 항목 | 실제 측정 |
+|---|---|---|---|
+| 현재 S7 TCP REAL, C/div0/보정0 | 가능 | power, airflowPressure, drumSpeed, etSetting, powerSetting, pressureSetting, drumSpeedSetting | 미검증 |
+| 과거 S7 TCP INT, C/div0/보정0 | 가능 | 위와 같은 7개 | 미검증 |
+| 과거 Modbus TCP INT, FC3/div1/보정0 | 가능 | power, airflowPressure | 미검증 |
+| 과거 Modbus RTU INT, FC4/div1/보정0 | 가능 | 추가 채널 없음 | 미검증 |
+
+`power` 같은 피드백 읽기와 `powerSetting` 같은 명령 후보를 구분한다. 현재 importer는 둘 다 자동 매핑하지 않는다. 현재 graph 매핑의 범위는 [그래프 매퍼](../../src/features/active-roast/lib/firescope-settings.ts)에 명시되어 있으며, “가져오기 미지원”을 “FC 기능 자체 없음”으로 표시하지 않는다.
 
 ### LevelDB 파일 import 조건
 
