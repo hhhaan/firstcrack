@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isReplayMachineMismatch } from '../../views/active-roast/lib/active-roast-screen';
+import { snapshotFromSidecar } from './lib';
 import type { Machine } from './types';
 
 const legacyW60: Machine = {
@@ -52,6 +54,48 @@ describe('saved machine migration', () => {
         await useMachines.persist.rehydrate();
         expect(useMachines.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([migrated]);
         expect(useMachines.getState().machines.filter((machine) => machine.id === VIRTUAL_ID)).toHaveLength(1);
+
+        vi.resetModules();
+        const { useMachines: restarted } = await import('./model');
+        expect(restarted.persist.hasHydrated()).toBe(true);
+        expect(restarted.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([migrated]);
+        const snapshot = snapshotFromSidecar(
+            { connected: true, roaster: 'giesen_w45a_w60a' },
+            restarted.getState().machines,
+        );
+        expect(snapshot).toEqual({
+            machine_id: legacyW60.id,
+            machine_name: legacyW60.name,
+            machine_roaster_key: 'giesen_w45a_w60a',
+            machine_brand: legacyW60.brand,
+            machine_protocol: legacyW60.protocol,
+        });
+        expect(
+            isReplayMachineMismatch(
+                legacyW60.roasterKey,
+                snapshot?.machine_roaster_key ?? null,
+                legacyW60.id,
+                snapshot?.machine_id,
+            ),
+        ).toBe(false);
+    });
+
+    it('converts every legacy Standard registration using the latest settings saved before restart', async () => {
+        localStorage.setItem('fc_machines', JSON.stringify({ state: { machines: [legacyW60] }, version: 0 }));
+        const edited = { ...legacyW60, connectionParams: { ...legacyW60.connectionParams, host: '192.168.10.61' } };
+        const another = { ...legacyW60, id: 'another-standard', name: '예전 등록' };
+        const alreadyW60 = { ...legacyW60, id: 'already-w60', roasterKey: 'giesen_w45a_w60a' };
+        // The running old app can still save version-0 registrations while an update waits for restart.
+        localStorage.setItem(
+            'fc_machines',
+            JSON.stringify({ state: { machines: [edited, another, alreadyW60] }, version: 0 }),
+        );
+        const { useMachines, VIRTUAL_ID } = await import('./model');
+        expect(useMachines.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([
+            { ...edited, roasterKey: 'giesen_w45a_w60a', displayName: 'Giesen W45A / W60A', models: ['W45A', 'W60A'] },
+            { ...another, roasterKey: 'giesen_w45a_w60a', displayName: 'Giesen W45A / W60A', models: ['W45A', 'W60A'] },
+            alreadyW60,
+        ]);
     });
 
     it('keeps other roaster registrations unchanged', async () => {

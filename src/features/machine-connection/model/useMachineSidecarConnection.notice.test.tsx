@@ -114,20 +114,58 @@ const flush = async () => {
     });
 };
 
-const renderHook = () => {
+const renderHook = (machines: Machine[] = [machine]) => {
     const api: { current: ReturnType<typeof useMachineSidecarConnection> | null } = { current: null };
     const root = createRoot(document.createElement('div'));
     const Probe = () => {
         api.current = useMachineSidecarConnection({
             isActive: true,
             modalOpen: false,
-            machines: [machine],
+            machines,
         });
         return null;
     };
     act(() => root.render(createElement(Probe)));
     return { root, api };
 };
+
+it('sends the migrated W60 key and saved connection settings to the sidecar', async () => {
+    const { useMachines } = await import('@entities/machine');
+    const previousStorage = localStorage.getItem('fc_machines');
+    const previousMachines = useMachines.getState().machines;
+    const saved = {
+        ...machine,
+        name: '퀘스트빈',
+        roasterKey: 'giesen_standard',
+        protocol: 's7',
+        connectionParams: { host: '192.168.10.60', port: 102, rack: 0, slot: 0, bt_offset: 200 },
+    };
+    let rendered: ReturnType<typeof renderHook> | undefined;
+    try {
+        localStorage.setItem('fc_machines', JSON.stringify({ state: { machines: [saved] }, version: 0 }));
+        await useMachines.persist.rehydrate();
+        const machines = useMachines.getState().machines;
+        const migrated = machines.find((entry) => entry.id === saved.id);
+        expect(migrated?.roasterKey).toBe('giesen_w45a_w60a');
+        if (!migrated) throw new Error('Migrated machine is missing');
+        mocks.connect.mockResolvedValue(status({ roaster: 'giesen_w45a_w60a' }));
+        mocks.getStatus.mockResolvedValue(status({ roaster: 'giesen_w45a_w60a' }));
+        rendered = renderHook(machines);
+        await flush();
+        const api = rendered.api;
+        await act(async () => {
+            await api.current?.handleConnect(migrated);
+        });
+        expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('giesen_w45a_w60a', saved.connectionParams);
+        expect(api.current?.sidecarStatus?.roaster).toBe('giesen_w45a_w60a');
+    } finally {
+        const root = rendered?.root;
+        if (root) act(() => root.unmount());
+        useMachines.setState({ machines: previousMachines });
+        if (previousStorage === null) localStorage.removeItem('fc_machines');
+        else localStorage.setItem('fc_machines', previousStorage);
+    }
+});
 
 it('does not toast when a machine has never connected', async () => {
     vi.useFakeTimers();

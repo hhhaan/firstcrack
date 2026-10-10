@@ -56,12 +56,12 @@ export const useMachines = create<MachinesState>()(
         }),
         {
             name: 'fc_machines',
-            version: 1,
+            version: 1, // Keep after removing migrate so converted registrations still hydrate.
             migrate: (persisted, version) => {
                 const state = persisted as Pick<MachinesState, 'machines'>;
                 if (version !== 0) return state;
                 const w60 = ROASTER_REGISTRY.giesen_w45a_w60a;
-                // shortcut: legacy Standard means Quest Bean's W60; revisit if another legacy user appears.
+                // shortcut: version-0 Standard is Quest Bean's W60; remove after its v1 migration is confirmed.
                 return {
                     ...state,
                     machines: state.machines.map((machine) =>
