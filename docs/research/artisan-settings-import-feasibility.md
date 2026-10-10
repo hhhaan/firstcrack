@@ -13,6 +13,7 @@
 - `Modbus.type`, signed 플래그, `System/artisan_version`은 저장되어 있지 않다. **RTU나 unsigned라고 확정하지 않는다.** 현재 소스의 기본값 생략 정책과 양립하지만 이 plist를 쓴 버전은 미확인이다.
 - `/Applications/Artisan.app`, `~/Applications/Artisan.app`에는 앱이 없다. 다른 위치의 설치 여부는 조사하지 않았다. Viewer와 아래 legacy plist도 없다.
 - 앱 실행·설정 수정·장비 연결은 하지 않았다. 저장 파일을 발견했다는 사실은 현재 실행 중 설정이나 현재 로스터를 입증하지 않는다.
+- 같은 날 추가 allowlist 확인: `ExtraDev.extradevices=[33]`이 있으며, `Axis.xmin/xmax/ymin/ymax/zmin/zmax`, `BTfunction`, `ETfunction`, `ChannelTares`는 없다. `Colors`는 dict다. 이 파일은 추가 device가 없는 단순 BT/ET fixture가 아니며, 누락된 키로 축 범위·보정 없음까지 확정하지 않는다. 추가 device ID의 의미와 표시 역할도 버전별 확인 대상이다.
 
 ## 자동 발견과 저장 형식
 

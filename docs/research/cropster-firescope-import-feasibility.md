@@ -221,6 +221,17 @@ JSON을 `strings`나 정규식으로 찾는 방식은 조사 단서에만 사용
 
 ccl의 일반 package import에는 Brotli/zstd가 포함되고 Snappy 의존성은 Git HEAD를 참조하므로 별도 버전 고정·패키징 검증이 필요하다. native LevelDB를 사용하더라도 Chromium comparator와 Blink/V8 값 해독은 추가로 필요하다. **현재 샘플 추출은 검증됐지만, 출시 가능한 decoder 선택·구현은 미완료다.** 기존 sidecar에서 허용 설정만 읽는 기능을 만들고 합성 DB의 논리값과 대조하는 방향을 우선 검토한다. [ccl package metadata](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/pyproject.toml), [Chromium coding scheme](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md)
 
+## FC 구현 상태와 추가 제품 지원 — 2026-10-10 재확인
+
+이 조사의 대상은 **Cropster·Artisan의 로컬 머신/로스팅 설정을 FC로 가져오는 기능**이다. 경쟁 앱의 화면 디자인 비교가 아니다. 로컬 자동 탐색을 기본 경로로 유지한다.
+
+- **현재 구현은 Firescope만 지원한다.** sidecar는 `/imports/firescope`, 프런트의 snapshot 검증과 `Machine.importSource.product`는 `Firescope`로 고정돼 있다. Cropster·Artisan의 decoder, mapper, 가져오기 UI 연결은 아직 없다. 근거: [조회/검증](../../src/features/import-roasting-settings/api/useFirescopeSettings.ts), [출처 타입](../../src/entities/machine/types.ts), [적용 UI](../../src/widgets/settings/ui/FirescopeSettingsImport.tsx).
+- **Artisan이 먼저 구현하기 적합하다.** macOS native plist 읽기는 실제 로컬 파일로 확인됐다. 다만 작성 버전·Modbus transport 등 일부 키가 없고 추가 장치 설정도 있으므로, 누락값을 FC 기본값으로 채워 바로 적용하면 안 된다. 먼저 native reader와 명시적 지원 판정을 만들고, 동등성이 검증된 Modbus BT/ET 및 그래프 설정부터 기존 미리보기·저장 흐름에 연결한다. S7·Phidget는 각자의 enum·채널·보정 해석을 따로 검증한다. [Artisan 상세 조사](artisan-settings-import-feasibility.md).
+- **Cropster는 저장 코드 확인 단계다.** 기존 분석의 RI 5.13 JAR SHA-256과 `FileSystemConfiguration`의 `dataDirectory` 처리, `JsonWriter`의 머신 설정 필드 분리를 재확인했다. 이 컴퓨터에는 기본 `CropsterRoastingIntelligence` 폴더와 RI 앱이 없으므로, 실제 사용자 `preferences.json`·`machine.json`을 통한 변환 검증은 하지 못했다. 저장 형식의 존재를 importer 완성이나 모든 버전 지원으로 표현하지 않는다.
+- **공통으로 재사용할 부분은 선택·미리보기·적용·저장이다.** 제품별 탐색/해석과 머신·그래프 변환은 구분하고, 출처 식별자를 제품까지 포함해 중복을 판정한다. 정상 흐름에서 수동 export를 요구하지 않는다. 원본 설정, 기존 머신 및 제어/PID 설정은 자동으로 덮어쓰지 않고, 가져오기 때문에 장비에 연결하지 않는다.
+
+이번 재확인은 조사이며 추가 제품 importer를 구현하지 않았다. 남은 검증은 실제 제품 버전별 설정 snapshot, 센서 역할·단위·배율의 동등성, FC 편집 후 재저장, Windows/macOS 및 실기기 대조다.
+
 ## Cropster RI 5.13
 
 ### 문자열 검색보다 강한 정적 근거
