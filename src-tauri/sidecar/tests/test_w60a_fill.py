@@ -36,7 +36,7 @@ async def test_adapter_rejects_disabled_or_other_actions(enabled, action):
 def enable_fill(manager):
     manager._roaster_key = "giesen_w45a_w60a"
     manager._protocol = "s7"
-    manager._merged_params = {"w60a_fill": "on"}
+    manager._w60a_fill_enabled = True
     manager._connected = True
     manager._adapter = AsyncMock()
 
@@ -46,7 +46,7 @@ async def test_manager_rejects_unavailable_fill(manager, block):
     enable_fill(manager)
     adapter = manager._adapter
     if block == "disabled":
-        manager._merged_params = {}
+        manager._w60a_fill_enabled = False
     elif block == "other_model":
         manager._roaster_key = "giesen_w6a_pro"  # gitleaks:allow
     elif block == "disconnected":
@@ -58,9 +58,21 @@ async def test_manager_rejects_unavailable_fill(manager, block):
     adapter.fill.assert_not_awaited()
 
 
+async def test_settings_enable_fill_without_a_connection_field(manager):
+    manager._roaster_key = "giesen_w45a_w60a"
+    manager._protocol = "s7"
+    manager._connected = True
+    manager._adapter = MagicMock()
+    assert manager.fill_enabled() is False
+    manager.update_settings({"w60a_fill": True, "w60a_discharge": False})
+    assert manager.fill_enabled() is True
+    assert manager.discharge_enabled() is False
+    manager._adapter.set_w60a_doors.assert_called_once_with(discharge=False, fill=True)
+
+
 async def test_fill_open_does_not_send_discharge_code(manager):
     enable_fill(manager)
-    manager._merged_params["w60a_discharge"] = "on"
+    manager._w60a_discharge_enabled = True
     await manager.fill("open")
     manager._adapter.fill.assert_awaited_once_with("open")
     manager._adapter.discharge.assert_not_awaited()
@@ -73,16 +85,16 @@ async def fill_client(monkeypatch):
         yield client
 
 
-async def test_machine_catalog_exposes_fill_setting_only_on_w60_preset(fill_client):
+async def test_machine_catalog_does_not_put_fill_on_the_connection_form(fill_client):
     response = await fill_client.get("/roasters")
     catalog = await response.json()
-    assert catalog["giesen_w45a_w60a"]["default_params"]["w60a_fill"] == "off"
+    assert "w60a_fill" not in catalog["giesen_w45a_w60a"]["default_params"]
     keys = {
         key
         for key, definition in catalog.items()
         if any(field["key"] == "w60a_fill" for field in definition["form_fields"])
     }
-    assert keys == {"giesen_w45a_w60a"}
+    assert keys == set()
 
 
 @pytest.mark.parametrize("body", [[], None, {"action": "release"}, {"action": "open", "db": 3}])
@@ -105,7 +117,7 @@ async def test_endpoint_unavailable_success_and_write_failure(fill_client):
     assert response.status == 502
 
 
-def test_fill_is_disabled_in_default_machine_settings():
+def test_fill_is_not_a_connection_setting():
     definition = ROASTER_REGISTRY["giesen_w45a_w60a"]
-    assert definition["default_params"]["w60a_fill"] == "off"
-    assert any(field["key"] == "w60a_fill" for field in definition["form_fields"])
+    assert "w60a_fill" not in definition["default_params"]
+    assert all(field["key"] != "w60a_fill" for field in definition.get("form_fields", []))

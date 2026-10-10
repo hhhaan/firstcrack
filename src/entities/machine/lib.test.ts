@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-    buildTypedConnectionParams,
     copyMachineSnapshot,
     EMPTY_MACHINE_SNAPSHOT,
-    initRoasterFormParams,
     isRoasterFieldVisible,
     snapshotFromSidecar,
     writeMapFormFlags,
@@ -11,15 +9,13 @@ import {
 import { ROASTER_REGISTRY } from './roasterRegistry';
 import type { Machine } from './types';
 
-it('keeps W60A discharge opt-in across connection form save and reopen', () => {
+it('keeps W60A door switches out of the machine connection form', () => {
     const definition = ROASTER_REGISTRY.giesen_w45a_w60a;
-    const defaults = initRoasterFormParams(definition);
-    expect(buildTypedConnectionParams(definition, defaults).w60a_discharge).toBe('off');
-    const saved = buildTypedConnectionParams(definition, { ...defaults, w60a_discharge: 'on' });
-    expect(initRoasterFormParams(definition, saved).w60a_discharge).toBe('on');
-    expect(buildTypedConnectionParams(definition, defaults).w60a_fill).toBe('off');
-    const savedFill = buildTypedConnectionParams(definition, { ...defaults, w60a_fill: 'on' });
-    expect(initRoasterFormParams(definition, savedFill).w60a_fill).toBe('on');
+    expect(definition.form_fields.some((field) => field.key === 'w60a_discharge' || field.key === 'w60a_fill')).toBe(
+        false,
+    );
+    expect(definition.default_params).not.toHaveProperty('w60a_discharge');
+    expect(definition.default_params).not.toHaveProperty('w60a_fill');
 });
 
 describe('isRoasterFieldVisible', () => {

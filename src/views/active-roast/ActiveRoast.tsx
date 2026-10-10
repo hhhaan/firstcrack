@@ -598,6 +598,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 et_display_ema_alpha: btSmoothingToAlpha(roastSettings.etSmoothing),
                 ror_ema_alpha: btSmoothingToAlpha(roastSettings.rorSmoothing),
                 et_ror_ema_alpha: btSmoothingToAlpha(roastSettings.etRorSmoothing),
+                w60a_discharge: roastSettings.w60aDischargeDoor,
+                w60a_fill: roastSettings.w60aFillDoor,
             })
             .catch(() => {});
     }, [
@@ -607,6 +609,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         roastSettings.etSmoothing,
         roastSettings.rorSmoothing,
         roastSettings.etRorSmoothing,
+        roastSettings.w60aDischargeDoor,
+        roastSettings.w60aFillDoor,
     ]);
 
     // ── Effect: 링크가 끊기면 예열·대기만 초기화 ──────────────────

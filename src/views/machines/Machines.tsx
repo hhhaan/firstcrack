@@ -1,5 +1,6 @@
 import type { Machine } from '@entities/machine';
 import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import { syncW60aDoorSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useMachineSidecarConnection } from '@features/machine-connection';
 import type { View } from '@shared/types/view';
@@ -71,6 +72,7 @@ export const Machines = ({
     const handleConnect = async (machine: Machine) => {
         const status = await connectMachine(machine);
         if (status?.connected) {
+            syncW60aDoorSettings();
             const { phase, enterPreheating, setConnected } = useRoastingStore.getState();
             if (phase === 'idle' || phase === 'ended') {
                 enterPreheating(status.capabilities);

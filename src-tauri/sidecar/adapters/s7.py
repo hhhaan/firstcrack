@@ -154,6 +154,12 @@ class S7Adapter:
                         f"S7 channel {role}.{field} must be a string up to 1024 characters"
                     )
 
+    def set_w60a_doors(self, *, discharge: bool | None = None, fill: bool | None = None) -> None:
+        if discharge is not None:
+            self._w60a_discharge = discharge
+        if fill is not None:
+            self._w60a_fill = fill
+
     async def connect(self) -> None:
         import snap7  # type: ignore[import]
 

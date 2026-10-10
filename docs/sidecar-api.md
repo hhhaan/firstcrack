@@ -548,10 +548,9 @@ Notes:
 
 ### POST /discharge
 
-Giesen **W60A 배출문** 열기·닫기. `giesen_w45a_w60a` 기기 설정의 `W60A discharge door`를
-`Manual + open on manual Drop (W60A only)`로 선택하고 다시 연결해야 사용할 수 있다.
-기본값은 `off`이며, 배출문 액추에이터가 장착된 W60A에서만 켠다. W45A와 다른 기종에는 적용하지 않는다.
-활성화 여부는 `GET /status.control.discharge`로 확인한다.
+Giesen **W60A 배출문** 열기·닫기. 로스팅 설정의 배출구 스위치가 켜져 있어야 한다.
+기본값은 꺼짐이며, W60A가 아닌 연결에서는 적용되지 않는다.
+활성화 여부는 `GET /status.control.discharge`로 확인한다. 앱은 `POST /settings`의 `w60a_discharge`로 바꾼다.
 
 ```json
 { "action": "open" }
@@ -571,9 +570,8 @@ Giesen **W60A 배출문** 열기·닫기. `giesen_w45a_w60a` 기기 설정의 `W
 
 ### POST /fill
 
-Giesen **W60A 투입구**(호퍼 → 드럼) 열기·닫기. `giesen_w45a_w60a` 기기 설정의 `W60A fill door`를
-`Manual + open on manual Charge (W60A only)`로 선택하고 다시 연결해야 사용할 수 있다.
-기본값은 `off`다. 활성화 여부는 `GET /status.control.fill`로 확인한다.
+Giesen **W60A 투입구**(호퍼 → 드럼) 열기·닫기. 로스팅 설정의 투입구 스위치가 켜져 있어야 한다.
+기본값은 꺼짐이다. 활성화 여부는 `GET /status.control.fill`로 확인한다. 앱은 `POST /settings`의 `w60a_fill`로 바꾼다.
 
 ```json
 { "action": "open" }
