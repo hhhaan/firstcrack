@@ -381,13 +381,28 @@ describe('carryReplayEventIds', () => {
 });
 
 describe('resolveHeaterBounds / profileHeaterBounds', () => {
-    it('allows W60A OFF in the legacy default map and preserves custom maps', () => {
-        const heater = { db: 2, offset: 14, area: 6, type: 0, div: 0, min: 1, max: 100, unit: '%' };
-        const machine = { id: 'w60', roasterKey: 'giesen_w45a_w60a', connectionParams: { write_map: { heater } } };
+    it.each([
+        'giesen_standard',
+        'giesen_w30a',
+        'giesen_w30a_pro',
+        'giesen_w15e',
+        'giesen_w140a_v1',
+        'giesen_w140a_v2',
+        'giesen_w1',
+        'giesen_sample',
+        'giesen_w45a_w60a',
+        'giesen_wxa',
+        'giesen_wxa_plus',
+        'giesen_wxa_coarse',
+    ])('allows logical zero in the legacy %s map and preserves custom maps', (key) => {
+        const max = key === 'giesen_wxa_coarse' ? 10 : 100;
+        const unit = key === 'giesen_wxa_coarse' ? 'step' : '%';
+        const heater = { db: 2, offset: 14, area: 6, type: 0, div: 0, min: 1, max, unit };
+        const machine = { id: key, roasterKey: key, connectionParams: { write_map: { heater } } };
         const bounds = profileHeaterBounds({ machine_id: machine.id }, [machine], {});
-        expect(bounds).toEqual({ min: 0, max: 100, unit: '%', origin: 'saved' });
+        expect(bounds).toEqual({ min: 0, max, unit, origin: 'saved' });
         const events = [
-            { t: 0, bt: 100, heater: 80 },
+            { t: 0, bt: 100, heater: max * 0.8 },
             { t: 180, bt: 190, heater: 0 },
         ];
         const saved = parseHeaterEvents(heaterEventsToJson(events));
@@ -397,10 +412,32 @@ describe('resolveHeaterBounds / profileHeaterBounds', () => {
             resolveReplayPlan({ points: [], profileEvents: saved, heaterMin: bounds.min, heaterMax: bounds.max })
                 .overrideInvalid,
         ).toBe(false);
-        const custom = { ...machine, connectionParams: { write_map: { heater: { ...heater, offset: 16 } } } };
-        expect(profileHeaterBounds({ machine_id: custom.id }, [custom], {}).min).toBe(1);
+        for (const change of [{ offset: 16 }, { db: 3 }, { div: 1 }, { value_offset: 0 }]) {
+            const custom = { ...machine, connectionParams: { write_map: { heater: { ...heater, ...change } } } };
+            expect(profileHeaterBounds({ machine_id: custom.id }, [custom], {}).min).toBe(1);
+        }
+        const corrected = {
+            ...machine,
+            connectionParams: { write_map: { heater: { ...heater, min: 0, value_offset: 1 } } },
+        };
+        expect(profileHeaterBounds({ machine_id: corrected.id }, [corrected], {})).toEqual(bounds);
         expect(heater.min).toBe(1);
     });
+    it.each(['giesen_w6a_pro', 'custom_s7', 'giesen_unknown'])(
+        'keeps a custom minimum even with DB2.14 for %s',
+        (key) => {
+            const machine = {
+                id: key,
+                roasterKey: key,
+                connectionParams: {
+                    write_map: {
+                        heater: { db: 2, offset: 14, area: 6, type: 0, div: 0, min: 1, max: 100, unit: '%' },
+                    },
+                },
+            };
+            expect(profileHeaterBounds({ machine_id: key }, [machine], {}).min).toBe(1);
+        },
+    );
     it('falls back to 0–100% when machine limits are unknown', () => {
         expect(resolveHeaterBounds()).toEqual({ min: 0, max: 100, unit: '%' });
         expect(numericHeaterStep(undefined)).toBeUndefined();
