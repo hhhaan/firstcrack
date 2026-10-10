@@ -185,6 +185,36 @@ class TestConnectMapMerge:
 
 
 class TestResetRoast:
+    async def test_reset_fault_pid_attempts_stop_zero(self, manager):
+        from pid import PidGains
+        from pid_runner import FAULT, PidRunner, PvSample
+
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("giesen_standard", {})
+
+        async def read_pv() -> PvSample:
+            return PvSample(bt=150.0, ts=0.0, stale=False, connected=True)
+
+        async def write_duty(duty: float) -> None:
+            await fake.control(heater=duty)
+
+        runner = PidRunner(
+            read_pv=read_pv,
+            write_duty=write_duty,
+            gains=PidGains(1.0, 0.1, 0.0),
+        )
+        await runner.start(200.0)
+        runner._state = FAULT
+        manager._pid = runner
+        calls_before = len(fake.control_calls)
+
+        await manager.reset_roast()
+
+        new_calls = fake.control_calls[calls_before:]
+        assert any(call.get("heater") == 0 for call in new_calls)
+        assert manager._pid is None
+
     async def test_reset_abandons_pid_without_heater_zero(self, manager):
         from pid import PidGains
         from pid_runner import PidRunner, PvSample

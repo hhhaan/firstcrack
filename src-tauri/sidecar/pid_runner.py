@@ -157,6 +157,10 @@ class PidRunner:
             raise
         _log.info("PID 중단: reason=%s mode=%s", reason, mode)
 
+    @property
+    def is_fault(self) -> bool:
+        return self._state == FAULT
+
     def abandon(self) -> None:
         """In-memory teardown without machine writes — batch reset after app /pid/off."""
         if self._state == OFF:

@@ -816,7 +816,9 @@
             "cancelDrop": "取消出豆"
         },
         "dropCancelControl": {
-            "warning": "PID 已关闭 · 火力 0%",
+            "pidOff": "PID 已关闭",
+            "heaterAt": "火力 {{heater}}%",
+            "joiner": " · ",
             "restorePid": "重新开启 PID（上次目标值）"
         },
         "chart": {

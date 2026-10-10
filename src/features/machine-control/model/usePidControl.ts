@@ -55,16 +55,23 @@ export const usePidControl = ({
     // 실패한 켜기가 UI에서는 켜진 것처럼 보인다.
     const engaged = state === 'running' || state === 'holding';
 
-    const turnOn = useCallback(async () => {
-        setBusy(true);
-        try {
-            await sidecar.pidOn(sv);
-        } catch (err) {
-            reportError(err, 'PID를 켜지 못했습니다.');
-        } finally {
-            setBusy(false);
-        }
-    }, [sv]);
+    const turnOn = useCallback(
+        async (targetSv?: number): Promise<boolean> => {
+            const value = targetSv ?? sv;
+            if (targetSv != null) setSv(targetSv);
+            setBusy(true);
+            try {
+                await sidecar.pidOn(value);
+                return true;
+            } catch (err) {
+                reportError(err, 'PID를 켜지 못했습니다.');
+                return false;
+            } finally {
+                setBusy(false);
+            }
+        },
+        [sv],
+    );
 
     /** 성공 여부를 돌려준다 — 자동 해제가 실패를 알아야 재시도할 수 있다.
      * notify=false는 재시도. 쓰기는 계속하되 토스트/Sentry는 첫 실패만. */

@@ -1021,8 +1021,15 @@ class RoasterManager:
                 return
 
             # DROP 화력 정책은 앱 /pid/off가 담당한다 — reset은 메모리만 정리(#749).
+            # FAULT(예: zero 쓰기 실패)는 한 번 STOP_ZERO로 정리한다.
             if self._pid is not None:
-                self._pid.abandon()
+                if getattr(self._pid, "is_fault", False):
+                    try:
+                        await self._pid.stop("reset", mode=STOP_ZERO)
+                    except Exception:
+                        pass
+                elif hasattr(self._pid, "abandon"):
+                    self._pid.abandon()
             if self._pid_task is not None and not self._pid_task.done():
                 self._pid_task.cancel()
             self._pid_task = None

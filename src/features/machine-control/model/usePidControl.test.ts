@@ -26,6 +26,7 @@ import { usePidControl } from './usePidControl';
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const pidOff = vi.mocked(sidecar.pidOff);
+const pidOn = vi.mocked(sidecar.pidOn);
 const capture = vi.mocked(logger.capture);
 
 const CAP: PidCapability = { supported: true, sv_min: 50, sv_max: 250 };
@@ -115,6 +116,18 @@ describe('usePidControl DROP 자동 해제 (#269)', () => {
             await vi.advanceTimersByTimeAsync(0);
         });
         expect(pidOff).toHaveBeenCalledTimes(1);
+        hook.unmount();
+    });
+
+    it('turnOn uses an explicit SV instead of the stale slider closure', async () => {
+        pidOn.mockResolvedValue({ ok: true, pid: runtime('running') } as Awaited<ReturnType<typeof sidecar.pidOn>>);
+        const hook = await renderPid({ ...base, runtime: runtime('off'), roastFinished: false });
+        let ok = false;
+        await act(async () => {
+            ok = await hook.get().turnOn(215);
+        });
+        expect(ok).toBe(true);
+        expect(pidOn).toHaveBeenCalledWith(215);
         hook.unmount();
     });
 

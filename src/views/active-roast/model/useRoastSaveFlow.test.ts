@@ -224,6 +224,16 @@ describe('roast save identity and Continue lifecycle', () => {
         });
     });
 
+    it('handleStartNext resets the sidecar after the next batch handoff', async () => {
+        mocks.startForRoast.mockResolvedValue(batch);
+        const h = renderFlow();
+        await act(async () => {
+            await h.api.handleStartNext(batch);
+        });
+        expect(h.onResetSidecarRoast).toHaveBeenCalledTimes(1);
+        h.unmount();
+    });
+
     it.each(['workspace', 'unmount'] as const)(
         'never starts a batch when its response arrives after %s change',
         async (change) => {

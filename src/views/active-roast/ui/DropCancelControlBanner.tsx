@@ -1,12 +1,14 @@
 import { useTranslation } from 'react-i18next';
 
 interface DropCancelControlBannerProps {
+    message: string;
     onRestorePid: () => void;
     showRestorePid: boolean;
     restoreBusy: boolean;
 }
 
 export const DropCancelControlBanner = ({
+    message,
     onRestorePid,
     showRestorePid,
     restoreBusy,
@@ -18,7 +20,7 @@ export const DropCancelControlBanner = ({
             data-testid="drop-cancel-control-banner"
             className="flex items-center justify-between gap-3 rounded-md border border-amber-500/60 bg-amber-500/10 px-3 py-2"
         >
-            <p className="text-sm font-medium text-primary">{t('activeRoast.dropCancelControl.warning')}</p>
+            <p className="text-sm font-medium text-primary">{message}</p>
             {showRestorePid && (
                 <button
                     type="button"

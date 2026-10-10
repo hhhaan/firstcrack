@@ -270,7 +270,7 @@ export const createBatchActions = (
         onset?: DropOnset;
         replayActive: boolean;
         livePoints?: LiveRoastPoint[];
-        controlBeforeDrop: DropControlSnapshot;
+        controlBeforeDrop?: DropControlSnapshot;
     }) => {
         const state = get();
         const planned = planDropTransition({
@@ -296,7 +296,11 @@ export const createBatchActions = (
         const restore: CompletedRoastRestore = {
             ...snapshot,
             replayActive: input.replayActive,
-            controlBeforeDrop: input.controlBeforeDrop,
+            controlBeforeDrop: input.controlBeforeDrop ?? {
+                pidEngaged: false,
+                pidSv: null,
+                heater: null,
+            },
         };
         const summary = summaryForSnapshot(planned.summary, snapshot);
         resetCurrent({

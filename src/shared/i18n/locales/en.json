@@ -816,7 +816,9 @@
             "cancelDrop": "Cancel Drop"
         },
         "dropCancelControl": {
-            "warning": "PID is off · heater at 0%",
+            "pidOff": "PID is off",
+            "heaterAt": "Heater {{heater}}%",
+            "joiner": " · ",
             "restorePid": "Turn PID back on (previous target)"
         },
         "chart": {

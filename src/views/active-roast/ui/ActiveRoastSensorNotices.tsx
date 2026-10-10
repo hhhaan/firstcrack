@@ -6,6 +6,7 @@ interface ActiveRoastSensorNoticesProps {
     unsavedTime: string;
     onReopenUnsaved: () => void;
     showDropCancelControlWarning: boolean;
+    dropCancelControlMessage: string;
     showRestorePidAfterDropCancel: boolean;
     onRestorePidAfterDropCancel: () => void;
     restorePidBusy: boolean;
@@ -20,6 +21,7 @@ export const ActiveRoastSensorNotices = ({
     unsavedTime,
     onReopenUnsaved,
     showDropCancelControlWarning,
+    dropCancelControlMessage,
     showRestorePidAfterDropCancel,
     onRestorePidAfterDropCancel,
     restorePidBusy,
@@ -32,6 +34,7 @@ export const ActiveRoastSensorNotices = ({
         {showUnsavedBanner && <UnsavedRoastBanner timeStr={unsavedTime} onReopen={onReopenUnsaved} />}
         {showDropCancelControlWarning && (
             <DropCancelControlBanner
+                message={dropCancelControlMessage}
                 showRestorePid={showRestorePidAfterDropCancel}
                 restoreBusy={restorePidBusy}
                 onRestorePid={onRestorePidAfterDropCancel}

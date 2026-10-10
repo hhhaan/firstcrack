@@ -30,6 +30,7 @@ describe('DropCancelControlBanner', () => {
         void act(() =>
             root.render(
                 createElement(DropCancelControlBanner, {
+                    message: 'activeRoast.dropCancelControl.pidOff',
                     showRestorePid: true,
                     restoreBusy: false,
                     onRestorePid,

@@ -816,7 +816,9 @@
             "cancelDrop": "排出を取り消す"
         },
         "dropCancelControl": {
-            "warning": "PIDがオフです · 火力 0%",
+            "pidOff": "PIDがオフです",
+            "heaterAt": "火力 {{heater}}%",
+            "joiner": " · ",
             "restorePid": "PIDを再オン（前回の目標値）"
         },
         "chart": {
