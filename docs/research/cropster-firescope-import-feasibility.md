@@ -62,6 +62,16 @@ C1은 `javap -p -c`와 클래스 상수·로컬 변수 정보를 대조했다. �
 
 자동 인식의 대상은 **현재 저장된 그래프 설정과 로컬에서 복구 가능한 머신 설정**이다. 현재 캐시와 과거 설정 후보를 구분하고, 사용자 요청에 따라 `DummyDriver`·확인된 데모 preset은 제외한다. 이번 최고 sequence 머신은 `Test Machine`이며 실제 로스터가 아니다. 과거 머신을 현재 활성 머신으로 자동 선택하지 않고, 복구된 후보 목록에서 가져올 머신을 고르게 한다. 로컬에 없는 머신 목록을 얻기 위해 서버 로그인을 요구하는 흐름은 이 import의 범위에서 제외한다.
 
+### macOS 우선 지원과 Intel Mac
+
+첫 지원 대상은 macOS이며 **Intel Mac과 Apple Silicon을 포함한다.** Electron의 기본 userData 위치는 macOS 사용자 계정·앱 이름으로 정해지며 CPU별 경로는 아니다. 따라서 같은 지원 Firescope 버전·스키마라면 Intel/Apple Silicon에 공통 탐색·해독 로직을 사용할 수 있다고 판단한다. 사용자 이름을 하드코딩하지 않고 OS 홈 경로 API로 찾는다. [Electron userData 규칙](https://www.electronjs.org/docs/latest/api/app#appgetpathname)
+
+FC의 기존 [릴리스 matrix](../../.github/workflows/release.yml)는 `aarch64-apple-darwin`과 `x86_64-apple-darwin`을 별도 빌드한다. [sidecar 빌드](../../scripts/build-sidecar.sh)도 두 아키텍처의 바이너리 이름을 구분한다. importer의 바이너리 의존성이 추가되면 각각의 패키지에 포함하고 실행 검증해야 한다. 현재 릴리스 구성은 Intel importer의 실행 성공 증거가 아니다.
+
+이번 실제 해독 환경은 **arm64 / macOS 26.6.2**이며 Intel Mac에서 실행하지 않았다. 저장소 읽기는 서버 인증·네트워크 접속 없이 수행했다. 첫 지원 검증은 Firescope 1.0.2 / Electron 32.3.3을 기준으로 Intel·ARM의 FC 패키지에서 동일한 합성 snapshot을 해독하고, Intel 사용자 저장소도 읽어 대조한다.
+
+**동일한 macOS라는 조건만으로 모든 Mac의 성공을 보장하지 않는다.** 지원 FC/macOS 버전, Firescope/runtime 스키마, 같은 사용자 계정의 읽을 수 있는 로컬 저장소, 종료된 앱의 일관된 복사본이 필요하다. 이번 Firescope `Info.plist`는 최소 macOS 10.15를 선언하지만 FC와 decoder 의존성의 실질 최소 지원 버전까지 입증하지는 않는다. FC 설정에는 `minimumSystemVersion`이 별도 지정돼 있지 않으며 실제 배포 패키지·의존성과 함께 확인해야 한다. [FC bundle 설정](../../src-tauri/tauri.conf.json), [Tauri minimumSystemVersion](https://v2.tauri.app/reference/config/#minimumsystemversion)
+
 ### 저장 방식과 범위
 
 F1의 `dist/main.2e097f7be22c8cee.js`에서 다음을 확인했다.
@@ -215,13 +225,13 @@ F1 `out-tsc/app/driver/drivers/modbus.driver.js`는 `integer`를 signed 16-bit�
 
 ## 자동 탐색 구현 순서와 착수 조건
 
-사용자 요청에 따라 **Firescope를 먼저 진행한다.** 알려진 userData 경로의 자동 탐색 → 앱 종료 확인·DB 복사 → 허용 설정 해독 → 데모 제외·머신 ID별 과거 설정 복구 → 그래프·머신 후보 미리보기까지를 첫 범위로 삼는다. 현재 캐시와 과거 후보를 구분하고 최신값 처리와 이력 복구를 별도 검증한다. 이번 로컬 자료는 그래프 추출과 과거 실제 머신 schema 검증에 사용할 수 있지만, 현재 머신이 데모이므로 지원 머신 설정을 현재 값으로 저장한 합성 snapshot과도 대조해야 한다. Cropster·Artisan 자동 탐색은 후속 범위다. 이는 현재 증거에 따른 구현 제안이며 앱 기능을 추가한 것은 아니다.
+사용자 요청에 따라 **macOS의 Firescope를 먼저 진행하고 Intel·Apple Silicon을 포함한다.** 알려진 userData 경로의 자동 탐색 → 앱 종료 확인·DB 복사 → 허용 설정 해독 → 데모 제외·머신 ID별 과거 설정 복구 → 그래프·머신 후보 미리보기까지를 첫 범위로 삼는다. 현재 캐시와 과거 후보를 구분하고 최신값 처리와 이력 복구를 별도 검증한다. 이번 로컬 자료는 그래프 추출과 과거 실제 머신 schema 검증에 사용할 수 있지만, 현재 머신이 데모이므로 지원 머신 설정을 현재 값으로 저장한 합성 snapshot과도 대조해야 한다. Windows·Cropster·Artisan 자동 탐색은 후속 범위다. 이는 현재 증거에 따른 구현 제안이며 앱 기능을 추가한 것은 아니다.
 
 공통 흐름은 **로컬 자동 탐색 → 제품/버전 판별 → 자동 읽기·허용 설정 추출 → FC 매핑 미리보기 → 선택 항목 적용**이다. 정상 흐름에서 파일 선택은 생략한다. fallback만 설정 파일 또는 논리적인 설정 export를 입력으로 한다. 임의 JSON·CSV·`.alog`나 단일 LevelDB `.log`가 설정 import fallback이 되지는 않는다. 읽을 저장소가 없으면 다른 PC의 설정 파일을 선택하거나 기존 머신 form에서 수동 입력한다.
 
 | 제품 | 구현 전 필요한 최소 검증 |
 |---|---|
-| Firescope | 지원할 실제 runtime 버전에서 IndexedDB API와 해독값 대조; harmless 그래프 설정 변경·머신 전환·unset 전후 snapshot |
+| Firescope | macOS Intel·ARM 패키지 실행과 decoder 의존성 검증; 지원할 실제 runtime 버전에서 IndexedDB API와 해독값 대조; harmless 그래프 설정 변경·머신 전환·unset 전후 snapshot |
 | Cropster | 실제 설정된 root `preferences.json`·`machine.json`·관련 Java Preferences의 비식별 샘플; version/source/channel schema와 읽기 우선순위 |
 | Artisan | 지원 버전별 native defaults·OS 저장소·fallback 우선순위; 연결 protocol·배열·Unicode·지원 dtype; `.aset`는 파일 fallback 검증 |
 | 공통 | 지원할 Windows/macOS에서 파일 탐색·포트 재선택·FC 저장 후 재시작 유지; 지원 머신에서 측정값 대조 |
