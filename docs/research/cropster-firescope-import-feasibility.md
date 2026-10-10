@@ -4,15 +4,29 @@
 
 범위는 머신 연결과 로스팅 그래프·이벤트 설정이다. 프로파일, 히스토리, 재고, 계정·인증 정보는 제외한다. 이번 결과물은 조사 문서이며, FC importer 구현이나 설정 적용은 수행하지 않았다.
 
+**사용자 요구: FC Desktop이 같은 사용자 계정의 로컬 설정 저장소를 자동으로 찾아 읽는다.** 정상 흐름에서 파일 선택이나 경쟁 앱의 수동 export를 요구하지 않는다. Windows Registry·macOS Preferences도 로컬 저장소에 포함한다. 파일 선택·`.aset`는 자동 탐색 실패나 다른 PC에서 가져오는 경우의 fallback이다.
+
 ## 판정
 
 | 제품 | 확인한 입력 경로 | 이번에 확인한 것 | 아직 확인하지 못한 것 |
 |---|---|---|---|
 | Firescope 1.0.2 | 로컬 Chromium IndexedDB `ngStorage` / object store `localStorage` | 설치본 코드와 DB 복사본에서 그래프 설정·머신 캐시 객체 해독 | 브라우저의 현재 논리값과 대조, 버전·OS 호환성, 실제 연결 |
 | Cropster RI 5.13 | Java Preferences + 데이터 폴더 루트의 `preferences.json`, `machine.json` | Linux 배포본의 경로 생성·읽기·쓰기·JSON 필터 코드 | 설정된 사용자 파일, 활성 머신·설정 우선순위, Windows/macOS 배포본 |
-| Artisan | Help → Save Settings → `.aset` | 공식 설정 export와 QSettings INI 저장 코드 | 실제 사용자 export의 FC 변환·연결 |
+| Artisan | OS별 QSettings native 저장소; `.aset`는 fallback | 공식 native 저장 코드와 macOS binary plist의 Modbus·통신 설정 직접 읽기 | 해당 로컬 파일의 앱 버전·defaults, Windows/Linux 저장소, FC 변환·연결 |
 
-**설정을 추출할 경로는 세 제품 모두 있다. Firescope는 한 설치본에서 실제 객체 추출까지 확인했고, Cropster는 저장 코드까지 확인했다. FC에 모든 설정을 동일하게 적용할 수 있다는 결론은 아직 아니다.** Artisan은 vendor가 제공하는 설정 파일을 입력으로 삼을 수 있다. [Artisan 공식 설정 안내](https://artisan-scope.org/docs/setup/), [Cropster 공식 Preferences](https://help.cropster.com/customization-and-preferences/roasting-intelligence-preferences)
+**세 제품 모두 로컬 자동 탐색·추출 경로가 있다. Firescope·Artisan은 실제 로컬 저장소 읽기까지 확인했고, Cropster는 저장 코드까지 확인했다. FC에 모든 설정을 동일하게 적용할 수 있다는 결론은 아직 아니다.** Artisan도 기본 설정 저장소를 자동으로 읽고 공식 export는 fallback으로 사용한다. [Artisan native 저장 코드](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/main.py), [Cropster 공식 Preferences](https://help.cropster.com/customization-and-preferences/roasting-intelligence-preferences)
+
+## FC의 자동 인식 흐름
+
+1. FC가 현재 사용자 계정의 OS별 알려진 설정 경로·registry node를 탐색한다. 홈 전체를 재귀 검색하거나 경쟁 앱을 실행할 필요는 없다. 앱이 제거되어도 설정이 남을 수 있으므로 실행 파일 존재를 필수 조건으로 삼지 않는다.
+2. 발견한 저장소를 읽기 전용으로 확인한다. Firescope는 앱 종료 후 일관된 DB 복사본을 사용하고, Cropster는 instance·dataDirectory override, Artisan은 native 저장소를 처리한다.
+3. 제품·확인 가능한 버전과 설정 형식을 판별하고 머신 연결·그래프·이벤트의 허용 항목만 해독한다. 계정·토큰·로스트 데이터는 FC로 반환하지 않는다.
+4. FC가 발견한 제품·머신·가져올 설정을 자동으로 미리 채운다. 소스가 여러 개일 때는 제품/설정 후보를 고르게 하며 사용자가 경로를 직접 찾게 하지 않는다.
+5. 선택한 설정을 FC에 적용한다. 자동 인식·추출은 장비 자동 연결·제어 실행을 뜻하지 않는다.
+
+FC는 Tauri desktop이므로 로컬 저장소를 읽는 기능을 만들 수 있다. 다만 현재 [desktop capability](../../src-tauri/capabilities/default.json)의 fs scope는 FC의 AppLocalData 중심이고 임의 사용자 설정 경로를 frontend에서 읽는 기능은 구성되어 있지 않다. 구현은 알려진 제품별 경로·node만 읽는 desktop backend 명령으로 시작한다. 범용 파일 읽기 명령이나 홈 전체 fs scope를 frontend에 열 필요는 없다. 이 명령은 소스 상태와 허용 설정만 반환한다. [Tauri 파일 접근 scope](https://v2.tauri.app/plugin/file-system/)
+
+자동 탐색 결과는 `found`, `not-found`, `needs-app-closed`, `unsupported`, `unreadable`을 구분한다. 설정이 없거나 접근 실패한 경우 성공한 import처럼 기본값을 적용하지 않는다. Cropster의 실제 샘플 확보는 개발 중 decoder 검증을 위한 조건이며, 정상 사용 흐름에서 매번 사용자에게 export를 요구하는 조건이 아니다.
 
 ## #710에서 수정할 결론
 
@@ -25,11 +39,14 @@
 
 원본 앱과 DB는 읽기만 했다. Firescope가 실행 중이지 않음을 프로세스 목록으로 확인하고, IndexedDB 폴더를 임시 디렉터리에 복사했다. 설정 키만 결과에 출력했으며, 원본 파일의 SHA-256이 복사 전후·해독 후 동일함을 확인했다. 임시 DB 복사본은 삭제했고 실제 DB·앱 바이너리는 레포에 넣지 않았다. Cropster 앱이나 연결된 로스터는 실행하지 않았다.
 
+사용자 요구 확인 후 Artisan native plist도 Python 표준 `plistlib`로 읽었다. 설정 키 이름·타입만 확인하고 계정·명령·프로파일 값은 출력하지 않았다. 원본 SHA-256이 읽기 전후 동일했다.
+
 | ID | 자료 | 식별 정보 |
 |---|---|---|
 | F1 | `/Applications/Firescope.app/Contents/Resources/app.asar` | package `desktop`, productName `Firescope`, version `1.0.2`; SHA-256 `c842c66bc851cb5a21eee7a06148334760ddee8ff84089d7f89250276ddbdff1` |
 | F2 | Firescope `IndexedDB/file__0.indexeddb.leveldb` 복사본 | `CURRENT → MANIFEST-000001`; 활성 table `000062.ldb`, WAL `000060.log`; comparator `idb_cmp1`; 남은 데이터 파일과 활성 파일 목록 일치 |
 | C1 | 이전 조사에서 내려받아 둔 Linux RI 5.13 `.deb`와 JAR | `.deb` SHA-256 `8e5ae468c6c1ed3898d3b9728996464916988ed7dda201b942bb797913c73500`; `roastingintelligence-5.13.jar` SHA-256 `9f7a07242b208833e584758aad684193d819d0476d815bcd9a1e021b49b1c1f6` |
+| A1 | `~/Library/Preferences/org.artisan-scope.Artisan.plist` | `bplist00` binary plist, 94 keys; `Modbus.input1register`, `Modbus.input1code`, `Modbus.input1deviceId`, `Modbus.input1div`, `Modbus.baudrate`, `Modbus.stopbits`, `Modbus.wordorderLittle`, ExtraComm 통신 설정 확인; 앱 버전 미확인 |
 
 F2 해독에는 조사용 임시 Python 환경에서 [ccl_chromium_reader](https://github.com/cclgroupltd/ccl_chromium_reader/tree/ef840de30221c4d65bc96d2f4d9057e9ef2f526d) 0.3.18을 사용했다. DB 이름 `ngStorage`, origin `file__0@1`, object store `localStorage`를 확인하고, 키별 최고 `ldb_seq_no`를 삭제 레코드까지 포함해 선택한 뒤 `is_live`를 검사했다. 별도로 CURRENT가 지정한 MANIFEST의 table 추가·삭제와 WAL 번호를 확인해 orphan 파일이 없음을 검사했다.
 
@@ -112,7 +129,23 @@ RI 5.13 릴리스 노트는 기존 로그인 비밀번호 데이터를 설정 �
 
 ## Artisan
 
-Artisan은 공식 Help → Save Settings에서 `.aset`를 만든다. 앱의 기본 설정 저장소를 직접 찾아 읽는 경로보다 먼저 이 파일을 지원하는 것이 단순하다. `.alog` 프로파일 import와 독립적으로 진행할 수 있다. [공식 Setup](https://artisan-scope.org/docs/setup/), [설정과 프로파일의 차이](https://github.com/artisan-roaster-scope/artisan/discussions/1158)
+### native 설정 자동 탐색
+
+공식 `main.py`는 app `Artisan`, organization `artisan-scope`, domain `artisan-scope.org`를 지정하고 기본 `QSettings()`로 현재 설정을 읽고 저장한다. 이 이름과 Qt NativeFormat 규칙에 따른 기본 탐색 위치는 다음과 같다. macOS 파일은 이번 사용자 머신에서도 직접 읽었다. Windows/Linux 위치는 소스·문서 기준이며 실설치 검증은 하지 않았다. [Artisan main.py](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/main.py), [이름 상수](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/util.py), [Qt native 저장 위치](https://doc.qt.io/qt-6/qsettings.html#platform-specific-notes)
+
+| 플랫폼 | 현재 Artisan의 기본 사용자 저장소 |
+|---|---|
+| macOS | `~/Library/Preferences/org.artisan-scope.Artisan.plist` / CFPreferences domain `org.artisan-scope.Artisan` |
+| Windows | `HKCU\Software\artisan-scope\Artisan` |
+| Linux | `${XDG_CONFIG_HOME:-~/.config}/artisan-scope/Artisan.conf` |
+
+QSettings는 organization/system fallback과 경로 override도 지원하므로 앱의 논리 설정과 대조한다. `ArtisanViewer`는 별도 설정 저장소이며 로스터 연결 import의 기본 입력에서 제외한다. 구버전은 organization/domain이 달랐으므로 지원 버전 확정 후 해당 legacy 위치만 추가한다. Windows는 일반 JSON 파일이 아니라 Registry를 읽는 OS별 adapter가 필요하다. 근거: 위 소스·Qt 문서.
+
+native 저장은 기본값과 다른 항목만 기록할 수 있다. `closeEventSettings()`가 `self.defaultSettings`와 함께 저장하기 때문이다. 따라서 키가 없다고 센서·기능이 없다고 단정하지 않고 지원 버전의 defaults와 대조한다. A1의 94개 키는 전체 설정 export가 아니다. 실제 파일 발견·해독과 모든 설정 복원은 별도 검증 단계다. 근거: `main.py`의 `closeEventSettings`, `saveAllSettings`, startup `settingsLoad`.
+
+### 파일 fallback
+
+Artisan은 공식 Help → Save Settings에서 `.aset`를 만든다. 자동 native 탐색이 실패하거나 다른 PC에서 가져오는 경우 이 파일을 fallback 입력으로 받는다. `.alog` 프로파일 import와 독립적으로 진행할 수 있다. [공식 Setup](https://artisan-scope.org/docs/setup/), [설정과 프로파일의 차이](https://github.com/artisan-roaster-scope/artisan/discussions/1158)
 
 공식 `main.py`의 `saveSettings` → `closeEventSettings(filename)`은 `QSettings(filename, IniFormat)`으로 저장한다. 머신 preset도 `.aset`이므로 확장자만으로 전체 사용자 설정인지 판단하지 않는다. QSettings의 escaped string, 배열, `@` 타입 표현을 고려하고 지원할 subset을 실제 export로 검증한다. 단순 JSON 파서나 쉼표·등호 분할로 읽을 수 있는 파일이 아니다. [Artisan 소스](https://github.com/artisan-roaster-scope/artisan/blob/master/src/artisanlib/main.py), [Qt QSettings](https://doc.qt.io/qt-6/qsettings.html)
 
@@ -146,21 +179,21 @@ F1 `out-tsc/app/driver/drivers/modbus.driver.js`는 `integer`를 signed 16-bit�
 
 설정 적용은 기존 `roast.settings` 저장 API와 `useMachines.addMachine/updateMachine`을 사용한다. vendor 객체를 FC store에 통째로 spread하지 않고, importer 경계에서 허용 키·타입·단위·범위를 검증한다. 머신 등록은 연결·제어와 별도 단계이며, 기존 설정 덮어쓰기와 실제 연결은 사용자 미리보기에서 선택한다. [설정 API](../../src/features/active-roast/model/settings.ts), [머신 저장소](../../src/entities/machine/model.ts), [현재 form 검증](../../src/widgets/add-machine-modal/model/assembleConnectionParams.ts)
 
-## 권장 구현 순서와 착수 조건
+## 자동 탐색 구현 순서와 착수 조건
 
-구현 순서는 **Artisan `.aset` → Firescope 복사본 → Cropster 사용자 샘플**을 권장한다. 공식 export를 먼저 지원하고, 확인한 Firescope 저장 형식을 추가하며, Cropster는 schema·활성 설정 우선순위를 확정한 뒤 자동 탐색한다. 이는 구현 난이도와 현재 증거에 따른 제안이다.
+첫 구현은 **세 제품의 로컬 저장소 자동 탐색**을 함께 제공하고, decoder는 실제 자료를 읽은 Firescope·Artisan native 설정부터 붙인다. Cropster 탐색도 root JSON·Java Preferences 후보를 찾도록 만들며 schema·활성 설정 우선순위 검증 뒤 설정 추출을 완성한다. 자동 탐색과 decoder 완성도를 구분해 특정 제품의 미검증 schema가 다른 제품 탐색을 막지 않게 한다. 이는 현재 증거에 따른 구현 제안이다.
 
-공통 흐름은 입력 선택 → 제품/버전 판별 → 허용 설정 추출 → FC 매핑·미지원 사유 미리보기 → 선택 항목 적용이다. fallback도 설정 파일 또는 논리적인 설정 export를 입력으로 한다. 임의 JSON·CSV·`.alog`나 단일 LevelDB `.log`가 설정 import fallback이 되지는 않는다. 읽을 파일이 없으면 기존 머신 form에 확인된 값만 미리 채우고 남은 값은 수동 입력한다.
+공통 흐름은 **로컬 자동 탐색 → 제품/버전 판별 → 자동 읽기·허용 설정 추출 → FC 매핑 미리보기 → 선택 항목 적용**이다. 정상 흐름에서 파일 선택은 생략한다. fallback만 설정 파일 또는 논리적인 설정 export를 입력으로 한다. 임의 JSON·CSV·`.alog`나 단일 LevelDB `.log`가 설정 import fallback이 되지는 않는다. 읽을 저장소가 없으면 다른 PC의 설정 파일을 선택하거나 기존 머신 form에서 수동 입력한다.
 
 | 제품 | 구현 전 필요한 최소 검증 |
 |---|---|
 | Firescope | 지원할 실제 runtime 버전에서 IndexedDB API와 해독값 대조; harmless 그래프 설정 변경·머신 전환·unset 전후 snapshot |
 | Cropster | 실제 설정된 root `preferences.json`·`machine.json`·관련 Java Preferences의 비식별 샘플; version/source/channel schema와 읽기 우선순위 |
-| Artisan | 전체 설정 export와 머신 preset 각각의 `.aset`; 연결 protocol·배열·Unicode/escaping·지원 dtype |
+| Artisan | 지원 버전별 native defaults·OS 저장소·fallback 우선순위; 연결 protocol·배열·Unicode·지원 dtype; `.aset`는 파일 fallback 검증 |
 | 공통 | 지원할 Windows/macOS에서 파일 탐색·포트 재선택·FC 저장 후 재시작 유지; 지원 머신에서 측정값 대조 |
 
 Firescope decoder fixture에는 같은 키 덮어쓰기·삭제, WAL에만 최신 값, compaction, orphan table, 서로 다른 DB/store의 동명 키, Unicode, 잘린 파일, external blob 누락, 앱 실행 중 복사 거부, 미지원 runtime을 포함한다. 예상값은 Chromium의 논리값으로 정한다. raw DB나 사용자 식별·인증 자료는 fixture에 넣지 않고 합성 snapshot을 사용한다. [Chromium 명세](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md), [LevelDB 구현](https://github.com/google/leveldb/blob/main/doc/impl.md)
 
 ## 미검증·잔여 위험
 
-Windows/macOS 전체 조합, 실제 Cropster·Artisan 사용자 설정, 브라우저 논리값 대조, FC import round-trip, 실제 로스터 연결·제어는 확인하지 않았다. 가장 큰 위험은 과거·기본값을 현재 설정으로 오인하거나 센서 역할·단위·scale·보정을 바꿔 적용하는 것이다. 확인한 그래프 설정 subset과 검증된 연결 protocol부터 지원 범위를 명시해야 한다.
+Windows/macOS 전체 조합, 실제 Cropster 사용자 설정, Artisan native 설정의 앱 버전·defaults 복원, 브라우저 논리값 대조, FC import round-trip, 실제 로스터 연결·제어는 확인하지 않았다. 가장 큰 위험은 과거·기본값을 현재 설정으로 오인하거나 센서 역할·단위·scale·보정을 바꿔 적용하는 것이다. 확인한 그래프 설정 subset과 검증된 연결 protocol부터 지원 범위를 명시해야 한다.
