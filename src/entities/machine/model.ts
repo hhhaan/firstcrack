@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { ROASTER_REGISTRY } from './roasterRegistry';
 import type { Machine } from './types';
 
 const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -55,6 +56,26 @@ export const useMachines = create<MachinesState>()(
         }),
         {
             name: 'fc_machines',
+            version: 1,
+            migrate: (persisted, version) => {
+                const state = persisted as Pick<MachinesState, 'machines'>;
+                if (version !== 0) return state;
+                const w60 = ROASTER_REGISTRY.giesen_w45a_w60a;
+                // shortcut: legacy Standard means Quest Bean's W60; revisit if another legacy user appears.
+                return {
+                    ...state,
+                    machines: state.machines.map((machine) =>
+                        machine.roasterKey === 'giesen_standard'
+                            ? {
+                                  ...machine,
+                                  roasterKey: 'giesen_w45a_w60a',
+                                  displayName: w60.display_name,
+                                  models: [...w60.models],
+                              }
+                            : machine,
+                    ),
+                };
+            },
             partialize: (state) => ({
                 machines: state.machines.filter((m) => m.id !== VIRTUAL_ID),
             }),

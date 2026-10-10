@@ -157,6 +157,15 @@ describe('active roast screen decisions', () => {
         expect(isReplayMachineMismatch('a', 'b')).toBe(true);
     });
 
+    it('allows an old Standard profile only for the same machine migrated to W60', () => {
+        expect(isReplayMachineMismatch('giesen_standard', 'giesen_w45a_w60a', 'm1', 'm1')).toBe(false);
+        expect(isReplayMachineMismatch('giesen_standard', 'giesen_w45a_w60a', 'm1', 'm2')).toBe(true);
+        expect(isReplayMachineMismatch('giesen_standard', 'giesen_w45a_w60a', null, 'm1')).toBe(true);
+        expect(isReplayMachineMismatch('giesen_standard', 'giesen_w45a_w60a', 'm1', null)).toBe(true);
+        expect(isReplayMachineMismatch('giesen_standard', 'giesen_w45a_w60a', '', '')).toBe(true);
+        expect(isReplayMachineMismatch('giesen_standard', 'giesen_w6a_pro', 'm1', 'm1')).toBe(true);
+    });
+
     it('allows Drop cancel only for the restored unsubmitted session', () => {
         const base = {
             hasRestore: true,
