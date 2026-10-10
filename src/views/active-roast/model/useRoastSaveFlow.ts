@@ -34,6 +34,8 @@ export interface UseRoastSaveFlowParams {
     ambientHumidity?: number | null;
     onResetActiveRoast: () => void;
     onResetSidecarRoast: () => void;
+    /** Invoked on every successful save (including Drop → Save while awaiting Charge). */
+    onSidecarResetAfterSave?: (sessionId: string | null) => void;
 }
 
 /** After save, load fresh day batches and keep remaining as rows (materialize on select). */
@@ -54,7 +56,14 @@ export const isLiveDetachedFromPending = (
     Boolean(live.awaitingNextCharge && !isChargedPhase(live.phase));
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
-    const { rawBT, ambientTemperature, ambientHumidity, onResetActiveRoast, onResetSidecarRoast } = params;
+    const {
+        rawBT,
+        ambientTemperature,
+        ambientHumidity,
+        onResetActiveRoast,
+        onResetSidecarRoast,
+        onSidecarResetAfterSave,
+    } = params;
     const planBatchHandoff = useRoastingStore((state) => selectRoastSelection(state).planBatchHandoff);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -178,6 +187,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     .getState()
                     .saveSucceeded(pending.params.userId, pending.params.sessionId);
                 if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId || !matched) return;
+                onSidecarResetAfterSave?.(pending.params.sessionId);
                 if (saveResult.syncPending) {
                     useToastStore.getState().show(i18n.t('activeRoast.recovery.syncPending'), 'info');
                 }
@@ -265,6 +275,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             flow.summaryData,
             flow.onSaveSuccess,
             onResetActiveRoast,
+            onSidecarResetAfterSave,
         ],
     );
 

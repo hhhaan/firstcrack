@@ -76,6 +76,11 @@ import {
     showPendingSummary,
 } from './lib/active-roast-screen';
 import {
+    cancelDropControlWarningAfterRestore,
+    planSummaryDiscardSidecarReset,
+    shouldResetSidecarAfterSave,
+} from './lib/active-roast-summary-wiring';
+import {
     chartOnlyPreheatDecision,
     noteChartOnlyPreheatMount,
     shouldResetChartOnlyPreheatOnPageRestore,
@@ -88,13 +93,7 @@ import {
     calcDevTime,
     calcTargetDelta,
 } from './lib/display-derivatives';
-import {
-    buildDropCancelControlMessage,
-    dropCancelWarningFromRestore,
-    isPidEngaged,
-    shouldWarnDropCancelControl,
-} from './lib/drop-cancel-control';
-import { shouldResetSidecarAfterSummaryDiscard } from './lib/drop-cancel-sidecar';
+import { buildDropCancelControlMessage, isPidEngaged, shouldWarnDropCancelControl } from './lib/drop-cancel-control';
 import { applyExplicitDisconnectReset } from './lib/explicit-disconnect-reset';
 import { resolveLiveChartView } from './lib/live-chart-view';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
@@ -411,12 +410,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setDropCancelControlWarning(null);
         lifecycle.resetActiveRoast();
     }, [lifecycle]);
+    const onSidecarResetAfterSave = useCallback(
+        (sessionId: string | null) => {
+            const live = useRoastingStore.getState();
+            if (!shouldResetSidecarAfterSave({ sessionId, live })) return;
+            lifecycle.resetSidecarRoast();
+        },
+        [lifecycle],
+    );
     const saveFlow = useRoastSaveFlow({
         rawBT,
         ambientTemperature: weatherData?.temperature,
         ambientHumidity: weatherData?.humidity,
         onResetActiveRoast,
         onResetSidecarRoast: lifecycle.resetSidecarRoast,
+        onSidecarResetAfterSave,
     });
     const dropCancelable = useRoastingStore(selectDropCancelable);
 
@@ -925,7 +933,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             return;
         }
         machineControl.replay.restore(restore.replayActive ?? false);
-        setDropCancelControlWarning(dropCancelWarningFromRestore(restore));
+        setDropCancelControlWarning(cancelDropControlWarningAfterRestore(restore));
         saveFlow.flow.closeSummary();
     }, [lifecycle, machineControl.replay, saveFlow.flow]);
 
@@ -1226,15 +1234,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onCancelDrop={handleCancelDrop}
                 onDiscard={() => {
                     const sessionId = saveFlow.flow.summaryData?.sessionId;
+                    const hadSummary = Boolean(saveFlow.flow.summaryData);
                     setDropCancelControlWarning(null);
                     saveFlow.discardSummary();
                     const live = useRoastingStore.getState();
-                    const discardApplied = Boolean(
-                        sessionId &&
-                            live.completed?.snapshot.sessionId === sessionId &&
-                            live.completed.summary === null,
-                    );
-                    if (shouldResetSidecarAfterSummaryDiscard(live, sessionId, discardApplied)) {
+                    if (
+                        planSummaryDiscardSidecarReset({
+                            sessionId,
+                            hadSummaryBeforeDiscard: hadSummary,
+                            snapshotSessionId: live.completed?.snapshot.sessionId,
+                            summaryAfterDiscard: live.completed?.summary,
+                            live,
+                        })
+                    ) {
                         lifecycle.resetSidecarRoast();
                     }
                 }}

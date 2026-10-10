@@ -13,6 +13,7 @@ import { deleteBbpTsv, formatRoastTsvRow, formatTsvRows, replaceSessionTsv } fro
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
 import { captureDropControlSnapshot } from '../lib/drop-cancel-control';
+import { shouldSkipSidecarResetWhilePidEngaged } from '../lib/sidecar-reset-guard';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
 export interface UseRoastLifecycleParams {
@@ -153,11 +154,18 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         setHoveredChartIndex(null);
     }, [resetAutoDetectionRef, setZoomRange, setHoveredChartIndex]);
     const resetSidecarRoast = useCallback(() => {
-        if (sidecarConnected) {
-            sidecar.resetRoast().catch((error) => {
-                logger.capture(new Error('Roast reset command failed'), { reason: String(error) });
+        if (!sidecarConnected) return;
+        const pid = useRoastingStore.getState().pid;
+        if (shouldSkipSidecarResetWhilePidEngaged(pid)) {
+            logger.capture(new Error('Skipped roast reset while PID engaged'), {
+                context: 'resetSidecarRoast',
+                pidState: pid?.state ?? 'off',
             });
+            return;
         }
+        sidecar.resetRoast().catch((error) => {
+            logger.capture(new Error('Roast reset command failed'), { reason: String(error) });
+        });
     }, [sidecarConnected]);
     const resetEffects = useCallback(() => {
         resetLocalEffects();
@@ -179,10 +187,10 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             const summary = useRoastingStore.getState().abortRoast(rawBT, unit);
             commitSummary?.(summary);
             if (bbpEnabled) useBbpStore.getState().begin(Date.now());
-            if (commitSummary) resetEffects();
+            if (commitSummary) resetLocalEffects();
             return summary;
         },
-        [rawBT, unit, bbpEnabled, resetEffects],
+        [rawBT, unit, bbpEnabled, resetLocalEffects],
     );
     const completeDrop = useCallback(
         (input: {

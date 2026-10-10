@@ -177,6 +177,21 @@ describe('confirmEndRoast roast metrics (#514)', () => {
         }
     });
 
+    it('End Roast with commitSummary does not POST /reset before app pid/off', () => {
+        vi.mocked(sidecar.resetRoast).mockClear();
+        const h = renderLifecycle([log('Charge', 0)]);
+        const commit = vi.fn();
+        try {
+            void act(() => {
+                h.result.confirmEndRoast(commit);
+            });
+            expect(commit).toHaveBeenCalledTimes(1);
+            expect(sidecar.resetRoast).not.toHaveBeenCalled();
+        } finally {
+            h.unmount();
+        }
+    });
+
     it('no Drop uses End elapsed 11:00 / 3:00 (~27.3%)', () => {
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)]);
         try {

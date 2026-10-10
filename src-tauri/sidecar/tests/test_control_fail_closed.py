@@ -215,6 +215,40 @@ class TestResetRoast:
         assert any(call.get("heater") == 0 for call in new_calls)
         assert manager._pid is None
 
+    async def test_end_roast_order_pid_stop_zero_then_reset(self, manager):
+        from pid_runner import STOP_ZERO
+
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("giesen_standard", {})
+        await manager.control(heater=80)
+        await manager.pid_start(200.0)
+        calls_before = len(fake.control_calls)
+
+        await manager.pid_stop(STOP_ZERO)
+        await manager.reset_roast()
+
+        new_calls = fake.control_calls[calls_before:]
+        assert any(call.get("heater") == 0 for call in new_calls)
+        assert manager._pid is None
+
+    async def test_reset_before_pid_stop_zero_is_unsafe_no_heater_write(self, manager):
+        """Document #753: reset before /pid/off abandons PID; stop() is then a no-op."""
+        from pid_runner import STOP_ZERO
+
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("giesen_standard", {})
+        await manager.control(heater=80)
+        await manager.pid_start(200.0)
+        calls_before = len(fake.control_calls)
+
+        await manager.reset_roast()
+        await manager.pid_stop(STOP_ZERO)
+
+        new_calls = fake.control_calls[calls_before:]
+        assert not any(call.get("heater") == 0 for call in new_calls)
+
     async def test_reset_abandons_pid_without_heater_zero(self, manager):
         from pid import PidGains
         from pid_runner import PidRunner, PvSample

@@ -113,12 +113,14 @@ const renderFlow = (patch: FlowFixture = {}) => {
     roots.add(root);
     const onResetActiveRoast = vi.fn();
     const onResetSidecarRoast = vi.fn();
+    const onSidecarResetAfterSave = vi.fn();
     let api: ReturnType<typeof useRoastSaveFlow>;
     const Probe = () => {
         api = useRoastSaveFlow({
             rawBT: 200,
             onResetActiveRoast,
             onResetSidecarRoast,
+            onSidecarResetAfterSave,
             ...(patch.rawBT !== undefined && { rawBT: patch.rawBT }),
             ambientTemperature: patch.ambientTemperature,
             ambientHumidity: patch.ambientHumidity,
@@ -134,6 +136,7 @@ const renderFlow = (patch: FlowFixture = {}) => {
         rerender,
         onResetActiveRoast,
         onResetSidecarRoast,
+        onSidecarResetAfterSave,
         unmount: () => {
             act(() => root.unmount());
             roots.delete(root);
@@ -490,6 +493,7 @@ describe('roast save identity and Continue lifecycle', () => {
         const completeBatch = vi.fn();
         useRoastingStore.setState({ completeBatch });
         await act(async () => h.api.handleSave(form));
+        expect(h.onSidecarResetAfterSave).toHaveBeenCalledWith('s-a');
         expect(h.onResetActiveRoast).not.toHaveBeenCalled();
         expect(completeBatch).not.toHaveBeenCalled();
         expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
