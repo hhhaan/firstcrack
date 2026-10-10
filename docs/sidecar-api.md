@@ -512,10 +512,18 @@ Notes:
 - 상태 코드: `400` 형식 오류(JSON이 객체가 아님, 비수치, NaN/Inf), `409` 미연결·쓰기 미지원.
   값이 없는 빈 요청 `{}`만 연결 여부와 무관하게 `200` no-op이다.
 - 응답의 `applied`는 클램프 이후의 논리값이다 — PLC 인코딩 값과 구분한다.
-- W45A/W60A (`giesen_w45a_w60a`)는 논리 화력 0~100%를 사용하며,
+- 클래식 Giesen DB2.14 계열(Standard W6A/W6E/W15A, W1, Sample, W15E,
+  W30A/PRO, W45A/W60A, W140A v1/v2, WxA/+)은 논리 화력 0~100%를 사용하며,
   S7 쓰기 경계에서 `value_offset=1`을 더해 DB2.14에 1~101을 전송한다.
   0%는 raw 1이고 raw 0(AUTO)은 보내지 않는다. `applied`/`heater_set`은 논리 0%를 유지한다.
   `value_offset`은 byte 주소 `offset`과 별개이며, 생략 시 0이다. 실측 피드백에는 적용하지 않는다.
+  WxA coarse는 논리 0~10 step을 raw 1~11로 전송한다. W6A PRO(DB1001.42)는 오프셋 없이 0~100을 쓴다.
+  저장된 heater 맵이 해당 모델의 구형 기본 맵과 정확히 일치할 때만 새 기본 맵으로 업그레이드한다.
+  커스텀 주소·스케일·오프셋은 보존한다. 논리 0 입력·저장·Replay는 AUTO를 요청하지 않으며,
+  raw 1에서 실제 버너/히터가 정지하는지는 모델별 실기 검증이 필요하다.
+- 변경 안내 (#679): 기존 프로파일을 W45A/W60A 외 클래식 DB2 모델에서 Replay하면,
+  1~100% 명령은 이전보다 1%p 높은 설정값으로 전달된다(누락된 +1 보정 복구).
+  WxA coarse는 1~10 step 명령이 한 단계 높아진다. 커스텀 맵과 이미 보정된 W45A/W60A는 제외한다.
 - 성공한 쓰기의 `applied`는 role별로 기억돼 `GET /temperatures`의 `heater_set`으로 나간다(해제 시 초기화).
 - **쓰기는 `write_map`이 있는 로스터에서만 일어난다.** `write_map`은 레지스트리
   `default_params` 안에 있고, 읽기용 `channels`와 **셀이 다르다**. Giesen을 예로 들면

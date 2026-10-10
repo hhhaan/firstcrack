@@ -35,7 +35,7 @@ ARTISAN_W60A = (
     / "W60A.aset"
 )
 
-# db2 계열 Giesen (W1A~W140A, WxA/WxA+) — 슬라이더 쓰기 맵이 전 기종 동일
+# DB2.14 계열 Giesen — coarse만 논리 범위가 0~10이다.
 GIESEN_DB2_KEYS = [
     "giesen_w1",
     "giesen_sample",
@@ -48,6 +48,7 @@ GIESEN_DB2_KEYS = [
     "giesen_w140a_v2",
     "giesen_wxa",
     "giesen_wxa_plus",
+    "giesen_wxa_coarse",
 ]
 
 
@@ -85,8 +86,8 @@ def test_db2_giesen_write_map_targets_heater_setpoint(key: str) -> None:
     write_map = ROASTER_REGISTRY[key]["default_params"]["write_map"]
     heater = write_map["heater"]
     assert (heater["db"], heater["offset"]) == (2, 14)
-    # min=1: 0은 버너 off가 아니라 기센 AUTO 인계다 (아래 전용 테스트가 근거를 담는다)
-    assert (heater["min"], heater["max"]) == (0 if key == "giesen_w45a_w60a" else 1, 100)
+    assert (heater["min"], heater["max"]) == (0, 10 if key == "giesen_wxa_coarse" else 100)
+    assert heater["value_offset"] == 1
     # 쓰기 대상이 읽기 role 어느 것과도 겹치지 않아야 한다 (피드백 덮어쓰기 방지)
     roles = _role_map(ROASTER_REGISTRY[key]["default_params"]["channels"])
     # WxA/WxA+는 fan 읽기 채널이 없다 (aset에 fan% 채널 부재) — 있는 role만 검사.
@@ -243,32 +244,29 @@ def test_giesen_variant_hosts_match_artisan_asets() -> None:
 
 
 def test_classic_giesen_never_writes_zero_to_burner_setpoint() -> None:
-    """DB2.14=0은 버너 off가 아니라 기센 AUTO 인계 — 하한 1이 없으면
-    배출·끊김·FAULT의 안전 정지가 전부 자동 모드를 켠다 (Artisan #827).
-
-    Artisan 수동 슬라이더도 heater만 slideroffsets=1이라 1..101을 보낸다.
-    """
+    """논리 0에 +1을 더해 DB2.14 raw 0(AUTO)을 피한다 (Artisan #827)."""
     for key in GIESEN_DB2_KEYS:
         heater = ROASTER_REGISTRY[key]["default_params"]["write_map"]["heater"]
-        if key == "giesen_w45a_w60a":
-            assert heater["min"] == 0
-            assert heater["value_offset"] == 1
-        else:
-            assert heater["min"] == 1, f"{key}: 0을 쓰면 기센이 AUTO로 넘어간다"
+        assert heater["min"] == 0, key
+        assert heater["value_offset"] == 1, key
 
 
 def test_w6a_pro_keeps_zero_as_a_valid_burner_value() -> None:
     """W6A PRO는 AUTO 센티널이 -1이고 슬라이더 오프셋도 0 — 0은 정상 값이다."""
     heater = ROASTER_REGISTRY["giesen_w6a_pro"]["default_params"]["write_map"]["heater"]
     assert heater["min"] == 0
+    assert heater.get("value_offset", 0) == 0
 
 
-def test_w60a_migrates_only_the_legacy_default_heater_map() -> None:
+@pytest.mark.parametrize("key", GIESEN_DB2_KEYS)
+def test_classic_giesen_migrates_only_the_legacy_default_heater_map(key: str) -> None:
     from copy import deepcopy
     from manager import _merge_connect_params
 
-    defaults = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
-    legacy = deepcopy(ROASTER_REGISTRY["giesen_standard"]["default_params"]["write_map"])
+    defaults = ROASTER_REGISTRY[key]["default_params"]
+    legacy = deepcopy(defaults["write_map"])
+    legacy["heater"].pop("value_offset", None)
+    legacy["heater"]["min"] = 1
     saved = {**legacy, "fan": {"db": 2, "offset": 10}}
     merged = _merge_connect_params(defaults, {"host": "192.168.1.2", "write_map": saved})
     assert merged["write_map"]["heater"] == defaults["write_map"]["heater"]
@@ -277,14 +275,18 @@ def test_w60a_migrates_only_the_legacy_default_heater_map() -> None:
     assert merged["host"] == "192.168.1.2"
     assert saved["heater"]["min"] == 1
     assert "value_offset" not in saved["heater"]
-    custom = {"heater": {**legacy["heater"], "offset": 16}}
-    assert _merge_connect_params(defaults, {"write_map": custom})["write_map"] == custom
+    for field, value in (("offset", 16), ("db", 3), ("div", 1), ("value_offset", 0)):
+        custom = {"heater": {**legacy["heater"], field: value}}
+        assert _merge_connect_params(defaults, {"write_map": custom})["write_map"] == custom
+    corrected = defaults["write_map"]
+    assert _merge_connect_params(defaults, {"write_map": corrected})["write_map"] == corrected
     assert _merge_connect_params(defaults, {"write_map": {}})["write_map"] == defaults["write_map"]
 
 
-def test_clamp_turns_a_safe_off_zero_into_one_on_classic_giesen() -> None:
-    """안전 정지 경로(heater=0)가 실제로 1로 잘려 나가는지 — 계약의 끝단."""
+@pytest.mark.parametrize("key", GIESEN_DB2_KEYS + ["giesen_w6a_pro"])
+def test_giesen_clamp_keeps_logical_zero(key: str) -> None:
+    """API applied와 저장·Replay에는 PLC 인코딩 오프셋을 더하지 않는다."""
     from control_guard import clamp_command
 
-    write_map = ROASTER_REGISTRY["giesen_standard"]["default_params"]["write_map"]
-    assert clamp_command({"heater": 0.0}, write_map) == {"heater": 1.0}
+    write_map = ROASTER_REGISTRY[key]["default_params"]["write_map"]
+    assert clamp_command({"heater": 0.0}, write_map) == {"heater": 0.0}
