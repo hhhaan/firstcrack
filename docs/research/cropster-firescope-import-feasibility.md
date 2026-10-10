@@ -215,13 +215,52 @@ FC 기준 코드는 [RoastSettings](../../src/features/active-roast/model/settin
 | serial path, baudRate, dataBits, stopBits, parity | `comport`, `baudrate`, `bytesize`, `stopbits`, `parity` | 프로토콜 enum 변환; OS·USB 포트 변경 시 재선택; parity `none`과 FC `N` 등 실제 값 대조 |
 | Modbus address/read/sensorId/decimalPlace | `register`, `func`, `unit_id`, `div` | F1 driver는 address를 그대로 사용하고 sensorId를 setID에 전달; FC3/FC4 → 3/4, decimalPlace 0/1/2 → div 0/1/2 |
 | Modbus integer/float/BCD·보정 | 채널 dtype·word order 등 | signed integer, BCD, float scale, nonzero compensation을 생략하면 다른 측정값이 됨; 지원·단위 확인 전 import 불가 표시 |
+| S7 sensor `address`, `start`, `type` | `channels[].db`, `offset`, `type` | F1은 `DB${address},INT/REAL${start}`로 읽음; address는 DB 번호, start는 byte offset; integer → 0, float → 1, area=6 |
+| S7 `connection.slot` | `slot` | F1 기본 slot은 1, FC custom 기본은 0; source 값 또는 확인한 F1 기본 1을 명시하며 rack=0 |
 | power/airflowPressure 보조 센서 | 보류 또는 지원 preset | 라벨만으로 Gas/Airflow 제어 channel이나 write_map을 생성하지 않음 |
 
 F1 `out-tsc/app/driver/drivers/modbus.driver.js`는 `integer`를 signed 16-bit로 읽고 `10 ** decimalPlace`로 나눈다. FC adapter는 `signed`를 지원하지만 기본값은 false이고, 현재 custom form은 signed 항목을 노출하지 않는다. float에서는 FC의 현재 `div` 처리가 정수와 같지 않다. 따라서 주소·baud만 복사해 “머신 연결 import 완료”라고 하면 안 된다. signed·scale·보정과 이후 편집에서의 보존까지 확인해야 한다.
 
+F1의 보정은 센서 단위에서 머신 온도 단위로 변환한 후 compensation을 더하는 방식이다. FC Modbus에는 현재 이 보정 처리가 없고, FC S7에는 온도 단위 변환·보정이 없다. 보정 숫자를 connectionParams에 저장하는 것만으로 동작이 같아지지 않는다. S7 driver는 rack=0을 사용하고 BaseDriver는 `slot ?? 1`을 사용한다. 근거: F1 `s7.driver.js`, `base.driver.js`, frontend sensor reading 처리와 [FC S7 adapter](../../src-tauri/sidecar/adapters/s7.py).
+
 용어·이벤트 매핑은 [CONTEXT.md](../../CONTEXT.md)를 따른다. 표시 순서 `etBtSwapped`를 BT/ET 센서 역할 교환으로 해석하지 않는다. heat feedback 설정을 Heat set 명령으로 옮기지 않는다.
 
 설정 적용은 기존 `roast.settings` 저장 API와 `useMachines.addMachine/updateMachine`을 사용한다. vendor 객체를 FC store에 통째로 spread하지 않고, importer 경계에서 허용 키·타입·단위·범위를 검증한다. 머신 등록은 연결·제어와 별도 단계이며, 기존 설정 덮어쓰기와 실제 연결은 사용자 미리보기에서 선택한다. [설정 API](../../src/features/active-roast/model/settings.ts), [머신 저장소](../../src/entities/machine/model.ts), [현재 form 검증](../../src/widgets/add-machine-modal/model/assembleConnectionParams.ts)
+
+## Firescope 매핑 구현 계획
+
+**변수명·타입·단위·센서 역할을 변환해 같은 주소에서 같은 측정값을 얻도록 한다.** 파일 해독, 머신/그래프 변환, 미리보기·적용을 구분한다. 자동 변환이 가능한 항목은 미리 채우고, 의미가 다르거나 FC가 지원하지 않는 항목은 원본값과 이유를 보여준다. 사용자에게 모든 필드의 매핑을 처음부터 다시 입력하게 하지 않는다.
+
+1. **소스 추출:** macOS의 알려진 Firescope 경로를 native backend에서 찾고 종료된 앱의 DB 폴더 복사본을 Python sidecar에서 해독한다. 허용 설정 DTO에 머신 ID·sequence·현재/과거 출처를 붙인다. 데모를 제외하고 머신 ID별 마지막 설정을 고르며 그래프는 별도 키의 현재 값을 사용한다. CRC·CURRENT·삭제·V8 문자열 검증은 앞의 decoder 조건을 충족해야 한다.
+2. **명시적 변환:** 소스 경로 → FC 경로 → 타입·enum·단위 변환 규칙을 고정한다. 각 항목에 원본값·변환값과 `mapped`, `needs-review`, `unsupported`를 제공한다. `missing`·`null`·0·false를 구분하고 주소에 임의 ±1/40001 보정을 하지 않는다. 필수 센서의 타입·보정을 재현할 수 없으면 해당 머신 적용을 차단한다.
+3. **FC가 읽을 설정 구성:** 초기 머신은 `custom_modbus` 또는 `custom_s7`로 등록하고 소스의 주소·통신 옵션을 명시한다. preset 문자열 유사성으로 FC registry의 기본 주소를 선택하지 않는다. 읽기 센서 주소로 쓰기 `write_map`, PID 또는 제어 capabilities를 만들지 않는다. known preset은 빈 write_map도 기본 쓰기 설정을 상속할 수 있으므로 custom key를 사용하는 것이 필요하다. [FC merge](../../src-tauri/sidecar/manager.py), [custom registry](../../src/entities/machine/roasterRegistry.ts)
+4. **자동 미리보기:** 복구한 머신 목록과 연결·센서·그래프의 변환 결과를 표시하고 가져올 항목을 선택하게 한다. 모든 저장된 주소는 지원 여부와 함께 확인 가능하게 보존한다. `%`, `Pa`, `Hz`, `*Setting` 센서가 있다는 이유만으로 FC의 Gas/Airflow/Drum 제어 주소로 적용하지 않는다. 미지원 주소는 추출 성공과 적용 미지원으로 구분하며, 조용히 누락한 뒤 전체 적용 성공으로 표시하지 않는다.
+5. **저장과 검증:** 선택한 설정만 기존 저장 API에 적용하고 저장 완료·재시작 유지까지 확인한다. 기존 머신은 기본적으로 덮어쓰지 않는다. source 머신 ID를 최소 import metadata로 보존해 재import의 중복 후보를 식별한다. 자동 연결은 수행하지 않으며 별도 연결 테스트에서 기존 `/connect`를 사용한다.
+
+첫 지원 범위는 실제 로컬 샘플과 맞는 **Modbus FC3/4 signed16, S7 DB INT/REAL, decimalPlace 0/1/2, 보정 0**부터다. S7 온도는 °C를 우선 지원한다. Modbus float scaling·센서별 혼합 word order, BCD, nonzero compensation, 다른 단위·타입은 미지원 이유를 표시하고 adapter 지원과 측정값 대조를 완료한 뒤 확장한다. 이 범위는 전체 주소의 추출 가능성과 별개이며, 모든 소스 설정의 동일 동작을 이미 지원한다는 뜻이 아니다.
+
+### 확인한 값의 변환 예
+
+| Firescope 원본 | FC가 사용할 설정 |
+|---|---|
+| `dfa`: serial RTU, baudRate 9600, dataBits 8, stopBits 2, parity none | `mode=rtu`, `baudrate=9600`, `bytesize=8`, `stopbits=2`, `parity=N`; serial.path → comport |
+| `dfa` BT: address 1000, read FC4, sensorId 1, integer, decimalPlace 1 | `modbus_registers.BT={register:1000,func:4,unit_id:1,float:false,signed:true,div:1,mode:C}`; ET도 같은 규칙 |
+| `ㅇㄹ` BT: address 2, start 38, integer, decimalPlace 0 | `channels[]`의 `{role:BT,db:2,offset:38,area:6,type:0,div:0}`; ET는 offset 36 |
+| `ㅇㄹ` slot 1 | `rack=0`, `slot=1`; FC 기본 slot 0으로 대체하지 않음 |
+| yAxis 50–250, xAxisEnd 720, tick 60 | `tempMinC=50`, `tempMaxC=250`, `timeRangeMin=12`, `timeRangeCustom=true`, `timeTickPresetSec=60`, `timeTickCustom=false` |
+| btLineColor / etLineColor | `curveStyles.bt.color` / `curveStyles.et.color`; 기존 채널의 다른 style 필드는 유지 |
+
+위 예시는 구현할 변환 계약이며 현재 FC에 적용한 결과가 아니다. 센서 unit을 확인하고, 머신의 표시 온도 단위를 센서의 입력 단위로 혼동하지 않는다. 그래프 절대 온도·RoR·보정은 각각의 단위 변환을 검증한다.
+
+### import 이후 편집에서도 보존할 항목
+
+현재 `initRoasterFormParams → flattenAddressMaps → nestAddressMaps → updateMachine`은 form에 없는 중첩 필드를 다시 저장할 때 버린다. Modbus `signed`·BCD·추가 읽기 센서, S7 BT/ET 외 채널이 해당한다. import에서 `signed=true`를 넣는 것만으로 완료하면 이후 편집에서 unsigned로 바뀔 수 있다. [form 변환](../../src/entities/machine/addressMap.ts), [form 조립](../../src/entities/machine/lib.ts)
+
+같은 protocol의 편집은 검증된 기존 읽기 설정을 보존하면서 사용자가 바꾼 필드만 덮도록 보완한다. 초기 지원에 필수인 signed는 표시·저장 양방향에서 유지한다. protocol 변경 시 예전 주소 맵을 옮겨 붙이지 않고, 사용자가 ET를 비우면 기존 ET를 복원하지 않는다. vendor 객체나 쓰기 설정을 일반 spread로 보존하지 않는다.
+
+구현 위치는 DB 해독·로컬 읽기 API를 Python sidecar, 머신 변환을 machine entity, 그래프 변환을 active-roast feature에 두고 widget에서 미리보기·적용을 조합한다. features 간 직접 import를 만들지 않는다. 기존 authenticated sidecar 호출·머신 저장·그래프 저장을 재사용하고, 적용 완료를 확인하는 데 필요한 저장 결과 처리만 보완한다.
+
+완료 조건은 **소스 → FC 변환 → 편집 → 저장 → 재시작 → adapter 입력**까지 값·의미가 유지되는 것이다. 합성 snapshot의 머신 덮어쓰기·삭제·compaction, signed 음수와 scale, S7 DB/offset/slot, 단위·미지원 보정, host만 편집, ET 삭제, 재import 중복, 제어 설정 미상속을 테스트한다. 예를 들어 integer register 2500·decimalPlace 1·°C는 FC에서도 250.0°C여야 한다. Intel·ARM 배포 패키지의 파일 탐색·해독을 확인한 뒤 지원 머신의 실제 측정값을 대조한다.
 
 ## 자동 탐색 구현 순서와 착수 조건
 
