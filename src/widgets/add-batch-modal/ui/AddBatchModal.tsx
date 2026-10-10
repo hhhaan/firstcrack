@@ -1,5 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
-import { useBeanStockSummaries, useBeanStockSummary } from '@entities/bean-stock-event';
+import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { useBlends } from '@entities/blend';
 import { useMachines } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
@@ -109,7 +109,7 @@ export const AddBatchModal = ({
     const selectedMachine = machines.find((m) => m.id === machineId);
     const selectedBlend = blends.find((b) => b.id === blendId);
     const selectedBeanId = batchType === 'Single Origin' ? beanId : null;
-    const { data: stockSummary } = useBeanStockSummary(selectedBeanId ?? '');
+    const stockSummary = selectedBeanId ? stockSummaries[selectedBeanId] : undefined;
 
     const stockChecks = useBatchStockChecks({
         batchType,
@@ -118,6 +118,7 @@ export const AddBatchModal = ({
         selectedBlend,
         selectedBeanId,
         stockSummary,
+        stockSummaries,
         plannedGrams,
         recurringInterval,
         date,
@@ -260,7 +261,7 @@ export const AddBatchModal = ({
                 />
 
                 <BatchStockPanel
-                    selectedBean={selectedBean}
+                    selectedBean={stockSummary ? selectedBean : undefined}
                     effectiveStockKg={stockChecks.effectiveStockKg}
                     greenNeeded={stockChecks.greenNeeded}
                     stockSufficient={stockChecks.stockSufficient}

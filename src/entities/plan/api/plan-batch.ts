@@ -228,19 +228,12 @@ export const planBatchApi = {
     },
 
     reorder: async (planId: string, orderedIds: string[]): Promise<void> => {
-        const updates = await Promise.all(
-            // index + 1: order_index 0 is pinned for recurring instances (listForDateRange)
-            orderedIds.map((id, index) =>
-                supabase
-                    .from('roast_plan_batches')
-                    .update({ order_index: index + 1 })
-                    .eq('id', id),
-            ),
-        );
-        for (const { error } of updates) {
-            if (error) throw error;
-        }
-        void planId;
+        if (!orderedIds.length) return;
+        const { error } = await supabase.rpc('reorder_plan_batches', {
+            p_plan_id: planId,
+            p_ordered_ids: orderedIds,
+        });
+        if (error) throw error;
     },
 
     /**

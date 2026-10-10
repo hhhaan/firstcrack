@@ -62,7 +62,7 @@ export default defineConfig(async ({ command, mode }) => {
         },
         test: {
             globals: true,
-            include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/pinned-tool.test.mjs', 'supabase/functions/_shared/**/*.test.ts'],
+            include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/pinned-tool.test.mjs', 'supabase/functions/**/*.test.ts'],
             // CI has no .env — prevent createClient() throw on import chains that touch supabase.
             env: {
                 VITE_SUPABASE_URL: 'https://vjdgdolfxvnxushxrmff.supabase.co',
