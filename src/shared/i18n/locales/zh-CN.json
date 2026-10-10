@@ -693,6 +693,7 @@
         "protocol": "协议",
         "selectProtocol": "选择协议...",
         "addressMap": "BT / ET 地址映射",
+        "advancedSettings": "数据格式 · 单位 / 倍率",
         "supportedAddressMap": "通道地址",
         "addressMapHint": "请按设备手册或 Artisan 配置直接填写寄存器/通道。ET 留空表示禁用。",
         "supportedAddressHint": "只填写需要修改的地址。留空则使用该型号的默认值。",

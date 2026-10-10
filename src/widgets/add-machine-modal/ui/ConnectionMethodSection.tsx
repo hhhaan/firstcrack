@@ -85,13 +85,14 @@ export const ConnectionMethodSection = ({
 
             {/* Connection method: custom name / brand / protocol */}
             {isCustom && (
-                <div className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                        <label className={labelCls}>
+                <div className="grid grid-cols-1 gap-3 border-b border-border-subtle pb-4 sm:grid-cols-3">
+                    <div className="min-w-0">
+                        <label htmlFor="machine-custom-name" className={labelCls}>
                             {t('addMachine.customName')}
                             {!isEdit && <span className="text-red-500"> *</span>}
                         </label>
                         <input
+                            id="machine-custom-name"
                             className={cn(inputCls, isEdit && 'opacity-70 cursor-default')}
                             type="text"
                             value={customName}
@@ -100,9 +101,12 @@ export const ConnectionMethodSection = ({
                             disabled={isEdit}
                         />
                     </div>
-                    <div>
-                        <label className={labelCls}>{t('addMachine.customBrand')}</label>
+                    <div className="min-w-0">
+                        <label htmlFor="machine-custom-brand" className={labelCls}>
+                            {t('addMachine.customBrand')}
+                        </label>
                         <input
+                            id="machine-custom-brand"
                             className={cn(inputCls, isEdit && 'opacity-70 cursor-default')}
                             type="text"
                             value={customBrand}
@@ -111,12 +115,13 @@ export const ConnectionMethodSection = ({
                             disabled={isEdit}
                         />
                     </div>
-                    <div>
-                        <label className={labelCls}>
+                    <div className="min-w-0">
+                        <label htmlFor="machine-custom-protocol" className={labelCls}>
                             {t('addMachine.protocol')}
                             <span className="text-red-500"> *</span>
                         </label>
                         <FormSelect
+                            id="machine-custom-protocol"
                             className={cn(isEdit && 'opacity-70 cursor-default')}
                             value={customProtocol}
                             onChange={(e) => selectCustomProtocol(e.target.value)}

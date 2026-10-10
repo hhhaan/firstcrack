@@ -693,6 +693,7 @@
         "protocol": "Protocol",
         "selectProtocol": "Select a protocol...",
         "addressMap": "BT / ET address map",
+        "advancedSettings": "Data format, units & scale",
         "supportedAddressMap": "Channel addresses",
         "addressMapHint": "Enter register/channel addresses from the device manual or Artisan config. Leave ET empty to disable.",
         "supportedAddressHint": "Enter only the addresses to change. Empty fields use the model defaults.",

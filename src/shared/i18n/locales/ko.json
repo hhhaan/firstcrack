@@ -693,6 +693,7 @@
         "protocol": "프로토콜",
         "selectProtocol": "프로토콜 선택...",
         "addressMap": "BT / ET 주소맵",
+        "advancedSettings": "데이터 형식 · 단위 / 배율",
         "supportedAddressMap": "채널 주소",
         "addressMapHint": "장비 매뉴얼 또는 Artisan 설정 기준으로 레지스터/채널 주소를 직접 입력하세요. ET는 비워 두면 비활성입니다.",
         "supportedAddressHint": "변경할 주소만 입력하세요. 비워 둔 항목은 모델 기본값을 사용합니다.",
