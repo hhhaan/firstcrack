@@ -61,7 +61,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const qc = useQueryClient();
 
     const flow = useRoastCompletionFlow();
-    const summaryOwnerId = useRoastingStore((state) => state.completed?.snapshot.sessionOwnerId ?? null);
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
     const { resumeSave, isSaving } = useSaveRoast(planBatchHandoff, syncRoastCurve);
     const submitting = useRef(false);
@@ -321,17 +320,52 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         [workspaceOwnerId, rawBT, snapshotParams, flow.confirmEndRoast],
     );
     const discardSummary = useCallback(() => {
-        const sessionId = flow.summaryData?.sessionId;
         const completed = useRoastingStore.getState().completed;
-        if (
-            !sessionId ||
-            completed?.snapshot.sessionId !== sessionId ||
-            completed.snapshot.sessionOwnerId !== summaryOwnerId
-        )
+        const snapshot = completed?.snapshot;
+        const sessionId = flow.summarySessionId ?? flow.summaryData?.sessionId ?? null;
+        if (!sessionId || !snapshot || !completed?.summary) {
+            logger.warn('discardSummary: no completed summary to discard', {
+                context: 'discardSummary',
+                sessionId,
+            });
+            flow.closeSummary();
             return;
-        clearPendingRoastSave(summaryOwnerId ?? workspaceOwnerId, sessionId);
-        flow.discardSummary(summaryOwnerId, sessionId);
-    }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId]);
+        }
+        if (snapshot.sessionId !== sessionId) {
+            logger.capture(new Error('discardSummary: session mismatch'), {
+                context: 'discardSummary',
+                snapshotSessionId: snapshot.sessionId,
+                requestedSessionId: sessionId,
+            });
+            useToastStore.getState().show(i18n.t('activeRoast.summary.discardFailed'));
+            return;
+        }
+        const ownerId = snapshot.sessionOwnerId ?? workspaceOwnerId;
+        if (!ownerId) {
+            logger.capture(new Error('discardSummary: missing workspace owner'), {
+                context: 'discardSummary',
+                sessionId,
+            });
+            useToastStore.getState().show(i18n.t('activeRoast.summary.discardFailed'));
+            flow.closeSummary();
+            return;
+        }
+        try {
+            clearPendingRoastSave(ownerId, sessionId);
+        } catch (err) {
+            logger.capture(err, { context: 'discardSummary.pendingCheckpoint', sessionId });
+            useToastStore.getState().show(formatRoastSaveError(err));
+            return;
+        }
+        if (!flow.discardSummary(ownerId, sessionId)) {
+            logger.capture(new Error('discardSummary: batch store rejected discard'), {
+                context: 'discardSummary',
+                sessionId,
+                ownerId,
+            });
+            useToastStore.getState().show(i18n.t('activeRoast.summary.discardFailed'));
+        }
+    }, [flow, workspaceOwnerId]);
 
     const handleStartNext = useCallback(
         async (row: PlanBatchWithProgress) => {

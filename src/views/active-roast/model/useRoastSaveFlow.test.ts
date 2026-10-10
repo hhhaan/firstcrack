@@ -7,6 +7,7 @@ import {
 } from '@features/active-roast/model/pendingRoastSave';
 import { useRoastingStore } from '@features/active-roast/model/status';
 
+import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -537,6 +538,56 @@ describe('completed batch identity at asynchronous and recovery boundaries', () 
             targetProfileId: 'profile-a',
             elapsed: 600,
         });
+    });
+});
+
+describe('discard after drop (#748)', () => {
+    it('clears pending and closes summary for no-bean drop', () => {
+        const h = renderFlow();
+        useRoastingStore.setState({ sidecarConnected: true });
+        useRoastingStore.getState().startCharge(undefined, undefined, { bt: 200, unit: 'C' });
+        const planned = useRoastingStore.getState().drop({ rawBT: 205, unit: 'C', replayActive: false });
+        if (!planned) throw new Error('drop failed');
+        act(() => h.api.confirmEndRoast(planned.summary));
+        expect(listPendingRoastSaves()).toHaveLength(1);
+        expect(h.api.flow.summaryModal).toBe(true);
+        act(() => h.api.discardSummary());
+        expect(h.api.flow.summaryModal).toBe(false);
+        expect(listPendingRoastSaves()).toHaveLength(0);
+        expect(useRoastingStore.getState().completed?.summary).toBeNull();
+    });
+
+    it('clears pending after cancel drop and a second drop', () => {
+        const h = renderFlow();
+        useRoastingStore.setState({ sidecarConnected: true });
+        useRoastingStore.getState().startCharge(undefined, undefined, { bt: 200, unit: 'C' });
+        const first = useRoastingStore.getState().drop({ rawBT: 205, unit: 'C', replayActive: false });
+        if (!first) throw new Error('first drop failed');
+        act(() => h.api.confirmEndRoast(first.summary));
+        act(() => {
+            expect(useRoastingStore.getState().cancelDrop(first.sessionId)).not.toBeNull();
+            h.api.flow.closeSummary();
+        });
+        useRoastingStore.getState().startCharge(undefined, 'workspace-a', { bt: 200, unit: 'C' });
+        const second = useRoastingStore.getState().drop({ rawBT: 205, unit: 'C', replayActive: false });
+        if (!second) throw new Error('second drop failed');
+        act(() => h.api.confirmEndRoast(second.summary));
+        expect(listPendingRoastSaves()).toHaveLength(1);
+        act(() => h.api.discardSummary());
+        expect(h.api.flow.summaryModal).toBe(false);
+        expect(listPendingRoastSaves()).toHaveLength(0);
+    });
+
+    it('surfaces a toast when discarding a stale session callback', () => {
+        useToastStore.setState({ toasts: [] });
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        const discardA = h.api.discardSummary;
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-b' }));
+        act(() => discardA());
+        expect(h.api.flow.summaryModal).toBe(true);
+        expect(useToastStore.getState().toasts.length).toBeGreaterThan(0);
+        expect(listPendingRoastSaves().some((pending) => pending.params.sessionId === 's-b')).toBe(true);
     });
 });
 

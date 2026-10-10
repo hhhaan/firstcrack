@@ -865,6 +865,7 @@
             "discardConfirmOk": "丢弃",
             "discardConfirmCancel": "取消",
             "discard": "不保存",
+            "discardFailed": "无法丢弃此次烘焙。请重试或刷新页面。",
             "levels": {
                 "light": "浅烘焙",
                 "mediumLight": "中浅烘焙",

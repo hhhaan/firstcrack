@@ -380,14 +380,25 @@ export const createBatchActions = (
     },
     saveSucceeded: (ownerId: string, sessionId: string | null) => {
         const completed = get().completed;
-        if (!completed || completed.snapshot.sessionId !== sessionId || completed.snapshot.sessionOwnerId !== ownerId)
+        const snapshotOwner = completed?.snapshot.sessionOwnerId;
+        if (
+            !completed ||
+            completed.snapshot.sessionId !== sessionId ||
+            (snapshotOwner != null && snapshotOwner !== ownerId)
+        )
             return false;
         if (!completed.submitted) set({ completed: { ...completed, summary: null, restore: null, submitted: true } });
         return true;
     },
     discardSummary: (ownerId: string | null, sessionId: string | null) => {
         const completed = get().completed;
-        if (!completed || completed.snapshot.sessionId !== sessionId || completed.snapshot.sessionOwnerId !== ownerId)
+        const snapshotOwner = completed?.snapshot.sessionOwnerId;
+        if (
+            !completed ||
+            !sessionId ||
+            completed.snapshot.sessionId !== sessionId ||
+            (snapshotOwner != null && ownerId != null && snapshotOwner !== ownerId)
+        )
             return false;
         set({ completed: { ...completed, summary: null } });
         return true;

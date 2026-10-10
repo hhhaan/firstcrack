@@ -11,7 +11,7 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { Check, Coffee, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
@@ -70,6 +70,18 @@ export const RoastSummaryModal = ({
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
     const hasHandoff = Boolean(planBatchHandoff);
+
+    useEffect(() => {
+        if (!open || isSaving) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            if (canCancelDrop) onCancelDrop();
+            else onClose();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [open, isSaving, canCancelDrop, onCancelDrop, onClose]);
     const {
         form: {
             register,

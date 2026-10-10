@@ -77,8 +77,9 @@ export const useRoastCompletionFlow = () => {
         if (summary?.sessionId) dispatch({ type: 'REOPEN_SUMMARY', sessionId: summary.sessionId });
     }, []);
     const discardSummary = useCallback((ownerId: string | null, sessionId: string | null) => {
-        if (!useRoastingStore.getState().discardSummary(ownerId, sessionId)) return;
+        if (!useRoastingStore.getState().discardSummary(ownerId, sessionId)) return false;
         dispatch({ type: 'DISCARD_SUMMARY' });
+        return true;
     }, []);
     const onSaveSuccess = useCallback((result: SaveFlowResult & { ownerId: string; sessionId: string | null }) => {
         if (!useRoastingStore.getState().saveSucceeded(result.ownerId, result.sessionId)) return false;

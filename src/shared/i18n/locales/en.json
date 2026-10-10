@@ -865,6 +865,7 @@
             "discardConfirmOk": "Discard",
             "discardConfirmCancel": "Cancel",
             "discard": "Don't Save",
+            "discardFailed": "Could not discard this roast. Try again or refresh the page.",
             "levels": {
                 "light": "Light",
                 "mediumLight": "Medium-Light",

@@ -210,6 +210,28 @@ it('calls onClose from the header X without discarding', () => {
     unmount();
 });
 
+it('calls onClose when Escape is pressed without a cancelable drop', () => {
+    const onClose = vi.fn();
+    const { unmount } = renderModal({ onClose });
+    act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    unmount();
+});
+
+it('calls onCancelDrop when Escape is pressed during a cancelable drop', () => {
+    const onCancelDrop = vi.fn();
+    const onClose = vi.fn();
+    const { unmount } = renderModal({ canCancelDrop: true, onCancelDrop, onClose });
+    act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(onCancelDrop).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    unmount();
+});
+
 it('cancels Drop from the header X while the roast can be restored', () => {
     const onClose = vi.fn();
     const onCancelDrop = vi.fn();

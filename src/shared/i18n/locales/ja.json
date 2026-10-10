@@ -865,6 +865,7 @@
             "discardConfirmOk": "破棄",
             "discardConfirmCancel": "キャンセル",
             "discard": "保存しない",
+            "discardFailed": "ローストを破棄できませんでした。もう一度お試しいただくか、ページを再読み込みしてください。",
             "levels": {
                 "light": "ライト",
                 "mediumLight": "ミディアムライト",
