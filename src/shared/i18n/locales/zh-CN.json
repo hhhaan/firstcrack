@@ -163,7 +163,12 @@
             },
             "updateAvailable": "可添加传感器",
             "sensorUnit": "单位",
-            "feedback": { "heater": "火力", "fan": "风机", "drum": "滚筒", "airPressure": "风压" },
+            "feedback": {
+                "heater": "火力",
+                "fan": "风机",
+                "drum": "滚筒",
+                "airPressure": "风压"
+            },
             "alreadyImported": "已导入",
             "current": "最近选择",
             "recovered": "以前的设置",
@@ -636,6 +641,43 @@
             "workspace": "工作区",
             "account": "账户",
             "application": "应用程序"
+        },
+        "roastingImport": {
+            "source": "导入来源"
+        },
+        "artisan": {
+            "title": "导入Artisan设置",
+            "description": "将此电脑上的Artisan机器和图表设置导入FC。",
+            "status": {
+                "found": "已找到Artisan设置。",
+                "not-found": "没有可导入的本地Artisan设置。",
+                "needs-app-closed": "请完全退出Artisan后重新搜索。",
+                "unsupported": "目前仅支持macOS上的Artisan原生设置文件。",
+                "unreadable": "无法读取设置。请检查文件访问权限和完整性。"
+            },
+            "machineHint": "导入通用Modbus的BT和ET温度连接。",
+            "sourceUnit": "Artisan温度单位",
+            "confirmVersion": "我确认这些设置由Artisan 4.2.0保存。省略的值将使用该版本的默认值。",
+            "unknownUnit": "无法确认Artisan保存的温度单位，因此不导入温度范围。",
+            "applyNote": "添加所选机器并替换图表设置。不导入事件命令或PID设置，也不会自动连接机器。",
+            "issues": {
+                "needs-version": "需要确认设置版本。导入机器前请确认使用Artisan 4.2.0。",
+                "unsupported-device": "目前仅支持通用Modbus连接。请手动设置此设备。",
+                "unsupported-calibration": "无法保留传感器校正或公式，需要手动设置。",
+                "unsupported-channel": "已配置额外设备。请手动设置机器连接。"
+            },
+            "graphFields": {
+                "Mode": "温度单位",
+                "Axis/ymin": "最低温度",
+                "Axis/ymax": "最高温度",
+                "Axis/xmax": "时间范围",
+                "Colors": {
+                    "bt": "豆温（BT）颜色",
+                    "et": "排气温度（ET）颜色",
+                    "deltabt": "BT RoR颜色",
+                    "deltaet": "ET RoR颜色"
+                }
+            }
         }
     },
     "language": {

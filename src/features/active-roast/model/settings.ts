@@ -1,8 +1,10 @@
 import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
+import { mapArtisanGraphSettings } from '../lib/artisan-settings';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
 import {
     type CurveChannel,
@@ -508,6 +510,17 @@ const hydration = _hydrate();
 export const importFirescopeGraphSettings = async (source: FirescopeSettingsSnapshot, unit: TemperatureUnit | null) => {
     await hydration;
     const { patch } = mapFirescopeGraphSettings(source, _settings, unit);
+    if (Object.keys(patch).length === 0) return;
+    const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
+    _userTouched = true;
+    await settingsSet(STORE_KEY, next, { throwOnError: true });
+    _settings = next;
+    _emit();
+};
+
+export const importArtisanGraphSettings = async (source: ArtisanSettingsSnapshot) => {
+    await hydration;
+    const { patch } = mapArtisanGraphSettings(source, _settings);
     if (Object.keys(patch).length === 0) return;
     const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
     _userTouched = true;

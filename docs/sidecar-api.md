@@ -194,6 +194,23 @@ interface FirescopeSettingsSnapshot {
 
 CURRENT/MANIFEST, 활성 SST/WAL, CRC32C, Snappy, IndexedDB/V8 값을 검증한다. 앱 실행·파일 변경·잠금 획득 실패는 `needs-app-closed`, 미지원 포맷·외부 blob·미완료 Chromium 복구 작업은 `unsupported`로 거부하며 원본 DB를 복구하거나 수정하지 않는다. frontend `sidecar.getFirescopeSettings()`는 20초 timeout이며 자동 재시도하지 않는다.
 
+### GET /imports/artisan
+
+macOS의 Artisan native plist를 자동 탐색해 읽는다. body와 파일 경로 인자는 없으며 기존 `X-Sidecar-Token` 인증을 사용한다. Artisan이 실행 중이면 `needs-app-closed`를 반환한다. 원본 설정을 수정하거나 장비에 연결하지 않는다.
+
+```ts
+interface ArtisanSettingsSnapshot {
+  status: 'found' | 'not-found' | 'needs-app-closed' | 'unsupported' | 'unreadable';
+  reason?: string;
+  source: { product: 'Artisan'; version: string | null; sourceId: 'native' };
+  settings: Record<string, unknown> | null;
+}
+```
+
+상태는 HTTP 200으로 반환한다. Qt native 키는 명시적 허용 목록에 따라 `/` 구분 키로 변환한다. 계정·최근 파일·이벤트 명령·PID 설정은 포함하지 않는다. 파일 크기 제한과 심볼릭 링크·동시 수정 검사를 적용한다.
+
+프런트엔드는 일반 Modbus BT/ET와 명시적 그래프 단위·축·곡선 색상만 가져온다. native 파일은 기본값을 생략하므로 머신 설정은 검증된 `4.2.0` 버전만 지원하며, 버전이 없으면 사용자가 해당 버전으로 저장했음을 확인해야 한다. 다른 장치·보정·수식·추가 장치는 수동 설정으로 안내한다.
+
 ### GET /roasters
 
 지원 로스터 목록과 프로토콜별 연결 폼 필드를 반환한다.
@@ -737,6 +754,7 @@ const BASE = 'http://127.0.0.1:9999';
 | ------------------------------------- | ------------------- |
 | `sidecar.getRoasters()`               | `GET /roasters`     |
 | `sidecar.getFirescopeSettings()`       | `GET /imports/firescope` |
+| `sidecar.getArtisanSettings()`       | `GET /imports/artisan` |
 | `sidecar.getStatus()`                 | `GET /status`       |
 | `sidecar.connect(roasterKey, params)` | `POST /connect`     |
 | `sidecar.disconnect()`                | `POST /disconnect`  |

@@ -1,6 +1,7 @@
 // model
 
 export { ALERT_SOUND_KINDS, type AlertSoundKind, isAlertSoundKind, playAlertSound } from './lib/alertSound';
+export { artisanTemperatureUnit, mapArtisanGraphSettings } from './lib/artisan-settings';
 export type { RawTemperatureSample } from './lib/autoCharge';
 export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
 export { detectChargeOnset } from './lib/chargeOnset';
@@ -49,6 +50,7 @@ export {
     FONT_SLIDER_MAX,
     FONT_SLIDER_MIN,
     fontScaleToSlider,
+    importArtisanGraphSettings,
     importFirescopeGraphSettings,
     resetCurveStyles,
     sliderToFontScale,

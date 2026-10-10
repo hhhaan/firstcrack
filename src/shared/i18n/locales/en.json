@@ -163,7 +163,12 @@
             },
             "updateAvailable": "Update available",
             "sensorUnit": "Unit",
-            "feedback": { "heater": "Heat", "fan": "Fan", "drum": "Drum", "airPressure": "Air pressure" },
+            "feedback": {
+                "heater": "Heat",
+                "fan": "Fan",
+                "drum": "Drum",
+                "airPressure": "Air pressure"
+            },
             "alreadyImported": "Already imported",
             "current": "Recently selected",
             "recovered": "Previous setting",
@@ -636,6 +641,43 @@
             "workspace": "Workspace",
             "account": "Account",
             "application": "Application"
+        },
+        "roastingImport": {
+            "source": "Import from"
+        },
+        "artisan": {
+            "title": "Import Artisan settings",
+            "description": "Bring local Artisan machine and graph settings into FC.",
+            "status": {
+                "found": "Artisan settings found.",
+                "not-found": "No local Artisan settings to import.",
+                "needs-app-closed": "Quit Artisan completely, then search again.",
+                "unsupported": "Only native Artisan settings on macOS are currently supported.",
+                "unreadable": "Settings could not be read. Check file access and integrity."
+            },
+            "machineHint": "Import BT and ET temperature connections from generic Modbus.",
+            "sourceUnit": "Artisan temperature unit",
+            "confirmVersion": "I confirm these settings were saved by Artisan 4.2.0. Omitted values will use that version’s defaults.",
+            "unknownUnit": "The saved Artisan temperature unit is unknown, so temperature ranges will not be imported.",
+            "applyNote": "Selected machines are added and graph settings are replaced. Event commands and PID settings are excluded; machines do not connect automatically.",
+            "issues": {
+                "needs-version": "The settings version needs verification. Confirm Artisan 4.2.0 before importing a machine.",
+                "unsupported-device": "Only generic Modbus connections are currently supported. Set up this device manually.",
+                "unsupported-calibration": "Sensor corrections or formulas cannot be carried over. Manual setup is required.",
+                "unsupported-channel": "Additional devices are configured. Set up the machine connection manually."
+            },
+            "graphFields": {
+                "Mode": "Temperature unit",
+                "Axis/ymin": "Minimum temperature",
+                "Axis/ymax": "Maximum temperature",
+                "Axis/xmax": "Time range",
+                "Colors": {
+                    "bt": "Bean temperature (BT) color",
+                    "et": "Exhaust temperature (ET) color",
+                    "deltabt": "BT RoR color",
+                    "deltaet": "ET RoR color"
+                }
+            }
         }
     },
     "language": {

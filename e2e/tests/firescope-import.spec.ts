@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, goNav, test } from '../fixtures/app';
+import { installPersistentStore } from '../fixtures/persistent-store';
 
 const modbusMachine = (id: string | number, name: string, address = 1000) => ({
     id,
@@ -74,42 +75,6 @@ const unsupportedProbat = {
         ethernet: { type: 'tcp', ip: '192.0.2.9', port: 502 },
         modbus: [],
     },
-};
-
-const installPersistentStore = async (page: Page) => {
-    await page.addInitScript(() => {
-        const internals = window.__TAURI_INTERNALS__ as unknown as {
-            invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
-        };
-        const fallback = internals.invoke.bind(internals);
-        const storageKey = 'e2e:tauri-store:settings.json';
-        let values: Record<string, unknown> = {};
-        internals.invoke = async (cmd, args = {}) => {
-            if (cmd === 'plugin:store|load') {
-                values = JSON.parse(localStorage.getItem(storageKey) ?? '{}') as Record<string, unknown>;
-                return 1;
-            }
-            if (cmd === 'plugin:store|get') {
-                const key = String(args.key);
-                return [values[key] ?? null, Object.hasOwn(values, key)];
-            }
-            if (cmd === 'plugin:store|set') {
-                values[String(args.key)] = args.value;
-                return null;
-            }
-            if (cmd === 'plugin:store|delete') {
-                delete values[String(args.key)];
-                return null;
-            }
-            if (cmd === 'plugin:store|save') {
-                localStorage.setItem(storageKey, JSON.stringify(values));
-                return null;
-            }
-            return fallback(cmd, args);
-        };
-    });
-    await page.reload();
-    await expect(page.getByTestId('app-sidebar')).toBeVisible();
 };
 
 const openImporter = async (page: Page) => {
@@ -213,6 +178,7 @@ test('imports Firescope machine and graph settings once without connecting hardw
     await page.getByText('Synthetic RTU', { exact: true }).first().click();
     const connectionDetails = page.getByRole('region', { name: 'Connection', exact: true });
     await expect(connectionDetails.getByText(/\[object Object\]/)).toHaveCount(0);
+    await connectionDetails.locator('details > summary').click();
     for (const [label, value] of [
         ['BT Register', '1000'],
         ['ET Register', '1001'],
@@ -222,13 +188,19 @@ test('imports Firescope machine and graph settings once without connecting hardw
         ['Fan Register', '22'],
     ]) {
         await expect(
-            connectionDetails.getByText(label, { exact: true }).locator('..').getByRole('definition'),
+            connectionDetails.getByRole('term').filter({ hasText: label }).locator('..').getByRole('definition'),
         ).toHaveText(value);
     }
     for (const role of ['Heat', 'Fan']) {
         const channel = connectionDetails.getByRole('heading', { name: role, exact: true }).locator('..');
         await expect(channel).toBeVisible();
-        await expect(channel.getByText('Unit', { exact: true }).locator('..').getByRole('definition')).toHaveText('%');
+        await expect(
+            channel
+                .getByRole('term')
+                .filter({ hasText: /^Unit$/ })
+                .locator('..')
+                .getByRole('definition'),
+        ).toHaveText('%');
     }
     await page.screenshot({ path: testInfo.outputPath('firescope-machine-details.png'), animations: 'disabled' });
 

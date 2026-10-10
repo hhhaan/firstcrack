@@ -1,5 +1,6 @@
 import { FEATURE, planHasFeature } from '@shared/lib/features';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../lib/curve-style';
@@ -29,6 +30,12 @@ const firescopeSnapshot: FirescopeSettingsSnapshot = {
     indicator: null,
     global: null,
     machines: [],
+};
+
+const artisanSnapshot: ArtisanSettingsSnapshot = {
+    status: 'found',
+    source: { product: 'Artisan', version: null, sourceId: 'native' },
+    settings: { Mode: 'F', 'Axis/ymin': 122, 'Axis/ymax': 482, Colors: { bt: '#44a56b' } },
 };
 
 it('waits for saved settings before importing and persists the merged result across restart', async () => {
@@ -69,6 +76,21 @@ it('keeps current graph settings when import persistence fails', async () => {
     vi.mocked(settingsSet).mockRejectedValueOnce(new Error('disk full'));
     await expect(settings.importFirescopeGraphSettings(firescopeSnapshot, 'C')).rejects.toThrow('disk full');
     expect(settings.getRoastSettings()).toBe(previous);
+});
+
+it('persists Artisan graph fields without replacing unrelated settings', async () => {
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce({ btSmoothing: 80 });
+    const settings = await import('./settings');
+    await settings.importArtisanGraphSettings(artisanSnapshot);
+    expect(settings.getRoastSettings()).toMatchObject({
+        temperatureUnit: 'F',
+        tempMinC: 50,
+        tempMaxC: 250,
+        btSmoothing: 80,
+        curveStyles: { bt: { color: '#44a56b' } },
+    });
+    expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', settings.getRoastSettings(), { throwOnError: true });
 });
 
 it('restores and bounds display smoothing while preserving the original default', async () => {

@@ -23,9 +23,10 @@ const snapshot = z.object({
 
 export const firescopeSettingsKey = ['local-roasting-settings', 'firescope'] as const;
 
-export const useFirescopeSettings = () =>
+export const useFirescopeSettings = (enabled = true) =>
     useQuery({
         queryKey: firescopeSettingsKey,
+        enabled,
         queryFn: async () => snapshot.parse(await sidecar.getFirescopeSettings()),
         retry: false,
         throwOnError: false,

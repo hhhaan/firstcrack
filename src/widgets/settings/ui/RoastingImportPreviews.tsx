@@ -1,4 +1,4 @@
-import type { mapFirescopeMachine } from '@entities/machine';
+import type { ArtisanMachineMapping, mapFirescopeMachine } from '@entities/machine';
 import type { mapFirescopeGraphSettings, TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import { Badge } from '@shared/ui/Badge';
 import { FormSelect } from '@shared/ui/FormSelect';
@@ -25,7 +25,7 @@ function ColorSample({ color }: { color: string }) {
     );
 }
 
-export function FirescopeGraphPreview({
+export function RoastingGraphPreview({
     graph,
     previous,
     checked,
@@ -34,6 +34,7 @@ export function FirescopeGraphPreview({
     disabled,
     onCheckedChange,
     onUnitChange,
+    unitEditable = true,
     tk,
 }: {
     graph: ReturnType<typeof mapFirescopeGraphSettings>;
@@ -44,6 +45,7 @@ export function FirescopeGraphPreview({
     disabled: boolean;
     onCheckedChange: (checked: boolean) => void;
     onUnitChange: (unit: TemperatureUnit) => void;
+    unitEditable?: boolean;
     tk: Translate;
 }) {
     const mapped = graph.fields.filter(
@@ -89,7 +91,7 @@ export function FirescopeGraphPreview({
                     {tk('sourceUnit')}
                     <FormSelect
                         value={unit ?? ''}
-                        disabled={disabled}
+                        disabled={disabled || !unitEditable}
                         wrapperClassName="w-24"
                         className="h-8 py-1 text-xs"
                         onChange={(event) => onUnitChange(event.currentTarget.value as TemperatureUnit)}
@@ -181,9 +183,9 @@ export function FirescopeGraphPreview({
     );
 }
 
-export function FirescopeMachinePreview({
+export function RoastingMachinePreview({
     current,
-    settings,
+    connection,
     mapping,
     imported,
     updateAvailable,
@@ -193,8 +195,8 @@ export function FirescopeMachinePreview({
     tk,
 }: {
     current: boolean;
-    settings: Record<string, unknown>;
-    mapping: ReturnType<typeof mapFirescopeMachine>;
+    connection: { serial: boolean; endpoint: unknown; subtype: unknown; protocol: unknown };
+    mapping: ReturnType<typeof mapFirescopeMachine> | ArtisanMachineMapping;
     imported: boolean;
     updateAvailable: boolean;
     selected: boolean;
@@ -203,12 +205,8 @@ export function FirescopeMachinePreview({
     tk: Translate;
 }) {
     const enabled = Boolean(mapping.draft) && !imported;
-    const connection = settings.connection;
-    const serial = readValue(connection, 'type') === 'serial';
-    const endpoint = readValue(connection, serial ? 'serial.path' : 'ethernet.ip');
-    const subtype = readValue(connection, serial ? 'serial.type' : 'ethernet.type');
-    const protocol = readValue(connection, 'protocol');
-    const blockingIssue = mapping.issues.find((issue) => issue.code !== 'unsupported-channel');
+    const { serial, endpoint, subtype, protocol } = connection;
+    const blockingIssue = mapping.issues.find((issue) => !mapping.draft || issue.code !== 'unsupported-channel');
     const feedback =
         mapping.draft?.capabilities.map((role) => {
             const params = mapping.draft?.connectionParams;
@@ -244,7 +242,7 @@ export function FirescopeMachinePreview({
                         </Badge>
                     </span>
                     <span className="mt-1 block text-xs text-secondary">
-                        {serial || readValue(connection, 'type') === 'usb' ? tk('usb') : tk('network')}
+                        {serial ? tk('usb') : tk('network')}
                         {' · '}
                         {protocol === 'modbus' ? 'Modbus' : protocol === 's7' ? 'Siemens S7' : tk('dedicated')}
                         {typeof subtype === 'string' &&

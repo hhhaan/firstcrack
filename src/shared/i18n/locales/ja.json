@@ -163,7 +163,12 @@
             },
             "updateAvailable": "センサー追加可能",
             "sensorUnit": "単位",
-            "feedback": { "heater": "火力", "fan": "ファン", "drum": "ドラム", "airPressure": "風圧" },
+            "feedback": {
+                "heater": "火力",
+                "fan": "ファン",
+                "drum": "ドラム",
+                "airPressure": "風圧"
+            },
             "alreadyImported": "インポート済み",
             "current": "最近選択",
             "recovered": "以前の設定",
@@ -636,6 +641,43 @@
             "workspace": "ワークスペース",
             "account": "アカウント",
             "application": "アプリケーション"
+        },
+        "roastingImport": {
+            "source": "読み込み元"
+        },
+        "artisan": {
+            "title": "Artisan設定を読み込む",
+            "description": "このコンピューターのArtisanのマシンとグラフ設定をFCに読み込みます。",
+            "status": {
+                "found": "Artisan設定が見つかりました。",
+                "not-found": "読み込めるローカルArtisan設定がありません。",
+                "needs-app-closed": "Artisanを完全に終了してから再検索してください。",
+                "unsupported": "現在はmacOSのArtisan標準設定ファイルのみ対応しています。",
+                "unreadable": "設定を読み込めません。ファイルのアクセス権と状態を確認してください。"
+            },
+            "machineHint": "汎用ModbusのBT・ET温度接続を読み込みます。",
+            "sourceUnit": "Artisanの温度単位",
+            "confirmVersion": "Artisan 4.2.0で保存した設定であることを確認しました。省略された値にはこのバージョンの既定値を使用します。",
+            "unknownUnit": "Artisanの温度単位を確認できないため、温度範囲は読み込みません。",
+            "applyNote": "選択したマシンを追加し、グラフ設定を変更します。イベント命令やPID設定は読み込まず、マシンには自動接続しません。",
+            "issues": {
+                "needs-version": "設定のバージョンを確認してください。マシンの読み込みにはArtisan 4.2.0の確認が必要です。",
+                "unsupported-device": "現在は汎用Modbus接続のみ対応しています。この機器は手動で設定してください。",
+                "unsupported-calibration": "センサー補正や数式は引き継げません。手動設定が必要です。",
+                "unsupported-channel": "追加機器が設定されています。マシン接続を手動で設定してください。"
+            },
+            "graphFields": {
+                "Mode": "温度単位",
+                "Axis/ymin": "最低温度",
+                "Axis/ymax": "最高温度",
+                "Axis/xmax": "時間範囲",
+                "Colors": {
+                    "bt": "生豆温度（BT）の色",
+                    "et": "排気温度（ET）の色",
+                    "deltabt": "BT RoRの色",
+                    "deltaet": "ET RoRの色"
+                }
+            }
         }
     },
     "language": {
