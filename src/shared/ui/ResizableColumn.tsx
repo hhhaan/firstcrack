@@ -79,6 +79,7 @@ export const ResizableColumn = ({
     const reactId = useId();
     const id = panelId ?? reactId;
     const ref = useRef<HTMLElement>(null);
+    const previewRef = useRef<number | null>(null);
     const remembered = group?.widths[columnId];
     const openWidth = remembered != null && remembered >= floor ? remembered : floor;
     const [max, setMax] = useState(openWidth);
@@ -111,6 +112,7 @@ export const ResizableColumn = ({
             data-testid={testId}
             aria-label={ariaLabel}
             className={cn('static flex min-h-0 shrink-0 self-stretch', className)}
+            data-width={group ? width : undefined}
             style={group ? { width } : undefined}
         >
             <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -129,12 +131,30 @@ export const ResizableColumn = ({
             width={width}
             min={onBelowFloor ? floor - 1 : floor}
             max={Math.max(width, max)}
-            onWidthChange={(next) => {
-                if (onBelowFloor && next < floor) {
-                    onBelowFloor();
+            onWidthPreview={(next) => {
+                const px = Math.round(next);
+                if (px < floor) {
+                    const keep = previewRef.current;
+                    previewRef.current = null;
+                    if (keep != null) group.setWidth(columnId, keep);
+                    onBelowFloor?.();
                     return;
                 }
-                group.setWidth(columnId, next);
+                if (previewRef.current === px) return;
+                previewRef.current = px;
+                const column = ref.current;
+                if (!column) return;
+                column.style.width = `${px}px`;
+                column.querySelector('[role="separator"]')?.setAttribute('aria-valuenow', String(px));
+            }}
+            onWidthChange={(next) => {
+                const px = Math.round(next);
+                previewRef.current = null;
+                if (px < floor) {
+                    onBelowFloor?.();
+                    return;
+                }
+                group.setWidth(columnId, px);
             }}
         />,
     );

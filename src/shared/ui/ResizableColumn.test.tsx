@@ -97,6 +97,24 @@ it('collapses a column dragged under its floor and restores the last open width'
     }
 });
 
+it('keeps a drag on the element until the pointer is released', () => {
+    const view = renderColumns(column('machine', 160, 'Resize machine control'));
+    try {
+        const machine = view.divider('Resize machine control');
+        const dragged = machine.parentElement?.parentElement;
+        if (!(dragged instanceof HTMLElement)) throw new Error('column missing');
+        pointer(machine, 'pointerdown', 500);
+        pointer(machine, 'pointermove', 440);
+        expect(dragged.style.width).toBe('220px');
+        expect(dragged.getAttribute('data-width')).toBe('160');
+        pointer(machine, 'lostpointercapture', 440);
+        expect(dragged.getAttribute('data-width')).toBe('220');
+    } finally {
+        act(() => view.root.unmount());
+        view.row.remove();
+    }
+});
+
 it('draws a plain column when it is outside a group', () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
