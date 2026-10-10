@@ -7,8 +7,13 @@ describe('shouldResetSidecarAfterSummaryDiscard', () => {
         expect(shouldResetSidecarAfterSummaryDiscard(live, 's-a', true)).toBe(false);
     });
 
-    it('resets when discard applied and live is still on the same pending batch', () => {
+    it('resets when discard applied and no other batch owns the machine', () => {
         const live = { sessionId: null, phase: 'standby' as const, awaitingNextCharge: true };
+        expect(shouldResetSidecarAfterSummaryDiscard(live, 's-a', true)).toBe(true);
+    });
+
+    it('resets when still awaiting charge after A drop (session not yet detached)', () => {
+        const live = { sessionId: 's-a', phase: 'standby' as const, awaitingNextCharge: true };
         expect(shouldResetSidecarAfterSummaryDiscard(live, 's-a', true)).toBe(true);
     });
 
