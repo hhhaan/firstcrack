@@ -301,7 +301,7 @@ describe('ActiveRoast running clock (#627)', () => {
         vi.mocked(sidecar.setDischarge).mockClear();
         seed({
             phase: 'standby',
-            roastStartMs: null,
+            roastStartMs: 0,
             elapsed: 0,
             liveData: { bt: 180, et: 200, ror: 0, ror_et: 0, heater: 20, fan: 0, drum: 0 },
         });
