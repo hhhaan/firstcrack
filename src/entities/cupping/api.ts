@@ -509,13 +509,13 @@ export const cuppingApi = {
     },
 
     /** Persist sample order: `orderedIds` index becomes `sort_order`. */
-    reorderSamples: async (orderedIds: string[]): Promise<void> => {
+    reorderSamples: async (eventId: string, orderedIds: string[]): Promise<void> => {
         if (!orderedIds.length) return;
-        const results = await Promise.all(
-            orderedIds.map((id, i) => supabase.from('cupping_samples').update({ sort_order: i }).eq('id', id)),
-        );
-        const failed = results.find((r) => r.error);
-        if (failed?.error) throw failed.error;
+        const { error } = await supabase.rpc('reorder_cupping_samples', {
+            p_event_id: eventId,
+            p_ordered_ids: orderedIds,
+        });
+        if (error) throw error;
     },
 
     updateSample: async ({

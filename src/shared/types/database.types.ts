@@ -2240,6 +2240,14 @@ export type Database = {
                 Args: { p_member_id: string; p_org_id: string };
                 Returns: undefined;
             };
+            reorder_cupping_samples: {
+                Args: { p_event_id: string; p_ordered_ids: string[] };
+                Returns: undefined;
+            };
+            reorder_plan_batches: {
+                Args: { p_ordered_ids: string[]; p_plan_id: string };
+                Returns: undefined;
+            };
             replace_blend_components: {
                 Args: { p_blend_id: string; p_components: Json };
                 Returns: undefined;
