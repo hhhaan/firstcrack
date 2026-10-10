@@ -1028,6 +1028,11 @@ class RoasterManager:
                         await self._pid.stop("reset", mode=STOP_ZERO)
                     except Exception:
                         pass
+                elif getattr(self._pid, "state_name", "off") in ("running", "holding"):
+                    try:
+                        await self._pid.stop("reset", mode=STOP_HOLD)
+                    except Exception:
+                        pass
                 elif hasattr(self._pid, "abandon"):
                     self._pid.abandon()
             if self._pid_task is not None and not self._pid_task.done():

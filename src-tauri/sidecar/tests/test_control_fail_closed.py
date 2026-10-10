@@ -233,9 +233,7 @@ class TestResetRoast:
         assert manager._pid is None
 
     async def test_reset_before_pid_stop_zero_is_unsafe_no_heater_write(self, manager):
-        """Document #753: reset before /pid/off abandons PID; stop() is then a no-op."""
-        from pid_runner import STOP_ZERO
-
+        """#753 defense: /reset while PID is running STOP_HOLDs feedback (FakeAdapter heater=50)."""
         fake = FakeAdapter(readings=[make_reading(bt=150.0)])
         with patch("manager.make_adapter", return_value=fake):
             await manager.connect("giesen_standard", {})
@@ -244,10 +242,11 @@ class TestResetRoast:
         calls_before = len(fake.control_calls)
 
         await manager.reset_roast()
-        await manager.pid_stop(STOP_ZERO)
 
         new_calls = fake.control_calls[calls_before:]
+        assert any(call.get("heater") == 50 for call in new_calls)
         assert not any(call.get("heater") == 0 for call in new_calls)
+        assert manager._pid is None
 
     async def test_reset_abandons_pid_without_heater_zero(self, manager):
         from pid import PidGains

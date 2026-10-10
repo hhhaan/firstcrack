@@ -76,9 +76,9 @@ import {
     showPendingSummary,
 } from './lib/active-roast-screen';
 import {
-    cancelDropControlWarningAfterRestore,
-    planSummaryDiscardSidecarReset,
-    shouldResetSidecarAfterSave,
+    dropCancelBannerAfterSuccessfulCancel,
+    invokeSidecarResetAfterSave,
+    runSummaryDiscardSidecarReset,
 } from './lib/active-roast-summary-wiring';
 import {
     chartOnlyPreheatDecision,
@@ -412,9 +412,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [lifecycle]);
     const onSidecarResetAfterSave = useCallback(
         (sessionId: string | null) => {
-            const live = useRoastingStore.getState();
-            if (!shouldResetSidecarAfterSave({ sessionId, live })) return;
-            lifecycle.resetSidecarRoast();
+            invokeSidecarResetAfterSave({
+                sessionId,
+                readLive: () => useRoastingStore.getState(),
+                resetSidecarRoast: lifecycle.resetSidecarRoast,
+            });
         },
         [lifecycle],
     );
@@ -933,7 +935,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             return;
         }
         machineControl.replay.restore(restore.replayActive ?? false);
-        setDropCancelControlWarning(cancelDropControlWarningAfterRestore(restore));
+        setDropCancelControlWarning(dropCancelBannerAfterSuccessfulCancel(restore));
         saveFlow.flow.closeSummary();
     }, [lifecycle, machineControl.replay, saveFlow.flow]);
 
@@ -1233,22 +1235,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 canCancelDrop={dropCancelable}
                 onCancelDrop={handleCancelDrop}
                 onDiscard={() => {
-                    const sessionId = saveFlow.flow.summaryData?.sessionId;
-                    const hadSummary = Boolean(saveFlow.flow.summaryData);
                     setDropCancelControlWarning(null);
-                    saveFlow.discardSummary();
-                    const live = useRoastingStore.getState();
-                    if (
-                        planSummaryDiscardSidecarReset({
-                            sessionId,
-                            hadSummaryBeforeDiscard: hadSummary,
-                            snapshotSessionId: live.completed?.snapshot.sessionId,
-                            summaryAfterDiscard: live.completed?.summary,
-                            live,
-                        })
-                    ) {
-                        lifecycle.resetSidecarRoast();
-                    }
+                    const sessionId = saveFlow.flow.summaryData?.sessionId;
+                    const completedBefore = useRoastingStore.getState().completed;
+                    runSummaryDiscardSidecarReset({
+                        sessionId,
+                        completedBeforeDiscard: completedBefore,
+                        discardSummary: saveFlow.discardSummary,
+                        readLive: () => useRoastingStore.getState(),
+                        resetSidecarRoast: lifecycle.resetSidecarRoast,
+                    });
                 }}
                 onSave={saveFlow.handleSave}
             />

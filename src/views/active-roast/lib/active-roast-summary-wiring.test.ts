@@ -1,8 +1,12 @@
 import type { CompletedRoastRestore } from '@features/active-roast/model/batch';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     cancelDropControlWarningAfterRestore,
+    dropCancelBannerAfterSuccessfulCancel,
+    hadSummaryBeforeSummaryDiscard,
+    invokeSidecarResetAfterSave,
     planSummaryDiscardSidecarReset,
+    runSummaryDiscardSidecarReset,
     shouldResetSidecarAfterSave,
 } from './active-roast-summary-wiring';
 
@@ -84,5 +88,137 @@ describe('shouldResetSidecarAfterSave', () => {
                 },
             }),
         ).toBe(false);
+    });
+
+    it('skips when batch B is roasting (M14)', () => {
+        expect(
+            shouldResetSidecarAfterSave({
+                sessionId: 's-a',
+                live: {
+                    sessionId: 's-b',
+                    phase: 'roasting',
+                    awaitingNextCharge: false,
+                    pid: { state: 'off', sv: null, duty: null, pv: null, p: 0, i: 0, d: 0, error: null },
+                },
+            }),
+        ).toBe(false);
+    });
+});
+
+describe('invokeSidecarResetAfterSave (M14 wiring)', () => {
+    it('does not reset when another batch owns the machine', () => {
+        const reset = vi.fn();
+        invokeSidecarResetAfterSave({
+            sessionId: 's-a',
+            readLive: () => ({
+                sessionId: 's-b',
+                phase: 'roasting',
+                awaitingNextCharge: false,
+                pid: { state: 'off', sv: null, duty: null, pv: null, p: 0, i: 0, d: 0, error: null },
+            }),
+            resetSidecarRoast: reset,
+        });
+        expect(reset).not.toHaveBeenCalled();
+    });
+
+    it('resets after Drop save on the same batch', () => {
+        const reset = vi.fn();
+        invokeSidecarResetAfterSave({
+            sessionId: 's-a',
+            readLive: () => ({
+                sessionId: null,
+                phase: 'standby',
+                awaitingNextCharge: true,
+                pid: { state: 'off', sv: null, duty: null, pv: null, p: 0, i: 0, d: 0, error: null },
+            }),
+            resetSidecarRoast: reset,
+        });
+        expect(reset).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('dropCancelBannerAfterSuccessfulCancel (M3 wiring)', () => {
+    it('returns banner state from restore.controlBeforeDrop', () => {
+        const restore = {
+            sessionId: 's-a',
+            controlBeforeDrop: { pidEngaged: true, pidSv: 205, heater: 60 },
+        } as CompletedRoastRestore;
+        expect(dropCancelBannerAfterSuccessfulCancel(restore)).toEqual({
+            pidEngaged: true,
+            pidSv: 205,
+            heater: 60,
+        });
+    });
+
+    it('returns null when restore is missing', () => {
+        expect(dropCancelBannerAfterSuccessfulCancel(null)).toBeNull();
+    });
+});
+
+describe('runSummaryDiscardSidecarReset (M4 / M16 wiring)', () => {
+    it('does not reset when batch B is roasting', () => {
+        const reset = vi.fn();
+        runSummaryDiscardSidecarReset({
+            sessionId: 's-a',
+            completedBeforeDiscard: {
+                summary: { sessionId: 's-a' } as import('@features/active-roast/model/batch').RoastSummaryData,
+                snapshot: { sessionId: 's-a' },
+            },
+            discardSummary: () => {},
+            readLive: () => ({
+                sessionId: 's-b',
+                phase: 'roasting',
+                awaitingNextCharge: false,
+                completed: { summary: null, snapshot: { sessionId: 's-a' } },
+            }),
+            resetSidecarRoast: reset,
+        });
+        expect(reset).not.toHaveBeenCalled();
+    });
+
+    it('does not reset when store had no summary (#752 / M16)', () => {
+        const reset = vi.fn();
+        runSummaryDiscardSidecarReset({
+            sessionId: 's-a',
+            completedBeforeDiscard: { summary: null, snapshot: { sessionId: 's-a' } },
+            discardSummary: () => {},
+            readLive: () => ({
+                sessionId: null,
+                phase: 'standby',
+                awaitingNextCharge: true,
+                completed: { summary: null, snapshot: { sessionId: 's-a' } },
+            }),
+            resetSidecarRoast: reset,
+        });
+        expect(reset).not.toHaveBeenCalled();
+    });
+
+    it('resets after a real discard on the same batch', () => {
+        const reset = vi.fn();
+        runSummaryDiscardSidecarReset({
+            sessionId: 's-a',
+            completedBeforeDiscard: {
+                summary: { sessionId: 's-a' } as import('@features/active-roast/model/batch').RoastSummaryData,
+                snapshot: { sessionId: 's-a' },
+            },
+            discardSummary: () => {},
+            readLive: () => ({
+                sessionId: null,
+                phase: 'standby',
+                awaitingNextCharge: true,
+                completed: { summary: null, snapshot: { sessionId: 's-a' } },
+            }),
+            resetSidecarRoast: reset,
+        });
+        expect(reset).toHaveBeenCalledTimes(1);
+    });
+
+    it('hadSummaryBeforeSummaryDiscard ignores modal-only truthiness (M16)', () => {
+        expect(hadSummaryBeforeSummaryDiscard({ summary: null })).toBe(false);
+        expect(
+            hadSummaryBeforeSummaryDiscard({
+                summary: { sessionId: 's-a' } as import('@features/active-roast/model/batch').RoastSummaryData,
+            }),
+        ).toBe(true);
     });
 });

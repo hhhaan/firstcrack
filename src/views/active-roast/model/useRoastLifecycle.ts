@@ -157,7 +157,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         if (!sidecarConnected) return;
         const pid = useRoastingStore.getState().pid;
         if (shouldSkipSidecarResetWhilePidEngaged(pid)) {
-            logger.capture(new Error('Skipped roast reset while PID engaged'), {
+            logger.warn('Skipped roast reset while PID engaged', {
                 context: 'resetSidecarRoast',
                 pidState: pid?.state ?? 'off',
             });

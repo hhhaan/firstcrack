@@ -139,6 +139,49 @@ describe('resetActiveRoast after End (#455)', () => {
     });
 });
 
+describe('resetSidecarRoast PID guard (M12)', () => {
+    beforeEach(() => {
+        vi.mocked(sidecar.resetRoast).mockReset().mockResolvedValue({ ok: true });
+        useRoastingStore.setState({
+            phase: 'standby',
+            sidecarConnected: true,
+            pid: { state: 'running', sv: 200, duty: 50, pv: 180, p: 0, i: 0, d: 0, error: null },
+        });
+    });
+
+    it('does not POST /reset when store PID is engaged', () => {
+        const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+        const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
+        const h = renderLifecycle();
+        try {
+            void act(() => h.result.resetSidecarRoast());
+            expect(sidecar.resetRoast).not.toHaveBeenCalled();
+            expect(warn).toHaveBeenCalledWith(
+                'Skipped roast reset while PID engaged',
+                expect.objectContaining({ context: 'resetSidecarRoast', pidState: 'running' }),
+            );
+            expect(capture).not.toHaveBeenCalled();
+        } finally {
+            warn.mockRestore();
+            capture.mockRestore();
+            h.unmount();
+        }
+    });
+
+    it('POSTs /reset when PID is off', () => {
+        useRoastingStore.setState({
+            pid: { state: 'off', sv: null, duty: null, pv: null, p: 0, i: 0, d: 0, error: null },
+        });
+        const h = renderLifecycle();
+        try {
+            void act(() => h.result.resetSidecarRoast());
+            expect(sidecar.resetRoast).toHaveBeenCalledTimes(1);
+        } finally {
+            h.unmount();
+        }
+    });
+});
+
 describe('confirmEndRoast roast metrics (#514)', () => {
     beforeEach(() => {
         feature.bbp = true;

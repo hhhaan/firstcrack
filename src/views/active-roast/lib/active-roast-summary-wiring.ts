@@ -44,3 +44,54 @@ export const shouldResetSidecarAfterSave = (input: SaveSidecarResetInput): boole
     if (shouldSkipSidecarResetWhilePidEngaged(input.live.pid)) return false;
     return true;
 };
+
+/** ActiveRoast onDiscard: hadSummary from store, not the modal prop (#752 / M16). */
+export const hadSummaryBeforeSummaryDiscard = (
+    completed: { summary: RoastSummaryData | null } | null | undefined,
+): boolean => Boolean(completed?.summary);
+
+export type RunSummaryDiscardSidecarInput = {
+    sessionId: string | null | undefined;
+    completedBeforeDiscard: { summary: RoastSummaryData | null; snapshot: { sessionId: string } } | null | undefined;
+    discardSummary: () => void;
+    readLive: () => SummaryDiscardSidecarInput['live'] & {
+        completed?: { summary: RoastSummaryData | null; snapshot: { sessionId: string } } | null;
+    };
+    resetSidecarRoast: () => void;
+};
+
+/** Mirrors ActiveRoast summary modal Don't Save → sidecar reset wiring (M4 / M16). */
+export const runSummaryDiscardSidecarReset = (input: RunSummaryDiscardSidecarInput): void => {
+    const sessionId = input.sessionId;
+    const hadSummary = hadSummaryBeforeSummaryDiscard(input.completedBeforeDiscard);
+    input.discardSummary();
+    const live = input.readLive();
+    if (
+        planSummaryDiscardSidecarReset({
+            sessionId,
+            hadSummaryBeforeDiscard: hadSummary,
+            snapshotSessionId: live.completed?.snapshot.sessionId,
+            summaryAfterDiscard: live.completed?.summary,
+            live,
+        })
+    ) {
+        input.resetSidecarRoast();
+    }
+};
+
+export type InvokeSidecarResetAfterSaveInput = {
+    sessionId: string | null;
+    readLive: () => SaveSidecarResetInput['live'];
+    resetSidecarRoast: () => void;
+};
+
+/** Mirrors ActiveRoast onSidecarResetAfterSave (M14). */
+export const invokeSidecarResetAfterSave = (input: InvokeSidecarResetAfterSaveInput): void => {
+    if (!shouldResetSidecarAfterSave({ sessionId: input.sessionId, live: input.readLive() })) return;
+    input.resetSidecarRoast();
+};
+
+/** Mirrors ActiveRoast handleCancelDrop banner after successful cancelDrop (M3). */
+export const dropCancelBannerAfterSuccessfulCancel = (
+    restore: CompletedRoastRestore | null | undefined,
+): DropControlSnapshot | null => (restore ? cancelDropControlWarningAfterRestore(restore) : null);
