@@ -2350,6 +2350,22 @@ export type Database = {
                 };
                 Returns: undefined;
             };
+            write_cupping_scorecards_batch: {
+                Args: {
+                    p_cards: Json;
+                    p_cupped_by: string;
+                    p_invite_id: string;
+                    p_participant_id: string;
+                    p_publish: boolean;
+                };
+                Returns: {
+                    created: boolean;
+                    cupped_at: string;
+                    id: string;
+                    sample_id: string;
+                    total_score: number;
+                }[];
+            };
         };
         Enums: {
             [_ in never]: never;
