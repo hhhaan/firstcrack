@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from '../fixtures/app';
+import { expect, goNav, test } from '../fixtures/app';
 
 const modbusMachine = (id: string | number, name: string, address = 1000) => ({
     id,
@@ -184,6 +184,23 @@ test('imports Firescope machine and graph settings once without connecting hardw
         JSON.parse(localStorage.getItem('e2e:tauri-store:settings.json') ?? '{}'),
     );
     expect(storedSettings['roast.settings']).toMatchObject({ tempMinC: 50, tempMaxC: 250, timeRangeMin: 12 });
+
+    await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+    await goNav(page, 'machines');
+    await page.getByText('Synthetic RTU', { exact: true }).first().click();
+    const connectionDetails = page.getByRole('region', { name: 'Connection', exact: true });
+    await expect(connectionDetails.getByText(/\[object Object\]/)).toHaveCount(0);
+    for (const [label, value] of [
+        ['BT Register', '1000'],
+        ['ET Register', '1001'],
+        ['BT Unit ID', '1'],
+        ['ET Unit ID', '1'],
+    ]) {
+        await expect(
+            connectionDetails.getByRole('term').filter({ hasText: label }).locator('..').getByRole('definition'),
+        ).toHaveText(value);
+    }
+    await page.screenshot({ path: testInfo.outputPath('firescope-machine-details.png'), animations: 'disabled' });
 
     await page.reload();
     await expect(page.getByTestId('app-sidebar')).toBeVisible();

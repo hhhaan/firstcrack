@@ -39,6 +39,18 @@ for (const protocol of ['modbus', 's7']) {
         await expect(dialog).toBeHidden();
 
         await page.getByText('Firescope', { exact: true }).first().click();
+        const connectionDetails = page.getByRole('region', { name: 'Connection', exact: true });
+        await expect(connectionDetails).toBeVisible();
+        await expect(connectionDetails.getByText(/\[object Object\]/)).toHaveCount(0);
+        const btAddress = connectionDetails.getByRole('term').filter({
+            hasText: protocol === 'modbus' ? 'BT Register' : 'BT DB',
+        });
+        await expect(btAddress.locator('..').getByRole('definition')).toHaveText(protocol === 'modbus' ? '0' : '3');
+        await expect(
+            connectionDetails.getByRole('term').filter({ hasText: 'BT Scale' }).locator('..').getByRole('definition'),
+        ).toHaveText('÷10');
+        await expect(connectionDetails.getByRole('heading', { name: 'ET', exact: true })).toHaveCount(0);
+        await page.screenshot({ path: testInfo.outputPath('connection-details.png') });
         await page.getByRole('button', { name: 'Edit connection settings' }).click();
         await expect(dialog).toBeVisible();
         const connection = await dialog.getByRole('region', { name: 'Connection settings' }).boundingBox();
