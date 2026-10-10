@@ -22,6 +22,10 @@ for (const protocol of ['modbus', 's7']) {
         if (protocol === 'modbus') await dialog.getByRole('combobox', { name: /^Connection \*/ }).selectOption('tcp');
         await dialog.getByLabel('IP Address').fill('192.168.44.26');
         await dialog.getByLabel('Port', { exact: true }).fill(protocol === 'modbus' ? '502' : '102');
+        if (protocol === 's7') {
+            await dialog.getByLabel('Rack', { exact: true }).fill('0');
+            await dialog.getByLabel('Slot', { exact: true }).fill('1');
+        }
 
         const advanced = dialog
             .locator('details')
@@ -42,6 +46,19 @@ for (const protocol of ['modbus', 's7']) {
         const connectionDetails = page.getByRole('region', { name: 'Connection', exact: true });
         await expect(connectionDetails).toBeVisible();
         await expect(connectionDetails.getByText(/\[object Object\]/)).toHaveCount(0);
+        await expect(connectionDetails.getByText('192.168.44.26', { exact: true })).toBeVisible();
+        const details = connectionDetails.locator('details');
+        await expect(details).not.toHaveAttribute('open');
+        await expect(details.locator('dt').filter({ hasText: 'BT Scale' })).toBeHidden();
+        await details.locator('summary').click();
+        if (protocol === 's7') {
+            await expect(
+                details.getByRole('term').filter({ hasText: 'Rack' }).locator('..').getByRole('definition'),
+            ).toHaveText('0');
+            await expect(
+                details.getByRole('term').filter({ hasText: 'Slot' }).locator('..').getByRole('definition'),
+            ).toHaveText('1');
+        }
         const btAddress = connectionDetails.getByRole('term').filter({
             hasText: protocol === 'modbus' ? 'BT Register' : 'BT DB',
         });
@@ -50,6 +67,7 @@ for (const protocol of ['modbus', 's7']) {
             connectionDetails.getByRole('term').filter({ hasText: 'BT Scale' }).locator('..').getByRole('definition'),
         ).toHaveText('÷10');
         await expect(connectionDetails.getByRole('heading', { name: 'ET', exact: true })).toHaveCount(0);
+        await details.locator('summary').click();
         await page.screenshot({ path: testInfo.outputPath('connection-details.png') });
         await page.getByRole('button', { name: 'Edit connection settings' }).click();
         await expect(dialog).toBeVisible();

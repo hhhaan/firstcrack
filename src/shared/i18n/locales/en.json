@@ -662,6 +662,7 @@
         },
         "notConnectedHint": "Not connected. Press Connect to start.",
         "connection": "Connection",
+        "connectionDetails": "Connection details",
         "disconnect": "Disconnect",
         "connect": "Connect",
         "sidecarStarting": "Preparing to connect...",

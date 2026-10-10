@@ -662,6 +662,7 @@
         },
         "notConnectedHint": "未接続です。「接続」を押して開始します。",
         "connection": "接続",
+        "connectionDetails": "接続の詳細",
         "disconnect": "切断",
         "connect": "接続",
         "sidecarStarting": "接続の準備中...",
