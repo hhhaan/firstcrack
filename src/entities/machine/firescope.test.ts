@@ -160,10 +160,27 @@ describe('mapFirescopeMachine', () => {
         expect(mapped.issues).toEqual([{ field: 'connection.modbus[2]', code: 'unsupported-channel' }]);
     });
 
+    it.each([0, 42, Number.MAX_SAFE_INTEGER])('preserves numeric source id %s and sensor addresses', (id) => {
+        const mapped = mapFirescopeMachine({ ...modbusMachine, id });
+        expect(mapped.draft).not.toBeNull();
+        expect(mapped.sourceId).toBe(id);
+        expect(mapped.draft?.importSource).toEqual({ product: 'Firescope', sourceId: id });
+        expect(mapped.draft?.connectionParams).toEqual(mapFirescopeMachine(modbusMachine).draft?.connectionParams);
+        expect(mapped.issues).toEqual([]);
+    });
+
     it.each([
-        [{ ...modbusMachine, id: undefined }, 'missing'],
-        [{ ...modbusMachine, id: 42 }, 'invalid-type'],
-    ])('blocks import without a valid source id', (raw, code) => {
+        [undefined, 'missing'],
+        ['', 'invalid-type'],
+        ['   ', 'invalid-type'],
+        [true, 'invalid-type'],
+        [42.5, 'invalid-type'],
+        [Number.MAX_SAFE_INTEGER + 1, 'invalid-type'],
+        [Number.NaN, 'invalid-type'],
+        [Number.POSITIVE_INFINITY, 'invalid-type'],
+        [{ id: 42 }, 'invalid-type'],
+    ])('blocks invalid source id %s', (id, code) => {
+        const raw = { ...modbusMachine, id };
         const mapped = mapFirescopeMachine(raw);
         expect(mapped.sourceId).toBeNull();
         expect(mapped.draft).toBeNull();

@@ -16,7 +16,7 @@ export type FirescopeMachineIssue = {
 };
 
 export type FirescopeMachineMapping = {
-    sourceId: string | null;
+    sourceId: string | number | null;
     name: string;
     driver: string;
     transport: string;
@@ -64,7 +64,10 @@ const readSensors = (raw: Obj): unknown[] => {
 export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMachineMapping => {
     const issues: FirescopeMachineIssue[] = [];
     const issue = (field: string, code: FirescopeMachineIssue['code']) => issues.push({ field, code });
-    const sourceId = typeof raw.id === 'string' && raw.id.trim() ? raw.id : null;
+    const sourceId =
+        (typeof raw.id === 'string' && raw.id.trim()) || (typeof raw.id === 'number' && Number.isSafeInteger(raw.id))
+            ? raw.id
+            : null;
     const name = text(raw.name) ?? 'Firescope machine';
     const connection = object(raw.connection);
     const driver = text(connection?.driver) ?? '';
@@ -78,7 +81,7 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
         issues,
     });
     if (raw.id == null) issue('id', 'missing');
-    else if (!sourceId) issue('id', 'invalid-type');
+    else if (sourceId === null) issue('id', 'invalid-type');
 
     if (!connection) {
         issue('connection', 'missing');
@@ -224,7 +227,7 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
                   connectionParams,
                   capabilities: [],
                   pid: null,
-                  ...(sourceId ? { importSource: { product: 'Firescope' as const, sourceId } } : {}),
+                  ...(sourceId !== null ? { importSource: { product: 'Firescope' as const, sourceId } } : {}),
               },
     );
 };

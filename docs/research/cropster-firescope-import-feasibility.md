@@ -317,15 +317,19 @@ Firescope decoder fixture에는 같은 키 덮어쓰기·삭제, WAL에만 최�
 
 설정 → 로스팅 → 가져오기에 자동 탐색·미리보기·선택 적용을 구현했다. Python 표준 라이브러리만 사용하는 reader가 원본 DB를 읽기 전용으로 잠그고 복사본을 검사한다. CURRENT/MANIFEST의 활성 SST/WAL, CRC32C, Snappy와 IndexedDB schema 5 / Blink 16–21 / V8 15의 일반 객체·문자열을 지원한다. JSON 두 번 파싱이나 raw 문자열 검색을 사용하지 않는다. 외부 blob, 새 포맷, 미완료 Chromium scope/undo/cleanup 작업은 적용을 거부한다.
 
-현재 로컬 복사본에서 그래프와 실머신 3대의 ID별 마지막 설정을 복구했다. 데모는 제외하고 현재 머신과 과거 후보를 별도로 표시한다. source version은 DB만으로 확인되지 않아 null이다. 누락·숫자형 ID와 중복 BT/ET는 적용을 차단한다.
+현재 로컬 복사본에서 그래프와 실머신 3대의 ID별 마지막 설정을 복구했다. 데모는 제외하고 현재 머신과 과거 후보를 별도로 표시한다. source version은 DB만으로 확인되지 않아 null이다. ID는 비어 있지 않은 문자열 또는 JavaScript safe integer를 원래 타입으로 보존한다. 누락·잘못된 ID와 중복 BT/ET는 적용을 차단한다.
 
-일반 Modbus 및 EasysterSmart의 RTU/ASCII/TCP/UDP integer FC3/4, S7 Ethernet TCP INT/REAL을 명시적으로 변환한다. 주소에 보정을 더하지 않으며 Modbus signed=true, decimalPlace 0/1/2, sensor unit을 유지한다. S7은 °C 센서만 지원한다. 보정 0, 필수 통신 설정이 확인된 경우에만 머신을 적용한다. 전용 Probat/Phidget/Diedrich/Bullet 동작과 float/BCD·보조 채널은 원본 주소·미지원 이유를 보여준다. 새 머신은 custom key, 빈 capabilities, PID 없음, 쓰기 맵 없음으로 저장되며 자동 연결하지 않는다. signed 값은 기존 머신 편집 폼에서도 보존한다.
+일반 Modbus 및 EasysterSmart의 RTU/ASCII/TCP/UDP integer FC3/4, S7 Ethernet TCP INT/REAL을 명시적으로 변환한다. 주소에 보정을 더하지 않으며 Modbus signed=true, decimalPlace 0/1/2, sensor unit을 유지한다. S7은 °C 센서만 지원한다. 보정 0, 필수 통신 설정이 확인된 경우에만 머신을 적용한다. 전용 Probat/Phidget/Diedrich/Bullet 동작과 float/BCD·보조 채널은 미지원 이유를 사용자용 문구로 보여준다. 원본 키·주소 목록은 가져오기 화면에 노출하지 않는다. 새 머신은 custom key, 빈 capabilities, PID 없음, 쓰기 맵 없음으로 저장되며 자동 연결하지 않는다. signed 값은 기존 머신 편집 폼에서도 보존한다.
 
-그래프는 온도 단위·축 범위, 시간 범위·눈금, BT/ET/RoR 색상, ET 표시를 변환한다. 라이브 축의 단위는 최신 머신의 temperatureUnit이고, 이력 표시에서는 global.temperature를 사용하므로 화면에서 단위를 확인할 수 있다. RoR 계산·평활화, 이벤트 감지와 보조 그래프는 동등성을 확인하지 못해 건너뛰고 원본값을 표시한다. 기존 선 두께·스타일과 매핑하지 않은 FC 설정을 유지한다.
+그래프는 온도 단위·축 범위, 시간 범위·눈금, BT/ET/RoR 색상, ET 표시를 변환한다. 라이브 축의 단위는 최신 머신의 temperatureUnit이고, 이력 표시에서는 global.temperature를 사용하므로 화면에서 단위를 확인할 수 있다. RoR 계산·평활화, 이벤트 감지와 보조 그래프는 동등성을 확인하지 못해 건너뛴다. 미리보기는 사용자용 설정명과 변경 전후 값을 표시한다. 기존 선 두께·스타일과 매핑하지 않은 FC 설정을 유지한다.
 
 머신 source ID로 재가져오기 중복을 막고 기존 플랜 한도를 검사한다. 그래프는 저장 성공 후 화면에 적용하며 실패한 LazyStore 캐시는 복원한다. 머신은 한 batch로 저장하고 실패하면 메모리 상태를 복원한다. 두 저장소 사이의 원자적 트랜잭션은 제공하지 않으며 그래프 저장 뒤 머신 저장이 실패하면 부분 성공을 명시한다.
 
 합성 DB decoder 테스트 31개와 전체 sidecar 테스트 527개가 통과했다(기존 skip 3개). 브라우저 테스트 4개에서 자동 탐색·미리보기·적용·재실행 저장 유지·중복 방지·플랜 한도·저장 실패와 장비 자동 연결 없음도 확인했다. Apple Silicon PyInstaller 패키지를 임시 디렉터리에 빌드하고 실제 로컬 DB를 읽는 authenticated HTTP smoke에서 머신 3대와 그래프 50–250°C/720초를 대조했다. 이 검증은 FC 설치 번들 전체의 검증이나 실기기 연결 테스트를 대체하지 않는다.
+
+실제 로컬 머신 3대는 숫자형 ID를 사용한다. 최초 매퍼가 문자열만 허용해 모두 적용 불가로 표시하는 오류를 재현하고 수정했다. 수정 후 3대 모두 매핑되며 선택된 통신 설정과 BT/ET Modbus register·unit ID·FC·scale 및 S7 DB·offset·type·scale가 원본과 일치하는 것을 확인했다. 머신 단위 테스트 26개와 브라우저 테스트 4개가 통과했으며, 숫자 `42`와 문자열 `"42"`를 구분한 재실행 중복 방지도 검증했다. 지원하지 않는 보조 채널은 계속 건너뛴다.
+
+Artisan의 macOS native plist·기본값 생략·연결 매핑 추가 조사는 [별도 문서](artisan-settings-import-feasibility.md)에 정리했다.
 
 ## 미검증·잔여 위험
 

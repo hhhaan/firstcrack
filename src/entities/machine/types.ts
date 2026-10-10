@@ -26,7 +26,7 @@ export interface Machine {
     capabilities: string[];
     pid: { Kp: number; Ki: number; Kd: number } | null;
     createdAt: string;
-    importSource?: { product: 'Firescope'; sourceId: string };
+    importSource?: { product: 'Firescope'; sourceId: string | number };
 }
 
 /** Durable roast/profile copy of the machine used. Local id is not a FK. */

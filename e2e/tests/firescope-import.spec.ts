@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/app';
 
-const modbusMachine = (id: string, name: string, address = 1000) => ({
+const modbusMachine = (id: string | number, name: string, address = 1000) => ({
     id,
     name,
     connection: {
@@ -111,7 +111,8 @@ test('imports Firescope machine and graph settings once without connecting hardw
                 contentType: 'application/json',
                 body: JSON.stringify(
                     snapshot([
-                        { sequence: 10, current: true, settings: modbusMachine('modbus-1', 'Synthetic RTU') },
+                        { sequence: 10, current: true, settings: modbusMachine(42, 'Synthetic RTU') },
+                        { sequence: 8, current: false, settings: modbusMachine('42', 'String ID RTU') },
                         { sequence: 9, current: false, settings: unsupportedProbat },
                     ]),
                 ),
@@ -171,8 +172,13 @@ test('imports Firescope machine and graph settings once without connecting hardw
     expect(persistedMachines.state.machines).toHaveLength(1);
     expect(persistedMachines.state.machines[0]).toMatchObject({
         name: 'Synthetic RTU',
-        importSource: { product: 'Firescope', sourceId: 'modbus-1' },
-        connectionParams: { modbus_registers: { BT: { register: 1000, func: 4, signed: true, div: 1 } } },
+        importSource: { product: 'Firescope', sourceId: 42 },
+        connectionParams: {
+            modbus_registers: {
+                BT: { register: 1000, func: 4, signed: true, div: 1 },
+                ET: { register: 1001, func: 4, signed: true, div: 1 },
+            },
+        },
     });
     const storedSettings = await page.evaluate(() =>
         JSON.parse(localStorage.getItem('e2e:tauri-store:settings.json') ?? '{}'),
@@ -183,6 +189,8 @@ test('imports Firescope machine and graph settings once without connecting hardw
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
     settings = await openImporter(page);
     await expect(settings.getByRole('checkbox', { name: /Synthetic RTU Already imported/ })).toBeDisabled();
+    await expect(settings.getByRole('checkbox', { name: /String ID RTU/ })).toBeEnabled();
+    await expect(settings.getByRole('checkbox', { name: /String ID RTU/ })).not.toBeChecked();
     await settings.getByRole('checkbox', { name: /Also import graph settings/ }).uncheck();
     await expect(settings.getByRole('button', { name: 'Import selected settings', exact: true })).toBeDisabled();
     const reloadedSettings = await page.evaluate(() =>

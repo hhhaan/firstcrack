@@ -36,7 +36,7 @@ export function FirescopeSettingsImport() {
     const candidates =
         snapshot?.machines.map((candidate) => ({ ...candidate, mapping: mapFirescopeMachine(candidate.settings) })) ??
         [];
-    const alreadyImported = (sourceId: string | null) =>
+    const alreadyImported = (sourceId: string | number | null) =>
         sourceId !== null &&
         machines.some(
             (machine) => machine.importSource?.product === 'Firescope' && machine.importSource.sourceId === sourceId,
