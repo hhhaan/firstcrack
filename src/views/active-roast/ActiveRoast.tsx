@@ -99,6 +99,7 @@ import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
 import { ReplayProfileChangeModal } from './ui/ReplayProfileChangeModal';
+import { RoastAside } from './ui/RoastAside';
 import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
 import { RoastSidePanel } from './ui/RoastSidePanel';
@@ -1071,63 +1072,65 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onAddEvent={chartFrame.onAddEvent}
                     />
 
-                    {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}
-                    <MachineControlPanel
-                        model={machineControl}
-                        liveData={liveData}
-                        pidDropBehavior={roastSettings.pidDropBehavior}
-                        replayPoints={replayPoints}
-                        temperatureUnit={unit}
-                        hotkeysEnabled={isRoastShortcutBaseEnabled({
-                            isActive,
-                            showEndRoastModal: saveFlow.flow.endRoastModal,
-                            showSummaryModal: saveFlow.flow.summaryModal,
-                            showContinueModal: saveFlow.flow.continueModal,
-                        })}
-                    />
+                    {/* 그래프 | 머신 컨트롤 | 수치 | 로그. 각 왼쪽 경계가 그 칸의 폭이다. */}
+                    <RoastAside>
+                        <MachineControlPanel
+                            model={machineControl}
+                            liveData={liveData}
+                            pidDropBehavior={roastSettings.pidDropBehavior}
+                            replayPoints={replayPoints}
+                            temperatureUnit={unit}
+                            hotkeysEnabled={isRoastShortcutBaseEnabled({
+                                isActive,
+                                showEndRoastModal: saveFlow.flow.endRoastModal,
+                                showSummaryModal: saveFlow.flow.summaryModal,
+                                showContinueModal: saveFlow.flow.continueModal,
+                            })}
+                        />
 
-                    <RoastSidePanel
-                        rawBT={rawBT}
-                        rawET={rawET}
-                        displayRoR={displayRoR}
-                        timeStr={timeStr}
-                        unit={unit}
-                        phase={phase}
-                        roastPhaseName={roastPhaseName}
-                        roastPhaseColor={roastPhaseColor}
-                        charged={charged}
-                        roastEnded={roastEnded}
-                        deltaBT={deltaBT}
-                        deltaET={deltaET}
-                        targetDelta={targetDelta}
-                        activeAlerts={activeAlerts}
-                        dtrPct={dtrPct}
-                        devTimeStr={devTimeOnly}
-                        rollingDtrPct={rollingDtrPct}
-                        rollingDevTimeStr={rollingDevTimeOnly}
-                        fcDualMarkEnabled={fcDualMarkEnabled}
-                        fcDualUnwind={fcDualUnwind}
-                        logEntries={logEntries}
-                        pressedButtons={pressedButtons}
-                        roastLogDisplayEntries={roastLogDisplayEntries}
-                        noteInput={noteInput}
-                        onNoteChange={setNoteInput}
-                        onNoteSubmit={handleNoteSubmit}
-                        onMarkEvent={markEvent}
-                        onCycleFc={cycleFc}
-                        onHandleDrop={markDrop}
-                        onRemoveLogEntry={removeLogEntry}
-                        logEditOptions={
-                            chartFrame.onEventMarkerEdit
-                                ? { unit, livePoints, maxTimeSec: elapsed, onEditEntry: handleEventMarkerEdit }
-                                : undefined
-                        }
-                        onEnterStandby={lifecycle.handleEnterStandby}
-                        onManualCharge={lifecycle.handleManualCharge}
-                        onEndRoast={handleEndRoastClick}
-                        bbpTimer={bbpTimer}
-                        bbpChargeWait={bbpChargeWait}
-                    />
+                        <RoastSidePanel
+                            rawBT={rawBT}
+                            rawET={rawET}
+                            displayRoR={displayRoR}
+                            timeStr={timeStr}
+                            unit={unit}
+                            phase={phase}
+                            roastPhaseName={roastPhaseName}
+                            roastPhaseColor={roastPhaseColor}
+                            charged={charged}
+                            roastEnded={roastEnded}
+                            deltaBT={deltaBT}
+                            deltaET={deltaET}
+                            targetDelta={targetDelta}
+                            activeAlerts={activeAlerts}
+                            dtrPct={dtrPct}
+                            devTimeStr={devTimeOnly}
+                            rollingDtrPct={rollingDtrPct}
+                            rollingDevTimeStr={rollingDevTimeOnly}
+                            fcDualMarkEnabled={fcDualMarkEnabled}
+                            fcDualUnwind={fcDualUnwind}
+                            logEntries={logEntries}
+                            pressedButtons={pressedButtons}
+                            roastLogDisplayEntries={roastLogDisplayEntries}
+                            noteInput={noteInput}
+                            onNoteChange={setNoteInput}
+                            onNoteSubmit={handleNoteSubmit}
+                            onMarkEvent={markEvent}
+                            onCycleFc={cycleFc}
+                            onHandleDrop={markDrop}
+                            onRemoveLogEntry={removeLogEntry}
+                            logEditOptions={
+                                chartFrame.onEventMarkerEdit
+                                    ? { unit, livePoints, maxTimeSec: elapsed, onEditEntry: handleEventMarkerEdit }
+                                    : undefined
+                            }
+                            onEnterStandby={lifecycle.handleEnterStandby}
+                            onManualCharge={lifecycle.handleManualCharge}
+                            onEndRoast={handleEndRoastClick}
+                            bbpTimer={bbpTimer}
+                            bbpChargeWait={bbpChargeWait}
+                        />
+                    </RoastAside>
                 </div>
             </div>
 

@@ -6,9 +6,11 @@ import {
     useShortcutKeys,
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
+import { ResizableColumn } from '@shared/ui/ResizableColumn';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useTranslation } from 'react-i18next';
 import { isMachineControlPanelShown, MACHINE_CONTROL_CHANNEL_ROLES } from '../lib/controlPanelShown';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
@@ -46,6 +48,7 @@ export const MachineControlPanel = ({
     temperatureUnit,
     hotkeysEnabled = false,
 }: Props) => {
+    const { t } = useTranslation();
     const entitled = useFeature(FEATURE.machineControl);
     const { machine, pid, replay, pidActive, changeManual, commitManual } = model;
     const { writable, limits, desired, unacknowledged, sending } = machine;
@@ -77,14 +80,8 @@ export const MachineControlPanel = ({
         (role) => limits[role] != null && unacknowledged.has(role),
     );
 
-    return (
-        <div
-            className={
-                collapsed
-                    ? 'w-7 shrink-0 self-stretch min-h-0 border-l border-border-subtle flex flex-col items-center gap-2 pt-2 pb-3 bg-(--color-roast-bg)'
-                    : 'w-40 shrink-0 self-stretch min-h-0 border-l border-border-subtle overflow-y-auto px-2.5 pb-5 pt-1 flex flex-col gap-3 bg-(--color-roast-bg) [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
-            }
-        >
+    const frame = (
+        <>
             <div className={collapsed ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between gap-1'}>
                 {!collapsed && (
                     <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
@@ -160,6 +157,27 @@ export const MachineControlPanel = ({
                 {/* PID 진입 UI는 임시 숨김. 이미 작동 중이면 해제·오류 확인은 유지한다. */}
                 {pidActive && <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />}
             </div>
-        </div>
+        </>
+    );
+
+    if (collapsed) {
+        return (
+            <div className="w-7 shrink-0 self-stretch min-h-0 border-l border-border-subtle flex flex-col items-center gap-2 pt-2 pb-3 bg-(--color-roast-bg)">
+                {frame}
+            </div>
+        );
+    }
+
+    return (
+        <ResizableColumn
+            columnId="machine"
+            floor={160}
+            label={t('activeRoast.aside.resizeMachine')}
+            className="border-l border-border-subtle bg-(--color-roast-bg)"
+        >
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2.5 pb-5 pt-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                {frame}
+            </div>
+        </ResizableColumn>
     );
 };
