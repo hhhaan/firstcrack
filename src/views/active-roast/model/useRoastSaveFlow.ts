@@ -332,8 +332,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             return;
         clearPendingRoastSave(summaryOwnerId ?? workspaceOwnerId, sessionId);
         flow.discardSummary(summaryOwnerId, sessionId);
-        onResetSidecarRoast();
-    }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId, onResetSidecarRoast]);
+    }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId]);
 
     const handleStartNext = useCallback(
         async (row: PlanBatchWithProgress) => {

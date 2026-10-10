@@ -549,14 +549,6 @@ describe('completed batch identity at asynchronous and recovery boundaries', () 
 });
 
 describe('explicit discard is scoped to the visible summary', () => {
-    it('calls sidecar reset once after discard', () => {
-        const h = renderFlow({ sessionId: 's-a' });
-        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
-        act(() => h.api.discardSummary());
-        expect(h.onResetSidecarRoast).toHaveBeenCalledTimes(1);
-        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
-    });
-
     it('an old A discard callback cannot delete the new B checkpoint or summary', () => {
         const h = renderFlow({ sessionId: 's-a' });
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));

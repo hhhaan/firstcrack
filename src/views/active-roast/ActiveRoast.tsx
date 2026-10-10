@@ -1189,7 +1189,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 canCancelDrop={dropCancelable}
                 onCancelDrop={handleCancelDrop}
                 onDiscard={() => {
+                    const sessionId = saveFlow.flow.summaryData?.sessionId;
                     saveFlow.discardSummary();
+                    const completed = useRoastingStore.getState().completed;
+                    if (sessionId && completed?.snapshot.sessionId === sessionId && completed.summary === null) {
+                        lifecycle.resetSidecarRoast();
+                    }
                 }}
                 onSave={saveFlow.handleSave}
             />
