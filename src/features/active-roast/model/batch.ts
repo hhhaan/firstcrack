@@ -37,6 +37,12 @@ export interface RoastSummaryData {
     planBatchHandoff?: PlanBatchHandoff | null;
     handoffBeanName?: string | null;
 }
+export interface DropControlSnapshot {
+    pidEngaged: boolean;
+    pidSv: number | null;
+    heater: number | null;
+}
+
 export interface CompletedRoastRestore {
     sessionId: string;
     sessionOwnerId: string | null;
@@ -47,6 +53,7 @@ export interface CompletedRoastRestore {
     replayActive: boolean;
     selection: RoastSelection;
     machineSnapshot: MachineSnapshot | null;
+    controlBeforeDrop: DropControlSnapshot;
 }
 export interface CompletedRoastSnapshot {
     sessionId: string;
@@ -263,6 +270,7 @@ export const createBatchActions = (
         onset?: DropOnset;
         replayActive: boolean;
         livePoints?: LiveRoastPoint[];
+        controlBeforeDrop: DropControlSnapshot;
     }) => {
         const state = get();
         const planned = planDropTransition({
@@ -285,7 +293,11 @@ export const createBatchActions = (
                 (point) => Number.isFinite(point.time) && point.time <= planned.dropTimeSec,
             ),
         );
-        const restore: CompletedRoastRestore = { ...snapshot, replayActive: input.replayActive };
+        const restore: CompletedRoastRestore = {
+            ...snapshot,
+            replayActive: input.replayActive,
+            controlBeforeDrop: input.controlBeforeDrop,
+        };
         const summary = summaryForSnapshot(planned.summary, snapshot);
         resetCurrent({
             phase: state.sidecarConnected ? 'standby' : 'idle',

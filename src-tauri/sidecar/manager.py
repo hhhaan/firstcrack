@@ -1020,13 +1020,9 @@ class RoasterManager:
             if self._adapter is None:
                 return
 
-            # 히터 0은 쓰기 게이트를 닫기 전에. control()은 _resetting/_connected
-            # 이후 거절한다 (#219와 같은 순서).
+            # DROP 화력 정책은 앱 /pid/off가 담당한다 — reset은 메모리만 정리(#749).
             if self._pid is not None:
-                try:
-                    await self._pid.stop("reset", mode=STOP_ZERO)
-                except Exception:
-                    pass
+                self._pid.abandon()
             if self._pid_task is not None and not self._pid_task.done():
                 self._pid_task.cancel()
             self._pid_task = None

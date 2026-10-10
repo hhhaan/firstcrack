@@ -12,6 +12,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import { deleteBbpTsv, formatRoastTsvRow, formatTsvRows, replaceSessionTsv } from '@shared/lib/tsv-writer';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
+import { captureDropControlSnapshot } from '../lib/drop-cancel-control';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
 export interface UseRoastLifecycleParams {
@@ -46,6 +47,7 @@ export interface UseRoastLifecycleReturn {
     }) => RoastSummaryData | null;
     cancelDrop: (expectedSessionId?: string | null) => boolean;
     recoverLiveBbp: () => void;
+    resetSidecarRoast: () => void;
 }
 
 const isTauri = () => '__TAURI_INTERNALS__' in window;
@@ -145,16 +147,22 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         rearmAutoChargeRef,
     ]);
 
-    const resetEffects = useCallback(() => {
+    const resetLocalEffects = useCallback(() => {
         resetAutoDetectionRef.current?.();
+        setZoomRange(null);
+        setHoveredChartIndex(null);
+    }, [resetAutoDetectionRef, setZoomRange, setHoveredChartIndex]);
+    const resetSidecarRoast = useCallback(() => {
         if (sidecarConnected) {
             sidecar.resetRoast().catch((error) => {
                 logger.capture(new Error('Roast reset command failed'), { reason: String(error) });
             });
         }
-        setZoomRange(null);
-        setHoveredChartIndex(null);
-    }, [resetAutoDetectionRef, sidecarConnected, setZoomRange, setHoveredChartIndex]);
+    }, [sidecarConnected]);
+    const resetEffects = useCallback(() => {
+        resetLocalEffects();
+        resetSidecarRoast();
+    }, [resetLocalEffects, resetSidecarRoast]);
     const resetActiveRoast = useCallback(
         (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => {
             const state = useRoastingStore.getState();
@@ -182,9 +190,14 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             onset?: DropOnset;
             commitSummary?: (summary: RoastSummaryData) => void;
         }): RoastSummaryData | null => {
-            const planned = useRoastingStore
-                .getState()
-                .drop({ ...input, rawBT, unit, replayActive: replayActiveRef?.current ?? false });
+            const roastState = useRoastingStore.getState();
+            const planned = roastState.drop({
+                ...input,
+                rawBT,
+                unit,
+                replayActive: replayActiveRef?.current ?? false,
+                controlBeforeDrop: captureDropControlSnapshot(roastState),
+            });
             if (!planned) return null;
             input.commitSummary?.(planned.summary);
             if (bbpEnabled) useBbpStore.getState().begin(planned.bbpStartMs, planned.bbpSeed);
@@ -211,12 +224,12 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             disableAutoDropRef.current();
             const summary = completeDrop(input);
             if (!summary) return null;
-            resetEffects();
+            resetLocalEffects();
             disableAutoDropRef.current();
             input.holdAutoChargeUntilRecovery();
             return summary;
         },
-        [completeDrop, resetEffects, disableAutoDropRef],
+        [completeDrop, resetLocalEffects, disableAutoDropRef],
     );
     const cancelDrop = useCallback((expectedSessionId?: string | null): boolean => {
         const restore = useRoastingStore.getState().cancelDrop(expectedSessionId);
@@ -249,5 +262,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         finishDrop,
         cancelDrop,
         recoverLiveBbp,
+        resetSidecarRoast,
     };
 };

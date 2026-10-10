@@ -58,6 +58,16 @@ async def run_ticks(machine: FakeMachine, runner: PidRunner, count: int, step: f
 
 
 class TestLifecycle:
+    async def test_abandon_does_not_write_duty(self):
+        m = FakeMachine()
+        r = make_runner(m)
+        await r.start(200.0)
+        await run_ticks(m, r, 1)
+        m.writes.clear()
+        r.abandon()
+        assert m.writes == []
+        assert r.state_name == OFF
+
     async def test_off_by_default_writes_nothing(self):
         m = FakeMachine()
         r = make_runner(m)

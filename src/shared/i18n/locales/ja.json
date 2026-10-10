@@ -815,6 +815,10 @@
             "reopen": "結果を保存",
             "cancelDrop": "排出を取り消す"
         },
+        "dropCancelControl": {
+            "warning": "PIDがオフです · 火力 0%",
+            "restorePid": "PIDを再オン（前回の目標値）"
+        },
         "chart": {
             "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         },

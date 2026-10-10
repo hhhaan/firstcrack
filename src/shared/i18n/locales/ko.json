@@ -1113,6 +1113,10 @@
             "reopen": "결과 저장",
             "cancelDrop": "배출 취소"
         },
+        "dropCancelControl": {
+            "warning": "PID가 꺼져 있어요 · 화력 0%",
+            "restorePid": "PID 다시 켜기 (이전 목표값)"
+        },
         "phase": {
             "idle": "대기",
             "preheating": "예열 중",

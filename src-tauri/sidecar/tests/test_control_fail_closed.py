@@ -185,6 +185,36 @@ class TestConnectMapMerge:
 
 
 class TestResetRoast:
+    async def test_reset_abandons_pid_without_heater_zero(self, manager):
+        from pid import PidGains
+        from pid_runner import PidRunner, PvSample
+
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("giesen_standard", {})
+        await manager.control(heater=70)
+
+        async def read_pv() -> PvSample:
+            return PvSample(bt=150.0, ts=0.0, stale=False, connected=True)
+
+        async def write_duty(duty: float) -> None:
+            await fake.control(heater=duty)
+
+        runner = PidRunner(
+            read_pv=read_pv,
+            write_duty=write_duty,
+            gains=PidGains(1.0, 0.1, 0.0),
+        )
+        await runner.start(200.0)
+        manager._pid = runner
+        calls_before = len(fake.control_calls)
+
+        await manager.reset_roast()
+
+        new_calls = fake.control_calls[calls_before:]
+        assert not any(call.get("heater") == 0 for call in new_calls)
+        assert manager._pid is None
+
     @pytest.mark.parametrize(
         "roaster", ["custom_modbus", "custom_phidget", "custom_probat_ws", "kaleido", "giesen_standard"]
     )
@@ -218,11 +248,11 @@ class TestResetRoast:
         await adapter.connect()
         _bind_virtual(manager, adapter)
 
-        stopped: list[tuple[str, str, bool]] = []
+        abandoned: list[bool] = []
 
         class _Pid:
-            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
-                stopped.append((reason, mode, manager._connected))
+            def abandon(self) -> None:
+                abandoned.append(manager._connected)
 
         manager._pid = _Pid()
 
@@ -239,7 +269,7 @@ class TestResetRoast:
         assert manager._reconnecting()
         assert manager.status()["reconnecting"] is True
         assert manager._pid is None
-        assert stopped == [("reset", "zero", True)]
+        assert abandoned == [True]
 
     async def test_reset_reconnect_fail_loop_retries_connect(self, manager, monkeypatch):
         import config

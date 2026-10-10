@@ -207,6 +207,7 @@ describe('completeDrop → BBP (#484)', () => {
     beforeEach(() => {
         feature.bbp = true;
         vi.mocked(replaceSessionTsv).mockClear();
+        vi.mocked(sidecar.resetRoast).mockClear();
         useRoastingStore.setState({ completed: null });
         useBbpStore.setState({
             active: false,
@@ -333,6 +334,7 @@ describe('completeDrop → BBP (#484)', () => {
             expect(summary?.sessionId).toBe('s-a');
             expect(commitSummary).toHaveBeenCalledTimes(1);
             expect(order).toEqual(['disable-drop', 'reset', 'disable-drop', 'hold-charge']);
+            expect(sidecar.resetRoast).not.toHaveBeenCalled();
             expect(armed).toEqual({ charge: false, drop: false });
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
@@ -350,6 +352,22 @@ describe('completeDrop → BBP (#484)', () => {
             expect(commitSummary).toHaveBeenCalledTimes(1);
             expect(holdAutoChargeUntilRecovery).toHaveBeenCalledTimes(1);
             expect(useRoastingStore.getState().completed?.snapshot.sessionId ?? null).toBe('s-a');
+        } finally {
+            h.unmount();
+        }
+    });
+
+    it('cancelDrop does not call sidecar reset', () => {
+        const h = renderLifecycle([log('Charge', 0)]);
+        try {
+            void act(() => {
+                h.result.completeDrop({ livePoints: [], onset: { timeSec: 600, bt: 205 } });
+            });
+            vi.mocked(sidecar.resetRoast).mockClear();
+            void act(() => {
+                expect(h.result.cancelDrop()).toBe(true);
+            });
+            expect(sidecar.resetRoast).not.toHaveBeenCalled();
         } finally {
             h.unmount();
         }

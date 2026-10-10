@@ -815,6 +815,10 @@
             "reopen": "保存结果",
             "cancelDrop": "取消出豆"
         },
+        "dropCancelControl": {
+            "warning": "PID 已关闭 · 火力 0%",
+            "restorePid": "重新开启 PID（上次目标值）"
+        },
         "chart": {
             "ariaLabel": "温度曲线图。使用滚轮或 +/- 缩放，拖拽或方向键平移，按 0 重置缩放。"
         },

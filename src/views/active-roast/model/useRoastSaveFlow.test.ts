@@ -112,11 +112,13 @@ const renderFlow = (patch: FlowFixture = {}) => {
     const root = createRoot(document.createElement('div'));
     roots.add(root);
     const onResetActiveRoast = vi.fn();
+    const onResetSidecarRoast = vi.fn();
     let api: ReturnType<typeof useRoastSaveFlow>;
     const Probe = () => {
         api = useRoastSaveFlow({
             rawBT: 200,
             onResetActiveRoast,
+            onResetSidecarRoast,
             ...(patch.rawBT !== undefined && { rawBT: patch.rawBT }),
             ambientTemperature: patch.ambientTemperature,
             ambientHumidity: patch.ambientHumidity,
@@ -131,6 +133,7 @@ const renderFlow = (patch: FlowFixture = {}) => {
         },
         rerender,
         onResetActiveRoast,
+        onResetSidecarRoast,
         unmount: () => {
             act(() => root.unmount());
             roots.delete(root);
@@ -503,7 +506,12 @@ describe('completed batch identity at asynchronous and recovery boundaries', () 
         const nextId = useRoastingStore.getState().startCharge(undefined, 'workspace-a');
         if (!nextId) throw new Error('B did not Charge');
         act(() => {
-            const completed = useRoastingStore.getState().drop({ rawBT: 205, unit: 'C', replayActive: false });
+            const completed = useRoastingStore.getState().drop({
+                rawBT: 205,
+                unit: 'C',
+                replayActive: false,
+                controlBeforeDrop: { pidEngaged: false, pidSv: null, heater: null },
+            });
             if (!completed) throw new Error('B did not Drop');
             h.api.confirmEndRoast(completed.summary);
         });
@@ -541,6 +549,14 @@ describe('completed batch identity at asynchronous and recovery boundaries', () 
 });
 
 describe('explicit discard is scoped to the visible summary', () => {
+    it('calls sidecar reset once after discard', () => {
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        act(() => h.api.discardSummary());
+        expect(h.onResetSidecarRoast).toHaveBeenCalledTimes(1);
+        expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+    });
+
     it('an old A discard callback cannot delete the new B checkpoint or summary', () => {
         const h = renderFlow({ sessionId: 's-a' });
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));

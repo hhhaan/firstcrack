@@ -815,6 +815,10 @@
             "reopen": "Save results",
             "cancelDrop": "Cancel Drop"
         },
+        "dropCancelControl": {
+            "warning": "PID is off · heater at 0%",
+            "restorePid": "Turn PID back on (previous target)"
+        },
         "chart": {
             "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         },

@@ -1,9 +1,14 @@
+import { DropCancelControlBanner } from './DropCancelControlBanner';
 import { UnsavedRoastBanner } from './UnsavedRoastBanner';
 
 interface ActiveRoastSensorNoticesProps {
     showUnsavedBanner: boolean;
     unsavedTime: string;
     onReopenUnsaved: () => void;
+    showDropCancelControlWarning: boolean;
+    showRestorePidAfterDropCancel: boolean;
+    onRestorePidAfterDropCancel: () => void;
+    restorePidBusy: boolean;
     showAutoChargeUnavailable: boolean;
     showAutoDropUnavailable: boolean;
     autoChargeMessage: string;
@@ -14,6 +19,10 @@ export const ActiveRoastSensorNotices = ({
     showUnsavedBanner,
     unsavedTime,
     onReopenUnsaved,
+    showDropCancelControlWarning,
+    showRestorePidAfterDropCancel,
+    onRestorePidAfterDropCancel,
+    restorePidBusy,
     showAutoChargeUnavailable,
     showAutoDropUnavailable,
     autoChargeMessage,
@@ -21,6 +30,13 @@ export const ActiveRoastSensorNotices = ({
 }: ActiveRoastSensorNoticesProps) => (
     <>
         {showUnsavedBanner && <UnsavedRoastBanner timeStr={unsavedTime} onReopen={onReopenUnsaved} />}
+        {showDropCancelControlWarning && (
+            <DropCancelControlBanner
+                showRestorePid={showRestorePidAfterDropCancel}
+                restoreBusy={restorePidBusy}
+                onRestorePid={onRestorePidAfterDropCancel}
+            />
+        )}
         {showAutoChargeUnavailable && (
             <p role="status" className="text-sm text-muted-foreground">
                 {autoChargeMessage}

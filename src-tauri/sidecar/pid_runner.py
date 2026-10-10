@@ -157,6 +157,18 @@ class PidRunner:
             raise
         _log.info("PID 중단: reason=%s mode=%s", reason, mode)
 
+    def abandon(self) -> None:
+        """In-memory teardown without machine writes — batch reset after app /pid/off."""
+        if self._state == OFF:
+            return
+        self._pid.release()
+        self._state = OFF
+        self._error = None
+        self._hold_since = None
+        self._last_sent = None
+        self._ticks_since_send = 0
+        self._write_failures = 0
+
     async def set_sv(self, sv: float) -> None:
         if self._state not in (RUNNING, HOLDING):
             raise RuntimeError("PID가 실행 중이 아닙니다.")

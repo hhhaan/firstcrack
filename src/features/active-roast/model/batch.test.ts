@@ -23,8 +23,14 @@ const charge = () => {
     state.startCharge(Date.now() - 600_000, 'owner', { bt: 180, unit: 'C' });
     state.setLivePoints([point(0), point(600), point(610)]);
 };
-const drop = () =>
-    useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: true, onset: { timeSec: 600, bt: 200 } });
+const drop = (controlBeforeDrop = { pidEngaged: false, pidSv: null as number | null, heater: null as number | null }) =>
+    useRoastingStore.getState().drop({
+        rawBT: 200,
+        unit: 'C',
+        replayActive: true,
+        onset: { timeSec: 600, bt: 200 },
+        controlBeforeDrop,
+    });
 
 describe('central batch ownership and transitions', () => {
     beforeEach(() => {
@@ -87,6 +93,37 @@ describe('central batch ownership and transitions', () => {
         expect(state.commitProfile('approved', state.sessionId, 'owner')).toBe(true);
         expect(useRoastingStore.getState().activeSelection?.profileId).toBe('approved');
         expect(useRoastingStore.getState().prepared.profileId).toBe('approved');
+    });
+
+    it('captures PID and heater in the Drop restore snapshot', () => {
+        charge();
+        useRoastingStore.setState({
+            pid: {
+                state: 'running',
+                sv: 215,
+                duty: 55,
+                pv: 200,
+                p: 0,
+                i: 0,
+                d: 0,
+                error: null,
+            },
+            liveData: {
+                bt: 200,
+                et: 210,
+                ror: 1,
+                ror_et: 1,
+                heater: 72,
+                fan: 40,
+                drum: 60,
+            },
+        });
+        drop({ pidEngaged: true, pidSv: 215, heater: 72 });
+        expect(useRoastingStore.getState().completed?.restore?.controlBeforeDrop).toEqual({
+            pidEngaged: true,
+            pidSv: 215,
+            heater: 72,
+        });
     });
 
     it('freezes Drop and releases the machine in a single memory update', () => {

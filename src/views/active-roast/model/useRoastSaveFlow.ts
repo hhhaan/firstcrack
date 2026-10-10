@@ -33,6 +33,7 @@ export interface UseRoastSaveFlowParams {
     ambientTemperature?: number | null;
     ambientHumidity?: number | null;
     onResetActiveRoast: () => void;
+    onResetSidecarRoast: () => void;
 }
 
 /** After save, load fresh day batches and keep remaining as rows (materialize on select). */
@@ -53,7 +54,7 @@ export const isLiveDetachedFromPending = (
     Boolean(live.awaitingNextCharge && !isChargedPhase(live.phase));
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
-    const { rawBT, ambientTemperature, ambientHumidity, onResetActiveRoast } = params;
+    const { rawBT, ambientTemperature, ambientHumidity, onResetActiveRoast, onResetSidecarRoast } = params;
     const planBatchHandoff = useRoastingStore((state) => selectRoastSelection(state).planBatchHandoff);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -331,7 +332,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             return;
         clearPendingRoastSave(summaryOwnerId ?? workspaceOwnerId, sessionId);
         flow.discardSummary(summaryOwnerId, sessionId);
-    }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId]);
+        onResetSidecarRoast();
+    }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId, onResetSidecarRoast]);
 
     const handleStartNext = useCallback(
         async (row: PlanBatchWithProgress) => {
@@ -348,6 +350,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 if (liveNow.sessionId) return;
                 useRoastingStore.getState().startBatch(toPlanBatchHandoff(real));
                 flow.dismissContinue();
+                onResetSidecarRoast();
             } catch (err) {
                 invalidateScheduledBatchQueries(qc);
                 throw err;
@@ -355,7 +358,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 nextStarting.current = false;
             }
         },
-        [workspaceOwnerId, isWorkspaceReady, qc, flow.dismissContinue],
+        [workspaceOwnerId, isWorkspaceReady, qc, flow.dismissContinue, onResetSidecarRoast],
     );
 
     return {
