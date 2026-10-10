@@ -526,13 +526,17 @@ Notes:
   WxA coarse는 1~10 step 명령이 한 단계 높아진다. 커스텀 맵과 이미 보정된 W45A/W60A는 제외한다.
 - 성공한 쓰기의 `applied`는 role별로 기억돼 `GET /temperatures`의 `heater_set`으로 나간다(해제 시 초기화).
 - **쓰기는 `write_map`이 있는 로스터에서만 일어난다.** `write_map`은 레지스트리
-  `default_params` 안에 있고, 읽기용 `channels`와 **셀이 다르다**. Giesen을 예로 들면
-  heater 피드백은 DB2.48(읽기 전용)이고 duty 세트포인트는 DB2.14(쓰기 대상)다.
-  읽기 role에 그대로 쓰면 피드백 레지스터를 덮어쓰게 되므로 절대 공유하지 않는다.
-- `write_map`에 없는 role, 또는 `write_map` 자체가 없는 로스터는 조용히 무시된다(no-op).
+  `default_params` 안에 있고, 읽기용 `channels`와 별도로 정의한다. Giesen 화력은
+  피드백 DB2.48(읽기 전용)과 duty 세트포인트 DB2.14(쓰기 대상)가 다르다.
+  클래식 W45A/W60A 드럼은 예외로 DB2.18을 읽고 쓴다.
+- `write_map`에 없는 role 요청은 `400`, 쓰기 맵이 없는 로스터는 `409`를 반환한다.
   현재 쓰기 맵이 있는 것은 Giesen S7 계열(db2 계열 `DB2.14`, W6A PRO `DB1001.42`)의
-  `heater`와 가상 머신뿐이다. fan/drum은 모델마다 slidermin/max가 달라(fan 250~280,
-  drum 34~60Hz) 레지스트리 키 분리가 선행돼야 한다.
+  `heater`, 클래식 `giesen_w45a_w60a`의 `drum`, 가상 머신이다.
+  W45A/W60A 드럼은 DB2.18 INT, 40~55 Hz, 오프셋 0이며 `/status.control.limits.drum`으로 노출한다.
+  이 범위는 Artisan W45A/W60A 슬라이더 기준이며 Quantifiers 상한 45나 W60A Pro 범위와 구분한다.
+  저장된 화력 전용 맵이 현재 또는 구형 기본 맵과 정확히 같으면 드럼을 추가하고, 커스텀 맵은 보존한다.
+  다른 Giesen 키의 쓰기 맵은 heater만 유지한다. fan/압력 쓰기와 드럼 Replay는 지원하지 않는다.
+  DB2.10은 Artisan에서 온도 SP로 지정돼 있으므로 팬 명령을 보내지 않는다.
 - 어댑터 쓰기 순서: `min`/`max` 클램프 → `div` 역스케일(읽기의 ÷10/÷100 반대) → `value_offset` 추가 →
   INT16 반올림·범위 검사 → `db_write`. 유한하지 않은 값(NaN/Inf)과 INT16 초과는
   `ValueError`로 거부한다.
