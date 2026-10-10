@@ -43,7 +43,7 @@ FC는 Tauri desktop이므로 로컬 저장소를 읽는 기능을 만들 수 있
 
 | ID | 자료 | 식별 정보 |
 |---|---|---|
-| F1 | `/Applications/Firescope.app/Contents/Resources/app.asar` | package `desktop`, productName `Firescope`, version `1.0.2`; SHA-256 `c842c66bc851cb5a21eee7a06148334760ddee8ff84089d7f89250276ddbdff1` |
+| F1 | `/Applications/Firescope.app/Contents/Resources/app.asar` | package `desktop`, productName `Firescope`, version `1.0.2`, bundle ID `com.cupnote.firescope`, bundled Electron `32.3.3`; SHA-256 `c842c66bc851cb5a21eee7a06148334760ddee8ff84089d7f89250276ddbdff1` |
 | F2 | Firescope `IndexedDB/file__0.indexeddb.leveldb` 복사본 | `CURRENT → MANIFEST-000001`; 활성 table `000062.ldb`, WAL `000060.log`; comparator `idb_cmp1`; 남은 데이터 파일과 활성 파일 목록 일치 |
 | C1 | 이전 조사에서 내려받아 둔 Linux RI 5.13 `.deb`와 JAR | `.deb` SHA-256 `8e5ae468c6c1ed3898d3b9728996464916988ed7dda201b942bb797913c73500`; `roastingintelligence-5.13.jar` SHA-256 `9f7a07242b208833e584758aad684193d819d0476d815bcd9a1e021b49b1c1f6` |
 | A1 | `~/Library/Preferences/org.artisan-scope.Artisan.plist` | `bplist00` binary plist, 94 keys; `Modbus.input1register`, `Modbus.input1code`, `Modbus.input1deviceId`, `Modbus.input1div`, `Modbus.baudrate`, `Modbus.stopbits`, `Modbus.wordorderLittle`, ExtraComm 통신 설정 확인; 앱 버전 미확인 |
@@ -56,6 +56,12 @@ C1은 `javap -p -c`와 클래스 상수·로컬 변수 정보를 대조했다. �
 
 ## Firescope
 
+### 이번 로컬 재확인
+
+**현재 사용자 머신에 Firescope 1.0.2와 설정 DB가 실제로 있으며, 앱을 실행하거나 export하지 않고 설정을 읽었다.** 자동 탐색 입력으로 기본 userData 아래의 IndexedDB 디렉터리를 사용할 수 있다. F1의 `out-tsc/app/main-window.js`는 배포 앱을 `file:` URL로 실행하며, 이번 DB의 origin과 일치한다. Electron 버전은 Framework의 `Info.plist`에서 32.3.3으로 확인했다. 원본 해시가 재확인 전후 동일했고 임시 복사본은 삭제했다.
+
+자동 인식의 첫 대상은 **현재 저장된 그래프 설정과 단일 머신 캐시**다. 이번 최고 sequence 머신은 `Test Machine`이며 실제 로스터가 아니다. 과거 머신 `dfa`의 설정도 로그에서 읽히지만, 이를 현재 머신으로 자동 선택하면 안 된다. 로컬 캐시가 없는 머신 목록을 얻기 위해 서버 로그인을 요구하는 흐름은 이 import의 범위에서 제외한다.
+
 ### 저장 방식과 범위
 
 F1의 `dist/main.2e097f7be22c8cee.js`에서 다음을 확인했다.
@@ -63,6 +69,7 @@ F1의 `dist/main.2e097f7be22c8cee.js`에서 다음을 확인했다.
 - `localStorageIDBDBName` 기본값은 `ngStorage`, `localStorageIDBStoreName`은 `localStorage`다. IndexedDB `objectStore.put(value, key)`를 사용한다. 서비스 이름의 localStorage와 Chromium의 Local Storage 디렉터리를 혼동하지 않는다.
 - `bps.setting`은 그래프 설정이다. `validateSetting`은 옛 `indicatorRorUnit`, `isIndicatorSwitch`를 Indicator 서비스로 옮긴다. 버전별로 같은 항목이 다른 키에 있을 수 있다.
 - `setActiveMachine`은 머신 1개를 `roasting-machine.RoastingMachineService`에 저장하고, `unsetActiveMachine`은 그 키를 삭제한다. 로그의 여러 값은 머신 목록이 아니라 이 키의 과거 버전이다. 키 자체가 없는 사용자도 처리해야 한다.
+- `validateRoastingMachine`은 `network = connection[connection.type]`, `sensors = connection[connection.protocol]`로 활성 연결·센서 설정을 선택한다. serial/ethernet 하위 객체의 존재 여부만으로 연결 방식을 판단하지 않는다.
 - 전체 머신은 `roasting-machines`, 그래프 템플릿은 `graph-settings/` HTTP 경로에서 가져온다. 이번에는 서버 API를 호출하거나 인증 정보를 사용하지 않았다.
 
 macOS에서 확인한 기본 위치는 `~/Library/Application Support/Firescope/IndexedDB/file__0.indexeddb.leveldb/`다. Windows의 `%APPDATA%\Firescope\IndexedDB\file__0.indexeddb.leveldb\`는 Electron 기본 userData 규칙에 따른 탐색 후보이며, 실제 Windows 설치본으로 검증하지 않았다. userData 변경이나 origin 변경도 고려한다. [Electron app.getPath](https://www.electronjs.org/docs/latest/api/app#appgetpathname)
@@ -74,14 +81,23 @@ macOS에서 확인한 기본 위치는 `~/Library/Application Support/Firescope/
 | 키 | 복구 레코드 수 | 최고 sequence | 관찰값 |
 |---|---:|---:|---|
 | `bps.setting` | 12 | 18437 | `dryingEndTemp=150`, `crackStartTemp=200`, `xAxisStart=-14`, `xAxisEnd=720`, `xAxisScaleUnit=60`, `yAxisStart=50`, `yAxisEnd=250` |
-| `roasting-machine.RoastingMachineService` | 21 | 19551 | `driver=DummyDriver`, `type=managed`, `protocol=websocket`, BT/ET 테스트 센서 |
+| `roasting-machine.RoastingMachineService` | 21 | 19551 | `name=Test Machine`, `preset=test`, `driver=DummyDriver`, `type=managed`, `protocol=websocket`, BT/ET 테스트 센서 |
 | `setting.IndicatorSettingService` | 12 | 18429 | `developmentTimeVisible=true`, `rorInterval=60`, `etBtSwapped=false` |
 | `setting.BbpSettingService` | 1 | 229 | `bbpEnabled=false`, `preheatDuration=300` |
 | `setting.GlobalSettingService` | 1 | 1269 | `temperature`, `weight`, `language`, `currency` 키 |
 
 `bps.setting`에는 Charge/Drop 감지 플래그와 7/3 온도 차이, BT/ET 색상, Gas/Airflow 이벤트 이름, 보조 센서 축도 있었다. #710의 `xAxisStart=-15`는 설치본 기본값이지만 이번 최고 sequence는 -14다. 기본값·예시·사용자 저장값을 구분한다.
 
-과거 Modbus 레코드 중 최고 sequence 18465는 serial RTU, baudRate 9600, dataBits 8, stopBits 2, parity `none`이었다. BT/ET는 주소 19/20, `sensorId=1`, `read=FC3`, `type=integer`, `decimalPlace=1`이었다. power/airflowPressure는 주소 21/22였다. **이 값을 현재 머신으로 제안하지 않는다.** #710의 `dfa`/FC4 예시는 이번 최고 레코드와 일치하지 않는다.
+과거 머신별로 확인한 Modbus 설정은 다음과 같다. 실제 포트 식별자·네트워크 주소는 문서에 기록하지 않았다.
+
+| 과거 머신 이름 | 해당 머신의 최고 sequence | preset | 활성 연결 | BT/ET 설정 |
+|---|---:|---|---|---|
+| `dfa` | 15167 | `easyster-non-option` | serial RTU, 9600 baud, 8 data bits, 2 stop bits, parity `none` | 둘 다 주소 1000, sensorId 1, FC4, integer, decimalPlace 1 |
+| `d` | 18465 | `buja-smart-gas-control` | Ethernet TCP | 주소 19/20, sensorId 1, FC3, integer, decimalPlace 1; power/airflowPressure는 21/22 |
+
+**18465를 serial RTU로 적었던 이전 문서를 수정한다.** 이 레코드는 `connection.type=ethernet`인데 과거 serial 객체도 남아 있었다. 활성 Ethernet 설정을 선택해야 한다. #710의 `dfa`/FC4 설정은 실제 과거 레코드에 있었지만 현재 최고 sequence 머신과는 다르다. 위 두 머신 모두 현재 머신으로 자동 제안하지 않는다.
+
+이번 그래프 값의 직접 매핑 후보는 FC `tempMinC=50`, `tempMaxC=250`, `timeRangeMin=12`와 `timeRangeCustom=true`, 시간 눈금 60초, BT/ET/RoR의 색상이다. 색상은 해당 채널의 `color`만 변경하고 기존 선 굵기·스타일은 보존한다. Firescope의 음수 시간축 시작과 자동 축 확장은 그대로 재현되지 않으므로 미리보기에 차이를 표시한다. FC 저장·재시작 검증은 아직 수행하지 않았다.
 
 `setting.ListPageFieldSettingService`도 해독했으나 재고·목록 화면 설정이라 범위에서 제외한다. `setting.RoastingFieldSettingService`는 설치본 코드에서 확인했지만 이번 F2의 설정 키 해독 결과에는 없었다. `roasting.RoastingService`는 세션·로스트 데이터가 섞일 수 있어 import allowlist에 넣지 않는다. Firebase DB는 별도 논리 DB이며 import 대상으로 읽지 않는다.
 
@@ -90,6 +106,12 @@ macOS에서 확인한 기본 위치는 `~/Library/Application Support/Firescope/
 JSON을 `strings`나 정규식으로 찾는 방식은 조사 단서에만 사용한다. Chromium IDB는 DB/store/index 메타데이터, 자체 comparator, sequence·삭제, WAL, V8/Blink 값을 해석해야 한다. generic LevelDB 라이브러리를 기본 comparator로 열거나 `.log` 파일 하나만 선택해서는 현재 설정을 보장하지 못한다. [Chromium coding scheme](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md), [LevelDB 구현](https://github.com/google/leveldb/blob/main/doc/impl.md)
 
 첫 importer는 소스 앱 종료 후 DB 디렉터리 전체의 일관된 복사본을 사용한다. 실행 중 임의 파일 복사는 DB snapshot과 같지 않다. recovery가 필요한 경우에도 복사본만 연다. 버전에 따라 external blob과 직렬화 wrapper도 필요할 수 있다. [LevelDB snapshot API](https://github.com/google/leveldb/blob/main/doc/index.md), [Chromium value wrapping](https://github.com/chromium/chromium/blob/main/third_party/blink/renderer/modules/indexeddb/idb_value_wrapping.cc)
+
+### FC에서 사용할 decoder
+
+기존 Python sidecar를 해독 기능의 실행 위치로 활용할 수 있다. 다만 조사용 ccl reader를 그대로 추가하는 것만으로 제품 importer가 완성되지는 않는다. 고정 버전의 `RawLevelDb`는 CURRENT가 아니라 가장 큰 MANIFEST 파일명을 선택하고 모든 데이터 파일을 스캔하며, CRC를 검증하지 않는다. IndexedDB metadata의 삭제와 최신 값도 별도로 재구성해야 한다. 최신 설정 해독이 실패하면 과거 설정으로 대체하지 않고 읽기 실패를 반환한다. [LevelDB reader 코드](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/ccl_chromium_reader/storage_formats/ccl_leveldb.py), [IndexedDB reader 코드](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/ccl_chromium_reader/ccl_chromium_indexeddb.py)
+
+ccl의 일반 package import에는 Brotli/zstd가 포함되고 Snappy 의존성은 Git HEAD를 참조하므로 별도 버전 고정·패키징 검증이 필요하다. native LevelDB를 사용하더라도 Chromium comparator와 Blink/V8 값 해독은 추가로 필요하다. **현재 샘플 추출은 검증됐지만, 출시 가능한 decoder 선택·구현은 미완료다.** 기존 sidecar에서 허용 설정만 읽는 기능을 만들고 합성 DB의 논리값과 대조하는 방향을 우선 검토한다. [ccl package metadata](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/pyproject.toml), [Chromium coding scheme](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md)
 
 ## Cropster RI 5.13
 
@@ -168,6 +190,7 @@ FC 기준 코드는 [RoastSettings](../../src/features/active-roast/model/settin
 | `dryingEndTemp` | 직접 대응 없음 | FC `yellowTempC`는 Yellowing 자동 mark; Dry end와 동일 이벤트로 취급하지 않음 |
 | `crackStartTemp`, 이벤트 이름·온도 채널 | 미지원 또는 개별 대응 | FC에 동등한 설정이 있는지 항목별 확인; 사용자 이름·ET를 자동 감지 의미로 바꾸지 않음 |
 | Charge/Drop 감지 플래그·온도 차이 | 보류 | FC는 standard/sensitive 감지와 시간·노이즈 조건 사용; 7/3을 임의 threshold로 복사하지 않음 |
+| Firescope `connection.type`, `connection.protocol` | transport·protocol 선택 | `connection[type]`와 `connection[protocol]`만 사용; Ethernet TCP → `mode=tcp`, serial RTU → `mode=rtu`; 남은 다른 연결 객체 무시 |
 | serial path, baudRate, dataBits, stopBits, parity | `comport`, `baudrate`, `bytesize`, `stopbits`, `parity` | 프로토콜 enum 변환; OS·USB 포트 변경 시 재선택; parity `none`과 FC `N` 등 실제 값 대조 |
 | Modbus address/read/sensorId/decimalPlace | `register`, `func`, `unit_id`, `div` | F1 driver는 address를 그대로 사용하고 sensorId를 setID에 전달; FC3/FC4 → 3/4, decimalPlace 0/1/2 → div 0/1/2 |
 | Modbus integer/float/BCD·보정 | 채널 dtype·word order 등 | signed integer, BCD, float scale, nonzero compensation을 생략하면 다른 측정값이 됨; 지원·단위 확인 전 import 불가 표시 |
@@ -181,7 +204,7 @@ F1 `out-tsc/app/driver/drivers/modbus.driver.js`는 `integer`를 signed 16-bit�
 
 ## 자동 탐색 구현 순서와 착수 조건
 
-첫 구현은 **세 제품의 로컬 저장소 자동 탐색**을 함께 제공하고, decoder는 실제 자료를 읽은 Firescope·Artisan native 설정부터 붙인다. Cropster 탐색도 root JSON·Java Preferences 후보를 찾도록 만들며 schema·활성 설정 우선순위 검증 뒤 설정 추출을 완성한다. 자동 탐색과 decoder 완성도를 구분해 특정 제품의 미검증 schema가 다른 제품 탐색을 막지 않게 한다. 이는 현재 증거에 따른 구현 제안이다.
+사용자 요청에 따라 **Firescope를 먼저 진행한다.** 알려진 userData 경로의 자동 탐색 → 앱 종료 확인·DB 복사 → 허용 설정 해독 → 그래프·현재 머신 미리보기까지를 첫 범위로 삼는다. 이번 로컬 자료는 그래프 추출과 과거 실제 머신 schema 검증에 사용할 수 있지만, 현재 머신이 데모이므로 지원 머신 설정을 현재 값으로 저장한 합성 snapshot과도 대조해야 한다. Cropster·Artisan 자동 탐색은 후속 범위다. 이는 현재 증거에 따른 구현 제안이며 앱 기능을 추가한 것은 아니다.
 
 공통 흐름은 **로컬 자동 탐색 → 제품/버전 판별 → 자동 읽기·허용 설정 추출 → FC 매핑 미리보기 → 선택 항목 적용**이다. 정상 흐름에서 파일 선택은 생략한다. fallback만 설정 파일 또는 논리적인 설정 export를 입력으로 한다. 임의 JSON·CSV·`.alog`나 단일 LevelDB `.log`가 설정 import fallback이 되지는 않는다. 읽을 저장소가 없으면 다른 PC의 설정 파일을 선택하거나 기존 머신 form에서 수동 입력한다.
 
