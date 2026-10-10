@@ -1,6 +1,7 @@
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { describe, expect, it } from 'vitest';
 import { parseTsv } from './tsv';
-import { formatRoastTsvRow, TSV_HEADER } from './tsv-writer';
+import { formatRoastTsvRow, formatTsvRows, TSV_HEADER } from './tsv-writer';
 
 const HEADER = 'time\tbt\tet\tror\theater\tfan\tdrum';
 
@@ -177,5 +178,44 @@ describe('parseTsv', () => {
     it('returns empty array for header-only or empty input', () => {
         expect(parseTsv(HEADER)).toEqual([]);
         expect(parseTsv('')).toEqual([]);
+    });
+});
+
+it('retains changing physical feedback units through TSV serialization and reload', () => {
+    const processing: TemperatureProcessing = {
+        algorithm_version: 'ema-least-squares-v1',
+        temperature_unit: 'C',
+        ror_unit: 'C/min',
+        timestamp_clock: 'sidecar-monotonic-seconds',
+        display_ema_alpha: 1,
+        ror_ema_alpha: 1,
+        ror_window_sec: 30,
+        ror_warmup_reads: 3,
+        read_units: { heater: '%', fan: 'Pa', drum: 'Hz' },
+    };
+    const points = [
+        { time: 0, bt: 190, et: 210, ror: 4, heater: 42.25, fan: 1234.56, drum: 31.25, processing },
+        {
+            time: 1,
+            bt: 191,
+            et: 210,
+            ror: 4,
+            heater: 42.25,
+            fan: 40,
+            drum: 50,
+            processing: { ...processing, read_units: { fan: '%' as const, drum: 'RPM' as const } },
+        },
+    ];
+    const result = parseTsv(TSV_HEADER + formatTsvRows(points, formatRoastTsvRow));
+    expect(result[0]).toMatchObject({ heater: 42.25, fan: 1234.56, drum: 31.25, processing });
+    expect(result[1].processing?.read_units).toEqual({ fan: '%', drum: 'RPM' });
+    expect(result[1].heater).toBeNull();
+    const emptyPoint = { ...points[0], heater: 0, fan: 0, drum: 0, processing: { ...processing, read_units: {} } };
+    const emptyRow = formatRoastTsvRow(emptyPoint);
+    expect(emptyRow.split('\t').slice(4, 7)).toEqual(['', '', '']);
+    expect(parseTsv(TSV_HEADER + formatTsvRows([emptyPoint], formatRoastTsvRow))[0]).toMatchObject({
+        heater: null,
+        fan: null,
+        drum: null,
     });
 });

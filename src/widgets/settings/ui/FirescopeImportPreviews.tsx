@@ -186,6 +186,7 @@ export function FirescopeMachinePreview({
     settings,
     mapping,
     imported,
+    updateAvailable,
     selected,
     disabled,
     onSelectedChange,
@@ -195,6 +196,7 @@ export function FirescopeMachinePreview({
     settings: Record<string, unknown>;
     mapping: ReturnType<typeof mapFirescopeMachine>;
     imported: boolean;
+    updateAvailable: boolean;
     selected: boolean;
     disabled: boolean;
     onSelectedChange: (selected: boolean) => void;
@@ -207,6 +209,15 @@ export function FirescopeMachinePreview({
     const subtype = readValue(connection, serial ? 'serial.type' : 'ethernet.type');
     const protocol = readValue(connection, 'protocol');
     const blockingIssue = mapping.issues.find((issue) => issue.code !== 'unsupported-channel');
+    const feedback =
+        mapping.draft?.capabilities.map((role) => {
+            const params = mapping.draft?.connectionParams;
+            const channel = Array.isArray(params?.channels)
+                ? params.channels.find((value) => readValue(value, 'role') === role)
+                : readValue(params?.modbus_registers, role);
+            const unit = readValue(channel, 'unit');
+            return `${tk(`feedback.${role === 'fan' && unit === 'Pa' ? 'airPressure' : role}`)} (${unit})`;
+        }) ?? [];
     return (
         <div className={enabled && selected ? 'min-w-0 bg-surface-warm' : 'min-w-0'}>
             <label className="flex items-start gap-3 p-4">
@@ -225,9 +236,11 @@ export function FirescopeMachinePreview({
                                 ? tk('alreadyImported')
                                 : !mapping.draft
                                   ? tk('manualSetup')
-                                  : current
-                                    ? tk('current')
-                                    : tk('recovered')}
+                                  : updateAvailable
+                                    ? tk('updateAvailable')
+                                    : current
+                                      ? tk('current')
+                                      : tk('recovered')}
                         </Badge>
                     </span>
                     <span className="mt-1 block text-xs text-secondary">
@@ -245,6 +258,9 @@ export function FirescopeMachinePreview({
                     )}
                     {blockingIssue && (
                         <span className="mt-2 block text-xs text-muted">{tk(`issues.${blockingIssue.code}`)}</span>
+                    )}
+                    {feedback.length > 0 && (
+                        <span className="mt-2 block text-xs text-secondary">{feedback.join(' · ')}</span>
                     )}
                     {!blockingIssue && mapping.issues.length > 0 && (
                         <span className="mt-2 block text-xs text-muted">{tk('extraSensors')}</span>

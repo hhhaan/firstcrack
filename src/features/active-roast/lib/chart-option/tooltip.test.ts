@@ -144,3 +144,27 @@ describe('createAxisTooltipFormatter', () => {
         expect(html).not.toContain('Target Drum');
     });
 });
+
+it('formats measured and stored reference channels with their own sample units', () => {
+    const fmt = createAxisTooltipFormatter({
+        ...formatterOpts,
+        controlData: {
+            xs: [0],
+            heatPower: [42.25],
+            fanSpeed: [1234.56],
+            drumTemp: [31.25],
+            readUnits: [{ heater: '%', fan: 'Pa', drum: 'Hz' }],
+            reference: { xs: [0], heater: [20], fan: [60], drum: [80], readUnits: [{ fan: '%', drum: 'RPM' }] },
+        },
+    });
+    const html = fmt([
+        { axisValue: 0, seriesName: 'Fan', dataIndex: 0, value: [0, 1234.56] },
+        { axisValue: 0, seriesName: 'Drum', dataIndex: 0, value: [0, 31.25] },
+        { axisValue: 0, seriesName: 'Fan Target', dataIndex: 0, value: [0, 60] },
+    ]);
+    expect(html).toContain('Air pressure');
+    expect(html).toContain('1234.56 Pa');
+    expect(html).toContain('31.25 Hz');
+    expect(html).toContain('60 %');
+    expect(html).not.toContain('1234.56%');
+});

@@ -71,7 +71,13 @@ export const useMachineFormActions = ({
             return;
         }
 
-        const assembled = assembleConnectionParams(selectedDef, params, showAddressMap, includeWriteMap);
+        const assembled = assembleConnectionParams(
+            selectedDef,
+            params,
+            showAddressMap,
+            includeWriteMap,
+            editing?.protocol === selectedDef.protocol ? editing.connectionParams : undefined,
+        );
         if (!assembled.ok) {
             setError(
                 assembled.invalid
@@ -122,7 +128,13 @@ export const useMachineFormActions = ({
             return;
         }
 
-        const assembled = assembleConnectionParams(selectedDef, params, showAddressMap, includeWriteMap);
+        const assembled = assembleConnectionParams(
+            selectedDef,
+            params,
+            showAddressMap,
+            includeWriteMap,
+            editing?.protocol === selectedDef.protocol ? editing.connectionParams : undefined,
+        );
         if (!assembled.ok) {
             setError(
                 assembled.invalid

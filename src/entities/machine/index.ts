@@ -1,5 +1,5 @@
 export type { FirescopeMachineIssue, FirescopeMachineMapping } from './firescope';
-export { mapFirescopeMachine } from './firescope';
+export { firescopeFeedbackUpdate, mapFirescopeMachine } from './firescope';
 export {
     addressFormFieldsForProtocol,
     buildProtocolRoasterDef,

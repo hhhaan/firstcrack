@@ -30,6 +30,7 @@ import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperatur
 import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
+import { feedbackLabel, feedbackUnit } from '@shared/lib/feedback';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { applyTimeEdit, commitEditTime, parseEditTime, type TimeEditKind } from '@shared/lib/time-edit';
@@ -261,10 +262,13 @@ const controlLegendItems = (
     curves: ResolvedCurveStyles,
 ): { style: CurveLineStyle; label: string }[] => {
     if (!controlData || (!drum && !heat && !fan)) return [];
+    const units = controlData.readUnits?.[controlData.readUnits.length - 1];
+    const label = (role: 'heater' | 'fan' | 'drum') =>
+        units?.[role] ? `${feedbackLabel(role, units)} (${feedbackUnit(role, units)})` : feedbackLabel(role);
     return [
-        ...(drum ? [{ style: curves.drum.current, label: 'Drum' }] : []),
-        ...(heat ? [{ style: curves.heat.current, label: 'Heat' }] : []),
-        ...(fan ? [{ style: curves.fan.current, label: 'Fan' }] : []),
+        ...(drum ? [{ style: curves.drum.current, label: label('drum') }] : []),
+        ...(heat ? [{ style: curves.heat.current, label: label('heater') }] : []),
+        ...(fan ? [{ style: curves.fan.current, label: label('fan') }] : []),
     ];
 };
 

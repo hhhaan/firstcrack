@@ -273,7 +273,8 @@ class ModbusAdapter:
                 if temp_mode == "F":
                     value = (value - 32.0) * 5.0 / 9.0
 
-                value = round(value, 1)
+                if cfg.get("unit") not in ("%", "Pa", "Hz", "RPM"):
+                    value = round(value, 1)
                 TRACE.record(
                     "info", "modbus",
                     f"decoded register={register} float={is_float} bcd32={is_bcd32} "

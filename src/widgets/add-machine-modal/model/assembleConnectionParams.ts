@@ -18,6 +18,7 @@ export const assembleConnectionParams = (
     params: Record<string, string>,
     showAddressMap: boolean,
     includeWriteMap: boolean,
+    existing?: Record<string, unknown>,
 ): { ok: true; typed: Record<string, unknown> } | { ok: false; missing?: string; invalid?: string } => {
     const missing = validateRoasterFormFields(selectedDef, params, {
         includeAddressMap: showAddressMap,
@@ -27,13 +28,19 @@ export const assembleConnectionParams = (
         const invalid = invalidSupportedAddressField(selectedDef.protocol, params);
         if (invalid) return { ok: false, invalid };
     }
-    return {
-        ok: true,
-        typed: persistConnectionParams(
-            buildTypedConnectionParams(selectedDef, params, {
-                includeAddressMap: showAddressMap,
-            }),
-            includeWriteMap,
-        ),
-    };
+    const typed = buildTypedConnectionParams(selectedDef, params, { includeAddressMap: showAddressMap });
+    // The temperature form must not discard imported feedback addresses or their units.
+    if (showAddressMap && selectedDef.protocol === 'modbus' && existing?.modbus_registers) {
+        typed.modbus_registers = {
+            ...(existing.modbus_registers as Record<string, unknown>),
+            ...(typed.modbus_registers as Record<string, unknown>),
+        };
+    }
+    if (showAddressMap && selectedDef.protocol === 's7' && Array.isArray(existing?.channels)) {
+        typed.channels = [
+            ...(typed.channels as Record<string, unknown>[]),
+            ...existing.channels.filter((channel) => channel?.role !== 'BT' && channel?.role !== 'ET'),
+        ];
+    }
+    return { ok: true, typed: persistConnectionParams(typed, includeWriteMap) };
 };

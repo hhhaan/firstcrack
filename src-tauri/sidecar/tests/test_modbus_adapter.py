@@ -246,6 +246,13 @@ class TestReadChannel:
         val = await connected_adapter._read_channel(cfg)
         assert val == 185.0  # 1850 ÷ 10
 
+    async def test_feedback_keeps_scaled_hundredths(self, connected_adapter):
+        cfg = {"register": 100, "func": 3, "unit_id": 1,
+               "float": False, "div": 2, "mode": "C", "signed": False, "unit": "Hz"}
+        connected_adapter._client.read_holding_registers = AsyncMock(
+            return_value=MockModbusResponse(registers=[3125]))
+        assert await connected_adapter._read_channel(cfg) == 31.25
+
     async def test_read_div_2(self, connected_adapter):
         cfg = {"register": 100, "func": 3, "unit_id": 1,
                "float": False, "div": 2, "mode": "C", "signed": False}

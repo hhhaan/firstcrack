@@ -30,6 +30,26 @@ const modbusMachine = (id: string | number, name: string, address = 1000) => ({
                 decimalPlace: 1,
                 compensation: 0,
             },
+            {
+                label: 'power',
+                unit: '%',
+                sensorId: 1,
+                address: 21,
+                read: 'FC3',
+                type: 'integer',
+                decimalPlace: 0,
+                compensation: 0,
+            },
+            {
+                label: 'airflowPressure',
+                unit: '%',
+                sensorId: 1,
+                address: 22,
+                read: 'FC3',
+                type: 'integer',
+                decimalPlace: 0,
+                compensation: 0,
+            },
         ],
     },
 });
@@ -173,10 +193,13 @@ test('imports Firescope machine and graph settings once without connecting hardw
     expect(persistedMachines.state.machines[0]).toMatchObject({
         name: 'Synthetic RTU',
         importSource: { product: 'Firescope', sourceId: 42 },
+        capabilities: ['heater', 'fan'],
         connectionParams: {
             modbus_registers: {
                 BT: { register: 1000, func: 4, signed: true, div: 1 },
                 ET: { register: 1001, func: 4, signed: true, div: 1 },
+                heater: { register: 21, func: 3, unit_id: 1, div: 0, unit: '%' },
+                fan: { register: 22, func: 3, unit_id: 1, div: 0, unit: '%' },
             },
         },
     });
@@ -195,10 +218,17 @@ test('imports Firescope machine and graph settings once without connecting hardw
         ['ET Register', '1001'],
         ['BT Unit ID', '1'],
         ['ET Unit ID', '1'],
+        ['Heat Register', '21'],
+        ['Fan Register', '22'],
     ]) {
         await expect(
-            connectionDetails.getByRole('term').filter({ hasText: label }).locator('..').getByRole('definition'),
+            connectionDetails.getByText(label, { exact: true }).locator('..').getByRole('definition'),
         ).toHaveText(value);
+    }
+    for (const role of ['Heat', 'Fan']) {
+        const channel = connectionDetails.getByRole('heading', { name: role, exact: true }).locator('..');
+        await expect(channel).toBeVisible();
+        await expect(channel.getByText('Unit', { exact: true }).locator('..').getByRole('definition')).toHaveText('%');
     }
     await page.screenshot({ path: testInfo.outputPath('firescope-machine-details.png'), animations: 'disabled' });
 
@@ -253,6 +283,113 @@ test('rescans after busy status and disables a two-machine import at the Pro lim
     await expect(settings.getByRole('alert')).toBeVisible();
     expect(connectRequests).toBe(0);
     await page.screenshot({ path: testInfo.outputPath('firescope-import-pro-limit.png'), animations: 'disabled' });
+});
+
+test('upgrades a legacy Firescope machine with feedback channels without replacing user settings', async ({
+    authedPage: page,
+}) => {
+    let connectRequests = 0;
+    await page.route('http://127.0.0.1:9999/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/imports/firescope') {
+            return route.fulfill({
+                contentType: 'application/json',
+                body: JSON.stringify(
+                    snapshot([{ sequence: 40, current: true, settings: modbusMachine(42, 'Synthetic RTU') }]),
+                ),
+            });
+        }
+        if (path === '/connect') connectRequests += 1;
+        return route.abort();
+    });
+    await page.evaluate(() => {
+        localStorage.setItem(
+            'fc_machines',
+            JSON.stringify({
+                state: {
+                    machines: [
+                        {
+                            id: 'legacy-machine',
+                            name: 'My custom roaster',
+                            roasterKey: 'custom_modbus',
+                            displayName: 'My custom roaster',
+                            brand: 'Firescope',
+                            models: [],
+                            protocol: 'modbus',
+                            connectionParams: {
+                                mode: 'tcp',
+                                host: '198.51.100.7',
+                                port: 1502,
+                                modbus_registers: {
+                                    BT: {
+                                        register: 3100,
+                                        func: 3,
+                                        unit_id: 7,
+                                        float: false,
+                                        signed: true,
+                                        div: 1,
+                                        mode: 'C',
+                                    },
+                                    ET: {
+                                        register: 3101,
+                                        func: 3,
+                                        unit_id: 7,
+                                        float: false,
+                                        signed: true,
+                                        div: 1,
+                                        mode: 'C',
+                                    },
+                                },
+                            },
+                            capabilities: [],
+                            pid: null,
+                            createdAt: '2025-01-01T00:00:00.000Z',
+                            importSource: { product: 'Firescope', sourceId: 42 },
+                        },
+                    ],
+                },
+                version: 0,
+            }),
+        );
+    });
+    await installPersistentStore(page);
+
+    let settings = await openImporter(page);
+    const upgrade = settings.getByRole('checkbox', { name: /Synthetic RTU Update available/ });
+    await expect(upgrade).toBeEnabled();
+    await expect(upgrade).not.toBeChecked();
+    await settings.getByRole('checkbox', { name: /Also import graph settings/ }).uncheck();
+    await upgrade.check();
+    await settings.getByRole('button', { name: /(?:Update|Import) 1 machine/ }).click();
+    await expect(settings.getByText('Selected settings imported.', { exact: true })).toBeVisible();
+    expect(connectRequests).toBe(0);
+
+    const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('fc_machines') ?? '{}'));
+    expect(persisted.state.machines).toHaveLength(1);
+    expect(persisted.state.machines[0]).toMatchObject({
+        id: 'legacy-machine',
+        name: 'My custom roaster',
+        displayName: 'My custom roaster',
+        capabilities: ['heater', 'fan'],
+        importSource: { product: 'Firescope', sourceId: 42 },
+        connectionParams: {
+            mode: 'tcp',
+            host: '198.51.100.7',
+            port: 1502,
+            modbus_registers: {
+                BT: { register: 3100, func: 3, unit_id: 7 },
+                ET: { register: 3101, func: 3, unit_id: 7 },
+                heater: { register: 21, func: 3, unit_id: 1, unit: '%' },
+                fan: { register: 22, func: 3, unit_id: 1, unit: '%' },
+            },
+        },
+    });
+
+    await page.reload();
+    await expect(page.getByTestId('app-sidebar')).toBeVisible();
+    settings = await openImporter(page);
+    await expect(settings.getByRole('checkbox', { name: /Synthetic RTU Already imported/ })).toBeDisabled();
+    expect(connectRequests).toBe(0);
 });
 
 test('keeps saved graph settings when machine persistence fails', async ({ authedPage: page }) => {

@@ -165,22 +165,22 @@ FC의 활성 factory는 `virtual`, `kaleido`, `s7`, `modbus`, `probat_ws`, `phid
 | 기능/데이터 | Firescope 설치본 | FC 현재 실행 경로 | 현재 Firescope 가져오기 |
 |---|---|---|---|
 | 일반 Modbus RTU / ASCII / TCP / UDP | 네 방식 구현 | 네 방식 구현 | `ModbusDriver`·`EasysterSmartDriver`만 조건부 가능 |
-| Modbus FC3/FC4 signed16 | `integer`, 1 register | signed 옵션 구현 | BT 필수·ET 선택; 주소·ID·단위·배율 검증 후 가능 |
+| Modbus FC3/FC4 signed16 | `integer`, 1 register | signed 옵션 구현 | BT 필수·ET/화력/팬/드럼 선택; 주소·ID·단위·배율 검증 후 가능 |
 | Modbus BCD | `bcd`, 1 register | bcd16/bcd32 읽기 구현 | **차단**; 런타임 지원과 importer 지원은 다름 |
 | Modbus float32 / float32-le | 2 registers, 센서별 word order | float 읽기·adapter 전체 word order 구현 | **차단**; 센서별 order/배율 동등성 미구현 |
 | decimalPlace 배율 | Modbus/S7 모두 값 ÷ 10^decimalPlace | 정수 div 0/1/2; S7 INT/REAL에도 적용 | 0/1/2만 허용. **FC Modbus float는 현재 div 미적용** |
 | compensation | 온도 단위 변환 **후** 보정 | importer와 연결된 동등 보정 경로 없음 | 0/생략만 허용; 비0·잘못된 값 차단 |
 | 센서 온도 단위 | 저장 단위→머신 표시 단위 변환 | Modbus C/F→C; S7은 이 단위 변환 없음 | Modbus C/F, S7 C만 허용 |
 | S7 INT / REAL | DB번호+byte offset, rack0, slot 기본1 | DB INT/REAL 읽기·div 구현 | `S7Driver` Ethernet/TCP만 조건부 가능; source slot 유지 |
-| BT/ET 외 압력·화력·드럼 등 | label별 센서·단위 | Modbus/S7 모두 명시적으로 매핑된 heater/fan/drum feedback 읽기 경로 있음 | **추가 채널은 모두 제외**. 역할·단위 매핑 미구현; Pa 압력이나 Hz 회전값을 fan/drum %로 추정하지 않음 |
+| BT/ET 외 압력·화력·드럼 등 | label별 센서·단위 | Modbus/S7 heater/fan/drum feedback 읽기·표시·기록 | `power`→화력 %, `airflowPressure`→팬 % 또는 풍압 Pa, `drumSpeed`→드럼 Hz/RPM/%; 주소·배율·원래 단위 유지 |
 | 일반 Modbus / Easyster 쓰기 | integer/float register 또는 전용 주소 쓰기 | Modbus control은 실장비 쓰기 미지원 | 쓰기 설정을 생성하지 않음 |
-| S7 쓰기 | label에 대응하는 DB 항목 쓰기 | 검증된 write_map 기반 실행 경로 있음 | **가져오기는 write_map/PID/제어 capabilities 미생성** |
+| S7 쓰기 | label에 대응하는 DB 항목 쓰기 | 검증된 write_map 기반 실행 경로 있음 | **가져오기는 write_map/PID 미생성**; capabilities는 읽기 센서 표시용이며 쓰기 권한과 별도 |
 | Phidget / Diedrich | hub·센서타입·RTD·전압비 변환 | 일부 TemperatureSensor 읽기만 대응 | 해당 driver 전체 차단 |
 | Probat PLC / Probat WebSocket | 전용 handshake/watchdog 또는 메시지 규약 | 일반 Modbus / 다른 Probat WS 경로 있음 | 해당 driver 전체 차단; 전용 규약 동등성 미확정 |
 | Bullet R1 USB | 전용 USB packet | 활성 adapter 없음 | 차단 |
 | 그래프·indicator·이벤트 | 축·색상·RoR·자동 이벤트 등 | FC에도 각종 표시·이벤트 기능 있음 | 단위·온도/시간 범위·시간 눈금·곡선 색상·ET 표시만 매핑. indicator 전체와 RoR interval·감지/평활화는 동등 매핑 미구현 |
 
-지원 판단 근거: [FC Modbus 읽기](../../src-tauri/sidecar/adapters/modbus.py), [S7 읽기/feedback/쓰기](../../src-tauri/sidecar/adapters/s7.py), [factory와 쓰기 allowlist](../../src-tauri/sidecar/adapters/__init__.py), [현재 매퍼](../../src/entities/machine/firescope.ts). 입력 타입이 미지원이면 해당 BT/ET를 조용히 제거하고 머신을 적용하지 않고, 머신 적용 자체를 막는다. 추가 채널 제외는 별도 비차단 표시다.
+지원 판단 근거: [FC Modbus 읽기](../../src-tauri/sidecar/adapters/modbus.py), [S7 읽기/feedback/쓰기](../../src-tauri/sidecar/adapters/s7.py), [factory와 쓰기 allowlist](../../src-tauri/sidecar/adapters/__init__.py), [현재 매퍼](../../src/entities/machine/firescope.ts). 매핑 대상 센서의 입력 타입·단위·보정값이 미지원이면 머신 적용 자체를 막는다. 알 수 없는 센서와 `*Setting` 목표값 제외는 별도 비차단 표시다.
 
 추가 조건: 선택된 `connection.type` 하위 객체만 읽는다. serial port·baud·data bits·parity 및 stop bits 1/2, Modbus register 0–65535·unit ID 0–247·FC3/4를 검사한다. BT/ET 중복·필수값 누락·알 수 없는 driver는 차단한다. 유효범위 검사는 실제 장비 주소 검증이 아니다. 범위 안의 잘못된 register도 장비 예외나 다른 값을 돌려줄 수 있다.
 
@@ -196,16 +196,18 @@ F1 재확인 근거는 `/Applications/Firescope.app/Contents/Resources/app.asar`
 
 현재 [연결 매니저](../../src-tauri/sidecar/manager.py)는 adapter.connect 성공 뒤 connected 상태를 표시하며 이 단계에서 BT/ET를 읽지 않는다. Modbus는 serial/socket 연결, S7은 TCP 도달 및 PLC 실행 상태까지 확인하지만, 가져온 register·DB/offset에서 온도가 올바르게 읽히는지는 이후 읽기로 확인해야 한다. 따라서 Live 표시만으로 센서 주소·해석·측정값의 동등성을 확정하지 않는다.
 
-**후속 로컬 재검색:** 앞선 “3대”는 그때의 snapshot 관찰이다. 후속 읽기 전용 재검색에서는 **4개 후보**를 발견했고, 현재 mapper의 메모리상 실행에서 모두 draft 생성·차단 오류 없음·`capabilities=[]`를 확인했다. 아래 판정은 저장까지도 아닌 **변환 결과**이며 실제 측정은 미검증이다. 개인 이름·주소·raw ID는 기록하지 않는다.
+**후속 로컬 재검색:** 앞선 “3대”는 그때의 snapshot 관찰이다. 후속 읽기 전용 재검색에서는 **4개 후보**를 발견했다. 화력·팬·드럼 매핑 추가 후 메모리상 실행에서 모두 draft 생성·차단 오류 없음을 확인했다. 아래 판정은 **변환 결과**이며 실제 측정은 미검증이다. 개인 이름·주소·raw ID는 기록하지 않는다.
 
-| 후보 | BT/ET 변환 | 가져오지 않는 추가 항목 | 실제 측정 |
-|---|---|---|---|
-| 현재 S7 TCP REAL, C/div0/보정0 | 가능 | power, airflowPressure, drumSpeed, etSetting, powerSetting, pressureSetting, drumSpeedSetting | 미검증 |
-| 과거 S7 TCP INT, C/div0/보정0 | 가능 | 위와 같은 7개 | 미검증 |
-| 과거 Modbus TCP INT, FC3/div1/보정0 | 가능 | power, airflowPressure | 미검증 |
-| 과거 Modbus RTU INT, FC4/div1/보정0 | 가능 | 추가 채널 없음 | 미검증 |
+| 후보 | BT/ET 변환 | 추가 피드백 변환 | 제외한 목표값 | 실제 측정 |
+|---|---|---|---|---|
+| 현재 S7 TCP REAL, C/div0/보정0 | 가능 | 화력 %, 풍압 Pa, 드럼 Hz | etSetting, powerSetting, pressureSetting, drumSpeedSetting | 미검증 |
+| 과거 S7 TCP INT, C/div0/보정0 | 가능 | 화력 %, 풍압 Pa, 드럼 Hz | 위와 같은 4개 | 미검증 |
+| 과거 Modbus TCP INT, FC3/div1/보정0 | 가능 | 화력 %, 팬 % | 없음 | 미검증 |
+| 과거 Modbus RTU INT, FC4/div1/보정0 | 가능 | 로컬에 추가 채널 없음 | 없음 | 미검증 |
 
-`power` 같은 피드백 읽기와 `powerSetting` 같은 명령 후보를 구분한다. 현재 importer는 둘 다 자동 매핑하지 않는다. 현재 graph 매핑의 범위는 [그래프 매퍼](../../src/features/active-roast/lib/firescope-settings.ts)에 명시되어 있으며, “가져오기 미지원”을 “FC 기능 자체 없음”으로 표시하지 않는다.
+`power` 같은 피드백 읽기와 `powerSetting` 같은 명령 후보를 구분한다. 피드백만 가져오며 제어 주소는 생성하지 않는다. 이미 가져온 머신에는 사용자가 선택한 경우 누락된 피드백만 추가한다. 기존 이름·연결 주소·BT/ET·기존 피드백을 유지하며 추가/갱신은 한 번에 저장하고 저장 실패 시 메모리도 복원한다.
+
+읽기 채널의 `unit`은 sidecar `read_units`와 표본의 `processing.read_units`로 전달하며 TSV 왕복에서 보존한다. 라이브 측정과 그래프 툴팁은 Pa/Hz를 그대로 표시하고 물리 단위 값으로 축을 확장한다. 압력이나 Hz를 %로 환산하지 않는다. 온도 설정을 편집해도 추가 피드백 주소·단위는 유지한다. 로컬에 없는 센서는 새로 만들지 않는다.
 
 ### LevelDB 파일 import 조건
 
@@ -339,7 +341,7 @@ F1의 보정은 센서 단위에서 머신 온도 단위로 변환한 후 compen
 
 ### import 이후 편집에서도 보존할 항목
 
-현재 `initRoasterFormParams → flattenAddressMaps → nestAddressMaps → updateMachine`은 form에 없는 중첩 필드를 다시 저장할 때 버린다. Modbus `signed`·BCD·추가 읽기 센서, S7 BT/ET 외 채널이 해당한다. import에서 `signed=true`를 넣는 것만으로 완료하면 이후 편집에서 unsigned로 바뀔 수 있다. [form 변환](../../src/entities/machine/addressMap.ts), [form 조립](../../src/entities/machine/lib.ts)
+초기 `initRoasterFormParams → flattenAddressMaps → nestAddressMaps → updateMachine` 경로는 form에 없는 추가 읽기 센서를 버렸다. 현재는 signed 왕복과 기존 Modbus/S7 추가 읽기 주소·단위 보존을 보완했다. [form 변환](../../src/entities/machine/addressMap.ts), [form 조립](../../src/widgets/add-machine-modal/model/assembleConnectionParams.ts)
 
 같은 protocol의 편집은 검증된 기존 읽기 설정을 보존하면서 사용자가 바꾼 필드만 덮도록 보완한다. 초기 지원에 필수인 signed는 표시·저장 양방향에서 유지한다. protocol 변경 시 예전 주소 맵을 옮겨 붙이지 않고, 사용자가 ET를 비우면 기존 ET를 복원하지 않는다. vendor 객체나 쓰기 설정을 일반 spread로 보존하지 않는다.
 
@@ -368,7 +370,7 @@ Firescope decoder fixture에는 같은 키 덮어쓰기·삭제, WAL에만 최�
 
 현재 로컬 복사본에서 그래프와 실머신 3대의 ID별 마지막 설정을 복구했다. 데모는 제외하고 현재 머신과 과거 후보를 별도로 표시한다. source version은 DB만으로 확인되지 않아 null이다. ID는 비어 있지 않은 문자열 또는 JavaScript safe integer를 원래 타입으로 보존한다. 누락·잘못된 ID와 중복 BT/ET는 적용을 차단한다.
 
-일반 Modbus 및 EasysterSmart의 RTU/ASCII/TCP/UDP integer FC3/4, S7 Ethernet TCP INT/REAL을 명시적으로 변환한다. 주소에 보정을 더하지 않으며 Modbus signed=true, decimalPlace 0/1/2, sensor unit을 유지한다. S7은 °C 센서만 지원한다. 보정 0, 필수 통신 설정이 확인된 경우에만 머신을 적용한다. 전용 Probat/Phidget/Diedrich/Bullet 동작과 float/BCD·보조 채널은 미지원 이유를 사용자용 문구로 보여준다. 원본 키·주소 목록은 가져오기 화면에 노출하지 않는다. 새 머신은 custom key, 빈 capabilities, PID 없음, 쓰기 맵 없음으로 저장되며 자동 연결하지 않는다. signed 값은 기존 머신 편집 폼에서도 보존한다.
+일반 Modbus 및 EasysterSmart의 RTU/ASCII/TCP/UDP integer FC3/4, S7 Ethernet TCP INT/REAL을 명시적으로 변환한다. 주소에 보정을 더하지 않으며 Modbus signed=true, decimalPlace 0/1/2, sensor unit을 유지한다. S7 온도는 °C만 지원한다. 화력·팬·드럼 피드백도 지원 단위인 경우 함께 변환한다. 보정 0, 필수 통신 설정이 확인된 경우에만 머신을 적용한다. 전용 Probat/Phidget/Diedrich/Bullet 동작과 Modbus float/BCD·다른 센서는 미지원 이유를 사용자용 문구로 보여준다. 원본 키·주소 목록은 가져오기 화면에 노출하지 않는다. 새 머신은 custom key, 실제 읽기 센서 capabilities, PID 없음, 쓰기 맵 없음으로 저장되며 자동 연결하지 않는다. signed와 추가 센서 주소·단위는 기존 머신 편집 폼에서도 보존한다.
 
 그래프는 온도 단위·축 범위, 시간 범위·눈금, BT/ET/RoR 색상, ET 표시를 변환한다. 라이브 축의 단위는 최신 머신의 temperatureUnit이고, 이력 표시에서는 global.temperature를 사용하므로 화면에서 단위를 확인할 수 있다. RoR 계산·평활화, 이벤트 감지와 보조 그래프는 동등성을 확인하지 못해 건너뛴다. 미리보기는 사용자용 설정명과 변경 전후 값을 표시한다. 기존 선 두께·스타일과 매핑하지 않은 FC 설정을 유지한다.
 

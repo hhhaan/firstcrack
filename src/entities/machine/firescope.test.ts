@@ -1,5 +1,72 @@
 import { describe, expect, it } from 'vitest';
-import { mapFirescopeMachine } from './firescope';
+import { firescopeFeedbackUpdate, mapFirescopeMachine } from './firescope';
+import type { Machine } from './types';
+
+describe('Firescope feedback upgrades', () => {
+    it.each(['modbus', 's7'])('adds missing %s feedback without replacing edits or existing channels', (protocol) => {
+        const saved =
+            protocol === 'modbus'
+                ? { modbus_registers: { BT: { register: 99 }, ET: null, heater: { register: 42, unit: '%' } } }
+                : {
+                      channels: [
+                          { role: 'BT', db: 2, offset: 0 },
+                          { role: 'heater', db: 2, offset: 8, unit: '%' },
+                      ],
+                  };
+        const incoming =
+            protocol === 'modbus'
+                ? {
+                      modbus_registers: {
+                          BT: { register: 19 },
+                          heater: { register: 21, unit: '%' },
+                          fan: { register: 22, unit: 'Pa' },
+                      },
+                  }
+                : {
+                      channels: [
+                          { role: 'BT', db: 3, offset: 0 },
+                          { role: 'heater', db: 3, offset: 8, unit: '%' },
+                          { role: 'fan', db: 3, offset: 16, unit: 'Pa' },
+                      ],
+                  };
+        const draft = {
+            name: 'Source',
+            roasterKey: `custom_${protocol}`,
+            displayName: 'Source',
+            brand: 'Firescope',
+            models: [],
+            protocol,
+            connectionParams: incoming,
+            capabilities: ['heater', 'fan'],
+            pid: null,
+            importSource: { product: 'Firescope' as const, sourceId: 42 },
+        };
+        const existing: Machine = {
+            ...draft,
+            id: 'saved',
+            createdAt: '2026-01-01',
+            name: 'My machine',
+            connectionParams: { ...saved, host: 'edited-host' },
+            capabilities: ['heater'],
+        };
+        const patch = firescopeFeedbackUpdate(existing, draft);
+        expect(patch?.capabilities).toEqual(['heater', 'fan']);
+        expect(patch?.connectionParams.host).toBe('edited-host');
+        if (protocol === 'modbus')
+            expect(patch?.connectionParams.modbus_registers).toEqual({
+                ...saved.modbus_registers,
+                fan: incoming.modbus_registers?.fan,
+            });
+        else expect(patch?.connectionParams.channels).toEqual([...(saved.channels ?? []), incoming.channels?.[2]]);
+        expect(existing.name).toBe('My machine');
+        expect(firescopeFeedbackUpdate({ ...existing, ...patch }, draft)).toBeNull();
+        expect(
+            firescopeFeedbackUpdate({ ...existing, importSource: { product: 'Firescope', sourceId: '42' } }, draft),
+        ).toBeNull();
+        expect(firescopeFeedbackUpdate({ ...existing, protocol: 'different' }, draft)).toBeNull();
+        expect(existing.connectionParams).toEqual({ ...saved, host: 'edited-host' });
+    });
+});
 
 const modbusMachine = {
     id: 'firescope-1',
@@ -148,16 +215,161 @@ describe('mapFirescopeMachine', () => {
         });
     });
 
-    it('reports extra channels without blocking valid BT/ET', () => {
+    it('reports unknown channels without blocking valid BT/ET', () => {
         const mapped = mapFirescopeMachine({
             ...modbusMachine,
             connection: {
                 ...modbusMachine.connection,
-                modbus: [...modbusMachine.connection.modbus, { label: 'power', address: 21 }],
+                modbus: [...modbusMachine.connection.modbus, { label: 'mystery', address: 21 }],
             },
         });
         expect(mapped.draft).not.toBeNull();
         expect(mapped.issues).toEqual([{ field: 'connection.modbus[2]', code: 'unsupported-channel' }]);
+    });
+
+    it('maps Modbus heat, fan, and drum feedback without importing writes', () => {
+        const mapped = mapFirescopeMachine({
+            ...modbusMachine,
+            connection: {
+                ...modbusMachine.connection,
+                modbus: [
+                    ...modbusMachine.connection.modbus,
+                    {
+                        label: 'power',
+                        address: 21,
+                        read: 'FC3',
+                        sensorId: 1,
+                        type: 'integer',
+                        decimalPlace: 1,
+                        unit: '%',
+                        compensation: 0,
+                    },
+                    {
+                        label: 'airflowPressure',
+                        address: 22,
+                        read: 'FC3',
+                        sensorId: 1,
+                        type: 'integer',
+                        decimalPlace: 0,
+                        unit: '%',
+                        compensation: 0,
+                    },
+                    {
+                        label: 'drumSpeed',
+                        address: 23,
+                        read: 'FC4',
+                        sensorId: 2,
+                        type: 'integer',
+                        decimalPlace: 2,
+                        unit: 'RPM',
+                        compensation: 0,
+                    },
+                    {
+                        label: 'powerSetting',
+                        address: 31,
+                        read: 'FC3',
+                        sensorId: 1,
+                        type: 'integer',
+                        decimalPlace: 0,
+                        unit: '%',
+                        compensation: 0,
+                    },
+                ],
+            },
+        });
+        expect(mapped.draft?.capabilities).toEqual(['heater', 'fan', 'drum']);
+        expect(mapped.draft?.connectionParams.modbus_registers).toMatchObject({
+            heater: { register: 21, func: 3, unit_id: 1, signed: true, div: 1, unit: '%' },
+            fan: { register: 22, func: 3, unit_id: 1, signed: true, div: 0, unit: '%' },
+            drum: { register: 23, func: 4, unit_id: 2, signed: true, div: 2, unit: 'RPM' },
+        });
+        expect(mapped.draft?.connectionParams).not.toHaveProperty('write_map');
+        expect(mapped.draft?.connectionParams.modbus_registers).not.toHaveProperty('powerSetting');
+        expect(mapped.issues).toContainEqual({ field: 'connection.modbus[5]', code: 'unsupported-channel' });
+    });
+
+    it('maps S7 feedback with percent, pressure, and frequency units', () => {
+        const mapped = mapFirescopeMachine({
+            id: 's7-feedback',
+            name: 'S7 feedback',
+            connection: {
+                driver: 'S7Driver',
+                type: 'ethernet',
+                protocol: 's7',
+                slot: 1,
+                ethernet: { type: 'tcp', ip: '192.0.2.8', port: 102 },
+                s7: [
+                    {
+                        label: 'bt',
+                        address: 2,
+                        start: 38,
+                        type: 'integer',
+                        decimalPlace: 0,
+                        unit: 'C',
+                        compensation: 0,
+                    },
+                    {
+                        label: 'heat',
+                        address: 2,
+                        start: 48,
+                        type: 'integer',
+                        decimalPlace: 1,
+                        unit: '%',
+                        compensation: 0,
+                    },
+                    {
+                        label: 'fan',
+                        address: 2,
+                        start: 50,
+                        type: 'float',
+                        decimalPlace: 0,
+                        unit: 'Pa',
+                        compensation: 0,
+                    },
+                    {
+                        label: 'drum',
+                        address: 2,
+                        start: 54,
+                        type: 'float',
+                        decimalPlace: 2,
+                        unit: 'Hz',
+                        compensation: 0,
+                    },
+                ],
+            },
+        });
+        expect(mapped.issues).toEqual([]);
+        expect(mapped.draft?.capabilities).toEqual(['heater', 'fan', 'drum']);
+        expect(mapped.draft?.connectionParams.channels).toEqual([
+            { role: 'BT', db: 2, offset: 38, area: 6, type: 0, div: 0 },
+            { role: 'heater', db: 2, offset: 48, area: 6, type: 0, div: 1, unit: '%' },
+            { role: 'fan', db: 2, offset: 50, area: 6, type: 1, div: 0, unit: 'Pa' },
+            { role: 'drum', db: 2, offset: 54, area: 6, type: 1, div: 2, unit: 'Hz' },
+        ]);
+    });
+
+    it('blocks mapped feedback with an incompatible unit', () => {
+        const mapped = mapFirescopeMachine({
+            ...modbusMachine,
+            connection: {
+                ...modbusMachine.connection,
+                modbus: [
+                    ...modbusMachine.connection.modbus,
+                    {
+                        label: 'power',
+                        address: 21,
+                        read: 'FC3',
+                        sensorId: 1,
+                        type: 'integer',
+                        decimalPlace: 0,
+                        unit: 'Pa',
+                        compensation: 0,
+                    },
+                ],
+            },
+        });
+        expect(mapped.draft).toBeNull();
+        expect(mapped.issues).toContainEqual({ field: 'connection.modbus[2].unit', code: 'unsupported-unit' });
     });
 
     it.each([0, 42, Number.MAX_SAFE_INTEGER])('preserves numeric source id %s and sensor addresses', (id) => {

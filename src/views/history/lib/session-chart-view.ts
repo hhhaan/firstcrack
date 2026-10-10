@@ -1,4 +1,6 @@
 import type { ControlData } from '@features/active-roast/lib/chart-option';
+import { feedbackValue } from '@shared/lib/feedback';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 
 /** Pure view decisions for a stored roast chart. Hooks stay on the component. */
 
@@ -52,18 +54,27 @@ export const historyXView = (input: {
 
 export const historyControls = (input: {
     changes?: ControlData['changes'];
-    points: { t: number; heater: number | null; fan: number | null; drum: number | null }[];
+    points: {
+        processing?: TemperatureProcessing;
+        t: number;
+        heater: number | null;
+        fan: number | null;
+        drum: number | null;
+    }[];
     heatSet: (number | null)[];
     referenceControls: boolean;
     displayedTarget: {
+        readUnits?: ControlData['readUnits'];
         xs: number[];
         drum: (number | null)[];
         heater: (number | null)[];
         fan: (number | null)[];
     };
 }): { hasControls: boolean; controlData: ControlData | undefined } => {
-    const sessionHasControls = input.points.some(
-        (point) => point.heater != null || point.fan != null || point.drum != null,
+    const sessionHasControls = input.points.some((point) =>
+        (['heater', 'fan', 'drum'] as const).some(
+            (role) => feedbackValue(point[role], role, point.processing?.read_units) != null,
+        ),
     );
     const hasControls = sessionHasControls || input.referenceControls;
     if (!hasControls) return { hasControls, controlData: undefined };
@@ -71,13 +82,15 @@ export const historyControls = (input: {
         hasControls,
         controlData: {
             changes: input.changes,
+            readUnits: input.points.map((point) => point.processing?.read_units),
             xs: input.points.map((point) => point.t),
-            drumTemp: input.points.map((point) => point.drum),
-            heatPower: input.points.map((point) => point.heater),
-            fanSpeed: input.points.map((point) => point.fan),
+            drumTemp: input.points.map((point) => feedbackValue(point.drum, 'drum', point.processing?.read_units)),
+            heatPower: input.points.map((point) => feedbackValue(point.heater, 'heater', point.processing?.read_units)),
+            fanSpeed: input.points.map((point) => feedbackValue(point.fan, 'fan', point.processing?.read_units)),
             heatSet: input.heatSet,
             reference: input.referenceControls
                 ? {
+                      readUnits: input.displayedTarget.readUnits,
                       xs: input.displayedTarget.xs,
                       drum: input.displayedTarget.drum,
                       heater: input.displayedTarget.heater,

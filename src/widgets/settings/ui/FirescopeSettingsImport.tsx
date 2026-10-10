@@ -1,4 +1,4 @@
-import { mapFirescopeMachine, useMachines, VIRTUAL_ID } from '@entities/machine';
+import { firescopeFeedbackUpdate, type Machine, mapFirescopeMachine, useMachines, VIRTUAL_ID } from '@entities/machine';
 import {
     firescopeTemperatureUnit,
     importFirescopeGraphSettings,
@@ -33,46 +33,37 @@ export function FirescopeSettingsImport() {
     const unit =
         unitOverride ?? firescopeTemperatureUnit(snapshot?.graphTemperatureUnit ?? snapshot?.global?.temperature);
     const graph = snapshot ? mapFirescopeGraphSettings(snapshot, roastSettings, unit) : null;
-    const candidates =
-        snapshot?.machines.map((candidate) => ({ ...candidate, mapping: mapFirescopeMachine(candidate.settings) })) ??
-        [];
-    const alreadyImported = (sourceId: string | number | null) =>
-        sourceId !== null &&
-        machines.some(
+    const importedMachine = (sourceId: string | number | null, saved = machines) =>
+        saved.find(
             (machine) => machine.importSource?.product === 'Firescope' && machine.importSource.sourceId === sourceId,
         );
+    const candidates =
+        snapshot?.machines.map((candidate) => {
+            const mapping = mapFirescopeMachine(candidate.settings);
+            const existing = importedMachine(mapping.sourceId);
+            const update = existing && mapping.draft ? firescopeFeedbackUpdate(existing, mapping.draft) : null;
+            return { ...candidate, mapping, existing, update };
+        }) ?? [];
     const selected = candidates.filter(
         (candidate) =>
-            candidate.mapping.draft &&
-            !alreadyImported(candidate.mapping.sourceId) &&
-            selectedIds.has(candidate.sequence),
+            candidate.mapping.draft && (!candidate.existing || candidate.update) && selectedIds.has(candidate.sequence),
     );
     const hasGraph = graph !== null && Object.keys(graph.patch).length > 0;
     const busy = applying || query.isFetching;
+    const newCount = selected.filter((candidate) => !candidate.existing).length;
     const withinLimit =
-        selected.length === 0 ||
-        canAddMachine(plan, machines.filter((machine) => machine.id !== VIRTUAL_ID).length + selected.length - 1);
+        newCount === 0 ||
+        canAddMachine(plan, machines.filter((machine) => machine.id !== VIRTUAL_ID).length + newCount - 1);
     const canApply =
         snapshot?.status === 'found' && !busy && withinLimit && (selected.length > 0 || (includeGraph && hasGraph));
 
     const apply = async () => {
         if (!snapshot || !canApply) return;
         const state = useMachines.getState();
-        const drafts = selected.flatMap(({ mapping }) =>
-            mapping.draft &&
-            !state.machines.some(
-                (machine) =>
-                    machine.importSource?.product === 'Firescope' && machine.importSource.sourceId === mapping.sourceId,
-            )
-                ? [mapping.draft]
-                : [],
-        );
+        const newCount = selected.filter(({ mapping }) => !importedMachine(mapping.sourceId, state.machines)).length;
         if (
-            drafts.length > 0 &&
-            !canAddMachine(
-                plan,
-                state.machines.filter((machine) => machine.id !== VIRTUAL_ID).length + drafts.length - 1,
-            )
+            newCount > 0 &&
+            !canAddMachine(plan, state.machines.filter((machine) => machine.id !== VIRTUAL_ID).length + newCount - 1)
         ) {
             setResult('planLimit');
             return;
@@ -86,23 +77,27 @@ export function FirescopeSettingsImport() {
                 graphApplied = true;
             }
             const latest = useMachines.getState();
-            const pending = drafts.filter(
-                (draft) =>
-                    !latest.machines.some(
-                        (machine) =>
-                            machine.importSource?.product === 'Firescope' &&
-                            machine.importSource.sourceId === draft.importSource?.sourceId,
-                    ),
-            );
-            if (pending.length > 0) {
+            const pending: Omit<Machine, 'id' | 'createdAt'>[] = [];
+            const updates: { id: string; patch: Pick<Machine, 'connectionParams' | 'capabilities'> }[] = [];
+            for (const { mapping } of selected) {
+                if (!mapping.draft) continue;
+                const existing = importedMachine(mapping.sourceId, latest.machines);
+                if (!existing) pending.push(mapping.draft);
+                else {
+                    const patch = firescopeFeedbackUpdate(existing, mapping.draft);
+                    if (patch) updates.push({ id: existing.id, patch });
+                }
+            }
+            if (pending.length > 0 || updates.length > 0) {
                 if (
+                    pending.length > 0 &&
                     !canAddMachine(
                         plan,
                         latest.machines.filter((machine) => machine.id !== VIRTUAL_ID).length + pending.length - 1,
                     )
                 )
                     throw new Error('machine limit');
-                latest.addMachines(pending);
+                latest.importMachines(pending, updates);
             }
             setResult('saved');
         } catch {
@@ -146,13 +141,14 @@ export function FirescopeSettingsImport() {
                                 <p className="mb-0 mt-1 text-xs text-muted">{tk('machineHint')}</p>
                             </div>
                             <div className="divide-y divide-border-subtle">
-                                {candidates.map(({ sequence, current, settings, mapping }) => (
+                                {candidates.map(({ sequence, current, settings, mapping, existing, update }) => (
                                     <FirescopeMachinePreview
                                         key={sequence}
                                         current={current}
                                         settings={settings}
                                         mapping={mapping}
-                                        imported={alreadyImported(mapping.sourceId)}
+                                        imported={Boolean(existing) && !update}
+                                        updateAvailable={Boolean(update)}
                                         selected={selectedIds.has(sequence)}
                                         disabled={applying}
                                         onSelectedChange={(checked) =>

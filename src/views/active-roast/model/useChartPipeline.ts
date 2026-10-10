@@ -8,7 +8,9 @@ import {
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useChartZoom } from '@features/active-roast/model/useChartZoom';
+import { feedbackValue } from '@shared/lib/feedback';
 import type { TsvPoint } from '@shared/lib/tsv';
+import type { ReadUnits } from '@shared/types/sidecar';
 import { useMemo } from 'react';
 import { buildLiveChartData, CHART_TOTAL_SECS, type LiveChartRow } from '../lib/chart-pipeline-data';
 import type { LiveRoastPoint } from './useSidecarPolling';
@@ -45,6 +47,8 @@ export interface UseChartPipelineReturn {
     visibleTargetFan: (number | null)[];
     visibleTargetDrum: (number | null)[];
     visibleControlXs: number[];
+    visibleReadUnits: (ReadUnits | undefined)[];
+    visibleTargetReadUnits: (ReadUnits | undefined)[];
     visibleDrumTemp: (number | null)[];
     visibleHeatPower: (number | null)[];
     visibleFanSpeed: (number | null)[];
@@ -130,18 +134,20 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         [targetSeries, effectiveZoomRange, unit],
     );
 
-    const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed, visibleHeatSet } = useMemo(() => {
-        const points = effectiveZoomRange
-            ? livePoints.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
-            : livePoints;
-        return {
-            visibleControlXs: points.map((p) => p.time),
-            visibleDrumTemp: points.map((p) => p.drum),
-            visibleHeatPower: points.map((p) => p.heater),
-            visibleFanSpeed: points.map((p) => p.fan),
-            visibleHeatSet: points.map((p) => p.heaterSet ?? null),
-        };
-    }, [livePoints, effectiveZoomRange]);
+    const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed, visibleHeatSet, visibleReadUnits } =
+        useMemo(() => {
+            const points = effectiveZoomRange
+                ? livePoints.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
+                : livePoints;
+            return {
+                visibleReadUnits: points.map((p) => p.processing?.read_units),
+                visibleControlXs: points.map((p) => p.time),
+                visibleDrumTemp: points.map((p) => feedbackValue(p.drum, 'drum', p.processing?.read_units)),
+                visibleHeatPower: points.map((p) => feedbackValue(p.heater, 'heater', p.processing?.read_units)),
+                visibleFanSpeed: points.map((p) => feedbackValue(p.fan, 'fan', p.processing?.read_units)),
+                visibleHeatSet: points.map((p) => p.heaterSet ?? null),
+            };
+        }, [livePoints, effectiveZoomRange]);
 
     return {
         chartData,
@@ -156,6 +162,8 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         visibleEtActual,
         visibleRorActual,
         visibleRorEtActual,
+        visibleReadUnits,
+        visibleTargetReadUnits: visibleReference.readUnits,
         visibleTargetXs: visibleReference.xs,
         visibleTargetBt: visibleReference.bt,
         visibleTargetEt: visibleReference.et,

@@ -242,7 +242,8 @@ class S7Adapter:
                     value /= 10.0
                 elif div == 2:
                     value /= 100.0
-                value = round(value, 1)
+                if ch.get("unit") not in ("%", "Pa", "Hz", "RPM"):
+                    value = round(value, 1)
                 TRACE.record(
                     "info", "s7",
                     f"decoded role={role} type={'REAL' if ch_type == 1 else 'INT'} div={div}",

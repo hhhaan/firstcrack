@@ -21,7 +21,7 @@ const draft: Omit<Machine, 'id' | 'createdAt'> = {
 
 it('persists a batch together and restores it on reload', async () => {
     const { useMachines } = await import('./model');
-    useMachines.getState().addMachines([draft, { ...draft, name: 'Second' }]);
+    useMachines.getState().importMachines([draft, { ...draft, name: 'Second' }]);
     expect(JSON.parse(localStorage.getItem('fc_machines') ?? '{}').state.machines).toHaveLength(2);
     vi.resetModules();
     const reloaded = await import('./model');
@@ -34,14 +34,23 @@ it('persists a batch together and restores it on reload', async () => {
 
 it('rolls back in-memory machines when persistence fails', async () => {
     const { useMachines } = await import('./model');
+    const existing = useMachines.getState().addMachine(draft);
     const previous = useMachines.getState().machines;
+    const stored = localStorage.getItem('fc_machines');
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new Error('disk full');
     });
     try {
-        expect(() => useMachines.getState().addMachines([draft])).toThrow('disk full');
+        expect(() =>
+            useMachines
+                .getState()
+                .importMachines(
+                    [draft],
+                    [{ id: existing.id, patch: { connectionParams: { host: 'updated' }, capabilities: ['heater'] } }],
+                ),
+        ).toThrow('disk full');
         expect(useMachines.getState().machines).toBe(previous);
-        expect(localStorage.getItem('fc_machines')).toBeNull();
+        expect(localStorage.getItem('fc_machines')).toBe(stored);
     } finally {
         write.mockRestore();
     }

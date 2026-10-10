@@ -23,7 +23,10 @@ const VIRTUAL_MACHINE: Machine = {
 interface MachinesState {
     machines: Machine[];
     addMachine: (draft: Omit<Machine, 'id' | 'createdAt'>) => Machine;
-    addMachines: (drafts: Omit<Machine, 'id' | 'createdAt'>[]) => void;
+    importMachines: (
+        drafts: Omit<Machine, 'id' | 'createdAt'>[],
+        updates?: { id: string; patch: Pick<Machine, 'connectionParams' | 'capabilities'> }[],
+    ) => void;
     removeMachine: (id: string) => void;
     updateMachine: (id: string, patch: Partial<Machine>) => void;
 }
@@ -43,11 +46,19 @@ export const useMachines = create<MachinesState>()(
                 return machine;
             },
 
-            addMachines: (drafts) => {
+            importMachines: (drafts, updates = []) => {
                 const previous = get().machines;
                 const added = drafts.map((draft) => ({ ...draft, id: uid(), createdAt: new Date().toISOString() }));
                 try {
-                    set({ machines: [...previous, ...added] });
+                    set({
+                        machines: [
+                            ...previous.map((machine) => {
+                                const update = updates.find(({ id }) => id === machine.id);
+                                return update ? { ...machine, ...update.patch } : machine;
+                            }),
+                            ...added,
+                        ],
+                    });
                 } catch (error) {
                     try {
                         set({ machines: previous });

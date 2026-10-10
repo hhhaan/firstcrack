@@ -45,12 +45,30 @@ const parity = (value: unknown): string | null => {
     return ({ none: 'N', even: 'E', odd: 'O' } as Record<string, string>)[value.toLowerCase()] ?? null;
 };
 
-const sensorRole = (sensor: Obj): 'BT' | 'ET' | null => {
+type ReadRole = 'BT' | 'ET' | 'heater' | 'fan' | 'drum';
+type FeedbackRole = Exclude<ReadRole, 'BT' | 'ET'>;
+
+const READ_ROLES: ReadRole[] = ['BT', 'ET', 'heater', 'fan', 'drum'];
+
+const sensorRole = (sensor: Obj): ReadRole | null => {
     const value = text(sensor.label);
     if (!value) return null;
     const normalized = value.toUpperCase().replace(/[^A-Z]/g, '');
     if (normalized === 'BT' || normalized === 'BEANTEMPERATURE') return 'BT';
     if (normalized === 'ET' || normalized === 'EXHAUSTTEMPERATURE') return 'ET';
+    if (normalized === 'POWER' || normalized === 'HEAT' || normalized === 'HEATER') return 'heater';
+    if (normalized === 'AIRFLOWPRESSURE' || normalized === 'FAN' || normalized === 'AIRFLOW') return 'fan';
+    if (normalized === 'DRUMSPEED' || normalized === 'DRUM') return 'drum';
+    return null;
+};
+
+const feedbackUnit = (role: FeedbackRole, value: unknown): '%' | 'Pa' | 'Hz' | 'RPM' | null => {
+    const unit = text(value);
+    if (unit === '%') return '%';
+    const normalized = unit?.toUpperCase();
+    if (role === 'fan' && normalized === 'PA') return 'Pa';
+    if (role === 'drum' && normalized === 'HZ') return 'Hz';
+    if (role === 'drum' && normalized === 'RPM') return 'RPM';
     return null;
 };
 
@@ -99,7 +117,7 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
 
     const sensors = readSensors(raw);
     const sensorPath = `connection.${text(connection.protocol) ?? 'sensors'}`;
-    const mapped = new Map<'BT' | 'ET', { sensor: Obj; index: number }>();
+    const mapped = new Map<ReadRole, { sensor: Obj; index: number }>();
     sensors.forEach((value, index) => {
         const sensor = object(value);
         if (!sensor) {
@@ -153,7 +171,7 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
         }
 
         const registers: Record<string, Obj | null> = { BT: null, ET: null };
-        for (const role of ['BT', 'ET'] as const) {
+        for (const role of READ_ROLES) {
             const mappedSensor = mapped.get(role);
             if (!mappedSensor) continue;
             const { sensor, index } = mappedSensor;
@@ -164,16 +182,32 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
             const func = integer(rawRead, 3, 4);
             const unit_id = integer(sensor.sensorId, 0, 247);
             const div = integer(sensor.decimalPlace, 0, 2);
-            const unit = text(sensor.unit)?.replace('°', '').toUpperCase();
+            const unit =
+                role === 'BT' || role === 'ET'
+                    ? text(sensor.unit)?.replace('°', '').toUpperCase()
+                    : feedbackUnit(role, sensor.unit);
             const compensation = finite(sensor.compensation ?? 0, -1_000_000, 1_000_000);
             if (text(sensor.type) !== 'integer') issue(`${prefix}.type`, 'unsupported-sensor-type');
             if (register === null) issue(`${prefix}.address`, 'invalid-value');
             if (func === null) issue(`${prefix}.read`, 'invalid-value');
             if (unit_id === null) issue(`${prefix}.sensorId`, 'invalid-value');
             if (div === null) issue(`${prefix}.decimalPlace`, 'invalid-value');
-            if (unit !== 'C' && unit !== 'F') issue(`${prefix}.unit`, 'unsupported-unit');
+            if (
+                unit === null ||
+                unit === undefined ||
+                ((role === 'BT' || role === 'ET') && unit !== 'C' && unit !== 'F')
+            )
+                issue(`${prefix}.unit`, 'unsupported-unit');
             if (compensation !== 0) issue(`${prefix}.compensation`, 'unsupported-compensation');
-            registers[role] = { register, func, unit_id, float: false, signed: true, div, mode: unit };
+            registers[role] = {
+                register,
+                func,
+                unit_id,
+                float: false,
+                signed: true,
+                div,
+                ...(role === 'BT' || role === 'ET' ? { mode: unit } : { unit }),
+            };
         }
         connectionParams = { ...connectionParams, modbus_registers: registers };
     } else {
@@ -190,7 +224,7 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
         if (port === null) issue('connection.ethernet.port', 'invalid-value');
         if (slot === null) issue('connection.slot', 'invalid-value');
         const channels: Obj[] = [];
-        for (const role of ['BT', 'ET'] as const) {
+        for (const role of READ_ROLES) {
             const mappedSensor = mapped.get(role);
             if (!mappedSensor) continue;
             const { sensor, index } = mappedSensor;
@@ -200,15 +234,27 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
             const sourceType = text(sensor.type);
             const type = sourceType === 'integer' ? 0 : sourceType === 'float' ? 1 : null;
             const div = integer(sensor.decimalPlace, 0, 2);
-            const unit = text(sensor.unit)?.replace('°', '').toUpperCase();
+            const unit =
+                role === 'BT' || role === 'ET'
+                    ? text(sensor.unit)?.replace('°', '').toUpperCase()
+                    : feedbackUnit(role, sensor.unit);
             const compensation = finite(sensor.compensation ?? 0, -1_000_000, 1_000_000);
             if (db === null) issue(`${prefix}.address`, 'invalid-value');
             if (offset === null) issue(`${prefix}.start`, 'invalid-value');
             if (type === null) issue(`${prefix}.type`, 'unsupported-sensor-type');
             if (div === null) issue(`${prefix}.decimalPlace`, 'invalid-value');
-            if (unit !== 'C') issue(`${prefix}.unit`, 'unsupported-unit');
+            if (unit === null || unit === undefined || ((role === 'BT' || role === 'ET') && unit !== 'C'))
+                issue(`${prefix}.unit`, 'unsupported-unit');
             if (compensation !== 0) issue(`${prefix}.compensation`, 'unsupported-compensation');
-            channels.push({ role, db, offset, area: 6, type, div });
+            channels.push({
+                role,
+                db,
+                offset,
+                area: 6,
+                type,
+                div,
+                ...(role === 'BT' || role === 'ET' ? {} : { unit }),
+            });
         }
         connectionParams = { host, port, rack: 0, slot, channels };
     }
@@ -225,9 +271,60 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
                   models: [],
                   protocol,
                   connectionParams,
-                  capabilities: [],
+                  capabilities: READ_ROLES.filter(
+                      (role): role is FeedbackRole => role !== 'BT' && role !== 'ET' && mapped.has(role),
+                  ),
                   pid: null,
                   ...(sourceId !== null ? { importSource: { product: 'Firescope' as const, sourceId } } : {}),
               },
     );
+};
+
+/** Add newly supported feedback without replacing a user's connection or temperature settings. */
+export const firescopeFeedbackUpdate = (
+    machine: Machine,
+    draft: Omit<Machine, 'id' | 'createdAt'>,
+): Pick<Machine, 'connectionParams' | 'capabilities'> | null => {
+    if (
+        machine.importSource?.product !== 'Firescope' ||
+        machine.importSource.sourceId !== draft.importSource?.sourceId ||
+        machine.protocol !== draft.protocol ||
+        machine.roasterKey !== draft.roasterKey
+    )
+        return null;
+    const params = machine.connectionParams;
+    const feedbackRoles = new Set(draft.capabilities);
+    const added: string[] = [];
+    let connectionParams = params;
+    if (machine.protocol === 'modbus') {
+        const saved = object(params.modbus_registers);
+        const incoming = object(draft.connectionParams.modbus_registers);
+        if (!saved || !incoming) return null;
+        const registers = { ...saved };
+        for (const role of feedbackRoles) {
+            if (saved[role] == null && object(incoming[role])) {
+                registers[role] = incoming[role];
+                added.push(role);
+            }
+        }
+        connectionParams = { ...params, modbus_registers: registers };
+    } else if (
+        machine.protocol === 's7' &&
+        Array.isArray(params.channels) &&
+        Array.isArray(draft.connectionParams.channels)
+    ) {
+        const channels = [...params.channels];
+        const savedRoles = new Set(channels.map((channel) => object(channel)?.role));
+        for (const value of draft.connectionParams.channels) {
+            const channel = object(value);
+            if (typeof channel?.role !== 'string' || !feedbackRoles.has(channel.role)) continue;
+            if (!savedRoles.has(channel.role)) {
+                channels.push(channel);
+                savedRoles.add(channel.role);
+                added.push(channel.role);
+            }
+        }
+        connectionParams = { ...params, channels };
+    }
+    return added.length ? { connectionParams, capabilities: [...new Set([...machine.capabilities, ...added])] } : null;
 };

@@ -684,6 +684,10 @@ class RoasterManager:
             reading = await asyncio.wait_for(adapter.read(), timeout=config.READ_TIMEOUT)
             # 예외 없이 돌아온 센티넬/NaN도 실패로 승격 — 아래 except가 stale/재연결을 담당 (H1)
             _validate_bt(reading.bt)
+            for role in ("heater", "fan", "drum"):
+                value = getattr(reading, role)
+                if value is not None and not math.isfinite(value):
+                    raise ValueError(f"Non-finite {role} feedback")
         except Exception as exc:
             if self._adapter is not adapter:
                 # 읽는 도중 disconnect/재연결됨 — 사라진 어댑터의 실패는 조용히 버린다 (H4)
@@ -762,6 +766,10 @@ class RoasterManager:
         # -1.0은 프로브 없음이라 남긴다. NaN/Inf만 JSON을 깨뜨리므로 그 샘플의 원본은 뺀다.
         et_raw = reading.et if math.isfinite(reading.et) else None
         et_display = self._et_display_ema if self._et_display_ema is not None else et_raw
+        read_units = self.read_units()
+        record_read_units = bool(read_units) or (
+            self._roaster_key in {"custom_modbus", "custom_s7"} and not self.read_channels()
+        )
         payload = {
             "bt_raw": reading.bt,
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
@@ -771,12 +779,15 @@ class RoasterManager:
             "ror_et": ror_et,
             # None = 화력 피드백 채널 없음. 0으로 바꾸면 TSV에 "측정 0"으로 남아
             # Replay가 빈 기록을 진짜 화력 0으로 재생한다.
-            "heater": int(round(reading.heater)) if reading.heater is not None else None,
-            "fan": int(round(reading.fan)),
-            "drum": round(reading.drum, 1),
+            "heater": (
+                reading.heater if "heater" in read_units else int(round(reading.heater))
+            ) if reading.heater is not None else None,
+            "fan": reading.fan if "fan" in read_units else int(round(reading.fan)),
+            "drum": reading.drum if "drum" in read_units else round(reading.drum, 1),
             "timestamp": reading.timestamp,
             "sensor_clock": f"{self._sensor_clock_id}:{self._connection_epoch}",
             "processing": {
+                **({"read_units": read_units} if record_read_units else {}),
                 "algorithm_version": config.MEASUREMENT_ALGORITHM_VERSION,
                 "temperature_unit": "C",
                 "ror_unit": "C/min",
@@ -794,6 +805,27 @@ class RoasterManager:
         self._last_good = payload
         self._last_good_ts = time.monotonic()
         return payload
+
+    def read_channels(self) -> dict[str, dict[str, Any]]:
+        """Discover feedback from actual read maps, not control write permissions."""
+        if self._protocol == "modbus":
+            channels = self._merged_params.get("modbus_registers") or {}
+        elif self._protocol == "s7":
+            channels = {c.get("role"): c for c in self._merged_params.get("channels", []) if isinstance(c, dict)}
+        else:
+            return {}
+        return {
+            role: channel for role, channel in channels.items()
+            if role in {"heater", "fan", "drum"} and isinstance(channel, dict)
+            and ("register" in channel if self._protocol == "modbus" else "db" in channel and "offset" in channel)
+        }
+
+    def read_units(self) -> dict[str, str]:
+        """Read-map units never grant write capability or supply write limits."""
+        return {
+            role: channel["unit"] for role, channel in self.read_channels().items()
+            if channel.get("unit") in ("%", "Pa", "Hz", "RPM")
+        }
 
     def last_applied(self) -> dict[str, float]:
         """이 연결에서 마지막으로 쓴 role별 값. 쓴 적 없으면 빈 dict."""
@@ -1095,7 +1127,8 @@ class RoasterManager:
             "roaster": self._roaster_key,
             "display_name": reg.get("display_name", ""),
             "brand": reg.get("brand", ""),
-            "capabilities": reg.get("capabilities", []),
+            "capabilities": list(dict.fromkeys([*reg.get("capabilities", []), *self.read_channels()])),
+            "read_units": self.read_units(),
             # 제어 능력은 레지스트리 capabilities(표시용)와 다르다 — 실제로 쓸 수 있는
             # role만 담는다. writable=false면 프론트는 제어 UI를 렌더하지 않는다.
             "control": {

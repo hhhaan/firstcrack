@@ -36,6 +36,8 @@ const ConnectionFields = ({
 
 export const MachineConnectionDetails = ({ machine }: { machine: Machine }) => {
     const { t } = useTranslation();
+    const feedbackLabel = (role: string) =>
+        ['heater', 'fan', 'drum'].includes(role) ? t(`settings.firescope.feedback.${role}`) : role;
     const fields = buildProtocolRoasterDef(machine.protocol).form_fields;
     const addressFields = addressFormFieldsForProtocol(machine.protocol);
     const registers = machine.protocol === 'modbus' ? record(machine.connectionParams.modbus_registers) : null;
@@ -63,10 +65,29 @@ export const MachineConnectionDetails = ({ machine }: { machine: Machine }) => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
                     {sensors.map(([role, params]) => (
                         <div key={role} className="min-w-0">
-                            <h4 className="text-[12px] font-semibold text-secondary mb-2">{role}</h4>
+                            <h4 className="text-[12px] font-semibold text-secondary mb-2">{feedbackLabel(role)}</h4>
                             <ConnectionFields
                                 params={params}
-                                fields={addressFields}
+                                fields={[
+                                    ...addressFields,
+                                    ...addressFields.flatMap((field) =>
+                                        field.key.startsWith('bt_')
+                                            ? [
+                                                  {
+                                                      ...field,
+                                                      key: field.key.replace('bt_', `${role.toLowerCase()}_`),
+                                                      label: field.label.replace('BT', feedbackLabel(role)),
+                                                  },
+                                              ]
+                                            : [],
+                                    ),
+                                    {
+                                        key: `${role.toLowerCase()}_unit`,
+                                        label: t('settings.firescope.sensorUnit'),
+                                        type: 'text',
+                                        required: false,
+                                    },
+                                ]}
                                 prefix={`${role.toLowerCase()}_`}
                             />
                         </div>
