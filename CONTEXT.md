@@ -82,6 +82,10 @@ _Avoid_: The cooling that follows. Cooling is a different track.
 화력. The operator's heating setting, expressed in the connected roaster's control unit, commonly percent. The application command is Heat set.
 _Avoid_: Heat feedback. Airflow.
 
+**Charge gas**:
+투입 화력. The gas setting in effect when beans enter the drum; it can have been established before Charge. It does not imply that a new Heat set command was issued at Charge.
+_Avoid_: A command automatically issued on Charge.
+
 **Airflow**:
 배기 팬 세기.
 _Avoid_: Damper. Gas.
@@ -126,12 +130,24 @@ _Avoid_: Feedforward.
 재현할 대상 프로파일.
 _Avoid_: The live batch. The account profile.
 
+**Recorded heat set**:
+기록된 화력 명령. A Heat set retained from a reference roast, together with the elapsed time from Charge and BT at which it was recorded. Those observations describe the past command; they do not by themselves define its replay condition.
+_Avoid_: Heat feedback. A future replay instruction.
+
+**Replay plan**:
+화력 재현 계획. An ordered set of Heat set instructions and their replay conditions for a batch. It is distinct from the record of the reference roast.
+_Avoid_: Recorded heat set. A target temperature curve.
+
+**Replay condition**:
+화력 변경 조건. The selected criterion for applying a Heat set in a replay plan, such as elapsed time from Charge or reaching a BT on the rising side of TP.
+_Avoid_: Recorded time and BT as simultaneous requirements. Elapsed time from TP as a synonym for elapsed time from Charge.
+
 **Replay assist**:
 기준 로스팅의 Heat set 명령을 시간·온도 조건에 맞춰 적용하는 운전 보조. 명령의 재현은 온도 커브나 향미 결과의 일치를 뜻하지 않는다.
 _Avoid_: A manual gas change.
 
 **Event mapping**:
-화력 변경 명령을 재생 조건에 연결하는 것. 조건은 투입 후 경과 시간이나 TP 이후 BT 도달처럼 명령을 적용할 기준이다.
+기록된 화력 명령을 화력 재현 계획의 화력 변경 조건에 연결하는 것.
 _Avoid_: A temperature-curve target as a synonym for a command's replay condition.
 
 **Gas replay**:
