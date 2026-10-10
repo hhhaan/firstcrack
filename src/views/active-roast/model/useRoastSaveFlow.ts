@@ -45,6 +45,22 @@ export async function resolveContinueCandidates(params: {
 }
 
 /** Next Charge already owns the machine — A's save must not mutate it. */
+const resolvePendingUserId = (snapshot: CompletedRoastSnapshot, workspaceOwnerId: string | null): string | null => {
+    const live = useRoastingStore.getState();
+    return snapshot.sessionOwnerId ?? live.sessionOwnerId ?? workspaceOwnerId ?? null;
+};
+
+/** Same key variants as `snapshotParams` / cancelDrop may have used when owner was unset. */
+const pendingCheckpointUserIds = (snapshot: CompletedRoastSnapshot, workspaceOwnerId: string | null): string[] => {
+    const live = useRoastingStore.getState();
+    const ids = new Set<string>();
+    for (const id of [snapshot.sessionOwnerId, live.sessionOwnerId, workspaceOwnerId]) {
+        if (id) ids.add(id);
+    }
+    if (snapshot.sessionOwnerId == null) ids.add('');
+    return [...ids];
+};
+
 export const isLiveDetachedFromPending = (
     live: { sessionId: string | null; phase: RoastPhase; awaitingNextCharge: boolean },
     pendingSessionId: string | null | undefined,
@@ -340,30 +356,24 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             useToastStore.getState().show(i18n.t('activeRoast.summary.discardFailed'));
             return;
         }
-        const ownerId = snapshot.sessionOwnerId ?? workspaceOwnerId;
-        if (!ownerId) {
-            logger.capture(new Error('discardSummary: missing workspace owner'), {
-                context: 'discardSummary',
-                sessionId,
-            });
-            useToastStore.getState().show(i18n.t('activeRoast.summary.discardFailed'));
-            flow.closeSummary();
-            return;
-        }
-        try {
-            clearPendingRoastSave(ownerId, sessionId);
-        } catch (err) {
-            logger.capture(err, { context: 'discardSummary.pendingCheckpoint', sessionId });
-            useToastStore.getState().show(formatRoastSaveError(err));
-            return;
-        }
-        if (!flow.discardSummary(ownerId, sessionId)) {
+        const ownerId = resolvePendingUserId(snapshot, workspaceOwnerId);
+        const discardOwnerId = ownerId ?? workspaceOwnerId ?? '';
+        if (!flow.discardSummary(discardOwnerId || null, sessionId)) {
             logger.capture(new Error('discardSummary: batch store rejected discard'), {
                 context: 'discardSummary',
                 sessionId,
-                ownerId,
+                ownerId: discardOwnerId,
             });
             useToastStore.getState().show(i18n.t('activeRoast.summary.discardFailed'));
+            return;
+        }
+        try {
+            for (const userId of pendingCheckpointUserIds(snapshot, workspaceOwnerId)) {
+                clearPendingRoastSave(userId, sessionId);
+            }
+        } catch (err) {
+            logger.capture(err, { context: 'discardSummary.pendingCheckpoint', sessionId });
+            useToastStore.getState().show(formatRoastSaveError(err));
         }
     }, [flow, workspaceOwnerId]);
 

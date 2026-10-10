@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { RoastSummaryModal } from './RoastSummaryModal';
+
+const mockedAsk = vi.mocked(ask);
 
 vi.mock('@entities/bean/queries', () => ({
     useBeans: () => ({
@@ -63,10 +66,22 @@ const baseProps = {
     onSave: async () => {},
 };
 
+beforeEach(() => {
+    mockedAsk.mockReset();
+    delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+});
+
 afterEach(() => {
     planMock.batches = [];
     useRoastingStore.getState().reset();
+    delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 });
+
+const discardButton = () =>
+    (document.querySelector('[data-testid="roast-summary-discard"]') as HTMLButtonElement | null) ??
+    ([...document.querySelectorAll('button')].find((b) => b.textContent === 'activeRoast.summary.discard') as
+        | HTMLButtonElement
+        | undefined);
 
 const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {}) => {
     const host = document.createElement('div');
@@ -207,6 +222,56 @@ it('calls onClose from the header X without discarding', () => {
     act(() => close.click());
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onDiscard).not.toHaveBeenCalled();
+    unmount();
+});
+
+it('falls back to in-app confirm and discards when native ask rejects', async () => {
+    mockedAsk.mockRejectedValueOnce(new Error('Tauri invoke unavailable'));
+    (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    const onDiscard = vi.fn();
+    const { unmount } = renderModal({ onDiscard });
+    const discard = discardButton();
+    if (!discard) throw new Error('Missing discard button');
+    await act(async () => {
+        discard.click();
+    });
+    expect(document.querySelector('[data-testid="roast-summary-discard-modal"]')).not.toBeNull();
+    await act(async () => {
+        (document.querySelector('[data-testid="roast-summary-discard-confirm"]') as HTMLButtonElement).click();
+    });
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-testid="roast-summary-modal"]')).not.toBeNull();
+    unmount();
+});
+
+it('uses in-app confirm without calling ask when Tauri runtime is absent', async () => {
+    const onDiscard = vi.fn();
+    const { unmount } = renderModal({ onDiscard });
+    const discard = discardButton();
+    if (!discard) throw new Error('Missing discard button');
+    await act(async () => {
+        discard.click();
+    });
+    expect(mockedAsk).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-testid="roast-summary-discard-modal"]')).not.toBeNull();
+    await act(async () => {
+        (document.querySelector('[data-testid="roast-summary-discard-confirm"]') as HTMLButtonElement).click();
+    });
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    unmount();
+});
+
+it('does not dismiss the summary when Escape closes the bean dropdown', () => {
+    const onClose = vi.fn();
+    const onCancelDrop = vi.fn();
+    const { unmount } = renderModal({ onClose, onCancelDrop, canCancelDrop: true });
+    const input = document.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
+    act(() => {
+        input.focus();
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onCancelDrop).not.toHaveBeenCalled();
     unmount();
 });
 

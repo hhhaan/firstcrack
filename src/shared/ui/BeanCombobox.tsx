@@ -124,6 +124,8 @@ export const BeanCombobox = ({
                     }}
                     onKeyDown={(e) => {
                         if (e.key === 'Escape') {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setOpen(false);
                             return;
                         }

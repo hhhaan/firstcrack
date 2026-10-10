@@ -9,7 +9,10 @@ export const tauriInitScript = `
       currentWebview: { windowLabel: 'main', label: 'main' },
     },
     invoke: async function (cmd) {
-      if (cmd === 'plugin:dialog|message' || cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') {
+      if (cmd === 'plugin:dialog|ask') {
+        return 'Discard';
+      }
+      if (cmd === 'plugin:dialog|message' || cmd === 'plugin:dialog|confirm') {
         return true;
       }
       if (cmd === 'plugin:store|get' || cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;

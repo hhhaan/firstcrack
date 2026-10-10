@@ -2,6 +2,7 @@ import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/
 import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { isDeductDisplayEligible } from '@features/active-roast/lib/summaryPrefill';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
+import { logger } from '@shared/lib/logger';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { formErrorCls } from '@shared/ui/form-styles';
@@ -9,10 +10,14 @@ import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
-import { ask } from '@tauri-apps/plugin-dialog';
 import { Check, Coffee, X } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+    confirmRoastSummaryDiscardNative,
+    isTauriRuntime,
+    roastSummaryDiscardLabels,
+} from '../lib/roastSummaryDiscardConfirm';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
 
@@ -70,18 +75,56 @@ export const RoastSummaryModal = ({
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
     const hasHandoff = Boolean(planBatchHandoff);
+    const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+    const discardLabels = useMemo(() => roastSummaryDiscardLabels(t), [t]);
 
     useEffect(() => {
-        if (!open || isSaving) return;
+        if (!discardConfirmOpen) return;
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape') return;
+            if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            setDiscardConfirmOpen(false);
+        };
+        document.addEventListener('keydown', onKeyDown, true);
+        return () => document.removeEventListener('keydown', onKeyDown, true);
+    }, [discardConfirmOpen]);
+
+    useEffect(() => {
+        if (!open) setDiscardConfirmOpen(false);
+    }, [open]);
+
+    useEffect(() => {
+        if (!open || isSaving || discardConfirmOpen) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
+            const active = document.activeElement;
+            if (active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) return;
+            const topDialog = document.querySelectorAll('[role="dialog"]');
+            const summaryDialog = document.querySelector('[data-testid="roast-summary-modal"]');
+            if (!summaryDialog || topDialog[topDialog.length - 1] !== summaryDialog) return;
             event.preventDefault();
             if (canCancelDrop) onCancelDrop();
             else onClose();
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [open, isSaving, canCancelDrop, onCancelDrop, onClose]);
+    }, [open, isSaving, discardConfirmOpen, canCancelDrop, onCancelDrop, onClose]);
+
+    const requestDiscard = async () => {
+        if (isTauriRuntime()) {
+            try {
+                const ok = await confirmRoastSummaryDiscardNative(discardLabels);
+                if (ok) onDiscard();
+                return;
+            } catch (err) {
+                logger.capture(err instanceof Error ? err : new Error(String(err)), {
+                    context: 'roastSummary.discardConfirm',
+                });
+            }
+        }
+        setDiscardConfirmOpen(true);
+    };
     const {
         form: {
             register,
@@ -161,6 +204,7 @@ export const RoastSummaryModal = ({
             onClose={onClose}
             dismissable={false}
             labelledBy="roast-summary-modal-title"
+            data-testid="roast-summary-modal"
             overlayClassName="z-[10000] bg-[rgba(23,23,23,0.12)]"
             contentClassName={`${modalPanel.sm} max-h-[min(720px,calc(100vh-64px))] !p-0 flex flex-col overflow-hidden relative`}
         >
@@ -512,21 +556,50 @@ export const RoastSummaryModal = ({
                 )}
                 <button
                     type="button"
-                    onClick={async () => {
-                        // 확인 없는 즉시 폐기 방지 (#317) — 창 닫기 가드(#177)와 동급의 한 겹
-                        const ok = await ask(t('activeRoast.summary.discardConfirmMsg'), {
-                            title: t('activeRoast.summary.discardConfirmTitle'),
-                            kind: 'warning',
-                            okLabel: t('activeRoast.summary.discardConfirmOk'),
-                            cancelLabel: t('activeRoast.summary.discardConfirmCancel'),
-                        });
-                        if (ok) onDiscard();
+                    data-testid="roast-summary-discard"
+                    onClick={() => {
+                        void requestDiscard();
                     }}
                     className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
                 >
                     {t('activeRoast.summary.discard')}
                 </button>
             </div>
+            {discardConfirmOpen && (
+                <ModalShell
+                    onClose={() => setDiscardConfirmOpen(false)}
+                    labelledBy="roast-summary-discard-title"
+                    data-testid="roast-summary-discard-modal"
+                    overlayClassName="z-[10001]"
+                    contentClassName={`${modalPanel.sm} !p-6`}
+                >
+                    <h2 id="roast-summary-discard-title" className="mb-3 text-lg font-semibold text-primary">
+                        {discardLabels.title}
+                    </h2>
+                    <p className="mb-4 text-sm text-muted">{discardLabels.message}</p>
+                    <div className="flex gap-2 justify-end">
+                        <button
+                            type="button"
+                            data-testid="roast-summary-discard-cancel"
+                            onClick={() => setDiscardConfirmOpen(false)}
+                            className="rounded-lg bg-surface px-3 py-2 text-sm text-secondary"
+                        >
+                            {discardLabels.cancelLabel}
+                        </button>
+                        <button
+                            type="button"
+                            data-testid="roast-summary-discard-confirm"
+                            onClick={() => {
+                                setDiscardConfirmOpen(false);
+                                onDiscard();
+                            }}
+                            className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400"
+                        >
+                            {discardLabels.okLabel}
+                        </button>
+                    </div>
+                </ModalShell>
+            )}
         </ModalShell>
     );
 };
