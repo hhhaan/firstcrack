@@ -415,7 +415,7 @@ export const naverAdapter: ChannelAdapter = {
                         platformOrderId: hint.orderId ?? id,
                         status,
                         // Real platform timestamps only; `now` would be written to a NOT NULL
-                        // column and outlive the outage (see earliestOrderedAt in normalize.ts).
+                        // column and outlive the outage (the batch RPC keeps the earliest value).
                         orderedAt: hint.orderedAt ?? new Date().toISOString(),
                         buyerName: null,
                         currency: 'KRW',

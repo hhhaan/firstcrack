@@ -2139,6 +2139,8 @@ export type Database = {
                 Returns: number;
             };
             cancel_order: { Args: { p_order_id: string }; Returns: undefined };
+            channel_try_integer: { Args: { p_value: string }; Returns: number };
+            channel_try_timestamptz: { Args: { p_value: string }; Returns: string };
             compute_inventory_alerts: {
                 Args: { p_horizon_days?: number; p_user_id: string };
                 Returns: undefined;
@@ -2186,6 +2188,16 @@ export type Database = {
                 Returns: number;
             };
             get_roasting_requirements: { Args: { p_user_id: string }; Returns: Json };
+            get_stock_summary_rows: {
+                Args: { p_bean_id?: string; p_horizon_days?: number; p_user_id: string };
+                Returns: {
+                    available_grams: number;
+                    bean_id: string;
+                    current_grams: number;
+                    effective_grams: number;
+                    reserved_grams: number;
+                }[];
+            };
             get_user_product_stock: { Args: { p_user_id: string }; Returns: Json };
             get_user_roasted_stock: { Args: { p_user_id: string }; Returns: Json };
             get_user_stock_summaries: {
@@ -2199,7 +2211,7 @@ export type Database = {
             };
             insert_product_stock_events_batch: {
                 Args: { p_events: Json };
-                Returns: undefined;
+                Returns: Json;
             };
             insert_roasted_stock_events_batch: {
                 Args: { p_events: Json };
@@ -2226,6 +2238,14 @@ export type Database = {
             redeem_org_invite: { Args: { p_token: string }; Returns: string };
             remove_org_member: {
                 Args: { p_member_id: string; p_org_id: string };
+                Returns: undefined;
+            };
+            reorder_cupping_samples: {
+                Args: { p_event_id: string; p_ordered_ids: string[] };
+                Returns: undefined;
+            };
+            reorder_plan_batches: {
+                Args: { p_ordered_ids: string[]; p_plan_id: string };
                 Returns: undefined;
             };
             replace_blend_components: {
@@ -2298,6 +2318,10 @@ export type Database = {
                 };
                 Returns: undefined;
             };
+            sync_channel_orders_batch: {
+                Args: { p_connection_id: string; p_orders: Json; p_user_id: string };
+                Returns: Json;
+            };
             update_roast_session_record: {
                 Args: {
                     p_drop_temp_celsius: number;
@@ -2325,6 +2349,22 @@ export type Database = {
                     p_user_id: string;
                 };
                 Returns: undefined;
+            };
+            write_cupping_scorecards_batch: {
+                Args: {
+                    p_cards: Json;
+                    p_cupped_by: string;
+                    p_invite_id: string;
+                    p_participant_id: string;
+                    p_publish: boolean;
+                };
+                Returns: {
+                    created: boolean;
+                    cupped_at: string;
+                    id: string;
+                    sample_id: string;
+                    total_score: number;
+                }[];
             };
         };
         Enums: {

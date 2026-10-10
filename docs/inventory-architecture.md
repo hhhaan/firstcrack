@@ -52,7 +52,7 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 | Packaging inbound | `src/features/package-product` → `insert_packaging_op` | `roast_inbound` +, ref = packaging op uuid |
 | Order fulfill | `fulfill_order(p_order_id)` via `src/entities/order/api.ts` → `src/features/fulfill-order` | `order_fulfillment` −, ref = `order_line.id` |
 | Order cancel (restore) | `cancel_order(p_order_id)` via `src/entities/order/api.ts` → `src/features/cancel-order` | restores fulfilled lines (`order_cancel` +) |
-| Channel cancel / inbound | `supabase/functions/_shared/channels/inbound-actions.ts` | may write cancel/restore paths when platform status changes |
+| Channel cancel / inbound | `sync_channel_orders_batch` RPC | atomically writes cancel/restore paths when platform status changes |
 
 **Never** insert multi-ledger ops with raw table inserts from the client. Use the RPCs above.
 
