@@ -24,6 +24,7 @@ export {
     writeMapFormFlags,
 } from './lib';
 export { useMachines, VIRTUAL_ID } from './model';
+export { canConnectRoaster } from './roasterAccess';
 export { PROTOCOL_FORM_FIELDS, ROASTER_REGISTRY } from './roasterRegistry';
 export type {
     ControlCapability,

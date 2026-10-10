@@ -42,6 +42,14 @@ vi.mock('@shared/lib/osNotification', () => ({
     sendOsNotification: vi.fn(),
 }));
 
+vi.mock('@shared/lib/features/useAccountPlan', () => ({
+    useAccountPlan: () => 'enterprise',
+}));
+
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (key: string) => key }),
+}));
+
 vi.mock('@shared/lib/tsv-writer', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@shared/lib/tsv-writer')>()),
     enqueueTsvRow: mocks.enqueueTsvRow,

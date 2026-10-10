@@ -1,10 +1,10 @@
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
-import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import { canConnectRoaster, useMachines, VIRTUAL_ID } from '@entities/machine';
 import {
     noteUserMachineDisconnect,
     settleUserMachineDisconnect,
 } from '@features/machine-connection/lib/machineLinkNotice';
-import { canAddMachine, planMaxMachines, useEffectivePlan } from '@shared/lib/features';
+import { canAddMachine, planMaxMachines, useAccountPlan, useEffectivePlan } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useState } from 'react';
 
@@ -17,6 +17,7 @@ type Args = {
 export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps }: Args) => {
     const { addMachine, updateMachine, machines } = useMachines();
     const plan = useEffectivePlan();
+    const accountPlan = useAccountPlan();
     const [modalOpen, setModalOpen] = useState(false);
     const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
     const [limitBlocked, setLimitBlocked] = useState(false);
@@ -37,6 +38,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
             params: Record<string, unknown>,
             meta?: { name?: string; brand?: string },
         ) => {
+            if (!canConnectRoaster(roasterKey, accountPlan)) return;
             if (!canAddMachine(plan, realMachineCount)) {
                 setLimitBlocked(true);
                 return;
@@ -55,7 +57,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
                 pid: def.pid,
             });
         },
-        [addMachine, plan, realMachineCount],
+        [addMachine, accountPlan, plan, realMachineCount],
     );
 
     const handleEdit = useCallback(
