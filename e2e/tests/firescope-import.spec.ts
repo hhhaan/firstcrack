@@ -124,15 +124,57 @@ test('imports Firescope machine and graph settings once without connecting hardw
 
     let settings = await openImporter(page);
     await expect(settings.getByText('Firescope settings found.', { exact: true })).toBeVisible();
-    await settings.getByText('Preview graph mapping', { exact: true }).click();
-    await expect(settings.getByRole('cell').filter({ hasText: 'tempMinC' })).toBeVisible();
-    await settings.getByText('View connection and sensor address mapping', { exact: true }).first().click();
+    await expect(settings.getByRole('checkbox', { name: /Synthetic RTU/ })).not.toBeChecked();
+    await expect(settings.getByRole('checkbox', { name: /Also import graph settings/ })).toBeChecked();
+    await expect(settings.getByRole('button', { name: 'Import graph settings', exact: true })).toBeEnabled();
+    await expect(settings.getByText('Temperature range', { exact: true })).toBeVisible();
+    await expect(settings.getByText(/50\s*°C\s*–\s*250\s*°C/)).toBeVisible();
+    await expect(settings.getByRole('term').filter({ hasText: 'Time range' })).toBeVisible();
+    await expect(settings.getByRole('definition').filter({ hasText: '12 min' })).toBeVisible();
+    await expect(settings.locator('pre').filter({ hasText: 'tempMinC' })).toBeHidden();
+    await expect(settings.locator('pre').filter({ hasText: 'yAxisStart' })).toBeHidden();
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.screenshot({ path: testInfo.outputPath('firescope-import-default-en.png'), animations: 'disabled' });
+    await settings.getByText(/See changes|View settings that will change/, { exact: true }).click();
+    await expect(settings.getByRole('columnheader', { name: 'Current FC', exact: true })).toBeVisible();
+    await expect(settings.getByRole('columnheader', { name: 'After import', exact: true })).toBeVisible();
+    const minimumTemperature = settings.getByRole('row', { name: /Minimum temperature/ });
+    await expect(minimumTemperature).toBeVisible();
+    await expect(minimumTemperature.getByText('50 °C', { exact: true })).toBeVisible();
+    await expect(settings.locator('pre').filter({ hasText: 'tempMinC' })).toBeHidden();
+    await expect(settings.locator('pre').filter({ hasText: 'yAxisStart' })).toBeHidden();
+    const graphTechnicalDetails = settings
+        .getByText(/Source settings and addresses|View original settings and addresses/, { exact: true })
+        .last();
+    await graphTechnicalDetails.click();
+    await expect(settings.locator('pre').filter({ hasText: 'yAxisStart' })).toBeVisible();
+    await expect(settings.locator('pre').filter({ hasText: 'tempMinC' })).toBeVisible();
+    await graphTechnicalDetails.click();
+    await settings.getByText(/See changes|View settings that will change/, { exact: true }).click();
+
+    await page.setViewportSize({ width: 600, height: 900 });
+    expect(await settings.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await settings.getByRole('searchbox', { name: 'Search settings', exact: true }).fill('Language');
+    await settings.getByLabel('App language', { exact: true }).selectOption('ko');
+    await settings.getByRole('searchbox', { name: '설정 검색', exact: true }).fill('Firescope');
+    await expect(settings.getByRole('heading', { name: 'Firescope 설정 가져오기', exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('firescope-import-narrow-ko.png'), animations: 'disabled' });
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await page.screenshot({ path: testInfo.outputPath('firescope-import-default-ko.png'), animations: 'disabled' });
+
+    await settings.getByRole('searchbox', { name: '설정 검색', exact: true }).fill('언어');
+    await settings.getByLabel('앱 언어', { exact: true }).selectOption('en');
+    await settings.getByRole('searchbox', { name: 'Search settings', exact: true }).fill('Firescope');
+    await settings.getByRole('checkbox', { name: /Synthetic RTU/ }).check();
+    await expect(settings.getByRole('button', { name: /Import 1 machines? and graph/ })).toBeEnabled();
+    await settings
+        .getByText(/Source settings and addresses|View original settings and addresses/, { exact: true })
+        .first()
+        .click();
     await expect(settings.locator('pre').filter({ hasText: 'modbus_registers' })).toBeVisible();
     await expect(settings.getByRole('checkbox', { name: /Unsupported Probat/ })).toBeDisabled();
-    await settings.getByRole('button', { name: 'Import selected settings', exact: true }).click();
-    await expect(
-        settings.getByText('Settings imported. Review connections in the machine list.', { exact: true }),
-    ).toBeVisible();
+    await settings.getByRole('button', { name: /Import 1 machines? and graph/ }).click();
+    await expect(settings.getByText('Selected settings imported.', { exact: true })).toBeVisible();
     expect(connectRequests).toBe(0);
 
     const persistedMachines = await page.evaluate(() => JSON.parse(localStorage.getItem('fc_machines') ?? '{}'));
@@ -151,7 +193,7 @@ test('imports Firescope machine and graph settings once without connecting hardw
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
     settings = await openImporter(page);
     await expect(settings.getByRole('checkbox', { name: /Synthetic RTU Already imported/ })).toBeDisabled();
-    await settings.getByRole('checkbox', { name: 'Graph and display settings', exact: true }).uncheck();
+    await settings.getByRole('checkbox', { name: /Also import graph settings/ }).uncheck();
     await expect(settings.getByRole('button', { name: 'Import selected settings', exact: true })).toBeDisabled();
     const reloadedSettings = await page.evaluate(() =>
         JSON.parse(localStorage.getItem('e2e:tauri-store:settings.json') ?? '{}'),
@@ -190,7 +232,9 @@ test('rescans after busy status and disables a two-machine import at the Pro lim
     await expect(settings.getByText('Firescope settings found.', { exact: true })).toBeVisible();
     await expect(settings.getByRole('checkbox', { name: /Batch one/ })).toBeVisible();
     await expect(settings.getByRole('checkbox', { name: /Batch two/ })).toBeVisible();
-    await expect(settings.getByRole('button', { name: 'Import selected settings', exact: true })).toBeDisabled();
+    await settings.getByRole('checkbox', { name: /Batch one/ }).check();
+    await settings.getByRole('checkbox', { name: /Batch two/ }).check();
+    await expect(settings.getByRole('button', { name: 'Import 2 machines and graph', exact: true })).toBeDisabled();
     await expect(settings.getByRole('alert')).toBeVisible();
     expect(connectRequests).toBe(0);
     await page.screenshot({ path: testInfo.outputPath('firescope-import-pro-limit.png'), animations: 'disabled' });
@@ -213,6 +257,7 @@ test('keeps saved graph settings when machine persistence fails', async ({ authe
     await installPersistentStore(page);
     const settings = await openImporter(page);
     await expect(settings.getByText('Firescope settings found.', { exact: true })).toBeVisible();
+    await settings.getByRole('checkbox', { name: /Write failure/ }).check();
     await page.evaluate(() => {
         const original = Storage.prototype.setItem;
         Storage.prototype.setItem = function (key, value) {
@@ -221,7 +266,7 @@ test('keeps saved graph settings when machine persistence fails', async ({ authe
         };
     });
 
-    await settings.getByRole('button', { name: 'Import selected settings', exact: true }).click();
+    await settings.getByRole('button', { name: /Import 1 machines? and graph/ }).click();
     await expect(
         settings.getByRole('alert').filter({
             hasText: 'Graph settings were saved, but machines could not be added. Retry the machine import.',
@@ -263,7 +308,7 @@ test('keeps previous graph settings when the settings store save fails', async (
         };
     });
 
-    await settings.getByRole('button', { name: 'Import selected settings', exact: true }).click();
+    await settings.getByRole('button', { name: 'Import graph settings', exact: true }).click();
     await expect(settings.getByRole('alert')).toHaveText(
         'Settings could not be saved. Existing machines were preserved.',
     );

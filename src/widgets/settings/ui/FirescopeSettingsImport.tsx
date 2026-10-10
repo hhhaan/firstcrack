@@ -23,12 +23,12 @@ export function FirescopeSettingsImport() {
     const machines = useMachines((state) => state.machines);
     const plan = useEffectivePlan();
     const roastSettings = useRoastSettings();
-    const [excluded, setExcluded] = useState<Set<number>>(new Set());
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [includeGraph, setIncludeGraph] = useState(true);
     const [unitOverride, setUnitOverride] = useState<TemperatureUnit | null>(null);
     const [applying, setApplying] = useState(false);
     const [result, setResult] = useState<'saved' | 'failed' | 'graphSavedMachinesFailed' | 'planLimit' | null>(null);
-    const tk = (key: string) => t(`settings.firescope.${key}`);
+    const tk = (key: string, options?: Record<string, string | number>) => t(`settings.firescope.${key}`, options);
     const snapshot = query.error ? undefined : query.data;
     const unit =
         unitOverride ?? firescopeTemperatureUnit(snapshot?.graphTemperatureUnit ?? snapshot?.global?.temperature);
@@ -45,7 +45,7 @@ export function FirescopeSettingsImport() {
         (candidate) =>
             candidate.mapping.draft &&
             !alreadyImported(candidate.mapping.sourceId) &&
-            !excluded.has(candidate.sequence),
+            selectedIds.has(candidate.sequence),
     );
     const hasGraph = graph !== null && Object.keys(graph.patch).length > 0;
     const busy = applying || query.isFetching;
@@ -130,7 +130,7 @@ export function FirescopeSettingsImport() {
                         disabled={busy}
                         onClick={() => {
                             setResult(null);
-                            setExcluded(new Set());
+                            setSelectedIds(new Set());
                             setUnitOverride(null);
                             void queryClient.invalidateQueries({ queryKey: firescopeSettingsKey });
                         }}
@@ -140,10 +140,41 @@ export function FirescopeSettingsImport() {
                 </div>
                 {snapshot?.status === 'found' && (
                     <>
-                        <p className="m-0 text-xs text-muted">{tk('recoveryNote')}</p>
+                        <div className="min-w-0 overflow-hidden rounded-xl border border-border">
+                            <div className="border-b border-border-subtle px-4 py-3">
+                                <h3 className="m-0 text-[13px] font-medium text-primary">{tk('machineHeading')}</h3>
+                                <p className="mb-0 mt-1 text-xs text-muted">{tk('machineHint')}</p>
+                            </div>
+                            <div className="divide-y divide-border-subtle">
+                                {candidates.map(({ sequence, current, settings, mapping }) => (
+                                    <FirescopeMachinePreview
+                                        key={sequence}
+                                        current={current}
+                                        settings={settings}
+                                        mapping={mapping}
+                                        imported={alreadyImported(mapping.sourceId)}
+                                        selected={selectedIds.has(sequence)}
+                                        disabled={applying}
+                                        onSelectedChange={(checked) =>
+                                            setSelectedIds((previous) => {
+                                                const next = new Set(previous);
+                                                if (checked) next.add(sequence);
+                                                else next.delete(sequence);
+                                                return next;
+                                            })
+                                        }
+                                        tk={tk}
+                                    />
+                                ))}
+                                {candidates.length === 0 && (
+                                    <p className="m-0 p-4 text-xs text-muted">{tk('noMachines')}</p>
+                                )}
+                            </div>
+                        </div>
                         {graph && graph.fields.length > 0 && (
                             <FirescopeGraphPreview
                                 graph={graph}
+                                previous={roastSettings}
                                 checked={includeGraph}
                                 hasGraph={hasGraph}
                                 unit={unit}
@@ -153,26 +184,6 @@ export function FirescopeSettingsImport() {
                                 tk={tk}
                             />
                         )}
-                        {candidates.map(({ sequence, current, settings, mapping }) => (
-                            <FirescopeMachinePreview
-                                key={sequence}
-                                current={current}
-                                settings={settings}
-                                mapping={mapping}
-                                imported={alreadyImported(mapping.sourceId)}
-                                selected={!excluded.has(sequence)}
-                                disabled={applying}
-                                onSelectedChange={(checked) =>
-                                    setExcluded((previous) => {
-                                        const next = new Set(previous);
-                                        if (checked) next.delete(sequence);
-                                        else next.add(sequence);
-                                        return next;
-                                    })
-                                }
-                                tk={tk}
-                            />
-                        ))}
                         <p className="m-0 text-xs text-muted">{tk('applyNote')}</p>
                         {!withinLimit && (
                             <p className="m-0 text-xs text-secondary" role="alert">
@@ -185,7 +196,13 @@ export function FirescopeSettingsImport() {
                             className="justify-center disabled:cursor-not-allowed disabled:opacity-40"
                             onClick={() => void apply()}
                         >
-                            {applying ? tk('saving') : tk('apply')}
+                            {applying
+                                ? tk('saving')
+                                : selected.length > 0
+                                  ? tk(includeGraph && hasGraph ? 'applyBoth' : 'applyMachines', {
+                                        count: selected.length,
+                                    })
+                                  : tk(includeGraph && hasGraph ? 'applyGraph' : 'apply')}
                         </PillButton>
                     </>
                 )}
