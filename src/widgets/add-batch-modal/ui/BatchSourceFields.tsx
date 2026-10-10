@@ -79,13 +79,16 @@ export const BatchSourceFields = ({
                             renderLabel={(item) => (item as Bean).name}
                             renderOption={(item) => {
                                 const b = item as Bean;
-                                const kg = ((stockSummaries[b.id]?.effectiveGrams ?? 0) / 1000).toFixed(1);
+                                const summary = stockSummaries[b.id];
                                 return (
                                     <div>
                                         <div className="text-primary font-medium">{b.name}</div>
                                         <div className="text-[11px] text-muted mt-0.5">
-                                            {t('addBatchModal.stock', { kg })}
-                                            {b.origin && ` · ${b.origin}`}
+                                            {summary &&
+                                                t('addBatchModal.stock', {
+                                                    kg: (summary.effectiveGrams / 1000).toFixed(1),
+                                                })}
+                                            {b.origin && `${summary ? ' · ' : ''}${b.origin}`}
                                         </div>
                                     </div>
                                 );
