@@ -59,7 +59,7 @@ describe('SettingsSidebar roast groups', () => {
 
         act(() => roastButton().click());
         expect(roastButton().getAttribute('aria-expanded')).toBe('true');
-        expect(groupList()?.querySelectorAll('button')).toHaveLength(7);
+        expect(groupList()?.querySelectorAll('button')).toHaveLength(8);
     });
 
     it('returns to the full roast page before a later click collapses the groups', () => {

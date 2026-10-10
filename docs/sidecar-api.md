@@ -173,6 +173,27 @@ interface RoasterFormField {
 
 ## Endpoints
 
+### GET /imports/firescope
+
+macOS 사용자의 알려진 Firescope IndexedDB 경로를 자동 탐색하고, 앱이 종료된 경우에만 읽기 전용 복사본에서 로스팅 설정을 추출한다. request body와 파일 경로 인자는 없다. 기존 `X-Sidecar-Token` 인증을 사용하며 장비·Firescope 서버에 연결하지 않는다.
+
+```ts
+interface FirescopeSettingsSnapshot {
+    status: 'found' | 'not-found' | 'needs-app-closed' | 'unsupported' | 'unreadable';
+    reason?: string;
+    source: { product: 'Firescope'; version: string | null };
+    graphTemperatureUnit: string | null;
+    graph: Record<string, unknown> | null;
+    indicator: Record<string, unknown> | null;
+    global: Record<string, unknown> | null;
+    machines: { sequence: number; current: boolean; settings: Record<string, unknown> }[];
+}
+```
+
+상태는 HTTP 200으로 반환한다. 현재 설정과 파일에 남은 과거 머신을 구분하고 데모 머신은 제외한다. 과거 후보는 성공적으로 연결했던 머신 목록을 의미하지 않는다. 반환값은 연결·그래프 설정 허용 목록으로 제한하며 계정·인증·재고·프로파일은 포함하지 않는다. `graphTemperatureUnit`은 최신 머신의 표시 단위이며, global 단위와 다를 수 있다.
+
+CURRENT/MANIFEST, 활성 SST/WAL, CRC32C, Snappy, IndexedDB/V8 값을 검증한다. 앱 실행·파일 변경·잠금 획득 실패는 `needs-app-closed`, 미지원 포맷·외부 blob·미완료 Chromium 복구 작업은 `unsupported`로 거부하며 원본 DB를 복구하거나 수정하지 않는다. frontend `sidecar.getFirescopeSettings()`는 20초 timeout이며 자동 재시도하지 않는다.
+
 ### GET /roasters
 
 지원 로스터 목록과 프로토콜별 연결 폼 필드를 반환한다.
@@ -715,6 +736,7 @@ const BASE = 'http://127.0.0.1:9999';
 | Function                              | Endpoint            |
 | ------------------------------------- | ------------------- |
 | `sidecar.getRoasters()`               | `GET /roasters`     |
+| `sidecar.getFirescopeSettings()`       | `GET /imports/firescope` |
 | `sidecar.getStatus()`                 | `GET /status`       |
 | `sidecar.connect(roasterKey, params)` | `POST /connect`     |
 | `sidecar.disconnect()`                | `POST /disconnect`  |
@@ -760,7 +782,7 @@ npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
 ## Known Behavior To Preserve
 
 - Tauri IPC가 아니라 localhost HTTP API를 사용한다.
-- 프론트는 BT/ET 주소값을 직접 알지 않는다.
+- preset 내부 BT/ET 주소맵은 공개하지 않는다. 사용자 정의 연결과 설정 import는 명시적인 주소를 프론트에서 검증·전달한다.
 - 기기별 BT/ET 주소 분기는 `roaster_registry.py`의 `channels`, `modbus_registers`, `channel_nodes`, 또는 Phidget channel 설정으로 처리한다.
 - `/roasters`는 내부 주소맵을 숨기고 폼 입력에 필요한 연결 파라미터만 반환한다.
 - 연결 실패는 HTTP error로 던지지 않고 `SidecarStatus.error`에 담기는 경우가 있다.

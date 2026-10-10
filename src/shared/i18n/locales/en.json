@@ -128,6 +128,56 @@
         }
     },
     "settings": {
+        "firescope": {
+            "title": "Import Firescope settings",
+            "description": "Automatically find machine connections and roast graph settings saved on this Mac.",
+            "searching": "Searching local settings…",
+            "scanFailed": "Settings could not be read. Search again.",
+            "rescan": "Search again",
+            "status": {
+                "found": "Firescope settings found.",
+                "not-found": "No local Firescope settings to import.",
+                "needs-app-closed": "Quit Firescope completely, then search again.",
+                "unsupported": "This computer or Firescope settings format is not supported yet.",
+                "unreadable": "Settings could not be read. Check file access and integrity."
+            },
+            "recoveryNote": "Test machines are excluded. Past settings are recovered only while retained locally; they do not prove a successful connection.",
+            "graph": "Graph and display settings",
+            "sourceUnit": "Firescope graph temperature unit",
+            "chooseUnit": "Choose unit",
+            "unitNote": "If Firescope used different units for live roasts and history, confirm the unit of the graph you are importing.",
+            "partialGraph": "Settings without equivalent FC behavior will be skipped. Review the result for each field in the preview.",
+            "preview": "Preview graph mapping",
+            "mapping": "Result",
+            "mappingStatus": {
+                "mapped": "Can apply",
+                "unsupported": "No equivalent setting",
+                "invalid": "Check value"
+            },
+            "alreadyImported": "Already imported",
+            "current": "Currently saved machine",
+            "recovered": "Recovered past settings",
+            "addresses": "View connection and sensor address mapping",
+            "applyNote": "Selected machines are added without overwriting existing machines. Only mapped graph settings change. Devices are not connected automatically.",
+            "apply": "Import selected settings",
+            "saving": "Saving…",
+            "saved": "Settings imported. Review connections in the machine list.",
+            "failed": "Settings could not be saved. Existing machines were preserved.",
+            "issues": {
+                "missing": "A required setting is missing.",
+                "invalid-type": "The setting has an unexpected type.",
+                "invalid-value": "The value is outside the supported range.",
+                "unsupported-driver": "This device-specific driver cannot be imported yet.",
+                "unsupported-transport": "This connection cannot be mapped with equivalent behavior.",
+                "unsupported-sensor-type": "This sensor data type is not mapped yet.",
+                "unsupported-unit": "The sensor unit is unsupported.",
+                "unsupported-compensation": "Sensor compensation cannot be applied with equivalent behavior.",
+                "unsupported-channel": "This additional sensor will be skipped. Its original address is available in the preview.",
+                "duplicate-channel": "Several sensors use this temperature channel. Select it manually instead of importing."
+            },
+            "planLimit": "Selected machines exceed your plan limit. Select fewer machines or import only graph settings.",
+            "graphSavedMachinesFailed": "Graph settings were saved, but machines could not be added. Retry the machine import."
+        },
         "search": "Search settings",
         "noSearchResults": "No settings found.",
         "title": "Workspace settings",
@@ -216,7 +266,8 @@
                     "bbp": "BBP",
                     "display": "Chart display",
                     "axes": "Axes & controls",
-                    "sensors": "Sensors & RoR"
+                    "sensors": "Sensors & RoR",
+                    "import": "Import"
                 },
                 "label": "Roasting",
                 "title": "Roast Settings",

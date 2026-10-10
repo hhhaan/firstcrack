@@ -23,13 +23,14 @@ const VIRTUAL_MACHINE: Machine = {
 interface MachinesState {
     machines: Machine[];
     addMachine: (draft: Omit<Machine, 'id' | 'createdAt'>) => Machine;
+    addMachines: (drafts: Omit<Machine, 'id' | 'createdAt'>[]) => void;
     removeMachine: (id: string) => void;
     updateMachine: (id: string, patch: Partial<Machine>) => void;
 }
 
 export const useMachines = create<MachinesState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             machines: [VIRTUAL_MACHINE],
 
             addMachine: (draft) => {
@@ -40,6 +41,21 @@ export const useMachines = create<MachinesState>()(
                 };
                 set((s) => ({ machines: [...s.machines, machine] }));
                 return machine;
+            },
+
+            addMachines: (drafts) => {
+                const previous = get().machines;
+                const added = drafts.map((draft) => ({ ...draft, id: uid(), createdAt: new Date().toISOString() }));
+                try {
+                    set({ machines: [...previous, ...added] });
+                } catch (error) {
+                    try {
+                        set({ machines: previous });
+                    } catch {
+                        /* Storage remains unavailable. */
+                    }
+                    throw error;
+                }
             },
 
             removeMachine: (id) => {

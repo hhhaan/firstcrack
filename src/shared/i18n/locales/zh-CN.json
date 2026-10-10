@@ -128,6 +128,56 @@
         }
     },
     "settings": {
+        "firescope": {
+            "title": "导入 Firescope 设置",
+            "description": "自动查找保存在此 Mac 上的机器连接和烘焙曲线设置。",
+            "searching": "正在查找本地设置…",
+            "scanFailed": "无法读取设置，请重新搜索。",
+            "rescan": "重新搜索",
+            "status": {
+                "found": "已找到 Firescope 设置。",
+                "not-found": "没有可导入的本地 Firescope 设置。",
+                "needs-app-closed": "请完全退出 Firescope 后重新搜索。",
+                "unsupported": "暂不支持此计算机或 Firescope 设置格式。",
+                "unreadable": "无法读取设置，请检查文件访问权限和完整性。"
+            },
+            "recoveryNote": "测试机器会被排除。仅恢复本地仍保留的历史设置，不代表曾成功连接。",
+            "graph": "曲线和显示设置",
+            "sourceUnit": "Firescope 曲线温度单位",
+            "chooseUnit": "选择单位",
+            "unitNote": "如果 Firescope 的实时烘焙和历史记录使用不同单位，请确认所导入曲线的单位。",
+            "partialGraph": "无法在 FC 中实现相同行为的设置不会应用，可在预览中查看各字段的结果。",
+            "preview": "预览曲线映射",
+            "mapping": "结果",
+            "mappingStatus": {
+                "mapped": "可以应用",
+                "unsupported": "无对应设置",
+                "invalid": "请检查值"
+            },
+            "alreadyImported": "已导入",
+            "current": "当前保存的机器",
+            "recovered": "恢复的历史设置",
+            "addresses": "查看连接和传感器地址映射",
+            "applyNote": "所选机器将新增，不覆盖现有机器。仅修改可映射的曲线设置，不自动连接设备。",
+            "apply": "导入所选设置",
+            "saving": "正在保存…",
+            "saved": "设置已导入，可在机器列表中检查连接设置。",
+            "failed": "无法保存设置。现有机器已保留。",
+            "issues": {
+                "missing": "缺少必需设置。",
+                "invalid-type": "设置值类型不符。",
+                "invalid-value": "设置值超出支持范围。",
+                "unsupported-driver": "暂不支持导入此设备专用驱动。",
+                "unsupported-transport": "无法将此连接方式映射为相同行为。",
+                "unsupported-sensor-type": "暂未映射此传感器数据类型。",
+                "unsupported-unit": "不支持此传感器单位。",
+                "unsupported-compensation": "无法以相同行为应用传感器校准值。",
+                "unsupported-channel": "不会应用此附加传感器，可在预览中查看原始地址。",
+                "duplicate-channel": "同一温度通道有多个传感器。请手动选择。"
+            },
+            "planLimit": "所选机器超出当前套餐上限。请减少机器数量或仅导入图表设置。",
+            "graphSavedMachinesFailed": "图表设置已保存，但机器未能添加。请重试导入机器。"
+        },
         "search": "搜索设置",
         "noSearchResults": "未找到设置。",
         "title": "工作区设置",
@@ -216,7 +266,8 @@
                     "bbp": "BBP",
                     "display": "图表显示",
                     "axes": "坐标轴与控制",
-                    "sensors": "传感器与 RoR"
+                    "sensors": "传感器与 RoR",
+                    "import": "导入"
                 },
                 "label": "烘焙",
                 "title": "烘焙设置",

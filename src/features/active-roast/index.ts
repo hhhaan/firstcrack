@@ -14,6 +14,7 @@ export {
     type CurveChannel,
     type CurveLineType,
 } from './lib/curve-style';
+export { firescopeTemperatureUnit, mapFirescopeGraphSettings } from './lib/firescope-settings';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
 export type { ObservationQuality, SensorObservation } from './lib/sensorObservation';
@@ -48,6 +49,7 @@ export {
     FONT_SLIDER_MAX,
     FONT_SLIDER_MIN,
     fontScaleToSlider,
+    importFirescopeGraphSettings,
     resetCurveStyles,
     sliderToFontScale,
     TIME_RANGE_MIN_DEFAULT,

@@ -1,0 +1,96 @@
+import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
+import type { RoastSettings, TemperatureUnit } from '../model/settings';
+import { type CurveChannel, isCurveColor } from './curve-style';
+
+export interface FirescopeGraphField {
+    field: string;
+    value: unknown;
+    target: string | null;
+    status: 'mapped' | 'unsupported' | 'invalid';
+}
+
+export const firescopeTemperatureUnit = (value: unknown): TemperatureUnit | null => {
+    if (value === 'C' || value === '°C') return 'C';
+    if (value === 'F' || value === '°F') return 'F';
+    return null;
+};
+
+export const mapFirescopeGraphSettings = (
+    source: FirescopeSettingsSnapshot,
+    previous: RoastSettings,
+    unit: TemperatureUnit | null,
+): { patch: Partial<RoastSettings>; fields: FirescopeGraphField[] } => {
+    const graph = source.graph ?? {};
+    const patch: Partial<RoastSettings> = {};
+    const fields: FirescopeGraphField[] = [];
+    const handled = new Set<string>();
+    const field = (key: string, target: string | null, status: FirescopeGraphField['status']) => {
+        handled.add(key);
+        if (key in graph) fields.push({ field: key, value: graph[key], target, status });
+    };
+    const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+
+    if (unit) {
+        patch.temperatureUnit = unit;
+        fields.push({ field: 'temperatureUnit', value: unit, target: 'temperatureUnit', status: 'mapped' });
+    }
+    if ('yAxisStart' in graph || 'yAxisEnd' in graph) {
+        const min = graph.yAxisStart;
+        const max = graph.yAxisEnd;
+        const toC = (value: number) => (unit === 'F' ? ((value - 32) * 5) / 9 : value);
+        const valid = unit && finite(min) && finite(max) && min < max && toC(min) >= -100 && toC(max) <= 500;
+        field('yAxisStart', 'tempMinC', valid ? 'mapped' : unit ? 'invalid' : 'unsupported');
+        field('yAxisEnd', 'tempMaxC', valid ? 'mapped' : unit ? 'invalid' : 'unsupported');
+        if (valid) {
+            patch.tempMinC = toC(min);
+            patch.tempMaxC = toC(max);
+        }
+    }
+    if ('xAxisEnd' in graph) {
+        const end = graph.xAxisEnd;
+        const minutes = finite(end) ? end / 60 : Number.NaN;
+        const valid = Number.isInteger(minutes) && minutes >= 1 && minutes <= 180;
+        field('xAxisEnd', 'timeRangeMin', valid ? 'mapped' : 'invalid');
+        if (valid) {
+            patch.timeRangeMin = minutes;
+            patch.timeRangeCustom = true;
+        }
+    }
+    if ('xAxisScaleUnit' in graph) {
+        const tick = graph.xAxisScaleUnit;
+        const valid = finite(tick) && Number.isInteger(tick) && tick >= 1 && tick <= 3600;
+        field('xAxisScaleUnit', 'timeTickIntervalSec', valid ? 'mapped' : 'invalid');
+        if (valid) {
+            patch.timeTickIntervalSec = tick;
+            patch.timeTickCustom = ![30, 60, 90, 120].includes(tick);
+            if (!patch.timeTickCustom) patch.timeTickPresetSec = tick;
+        }
+    }
+    const colors: [string, CurveChannel][] = [
+        ['btLineColor', 'bt'],
+        ['etLineColor', 'et'],
+        ['btRorLineColor', 'ror'],
+        ['etRorLineColor', 'etRor'],
+    ];
+    for (const [key, channel] of colors) {
+        if (!(key in graph)) continue;
+        const color = graph[key];
+        field(key, `curveStyles.${channel}.color`, isCurveColor(color) ? 'mapped' : 'invalid');
+        if (isCurveColor(color)) {
+            patch.curveStyles ??= { ...previous.curveStyles };
+            patch.curveStyles[channel] = { ...previous.curveStyles[channel], color: color.toLowerCase() };
+        }
+    }
+    if ('etLineVisible' in graph) {
+        const visible = graph.etLineVisible;
+        field('etLineVisible', 'showET', typeof visible === 'boolean' ? 'mapped' : 'invalid');
+        if (typeof visible === 'boolean') patch.showET = visible;
+    }
+    for (const [key, value] of Object.entries(graph)) {
+        if (!handled.has(key)) fields.push({ field: key, value, target: null, status: 'unsupported' });
+    }
+    for (const [key, value] of Object.entries(source.indicator ?? {})) {
+        fields.push({ field: `indicator.${key}`, value, target: null, status: 'unsupported' });
+    }
+    return { patch, fields };
+};

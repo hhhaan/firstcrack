@@ -13,12 +13,13 @@ const store = new LazyStore(STORE_FILE);
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-const flushSave = async (): Promise<void> => {
+const flushSave = async (throwOnError = false): Promise<void> => {
     try {
         await store.save();
     } catch (err) {
         /* Tauri unavailable / web */
         logger.capture(err, { scope: 'settings-store.save' });
+        if (throwOnError) throw err;
     }
 };
 
@@ -40,16 +41,34 @@ export const settingsGet = async <T>(key: string): Promise<T | undefined> => {
 };
 
 /** Write + save immediately (or debounce if `debounce: true`). */
-export const settingsSet = async (key: string, value: unknown, options?: { debounce?: boolean }): Promise<void> => {
+export const settingsSet = async (
+    key: string,
+    value: unknown,
+    options?: { debounce?: boolean; throwOnError?: boolean },
+): Promise<void> => {
+    const strict = options?.throwOnError === true;
+    let previous: unknown;
+    let written = false;
     try {
+        if (strict) previous = await store.get(key);
         await store.set(key, value);
-        if (options?.debounce) {
+        written = true;
+        if (options?.debounce && !strict) {
             scheduleSave();
         } else {
-            await flushSave();
+            await flushSave(options?.throwOnError);
         }
     } catch (err) {
+        if (strict && written) {
+            try {
+                if (previous === undefined) await store.delete(key);
+                else await store.set(key, previous);
+            } catch (rollbackError) {
+                logger.capture(rollbackError, { scope: 'settings-store.rollback', key });
+            }
+        }
         logger.capture(err, { scope: 'settings-store.set' });
+        if (options?.throwOnError) throw err;
         /* Tauri unavailable / web */
     }
 };

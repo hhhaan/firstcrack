@@ -1,5 +1,6 @@
 import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
@@ -10,6 +11,7 @@ import {
     DEFAULT_CURVE_STYLES,
     normalizeCurveStyles,
 } from '../lib/curve-style';
+import { mapFirescopeGraphSettings } from '../lib/firescope-settings';
 import { normalizeTemperatureTicks } from '../lib/temperature';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
@@ -501,7 +503,18 @@ const _hydrate = async () => {
     }
 };
 
-void _hydrate();
+const hydration = _hydrate();
+
+export const importFirescopeGraphSettings = async (source: FirescopeSettingsSnapshot, unit: TemperatureUnit | null) => {
+    await hydration;
+    const { patch } = mapFirescopeGraphSettings(source, _settings, unit);
+    if (Object.keys(patch).length === 0) return;
+    const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
+    _userTouched = true;
+    await settingsSet(STORE_KEY, next, { throwOnError: true });
+    _settings = next;
+    _emit();
+};
 
 export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
     _userTouched = true;

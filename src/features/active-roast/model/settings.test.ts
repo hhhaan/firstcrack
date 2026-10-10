@@ -1,5 +1,6 @@
 import { FEATURE, planHasFeature } from '@shared/lib/features';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../lib/curve-style';
 import {
@@ -19,6 +20,56 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsGet: vi.fn().mockResolvedValue(null),
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
+
+const firescopeSnapshot: FirescopeSettingsSnapshot = {
+    status: 'found',
+    source: { product: 'Firescope', version: null },
+    graphTemperatureUnit: '°C',
+    graph: { yAxisStart: 50, yAxisEnd: 250, btLineColor: '#44a56b' },
+    indicator: null,
+    global: null,
+    machines: [],
+};
+
+it('waits for saved settings before importing and persists the merged result across restart', async () => {
+    vi.resetModules();
+    const stored = normalizeRoastSettings({ btSmoothing: 80 });
+    stored.curveStyles.bt = { ...stored.curveStyles.bt, width: 4, lineType: 'dashed' };
+    let resolveHydration: (value: typeof stored) => void = () => {};
+    vi.mocked(settingsGet).mockReturnValueOnce(
+        new Promise((resolve) => {
+            resolveHydration = resolve;
+        }),
+    );
+    const settings = await import('./settings');
+    const importing = settings.importFirescopeGraphSettings(firescopeSnapshot, 'C');
+    resolveHydration(stored);
+    await importing;
+    expect(settings.getRoastSettings()).toMatchObject({
+        tempMinC: 50,
+        tempMaxC: 250,
+        btSmoothing: 80,
+        curveStyles: { bt: { color: '#44a56b', width: 4, lineType: 'dashed' } },
+    });
+    expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', settings.getRoastSettings(), { throwOnError: true });
+    const persisted = structuredClone(settings.getRoastSettings());
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce(persisted);
+    const restarted = await import('./settings');
+    await Promise.resolve();
+    expect(restarted.getRoastSettings()).toEqual(persisted);
+});
+
+it('keeps current graph settings when import persistence fails', async () => {
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce({ tempMinC: 130, btSmoothing: 80 });
+    const settings = await import('./settings');
+    await Promise.resolve();
+    const previous = settings.getRoastSettings();
+    vi.mocked(settingsSet).mockRejectedValueOnce(new Error('disk full'));
+    await expect(settings.importFirescopeGraphSettings(firescopeSnapshot, 'C')).rejects.toThrow('disk full');
+    expect(settings.getRoastSettings()).toBe(previous);
+});
 
 it('restores and bounds display smoothing while preserving the original default', async () => {
     expect(normalizeRoastSettings({}).btSmoothing).toBe(0);

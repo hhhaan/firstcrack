@@ -128,6 +128,56 @@
         }
     },
     "settings": {
+        "firescope": {
+            "title": "Firescope設定をインポート",
+            "description": "このMacに保存されたマシン接続と焙煎グラフ設定を自動検索します。",
+            "searching": "ローカル設定を検索中…",
+            "scanFailed": "設定を読み取れませんでした。再検索してください。",
+            "rescan": "再検索",
+            "status": {
+                "found": "Firescope設定が見つかりました。",
+                "not-found": "インポートできるローカルFirescope設定がありません。",
+                "needs-app-closed": "Firescopeを完全に終了してから再検索してください。",
+                "unsupported": "このコンピューターまたはFirescope設定形式は未対応です。",
+                "unreadable": "設定を読み取れません。ファイルのアクセス権と状態を確認してください。"
+            },
+            "recoveryNote": "テストマシンは除外します。過去の設定はローカルに残っているものだけを復元し、接続成功を示すものではありません。",
+            "graph": "グラフ・表示設定",
+            "sourceUnit": "Firescopeグラフの温度単位",
+            "chooseUnit": "単位を選択",
+            "unitNote": "Firescopeの焙煎画面と履歴画面で単位が異なる場合は、インポートするグラフの単位を確認してください。",
+            "partialGraph": "FCで同じ動作に変換できない設定は適用しません。プレビューで各項目の結果を確認できます。",
+            "preview": "グラフ変換をプレビュー",
+            "mapping": "結果",
+            "mappingStatus": {
+                "mapped": "適用可能",
+                "unsupported": "同等の設定なし",
+                "invalid": "値の確認が必要"
+            },
+            "alreadyImported": "インポート済み",
+            "current": "現在保存されているマシン",
+            "recovered": "復元された過去の設定",
+            "addresses": "接続・センサーアドレスの変換を表示",
+            "applyNote": "選択したマシンを新規追加し、既存のマシンは上書きしません。対応するグラフ設定だけを変更し、機器へ自動接続しません。",
+            "apply": "選択した設定をインポート",
+            "saving": "保存中…",
+            "saved": "設定をインポートしました。マシン一覧で接続設定を確認できます。",
+            "failed": "設定を保存できませんでした。既存のマシンは保持されています。",
+            "issues": {
+                "missing": "必須設定がありません。",
+                "invalid-type": "設定値の形式が異なります。",
+                "invalid-value": "設定値が対応範囲外です。",
+                "unsupported-driver": "この機器専用ドライバーのインポートは未対応です。",
+                "unsupported-transport": "この接続方式を同じ動作に変換できません。",
+                "unsupported-sensor-type": "このセンサーデータ型は未対応です。",
+                "unsupported-unit": "センサー単位は未対応です。",
+                "unsupported-compensation": "センサー補正値を同じ動作で適用できません。",
+                "unsupported-channel": "この追加センサーは適用しません。元のアドレスはプレビューで確認できます。",
+                "duplicate-channel": "同じ温度チャンネルに複数のセンサーがあります。手動で選択してください。"
+            },
+            "planLimit": "選択したマシンがプランの上限を超えています。台数を減らすかグラフ設定だけを取り込んでください。",
+            "graphSavedMachinesFailed": "グラフ設定は保存されましたが、マシンを追加できませんでした。マシンのインポートを再試行してください。"
+        },
         "search": "設定を検索",
         "noSearchResults": "設定が見つかりません。",
         "title": "ワークスペース設定",
@@ -216,7 +266,8 @@
                     "bbp": "BBP",
                     "display": "チャート表示",
                     "axes": "軸・制御",
-                    "sensors": "センサー・RoR"
+                    "sensors": "センサー・RoR",
+                    "import": "インポート"
                 },
                 "label": "焙煎",
                 "title": "焙煎設定",
