@@ -141,7 +141,6 @@
                 "unsupported": "This computer or Firescope settings format is not supported yet.",
                 "unreadable": "Settings could not be read. Check file access and integrity."
             },
-            "recoveryNote": "Test machines are excluded. Previous settings may also appear.",
             "chooseSettings": "Choose what to import",
             "machineHeading": "Machine connections",
             "machineHint": "Select the machines you want to use in FC.",
@@ -156,7 +155,6 @@
             "partialGraph": "Event detection, smoothing, and similar settings will keep their current FC values.",
             "preview": "Preview graph settings",
             "details": "View settings that will change",
-            "technicalDetails": "View original settings and addresses",
             "mapping": "Result",
             "mappingStatus": {
                 "mapped": "Can apply",
@@ -166,7 +164,6 @@
             "alreadyImported": "Already imported",
             "current": "Recently selected",
             "recovered": "Previous setting",
-            "addresses": "View original settings and addresses",
             "currentValue": "Current FC",
             "importedValue": "After import",
             "tempRange": "Temperature range",

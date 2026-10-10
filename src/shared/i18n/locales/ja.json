@@ -141,7 +141,6 @@
                 "unsupported": "このコンピューターまたはFirescope設定形式は未対応です。",
                 "unreadable": "設定を読み取れません。ファイルのアクセス権と状態を確認してください。"
             },
-            "recoveryNote": "テストマシンは除外され、以前の設定も表示されることがあります。",
             "chooseSettings": "インポートする設定を選択",
             "machineHeading": "マシン接続",
             "machineHint": "FCで使用するマシンを選択してください。",
@@ -156,7 +155,6 @@
             "partialGraph": "イベント検出や平滑化などは、現在のFC設定を維持します。",
             "preview": "グラフ設定をプレビュー",
             "details": "変更される設定を表示",
-            "technicalDetails": "元の設定とアドレスを表示",
             "mapping": "結果",
             "mappingStatus": {
                 "mapped": "適用可能",
@@ -166,7 +164,6 @@
             "alreadyImported": "インポート済み",
             "current": "最近選択",
             "recovered": "以前の設定",
-            "addresses": "元の設定とアドレスを表示",
             "currentValue": "現在のFC",
             "importedValue": "インポート後",
             "tempRange": "温度範囲",

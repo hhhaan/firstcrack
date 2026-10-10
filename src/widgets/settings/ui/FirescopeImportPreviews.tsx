@@ -176,12 +176,6 @@ export function FirescopeGraphPreview({
                 {graph.fields.some((field) => field.status === 'invalid') && (
                     <p className="mt-2 text-xs text-muted">{tk('invalidGraph')}</p>
                 )}
-                <details className="mt-3">
-                    <summary className="cursor-pointer text-xs text-muted">{tk('technicalDetails')}</summary>
-                    <pre className="mb-0 mt-2 max-h-56 overflow-auto rounded-md bg-surface p-3 text-[11px] text-secondary">
-                        {JSON.stringify(graph.fields, null, 2)}
-                    </pre>
-                </details>
             </details>
         </div>
     );
@@ -257,35 +251,6 @@ export function FirescopeMachinePreview({
                     )}
                 </span>
             </label>
-            <details className="px-4 pb-4 pl-11">
-                <summary className="cursor-pointer text-xs text-muted">{tk('technicalDetails')}</summary>
-                <p className="mb-2 mt-3 text-xs text-muted">{tk('recoveryNote')}</p>
-                {mapping.issues.length > 0 && (
-                    <ul className="my-2 grid gap-1 pl-4 text-xs text-muted">
-                        {mapping.issues.map((issue) => (
-                            <li key={`${issue.field}-${issue.code}`}>
-                                {tk(`issues.${issue.code}`)} <span className="font-mono">({issue.field})</span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-                <div className="mt-2 grid min-w-0 gap-2 @[600px]:grid-cols-2">
-                    <div className="min-w-0">
-                        <p className="mb-1 text-xs font-medium">Firescope</p>
-                        <pre className="max-h-56 overflow-auto rounded-md bg-surface p-3 text-[11px] text-secondary">
-                            {JSON.stringify(settings.connection, null, 2)}
-                        </pre>
-                    </div>
-                    {mapping.draft && (
-                        <div className="min-w-0">
-                            <p className="mb-1 text-xs font-medium">FC</p>
-                            <pre className="max-h-56 overflow-auto rounded-md bg-surface p-3 text-[11px] text-secondary">
-                                {JSON.stringify(mapping.draft.connectionParams, null, 2)}
-                            </pre>
-                        </div>
-                    )}
-                </div>
-            </details>
         </div>
     );
 }

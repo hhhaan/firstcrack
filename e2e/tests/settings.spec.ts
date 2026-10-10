@@ -141,6 +141,7 @@ test('BT smoothing supports custom strength, keyboard input, reopening and reset
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
+    await settings.getByRole('navigation').getByRole('button', { name: 'Sensors & RoR', exact: true }).click();
     const slider = settings.getByRole('slider', { name: 'BT smoothing strength', exact: true });
     const value = settings.getByRole('spinbutton', { name: 'BT smoothing strength value', exact: true });
     await expect(value).toHaveValue('0');
@@ -162,6 +163,7 @@ test('BT smoothing supports custom strength, keyboard input, reopening and reset
     await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
+    await settings.getByRole('navigation').getByRole('button', { name: 'Sensors & RoR', exact: true }).click();
     await expect(value).toHaveValue('80');
     const btSection = settings.locator('[data-settings-section]').filter({
         has: page.getByRole('slider', { name: 'BT smoothing strength', exact: true }),
@@ -215,7 +217,7 @@ test('settings is a responsive page and preserves existing preferences and entry
     await expect(navigation.getByRole('status')).toHaveText('No settings found.');
     await expect(settings.getByRole('main').getByRole('status')).toHaveText('No settings found.');
     await search.fill('   ');
-    await expect(navigation.getByRole('button')).toHaveCount(14);
+    await expect(navigation.getByRole('button')).toHaveCount(15);
     await search.fill('');
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
 
@@ -232,12 +234,18 @@ test('settings is a responsive page and preserves existing preferences and entry
     for (const tab of ['Roasting', 'Team', 'Profile', 'Billing', 'Software', 'Feedback', 'General']) {
         await navigation.getByRole('button', { name: tab, exact: true }).click();
         await expect(
-            settings.getByRole('main').getByRole('heading', { name: tab, exact: true, level: 1 }),
+            settings.getByRole('main').getByRole('heading', {
+                name: tab === 'Roasting' ? 'Units & sampling' : tab,
+                exact: true,
+                level: 1,
+            }),
         ).toBeVisible();
-        await expect(navigation.getByRole('button', { name: tab, exact: true })).toHaveAttribute(
-            'aria-current',
-            'page',
-        );
+        await expect(
+            navigation.getByRole('button', {
+                name: tab === 'Roasting' ? 'Units & sampling' : tab,
+                exact: true,
+            }),
+        ).toHaveAttribute('aria-current', 'page');
     }
     await expect(settings.getByLabel('Stock alert horizon', { exact: true })).toHaveValue('42');
     await page.screenshot({ path: testInfo.outputPath('settings-desktop.png') });
@@ -249,6 +257,7 @@ test('settings is a responsive page and preserves existing preferences and entry
     await expect(settings.getByRole('radio', { name: '°C', exact: true })).not.toBeChecked();
     await settings.getByRole('radio', { name: '°C', exact: true }).check();
     await page.screenshot({ path: testInfo.outputPath('settings-roasting-top.png') });
+    await navigation.getByRole('button', { name: 'Chart display', exact: true }).click();
     const visibilityToggle = settings
         .locator('[data-settings-section]')
         .filter({ has: page.getByRole('heading', { name: 'Data Visibility', exact: true }) })
@@ -282,7 +291,9 @@ test('settings is a responsive page and preserves existing preferences and entry
     await page.setViewportSize({ width: 1280, height: 800 });
     await goNav(page, 'roast');
     await page.getByRole('button', { name: 'Open roast settings', exact: true }).click();
-    await expect(settings.getByRole('main').getByRole('heading', { name: 'Roasting', exact: true })).toBeVisible();
+    await expect(
+        settings.getByRole('main').getByRole('heading', { name: 'Units & sampling', exact: true }),
+    ).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
     await expect(page.getByRole('button', { name: 'Open roast settings', exact: true })).toBeVisible();
@@ -299,7 +310,12 @@ test('roasting submenus filter sections while search and saved preferences span 
     await roast.click();
     await expect(roast).toHaveAttribute('aria-expanded', 'true');
     const submenus = navigation.getByRole('list', { name: 'Roasting', exact: true });
-    await expect(submenus.getByRole('button')).toHaveCount(7);
+    await expect(submenus.getByRole('button')).toHaveCount(8);
+    const units = submenus.getByRole('button', { name: 'Units & sampling', exact: true });
+    await expect(units).toHaveAttribute('aria-current', 'page');
+    await expect(main.getByRole('heading', { name: 'Units & sampling', exact: true })).toBeFocused();
+    await expect(main.getByRole('heading', { name: 'Live Alarms', exact: true })).toBeHidden();
+    await expect(main.getByRole('heading', { name: 'Axis ticks', exact: true })).toBeHidden();
     await submenus.getByRole('button', { name: 'Axes & controls', exact: true }).click();
     await expect(main.getByRole('heading', { name: 'Axes & controls', exact: true })).toBeFocused();
     await expect(main.getByRole('heading', { name: 'Axis ticks', exact: true })).toBeVisible();
@@ -325,9 +341,16 @@ test('roasting submenus filter sections while search and saved preferences span 
     await search.fill('Automatic detection');
     await expect(main.getByRole('heading', { name: 'Auto Charge Detection', exact: true })).toBeVisible();
     await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeHidden();
+    await search.fill('Roasting');
+    await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Auto Charge Detection', exact: true })).toBeHidden();
+    await search.fill('Automatic detection');
+    await roast.click();
+    await expect(search).toHaveValue('');
+    await expect(main.getByRole('heading', { name: 'Units & sampling', exact: true })).toBeVisible();
     await search.fill('');
     await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeVisible();
-    await expect(roast).toHaveAttribute('aria-current', 'page');
+    await expect(units).toHaveAttribute('aria-current', 'page');
 
     await page.setViewportSize({ width: 600, height: 700 });
     for (const submenu of await submenus.getByRole('button').all()) {
@@ -343,12 +366,13 @@ test('roasting submenus filter sections while search and saved preferences span 
     });
     await roast.click();
     await expect(main.getByRole('heading', { name: 'Temperature Unit', exact: true })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Live Alarms', exact: true })).toBeHidden();
     await roast.click();
     await expect(roast).toHaveAttribute('aria-expanded', 'false');
     await expect(submenus).toHaveCount(0);
     await roast.click();
     await expect(roast).toHaveAttribute('aria-expanded', 'true');
-    await expect(submenus.getByRole('button')).toHaveCount(7);
+    await expect(submenus.getByRole('button')).toHaveCount(8);
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
     await expect(submenus).toHaveCount(0);
     await settings.getByLabel('App language', { exact: true }).selectOption('ko');
@@ -367,6 +391,7 @@ test('temperature grid switches between default and a custom tick list without l
     const settings = page.getByTestId('settings-page');
     const navigation = settings.getByRole('navigation', { name: 'Settings', exact: true });
     await navigation.getByRole('button', { name: 'Roasting', exact: true }).click();
+    await navigation.getByRole('button', { name: 'Axes & controls', exact: true }).click();
     const grid = settings.getByRole('combobox', { name: 'Temperature grid', exact: true });
     const ticks = settings.locator('#roast-temp-ticks');
     await expect(grid).toHaveText('10°C (default)');
@@ -428,7 +453,9 @@ test('temperature grid switches between default and a custom tick list without l
     await expect(ticks).toHaveValue('150, 175, 200');
     await expect(grid).toHaveText('Custom');
     await expect(settings.getByRole('combobox', { name: 'Temperature label frequency', exact: true })).toBeHidden();
+    await navigation.getByRole('button', { name: 'Units & sampling', exact: true }).click();
     await settings.getByRole('radio', { name: '°F', exact: true }).check();
+    await navigation.getByRole('button', { name: 'Axes & controls', exact: true }).click();
     await expect(ticks).toHaveValue('302, 347, 392');
     await grid.click();
     await page.getByRole('option', { name: '10°F (default)', exact: true }).click();
@@ -438,6 +465,7 @@ test('temperature grid switches between default and a custom tick list without l
     await expect(ticks).toHaveValue('302, 347, 392');
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
     await navigation.getByRole('button', { name: 'Roasting', exact: true }).click();
+    await navigation.getByRole('button', { name: 'Axes & controls', exact: true }).click();
     await expect(grid).toHaveText('Custom');
     await expect(ticks).toHaveValue('302, 347, 392');
     await ticks.fill('100, bad');

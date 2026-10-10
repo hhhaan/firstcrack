@@ -14,11 +14,11 @@ vi.mock('react-i18next', () => ({
 
 function Harness({ initialTab = 'roast' as SettingsTabId }) {
     const [tab, setTab] = useState(initialTab);
-    const [group, setGroup] = useState<RoastSettingsGroup | null>(null);
+    const [group, setGroup] = useState<RoastSettingsGroup>('general');
     return createElement(SettingsSidebar, {
         activeTab: tab,
         onTabChange: (next: SettingsTabId) => {
-            setGroup(null);
+            setGroup('general');
             setTab(next);
         },
         onClose: () => undefined,
@@ -48,7 +48,7 @@ describe('SettingsSidebar roast groups', () => {
     const roastButton = () => host.querySelector('button[aria-expanded]') as HTMLButtonElement;
     const groupList = () => host.querySelector('#settings-roast-navigation');
 
-    it('collapses and expands the roast groups from the full roast page', () => {
+    it('collapses and expands navigation while keeping units and sampling selected', () => {
         mount();
         expect(roastButton().getAttribute('aria-expanded')).toBe('true');
         expect(groupList()).not.toBeNull();
@@ -60,9 +60,10 @@ describe('SettingsSidebar roast groups', () => {
         act(() => roastButton().click());
         expect(roastButton().getAttribute('aria-expanded')).toBe('true');
         expect(groupList()?.querySelectorAll('button')).toHaveLength(8);
+        expect(host.querySelector('[aria-current="page"]')?.textContent).toBe('settings.tabs.roast.groups.general');
     });
 
-    it('returns to the full roast page before a later click collapses the groups', () => {
+    it('returns to units and sampling before a later click collapses navigation', () => {
         mount();
         const alerts = [...host.querySelectorAll('button')].find(
             (button) => button.textContent === 'settings.tabs.roast.groups.alerts',
@@ -73,7 +74,7 @@ describe('SettingsSidebar roast groups', () => {
         expect(groupList()).not.toBeNull();
 
         act(() => roastButton().click());
-        expect(roastButton().getAttribute('aria-current')).toBe('page');
+        expect(host.querySelector('[aria-current="page"]')?.textContent).toBe('settings.tabs.roast.groups.general');
         expect(groupList()).not.toBeNull();
 
         act(() => roastButton().click());

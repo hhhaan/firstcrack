@@ -11,13 +11,14 @@ export function SettingsLayout({
 }: SettingsNavigationProps & { children: ReactNode }) {
     const { t } = useTranslation();
     const [query, setQuery] = useState('');
-    const [roastGroup, setRoastGroup] = useState<RoastSettingsGroup | null>(null);
+    const [roastGroup, setRoastGroup] = useState<RoastSettingsGroup>('general');
     const contentRef = useRef<HTMLDivElement>(null);
     const emptyRef = useRef<HTMLParagraphElement>(null);
     const tab = getTabs(t).find((item) => item.id === activeTab);
-    const groupLabel = activeTab === 'roast' && roastGroup ? t(`settings.tabs.roast.groups.${roastGroup}`) : null;
+    const groupLabel = activeTab === 'roast' && !query.trim() ? t(`settings.tabs.roast.groups.${roastGroup}`) : null;
     const changeTab = (nextTab: SettingsNavigationProps['activeTab']) => {
-        setRoastGroup(null);
+        setQuery('');
+        setRoastGroup('general');
         onTabChange(nextTab);
     };
     const focusHeading = useCallback((node: HTMLHeadingElement | null) => {
@@ -25,7 +26,7 @@ export function SettingsLayout({
     }, []);
     const search = (value: string) => {
         setQuery(value);
-        setRoastGroup(null);
+        setRoastGroup('general');
         const matches = getSearchTabs(t, value);
         if (matches.length && !matches.some((item) => item.id === activeTab)) onTabChange(matches[0].id);
     };
@@ -42,7 +43,7 @@ export function SettingsLayout({
                     : '';
             const text = `${groupText} ${section.textContent}`.toLocaleLowerCase();
             section.hidden =
-                (!terms.length && activeTab === 'roast' && roastGroup !== null && group !== roastGroup) ||
+                (activeTab === 'roast' && (!terms.length || matchesTab) && group !== roastGroup) ||
                 (!matchesTab && !terms.every((term) => text.includes(term)));
             if (!section.hidden) visible++;
         }
@@ -60,7 +61,7 @@ export function SettingsLayout({
                 onQueryChange={search}
             />
             <main
-                key={`${activeTab}:${roastGroup ?? ''}`}
+                key={`${activeTab}:${roastGroup}`}
                 aria-labelledby="settings-page-title"
                 className="@container min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8 lg:px-10 lg:py-10"
             >

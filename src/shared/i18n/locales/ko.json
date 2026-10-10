@@ -141,7 +141,6 @@
                 "unsupported": "이 컴퓨터 또는 Firescope 설정 형식은 아직 지원하지 않습니다.",
                 "unreadable": "설정 파일을 읽지 못했습니다. 파일 접근 권한과 상태를 확인해 주세요."
             },
-            "recoveryNote": "테스트 머신은 제외하며, 이전에 사용한 설정도 표시될 수 있습니다.",
             "chooseSettings": "가져올 설정 선택",
             "machineHeading": "머신 연결",
             "machineHint": "FC에서 사용할 머신을 선택하세요.",
@@ -156,7 +155,6 @@
             "partialGraph": "이벤트 감지·평활화 등은 현재 FC 설정을 유지합니다.",
             "preview": "그래프 설정 미리보기",
             "details": "변경될 설정 보기",
-            "technicalDetails": "원본 설정·주소 보기",
             "mapping": "결과",
             "mappingStatus": {
                 "mapped": "적용 가능",
@@ -166,7 +164,6 @@
             "alreadyImported": "이미 가져옴",
             "current": "최근 선택",
             "recovered": "이전 설정",
-            "addresses": "원본 설정·주소 보기",
             "currentValue": "현재 FC",
             "importedValue": "가져온 뒤",
             "tempRange": "온도 범위",

@@ -141,7 +141,6 @@
                 "unsupported": "暂不支持此计算机或 Firescope 设置格式。",
                 "unreadable": "无法读取设置，请检查文件访问权限和完整性。"
             },
-            "recoveryNote": "测试机器会被排除，也可能显示以前的设置。",
             "chooseSettings": "选择要导入的设置",
             "machineHeading": "机器连接",
             "machineHint": "请选择要在 FC 中使用的机器。",
@@ -156,7 +155,6 @@
             "partialGraph": "事件检测、平滑等项目将保留当前 FC 设置。",
             "preview": "预览曲线设置",
             "details": "查看将更改的设置",
-            "technicalDetails": "查看原始设置和地址",
             "mapping": "结果",
             "mappingStatus": {
                 "mapped": "可以应用",
@@ -166,7 +164,6 @@
             "alreadyImported": "已导入",
             "current": "最近选择",
             "recovered": "以前的设置",
-            "addresses": "查看原始设置和地址",
             "currentValue": "当前 FC",
             "importedValue": "导入后",
             "tempRange": "温度范围",

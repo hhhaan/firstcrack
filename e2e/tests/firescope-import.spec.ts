@@ -131,8 +131,8 @@ test('imports Firescope machine and graph settings once without connecting hardw
     await expect(settings.getByText(/50\s*°C\s*–\s*250\s*°C/)).toBeVisible();
     await expect(settings.getByRole('term').filter({ hasText: 'Time range' })).toBeVisible();
     await expect(settings.getByRole('definition').filter({ hasText: '12 min' })).toBeVisible();
-    await expect(settings.locator('pre').filter({ hasText: 'tempMinC' })).toBeHidden();
-    await expect(settings.locator('pre').filter({ hasText: 'yAxisStart' })).toBeHidden();
+    await expect(settings.locator('pre')).toHaveCount(0);
+    await expect(settings.getByText('View original settings and addresses', { exact: true })).toHaveCount(0);
     await page.setViewportSize({ width: 1280, height: 1000 });
     await page.screenshot({ path: testInfo.outputPath('firescope-import-default-en.png'), animations: 'disabled' });
     await settings.getByText(/See changes|View settings that will change/, { exact: true }).click();
@@ -141,15 +141,7 @@ test('imports Firescope machine and graph settings once without connecting hardw
     const minimumTemperature = settings.getByRole('row', { name: /Minimum temperature/ });
     await expect(minimumTemperature).toBeVisible();
     await expect(minimumTemperature.getByText('50 °C', { exact: true })).toBeVisible();
-    await expect(settings.locator('pre').filter({ hasText: 'tempMinC' })).toBeHidden();
-    await expect(settings.locator('pre').filter({ hasText: 'yAxisStart' })).toBeHidden();
-    const graphTechnicalDetails = settings
-        .getByText(/Source settings and addresses|View original settings and addresses/, { exact: true })
-        .last();
-    await graphTechnicalDetails.click();
-    await expect(settings.locator('pre').filter({ hasText: 'yAxisStart' })).toBeVisible();
-    await expect(settings.locator('pre').filter({ hasText: 'tempMinC' })).toBeVisible();
-    await graphTechnicalDetails.click();
+    await expect(settings.locator('pre')).toHaveCount(0);
     await settings.getByText(/See changes|View settings that will change/, { exact: true }).click();
 
     await page.setViewportSize({ width: 600, height: 900 });
@@ -158,6 +150,8 @@ test('imports Firescope machine and graph settings once without connecting hardw
     await settings.getByLabel('App language', { exact: true }).selectOption('ko');
     await settings.getByRole('searchbox', { name: '설정 검색', exact: true }).fill('Firescope');
     await expect(settings.getByRole('heading', { name: 'Firescope 설정 가져오기', exact: true })).toBeVisible();
+    await expect(settings.getByRole('button', { name: '그래프 설정 가져오기', exact: true })).toBeEnabled();
+    await expect(settings.getByText('원본 설정·주소 보기', { exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('firescope-import-narrow-ko.png'), animations: 'disabled' });
     await page.setViewportSize({ width: 1280, height: 1000 });
     await page.screenshot({ path: testInfo.outputPath('firescope-import-default-ko.png'), animations: 'disabled' });
@@ -167,11 +161,7 @@ test('imports Firescope machine and graph settings once without connecting hardw
     await settings.getByRole('searchbox', { name: 'Search settings', exact: true }).fill('Firescope');
     await settings.getByRole('checkbox', { name: /Synthetic RTU/ }).check();
     await expect(settings.getByRole('button', { name: /Import 1 machines? and graph/ })).toBeEnabled();
-    await settings
-        .getByText(/Source settings and addresses|View original settings and addresses/, { exact: true })
-        .first()
-        .click();
-    await expect(settings.locator('pre').filter({ hasText: 'modbus_registers' })).toBeVisible();
+    await expect(settings.locator('pre')).toHaveCount(0);
     await expect(settings.getByRole('checkbox', { name: /Unsupported Probat/ })).toBeDisabled();
     await settings.getByRole('button', { name: /Import 1 machines? and graph/ }).click();
     await expect(settings.getByText('Selected settings imported.', { exact: true })).toBeVisible();
