@@ -14,7 +14,7 @@ const ConnectionFields = ({
     fields: RoasterFormField[];
     prefix?: string;
 }) => (
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
         {Object.entries(params)
             .filter(([, value]) => value !== '' && value != null && typeof value !== 'object')
             .filter(([key]) => key !== 'role')
@@ -23,11 +23,14 @@ const ConnectionFields = ({
                 const display =
                     field?.options?.find((option) => option.value === String(value))?.label ?? String(value);
                 return (
-                    <div key={key} className="min-w-0 px-2.5 py-2 rounded-lg bg-main-bg">
-                        <dt className="text-[11px] text-muted mb-1">
-                            {field?.label.replace(' (empty = off)', '') ?? key}
-                        </dt>
-                        <dd className="text-[13px] font-semibold text-primary break-all">{display}</dd>
+                    <div
+                        key={key}
+                        className="min-w-0 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 px-2.5 py-1.5 rounded-lg bg-main-bg"
+                    >
+                        <dt className="text-[11px] text-muted">{field?.label.replace(' (empty = off)', '') ?? key}</dt>
+                        <dd className="min-w-0 text-[13px] font-semibold text-primary text-right tabular-nums break-all">
+                            {display}
+                        </dd>
                     </div>
                 );
             })}
@@ -57,15 +60,15 @@ export const MachineConnectionDetails = ({ machine }: { machine: Machine }) => {
     return (
         <section
             aria-label={t('machines.connection')}
-            className="bg-surface-warm-solid dark:bg-surface-elevated rounded-lg px-4.5 py-4 mb-6"
+            className="bg-surface-warm-solid dark:bg-surface-elevated rounded-lg px-4.5 py-3 mb-6"
         >
             <h3 className="text-[12px] font-semibold text-secondary mb-2.5">{t('machines.connection')}</h3>
             <ConnectionFields params={machine.connectionParams} fields={[...fields, ...addressFields]} />
             {sensors.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-3 gap-y-2.5 mt-3">
                     {sensors.map(([role, params]) => (
                         <div key={role} className="min-w-0">
-                            <h4 className="text-[12px] font-semibold text-secondary mb-2">{feedbackLabel(role)}</h4>
+                            <h4 className="text-[12px] font-semibold text-secondary mb-1.5">{feedbackLabel(role)}</h4>
                             <ConnectionFields
                                 params={params}
                                 fields={[
