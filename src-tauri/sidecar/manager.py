@@ -889,6 +889,23 @@ class RoasterManager:
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
             raise ControlUnavailable("배출문 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
 
+    def fill_enabled(self) -> bool:
+        return (
+            self._roaster_key == "giesen_w45a_w60a"
+            and self._protocol == "s7"
+            and self._merged_params.get("w60a_fill") == "on"
+        )
+
+    async def fill(self, action: str) -> None:
+        if action not in ("open", "close"):
+            raise ControlRangeError("투입구 명령은 open 또는 close여야 합니다.")
+        adapter, epoch = self._adapter, self._connection_epoch
+        if not self._connected or adapter is None or self._resetting or not self.fill_enabled():
+            raise ControlUnavailable("연결된 W60A의 투입구 제어를 기기 설정에서 켜세요.")
+        await adapter.fill(action)
+        if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
+            raise ControlUnavailable("투입구 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+
     async def control(
         self,
         heater: float | None = None,
@@ -1181,6 +1198,7 @@ class RoasterManager:
                 "writable": self._control_writable(),
                 "limits": self.write_limits(),
                 "discharge": self.discharge_enabled(),
+                "fill": self.fill_enabled(),
                 "pid": self.pid_capability(),
             },
             "uptime": uptime,

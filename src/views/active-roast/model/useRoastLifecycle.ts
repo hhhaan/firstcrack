@@ -33,7 +33,7 @@ export interface UseRoastLifecycleParams {
 
 export interface UseRoastLifecycleReturn {
     handleEnterStandby: () => void;
-    handleManualCharge: () => Promise<void>;
+    handleManualCharge: () => Promise<boolean>;
     resetActiveRoast: (opts?: { chargeWait?: boolean; keepHeatHold?: boolean }) => void;
     confirmEndRoast: (commitSummary?: (summary: RoastSummaryData) => void) => RoastSummaryData;
     completeDrop: (input: { livePoints: LiveRoastPoint[]; onset?: DropOnset }) => RoastSummaryData | null;
@@ -108,15 +108,15 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     }, [phase, canWrite, warnReadOnly, enterStandby, quota.exceeded, warnQuotaExceeded]);
 
     const handleManualCharge = useCallback(async () => {
-        if (isChargedPhase(useRoastingStore.getState().phase)) return;
+        if (isChargedPhase(useRoastingStore.getState().phase)) return false;
         // UX guard only — 저장 경로는 서버 트리거가 최종 차단한다.
         if (!canWrite) {
             warnReadOnly();
-            return;
+            return false;
         }
         if (quota.exceeded) {
             warnQuotaExceeded();
-            return;
+            return false;
         }
         // await 전에 무장 해제 — getStatus 갭 동안 auto-charge 발화 창을 닫음 (#174)
         disableAutoChargeRef.current?.();
@@ -127,12 +127,13 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             if (isTauri()) {
                 await message('머신이 연결되어 있지 않습니다.', { title: '머신 연결 필요', kind: 'warning' });
             }
-            return;
+            return false;
         }
         // await 중 auto가 선착했으면 그대로 둔다 (triggerCharge 가드도 이중 차단)
-        if (isChargedPhase(useRoastingStore.getState().phase)) return;
+        if (isChargedPhase(useRoastingStore.getState().phase)) return false;
         // Bean/profile은 여기서 묻지 않는다 — 종료 시 RoastSummaryModal이 필수 검증과 함께 묻는다.
         triggerChargeRef.current?.(rawBT);
+        return isChargedPhase(useRoastingStore.getState().phase);
     }, [
         canWrite,
         warnReadOnly,

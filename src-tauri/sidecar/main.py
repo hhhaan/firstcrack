@@ -286,6 +286,27 @@ async def handle_discharge(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def handle_fill(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, text="invalid json")
+    if not isinstance(body, dict) or set(body) != {"action"} or body["action"] not in ("open", "close"):
+        return web.json_response({"error": "action must be open or close"}, status=400)
+    manager: RoasterManager = request.app["manager"]
+    try:
+        await manager.fill(body["action"])
+    except control_guard.ControlRangeError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except control_guard.ControlUnavailable as exc:
+        return web.json_response({"error": str(exc)}, status=409)
+    except Exception as exc:
+        _log.error("fill 실패: %s", exc, exc_info=True)
+        manager._capture_hardware_error(exc, "fill")
+        return web.json_response({"error": str(exc)}, status=502)
+    return web.json_response({"ok": True})
+
+
 def _pid_error_response(
     exc: Exception, manager: RoasterManager, *, once: bool = False
 ) -> web.Response:
@@ -543,6 +564,7 @@ def create_app() -> web.Application:
     app.router.add_post("/settings", handle_settings)
     app.router.add_post("/control", handle_control)
     app.router.add_post("/discharge", handle_discharge)
+    app.router.add_post("/fill", handle_fill)
     app.router.add_post("/pid/on", handle_pid_on)
     app.router.add_post("/pid/off", handle_pid_off)
     app.router.add_post("/pid/sv", handle_pid_sv)

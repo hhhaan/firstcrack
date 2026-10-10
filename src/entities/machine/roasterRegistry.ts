@@ -286,7 +286,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         protocol: 's7',
         capabilities: ['heater', 'fan', 'drum'],
         pid: { Kp: 20, Ki: 0.01, Kd: 3 },
-        default_params: { host: '172.30.30.90', port: 102, rack: 0, slot: 0, w60a_discharge: 'off' },
+        default_params: { host: '172.30.30.90', port: 102, rack: 0, slot: 0, w60a_discharge: 'off', w60a_fill: 'off' },
     },
     giesen_w140a_v1: {
         display_name: 'Giesen W140A (v1)',
@@ -804,6 +804,16 @@ export const ROASTER_REGISTRY: RoastersResponse = Object.fromEntries(
                               options: [
                                   { value: 'off', label: 'Disabled' },
                                   { value: 'on', label: 'Manual + open on manual Drop (W60A only)' },
+                              ],
+                          },
+                          {
+                              key: 'w60a_fill', // gitleaks:allow
+                              label: 'W60A fill door',
+                              type: 'select' as const,
+                              required: false,
+                              options: [
+                                  { value: 'off', label: 'Disabled' },
+                                  { value: 'on', label: 'Manual + open on manual Charge (W60A only)' },
                               ],
                           },
                       ]

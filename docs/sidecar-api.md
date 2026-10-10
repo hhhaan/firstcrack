@@ -569,6 +569,25 @@ Giesen **W60A 배출문** 열기·닫기. `giesen_w45a_w60a` 기기 설정의 `W
 명령 출처: [Artisan W60A 설정](https://github.com/artisan-roaster-scope/artisan/blob/master/src/includes/Machines/Giesen/W60A.aset).
 실제 액추에이터의 동작과 펌웨어별 호환성은 실기 검증이 필요하다.
 
+### POST /fill
+
+Giesen **W60A 투입구**(호퍼 → 드럼) 열기·닫기. `giesen_w45a_w60a` 기기 설정의 `W60A fill door`를
+`Manual + open on manual Charge (W60A only)`로 선택하고 다시 연결해야 사용할 수 있다.
+기본값은 `off`다. 활성화 여부는 `GET /status.control.fill`로 확인한다.
+
+```json
+{ "action": "open" }
+```
+
+- `open` → S7 INT16 `DB2.30 = 1`, `close` → `DB2.30 = 2`.
+- 배출문과 **같은 명령 워드**다. 나중에 쓴 값이 이전 래치를 대체한다. `0`으로 지우지 않는다.
+- 응답 `200 { "ok": true }`는 PLC 쓰기 확인이며 슬라이드 위치를 보장하지 않는다.
+- 잘못된 요청 `400`, 미연결·미활성화·연결 변경 `409`, PLC 쓰기 실패 `502`.
+
+앱 제어 패널에서 수동 열기·닫기를 제공한다. 사용자가 **Charge 버튼 또는 단축키**로 투입을 확정하면
+열기 명령을 한 번 보낸다. 자동 Charge 감지, Drop, 이벤트 편집, 연결·재연결은 투입구를 조작하지 않는다.
+명령에 실패해도 투입 기록은 유지하며 조작반 확인 안내를 표시한다.
+
 ### POST /pid/on · /pid/off · /pid/sv
 
 소프트웨어 PID. BT를 목표 온도(SV)로 추종하도록 heater duty를 계산해 쓴다.

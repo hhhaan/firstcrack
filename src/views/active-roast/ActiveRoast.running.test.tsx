@@ -2,7 +2,7 @@
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
-import { markDropLabel } from '@shared/i18n/roast-event-label';
+import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import * as featureAccess from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
@@ -117,6 +117,7 @@ vi.mock('@shared/lib/sidecar', () => ({
         enterStandby: vi.fn().mockResolvedValue(undefined),
         setControl: vi.fn().mockResolvedValue({ applied: {} }),
         setDischarge: vi.fn().mockResolvedValue({ ok: true }),
+        setFill: vi.fn().mockResolvedValue({ ok: true }),
         pidOff: vi.fn().mockResolvedValue({ ok: true }),
         pidOn: vi.fn().mockResolvedValue({ ok: true }),
     },
@@ -275,6 +276,49 @@ describe('ActiveRoast running clock (#627)', () => {
             expect(sidecar.setDischarge).toHaveBeenCalledExactlyOnceWith('open');
             expect(useRoastingStore.getState().completed?.snapshot.sessionId).toBe('sess-remount');
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
+            expect(sidecar.setFill).not.toHaveBeenCalled();
+        } finally {
+            unmount();
+            access.mockRestore();
+            if (originalStatus) status.mockImplementation(originalStatus);
+        }
+    });
+
+    it('opens the enabled W60A hopper once on manual Charge and not on Drop', async () => {
+        const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
+        const status = vi.mocked(sidecar.getStatus);
+        const originalStatus = status.getMockImplementation();
+        status.mockResolvedValue({
+            connected: true,
+            control: {
+                writable: true,
+                limits: { heater: { min: 0, max: 100, unit: '%' } },
+                fill: true,
+                discharge: true,
+            },
+        } as Awaited<ReturnType<typeof sidecar.getStatus>>);
+        vi.mocked(sidecar.setFill).mockClear().mockResolvedValue({ ok: true });
+        vi.mocked(sidecar.setDischarge).mockClear();
+        seed({
+            phase: 'standby',
+            roastStartMs: null,
+            elapsed: 0,
+            liveData: { bt: 180, et: 200, ror: 0, ror_et: 0, heater: 20, fan: 0, drum: 0 },
+        });
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            const charge = host.querySelector('[data-testid="roast-charge"]');
+            expect(charge?.textContent).toContain(roastEventLabel('Charge'));
+            await act(async () => {
+                (charge as HTMLButtonElement | null)?.click();
+                await Promise.resolve();
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+            await flushMicrotasks();
+            expect(sidecar.setFill).toHaveBeenCalledExactlyOnceWith('open');
+            expect(sidecar.setDischarge).not.toHaveBeenCalled();
         } finally {
             unmount();
             access.mockRestore();

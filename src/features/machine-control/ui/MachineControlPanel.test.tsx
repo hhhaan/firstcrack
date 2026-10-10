@@ -57,6 +57,7 @@ const panelModel = (
     const stop = over.stop ?? vi.fn();
     return {
         discharge: { available: false, sending: false, send: vi.fn() },
+        fill: { available: false, sending: false, send: vi.fn() },
         machine: {
             writable: over.writable ?? true,
             limits: {

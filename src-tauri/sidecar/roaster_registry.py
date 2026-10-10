@@ -1804,6 +1804,7 @@ ROASTER_REGISTRY.update({
 })
 
 ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]["w60a_discharge"] = "off"
+ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]["w60a_fill"] = "off"
 ROASTER_REGISTRY["giesen_w45a_w60a"]["form_fields"] = [
     *PROTOCOL_FORM_FIELDS["s7"],
     {
@@ -1811,6 +1812,13 @@ ROASTER_REGISTRY["giesen_w45a_w60a"]["form_fields"] = [
         "options": [
             {"value": "off", "label": "Disabled"},
             {"value": "on", "label": "Manual + open on manual Drop (W60A only)"},
+        ],
+    },
+    {
+        "key": "w60a_fill", "label": "W60A fill door", "type": "select", "required": False,  # gitleaks:allow
+        "options": [
+            {"value": "off", "label": "Disabled"},
+            {"value": "on", "label": "Manual + open on manual Charge (W60A only)"},
         ],
     },
 ]

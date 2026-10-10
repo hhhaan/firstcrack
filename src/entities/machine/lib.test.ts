@@ -17,6 +17,9 @@ it('keeps W60A discharge opt-in across connection form save and reopen', () => {
     expect(buildTypedConnectionParams(definition, defaults).w60a_discharge).toBe('off');
     const saved = buildTypedConnectionParams(definition, { ...defaults, w60a_discharge: 'on' });
     expect(initRoasterFormParams(definition, saved).w60a_discharge).toBe('on');
+    expect(buildTypedConnectionParams(definition, defaults).w60a_fill).toBe('off');
+    const savedFill = buildTypedConnectionParams(definition, { ...defaults, w60a_fill: 'on' });
+    expect(initRoasterFormParams(definition, savedFill).w60a_fill).toBe('on');
 });
 
 describe('isRoasterFieldVisible', () => {

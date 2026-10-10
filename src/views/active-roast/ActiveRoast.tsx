@@ -415,6 +415,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
     const openDischargeRef = useRef<() => void>(() => {});
+    const openFillRef = useRef<() => void>(() => {});
 
     const {
         triggerCharge: startChargeAction,
@@ -482,6 +483,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const markDrop = useCallback(() => {
         if (applyDrop()) openDischargeRef.current();
     }, [applyDrop]);
+
+    const markCharge = useCallback(() => {
+        void lifecycle.handleManualCharge().then((started) => {
+            if (started) openFillRef.current();
+        });
+    }, [lifecycle.handleManualCharge]);
 
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
@@ -727,9 +734,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onToggleFullscreen: toggleFullscreen,
         onExitFullscreen: exitFullscreen,
         onEnterStandby: lifecycle.handleEnterStandby,
-        onManualCharge: () => {
-            void lifecycle.handleManualCharge();
-        },
+        onManualCharge: markCharge,
         onMarkEvent: markEvent,
         onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
         onMarkDrop: markDrop,
@@ -901,10 +906,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         openDischargeRef.current = () => {
             if (machineControlEntitled) void machineControl.discharge.send('open');
         };
+        openFillRef.current = () => {
+            if (machineControlEntitled) void machineControl.fill.send('open');
+        };
     }, [
         machineControl.replay.active,
         machineControl.replay.stop,
         machineControl.discharge.send,
+        machineControl.fill.send,
         machineControlEntitled,
     ]);
 
@@ -1137,7 +1146,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                 : undefined
                         }
                         onEnterStandby={lifecycle.handleEnterStandby}
-                        onManualCharge={lifecycle.handleManualCharge}
+                        onManualCharge={markCharge}
                         onEndRoast={handleEndRoastClick}
                         bbpTimer={bbpTimer}
                         bbpChargeWait={bbpChargeWait}
