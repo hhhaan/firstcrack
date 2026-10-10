@@ -1,6 +1,7 @@
 import { FEATURE, planHasFeature } from '@shared/lib/features';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
+import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../lib/curve-style';
@@ -36,6 +37,13 @@ const artisanSnapshot: ArtisanSettingsSnapshot = {
     status: 'found',
     source: { product: 'Artisan', version: null, sourceId: 'native' },
     settings: { Mode: 'F', 'Axis/ymin': 122, 'Axis/ymax': 482, Colors: { bt: '#44a56b' } },
+};
+
+const cropsterSnapshot: CropsterSettingsSnapshot = {
+    status: 'found',
+    source: { product: 'Cropster', version: '5.13', sourceId: 'default' },
+    machine: null,
+    preferences: { version: '5.13', temperatureUnit: 'CELSIUS', minTemp: 50, maxTemp: 250, time: 1020 },
 };
 
 it('waits for saved settings before importing and persists the merged result across restart', async () => {
@@ -89,6 +97,21 @@ it('persists Artisan graph fields without replacing unrelated settings', async (
         tempMaxC: 250,
         btSmoothing: 80,
         curveStyles: { bt: { color: '#44a56b' } },
+    });
+    expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', settings.getRoastSettings(), { throwOnError: true });
+});
+
+it('persists Cropster graph fields without replacing unrelated settings', async () => {
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce({ btSmoothing: 80 });
+    const settings = await import('./settings');
+    await settings.importCropsterGraphSettings(cropsterSnapshot);
+    expect(settings.getRoastSettings()).toMatchObject({
+        temperatureUnit: 'C',
+        tempMinC: 50,
+        tempMaxC: 250,
+        timeRangeMin: 17,
+        btSmoothing: 80,
     });
     expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', settings.getRoastSettings(), { throwOnError: true });
 });

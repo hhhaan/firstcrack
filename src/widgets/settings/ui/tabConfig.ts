@@ -36,7 +36,7 @@ export function getSearchTabs(t: TFunction, query: string) {
                 ? [t('shortcuts.title'), t('shortcuts.description'), t('shortcuts.edit')].join(' ')
                 : '';
         const text =
-            `${searchText(t(`settings.tabs.${tab.id}`, { returnObjects: true }))} ${shortcutText} ${tab.id === 'roast' ? `${searchText(t('settings.firescope', { returnObjects: true }))} ${searchText(t('settings.artisan', { returnObjects: true }))}` : ''}`.toLocaleLowerCase();
+            `${searchText(t(`settings.tabs.${tab.id}`, { returnObjects: true }))} ${shortcutText} ${tab.id === 'roast' ? `${searchText(t('settings.firescope', { returnObjects: true }))} ${searchText(t('settings.artisan', { returnObjects: true }))} ${searchText(t('settings.cropster', { returnObjects: true }))}` : ''}`.toLocaleLowerCase();
         return terms.every((term) => text.includes(term));
     });
 }

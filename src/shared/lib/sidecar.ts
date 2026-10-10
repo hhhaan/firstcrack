@@ -1,4 +1,5 @@
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
+import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
@@ -90,6 +91,7 @@ async function request<T>(
 export const sidecar = {
     getFirescopeSettings: () => request<FirescopeSettingsSnapshot>('/imports/firescope', undefined, 20_000, false),
     getArtisanSettings: () => request<ArtisanSettingsSnapshot>('/imports/artisan', undefined, 20_000, false),
+    getCropsterSettings: () => request<CropsterSettingsSnapshot>('/imports/cropster', undefined, 20_000, false),
 
     getStatus: () => request<SidecarStatus>('/status'),
 

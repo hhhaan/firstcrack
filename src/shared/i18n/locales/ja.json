@@ -678,6 +678,37 @@
                     "deltaet": "ET RoRの色"
                 }
             }
+        },
+        "cropster": {
+            "title": "Cropster設定を読み込む",
+            "description": "Cropster RIの既定フォルダーからマシンとグラフ設定をFCに読み込みます。",
+            "status": {
+                "found": "Cropsterの既定フォルダーに設定が見つかりました。",
+                "not-found": "Cropsterの既定フォルダーに設定がありません。カスタムフォルダーは未対応です。",
+                "needs-app-closed": "Cropster RIを完全に終了してから再検索してください。",
+                "unsupported": "現在はmacOSのCropster RI既定設定フォルダーのみ対応しています。",
+                "unreadable": "設定を読み込めません。ファイルのアクセス権・状態・バージョンを確認してください。"
+            },
+            "machineHint": "RI 5.13の汎用Modbus BT・ET温度接続を読み込みます。",
+            "recovered": "既定フォルダーの設定",
+            "sourceUnit": "Cropsterの温度単位",
+            "graphHint": "温度・時間・RoR範囲",
+            "unknownUnit": "保存された温度単位を確認できないため、温度範囲は読み込みません。",
+            "applyNote": "選択したマシンを追加し、グラフ設定を変更します。補正・フィルター・イベント命令・PID設定は引き継がず、マシンには自動接続しません。",
+            "issues": {
+                "unsupported-version": "現在はCropster RI 5.13で保存した設定のみ対応しています。",
+                "unsupported-calibration": "センサー補正やフィルターは引き継げません。手動設定が必要です。"
+            },
+            "graphFields": {
+                "temperatureUnit": "温度単位",
+                "minTemp": "最低温度",
+                "maxTemp": "最高温度",
+                "time": "時間範囲",
+                "minRiseRate": "最低RoR",
+                "maxRiseRate": "最高RoR",
+                "ror": "RoR計算間隔",
+                "version": "設定バージョン"
+            }
         }
     },
     "language": {

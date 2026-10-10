@@ -1,5 +1,10 @@
-import type { ArtisanMachineMapping, mapFirescopeMachine } from '@entities/machine';
-import type { mapFirescopeGraphSettings, TemperatureUnit, useRoastSettings } from '@features/active-roast';
+import type { ArtisanMachineMapping, CropsterMachineMapping, mapFirescopeMachine } from '@entities/machine';
+import {
+    type mapFirescopeGraphSettings,
+    type TemperatureUnit,
+    toDisplayRoR,
+    type useRoastSettings,
+} from '@features/active-roast';
 import { Badge } from '@shared/ui/Badge';
 import { FormSelect } from '@shared/ui/FormSelect';
 
@@ -65,6 +70,8 @@ export function RoastingGraphPreview({
         if (target === 'temperatureUnit') return `°${value}`;
         if ((target === 'tempMinC' || target === 'tempMaxC') && typeof value === 'number')
             return temperature(value, displayUnit);
+        if ((target === 'rorYMin' || target === 'rorYMax') && typeof value === 'number')
+            return `${Math.round(toDisplayRoR(value, displayUnit) * 10) / 10} °${displayUnit}/min`;
         if (target === 'timeRangeMin' && typeof value === 'number') return tk('minutes', { value });
         if (target === 'timeTickIntervalSec' && typeof value === 'number') return tk('seconds', { value });
         if (typeof value === 'boolean') return tk(value ? 'show' : 'hide');
@@ -196,7 +203,7 @@ export function RoastingMachinePreview({
 }: {
     current: boolean;
     connection: { serial: boolean; endpoint: unknown; subtype: unknown; protocol: unknown };
-    mapping: ReturnType<typeof mapFirescopeMachine> | ArtisanMachineMapping;
+    mapping: ReturnType<typeof mapFirescopeMachine> | ArtisanMachineMapping | CropsterMachineMapping;
     imported: boolean;
     updateAvailable: boolean;
     selected: boolean;

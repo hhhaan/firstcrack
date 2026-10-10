@@ -6,6 +6,7 @@ export type { RawTemperatureSample } from './lib/autoCharge';
 export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
 export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';
+export { cropsterTemperatureUnit, mapCropsterGraphSettings } from './lib/cropster-settings';
 export {
     CSS_CURVE_TOKENS,
     CURVE_CHANNELS,
@@ -51,6 +52,7 @@ export {
     FONT_SLIDER_MIN,
     fontScaleToSlider,
     importArtisanGraphSettings,
+    importCropsterGraphSettings,
     importFirescopeGraphSettings,
     resetCurveStyles,
     sliderToFontScale,

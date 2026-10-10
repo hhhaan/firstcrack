@@ -678,6 +678,37 @@
                     "deltaet": "ET RoR颜色"
                 }
             }
+        },
+        "cropster": {
+            "title": "导入Cropster设置",
+            "description": "将Cropster RI默认文件夹中的机器和图表设置导入FC。",
+            "status": {
+                "found": "在Cropster默认文件夹中找到设置。",
+                "not-found": "Cropster默认文件夹中没有设置。目前不支持自定义文件夹。",
+                "needs-app-closed": "请完全退出Cropster RI后重新搜索。",
+                "unsupported": "目前仅支持macOS上的Cropster RI默认设置文件夹。",
+                "unreadable": "无法读取设置。请检查文件权限、完整性和版本。"
+            },
+            "machineHint": "导入RI 5.13的通用Modbus BT和ET温度连接。",
+            "recovered": "默认文件夹设置",
+            "sourceUnit": "Cropster温度单位",
+            "graphHint": "温度、时间和RoR范围",
+            "unknownUnit": "无法确认保存的温度单位，因此不导入温度范围。",
+            "applyNote": "添加所选机器并替换图表设置。不保留校正、过滤、事件命令或PID设置，也不会自动连接机器。",
+            "issues": {
+                "unsupported-version": "目前仅支持Cropster RI 5.13保存的设置。",
+                "unsupported-calibration": "无法保留传感器校正或过滤，需要手动设置。"
+            },
+            "graphFields": {
+                "temperatureUnit": "温度单位",
+                "minTemp": "最低温度",
+                "maxTemp": "最高温度",
+                "time": "时间范围",
+                "minRiseRate": "最低RoR",
+                "maxRiseRate": "最高RoR",
+                "ror": "RoR计算间隔",
+                "version": "设置版本"
+            }
         }
     },
     "language": {

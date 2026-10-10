@@ -678,6 +678,37 @@
                     "deltaet": "ET RoR color"
                 }
             }
+        },
+        "cropster": {
+            "title": "Import Cropster settings",
+            "description": "Bring machine and graph settings from the default Cropster RI folder into FC.",
+            "status": {
+                "found": "Cropster settings found in the default folder.",
+                "not-found": "No settings found in the default Cropster folder. Custom folders are not supported yet.",
+                "needs-app-closed": "Quit Cropster RI completely, then search again.",
+                "unsupported": "Only the default Cropster RI settings folder on macOS is currently supported.",
+                "unreadable": "Settings could not be read. Check file access, integrity and versions."
+            },
+            "machineHint": "Import generic Modbus BT and ET temperature connections from RI 5.13.",
+            "recovered": "Default folder settings",
+            "sourceUnit": "Cropster temperature unit",
+            "graphHint": "Temperature, time and RoR ranges",
+            "unknownUnit": "The saved temperature unit is unknown, so temperature ranges will not be imported.",
+            "applyNote": "Selected machines are added and graph settings are replaced. Corrections, filters, event commands and PID settings are excluded; machines do not connect automatically.",
+            "issues": {
+                "unsupported-version": "Only settings saved by Cropster RI 5.13 are currently supported.",
+                "unsupported-calibration": "Sensor corrections or filters cannot be carried over. Manual setup is required."
+            },
+            "graphFields": {
+                "temperatureUnit": "Temperature unit",
+                "minTemp": "Minimum temperature",
+                "maxTemp": "Maximum temperature",
+                "time": "Time range",
+                "minRiseRate": "Minimum RoR",
+                "maxRiseRate": "Maximum RoR",
+                "ror": "RoR calculation interval",
+                "version": "Settings version"
+            }
         }
     },
     "language": {

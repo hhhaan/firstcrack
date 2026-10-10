@@ -1,11 +1,13 @@
 import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
+import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
 import { mapArtisanGraphSettings } from '../lib/artisan-settings';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
+import { mapCropsterGraphSettings } from '../lib/cropster-settings';
 import {
     type CurveChannel,
     type CurveChannelStyle,
@@ -521,6 +523,17 @@ export const importFirescopeGraphSettings = async (source: FirescopeSettingsSnap
 export const importArtisanGraphSettings = async (source: ArtisanSettingsSnapshot) => {
     await hydration;
     const { patch } = mapArtisanGraphSettings(source, _settings);
+    if (Object.keys(patch).length === 0) return;
+    const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
+    _userTouched = true;
+    await settingsSet(STORE_KEY, next, { throwOnError: true });
+    _settings = next;
+    _emit();
+};
+
+export const importCropsterGraphSettings = async (source: CropsterSettingsSnapshot) => {
+    await hydration;
+    const { patch } = mapCropsterGraphSettings(source, _settings);
     if (Object.keys(patch).length === 0) return;
     const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
     _userTouched = true;

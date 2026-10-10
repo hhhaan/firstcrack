@@ -211,6 +211,24 @@ interface ArtisanSettingsSnapshot {
 
 프런트엔드는 일반 Modbus BT/ET와 명시적 그래프 단위·축·곡선 색상만 가져온다. native 파일은 기본값을 생략하므로 머신 설정은 검증된 `4.2.0` 버전만 지원하며, 버전이 없으면 사용자가 해당 버전으로 저장했음을 확인해야 한다. 다른 장치·보정·수식·추가 장치는 수동 설정으로 안내한다.
 
+### GET /imports/cropster
+
+macOS의 `Path.home()/CropsterRoastingIntelligence/default`에서 `machine.json`과 `preferences.json`을 읽는다. 사용자 지정 Java Preferences `dataDirectory`와 다른 instance 폴더는 아직 탐색하지 않는다. body·경로 인자 없이 기존 `X-Sidecar-Token` 인증을 사용하며 RI가 실행 중이면 `needs-app-closed`를 반환한다.
+
+```ts
+interface CropsterSettingsSnapshot {
+  status: 'found' | 'not-found' | 'needs-app-closed' | 'unsupported' | 'unreadable';
+  reason?: string;
+  source: { product: 'Cropster'; version: string | null; sourceId: 'default' };
+  machine: Record<string, unknown> | null;
+  preferences: Record<string, unknown> | null;
+}
+```
+
+상태는 HTTP 200으로 반환한다. 두 파일의 버전이 다르면 읽기를 거부한다. 각 파일의 허용 목록만 반환하며 계정·인증·캐시·전송 이력·명령·제어 상태는 제외한다. 파일별 크기 제한, 심볼릭 링크 및 동시 수정 검사를 적용하고 원본은 수정하지 않는다.
+
+프런트엔드는 각 파일의 writer version이 정확히 `5.13`인지 개별 확인한다. 일반 Modbus RTU/ASCII/TCP의 활성 BT/ET와 unsigned 16-bit 배율 `1/10/100`, 그래프 온도·시간·RoR 범위를 지원한다. 소스 파라미터는 숫자 문자열을 검증해 변환하며 주소를 그대로 사용한다. 필터·채널 보정, 지원하지 않는 장치·형식은 수동 설정으로 안내하고 자동 연결·쓰기 설정을 생성하지 않는다.
+
 ### GET /roasters
 
 지원 로스터 목록과 프로토콜별 연결 폼 필드를 반환한다.
@@ -755,6 +773,7 @@ const BASE = 'http://127.0.0.1:9999';
 | `sidecar.getRoasters()`               | `GET /roasters`     |
 | `sidecar.getFirescopeSettings()`       | `GET /imports/firescope` |
 | `sidecar.getArtisanSettings()`       | `GET /imports/artisan` |
+| `sidecar.getCropsterSettings()`       | `GET /imports/cropster` |
 | `sidecar.getStatus()`                 | `GET /status`       |
 | `sidecar.connect(roasterKey, params)` | `POST /connect`     |
 | `sidecar.disconnect()`                | `POST /disconnect`  |
