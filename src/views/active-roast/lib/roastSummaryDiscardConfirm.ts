@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import { ask } from '@tauri-apps/plugin-dialog';
 import type { TFunction } from 'i18next';
 
@@ -26,4 +27,24 @@ export const confirmRoastSummaryDiscardNative = async (labels: RoastSummaryDisca
         okLabel: labels.okLabel,
         cancelLabel: labels.cancelLabel,
     });
+};
+
+/** Native Tauri confirm when available; otherwise open the in-app confirm layer. */
+export const requestRoastSummaryDiscardConfirm = async (
+    labels: RoastSummaryDiscardLabels,
+    onConfirmed: () => void,
+    onRequestInAppConfirm: () => void,
+): Promise<void> => {
+    if (isTauriRuntime()) {
+        try {
+            const ok = await confirmRoastSummaryDiscardNative(labels);
+            if (ok) onConfirmed();
+            return;
+        } catch (err) {
+            logger.capture(err instanceof Error ? err : new Error(String(err)), {
+                context: 'roastSummary.discardConfirm',
+            });
+        }
+    }
+    onRequestInAppConfirm();
 };

@@ -13,8 +13,10 @@ import {
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { inputCls } from '@shared/ui/form-styles';
+import { DiscardConfirmModal } from '@shared/ui/modal-shell/DiscardConfirmModal';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
+import { useCaptureEscapeDismiss } from '@shared/ui/modal-shell/useCaptureEscapeDismiss';
 import { format } from 'date-fns';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -39,23 +41,11 @@ export const PendingRoastRecovery = () => {
     const { resumeSave } = useSaveRoast(null, syncRoastCurve);
     const attempted = useRef(new Set<string>());
     const refresh = useCallback(() => setState(load()), []);
-    const closeDiscard = () => {
+    const closeDiscard = useCallback(() => {
         setDiscardTarget(null);
         setDiscardError('');
-    };
-    useEffect(() => {
-        if (!discardTarget) return;
-        const onKey = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape') return;
-            // Capture + stop so a parent list listener cannot close underneath this confirm.
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            setDiscardTarget(null);
-            setDiscardError('');
-        };
-        document.addEventListener('keydown', onKey, true);
-        return () => document.removeEventListener('keydown', onKey, true);
-    }, [discardTarget]);
+    }, []);
+    useCaptureEscapeDismiss(Boolean(discardTarget), closeDiscard);
     const confirmDiscard = () => {
         if (!discardTarget) return;
         if (isPendingRoastSaveActive(discardTarget.params.userId, discardTarget.params.sessionId)) {
@@ -135,38 +125,19 @@ export const PendingRoastRecovery = () => {
                     </div>
                 </ModalShell>
             )}
-            {discardTarget && (
-                <ModalShell
-                    onClose={closeDiscard}
-                    labelledBy="pending-roast-discard-title"
-                    overlayClassName="z-[10001]"
-                    contentClassName={modalPanel.sm}
-                    data-testid="pending-roast-discard-modal"
-                >
-                    <h2 id="pending-roast-discard-title" className="mb-4 text-lg font-semibold">
-                        {t('activeRoast.recovery.discard')}
-                    </h2>
-                    <p className="mb-4 text-sm text-muted">{t('activeRoast.recovery.discardConfirm')}</p>
-                    {discardError && (
-                        <p role="alert" className="mb-4 text-sm text-red-500">
-                            {discardError}
-                        </p>
-                    )}
-                    <div className="flex gap-2">
-                        <button type="button" onClick={closeDiscard} className="rounded bg-surface px-3 py-2 text-sm">
-                            {t('common.cancel')}
-                        </button>
-                        <button
-                            type="button"
-                            data-testid="pending-roast-discard-confirm"
-                            onClick={confirmDiscard}
-                            className="rounded px-3 py-2 text-sm text-red-500"
-                        >
-                            {t('activeRoast.recovery.discard')}
-                        </button>
-                    </div>
-                </ModalShell>
-            )}
+            <DiscardConfirmModal
+                open={Boolean(discardTarget)}
+                titleId="pending-roast-discard-title"
+                title={t('activeRoast.recovery.discard')}
+                message={t('activeRoast.recovery.discardConfirm')}
+                cancelLabel={t('common.cancel')}
+                confirmLabel={t('activeRoast.recovery.discard')}
+                onCancel={closeDiscard}
+                onConfirm={confirmDiscard}
+                error={discardError || undefined}
+                modalTestId="pending-roast-discard-modal"
+                confirmTestId="pending-roast-discard-confirm"
+            />
         </>
     );
 };
