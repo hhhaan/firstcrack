@@ -43,7 +43,7 @@ type PanelColumnGroupValue = {
 const PanelColumnContext = createContext<PanelColumnGroupValue | null>(null);
 
 /** Remembers each column width while a column is unmounted. */
-export const PanelColumnGroup = ({ chartFloor, children }: { chartFloor: number; children: ReactNode }) => {
+export const PanelColumnGroup = ({ chartFloor, children }: { chartFloor: number; children?: ReactNode }) => {
     const [widths, setWidths] = useState<Record<string, number>>({});
     const setWidth = useCallback((id: string, width: number) => {
         const next = Math.round(width);
@@ -68,7 +68,7 @@ export const ResizableColumn = ({
     floor: number;
     label: string;
     className?: string;
-    children: ReactNode;
+    children?: ReactNode;
     panelId?: string;
     testId?: string;
     ariaLabel?: string;
