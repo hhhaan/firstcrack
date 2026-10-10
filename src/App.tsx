@@ -136,6 +136,13 @@ export const App = () => {
         setSettingsTab(tab);
         setView('settings');
     };
+    const toggleSettings = () => {
+        if (view === 'settings') {
+            setView(settingsReturnView.current);
+            return;
+        }
+        openSettings();
+    };
 
     const settingsKeys = useShortcutKeys('openSettings');
     const shortcutsKeys = useShortcutKeys('openShortcuts');
@@ -144,7 +151,7 @@ export const App = () => {
     const recordingShortcut = useShortcutStore((s) => s.recording);
     const setShortcutsOpen = useShortcutStore((s) => s.setDialogOpen);
     const appKeysEnabled = Boolean(user) && !loading && !oauthPending && !recordingShortcut;
-    useHotkeys(shortcutHotkeys(settingsKeys), () => openSettings(), {
+    useHotkeys(shortcutHotkeys(settingsKeys), () => toggleSettings(), {
         ...SHORTCUT_HOTKEY_OPTIONS,
         enabled: appKeysEnabled && !shortcutsOpen && settingsKeys.length > 0,
         enableOnFormTags: settingsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key)),
