@@ -122,6 +122,42 @@ macOS에서 확인한 기본 위치는 `~/Library/Application Support/Firescope/
 
 **사용했던 모든 머신을 로컬만으로 보장할 수는 없다.** LevelDB compaction은 덮어쓴 과거 값을 제거하고 오래된 로그를 삭제한다. 이번 3대는 현재 남아 있는 값이어서 읽을 수 있으며, DB 정리·재설치·앱 사용 이후에도 같은 이력이 남는다는 계약은 없다. 그러므로 제품 흐름은 “복구 가능한 머신 자동 검색”으로 설명하고 전체 머신 목록과 구분한다. [LevelDB compaction·로그 정리](https://github.com/google/leveldb/blob/main/doc/impl.md)
 
+### 전체 연결 방식 조사 — Modbus 이외와 ASCII
+
+**F1의 연결 factory에는 실제 장비 드라이버 8종과 `DummyDriver`가 있다.** `out-tsc/app/ipc-handlers.js`의 connect/read/write가 `driver.manager.js`를 호출하고, factory의 모든 분기와 각 드라이버 구현을 대조했다. 아래 “FC 구현 있음”은 활성 adapter 실행 경로가 있다는 뜻이며, Firescope 설정 import 완료나 실제 장비 호환 검증을 뜻하지 않는다. 다른 Firescope 버전과 서버의 전체 preset 목록은 이번 inventory로 보장하지 않는다.
+
+| Firescope 드라이버 / 연결 방식 | 소스에서 확인한 통신 | FC 대응과 import 조건 |
+|---|---|---|
+| `ModbusDriver` / serial RTU | `connectRTUBuffered`; serial path·baud·data bits·parity·stop bits | `modbus`, `mode=rtu` 구현 있음; signed·scale·센서 주소 매핑 필요 |
+| `ModbusDriver` / serial ASCII | `connectAsciiSerial`; **Modbus ASCII** | `modbus`, `mode=ascii` 구현 있음; RTU로 대체하지 않고 ASCII enum 유지 |
+| `ModbusDriver` / Ethernet TCP | `connectTCP`; IP·port | `modbus`, `mode=tcp` 구현 있음; unit ID·FC3/4·register·decode까지 매핑 |
+| `ModbusDriver` / Ethernet UDP | `connectUDP`; IP·port | `modbus`, `mode=udp` 구현 있음; 실제 장비의 framing·응답 대조는 미검증 |
+| `S7Driver` | nodes7 TCP 연결, rack=0·slot; DB INT/REAL | `s7` 구현 있음; DB 번호·byte offset·slot·scale 보존, 단위/보정 제약 적용 |
+| `PhidgetDriver` | Phidget SDK; 1046·1048·TMP1100·TMP1200 센서별 구현 | `phidget` 온도 adapter는 있으나 동등 설정은 일부만 대응; 아래 hub/RTD/전압 변환 차이 확인 |
+| `EasysterSmartDriver` | Modbus 상속; 읽기는 일반 Modbus, 화력·드럼·댐퍼 쓰기는 전용 주소 | 온도 읽기는 `modbus` 후보; source transport·센서 decode 검증 후 적용. FC의 현재 Modbus 제어 쓰기는 미지원 |
+| `ProbatPlcDriver` | Modbus 상속 + 연결/종료 handshake 및 읽기 중 watchdog 쓰기 | **일반 `modbus`로 치환하면 전용 동작이 빠짐**; 해당 동작 검증·구현 전 연결 설정 적용 미지원 |
+| `DiedrichIrDriver` | Phidget 상속 + VoltageRatioInput으로 화력·댐퍼 읽기/변환 | BT/ET도 센서 설정별 검증 필요; 추가 아날로그 값·변환은 현재 FC Phidget adapter에 없음 |
+| `WebsocketDriver` | 내부 client는 Probat P3 전용; `ws://IP:port/WebSocket` | `probat_ws`는 있으나 **요청 명령·Origin·keepalive가 다름**; 기존 adapter와의 동등성 미확정 |
+| `BulletR1Driver` | USB 장치를 VID/PID로 선택하고 전용 endpoint 명령·바이너리 응답 처리 | **활성 Bullet adapter 없음**; USB 전용 구현·Intel/ARM 패키징·실장비 검증 필요 |
+| `DummyDriver` | 데모 데이터 | 사용자 요구대로 import 후보에서 제외 |
+
+FC의 활성 factory는 `virtual`, `kaleido`, `s7`, `modbus`, `probat_ws`, `phidget`다. dependency나 `extern` 참고 파일만 있다는 이유로 Bullet·범용 serial 연결을 지원한다고 표시하지 않는다. 근거: F1 `driver.manager.js`, `drivers/*.driver.js`와 [FC factory](../../src-tauri/sidecar/adapters/__init__.py), [Modbus](../../src-tauri/sidecar/adapters/modbus.py), [S7](../../src-tauri/sidecar/adapters/s7.py), [Phidget](../../src-tauri/sidecar/adapters/phidget.py), [Probat WS](../../src-tauri/sidecar/adapters/probat_ws.py).
+
+**ASCII는 문자 표현 이름만으로 프로토콜을 결정할 수 없다.** 이번 Firescope의 ASCII는 주소·function·data를 문자로 표현하는 Modbus ASCII다. 임의의 온도 문자열·CSV 한 줄·기기 전용 query/response 시리얼을 의미하지 않는다. 범용 ASCII/text serial adapter는 이번 Firescope factory와 FC factory에 없다. FC의 Kaleido Serial은 전용 줄 단위 메시지 경로이며 일반 Modbus ASCII의 대체가 아니다. [Modbus 공식 ASCII/RTU 설명](https://www.modbus.org/introduction-to-modbus), [FC Kaleido](../../src-tauri/sidecar/adapters/kaleido.py), [활성 serial 처리](../../src-tauri/sidecar/extern/kaleido.py)
+
+전용 드라이버에서 확인한 중요한 차이는 다음과 같다.
+
+- **Probat PLC:** connect에서 register 12288에 mask write를 하고, read에서 register 12390을 읽어 12289에 watchdog 값을 쓴 뒤 일반 센서를 읽는다. disconnect에도 mask write가 있다. 따라서 “온도 읽기만”이어도 PLC 쓰기가 포함되는 연결 규약이다. 주소만 `custom_modbus`로 옮기지 않으며, 설정 읽기/import 중에는 이 동작을 실행하지 않는다. 근거: F1 `probat-plc.driver.js`.
+- **Probat WebSocket:** Firescope는 `getCurrentRoastingStep`, Origin `http://127.0.0.1`, 25초마다 application `keepAlive`를 사용한다. FC는 `getData`, hostname 기반 Origin, WebSocket ping을 사용한다. Firescope ET는 `exhaustAirTemp`이며 FC도 source 의미에 맞춰 `channel_nodes.ET`를 명시해야 한다. 같은 URL과 JSON이라는 이유로 동일 프로토콜이라고 확정하지 않는다. 근거: F1 `websocket/probat.client.js`, `websocket.driver.js`와 위 FC Probat WS 코드.
+- **Phidget/Diedrich:** Firescope는 hubId·thermocoupleType·rtdType·rtdWire를 적용하고, 1046은 VoltageRatioInput을 RTD 온도로 변환한다. Diedrich는 추가 voltage-ratio 채널로 화력·댐퍼를 계산한다. FC는 현재 TemperatureSensor의 BT/ET channel과 optional device serial만 설정한다. source sensorId → channel 외 필수 설정을 버리면 동작이 달라지므로 그대로 지원 처리하지 않는다. 공식 가이드도 Phidget와 Diedrich를 함께 안내하지만, Network Server 설정 안내만으로 현재 설치본의 센서 구현을 대체해 판단하지 않는다. 근거: F1 `phidget.sensor.js`, `diedrich-ir.driver.js`와 [Firescope 공식 Phidget/Diedrich 가이드](https://docs.firescope.io/roasting-machine/phidget).
+- **Bullet:** 이 버전은 VID `0x0483`, PID `0x5741` 또는 `0xa27e`, interface 1, IN `0x81`/OUT `0x03` endpoint를 코드에 고정한다. Modbus register·serial port를 가져오는 방식이 아니다. 로컬 머신 설정이 남아 있으면 driver를 식별할 수 있지만 전용 명령·packet decode는 FC adapter가 구현해야 한다. 근거: F1 `bullet-r1.driver.js`.
+
+**모든 연결 주소가 사용자 DB의 register 목록으로 저장되는 것은 아니다.** Modbus는 register/unit ID, S7은 DB/offset, Phidget는 channel/hub/센서 타입, WebSocket은 IP/port와 전용 node 의미를 가져와야 한다. Probat handshake와 Bullet USB 규약처럼 드라이버에 고정된 값도 있다. DB에 저장된 통신·센서 설정의 추출과 해당 드라이버의 동작 재현을 별도 판정한다. 공식 연결 가이드도 serial port, Ethernet 설정, Phidget 설치로 절차가 나뉜다. [serial 가이드](https://docs.firescope.io/roasting-machine/autonics), [Probat Type3 가이드](https://docs.firescope.io/roasting-machine/probat-probatone-type3)
+
+매핑 순서는 **`connection.driver` → 선택된 `connection.type`/하위 subtype → 센서 schema**다. Firescope 자체도 driver를 protocol보다 먼저 선택한다. 알려진 전용 driver를 무시하고 `protocol=modbus/phidget/websocket`만 보고 일반 adapter로 내리지 않는다. driver가 없을 때만 검증된 버전의 protocol fallback을 사용하며, 알 수 없는 driver/mode는 `unsupported`로 남긴다. Firescope의 unknown → Dummy fallback을 FC import에서 재현하지 않는다. FC Modbus도 알 수 없는 mode가 RTU로 내려갈 수 있으므로 import 경계에서 enum을 제한한다. stopBits 1.5는 FC 생성자에서 int로 축소되므로 수정·검증 전 동일 동작 지원으로 표시하지 않는다.
+
+이번 실제 DB의 실머신 3대는 일반 Modbus RTU/TCP와 S7였다. ASCII·UDP·Phidget·Probat·Bullet의 설정된 사용자 샘플이나 실제 장비는 확인하지 않았다. 후속 검증은 각 driver의 합성 설정 변환·저장·재편집 후 값 보존, 지원 transport의 실제 측정값, 전용 handshake/message/decode를 확인하는 순서다. Intel·ARM 양쪽에서 serial/USB/Phidget 의존성까지 확인한다.
+
 ### LevelDB 파일 import 조건
 
 JSON을 `strings`나 정규식으로 찾는 방식은 조사 단서에만 사용한다. Chromium IDB는 DB/store/index 메타데이터, 자체 comparator, sequence·삭제, WAL, V8/Blink 값을 해석해야 한다. generic LevelDB 라이브러리를 기본 comparator로 열거나 `.log` 파일 하나만 선택해서는 현재 설정을 보장하지 못한다. [Chromium coding scheme](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md), [LevelDB 구현](https://github.com/google/leveldb/blob/main/doc/impl.md)
@@ -211,7 +247,7 @@ FC 기준 코드는 [RoastSettings](../../src/features/active-roast/model/settin
 | `dryingEndTemp` | 직접 대응 없음 | FC `yellowTempC`는 Yellowing 자동 mark; Dry end와 동일 이벤트로 취급하지 않음 |
 | `crackStartTemp`, 이벤트 이름·온도 채널 | 미지원 또는 개별 대응 | FC에 동등한 설정이 있는지 항목별 확인; 사용자 이름·ET를 자동 감지 의미로 바꾸지 않음 |
 | Charge/Drop 감지 플래그·온도 차이 | 보류 | FC는 standard/sensitive 감지와 시간·노이즈 조건 사용; 7/3을 임의 threshold로 복사하지 않음 |
-| Firescope `connection.type`, `connection.protocol` | transport·protocol 선택 | `connection[type]`와 `connection[protocol]`만 사용; Ethernet TCP → `mode=tcp`, serial RTU → `mode=rtu`; 남은 다른 연결 객체 무시 |
+| Firescope `connection.driver`, `connection.type`, `connection.protocol` | 전용 driver·transport·protocol 선택 | driver를 먼저 판정; `connection[type]`와 `connection[protocol]`만 사용; 일반 Modbus에서 subtype RTU/ASCII/TCP/UDP → 동일 FC mode; 남은 다른 연결 객체 무시 |
 | serial path, baudRate, dataBits, stopBits, parity | `comport`, `baudrate`, `bytesize`, `stopbits`, `parity` | 프로토콜 enum 변환; OS·USB 포트 변경 시 재선택; parity `none`과 FC `N` 등 실제 값 대조 |
 | Modbus address/read/sensorId/decimalPlace | `register`, `func`, `unit_id`, `div` | F1 driver는 address를 그대로 사용하고 sensorId를 setID에 전달; FC3/FC4 → 3/4, decimalPlace 0/1/2 → div 0/1/2 |
 | Modbus integer/float/BCD·보정 | 채널 dtype·word order 등 | signed integer, BCD, float scale, nonzero compensation을 생략하면 다른 측정값이 됨; 지원·단위 확인 전 import 불가 표시 |
@@ -232,12 +268,12 @@ F1의 보정은 센서 단위에서 머신 온도 단위로 변환한 후 compen
 **변수명·타입·단위·센서 역할을 변환해 같은 주소에서 같은 측정값을 얻도록 한다.** 파일 해독, 머신/그래프 변환, 미리보기·적용을 구분한다. 자동 변환이 가능한 항목은 미리 채우고, 의미가 다르거나 FC가 지원하지 않는 항목은 원본값과 이유를 보여준다. 사용자에게 모든 필드의 매핑을 처음부터 다시 입력하게 하지 않는다.
 
 1. **소스 추출:** macOS의 알려진 Firescope 경로를 native backend에서 찾고 종료된 앱의 DB 폴더 복사본을 Python sidecar에서 해독한다. 허용 설정 DTO에 머신 ID·sequence·현재/과거 출처를 붙인다. 데모를 제외하고 머신 ID별 마지막 설정을 고르며 그래프는 별도 키의 현재 값을 사용한다. CRC·CURRENT·삭제·V8 문자열 검증은 앞의 decoder 조건을 충족해야 한다.
-2. **명시적 변환:** 소스 경로 → FC 경로 → 타입·enum·단위 변환 규칙을 고정한다. 각 항목에 원본값·변환값과 `mapped`, `needs-review`, `unsupported`를 제공한다. `missing`·`null`·0·false를 구분하고 주소에 임의 ±1/40001 보정을 하지 않는다. 필수 센서의 타입·보정을 재현할 수 없으면 해당 머신 적용을 차단한다.
+2. **명시적 변환:** driver → 선택된 transport/subtype → 센서 schema 순으로 판정하고 소스 경로 → FC 경로 → 타입·enum·단위 변환 규칙을 고정한다. 각 항목에 원본값·변환값과 `mapped`, `needs-review`, `unsupported`를 제공한다. `missing`·`null`·0·false를 구분하고 주소에 임의 ±1/40001 보정을 하지 않는다. 필수 센서의 타입·보정이나 전용 연결 규약을 재현할 수 없으면 해당 머신 적용을 차단한다.
 3. **FC가 읽을 설정 구성:** 초기 머신은 `custom_modbus` 또는 `custom_s7`로 등록하고 소스의 주소·통신 옵션을 명시한다. preset 문자열 유사성으로 FC registry의 기본 주소를 선택하지 않는다. 읽기 센서 주소로 쓰기 `write_map`, PID 또는 제어 capabilities를 만들지 않는다. known preset은 빈 write_map도 기본 쓰기 설정을 상속할 수 있으므로 custom key를 사용하는 것이 필요하다. [FC merge](../../src-tauri/sidecar/manager.py), [custom registry](../../src/entities/machine/roasterRegistry.ts)
 4. **자동 미리보기:** 복구한 머신 목록과 연결·센서·그래프의 변환 결과를 표시하고 가져올 항목을 선택하게 한다. 모든 저장된 주소는 지원 여부와 함께 확인 가능하게 보존한다. `%`, `Pa`, `Hz`, `*Setting` 센서가 있다는 이유만으로 FC의 Gas/Airflow/Drum 제어 주소로 적용하지 않는다. 미지원 주소는 추출 성공과 적용 미지원으로 구분하며, 조용히 누락한 뒤 전체 적용 성공으로 표시하지 않는다.
 5. **저장과 검증:** 선택한 설정만 기존 저장 API에 적용하고 저장 완료·재시작 유지까지 확인한다. 기존 머신은 기본적으로 덮어쓰지 않는다. source 머신 ID를 최소 import metadata로 보존해 재import의 중복 후보를 식별한다. 자동 연결은 수행하지 않으며 별도 연결 테스트에서 기존 `/connect`를 사용한다.
 
-첫 지원 범위는 실제 로컬 샘플과 맞는 **Modbus FC3/4 signed16, S7 DB INT/REAL, decimalPlace 0/1/2, 보정 0**부터다. S7 온도는 °C를 우선 지원한다. Modbus float scaling·센서별 혼합 word order, BCD, nonzero compensation, 다른 단위·타입은 미지원 이유를 표시하고 adapter 지원과 측정값 대조를 완료한 뒤 확장한다. 이 범위는 전체 주소의 추출 가능성과 별개이며, 모든 소스 설정의 동일 동작을 이미 지원한다는 뜻이 아니다.
+첫 지원 범위는 실제 로컬 샘플과 맞는 **일반 Modbus RTU/TCP의 FC3/4 signed16, S7 DB INT/REAL, decimalPlace 0/1/2, 보정 0**부터다. S7 온도는 °C를 우선 지원한다. Modbus ASCII/UDP는 기존 FC adapter를 활용하되 source 설정·측정값 대조 후 지원 범위에 추가한다. Modbus float scaling·센서별 혼합 word order, BCD, nonzero compensation, 다른 단위·타입과 Phidget/Probat/Bullet 전용 동작은 미지원 이유를 표시하고 검증 후 확장한다. 이 범위는 전체 주소의 추출 가능성과 별개이며, 모든 소스 설정의 동일 동작을 이미 지원한다는 뜻이 아니다.
 
 ### 확인한 값의 변환 예
 
