@@ -762,6 +762,11 @@
             "fan": "ファン",
             "drum": "ドラム"
         },
+        "aside": {
+            "resizeMachine": "マシン制御の幅を変更",
+            "resizeReadings": "数値パネルの幅を変更",
+            "resizeLog": "焙煎ログの幅を変更"
+        },
         "log": {
             "expand": "焙煎ログを展開",
             "collapse": "焙煎ログを折りたたむ",

@@ -762,6 +762,11 @@
             "fan": "Fan",
             "drum": "Drum"
         },
+        "aside": {
+            "resizeMachine": "Resize machine control",
+            "resizeReadings": "Resize readings",
+            "resizeLog": "Resize roast log"
+        },
         "log": {
             "expand": "Expand roast log",
             "collapse": "Collapse roast log",

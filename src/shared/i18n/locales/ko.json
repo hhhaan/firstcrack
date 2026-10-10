@@ -1138,6 +1138,11 @@
             "fcEnd": "⌘3",
             "markDrop": "⌘DD"
         },
+        "aside": {
+            "resizeMachine": "머신 컨트롤 폭 조절",
+            "resizeReadings": "수치 패널 폭 조절",
+            "resizeLog": "로스팅 로그 폭 조절"
+        },
         "log": {
             "expand": "로스팅 로그 펼치기",
             "collapse": "로스팅 로그 접기",

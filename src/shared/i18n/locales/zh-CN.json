@@ -762,6 +762,11 @@
             "fan": "风扇",
             "drum": "滚筒"
         },
+        "aside": {
+            "resizeMachine": "调整机器控制宽度",
+            "resizeReadings": "调整读数面板宽度",
+            "resizeLog": "调整烘焙日志宽度"
+        },
         "log": {
             "expand": "展开烘焙日志",
             "collapse": "收起烘焙日志",

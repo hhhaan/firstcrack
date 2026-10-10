@@ -1,8 +1,15 @@
 # Reusable panel resizing
 
-Panel resizing is intentionally disconnected from the active roast screen.
-Machine Control and the expanded roast log keep their original 160px widths.
-The compact log layout and remembered expanded/collapsed state remain active.
+The active roast screen gives each non-chart column its own left-edge
+divider (`ResizableColumn` inside `RoastAside`): Machine Control (floor
+160px), the readings panel (floor 176px), and the expanded log (floor
+160px). A divider resizes only the column on its right. Those floors are
+the open minimum. Dragging or stepping the log below 160px collapses it
+back to the inline log and keeps the last open width for the next expand.
+Widths last for the session. The chart keeps at least 320px when a column
+grows and the row is wide enough. Collapsed Machine Control is a 28px rail
+with no divider. Opening the log still adds its open width, 160px until
+the user has widened it.
 
 ## Usage
 
@@ -43,4 +50,4 @@ const ExamplePanel = () => {
 
 ## Verification
 
-`pnpm test src/shared/ui/PanelResizeHandle.test.tsx`
+`pnpm test src/shared/ui/PanelResizeHandle.test.tsx src/shared/ui/ResizableColumn.test.tsx`
