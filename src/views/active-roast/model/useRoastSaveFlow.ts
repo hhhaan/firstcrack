@@ -44,7 +44,6 @@ export async function resolveContinueCandidates(params: {
     return getRemainingDayBatches(fresh, { preferBatchId: params.preferBatchId });
 }
 
-/** Next Charge already owns the machine — A's save must not mutate it. */
 const resolvePendingUserId = (snapshot: CompletedRoastSnapshot, workspaceOwnerId: string | null): string | null => {
     const live = useRoastingStore.getState();
     return snapshot.sessionOwnerId ?? live.sessionOwnerId ?? workspaceOwnerId ?? null;
@@ -61,6 +60,7 @@ const pendingCheckpointUserIds = (snapshot: CompletedRoastSnapshot, workspaceOwn
     return [...ids];
 };
 
+/** Next Charge already owns the machine — A's save must not mutate it. */
 export const isLiveDetachedFromPending = (
     live: { sessionId: string | null; phase: RoastPhase; awaitingNextCharge: boolean },
     pendingSessionId: string | null | undefined,

@@ -261,6 +261,20 @@ it('uses in-app confirm without calling ask when Tauri runtime is absent', async
     unmount();
 });
 
+it('does not dismiss the summary when Escape is pressed in a weight input', () => {
+    const onClose = vi.fn();
+    const onCancelDrop = vi.fn();
+    const { unmount } = renderModal({ onClose, onCancelDrop, canCancelDrop: true });
+    const weight = document.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    act(() => {
+        weight.focus();
+        weight.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onCancelDrop).not.toHaveBeenCalled();
+    unmount();
+});
+
 it('does not dismiss the summary when Escape closes the bean dropdown', () => {
     const onClose = vi.fn();
     const onCancelDrop = vi.fn();

@@ -8,12 +8,20 @@ export const tauriInitScript = `
       currentWindow: { label: 'main' },
       currentWebview: { windowLabel: 'main', label: 'main' },
     },
-    invoke: async function (cmd) {
-      if (cmd === 'plugin:dialog|ask') {
-        return 'Discard';
-      }
-      if (cmd === 'plugin:dialog|message' || cmd === 'plugin:dialog|confirm') {
-        return true;
+    invoke: async function (cmd, args) {
+      if (cmd === 'plugin:dialog|message') {
+        var buttons = args && args.buttons;
+        if (typeof buttons === 'string') {
+          if (buttons === 'YesNo') return 'Yes';
+          if (buttons === 'OkCancel') return 'Ok';
+          return 'Ok';
+        }
+        if (buttons && typeof buttons === 'object') {
+          if (buttons.OkCancelCustom) return buttons.OkCancelCustom[0];
+          if (buttons.OkCustom) return buttons.OkCustom;
+          if (buttons.YesNoCancelCustom) return buttons.YesNoCancelCustom[0];
+        }
+        return 'Ok';
       }
       if (cmd === 'plugin:store|get' || cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
       if (cmd === 'plugin:os|locale') return 'en-US';

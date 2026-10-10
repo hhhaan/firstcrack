@@ -16,3 +16,20 @@ test('roast summary discard closes the modal after confirm', async ({ authedPage
     await page.getByTestId('roast-summary-discard').click({ force: true });
     await expect(page.getByTestId('roast-summary-save')).toBeHidden({ timeout: 10_000 });
 });
+
+test('roast summary discard uses in-app confirm when Tauri runtime is absent', async ({ authedPage: page }) => {
+    await goNav(page, 'roast');
+    await page.waitForFunction(() => Boolean(window.__FC_E2E__?.forceChargedSession), null, { timeout: 15_000 });
+    await page.evaluate(() => window.__FC_E2E__?.forceChargedSession());
+    await expect(page.getByTestId('roast-end')).toBeEnabled({ timeout: 10_000 });
+    await page.getByTestId('roast-end').click({ force: true });
+    await page.getByTestId('end-roast-confirm').click({ force: true });
+    await expect(page.getByTestId('roast-summary-save')).toBeVisible({ timeout: 10_000 });
+    await page.evaluate(() => {
+        delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+    });
+    await page.getByTestId('roast-summary-discard').click({ force: true });
+    await expect(page.getByTestId('roast-summary-discard-modal')).toBeVisible({ timeout: 10_000 });
+    await page.getByTestId('roast-summary-discard-confirm').click({ force: true });
+    await expect(page.getByTestId('roast-summary-save')).toBeHidden({ timeout: 10_000 });
+});
