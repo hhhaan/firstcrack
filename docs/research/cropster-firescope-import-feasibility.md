@@ -31,7 +31,7 @@ FC는 Tauri desktop이므로 로컬 저장소를 읽는 기능을 만들 수 있
 ## #710에서 수정할 결론
 
 1. **Firescope 값의 이중 JSON 파싱을 고정하지 않는다.** 이번 DB는 IndexedDB/V8 디코딩 후 `dict`로 나왔다. 추가 JSON 파싱은 0회였다. 먼저 Chromium 값을 정상 해독하고, 문자열일 때만 확인된 버전의 직렬화 방식대로 처리한다. 문자열 검색 과정에서 보인 JSON escaping은 실제 저장 타입의 증거가 아니다. 근거: 아래 F1·F2와 [Chromium 직렬화 명세](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md).
-2. **로그에 남은 실제 머신이 현재 활성 머신이라는 보장은 없다.** 머신 키에서 21개 레코드를 복구했다. 최고 sequence는 `DummyDriver` 데모 머신이고, 실제 `ModbusDriver` 설정 6개는 이전 레코드였다. 과거 실제 머신을 최신 머신 대신 자동 선택하면 안 된다. 근거: F2.
+2. **로그에 남은 실제 머신이 현재 활성 머신이라는 보장은 없다.** 머신 키에서 21개 레코드를 복구했다. 최고 sequence는 `DummyDriver` 데모 머신이다. 데모 10개·키 삭제 1개를 제외한 설정 10개는 머신 ID 기준 3대의 과거 버전이었다. 이들은 import 후보로 복구할 수 있지만 현재 활성 머신으로 표시하지 않는다. 근거: F1·F2와 아래 과거 머신 복구 결과.
 3. **Cropster의 루트 파일부터 조사한다.** RI 5.13은 `<dataDirectory>/preferences.json`, `machine.json`을 저장하고 outbox로 복사한다. outbox만 필수 입력으로 삼거나 `**/*.json` 전체를 가져올 이유가 없다. 근거: C1의 `StorageServiceImpl.savePreferences`.
 4. **Roast curve import는 설정 import의 근거가 아니다.** [#56의 Artisan `.alog`](https://github.com/hhhaan/firstcrack/issues/56)와 [#57의 Firescope CSV](https://github.com/hhhaan/firstcrack/issues/57)는 로스팅 기록 이관이고, 이번 조사와 입력 계약이 다르다. Artisan 설정은 `.aset`이다. [Artisan 유지보수자 설명](https://github.com/artisan-roaster-scope/artisan/discussions/1158)
 
@@ -60,7 +60,7 @@ C1은 `javap -p -c`와 클래스 상수·로컬 변수 정보를 대조했다. �
 
 **현재 사용자 머신에 Firescope 1.0.2와 설정 DB가 실제로 있으며, 앱을 실행하거나 export하지 않고 설정을 읽었다.** 자동 탐색 입력으로 기본 userData 아래의 IndexedDB 디렉터리를 사용할 수 있다. F1의 `out-tsc/app/main-window.js`는 배포 앱을 `file:` URL로 실행하며, 이번 DB의 origin과 일치한다. Electron 버전은 Framework의 `Info.plist`에서 32.3.3으로 확인했다. 원본 해시가 재확인 전후 동일했고 임시 복사본은 삭제했다.
 
-자동 인식의 첫 대상은 **현재 저장된 그래프 설정과 단일 머신 캐시**다. 이번 최고 sequence 머신은 `Test Machine`이며 실제 로스터가 아니다. 과거 머신 `dfa`의 설정도 로그에서 읽히지만, 이를 현재 머신으로 자동 선택하면 안 된다. 로컬 캐시가 없는 머신 목록을 얻기 위해 서버 로그인을 요구하는 흐름은 이 import의 범위에서 제외한다.
+자동 인식의 대상은 **현재 저장된 그래프 설정과 로컬에서 복구 가능한 머신 설정**이다. 현재 캐시와 과거 설정 후보를 구분하고, 사용자 요청에 따라 `DummyDriver`·확인된 데모 preset은 제외한다. 이번 최고 sequence 머신은 `Test Machine`이며 실제 로스터가 아니다. 과거 머신을 현재 활성 머신으로 자동 선택하지 않고, 복구된 후보 목록에서 가져올 머신을 고르게 한다. 로컬에 없는 머신 목록을 얻기 위해 서버 로그인을 요구하는 흐름은 이 import의 범위에서 제외한다.
 
 ### 저장 방식과 범위
 
@@ -88,18 +88,29 @@ macOS에서 확인한 기본 위치는 `~/Library/Application Support/Firescope/
 
 `bps.setting`에는 Charge/Drop 감지 플래그와 7/3 온도 차이, BT/ET 색상, Gas/Airflow 이벤트 이름, 보조 센서 축도 있었다. #710의 `xAxisStart=-15`는 설치본 기본값이지만 이번 최고 sequence는 -14다. 기본값·예시·사용자 저장값을 구분한다.
 
-과거 머신별로 확인한 Modbus 설정은 다음과 같다. 실제 포트 식별자·네트워크 주소는 문서에 기록하지 않았다.
+과거 머신별로 확인한 연결 설정은 다음과 같다. 실제 포트 식별자·네트워크 주소는 문서에 기록하지 않았다.
 
-| 과거 머신 이름 | 해당 머신의 최고 sequence | preset | 활성 연결 | BT/ET 설정 |
+| 과거 머신 이름 | 해당 머신의 최고 sequence | preset | 활성 연결 | 센서 설정 |
 |---|---:|---|---|---|
 | `dfa` | 15167 | `easyster-non-option` | serial RTU, 9600 baud, 8 data bits, 2 stop bits, parity `none` | 둘 다 주소 1000, sensorId 1, FC4, integer, decimalPlace 1 |
+| `ㅇㄹ` | 17391 | `giesen-wxa` | Ethernet TCP / `S7Driver` | BT/ET, power, airflowPressure, drumSpeed 및 설정값 채널 |
 | `d` | 18465 | `buja-smart-gas-control` | Ethernet TCP | 주소 19/20, sensorId 1, FC3, integer, decimalPlace 1; power/airflowPressure는 21/22 |
 
-**18465를 serial RTU로 적었던 이전 문서를 수정한다.** 이 레코드는 `connection.type=ethernet`인데 과거 serial 객체도 남아 있었다. 활성 Ethernet 설정을 선택해야 한다. #710의 `dfa`/FC4 설정은 실제 과거 레코드에 있었지만 현재 최고 sequence 머신과는 다르다. 위 두 머신 모두 현재 머신으로 자동 제안하지 않는다.
+**18465를 serial RTU로 적었던 이전 문서를 수정한다.** 이 레코드는 `connection.type=ethernet`인데 과거 serial 객체도 남아 있었다. 활성 Ethernet 설정을 선택해야 한다. #710의 `dfa`/FC4 설정은 실제 과거 레코드에 있었지만 현재 최고 sequence 머신과는 다르다. 위 세 머신은 과거 설정 복구 후보이며 현재 머신으로 표시하지 않는다.
 
 이번 그래프 값의 직접 매핑 후보는 FC `tempMinC=50`, `tempMaxC=250`, `timeRangeMin=12`와 `timeRangeCustom=true`, 시간 눈금 60초, BT/ET/RoR의 색상이다. 색상은 해당 채널의 `color`만 변경하고 기존 선 굵기·스타일은 보존한다. Firescope의 음수 시간축 시작과 자동 축 확장은 그대로 재현되지 않으므로 미리보기에 차이를 표시한다. FC 저장·재시작 검증은 아직 수행하지 않았다.
 
 `setting.ListPageFieldSettingService`도 해독했으나 재고·목록 화면 설정이라 범위에서 제외한다. `setting.RoastingFieldSettingService`는 설치본 코드에서 확인했지만 이번 F2의 설정 키 해독 결과에는 없었다. `roasting.RoastingService`는 세션·로스트 데이터가 섞일 수 있어 import allowlist에 넣지 않는다. Firebase DB는 별도 논리 DB이며 import 대상으로 읽지 않는다.
+
+### 테스트 머신을 제외한 과거 머신 복구
+
+**이번 로컬 자료에서는 3대의 서로 다른 머신 설정을 추출할 수 있다.** 동일 머신의 설정 변경·재선택을 별도 머신으로 세지 않도록 저장된 `id`로 묶고, 각 ID의 가장 큰 sequence를 선택했다. `dfa`는 2개, `ㅇㄹ`은 4개, `d`는 4개 버전이었으며 모두 `000060.log`에 남아 있었다. 데모 판별은 `DummyDriver`·확인된 `test` preset을 사용하며 이름에 “test”가 포함됐다는 이유만으로 실제 머신을 제외하지 않는다. ID가 없으면 이름만으로 합치지 않고 별도 검증 후보로 둔다. 근거: F2 재해독.
+
+이는 **과거 선택·저장된 머신 설정**의 복구다. F1의 `setActiveMachine`은 캐시를 저장하고 `connectActiveMachine`은 별도 메서드다. 따라서 캐시 존재만으로 실제 장비 연결 성공이나 연결 일시를 입증하지 못한다. `unsetActiveMachine`은 로그아웃에서도 호출되고, 서버의 머신 삭제는 별도 HTTP 요청이다. 키 삭제 1개를 특정 머신의 삭제 기록으로 해석할 수 없다.
+
+복구 목록에는 “과거 설정” 출처를 표시하고 각 머신의 연결·센서 항목을 FC 매핑 후 미리 보여준다. 기존 머신을 덮어쓰거나 자동 연결하지 않는다. 전체 그래프 설정은 별도 키의 현재 값을 가져오며, 각 과거 머신에 당시 그래프 설정이 연결돼 있다고 가정하지 않는다.
+
+**사용했던 모든 머신을 로컬만으로 보장할 수는 없다.** LevelDB compaction은 덮어쓴 과거 값을 제거하고 오래된 로그를 삭제한다. 이번 3대는 현재 남아 있는 값이어서 읽을 수 있으며, DB 정리·재설치·앱 사용 이후에도 같은 이력이 남는다는 계약은 없다. 그러므로 제품 흐름은 “복구 가능한 머신 자동 검색”으로 설명하고 전체 머신 목록과 구분한다. [LevelDB compaction·로그 정리](https://github.com/google/leveldb/blob/main/doc/impl.md)
 
 ### LevelDB 파일 import 조건
 
@@ -204,7 +215,7 @@ F1 `out-tsc/app/driver/drivers/modbus.driver.js`는 `integer`를 signed 16-bit�
 
 ## 자동 탐색 구현 순서와 착수 조건
 
-사용자 요청에 따라 **Firescope를 먼저 진행한다.** 알려진 userData 경로의 자동 탐색 → 앱 종료 확인·DB 복사 → 허용 설정 해독 → 그래프·현재 머신 미리보기까지를 첫 범위로 삼는다. 이번 로컬 자료는 그래프 추출과 과거 실제 머신 schema 검증에 사용할 수 있지만, 현재 머신이 데모이므로 지원 머신 설정을 현재 값으로 저장한 합성 snapshot과도 대조해야 한다. Cropster·Artisan 자동 탐색은 후속 범위다. 이는 현재 증거에 따른 구현 제안이며 앱 기능을 추가한 것은 아니다.
+사용자 요청에 따라 **Firescope를 먼저 진행한다.** 알려진 userData 경로의 자동 탐색 → 앱 종료 확인·DB 복사 → 허용 설정 해독 → 데모 제외·머신 ID별 과거 설정 복구 → 그래프·머신 후보 미리보기까지를 첫 범위로 삼는다. 현재 캐시와 과거 후보를 구분하고 최신값 처리와 이력 복구를 별도 검증한다. 이번 로컬 자료는 그래프 추출과 과거 실제 머신 schema 검증에 사용할 수 있지만, 현재 머신이 데모이므로 지원 머신 설정을 현재 값으로 저장한 합성 snapshot과도 대조해야 한다. Cropster·Artisan 자동 탐색은 후속 범위다. 이는 현재 증거에 따른 구현 제안이며 앱 기능을 추가한 것은 아니다.
 
 공통 흐름은 **로컬 자동 탐색 → 제품/버전 판별 → 자동 읽기·허용 설정 추출 → FC 매핑 미리보기 → 선택 항목 적용**이다. 정상 흐름에서 파일 선택은 생략한다. fallback만 설정 파일 또는 논리적인 설정 export를 입력으로 한다. 임의 JSON·CSV·`.alog`나 단일 LevelDB `.log`가 설정 import fallback이 되지는 않는다. 읽을 저장소가 없으면 다른 PC의 설정 파일을 선택하거나 기존 머신 form에서 수동 입력한다.
 
