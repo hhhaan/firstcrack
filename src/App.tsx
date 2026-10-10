@@ -39,7 +39,7 @@ import { Settings } from './views/settings/Settings';
 import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
 import { PendingRoastRecovery } from './widgets/pending-roast-recovery';
 import { KeyboardShortcutsModal } from './widgets/settings/ui/KeyboardShortcutsModal';
-import type { SettingsTabId } from './widgets/settings/ui/tabConfig';
+import { type RoastSettingsGroup, roastSettingsGroups, type SettingsTabId } from './widgets/settings/ui/tabConfig';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 
 // VOC: restore first-run theme picker
@@ -122,6 +122,7 @@ export const App = () => {
     }, []);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsTab, setSettingsTab] = useState<SettingsTabId>('general');
+    const [settingsRoastGroup, setSettingsRoastGroup] = useState<RoastSettingsGroup | null>(null);
     const settingsReturnView = useRef<View>('dashboard');
     const startBatch = useRoastingStore((s) => s.startBatch);
     const completeBatch = useRoastingStore((s) => s.completeBatch);
@@ -131,9 +132,10 @@ export const App = () => {
         if (view === 'roast') setSidebarCollapsed(true);
     }, [view]);
 
-    const openSettings = (tab: SettingsTabId = 'general') => {
+    const openSettings = (tab: SettingsTabId = 'general', roastGroup: RoastSettingsGroup | null = null) => {
         if (view !== 'settings') settingsReturnView.current = view;
         setSettingsTab(tab);
+        setSettingsRoastGroup(roastGroup);
         setView('settings');
     };
     const toggleSettings = () => {
@@ -141,7 +143,8 @@ export const App = () => {
             setView(settingsReturnView.current);
             return;
         }
-        openSettings();
+        if (view === 'roast') openSettings('roast', roastSettingsGroups[0]);
+        else openSettings();
     };
 
     const settingsKeys = useShortcutKeys('openSettings');
@@ -300,6 +303,7 @@ export const App = () => {
                             <ViewErrorBoundary>
                                 <Settings
                                     activeTab={settingsTab}
+                                    initialRoastGroup={settingsRoastGroup}
                                     onTabChange={setSettingsTab}
                                     onClose={() => setView(settingsReturnView.current)}
                                 />
