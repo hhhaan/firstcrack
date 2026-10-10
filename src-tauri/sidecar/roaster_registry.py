@@ -204,8 +204,8 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
 # ---------------------------------------------------------------------------
 
 # Giesen db2 계열 공통 (W1A~W140A, WxA/WxA+): slidercommands "setDBint(2,14,{})"
-# heater duty만 노출한다. fan(DB2.10)/drum(DB2.18)/pressure(DB2.16)은 모델마다
-# slidermin/max가 달라(fan 250~280, drum 34~60Hz) 레지스트리 키 분리가 선행돼야 한다.
+# 공유 맵은 heater duty만 노출한다. drum(DB2.18)은 모델마다 범위가 달라 별도 맵이 필요하다.
+# DB2.10은 Artisan 온도 SP이고, pressure(DB2.16)도 여기서는 노출하지 않는다.
 # DB2.14 raw 0은 버너 OFF가 아니라 기센 AUTO 인계다.
 # 근거 (2026-09-03 조사, docs/research/giesen-remote-access-unlock.md):
 #   - Artisan 메인테이너, discussion #827: "Setting the burner to 0 activates the
@@ -1785,6 +1785,14 @@ ROASTER_REGISTRY.update({
     "giesen_w45a_w60a": _giesen_variant(
         "giesen_standard", display_name="Giesen W45A / W60A",
         models=["W45A", "W60A"], host="172.30.30.90",
+        write_map={
+            **_GIESEN_DB2_WRITE_MAP,
+            # Artisan W45A/W60A drum slider; Quantifiers max=45 is not the command limit.
+            "drum": {
+                "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0,
+                "min": 40, "max": 55, "unit": "Hz",
+            },
+        },
     ),
     "giesen_w140a_v1": _giesen_variant(
         "giesen_w15e", display_name="Giesen W140A (v1)", models=["W140A v1"], host="172.30.30.110",

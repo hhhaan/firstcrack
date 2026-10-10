@@ -95,6 +95,27 @@ class TestControlWrite:
         assert adapter._plc.db_write.call_count == 1
         assert _written(adapter._plc)[1] == 14
 
+    @pytest.mark.parametrize("requested, logical", [(0, 40), (40, 40), (45, 45), (55, 55), (100, 55)])
+    async def test_w45a_w60a_drum_writes_int_hz_without_changing_heater(self, adapter, requested, logical):
+        from manager import RoasterManager
+
+        defaults = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
+        adapter._write_map = defaults["write_map"]
+        manager = RoasterManager()
+        manager._adapter = adapter
+        manager._protocol = "s7"
+        manager._connected = True
+        manager._merged_params = defaults
+        await manager.control(heater=22)
+        assert get_int(_written(adapter._plc)[2], 0) == 23
+        adapter._plc.db_write.reset_mock()
+
+        assert await manager.control(drum=requested) == {"drum": logical}
+        assert manager.last_applied() == {"heater": 22, "drum": logical}
+        adapter._plc.db_write.assert_called_once()
+        db, offset, payload = _written(adapter._plc)
+        assert (db, offset, len(payload), get_int(payload, 0)) == (2, 18, 2, logical)
+
     async def test_raises_when_plc_none(self, adapter):
         plc = adapter._plc
         adapter._plc = None

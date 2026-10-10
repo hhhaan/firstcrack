@@ -273,6 +273,22 @@ describe('MachineControlPanel display', () => {
         fader.unmount();
     });
 
+    it('exposes a Hz drum chip beside the percent heater and commits only drum', () => {
+        const changeManual = vi.fn();
+        const commitManual = vi.fn();
+        const model = panelModel({ changeManual, commitManual });
+        model.machine.limits.drum = { min: 40, max: 55, unit: 'Hz' };
+        model.machine.desired.drum = 44;
+        const { host, unmount } = renderPanel(model);
+        expect(host.querySelector('[aria-label="Heater plus 5"]')).not.toBeNull();
+        expect(host.querySelector('[aria-label="Fan plus"]')).toBeNull();
+        expect(host.textContent).toContain('Hz');
+        act(() => (host.querySelector('[aria-label="Drum plus"]') as HTMLButtonElement).click());
+        expect(changeManual).toHaveBeenCalledExactlyOnceWith('drum', 45);
+        expect(commitManual).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
     it('opens the batch heat editor without stopping Replay', () => {
         const stop = vi.fn();
         const { host, unmount } = renderPanel(panelModel({ stop }));
