@@ -2139,6 +2139,8 @@ export type Database = {
                 Returns: number;
             };
             cancel_order: { Args: { p_order_id: string }; Returns: undefined };
+            channel_try_integer: { Args: { p_value: string }; Returns: number };
+            channel_try_timestamptz: { Args: { p_value: string }; Returns: string };
             compute_inventory_alerts: {
                 Args: { p_horizon_days?: number; p_user_id: string };
                 Returns: undefined;
@@ -2209,7 +2211,7 @@ export type Database = {
             };
             insert_product_stock_events_batch: {
                 Args: { p_events: Json };
-                Returns: undefined;
+                Returns: Json;
             };
             insert_roasted_stock_events_batch: {
                 Args: { p_events: Json };
@@ -2307,6 +2309,10 @@ export type Database = {
                     p_session_id: string;
                 };
                 Returns: undefined;
+            };
+            sync_channel_orders_batch: {
+                Args: { p_connection_id: string; p_orders: Json; p_user_id: string };
+                Returns: Json;
             };
             update_roast_session_record: {
                 Args: {
