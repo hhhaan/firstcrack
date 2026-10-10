@@ -18,10 +18,14 @@ export function RoastLogEntryEditor({
     entry,
     options,
     onClose,
+    onDelete,
+    deleteLabel,
 }: {
     entry: LogEntry;
     options: RoastLogEditOptions;
     onClose: () => void;
+    onDelete?: () => void;
+    deleteLabel?: string;
 }) {
     const { t } = useTranslation();
     const displayTemp = (value: LogEntry) =>
@@ -128,17 +132,29 @@ export function RoastLogEntryEditor({
                     {t('activeRoast.log.editRangeHint')}
                 </p>
             )}
-            <div className="flex justify-end gap-1">
-                <button type="button" className="rounded px-2 py-1 text-muted hover:text-primary" onClick={onClose}>
-                    {t('common.cancel')}
-                </button>
-                <button
-                    type="submit"
-                    disabled={!draft.valid}
-                    className="rounded bg-primary px-2 py-1 text-white disabled:opacity-40"
-                >
-                    {t('common.save')}
-                </button>
+            <div className="flex w-full items-center">
+                {onDelete ? (
+                    <button
+                        type="button"
+                        aria-label={deleteLabel}
+                        className="rounded py-1 pr-2 pl-0 text-left text-muted hover:text-primary"
+                        onClick={onDelete}
+                    >
+                        {t('common.delete')}
+                    </button>
+                ) : null}
+                <div className="ml-auto flex gap-1">
+                    <button type="button" className="rounded px-2 py-1 text-muted hover:text-primary" onClick={onClose}>
+                        {t('common.cancel')}
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={!draft.valid}
+                        className="rounded bg-primary px-2 py-1 text-white disabled:opacity-40"
+                    >
+                        {t('common.save')}
+                    </button>
+                </div>
             </div>
         </form>
     );

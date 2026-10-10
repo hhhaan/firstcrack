@@ -83,7 +83,7 @@ export const RoastSidePanelLayout = ({
                             <Minus size={14} />
                         </button>
                     </div>
-                    <div className="min-h-0 overflow-y-auto break-words [overflow-wrap:anywhere]">
+                    <div className="min-h-0 overflow-y-auto">
                         <RoastLog
                             variant="panel"
                             entries={[...roastLogDisplayEntries].reverse()}

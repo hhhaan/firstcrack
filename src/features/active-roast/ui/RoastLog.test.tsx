@@ -96,6 +96,7 @@ describe('RoastLog removable entries', () => {
                 root.render(
                     createElement(RoastLog, {
                         variant,
+                        onRemoveEntry: vi.fn(),
                         entries: [
                             entry('Charge', 'charge'),
                             entry('FC Start', 'fc'),
@@ -116,7 +117,9 @@ describe('RoastLog removable entries', () => {
             );
             const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
             expect(buttons).toHaveLength(1);
+            expect(container.querySelector('[aria-label="Delete fc start"]')).toBeNull();
             act(() => buttons[0].click());
+            expect(container.querySelector('[aria-label="Delete fc start"]')).not.toBeNull();
             const inputs = container.querySelectorAll('input');
             expect(document.activeElement).toBe(inputs[0]);
             expect([inputs[0].selectionStart, inputs[0].selectionEnd]).toEqual([0, inputs[0].value.length]);
