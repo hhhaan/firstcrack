@@ -2186,6 +2186,16 @@ export type Database = {
                 Returns: number;
             };
             get_roasting_requirements: { Args: { p_user_id: string }; Returns: Json };
+            get_stock_summary_rows: {
+                Args: { p_bean_id?: string; p_horizon_days?: number; p_user_id: string };
+                Returns: {
+                    available_grams: number;
+                    bean_id: string;
+                    current_grams: number;
+                    effective_grams: number;
+                    reserved_grams: number;
+                }[];
+            };
             get_user_product_stock: { Args: { p_user_id: string }; Returns: Json };
             get_user_roasted_stock: { Args: { p_user_id: string }; Returns: Json };
             get_user_stock_summaries: {
