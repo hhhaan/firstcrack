@@ -33,6 +33,32 @@ describe('profileToCsv', () => {
         expect(csv).toContain('60,190.5');
         expect(csv).toContain('Santander');
     });
+
+    it('exports heterogeneous extra sensor metadata and nulls', () => {
+        const csv = profileToCsv(
+            profile,
+            [
+                {
+                    t: 0,
+                    bt: 180,
+                    extraReadings: [
+                        { id: 'inlet', label: 'Inlet', unit: '°C', value: 220 },
+                        { id: 'pressure', label: 'Pressure', unit: 'Pa', value: null },
+                    ],
+                },
+                {
+                    t: 1,
+                    bt: 181,
+                    extraReadings: [{ id: 'inlet', label: 'Inlet', unit: '°F', value: 430 }],
+                },
+            ],
+            'session',
+        );
+
+        expect(csv).toContain('Inlet [inlet] (°C),Pressure [pressure] (Pa),Inlet [inlet] (°F)');
+        expect(csv).toContain('0,180,220,,');
+        expect(csv).toContain('1,181,,,430');
+    });
 });
 
 describe('profileExportBasename', () => {

@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import type { CropsterSettingsSnapshot } from '../../src/shared/types/cropster';
 import { expect, test } from '../fixtures/app';
 import { installPersistentStore } from '../fixtures/persistent-store';
+import { mockTauriCommand } from '../fixtures/tauri-stub';
 
 test.use({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' });
 
@@ -55,10 +56,9 @@ test('imports Cropster default-folder machine and graph settings without connect
     authedPage: page,
 }, testInfo) => {
     let connections = 0;
-    await page.route('http://127.0.0.1:9999/**', (route) => {
-        const path = new URL(route.request().url()).pathname;
-        if (path === '/imports/cropster') return route.fulfill({ json: snapshot() });
-        if (path === '/connect') connections += 1;
+    await mockTauriCommand(page, 'read_cropster_settings', snapshot);
+    await page.route('http://127.0.0.1:9999/connect', (route) => {
+        connections += 1;
         return route.abort();
     });
     await installPersistentStore(page);
@@ -111,7 +111,7 @@ test('keeps graph import available while blocking filtered readings and unverifi
     let data = snapshot();
     const sources = data.machine?.sources as Record<string, Record<string, unknown>>;
     sources.GenericModbusTcpSourceFactory.filter = 'true';
-    await page.route('http://127.0.0.1:9999/imports/cropster', (route) => route.fulfill({ json: data }));
+    await mockTauriCommand(page, 'read_cropster_settings', () => data);
     const settings = await openImporter(page);
     await expect(settings.getByRole('checkbox', { name: /Cropster Modbus/ })).toBeDisabled();
     await expect(
@@ -131,12 +131,10 @@ test('keeps graph import available while blocking filtered readings and unverifi
 
 test('rescans closed Cropster and supports graph-only files with their own version', async ({ authedPage: page }) => {
     let closed = false;
-    await page.route('http://127.0.0.1:9999/imports/cropster', (route) =>
-        route.fulfill({
-            json: closed
-                ? { ...snapshot(), machine: null }
-                : { ...snapshot(), status: 'needs-app-closed', machine: null, preferences: null },
-        }),
+    await mockTauriCommand(page, 'read_cropster_settings', () =>
+        closed
+            ? { ...snapshot(), machine: null }
+            : { ...snapshot(), status: 'needs-app-closed', machine: null, preferences: null },
     );
     const settings = await openImporter(page);
     await expect(settings.getByText('Quit Cropster RI completely, then search again.', { exact: true })).toBeVisible();

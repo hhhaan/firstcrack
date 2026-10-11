@@ -152,6 +152,27 @@ describe('parseTsv', () => {
         expect(parseTsv(`${TSV_HEADER}2\t181\t200\t\t\t0\t0\t\t\tNaN\n`)[0].btRaw).toBeNull();
     });
 
+    it('round-trips optional extra readings without rejecting malformed metadata', () => {
+        const extraReadings = [
+            { id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: 187.5 },
+            { id: 'pressure', label: 'Pressure', unit: 'Pa', value: null },
+        ];
+        const row = formatRoastTsvRow({
+            time: 1,
+            bt: 180,
+            et: 200,
+            heater: null,
+            fan: 0,
+            drum: 0,
+            extraReadings,
+        });
+
+        expect(parseTsv(TSV_HEADER + row)[0].extraReadings).toEqual(extraReadings);
+        expect(parseTsv(`${TSV_HEADER}1\t180\t\t\t\t\t\t\t\t\t\t\t\tbad-json\n`)[0]).not.toHaveProperty(
+            'extraReadings',
+        );
+    });
+
     it('parses optional ET RoR, preserving zero and negative values', () => {
         const text =
             TSV_HEADER +

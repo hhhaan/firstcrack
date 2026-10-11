@@ -1,5 +1,5 @@
-import { sidecar } from '@shared/lib/sidecar';
 import { useQuery } from '@tanstack/react-query';
+import { invoke } from '@tauri-apps/api/core';
 import { z } from 'zod';
 
 const snapshot = z.object({
@@ -15,7 +15,7 @@ export const useArtisanSettings = (enabled = true) =>
     useQuery({
         queryKey: artisanSettingsKey,
         enabled,
-        queryFn: async () => snapshot.parse(await sidecar.getArtisanSettings()),
+        queryFn: async () => snapshot.parse(await invoke('read_artisan_settings')),
         retry: false,
         throwOnError: false,
     });

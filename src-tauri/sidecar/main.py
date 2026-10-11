@@ -154,27 +154,6 @@ async def handle_roasters(request: web.Request) -> web.Response:
     return web.json_response(result)
 
 
-async def handle_firescope_import(request: web.Request) -> web.Response:
-    import asyncio
-    from firescope_import import scan
-
-    return web.json_response(await asyncio.to_thread(scan))
-
-
-async def handle_artisan_import(request: web.Request) -> web.Response:
-    import asyncio
-    from artisan_import import scan
-
-    return web.json_response(await asyncio.to_thread(scan))
-
-
-async def handle_cropster_import(request: web.Request) -> web.Response:
-    import asyncio
-    from cropster_import import scan
-
-    return web.json_response(await asyncio.to_thread(scan))
-
-
 async def handle_status(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     return web.json_response(manager.status())
@@ -534,9 +513,6 @@ def create_app() -> web.Application:
     app.router.add_get("/serial-ports", handle_serial_ports)
     app.router.add_get("/scan-network", handle_scan_network)
     app.router.add_get("/status", handle_status)
-    app.router.add_get("/imports/firescope", handle_firescope_import)
-    app.router.add_get("/imports/artisan", handle_artisan_import)
-    app.router.add_get("/imports/cropster", handle_cropster_import)
     app.router.add_post("/connect", handle_connect)
     app.router.add_post("/disconnect", handle_disconnect)
     app.router.add_get("/temperatures", handle_temperatures)

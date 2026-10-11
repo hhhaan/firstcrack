@@ -39,7 +39,7 @@ function ImportProductField({ model, label }: { model: ImportModel; label: strin
 function ImportScanStatus({ model, tk }: { model: ImportModel; tk: Translate }) {
     const { t } = useTranslation();
     let message = tk('searching');
-    if (!model.platformSupported) message = t('settings.roastingImport.macosOnly');
+    if (!model.platformSupported) message = t(`settings.roastingImport.${model.importPlatform}`);
     else if (model.query.isFetching) message = tk('searching');
     else if (model.query.error) message = tk('scanFailed');
     else if (model.snapshot) message = tk(`status.${model.snapshot.status}`);

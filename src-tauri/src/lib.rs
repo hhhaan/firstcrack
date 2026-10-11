@@ -2,6 +2,9 @@ mod app_nap;
 #[cfg(desktop)]
 mod poll_clock;
 mod sentry_config;
+// Local import locations are supported on macOS; keep parsers compiled for portable tests.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+mod roasting_import;
 
 use tauri::RunEvent;
 #[cfg(desktop)]
@@ -493,7 +496,13 @@ pub fn run() {
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))
         .manage(SidecarToken(generate_sidecar_token()))
-        .invoke_handler(tauri::generate_handler![relaunch_for_update, sidecar_token]);
+        .invoke_handler(tauri::generate_handler![
+            relaunch_for_update,
+            sidecar_token,
+            roasting_import::read_firescope_settings,
+            roasting_import::read_artisan_settings,
+            roasting_import::read_cropster_settings,
+        ]);
 
     let mut builder = builder
         .plugin(tauri_plugin_deep_link::init())

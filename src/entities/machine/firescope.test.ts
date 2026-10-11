@@ -3,6 +3,43 @@ import { firescopeFeedbackUpdate, mapFirescopeMachine } from './firescope';
 import type { Machine } from './types';
 
 describe('Firescope feedback upgrades', () => {
+    it.each(['modbus', 's7'])('adds %s extra readings without granting controls', (protocol) => {
+        const params =
+            protocol === 'modbus'
+                ? { modbus_registers: { BT: { register: 9 } } }
+                : { channels: [{ role: 'BT', db: 2, offset: 0 }] };
+        const incoming =
+            protocol === 'modbus'
+                ? { modbus_registers: { BT: { register: 99 }, extra_2: { register: 20, label: 'Inlet', unit: 'C' } } }
+                : {
+                      channels: [
+                          { role: 'BT', db: 2, offset: 99 },
+                          { role: 'extra_2', db: 2, offset: 20, label: 'Inlet', unit: 'C' },
+                      ],
+                  };
+        const draft = {
+            name: 'Source',
+            roasterKey: `custom_${protocol}`,
+            displayName: 'Source',
+            brand: 'Firescope',
+            models: [],
+            protocol,
+            connectionParams: incoming,
+            capabilities: [],
+            pid: null,
+            importSource: { product: 'Firescope' as const, sourceId: 42 },
+        };
+        const machine: Machine = { ...draft, id: 'saved', createdAt: '2026-01-01', connectionParams: params };
+        const patch = firescopeFeedbackUpdate(machine, draft);
+        expect(patch?.capabilities).toEqual([]);
+        expect(patch?.connectionParams).toEqual(
+            protocol === 'modbus'
+                ? { modbus_registers: { ...params.modbus_registers, extra_2: incoming.modbus_registers?.extra_2 } }
+                : { channels: [...(params.channels ?? []), incoming.channels?.[1]] },
+        );
+        expect(firescopeFeedbackUpdate({ ...machine, ...patch }, draft)).toBeNull();
+    });
+
     it.each(['modbus', 's7'])('adds missing %s feedback without replacing edits or existing channels', (protocol) => {
         const saved =
             protocol === 'modbus'
@@ -109,8 +146,127 @@ const modbusMachine = {
 };
 
 describe('mapFirescopeMachine', () => {
-    it('maps signed Modbus RTU readings without inheriting control settings', () => {
-        const mapped = mapFirescopeMachine(modbusMachine);
+    it.each([
+        ['float32', { float: true, word_order: 'big', byte_order: 'big' }],
+        ['float32-le', { float: true, word_order: 'little', byte_order: 'big' }],
+        ['bcd', { float: false, bcd_as_int: true }],
+    ])('preserves Modbus %s decoding, scale, and correction', (type, decoding) => {
+        const mapped = mapFirescopeMachine({
+            ...modbusMachine,
+            temperatureUnit: 'F',
+            connection: {
+                ...modbusMachine.connection,
+                modbus: [
+                    { ...modbusMachine.connection.modbus[0], type, unit: 'F', compensation: 9 },
+                    {
+                        ...modbusMachine.connection.modbus[0],
+                        label: 'Pressure target',
+                        type,
+                        address: 22,
+                        unit: 'Pa',
+                        compensation: -2.25,
+                    },
+                ],
+            },
+        });
+        expect(mapped.issues).toEqual([]);
+        expect(mapped.draft?.capabilities).toEqual([]);
+        expect(mapped.draft?.connectionParams.modbus_registers).toMatchObject({
+            BT: { ...decoding, div: 1, mode: 'F', compensation: 5, preserve_precision: true },
+            extra_1: { ...decoding, label: 'Pressure target', unit: 'Pa', div: 1, compensation: -2.25 },
+        });
+        expect(mapped.draft?.connectionParams).not.toHaveProperty('write_map');
+    });
+
+    it('does not silently discard invalid additional read addresses', () => {
+        const mapped = mapFirescopeMachine({
+            ...modbusMachine,
+            connection: {
+                ...modbusMachine.connection,
+                modbus: [
+                    ...modbusMachine.connection.modbus,
+                    { ...modbusMachine.connection.modbus[0], label: 'inlet', address: -1 },
+                ],
+            },
+        });
+        expect(mapped.draft).toBeNull();
+        expect(mapped.issues).toContainEqual({ field: 'connection.modbus[2].address', code: 'invalid-value' });
+    });
+
+    it('preserves S7 additional float readings and Fahrenheit calibration', () => {
+        const mapped = mapFirescopeMachine({
+            id: 7,
+            name: 'S7',
+            temperatureUnit: 'F',
+            connection: {
+                driver: 'S7Driver',
+                type: 'ethernet',
+                protocol: 's7',
+                slot: 1,
+                ethernet: { type: 'tcp', ip: '192.0.2.5', port: 102 },
+                s7: [
+                    { label: 'bt', address: 4, start: 10, type: 'float', decimalPlace: 3, unit: 'F', compensation: 9 },
+                    {
+                        label: 'pressureSetting',
+                        address: 4,
+                        start: 18,
+                        type: 'float',
+                        decimalPlace: 3,
+                        unit: 'kPa',
+                        compensation: 0.125,
+                    },
+                ],
+            },
+        });
+        expect(mapped.issues).toEqual([]);
+        expect(mapped.draft?.connectionParams.channels).toEqual([
+            {
+                role: 'BT',
+                db: 4,
+                offset: 10,
+                area: 6,
+                type: 1,
+                div: 3,
+                mode: 'F',
+                compensation: 5,
+                preserve_precision: true,
+            },
+            {
+                role: 'extra_1',
+                db: 4,
+                offset: 18,
+                area: 6,
+                type: 1,
+                div: 3,
+                label: 'pressureSetting',
+                unit: 'kPa',
+                compensation: 0.125,
+            },
+        ]);
+    });
+
+    it('rejects float reads that overrun the Modbus register range', () => {
+        const mapped = mapFirescopeMachine({
+            ...modbusMachine,
+            connection: {
+                ...modbusMachine.connection,
+                modbus: [{ ...modbusMachine.connection.modbus[0], address: 65535, type: 'float32' }],
+            },
+        });
+        expect(mapped.draft).toBeNull();
+        expect(mapped.issues).toContainEqual({ field: 'connection.modbus[0].address', code: 'invalid-value' });
+    });
+
+    it.each(['rtu', 'ascii'])('maps signed Modbus %s readings without inheriting control settings', (mode) => {
+        const mapped = mapFirescopeMachine({
+            ...modbusMachine,
+            connection: {
+                ...modbusMachine.connection,
+                serial: { ...modbusMachine.connection.serial, type: mode },
+                write_map: { heater: { register: 31 } },
+                modbus: modbusMachine.connection.modbus.map((sensor) => ({ ...sensor, write: 'FC6' })),
+            },
+        });
         expect(mapped.issues).toEqual([]);
         expect(mapped.draft).toMatchObject({
             roasterKey: 'custom_modbus',
@@ -119,7 +275,7 @@ describe('mapFirescopeMachine', () => {
             pid: null,
             importSource: { product: 'Firescope', sourceId: 'firescope-1' },
             connectionParams: {
-                mode: 'rtu',
+                mode,
                 comport: '/dev/tty.usbserial',
                 baudrate: 9600,
                 bytesize: 8,
@@ -132,6 +288,9 @@ describe('mapFirescopeMachine', () => {
             },
         });
         expect(mapped.draft?.connectionParams).not.toHaveProperty('write_map');
+        expect(mapped.draft?.connectionParams.modbus_registers).toEqual(
+            mapFirescopeMachine(modbusMachine).draft?.connectionParams.modbus_registers,
+        );
     });
 
     it('uses only the selected ethernet transport and maps S7 DB offsets', () => {
@@ -143,6 +302,7 @@ describe('mapFirescopeMachine', () => {
                 type: 'ethernet',
                 protocol: 's7',
                 serial: { path: '/dev/stale', baudRate: 1200 },
+                write_map: { heater: { db: 2, offset: 18, type: 0 } },
                 slot: 1,
                 ethernet: { type: 'tcp', ip: '192.168.0.8', port: 102 },
                 s7: [
@@ -211,20 +371,26 @@ describe('mapFirescopeMachine', () => {
             port: 102,
             rack: 0,
             slot: 1,
-            channels: [{ role: 'BT', db: 2, offset: 38, area: 6, type: 1, div: 1 }],
+            channels: [{ role: 'BT', db: 2, offset: 38, area: 6, type: 1, div: 1, preserve_precision: true }],
         });
     });
 
-    it('reports unknown channels without blocking valid BT/ET', () => {
+    it('imports named additional readings instead of excluding them', () => {
         const mapped = mapFirescopeMachine({
             ...modbusMachine,
             connection: {
                 ...modbusMachine.connection,
-                modbus: [...modbusMachine.connection.modbus, { label: 'mystery', address: 21 }],
+                modbus: [
+                    ...modbusMachine.connection.modbus,
+                    { ...modbusMachine.connection.modbus[0], label: 'inlet', address: 21, compensation: 1.5 },
+                ],
             },
         });
         expect(mapped.draft).not.toBeNull();
-        expect(mapped.issues).toEqual([{ field: 'connection.modbus[2]', code: 'unsupported-channel' }]);
+        expect(mapped.issues).toEqual([]);
+        expect(mapped.draft?.connectionParams.modbus_registers).toMatchObject({
+            extra_2: { label: 'inlet', register: 21, unit: 'C', mode: 'C', div: 1, compensation: 1.5 },
+        });
     });
 
     it('maps Modbus heat, fan, and drum feedback without importing writes', () => {
@@ -285,7 +451,10 @@ describe('mapFirescopeMachine', () => {
         });
         expect(mapped.draft?.connectionParams).not.toHaveProperty('write_map');
         expect(mapped.draft?.connectionParams.modbus_registers).not.toHaveProperty('powerSetting');
-        expect(mapped.issues).toContainEqual({ field: 'connection.modbus[5]', code: 'unsupported-channel' });
+        expect(mapped.issues).toEqual([]);
+        expect(mapped.draft?.connectionParams.modbus_registers).toMatchObject({
+            extra_5: { label: 'powerSetting', unit: '%' },
+        });
     });
 
     it('maps S7 feedback with percent, pressure, and frequency units', () => {
@@ -348,7 +517,7 @@ describe('mapFirescopeMachine', () => {
         ]);
     });
 
-    it('blocks mapped feedback with an incompatible unit', () => {
+    it('keeps feedback with a different physical unit as an additional reading', () => {
         const mapped = mapFirescopeMachine({
             ...modbusMachine,
             connection: {
@@ -368,8 +537,10 @@ describe('mapFirescopeMachine', () => {
                 ],
             },
         });
-        expect(mapped.draft).toBeNull();
-        expect(mapped.issues).toContainEqual({ field: 'connection.modbus[2].unit', code: 'unsupported-unit' });
+        expect(mapped.draft).not.toBeNull();
+        expect(mapped.issues).toEqual([]);
+        expect(mapped.draft?.capabilities).toEqual([]);
+        expect(mapped.draft?.connectionParams.modbus_registers).toMatchObject({ extra_2: { unit: 'Pa' } });
     });
 
     it.each([0, 42, Number.MAX_SAFE_INTEGER])('preserves numeric source id %s and sensor addresses', (id) => {
@@ -441,10 +612,10 @@ describe('mapFirescopeMachine', () => {
                 ...modbusMachine,
                 connection: {
                     ...modbusMachine.connection,
-                    modbus: [{ ...modbusMachine.connection.modbus[0], compensation: 1 }],
+                    modbus: [{ ...modbusMachine.connection.modbus[0], compensation: Number.NaN }],
                 },
             },
-            'unsupported-compensation',
+            'invalid-value',
         ],
     ])('blocks unsupported required settings', (raw, code) => {
         const mapped = mapFirescopeMachine(raw);

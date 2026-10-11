@@ -3712,11 +3712,14 @@ dependencies = [
 name = "roastery-agent"
 version = "1.2.15"
 dependencies = [
+ "libc",
  "objc2",
  "objc2-foundation",
+ "plist",
  "sentry",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-deep-link",
@@ -3731,6 +3734,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-store",
  "tauri-plugin-updater",
+ "tempfile",
  "tokio",
 ]
 
