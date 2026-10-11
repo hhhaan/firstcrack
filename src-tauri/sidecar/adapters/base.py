@@ -9,6 +9,3 @@ class Reading:
     fan: float       # 0-100
     drum: float      # 0-100 (RPM % or raw speed)
     timestamp: float # time.monotonic()
-    extra_readings: list[dict[str, str | float | None]] = dataclasses.field(
-        default_factory=list
-    )

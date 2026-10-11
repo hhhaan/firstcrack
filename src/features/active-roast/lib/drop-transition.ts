@@ -1,7 +1,7 @@
 import { formatElapsed } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import type { LogEntry } from '@shared/types/roast';
-import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import type { BbpPoint } from '../model/bbp';
 import type { TemperatureUnit } from '../model/settings';
 import { logEntryTimeSec } from './serialize-roast-events';
@@ -21,7 +21,6 @@ export type DropCurvePoint = {
     sensorTimestamp?: number | null;
     sensorClock?: string | null;
     processing?: TemperatureProcessing;
-    extraReadings?: ExtraSensorReading[];
 };
 
 export type DropOnset = { timeSec: number; bt: number };
@@ -80,7 +79,6 @@ export const foldPostDropPointsToBbp = (livePoints: DropCurvePoint[], dropTimeSe
             heater: p.heater,
             fan: p.fan,
             drum: p.drum,
-            extraReadings: p.extraReadings,
         }));
 
 export const clipRoastPointsAtDrop = (livePoints: DropCurvePoint[], dropTimeSec: number): DropCurvePoint[] =>

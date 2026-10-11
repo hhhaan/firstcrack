@@ -24,7 +24,6 @@ const DIV_OPTIONS = [
     { value: '0', label: 'raw (÷1)' },
     { value: '1', label: '÷10' },
     { value: '2', label: '÷100' },
-    ...Array.from({ length: 7 }, (_, i) => ({ value: String(i + 3), label: `÷${10 ** (i + 3)}` })),
 ];
 
 const BOOL_OPTIONS = [

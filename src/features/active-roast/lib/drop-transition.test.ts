@@ -39,24 +39,12 @@ describe('dropBbpStartMs', () => {
 describe('foldPostDropPointsToBbp', () => {
     it('moves auto-Drop lookback samples onto BBP t=0 at Drop', () => {
         const seed = foldPostDropPointsToBbp(
-            [
-                pt(598, 205),
-                {
-                    ...pt(600, 204),
-                    btRaw: 203.75,
-                    etRaw: 211.75,
-                    ror_et: 4,
-                    extraReadings: [{ id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: 187.5 }],
-                },
-                pt(601.5, 150),
-                pt(603, 148),
-            ],
+            [pt(598, 205), { ...pt(600, 204), btRaw: 203.75, etRaw: 211.75, ror_et: 4 }, pt(601.5, 150), pt(603, 148)],
             600,
         );
         expect(seed[0].btRaw).toBe(203.75);
         expect(seed[0].etRaw).toBe(211.75);
         expect(seed[0].ror_et).toBe(4);
-        expect(seed[0].extraReadings).toEqual([{ id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: 187.5 }]);
         expect(seed.map((p) => [p.t, p.bt])).toEqual([
             [0, 204],
             [1.5, 150],

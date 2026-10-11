@@ -10,6 +10,7 @@ export type FirescopeMachineIssue = {
         | 'unsupported-transport'
         | 'unsupported-sensor-type'
         | 'unsupported-unit'
+        | 'unsupported-compensation'
         | 'unsupported-channel'
         | 'duplicate-channel';
 };
@@ -115,22 +116,17 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
     }
 
     const sensors = readSensors(raw);
-    const temperatureUnit = text(raw.temperatureUnit)?.replace('°', '').toUpperCase() ?? 'C';
-    if (temperatureUnit !== 'C' && temperatureUnit !== 'F') issue('temperatureUnit', 'invalid-value');
     const sensorPath = `connection.${text(connection.protocol) ?? 'sensors'}`;
-    const mapped = new Map<string, { sensor: Obj; index: number }>();
+    const mapped = new Map<ReadRole, { sensor: Obj; index: number }>();
     sensors.forEach((value, index) => {
         const sensor = object(value);
         if (!sensor) {
             issue(`${sensorPath}[${index}]`, 'invalid-type');
             return;
         }
-        const sourceRole = sensorRole(sensor);
-        const role =
-            sourceRole && (sourceRole === 'BT' || sourceRole === 'ET' || feedbackUnit(sourceRole, sensor.unit))
-                ? sourceRole
-                : `extra_${index}`;
-        if (mapped.has(role)) issue(`${sensorPath}[${index}]`, 'duplicate-channel');
+        const role = sensorRole(sensor);
+        if (!role) issue(`${sensorPath}[${index}]`, 'unsupported-channel');
+        else if (mapped.has(role)) issue(`${sensorPath}[${index}]`, 'duplicate-channel');
         else mapped.set(role, { sensor, index });
     });
     if (!mapped.has('BT')) issue(`${sensorPath}.BT`, 'missing');
@@ -175,7 +171,9 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
         }
 
         const registers: Record<string, Obj | null> = { BT: null, ET: null };
-        for (const [role, mappedSensor] of mapped) {
+        for (const role of READ_ROLES) {
+            const mappedSensor = mapped.get(role);
+            if (!mappedSensor) continue;
             const { sensor, index } = mappedSensor;
             const prefix = `${sensorPath}[${index}]`;
             const register = integer(sensor.address, 0, 65535);
@@ -183,25 +181,14 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
                 typeof sensor.read === 'string' ? Number(sensor.read.toUpperCase().replace('FC', '')) : sensor.read;
             const func = integer(rawRead, 3, 4);
             const unit_id = integer(sensor.sensorId, 0, 247);
-            const div = integer(sensor.decimalPlace, 0, 9);
+            const div = integer(sensor.decimalPlace, 0, 2);
             const unit =
                 role === 'BT' || role === 'ET'
                     ? text(sensor.unit)?.replace('°', '').toUpperCase()
-                    : role.startsWith('extra_')
-                      ? (text(sensor.unit) ?? '')
-                      : feedbackUnit(role as FeedbackRole, sensor.unit);
-            const sourceUnit = text(sensor.unit)?.replace('°', '').toUpperCase();
-            const isTemperature = sourceUnit === 'C' || sourceUnit === 'F';
-            const sourceCompensation = finite(sensor.compensation ?? 0, -1_000_000, 1_000_000);
-            const compensation =
-                sourceCompensation === null
-                    ? null
-                    : sourceCompensation * (isTemperature && temperatureUnit === 'F' ? 5 / 9 : 1);
-            const sourceType = text(sensor.type);
-            const isFloat = sourceType === 'float32' || sourceType === 'float32-le';
-            if (sourceType !== 'integer' && sourceType !== 'bcd' && !isFloat)
-                issue(`${prefix}.type`, 'unsupported-sensor-type');
-            if (register === null || (isFloat && register === 65535)) issue(`${prefix}.address`, 'invalid-value');
+                    : feedbackUnit(role, sensor.unit);
+            const compensation = finite(sensor.compensation ?? 0, -1_000_000, 1_000_000);
+            if (text(sensor.type) !== 'integer') issue(`${prefix}.type`, 'unsupported-sensor-type');
+            if (register === null) issue(`${prefix}.address`, 'invalid-value');
             if (func === null) issue(`${prefix}.read`, 'invalid-value');
             if (unit_id === null) issue(`${prefix}.sensorId`, 'invalid-value');
             if (div === null) issue(`${prefix}.decimalPlace`, 'invalid-value');
@@ -211,24 +198,15 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
                 ((role === 'BT' || role === 'ET') && unit !== 'C' && unit !== 'F')
             )
                 issue(`${prefix}.unit`, 'unsupported-unit');
-            if (compensation === null) issue(`${prefix}.compensation`, 'invalid-value');
+            if (compensation !== 0) issue(`${prefix}.compensation`, 'unsupported-compensation');
             registers[role] = {
                 register,
                 func,
                 unit_id,
-                float: isFloat,
+                float: false,
                 signed: true,
                 div,
-                ...(compensation !== 0 ? { compensation } : {}),
-                ...(isFloat ? { word_order: sourceType === 'float32-le' ? 'little' : 'big', byte_order: 'big' } : {}),
-                ...((role === 'BT' || role === 'ET') && (isFloat || (div !== null && div > 1) || compensation !== 0)
-                    ? { preserve_precision: true }
-                    : {}),
-                ...(sourceType === 'bcd' ? { bcd_as_int: true } : {}),
-                ...(role.startsWith('extra_') ? { label: text(sensor.label) ?? text(sensor.name) ?? role } : {}),
-                ...(role === 'BT' || role === 'ET'
-                    ? { mode: unit }
-                    : { unit: isTemperature ? 'C' : unit, ...(isTemperature ? { mode: sourceUnit } : {}) }),
+                ...(role === 'BT' || role === 'ET' ? { mode: unit } : { unit }),
             };
         }
         connectionParams = { ...connectionParams, modbus_registers: registers };
@@ -246,38 +224,28 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
         if (port === null) issue('connection.ethernet.port', 'invalid-value');
         if (slot === null) issue('connection.slot', 'invalid-value');
         const channels: Obj[] = [];
-        for (const [role, mappedSensor] of mapped) {
+        for (const role of READ_ROLES) {
+            const mappedSensor = mapped.get(role);
+            if (!mappedSensor) continue;
             const { sensor, index } = mappedSensor;
             const prefix = `${sensorPath}[${index}]`;
             const db = integer(sensor.address, 0, 65535);
             const offset = integer(sensor.start, 0, 2_147_483_647);
             const sourceType = text(sensor.type);
             const type = sourceType === 'integer' ? 0 : sourceType === 'float' ? 1 : null;
-            const div = integer(sensor.decimalPlace, 0, 9);
+            const div = integer(sensor.decimalPlace, 0, 2);
             const unit =
                 role === 'BT' || role === 'ET'
                     ? text(sensor.unit)?.replace('°', '').toUpperCase()
-                    : role.startsWith('extra_')
-                      ? (text(sensor.unit) ?? '')
-                      : feedbackUnit(role as FeedbackRole, sensor.unit);
-            const sourceUnit = text(sensor.unit)?.replace('°', '').toUpperCase();
-            const isTemperature = sourceUnit === 'C' || sourceUnit === 'F';
-            const sourceCompensation = finite(sensor.compensation ?? 0, -1_000_000, 1_000_000);
-            const compensation =
-                sourceCompensation === null
-                    ? null
-                    : sourceCompensation * (isTemperature && temperatureUnit === 'F' ? 5 / 9 : 1);
+                    : feedbackUnit(role, sensor.unit);
+            const compensation = finite(sensor.compensation ?? 0, -1_000_000, 1_000_000);
             if (db === null) issue(`${prefix}.address`, 'invalid-value');
             if (offset === null) issue(`${prefix}.start`, 'invalid-value');
             if (type === null) issue(`${prefix}.type`, 'unsupported-sensor-type');
             if (div === null) issue(`${prefix}.decimalPlace`, 'invalid-value');
-            if (
-                unit === null ||
-                unit === undefined ||
-                ((role === 'BT' || role === 'ET') && unit !== 'C' && unit !== 'F')
-            )
+            if (unit === null || unit === undefined || ((role === 'BT' || role === 'ET') && unit !== 'C'))
                 issue(`${prefix}.unit`, 'unsupported-unit');
-            if (compensation === null) issue(`${prefix}.compensation`, 'invalid-value');
+            if (compensation !== 0) issue(`${prefix}.compensation`, 'unsupported-compensation');
             channels.push({
                 role,
                 db,
@@ -285,19 +253,13 @@ export const mapFirescopeMachine = (raw: Record<string, unknown>): FirescopeMach
                 area: 6,
                 type,
                 div,
-                ...(compensation !== 0 ? { compensation } : {}),
-                ...((role === 'BT' || role === 'ET') && (type === 1 || (div !== null && div > 1) || compensation !== 0)
-                    ? { preserve_precision: true }
-                    : {}),
-                ...(role.startsWith('extra_') ? { label: text(sensor.label) ?? text(sensor.name) ?? role } : {}),
-                ...(sourceUnit === 'F' ? { mode: 'F' } : {}),
-                ...(role === 'BT' || role === 'ET' ? {} : { unit: isTemperature ? 'C' : unit }),
+                ...(role === 'BT' || role === 'ET' ? {} : { unit }),
             });
         }
         connectionParams = { host, port, rack: 0, slot, channels };
     }
 
-    const blocking = issues.length > 0;
+    const blocking = issues.some((entry) => entry.code !== 'unsupported-channel');
     return result(
         blocking
             ? null
@@ -339,9 +301,7 @@ export const firescopeFeedbackUpdate = (
         const incoming = object(draft.connectionParams.modbus_registers);
         if (!saved || !incoming) return null;
         const registers = { ...saved };
-        for (const role of Object.keys(incoming).filter(
-            (role) => feedbackRoles.has(role) || role.startsWith('extra_'),
-        )) {
+        for (const role of feedbackRoles) {
             if (saved[role] == null && object(incoming[role])) {
                 registers[role] = incoming[role];
                 added.push(role);
@@ -357,11 +317,7 @@ export const firescopeFeedbackUpdate = (
         const savedRoles = new Set(channels.map((channel) => object(channel)?.role));
         for (const value of draft.connectionParams.channels) {
             const channel = object(value);
-            if (
-                typeof channel?.role !== 'string' ||
-                (!feedbackRoles.has(channel.role) && !channel.role.startsWith('extra_'))
-            )
-                continue;
+            if (typeof channel?.role !== 'string' || !feedbackRoles.has(channel.role)) continue;
             if (!savedRoles.has(channel.role)) {
                 channels.push(channel);
                 savedRoles.add(channel.role);
@@ -370,10 +326,5 @@ export const firescopeFeedbackUpdate = (
         }
         connectionParams = { ...params, channels };
     }
-    return added.length
-        ? {
-              connectionParams,
-              capabilities: [...new Set([...machine.capabilities, ...added.filter((role) => feedbackRoles.has(role))])],
-          }
-        : null;
+    return added.length ? { connectionParams, capabilities: [...new Set([...machine.capabilities, ...added])] } : null;
 };

@@ -2,21 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-// CI check-run names include matrix suffixes; release preflight and tag gates share this policy.
-const required = [
-    'check',
-    'test',
-    'sidecar',
-    'semgrep',
-    'gitleaks',
-    'edge-check',
-    'actionlint',
-    'zizmor',
-    'clippy',
-    'native-tests (macos-latest)',
-    'native-tests (macos-15-intel)',
-    'native-tests (windows-latest)',
-];
+// Names are ci.yml job IDs. Both local release preflight and the tag gate use this policy.
+const required = ['check', 'test', 'sidecar', 'semgrep', 'gitleaks', 'edge-check', 'actionlint', 'zizmor', 'clippy'];
 const optional = ['paths', 'ios-check'];
 
 const PENDING_STATUS = ['queued', 'in_progress', 'waiting', 'pending', 'requested'];

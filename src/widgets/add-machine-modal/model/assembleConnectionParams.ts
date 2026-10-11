@@ -29,23 +29,17 @@ export const assembleConnectionParams = (
         if (invalid) return { ok: false, invalid };
     }
     const typed = buildTypedConnectionParams(selectedDef, params, { includeAddressMap: showAddressMap });
-    // Preserve imported calibration and additional readings when editing temperature fields.
+    // The temperature form must not discard imported feedback addresses or their units.
     if (showAddressMap && selectedDef.protocol === 'modbus' && existing?.modbus_registers) {
-        const saved = existing.modbus_registers as Record<string, Record<string, unknown> | null>;
-        const edited = typed.modbus_registers as Record<string, Record<string, unknown> | null>;
-        typed.modbus_registers = Object.fromEntries([
-            ...Object.entries(saved),
-            ...Object.entries(edited).map(([role, channel]) => [role, channel ? { ...saved[role], ...channel } : null]),
-        ]);
+        typed.modbus_registers = {
+            ...(existing.modbus_registers as Record<string, unknown>),
+            ...(typed.modbus_registers as Record<string, unknown>),
+        };
     }
     if (showAddressMap && selectedDef.protocol === 's7' && Array.isArray(existing?.channels)) {
-        const savedChannels = existing.channels as Record<string, unknown>[];
         typed.channels = [
-            ...(typed.channels as Record<string, unknown>[]).map((channel) => ({
-                ...savedChannels.find((saved) => saved?.role === channel.role),
-                ...channel,
-            })),
-            ...savedChannels.filter((channel) => channel?.role !== 'BT' && channel?.role !== 'ET'),
+            ...(typed.channels as Record<string, unknown>[]),
+            ...existing.channels.filter((channel) => channel?.role !== 'BT' && channel?.role !== 'ET'),
         ];
     }
     return { ok: true, typed: persistConnectionParams(typed, includeWriteMap) };

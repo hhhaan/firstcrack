@@ -59,17 +59,3 @@ it('marks stale measured values unavailable rather than showing cached values', 
     render();
     expect([...container.querySelectorAll('dd')].map((node) => node.textContent)).toEqual(['—', '—', '—']);
 });
-
-it('shows read-only extra sensors without control feedback metadata', () => {
-    if (!state.liveData) throw new Error('Missing fixture');
-    state.liveData.processing = undefined;
-    state.liveData.extra_readings = [
-        { id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: 187.5 },
-        { id: 'pressure', label: 'Pressure', unit: 'Pa', value: null },
-    ];
-    render();
-    expect(container.textContent).toContain('Inlet 2');
-    expect(container.textContent).toContain('187.5 °C');
-    expect([...container.querySelectorAll('dd')].map((node) => node.textContent)).toEqual(['187.5 °C', '—']);
-    expect(container.querySelector('button, input')).toBeNull();
-});

@@ -143,7 +143,7 @@
             },
             "chooseSettings": "가져올 설정 선택",
             "machineHeading": "머신 연결",
-            "machineHint": "추가 센서를 포함한 읽기 설정과 보정값을 가져옵니다. 장비 제어·쓰기 설정은 제외됩니다.",
+            "machineHint": "저장된 온도·화력·팬·드럼 센서를 가져옵니다.",
             "noMachines": "가져올 머신이 없습니다.",
             "graph": "그래프 설정도 가져오기",
             "graphHint": "온도·시간 범위와 곡선 색상",
@@ -643,8 +643,7 @@
             "application": "애플리케이션"
         },
         "roastingImport": {
-            "browser": "로컬 설정을 가져오려면 macOS 데스크톱 앱을 여세요.",
-            "unsupported-os": "로컬 설정 가져오기는 macOS에서만 사용할 수 있습니다.",
+            "macosOnly": "설정 가져오기는 macOS에서만 사용할 수 있습니다.",
             "source": "가져올 앱"
         },
         "artisan": {
@@ -1531,8 +1530,7 @@
             "selectToCompare": "좌측 리스트에서 프로파일을 선택하세요",
             "compareMode": "비교 모드 · {{count}}개 선택됨",
             "editDisabledMulti": "다중 선택 시 편집 불가",
-            "roastLog": "로스팅 로그",
-            "extraSensors": "추가 센서 읽기값"
+            "roastLog": "로스팅 로그"
         }
     },
     "newProfileModal": {

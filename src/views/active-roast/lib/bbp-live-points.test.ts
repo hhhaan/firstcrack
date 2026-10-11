@@ -10,7 +10,6 @@ it('maps BBP samples to positive End-relative time without RoR', () => {
             heater: 50,
             fan: 1234.56,
             drum: 31.25,
-            extraReadings: [{ id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: 187.5 }],
             processing: {
                 read_units: { heater: '%', fan: 'Pa', drum: 'Hz' },
                 algorithm_version: 'test',
@@ -32,5 +31,4 @@ it('maps BBP samples to positive End-relative time without RoR', () => {
     expect(rows.every((p) => p.ror === null)).toBe(true);
     expect(rows[0].processing?.read_units).toEqual({ heater: '%', fan: 'Pa', drum: 'Hz' });
     expect(rows[0].fan).toBe(1234.56);
-    expect(rows[0].extraReadings).toEqual([{ id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: 187.5 }]);
 });

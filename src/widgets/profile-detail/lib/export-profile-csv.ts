@@ -1,29 +1,8 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { escapeCsvField } from '@shared/lib/csv';
-import type { TsvPoint } from '@shared/lib/tsv';
-import type { ExtraSensorReading } from '@shared/types/sidecar';
 
-export type ProfileCurvePoint = Pick<TsvPoint, 't' | 'bt' | 'extraReadings'>;
+export type ProfileCurvePoint = { t: number; bt: number };
 export type ProfileCurveSource = 'session' | 'synthetic';
-
-type ExtraSensorColumn = Pick<ExtraSensorReading, 'id' | 'label' | 'unit'> & { key: string };
-
-const extraSensorKey = ({ id, label, unit }: Pick<ExtraSensorReading, 'id' | 'label' | 'unit'>) =>
-    JSON.stringify([id, label, unit]);
-
-export const profileExtraSensorColumns = (curve: ProfileCurvePoint[]): ExtraSensorColumn[] => {
-    const columns = new Map<string, ExtraSensorColumn>();
-    for (const point of curve) {
-        for (const reading of point.extraReadings ?? []) {
-            const key = extraSensorKey(reading);
-            if (!columns.has(key)) columns.set(key, { key, id: reading.id, label: reading.label, unit: reading.unit });
-        }
-    }
-    return [...columns.values()];
-};
-
-export const profileExtraSensorValue = (point: ProfileCurvePoint, key: string): number | null | undefined =>
-    point.extraReadings?.find((reading) => extraSensorKey(reading) === key)?.value;
 
 const numOrEmpty = (v: number | null | undefined): string => (v == null ? '' : String(v));
 
@@ -85,21 +64,7 @@ export const profileToCsv = (
         escapeCsvField(profile.default_blend?.name ?? ''),
     ];
 
-    const extraColumns = profileExtraSensorColumns(curve);
-    const curveHeaders = [
-        'time_s',
-        'bt_c',
-        ...extraColumns.map((column) =>
-            escapeCsvField(`${column.label} [${column.id}]${column.unit ? ` (${column.unit})` : ''}`),
-        ),
-    ];
-    const curveRows = curve.map((point) =>
-        [
-            point.t,
-            point.bt,
-            ...extraColumns.map((column) => numOrEmpty(profileExtraSensorValue(point, column.key))),
-        ].join(','),
-    );
+    const curveRows = curve.map((p) => `${p.t},${p.bt}`);
 
-    return `\uFEFF${[metaHeaders.join(','), metaValues.join(','), '', curveHeaders.join(','), ...curveRows].join('\n')}`;
+    return '\uFEFF' + [metaHeaders.join(','), metaValues.join(','), '', 'time_s,bt_c', ...curveRows].join('\n');
 };

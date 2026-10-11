@@ -225,7 +225,7 @@ ccl의 일반 package import에는 Brotli/zstd가 포함되고 Snappy 의존성�
 
 설정의 공통 가져오기 화면에서 Firescope·Artisan·Cropster를 선택할 수 있다. [조회/검증](../../src/features/import-roasting-settings/index.ts), [머신 출처 타입](../../src/entities/machine/types.ts), [미리보기·적용 화면](../../src/widgets/settings/ui/RoastingSettingsImport.tsx)을 사용하며 원본이나 기존 머신·제어/PID 설정은 자동 덮어쓰지 않고 장비에 자동 연결하지 않는다.
 
-Cropster는 Tauri `read_cropster_settings`에서 macOS 기본 `CropsterRoastingIntelligence/default`의 두 JSON 파일만 읽는다. 각 파일이 기록한 writer version `5.13`을 독립 검증한다. 일반 Modbus RTU/ASCII/TCP의 BT/ET, unsigned 16-bit와 10/100 배율, 그래프 온도·시간·RoR 범위를 지원한다. 필터가 켜졌거나 채널 보정값이 0이 아니면 머신 가져오기를 막는다. TCP는 RI의 고정 slave 1/FC3, RTU는 명시적 slave/function을 보존하며 register를 그대로 전달한다.
+Cropster는 `/imports/cropster`에서 macOS 기본 `CropsterRoastingIntelligence/default`의 두 JSON 파일만 읽는다. 각 파일이 기록한 writer version `5.13`을 독립 검증한다. 일반 Modbus RTU/ASCII/TCP의 BT/ET, unsigned 16-bit와 10/100 배율, 그래프 온도·시간·RoR 범위를 지원한다. 필터가 켜졌거나 채널 보정값이 0이 아니면 머신 가져오기를 막는다. TCP는 RI의 고정 slave 1/FC3, RTU는 명시적 slave/function을 보존하며 register를 그대로 전달한다.
 
 Java Preferences의 사용자 지정 `dataDirectory`, 다른 instance·OS, 전용 장치·S7·32-bit 형식, 채널 색상·감지·이벤트·제어는 미구현이다. 기본 폴더가 현재 선택된 폴더라고 가정하지 않으며 UI에 기본 폴더 설정임을 표시한다. RI 5.13 JAR bytecode와 합성 fixture·단위·E2E로 확인했으며 실제 RI 설정 파일 및 실기기 대조는 하지 않았다. Artisan 범위는 [별도 조사](artisan-settings-import-feasibility.md)에 정리했다.
 
@@ -378,7 +378,7 @@ Firescope decoder fixture에는 같은 키 덮어쓰기·삭제, WAL에만 최�
 
 현재 로컬 복사본에서 그래프와 실머신 3대의 ID별 마지막 설정을 복구했다. 데모는 제외하고 현재 머신과 과거 후보를 별도로 표시한다. source version은 DB만으로 확인되지 않아 null이다. ID는 비어 있지 않은 문자열 또는 JavaScript safe integer를 원래 타입으로 보존한다. 누락·잘못된 ID와 중복 BT/ET는 적용을 차단한다.
 
-일반 Modbus 및 EasysterSmart의 RTU/ASCII/TCP/UDP FC3/4 integer·BCD·float32·float32-le와 S7 Ethernet TCP INT/REAL을 명시적으로 변환한다. Modbus float는 원본 타입에 따라 word order를 유지하고 모든 타입에 decimalPlace 배율을 적용한다. 온도 변환 후 보정하는 Firescope 순서를 유지하며 FC의 섭씨 수집 기준으로 보정 델타도 변환한다. 온도·화력·팬·드럼 외 센서와 읽기 설정값 채널도 이름·단위·주소·배율·보정을 유지해 추가 센서로 가져온다. 추가 읽기값은 라이브 표시, 로스팅·BBP TSV, 기록 표·CSV에 보존한다. 쓰기 함수·write_map·PID는 가져오지 않으며 장비를 자동 연결하지 않는다. 전용 Probat/Phidget/Diedrich/Bullet 동작은 미지원 이유를 표시한다. 기존 머신 편집은 추가 센서와 float·보정 메타데이터를 유지한다. 재가져오기는 없는 채널만 추가하고 사용자 편집은 덮어쓰지 않는다.
+일반 Modbus 및 EasysterSmart의 RTU/ASCII/TCP/UDP integer FC3/4, S7 Ethernet TCP INT/REAL을 명시적으로 변환한다. 주소에 보정을 더하지 않으며 Modbus signed=true, decimalPlace 0/1/2, sensor unit을 유지한다. S7 온도는 °C만 지원한다. 화력·팬·드럼 피드백도 지원 단위인 경우 함께 변환한다. 보정 0, 필수 통신 설정이 확인된 경우에만 머신을 적용한다. 전용 Probat/Phidget/Diedrich/Bullet 동작과 Modbus float/BCD·다른 센서는 미지원 이유를 사용자용 문구로 보여준다. 원본 키·주소 목록은 가져오기 화면에 노출하지 않는다. 새 머신은 custom key, 실제 읽기 센서 capabilities, PID 없음, 쓰기 맵 없음으로 저장되며 자동 연결하지 않는다. signed와 추가 센서 주소·단위는 기존 머신 편집 폼에서도 보존한다.
 
 그래프는 온도 단위·축 범위, 시간 범위·눈금, BT/ET/RoR 색상, ET 표시를 변환한다. 라이브 축의 단위는 최신 머신의 temperatureUnit이고, 이력 표시에서는 global.temperature를 사용하므로 화면에서 단위를 확인할 수 있다. RoR 계산·평활화, 이벤트 감지와 보조 그래프는 동등성을 확인하지 못해 건너뛴다. 미리보기는 사용자용 설정명과 변경 전후 값을 표시한다. 기존 선 두께·스타일과 매핑하지 않은 FC 설정을 유지한다.
 

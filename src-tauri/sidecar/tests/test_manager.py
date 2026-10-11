@@ -371,25 +371,6 @@ class TestReadTemperatures:
         assert result["bt"] is not None
         assert result["et"] is not None
         assert isinstance(result["ror"], float)
-        assert "extra_readings" not in result
-
-    async def test_extra_readings_are_serialized_and_non_finite_values_become_null(self, manager):
-        reading = make_reading(bt=185.0, et=220.0, ts=time.monotonic())
-        reading.extra_readings = [
-            {"id": "extra_0", "label": "Inlet", "unit": "C", "value": 201.25},
-            {"id": "extra_1", "label": "Pressure", "unit": "Pa", "value": float("nan")},
-        ]
-        fake = FakeAdapter(readings=[reading, reading])
-        with patch("manager.make_adapter", return_value=fake):
-            await manager.connect("virtual", {})
-
-        result = await manager.read_temperatures()
-
-        assert result["extra_readings"] == [
-            {"id": "extra_0", "label": "Inlet", "unit": "C", "value": 201.25},
-            {"id": "extra_1", "label": "Pressure", "unit": "Pa", "value": None},
-        ]
-        json.dumps(result, allow_nan=False)
 
     async def test_raw_bt_is_unsmoothed_and_stale_is_flagged(self, manager):
         manager._adapter = FakeAdapter(readings=[

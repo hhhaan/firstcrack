@@ -8,11 +8,6 @@ import { fileURLToPath } from 'node:url';
 
 import { areasForPaths, detectFromGit, pathsFromNameStatusZ, UNCERTAIN_AREAS } from './ci-changed-areas.mjs';
 
-// Git hooks export repository paths; fixture commands must use their temporary repository.
-for (const key of execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' }).trim().split('\n')) {
-    delete process.env[key];
-}
-
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = (file) => readFileSync(join(root, file), 'utf8');
 
@@ -160,7 +155,6 @@ test('PR area jobs fail open and main push does not depend on a successful filte
     assert.match(ci, /node scripts\/ci-changed-areas\.mjs/);
     for (const [job, output] of [
         ['clippy', 'clippy'],
-        ['native-tests', 'clippy'],
         ['sidecar', 'sidecar'],
         ['edge-check', 'edge'],
     ]) {
@@ -176,20 +170,7 @@ test('PR area jobs fail open and main push does not depend on a successful filte
 
 test('a skipped required check does not satisfy the release gate unless a success run exists', async () => {
     const { releaseCiStatus } = await import('./check-release-ci.mjs');
-    const checks = [
-        'check',
-        'test',
-        'sidecar',
-        'semgrep',
-        'gitleaks',
-        'edge-check',
-        'actionlint',
-        'zizmor',
-        'clippy',
-        'native-tests (macos-latest)',
-        'native-tests (macos-15-intel)',
-        'native-tests (windows-latest)',
-    ];
+    const checks = ['check', 'test', 'sidecar', 'semgrep', 'gitleaks', 'edge-check', 'actionlint', 'zizmor', 'clippy'];
     const green = checks.map((name) => ({ name, status: 'completed', conclusion: 'success' }));
     const withClippy = (extra) =>
         green.map((run) => (run.name === 'clippy' ? extra : run)).concat(extra.name === 'clippy' ? [] : []);

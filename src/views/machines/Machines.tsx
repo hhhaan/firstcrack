@@ -246,19 +246,9 @@ export const Machines = ({
                                             value: isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
                                             sub: 'ET',
                                         },
-                                        ...(isSelectedConnected ? (temps?.extra_readings ?? []) : []).map(
-                                            (reading) => ({
-                                                label: reading.label,
-                                                value:
-                                                    reading.value != null
-                                                        ? `${reading.value}${reading.unit ? ` ${reading.unit}` : ''}`
-                                                        : '—',
-                                                sub: reading.id,
-                                            }),
-                                        ),
                                     ].map((s) => (
                                         <div
-                                            key={s.sub}
+                                            key={s.label}
                                             className="bg-surface dark:bg-surface-elevated px-4 py-3.5 rounded-lg"
                                         >
                                             <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">

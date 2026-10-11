@@ -1,7 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, goNav, test } from '../fixtures/app';
 import { installPersistentStore } from '../fixtures/persistent-store';
-import { mockTauriCommand } from '../fixtures/tauri-stub';
 
 test.use({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' });
 
@@ -14,20 +13,20 @@ for (const desktop of [false, true]) {
         });
 
         test('disables settings import without scanning local settings', async ({ authedPage: page }) => {
-            await page.addInitScript((isDesktop) => {
-                window.isTauri = isDesktop;
-                if (isDesktop) window.__TAURI_OS_PLUGIN_INTERNALS__.platform = 'windows';
-            }, desktop);
+            if (desktop) {
+                await page.addInitScript(() => {
+                    Object.defineProperty(window, '__TAURI_OS_PLUGIN_INTERNALS__', { value: { platform: 'windows' } });
+                });
+            }
             let scans = 0;
-            await mockTauriCommand(page, 'read_firescope_settings', () => scans++);
+            await page.route('http://127.0.0.1:9999/**', (route) => {
+                if (new URL(route.request().url()).pathname.startsWith('/imports/')) scans++;
+                return route.abort();
+            });
             await page.reload();
             await expect(page.getByTestId('app-sidebar')).toBeVisible();
             const settings = await openImporter(page);
-            await expect(settings.getByRole('status')).toHaveText(
-                desktop
-                    ? 'Local settings import is only available on macOS.'
-                    : 'Open the macOS desktop app to import local settings.',
-            );
+            await expect(settings.getByRole('status')).toHaveText('Settings import is only available on macOS.');
             await expect(settings.getByRole('combobox', { name: 'Import from', exact: true })).toBeDisabled();
             await expect(settings.getByRole('button', { name: 'Search again', exact: true })).toBeDisabled();
             await expect(settings.getByRole('button', { name: 'Import selected settings', exact: true })).toHaveCount(
@@ -87,26 +86,6 @@ const modbusMachine = (id: string | number, name: string, address = 1000) => ({
                 decimalPlace: 0,
                 compensation: 0,
             },
-            {
-                label: 'Inlet temperature',
-                unit: 'C',
-                sensorId: 2,
-                address: 40,
-                read: 'FC4',
-                type: 'float32-le',
-                decimalPlace: 1,
-                compensation: 1.25,
-            },
-            {
-                label: 'Pressure target',
-                unit: 'Pa',
-                sensorId: 1,
-                address: 42,
-                read: 'FC3',
-                type: 'float32',
-                decimalPlace: 0,
-                compensation: -2,
-            },
         ],
     },
 });
@@ -145,15 +124,21 @@ test('imports Firescope machine and graph settings once without connecting hardw
     authedPage: page,
 }, testInfo) => {
     let connectRequests = 0;
-    await mockTauriCommand(page, 'read_firescope_settings', () =>
-        snapshot([
-            { sequence: 10, current: true, settings: modbusMachine(42, 'Synthetic RTU') },
-            { sequence: 8, current: false, settings: modbusMachine('42', 'String ID RTU') },
-            { sequence: 9, current: false, settings: unsupportedProbat },
-        ]),
-    );
-    await page.route('http://127.0.0.1:9999/connect', async (route) => {
-        connectRequests += 1;
+    await page.route('http://127.0.0.1:9999/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/imports/firescope') {
+            return route.fulfill({
+                contentType: 'application/json',
+                body: JSON.stringify(
+                    snapshot([
+                        { sequence: 10, current: true, settings: modbusMachine(42, 'Synthetic RTU') },
+                        { sequence: 8, current: false, settings: modbusMachine('42', 'String ID RTU') },
+                        { sequence: 9, current: false, settings: unsupportedProbat },
+                    ]),
+                ),
+            });
+        }
+        if (path === '/connect') connectRequests += 1;
         return route.abort();
     });
     await installPersistentStore(page);
@@ -215,30 +200,6 @@ test('imports Firescope machine and graph settings once without connecting hardw
                 ET: { register: 1001, func: 4, signed: true, div: 1 },
                 heater: { register: 21, func: 3, unit_id: 1, div: 0, unit: '%' },
                 fan: { register: 22, func: 3, unit_id: 1, div: 0, unit: '%' },
-                extra_4: {
-                    label: 'Inlet temperature',
-                    register: 40,
-                    func: 4,
-                    unit_id: 2,
-                    float: true,
-                    word_order: 'little',
-                    byte_order: 'big',
-                    div: 1,
-                    compensation: 1.25,
-                    unit: 'C',
-                },
-                extra_5: {
-                    label: 'Pressure target',
-                    register: 42,
-                    func: 3,
-                    unit_id: 1,
-                    float: true,
-                    word_order: 'big',
-                    byte_order: 'big',
-                    div: 0,
-                    compensation: -2,
-                    unit: 'Pa',
-                },
             },
         },
     });
@@ -299,17 +260,20 @@ test('rescans after busy status and disables a two-machine import at the Pro lim
 }, testInfo) => {
     let scans = 0;
     let connectRequests = 0;
-    await mockTauriCommand(page, 'read_firescope_settings', () => {
-        scans += 1;
-        return scans === 1
-            ? { ...snapshot([]), status: 'needs-app-closed' }
-            : snapshot([
-                  { sequence: 20, current: true, settings: modbusMachine('modbus-2', 'Batch one') },
-                  { sequence: 19, current: false, settings: modbusMachine('modbus-3', 'Batch two', 2000) },
-              ]);
-    });
-    await page.route('http://127.0.0.1:9999/connect', async (route) => {
-        connectRequests += 1;
+    await page.route('http://127.0.0.1:9999/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/imports/firescope') {
+            scans += 1;
+            const body =
+                scans === 1
+                    ? { ...snapshot([]), status: 'needs-app-closed' }
+                    : snapshot([
+                          { sequence: 20, current: true, settings: modbusMachine('modbus-2', 'Batch one') },
+                          { sequence: 19, current: false, settings: modbusMachine('modbus-3', 'Batch two', 2000) },
+                      ]);
+            return route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+        }
+        if (path === '/connect') connectRequests += 1;
         return route.abort();
     });
     await installPersistentStore(page);
@@ -332,11 +296,17 @@ test('upgrades a legacy Firescope machine with feedback channels without replaci
     authedPage: page,
 }) => {
     let connectRequests = 0;
-    await mockTauriCommand(page, 'read_firescope_settings', () =>
-        snapshot([{ sequence: 40, current: true, settings: modbusMachine(42, 'Synthetic RTU') }]),
-    );
-    await page.route('http://127.0.0.1:9999/connect', async (route) => {
-        connectRequests += 1;
+    await page.route('http://127.0.0.1:9999/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/imports/firescope') {
+            return route.fulfill({
+                contentType: 'application/json',
+                body: JSON.stringify(
+                    snapshot([{ sequence: 40, current: true, settings: modbusMachine(42, 'Synthetic RTU') }]),
+                ),
+            });
+        }
+        if (path === '/connect') connectRequests += 1;
         return route.abort();
     });
     await page.evaluate(() => {
@@ -430,9 +400,19 @@ test('upgrades a legacy Firescope machine with feedback channels without replaci
 });
 
 test('keeps saved graph settings when machine persistence fails', async ({ authedPage: page }) => {
-    await mockTauriCommand(page, 'read_firescope_settings', () =>
-        snapshot([{ sequence: 30, current: true, settings: modbusMachine('modbus-4', 'Write failure') }]),
-    );
+    await page.route('http://127.0.0.1:9999/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/imports/firescope') {
+            return route.fulfill({
+                contentType: 'application/json',
+                body: JSON.stringify(
+                    snapshot([{ sequence: 30, current: true, settings: modbusMachine('modbus-4', 'Write failure') }]),
+                ),
+            });
+        }
+        if (path === '/connect') throw new Error('Importer attempted a hardware connection');
+        return route.abort();
+    });
     await installPersistentStore(page);
     const settings = await openImporter(page);
     await expect(settings.getByText('Firescope settings found.', { exact: true })).toBeVisible();
@@ -459,7 +439,14 @@ test('keeps saved graph settings when machine persistence fails', async ({ authe
 });
 
 test('keeps previous graph settings when the settings store save fails', async ({ authedPage: page }) => {
-    await mockTauriCommand(page, 'read_firescope_settings', () => snapshot([]));
+    await page.route('http://127.0.0.1:9999/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/imports/firescope') {
+            return route.fulfill({ contentType: 'application/json', body: JSON.stringify(snapshot([])) });
+        }
+        if (path === '/connect') throw new Error('Importer attempted a hardware connection');
+        return route.abort();
+    });
     await page.evaluate(() => {
         localStorage.setItem(
             'e2e:tauri-store:settings.json',

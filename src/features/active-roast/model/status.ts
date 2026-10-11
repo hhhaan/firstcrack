@@ -1,6 +1,6 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
-import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
 import { type BatchActions, type BatchState, createBatchActions, initialBatchState, type RoastPhase } from './batch';
 
@@ -26,7 +26,6 @@ type LiveData = {
     heater: number | null;
     fan: number;
     drum: number;
-    extra_readings?: ExtraSensorReading[];
 };
 
 interface RoastLogState {
@@ -187,8 +186,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current.ror_et === data.ror_et &&
             current.heater === data.heater &&
             current.fan === data.fan &&
-            current.drum === data.drum &&
-            current.extra_readings === data.extra_readings
+            current.drum === data.drum
         )
             return;
         set({ liveData: data });

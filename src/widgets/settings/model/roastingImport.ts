@@ -27,7 +27,6 @@ import { canAddMachine } from '@shared/lib/features';
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
 import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
-import { isTauri } from '@tauri-apps/api/core';
 import { platform } from '@tauri-apps/plugin-os';
 
 export type ImportProduct = 'Firescope' | 'Artisan' | 'Cropster';
@@ -134,11 +133,12 @@ const importGraph = (
     return null;
 };
 
-export type ImportPlatform = 'supported' | 'browser' | 'unsupported-os';
-
-export const detectImportPlatform = (): ImportPlatform => {
-    if (!isTauri()) return 'browser';
-    return platform() === 'macos' ? 'supported' : 'unsupported-os';
+export const detectImportPlatform = (): boolean => {
+    try {
+        return platform() === 'macos';
+    } catch {
+        return /Macintosh/i.test(navigator.userAgent);
+    }
 };
 
 export const importQueryEnabled = (platformSupported: boolean, product: ImportProduct) => ({

@@ -213,28 +213,15 @@ const connectionSummary = (connection: MachineConnection, tk: Translate) => {
     return `${link} · ${protocol}${subtype}`;
 };
 
-const feedbackSummary = (mapping: MachineMapping, tk: Translate) => {
-    const params = mapping.draft?.connectionParams;
-    const extras = Array.isArray(params?.channels)
-        ? params.channels.filter((value) => String(readValue(value, 'role')).startsWith('extra_'))
-        : Object.entries((params?.modbus_registers ?? {}) as Record<string, unknown>)
-              .filter(([role]) => role.startsWith('extra_'))
-              .map(([, value]) => value);
-    return [
-        ...(mapping.draft?.capabilities.map((role) => {
-            const params = mapping.draft?.connectionParams;
-            const channel = Array.isArray(params?.channels)
-                ? params.channels.find((value) => readValue(value, 'role') === role)
-                : readValue(params?.modbus_registers, role);
-            const unit = readValue(channel, 'unit');
-            return `${tk(`feedback.${role === 'fan' && unit === 'Pa' ? 'airPressure' : role}`)} (${unit})`;
-        }) ?? []),
-        ...extras.map(
-            (channel) =>
-                `${readValue(channel, 'label')}${readValue(channel, 'unit') ? ` (${readValue(channel, 'unit')})` : ''}`,
-        ),
-    ];
-};
+const feedbackSummary = (mapping: MachineMapping, tk: Translate) =>
+    mapping.draft?.capabilities.map((role) => {
+        const params = mapping.draft?.connectionParams;
+        const channel = Array.isArray(params?.channels)
+            ? params.channels.find((value) => readValue(value, 'role') === role)
+            : readValue(params?.modbus_registers, role);
+        const unit = readValue(channel, 'unit');
+        return `${tk(`feedback.${role === 'fan' && unit === 'Pa' ? 'airPressure' : role}`)} (${unit})`;
+    }) ?? [];
 
 const blockingIssue = (mapping: MachineMapping) =>
     mapping.issues.find((issue) => !mapping.draft || issue.code !== 'unsupported-channel');

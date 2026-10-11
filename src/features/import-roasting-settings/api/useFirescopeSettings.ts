@@ -1,5 +1,5 @@
+import { sidecar } from '@shared/lib/sidecar';
 import { useQuery } from '@tanstack/react-query';
-import { invoke } from '@tauri-apps/api/core';
 import { z } from 'zod';
 
 const snapshot = z.object({
@@ -27,7 +27,7 @@ export const useFirescopeSettings = (enabled = true) =>
     useQuery({
         queryKey: firescopeSettingsKey,
         enabled,
-        queryFn: async () => snapshot.parse(await invoke('read_firescope_settings')),
+        queryFn: async () => snapshot.parse(await sidecar.getFirescopeSettings()),
         retry: false,
         throwOnError: false,
     });
