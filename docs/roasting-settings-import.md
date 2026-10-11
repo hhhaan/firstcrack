@@ -20,6 +20,8 @@ Artisan의 binary/XML plist 및 QSettings 형식, Cropster의 재귀적 JSON 중
 
 프런트엔드는 기존 Zod 계약·ReactQuery·변환·미리보기·버전 확인·선택·저장·중복·quota 검사를 유지한다. 설정 저장은 장비에 연결하지 않는다.
 
+Firescope 가져오기는 읽기 설정만 허용한다. 원본의 쓰기 함수·`write_map` 등 쓰기 설정은 native snapshot과 저장할 머신 설정에서 제외한다. 온도·화력·팬·드럼의 읽기 주소와 시리얼 ASCII를 포함한 연결 설정을 유지하며, 가져오기에서 장비 제어를 활성화하지 않는다.
+
 검증: `cargo test --locked --lib`, `cargo clippy --locked --all-targets -- -D warnings`, `pnpm verify:all`, 세 가져오기 Playwright 시나리오. 2026-10-11 macOS에서 실제 Firescope·Artisan(`found`)과 Cropster(`not-found`)의 Rust 결과를 이관 전 Python과 대조해 snapshot 전체 일치 및 원본 9개 파일의 SHA-256 불변을 확인했다. Cropster `found` 결과는 fixture로 검증했다. CI는 Ubuntu 및 macOS arm64/x86_64·Windows에서 native 단위 테스트를 실행하도록 구성했다. 태그 전 전체 데스크톱 빌드·실행 검증은 별도로 수행한다.
 
 사이드카 바이너리가 없는 환경의 native 단위 테스트는 `TAURI_CONFIG='{"bundle":{"externalBin":[]}}'`를 지정한다. CI의 native 테스트에도 이 설정을 적용하고, PR에서는 기존 Rust 변경 경로 gate를 재사용한다. 앱 패키징은 원래 사이드카 번들 설정을 사용한다.

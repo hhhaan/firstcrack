@@ -143,7 +143,7 @@
             },
             "chooseSettings": "选择要导入的设置",
             "machineHeading": "机器连接",
-            "machineHint": "导入已保存的温度、火力、风机和滚筒传感器。",
+            "machineHint": "仅导入温度、火力、风机和滚筒的读取配置，不导入设备控制和写入配置。",
             "noMachines": "没有可导入的机器。",
             "graph": "同时导入曲线设置",
             "graphHint": "温度和时间范围以及曲线颜色",

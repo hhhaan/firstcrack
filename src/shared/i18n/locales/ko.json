@@ -143,7 +143,7 @@
             },
             "chooseSettings": "가져올 설정 선택",
             "machineHeading": "머신 연결",
-            "machineHint": "저장된 온도·화력·팬·드럼 센서를 가져옵니다.",
+            "machineHint": "온도·화력·팬·드럼의 읽기 설정만 가져옵니다. 장비 제어·쓰기 설정은 제외됩니다.",
             "noMachines": "가져올 머신이 없습니다.",
             "graph": "그래프 설정도 가져오기",
             "graphHint": "온도·시간 범위와 곡선 색상",

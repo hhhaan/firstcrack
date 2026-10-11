@@ -1124,6 +1124,7 @@ fn machine(v: &Value) -> Result<Value> {
     let conn = obj
         .get("connection")
         .ok_or_else(|| unsupported("machine-connection"))?;
+    // Imports carry read settings only; source control/write settings stay excluded.
     let mut selected = fields(conn, &["driver", "type", "protocol", "slot"])?
         .as_object()
         .unwrap()
@@ -1591,6 +1592,38 @@ mod tests {
             value(&envelope(&oversized_u)),
             Err(ImportError::Corrupt("invalid-v8-integer"))
         ));
+    }
+
+    #[test]
+    fn machine_import_excludes_write_settings_and_preserves_ascii_reads() {
+        let result = machine(&json!({
+            "id": "ascii-machine",
+            "name": "ASCII",
+            "write_map": {"heater": {"register": 31}},
+            "connection": {
+                "driver": "ModbusDriver",
+                "type": "serial",
+                "protocol": "modbus",
+                "serial": {"type": "ascii", "path": "COM5", "baudRate": 9600},
+                "write_map": {"heater": {"register": 31}},
+                "modbus": [{
+                    "label": "bt", "address": 1000, "read": "FC4", "write": "FC6",
+                    "sensorId": 1, "type": "integer", "decimalPlace": 1, "unit": "C",
+                    "write_map": {"register": 31}
+                }]
+            }
+        }))
+        .unwrap();
+        assert_eq!(result["connection"]["serial"]["type"], "ascii");
+        assert_eq!(
+            result["connection"]["modbus"],
+            json!([{
+                "label": "bt", "address": 1000, "read": "FC4", "sensorId": 1,
+                "type": "integer", "decimalPlace": 1, "unit": "C"
+            }])
+        );
+        assert!(result.get("write_map").is_none());
+        assert!(result["connection"].get("write_map").is_none());
     }
 
     #[test]

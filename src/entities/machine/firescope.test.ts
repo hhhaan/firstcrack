@@ -109,8 +109,16 @@ const modbusMachine = {
 };
 
 describe('mapFirescopeMachine', () => {
-    it('maps signed Modbus RTU readings without inheriting control settings', () => {
-        const mapped = mapFirescopeMachine(modbusMachine);
+    it.each(['rtu', 'ascii'])('maps signed Modbus %s readings without inheriting control settings', (mode) => {
+        const mapped = mapFirescopeMachine({
+            ...modbusMachine,
+            connection: {
+                ...modbusMachine.connection,
+                serial: { ...modbusMachine.connection.serial, type: mode },
+                write_map: { heater: { register: 31 } },
+                modbus: modbusMachine.connection.modbus.map((sensor) => ({ ...sensor, write: 'FC6' })),
+            },
+        });
         expect(mapped.issues).toEqual([]);
         expect(mapped.draft).toMatchObject({
             roasterKey: 'custom_modbus',
@@ -119,7 +127,7 @@ describe('mapFirescopeMachine', () => {
             pid: null,
             importSource: { product: 'Firescope', sourceId: 'firescope-1' },
             connectionParams: {
-                mode: 'rtu',
+                mode,
                 comport: '/dev/tty.usbserial',
                 baudrate: 9600,
                 bytesize: 8,
@@ -132,6 +140,9 @@ describe('mapFirescopeMachine', () => {
             },
         });
         expect(mapped.draft?.connectionParams).not.toHaveProperty('write_map');
+        expect(mapped.draft?.connectionParams.modbus_registers).toEqual(
+            mapFirescopeMachine(modbusMachine).draft?.connectionParams.modbus_registers,
+        );
     });
 
     it('uses only the selected ethernet transport and maps S7 DB offsets', () => {
@@ -143,6 +154,7 @@ describe('mapFirescopeMachine', () => {
                 type: 'ethernet',
                 protocol: 's7',
                 serial: { path: '/dev/stale', baudRate: 1200 },
+                write_map: { heater: { db: 2, offset: 18, type: 0 } },
                 slot: 1,
                 ethernet: { type: 'tcp', ip: '192.168.0.8', port: 102 },
                 s7: [
