@@ -483,7 +483,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [resetAutoDetection, disableAutoCharge, disableAutoDrop, rearmAutoCharge, triggerCharge]);
 
     const [preheatMountEpoch] = useState(takePreheatMountEpoch);
-    const wasPreheatVisibleRef = useRef(false);
     const reloadRestartedRef = useRef(false);
     const isActiveRef = useRef(isActive);
     useLayoutEffect(() => {
@@ -495,12 +494,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         recoverLiveBbp();
     }, [recoverLiveBbp]);
     useEffect(() => {
-        const justShown = isActive && !wasPreheatVisibleRef.current;
-        wasPreheatVisibleRef.current = isActive;
         const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
         const decision = chartOnlyPreheatDecision({
             visible: isActive,
-            justShown,
             bbp: useBbpStore.getState(),
             bootMs: chartOnlyPreheatBootMs,
             mountEpoch: preheatMountEpoch,
@@ -510,10 +506,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             navigationType: nav?.type,
             reloadConsumed: reloadRestartedRef.current,
         });
-        if (decision === 'abort') {
-            useBbpStore.getState().abort();
-            return;
-        }
         if (decision === 'begin') {
             if (nav?.type === 'reload') reloadRestartedRef.current = true;
             useBbpStore.getState().begin(Date.now(), [], false);
