@@ -294,3 +294,17 @@ export const useSetOutputWeight = (userId: string) => {
         },
     });
 };
+
+/** Charge correction: session weight, session-owned green deduct, roasted inbound. */
+export const useSetChargeWeight = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: roastSessionApi.setChargeWeight,
+        onSuccess: () => {
+            void invalidateRoastSessionQueries(qc, userId);
+            void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockEvents });
+            void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
+            void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });
+        },
+    });
+};

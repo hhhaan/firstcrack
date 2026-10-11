@@ -1692,6 +1692,8 @@ export type Database = {
                     color_ground?: string | null;
                     created_at: string;
                     created_by: string | null;
+                    /** Bulk density, g/L. History QC entry. Omitted until recorded. */
+                    density_g_per_l?: number | null;
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
                     events: Json;
@@ -1702,6 +1704,8 @@ export type Database = {
                     machine_name: string | null;
                     machine_protocol: string | null;
                     machine_roaster_key: string | null;
+                    /** Moisture, percent. History QC entry. Omitted until recorded. */
+                    moisture_pct?: number | null;
                     notes: string | null;
                     output_weight_grams: number | null;
                     plan_batch_id: string | null;
@@ -1727,6 +1731,7 @@ export type Database = {
                     color_ground?: string | null;
                     created_at?: string;
                     created_by?: string | null;
+                    density_g_per_l?: number | null;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
                     events?: Json;
@@ -1737,6 +1742,7 @@ export type Database = {
                     machine_name?: string | null;
                     machine_protocol?: string | null;
                     machine_roaster_key?: string | null;
+                    moisture_pct?: number | null;
                     notes?: string | null;
                     output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
@@ -1762,6 +1768,7 @@ export type Database = {
                     color_ground?: string | null;
                     created_at?: string;
                     created_by?: string | null;
+                    density_g_per_l?: number | null;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
                     events?: Json;
@@ -1772,6 +1779,7 @@ export type Database = {
                     machine_name?: string | null;
                     machine_protocol?: string | null;
                     machine_roaster_key?: string | null;
+                    moisture_pct?: number | null;
                     notes?: string | null;
                     output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
@@ -2279,6 +2287,7 @@ export type Database = {
                     color_ground?: string | null;
                     created_at: string;
                     created_by: string | null;
+                    density_g_per_l?: number | null;
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
                     events: Json;
@@ -2289,6 +2298,7 @@ export type Database = {
                     machine_name: string | null;
                     machine_protocol: string | null;
                     machine_roaster_key: string | null;
+                    moisture_pct?: number | null;
                     notes: string | null;
                     output_weight_grams: number | null;
                     plan_batch_id: string | null;
@@ -2308,6 +2318,15 @@ export type Database = {
                     isOneToOne: true;
                     isSetofReturn: false;
                 };
+            };
+            set_session_charge_weight: {
+                Args: {
+                    p_inbound_grams: number;
+                    p_inbound_is_estimate: boolean;
+                    p_session_id: string;
+                    p_weight_grams: number;
+                };
+                Returns: undefined;
             };
             set_session_output_weight: {
                 Args: {

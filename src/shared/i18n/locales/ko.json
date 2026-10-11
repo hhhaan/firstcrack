@@ -1043,6 +1043,13 @@
             "outputWeight": "배출량",
             "estimated": "추정",
             "outputWeightInvalid": "1–{{max}}g 사이로 입력하세요 (투입량 초과 불가).",
+            "chargeWeight": "투입량",
+            "chargeWeightInvalid": "{{min}}–{{max}}g 사이의 정수로 입력하세요.",
+            "ambientTemp": "기온 (°C)",
+            "ambientHumidity": "습도 (%)",
+            "moisture": "수분율 (%)",
+            "density": "밀도 (g/L)",
+            "qcInvalid": "{{min}}–{{max}} 사이로 입력하세요.",
             "summary": "요약",
             "colorWhole": "색도 (홀빈)",
             "colorGround": "색도 (분쇄)",
@@ -1459,6 +1466,7 @@
             "noBbp": "이 로스트는 배치 사이 곡선을 기록하지 않았습니다."
         },
         "replay": {
+            "label": "프로파일 화력 재생",
             "syncOnStart": "켜거나 다시 켜면 현재 기준의 레퍼런스 화력이 적용됩니다.",
             "next": "다음: {{condition}} → {{heater}}",
             "done": "모든 이벤트 재생 완료",

@@ -1126,6 +1126,7 @@
             "noBbp": "この焙煎ではバッチ間の曲線を記録していません。"
         },
         "replay": {
+            "label": "プロファイル火力を再生",
             "syncOnStart": "開始・再開すると、現在の位置に対応するレファレンスの火力が適用されます。",
             "next": "次: {{condition}} → {{heater}}",
             "done": "すべてのイベントを再生済み",
@@ -1346,6 +1347,13 @@
             "outputWeight": "排出量",
             "estimated": "推定",
             "outputWeightInvalid": "1–{{max}}gの範囲で入力してください（投入量超過不可）。",
+            "chargeWeight": "投入量",
+            "chargeWeightInvalid": "{{min}}–{{max}}gの整数で入力してください。",
+            "ambientTemp": "気温 (°C)",
+            "ambientHumidity": "湿度 (%)",
+            "moisture": "水分率 (%)",
+            "density": "密度 (g/L)",
+            "qcInvalid": "{{min}}–{{max}}の範囲で入力してください。",
             "summary": "概要",
             "colorWhole": "色度 (ホール)",
             "colorGround": "色度 (粉砕)",

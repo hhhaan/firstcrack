@@ -268,6 +268,26 @@ export const roastSessionApi = {
     },
 
     /**
+     * Correct green charge. Rescales session-owned roast deductions and
+     * upserts roasted inbound for the new green weight. Does not touch a
+     * batch-level deduct.
+     */
+    setChargeWeight: async (p: {
+        sessionId: string;
+        weightGrams: number;
+        inboundGrams: number;
+        inboundIsEstimate: boolean;
+    }): Promise<void> => {
+        const { error } = await supabase.rpc('set_session_charge_weight', {
+            p_session_id: p.sessionId,
+            p_weight_grams: p.weightGrams,
+            p_inbound_grams: p.inboundGrams,
+            p_inbound_is_estimate: p.inboundIsEstimate,
+        });
+        if (error) throw error;
+    },
+
+    /**
      * Dashboard recent/KPI sessions (completed since lastMonthStart).
      * `events` is included so 시간 is Charge→Drop (`sessionRoastMetrics`), not record End.
      */

@@ -44,6 +44,7 @@ vi.mock('@entities/roast', async (importOriginal) => {
         ...actual,
         useHistoryChart: () => ({ points: [], isLoading: false, isError: false }),
         useUpdateRoastSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
+        useSetChargeWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
         useSetOutputWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
     };
 });

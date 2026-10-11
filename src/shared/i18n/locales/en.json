@@ -1126,6 +1126,7 @@
             "noBbp": "I confirm no between-batch curve was recorded for this roast."
         },
         "replay": {
+            "label": "Replay profile heat",
             "syncOnStart": "Starting or resuming applies the reference heat for the current point.",
             "next": "Next: {{condition}} → {{heater}}",
             "done": "All events replayed",
@@ -1346,6 +1347,13 @@
             "outputWeight": "Output Weight",
             "estimated": "est.",
             "outputWeightInvalid": "Enter 1–{{max}}g (cannot exceed green input).",
+            "chargeWeight": "Charge weight",
+            "chargeWeightInvalid": "Enter an integer from {{min}}–{{max}}g.",
+            "ambientTemp": "Room temp (°C)",
+            "ambientHumidity": "Humidity (%)",
+            "moisture": "Moisture (%)",
+            "density": "Density (g/L)",
+            "qcInvalid": "Enter {{min}}–{{max}}.",
             "summary": "Summary",
             "colorWhole": "Color (whole)",
             "colorGround": "Color (ground)",

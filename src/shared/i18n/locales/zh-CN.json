@@ -1126,6 +1126,7 @@
             "noBbp": "我确认此烘焙未记录批次间曲线。"
         },
         "replay": {
+            "label": "回放曲线火力",
             "syncOnStart": "开启或恢复时，将应用参考曲线当前阶段对应的火力。",
             "next": "下一个：{{condition}} → {{heater}}",
             "done": "所有事件已回放",
@@ -1346,6 +1347,13 @@
             "outputWeight": "出豆量",
             "estimated": "估算",
             "outputWeightInvalid": "请输入 1–{{max}}g（不能超过投入量）。",
+            "chargeWeight": "投入量",
+            "chargeWeightInvalid": "请输入 {{min}}–{{max}}g 的整数。",
+            "ambientTemp": "气温 (°C)",
+            "ambientHumidity": "湿度 (%)",
+            "moisture": "含水率 (%)",
+            "density": "密度 (g/L)",
+            "qcInvalid": "请输入 {{min}}–{{max}}。",
             "summary": "概要",
             "colorWhole": "色值（整豆）",
             "colorGround": "色值（研磨）",

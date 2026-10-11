@@ -7,6 +7,7 @@ import { Badge } from '@shared/ui/Badge';
 import { BookmarkPlus, ChevronLeft, FileText, Package } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChargeWeightEditor, QcMeasurementEditor } from './HistoryQcEditor';
 import { HistorySessionChart } from './HistorySessionChart';
 import { OutputWeightEditor } from './OutputWeightEditor';
 import { RecordSections } from './RecordSections';
@@ -99,12 +100,10 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                         </h2>
                         <SummaryMetaEditor key={session.id} session={session} />
                         <div className="mt-5 space-y-4 border-t border-border-subtle pt-5">
-                            <div>
-                                <div className={detailTitleCls}>{t('history.compare.charge')}</div>
-                                <div className="mt-1 font-mono text-[16px] text-primary">{session.weight_grams}g</div>
-                            </div>
-                            <RoastColorEditor key={session.id} session={session} />
+                            <ChargeWeightEditor key={session.id} session={session} />
                             <OutputWeightEditor session={session} />
+                            <RoastColorEditor key={session.id} session={session} />
+                            <QcMeasurementEditor key={session.id} session={session} />
                         </div>
                     </section>
                     <section className="min-w-0 rounded-xl border border-border-subtle bg-main-bg p-5">

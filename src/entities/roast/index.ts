@@ -16,6 +16,7 @@ export {
     useRoastSessionFilterMeta,
     useRoastSessions,
     useRoastSessionsPaginated,
+    useSetChargeWeight,
     useSetOutputWeight,
     useUpdateRoastRecord,
     useUpdateRoastSession,
