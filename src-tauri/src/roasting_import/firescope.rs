@@ -516,8 +516,10 @@ fn string16(r: &mut Reader<'_>) -> Result<String> {
     let n = r.varint()? as usize;
     let raw = r.take(n.checked_mul(2).ok_or_else(|| corrupt("truncated-data"))?)?;
     let words: Vec<u16> = raw
-        .chunks_exact(2)
-        .map(|x| u16::from_be_bytes([x[0], x[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|x| u16::from_be_bytes(*x))
         .collect();
     String::from_utf16(&words).map_err(|_| unsupported("settings-value"))
 }
@@ -684,8 +686,10 @@ fn value(data: &[u8]) -> Result<Value> {
                     return Err(unsupported("settings-value"));
                 }
                 let words = raw
-                    .chunks_exact(2)
-                    .map(|x| u16::from_le_bytes([x[0], x[1]]))
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|x| u16::from_le_bytes(*x))
                     .collect::<Vec<_>>();
                 Ok(Js::Str(
                     String::from_utf16(&words).map_err(|_| unsupported("settings-value"))?,
@@ -1019,8 +1023,10 @@ fn decode(path: &Path) -> Result<Decoded> {
             if kind == 0
                 && v.as_ref().is_some_and(|x| {
                     let words: Vec<u16> = x
-                        .chunks_exact(2)
-                        .map(|c| u16::from_be_bytes([c[0], c[1]]))
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .map(|c| u16::from_be_bytes(*c))
                         .collect();
                     String::from_utf16(&words).ok().as_deref() == Some("localStorage")
                 })
@@ -1418,7 +1424,9 @@ mod tests {
     fn hex(value: &str) -> Vec<u8> {
         value
             .as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|x| u8::from_str_radix(std::str::from_utf8(x).unwrap(), 16).unwrap())
             .collect()
     }
