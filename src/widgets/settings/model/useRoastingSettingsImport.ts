@@ -1,25 +1,5 @@
-import {
-    firescopeFeedbackUpdate,
-    type Machine,
-    mapArtisanMachine,
-    mapCropsterMachine,
-    mapFirescopeMachine,
-    useMachines,
-    VIRTUAL_ID,
-} from '@entities/machine';
-import {
-    artisanTemperatureUnit,
-    cropsterTemperatureUnit,
-    firescopeTemperatureUnit,
-    importArtisanGraphSettings,
-    importCropsterGraphSettings,
-    importFirescopeGraphSettings,
-    mapArtisanGraphSettings,
-    mapCropsterGraphSettings,
-    mapFirescopeGraphSettings,
-    type TemperatureUnit,
-    useRoastSettings,
-} from '@features/active-roast';
+import { useMachines } from '@entities/machine';
+import { type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import {
     artisanSettingsKey,
     cropsterSettingsKey,
@@ -28,24 +8,27 @@ import {
     useCropsterSettings,
     useFirescopeSettings,
 } from '@features/import-roasting-settings';
-import { canAddMachine, useEffectivePlan } from '@shared/lib/features';
+import { useEffectivePlan } from '@shared/lib/features';
 import { useQueryClient } from '@tanstack/react-query';
-import { platform } from '@tauri-apps/plugin-os';
 import { useState } from 'react';
+import {
+    deriveRoastingImport,
+    detectImportPlatform,
+    type ImportProduct,
+    type ImportResult,
+    importExceedsPlan,
+    importQueryEnabled,
+    saveRoastingImport,
+} from './roastingImport';
 
 export function useRoastingSettingsImport() {
-    const [platformSupported] = useState(() => {
-        try {
-            return platform() === 'macos';
-        } catch {
-            return /Macintosh/i.test(navigator.userAgent);
-        }
-    });
-    const [product, setProduct] = useState<'Firescope' | 'Artisan' | 'Cropster'>('Firescope');
+    const [platformSupported] = useState(detectImportPlatform);
+    const [product, setProduct] = useState<ImportProduct>('Firescope');
     const [confirmedVersion, setConfirmedVersion] = useState<'4.2.0' | null>(null);
-    const firescopeQuery = useFirescopeSettings(platformSupported && product === 'Firescope');
-    const artisanQuery = useArtisanSettings(platformSupported && product === 'Artisan');
-    const cropsterQuery = useCropsterSettings(platformSupported && product === 'Cropster');
+    const enabled = importQueryEnabled(platformSupported, product);
+    const firescopeQuery = useFirescopeSettings(enabled.firescope);
+    const artisanQuery = useArtisanSettings(enabled.artisan);
+    const cropsterQuery = useCropsterSettings(enabled.cropster);
     const query = { Firescope: firescopeQuery, Artisan: artisanQuery, Cropster: cropsterQuery }[product];
     const queryClient = useQueryClient();
     const machines = useMachines((state) => state.machines);
@@ -55,140 +38,52 @@ export function useRoastingSettingsImport() {
     const [includeGraph, setIncludeGraph] = useState(true);
     const [unitOverride, setUnitOverride] = useState<TemperatureUnit | null>(null);
     const [applying, setApplying] = useState(false);
-    const [result, setResult] = useState<'saved' | 'failed' | 'graphSavedMachinesFailed' | 'planLimit' | null>(null);
-    const snapshot = query.error ? undefined : query.data;
-    const firescope = product === 'Firescope' && !firescopeQuery.error ? firescopeQuery.data : undefined;
-    const artisan = product === 'Artisan' && !artisanQuery.error ? artisanQuery.data : undefined;
-    const cropster = product === 'Cropster' && !cropsterQuery.error ? cropsterQuery.data : undefined;
-    const unit = artisan
-        ? artisanTemperatureUnit(artisan.settings?.Mode)
-        : cropster
-          ? cropsterTemperatureUnit(cropster.preferences?.temperatureUnit)
-          : (unitOverride ??
-            firescopeTemperatureUnit(firescope?.graphTemperatureUnit ?? firescope?.global?.temperature));
-    const graph = artisan
-        ? mapArtisanGraphSettings(artisan, roastSettings)
-        : cropster
-          ? mapCropsterGraphSettings(cropster, roastSettings)
-          : firescope
-            ? mapFirescopeGraphSettings(firescope, roastSettings, unit)
-            : null;
-    const importedMachine = (sourceId: string | number | null, saved = machines) =>
-        saved.find(
-            (machine) => machine.importSource?.product === product && machine.importSource.sourceId === sourceId,
-        );
-    const singleMapping = artisan?.settings
-        ? mapArtisanMachine(artisan, confirmedVersion)
-        : cropster?.machine
-          ? mapCropsterMachine(cropster)
-          : null;
-    const serialConnection = ['rtu', 'ascii'].includes(singleMapping?.transport ?? '');
-    const candidates = singleMapping
-        ? [
-              {
-                  sequence: 0,
-                  current: product === 'Artisan',
-                  mapping: singleMapping,
-                  existing: importedMachine(singleMapping.sourceId),
-                  update: null,
-                  connection: {
-                      serial: serialConnection,
-                      endpoint: singleMapping.draft?.connectionParams[serialConnection ? 'comport' : 'host'],
-                      subtype: singleMapping.transport,
-                      protocol: 'modbus',
-                  },
-              },
-          ]
-        : (firescope?.machines.map((candidate) => {
-              const mapping = mapFirescopeMachine(candidate.settings);
-              const existing = importedMachine(mapping.sourceId);
-              const update = existing && mapping.draft ? firescopeFeedbackUpdate(existing, mapping.draft) : null;
-              const raw = candidate.settings.connection as Record<string, unknown> | undefined;
-              const serial = raw?.type === 'serial';
-              const details = raw?.[serial ? 'serial' : 'ethernet'] as Record<string, unknown> | undefined;
-              return {
-                  ...candidate,
-                  mapping,
-                  existing,
-                  update,
-                  connection: {
-                      serial: serial || raw?.type === 'usb',
-                      endpoint: details?.[serial ? 'path' : 'ip'],
-                      subtype: details?.type,
-                      protocol: raw?.protocol,
-                  },
-              };
-          }) ?? []);
-    const selected = candidates.filter(
-        (candidate) =>
-            candidate.mapping.draft && (!candidate.existing || candidate.update) && selectedIds.has(candidate.sequence),
-    );
-    const hasGraph = graph !== null && Object.keys(graph.patch).length > 0;
-    const busy = applying || query.isFetching;
-    const newCount = selected.filter((candidate) => !candidate.existing).length;
-    const withinLimit =
-        newCount === 0 ||
-        canAddMachine(plan, machines.filter((machine) => machine.id !== VIRTUAL_ID).length + newCount - 1);
-    const canApply =
-        platformSupported &&
-        snapshot?.status === 'found' &&
-        !busy &&
-        withinLimit &&
-        (selected.length > 0 || (includeGraph && hasGraph));
+    const [result, setResult] = useState<ImportResult | null>(null);
+    const { selected, cropster, firescope, ...derived } = deriveRoastingImport({
+        platformSupported,
+        product,
+        confirmedVersion,
+        query,
+        firescopeQuery,
+        artisanQuery,
+        cropsterQuery,
+        machines,
+        plan,
+        roastSettings,
+        selectedIds,
+        includeGraph,
+        unitOverride,
+        applying,
+    });
 
     const apply = async () => {
-        if (!snapshot || !canApply) return;
-        const state = useMachines.getState();
-        const newCount = selected.filter(({ mapping }) => !importedMachine(mapping.sourceId, state.machines)).length;
-        if (
-            newCount > 0 &&
-            !canAddMachine(plan, state.machines.filter((machine) => machine.id !== VIRTUAL_ID).length + newCount - 1)
-        ) {
+        if (!derived.snapshot || !derived.canApply) return;
+        if (importExceedsPlan(selected, product, plan)) {
             setResult('planLimit');
             return;
         }
         setApplying(true);
         setResult(null);
-        let graphApplied = false;
         try {
-            if (includeGraph && hasGraph) {
-                if (artisan) await importArtisanGraphSettings(artisan);
-                else if (cropster) await importCropsterGraphSettings(cropster);
-                else if (firescope) await importFirescopeGraphSettings(firescope, unit);
-                graphApplied = true;
-            }
-            const latest = useMachines.getState();
-            const pending: Omit<Machine, 'id' | 'createdAt'>[] = [];
-            const updates: { id: string; patch: Pick<Machine, 'connectionParams' | 'capabilities'> }[] = [];
-            for (const { mapping } of selected) {
-                if (!mapping.draft) continue;
-                const existing = importedMachine(mapping.sourceId, latest.machines);
-                if (!existing) pending.push(mapping.draft);
-                else if (product === 'Firescope') {
-                    const patch = firescopeFeedbackUpdate(existing, mapping.draft);
-                    if (patch) updates.push({ id: existing.id, patch });
-                }
-            }
-            if (pending.length > 0 || updates.length > 0) {
-                if (
-                    pending.length > 0 &&
-                    !canAddMachine(
-                        plan,
-                        latest.machines.filter((machine) => machine.id !== VIRTUAL_ID).length + pending.length - 1,
-                    )
-                )
-                    throw new Error('machine limit');
-                latest.importMachines(pending, updates);
-            }
-            setResult('saved');
-        } catch {
-            setResult(graphApplied ? 'graphSavedMachinesFailed' : 'failed');
+            setResult(
+                await saveRoastingImport({
+                    product,
+                    selected,
+                    includeGraph,
+                    hasGraph: derived.hasGraph,
+                    artisan: derived.artisan,
+                    cropster,
+                    firescope,
+                    unit: derived.unit,
+                    plan,
+                }),
+            );
         } finally {
             setApplying(false);
         }
     };
 
-    const selectProduct = (next: typeof product) => {
+    const selectProduct = (next: ImportProduct) => {
         setProduct(next);
         setSelectedIds(new Set());
         setUnitOverride(null);
@@ -230,21 +125,21 @@ export function useRoastingSettingsImport() {
         product,
         confirmedVersion,
         query,
-        snapshot,
-        artisan,
-        unit,
-        graph,
-        candidates,
+        snapshot: derived.snapshot,
+        artisan: derived.artisan,
+        unit: derived.unit,
+        graph: derived.graph,
+        candidates: derived.candidates,
         roastSettings,
         selectedIds,
         includeGraph,
         applying,
         result,
-        busy,
-        withinLimit,
-        canApply,
-        hasGraph,
-        selectedCount: selected.length,
+        busy: derived.busy,
+        withinLimit: derived.withinLimit,
+        canApply: derived.canApply,
+        hasGraph: derived.hasGraph,
+        selectedCount: derived.selectedCount,
         apply,
         selectProduct,
         rescan,
