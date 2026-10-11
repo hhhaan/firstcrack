@@ -47,6 +47,25 @@ def test_probat_gug_control_gauges_are_int_cells_not_temperatures() -> None:
     assert (roles["drum"]["db"], roles["drum"]["offset"], roles["drum"]["type"]) == (200, 72, 0)
 
 
+def test_toper_plc_input1_is_bt() -> None:
+    """Toper/PLC.aset: input1=BT register 0, input2=ET register 2, holding, ÷10.
+
+    PLC_Control(2025+ 쓰기)와 USB.aset(RTU)은 이 키가 아니다.
+    """
+    entry = ROASTER_REGISTRY["toper_plc"]
+    regs = entry["default_params"]["modbus_registers"]
+    assert entry["capabilities"] == []
+    assert entry["default_params"]["mode"] == "tcp"
+    assert entry["default_params"]["host"] == "192.168.137.90"
+    assert regs["BT"]["register"] == 0
+    assert regs["ET"]["register"] == 2
+    for role in ("BT", "ET"):
+        assert regs[role]["func"] == 3
+        assert regs[role]["div"] == 1
+        assert regs[role]["unit_id"] == 1
+        assert regs[role]["float"] is False
+
+
 def test_loring_778_is_heater_not_drum() -> None:
     """Smart_Roast.aset: input3=778은 {3}=Burner — heater role이 맞다."""
     for key in ("loring_smart_roast", "loring_smart_roast_auto"):

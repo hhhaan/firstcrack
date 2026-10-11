@@ -1749,6 +1749,53 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": None,
         "capabilities": ["heater"],
     },
+    # -----------------------------------------------------------------------
+    # Toper PLC — MODBUS TCP. TKM-SX (Omron) / Cafemino (Schneider Modicon)
+    # 출처: Toper/PLC.aset. Artisan comm.py: input1=BT, input2=ET.
+    # PID 없음. 샵·산업용 TKM-SX가 같은 맵이라 enterprise 게이트 안 함.
+    # PLC_Control.aset(2025+ 터치 제어)과 USB.aset(RTU)은 이 키가 아님.
+    # ModbusAdapter.control()은 쓰기를 거부한다.
+    # BT: register=0, func=3(Holding), unit_id=1, div=1(÷10), mode=C
+    # ET: register=2, func=3, unit_id=1, div=1(÷10), mode=C
+    # host=192.168.137.90, port=502, type=3 TCP, wordorderLittle=true (기본)
+    # -----------------------------------------------------------------------
+    "toper_plc": {
+        "display_name": "Toper TKM-SX / Cafemino",
+        "brand": "Toper",
+        "models": ["TKM-SX", "Cafemino"],
+        "protocol": "modbus",
+        "default_params": {
+            "mode": "tcp",
+            "host": "192.168.137.90",
+            "port": 502,
+            "comport": "COM5",
+            "baudrate": 115200,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
+            "modbus_registers": {
+                "BT": {
+                    "register": 0,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 1,
+                    "mode": "C",
+                },
+                "ET": {
+                    "register": 2,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 1,
+                    "mode": "C",
+                },
+            },
+        },
+        "pid": None,
+        "capabilities": [],
+    },
 }
 
 

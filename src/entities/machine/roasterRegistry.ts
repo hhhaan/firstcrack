@@ -745,6 +745,26 @@ const REGISTRY: Record<string, RegistryEntry> = {
             interval: 1,
         },
     },
+    // Toper/PLC.aset — TKM-SX and Cafemino. Read only. Not USB, not PLC_Control.
+    toper_plc: {
+        display_name: 'Toper TKM-SX / Cafemino',
+        brand: 'Toper',
+        models: ['TKM-SX', 'Cafemino'],
+        protocol: 'modbus',
+        capabilities: [],
+        pid: null,
+        default_params: {
+            mode: 'tcp',
+            host: '192.168.137.90',
+            port: 502,
+            comport: 'COM5',
+            baudrate: 115200,
+            bytesize: 8,
+            parity: 'N',
+            stopbits: 1,
+            interval: 1,
+        },
+    },
 };
 
 // BT/ET positions from sidecar roaster_registry.py; keep in sync with its read maps.
@@ -779,6 +799,7 @@ const SUPPORTED_ADDRESS_DEFAULTS: Record<string, Record<string, number>> = {
     buja_smart_gas: { bt_register: 19, et_register: 20 },
     loring_smart_roast: { bt_register: 768, et_register: 774 },
     loring_smart_roast_auto: { bt_register: 768, et_register: 774 },
+    toper_plc: { bt_register: 0, et_register: 2 },
     giesen_sample: { bt_db: 3, bt_offset: 118, et_db: 3, et_offset: 114 },
     giesen_w30a: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
     giesen_w45a_w60a: { bt_db: 3, bt_offset: 116, et_db: 3, et_offset: 112 },
