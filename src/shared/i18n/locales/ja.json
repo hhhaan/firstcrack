@@ -146,7 +146,7 @@
             "machineHint": "追加センサーを含む読み取り設定と補正値を読み込みます。機器の制御・書き込み設定は対象外です。",
             "noMachines": "インポートできるマシンがありません。",
             "graph": "グラフ設定もインポート",
-            "graphHint": "温度・時間範囲とカーブの色",
+            "graphHint": "温度・時間範囲、目盛、カーブの色と表示",
             "sourceUnit": "Firescopeで使用した単位",
             "chooseUnit": "単位を選択",
             "unitNote": "このFirescope設定で使用した単位を選択してください。",
@@ -213,6 +213,7 @@
             },
             "planLimit": "選択したマシンがプランの上限を超えています。台数を減らすかグラフ設定だけを取り込んでください。",
             "graphSavedMachinesFailed": "グラフ設定は保存されましたが、マシンを追加できませんでした。マシンのインポートを再試行してください。",
+            "temperatureLabelEvery": "{{count}}目盛ごと",
             "graphFields": {
                 "temperatureUnit": "温度単位",
                 "yAxisStart": "最低温度",
@@ -223,7 +224,20 @@
                 "etLineColor": "排気温度（ET）の色",
                 "btRorLineColor": "BT RoRの色",
                 "etRorLineColor": "ET RoRの色",
-                "etLineVisible": "排気温度を表示"
+                "etLineVisible": "排気温度を表示",
+                "xAxisSubScaleUnit": "時間の補助目盛",
+                "yAxisScaleUnit": "温度ラベルの間隔",
+                "yAxisSubScaleUnit": "温度の補助目盛",
+                "btRorLineVisible": "BT RoRを表示",
+                "etRorLineVisible": "ET RoRを表示",
+                "burnerVisible": "火力を表示",
+                "drumSpeedVisible": "ドラム速度を表示",
+                "airflowVisible": "風量を表示",
+                "extraValueVisible": "制御グラフを表示",
+                "recordGraphVisible": "基準プロファイルを表示",
+                "burnerLineColor": "火力の色",
+                "drumSpeedLineColor": "ドラム速度の色",
+                "airflowLineColor": "風量の色"
             }
         },
         "search": "設定を検索",

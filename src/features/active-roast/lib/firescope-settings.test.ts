@@ -14,6 +14,98 @@ const snapshot = (graph: Record<string, unknown>): FirescopeSettingsSnapshot => 
 });
 
 describe('Firescope graph mapping', () => {
+    it('imports display toggles and control colors independently', () => {
+        const { patch, fields } = mapFirescopeGraphSettings(
+            snapshot({
+                btRorLineVisible: false,
+                etRorLineVisible: true,
+                burnerVisible: false,
+                drumSpeedVisible: true,
+                airflowVisible: false,
+                extraValueVisible: true,
+                recordGraphVisible: false,
+                burnerLineColor: '#9782C6',
+                drumSpeedLineColor: '#EDA335',
+                airflowLineColor: '#6CBF10',
+                btLineVisible: false,
+            }),
+            normalizeRoastSettings({}),
+            'C',
+        );
+        expect(patch).toMatchObject({
+            showRoRChart: false,
+            showRoRET: true,
+            showControlHeat: false,
+            showControlDrum: true,
+            showControlFan: false,
+            showControlChart: true,
+            showTargetCurve: false,
+            curveStyles: { heat: { color: '#9782c6' }, drum: { color: '#eda335' }, fan: { color: '#6cbf10' } },
+        });
+        expect(fields.find((item) => item.field === 'btLineVisible')?.status).toBe('unsupported');
+    });
+
+    it('activates imported major and minor ticks over existing custom tick lists', () => {
+        const previous = normalizeRoastSettings({ tempTicksC: [100, 150], tempTickMode: 'list' });
+        const { patch, fields } = mapFirescopeGraphSettings(
+            snapshot({
+                xAxisScaleUnit: 60,
+                xAxisSubScaleUnit: 15,
+                yAxisScaleUnit: 50,
+                yAxisSubScaleUnit: 10,
+            }),
+            previous,
+            'F',
+        );
+        const saved = normalizeRoastSettings({ ...previous, ...patch }, previous);
+        expect(saved).toMatchObject({
+            timeTickIntervalSec: 60,
+            timeTickCustom: false,
+            timeMinorTickIntervalSec: 15,
+            tempAxisMode: 'list',
+            tempTickMode: 'interval',
+            tempLabelCustom: true,
+            tempGridInterval: 10,
+            tempLabelEvery: 5,
+        });
+        expect(
+            fields.filter((item) => !item.field.startsWith('indicator.')).every((item) => item.status === 'mapped'),
+        ).toBe(true);
+    });
+
+    it('rejects malformed tick pairs and display values without changing existing settings', () => {
+        const { patch, fields } = mapFirescopeGraphSettings(
+            snapshot({
+                xAxisScaleUnit: 60,
+                xAxisSubScaleUnit: 7,
+                yAxisScaleUnit: 50,
+                yAxisSubScaleUnit: 20,
+                etRorLineVisible: 'true',
+                burnerLineColor: 'red',
+            }),
+            normalizeRoastSettings({}),
+            null,
+        );
+        expect(patch).not.toHaveProperty('timeMinorTickIntervalSec');
+        expect(patch).not.toHaveProperty('tempGridInterval');
+        expect(patch).not.toHaveProperty('showRoRET');
+        expect(patch).not.toHaveProperty('curveStyles');
+        expect(fields.filter((item) => item.status === 'invalid').map((item) => item.field)).toEqual([
+            'xAxisSubScaleUnit',
+            'yAxisScaleUnit',
+            'yAxisSubScaleUnit',
+            'burnerLineColor',
+            'etRorLineVisible',
+        ]);
+        expect(normalizeRoastSettings({ timeMinorTickIntervalSec: 0 }).timeMinorTickIntervalSec).toBeNull();
+        const unknownUnit = mapFirescopeGraphSettings(
+            snapshot({ yAxisScaleUnit: 50, yAxisSubScaleUnit: 10 }),
+            normalizeRoastSettings({}),
+            null,
+        );
+        expect(unknownUnit.patch).not.toHaveProperty('tempGridInterval');
+    });
+
     it('converts Fahrenheit bounds and seconds while activating custom range and preset ticks', () => {
         const previous = normalizeRoastSettings({ timeTickCustom: true });
         const { patch } = mapFirescopeGraphSettings(

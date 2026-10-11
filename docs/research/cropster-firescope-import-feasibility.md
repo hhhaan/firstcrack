@@ -108,7 +108,7 @@ macOS에서 확인한 기본 위치는 `~/Library/Application Support/Firescope/
 
 **18465를 serial RTU로 적었던 이전 문서를 수정한다.** 이 레코드는 `connection.type=ethernet`인데 과거 serial 객체도 남아 있었다. 활성 Ethernet 설정을 선택해야 한다. #710의 `dfa`/FC4 설정은 실제 과거 레코드에 있었지만 현재 최고 sequence 머신과는 다르다. 위 세 머신은 과거 설정 복구 후보이며 현재 머신으로 표시하지 않는다.
 
-이번 그래프 값의 직접 매핑 후보는 FC `tempMinC=50`, `tempMaxC=250`, `timeRangeMin=12`와 `timeRangeCustom=true`, 시간 눈금 60초, BT/ET/RoR의 색상이다. 색상은 해당 채널의 `color`만 변경하고 기존 선 굵기·스타일은 보존한다. Firescope의 음수 시간축 시작과 자동 축 확장은 그대로 재현되지 않으므로 미리보기에 차이를 표시한다. FC 저장·재시작 검증은 아직 수행하지 않았다.
+이번 그래프 값의 직접 매핑 후보는 FC `tempMinC=50`, `tempMaxC=250`, `timeRangeMin=12`와 `timeRangeCustom=true`, 시간 눈금 60초, BT/ET/RoR의 색상이다. 현재 importer는 시간·온도 보조 눈금, BT/ET RoR·화력·드럼·풍량·제어 그래프·기준 프로파일 표시와 제어 곡선 색상도 매핑한다. 색상은 해당 채널의 `color`만 변경하고 기존 선 굵기·스타일은 보존한다. Firescope의 음수 시간축 시작과 자동 축 확장은 그대로 재현되지 않으므로 미리보기에 차이를 표시한다. FC 저장·재시작 검증은 아직 수행하지 않았다.
 
 `setting.ListPageFieldSettingService`도 해독했으나 재고·목록 화면 설정이라 범위에서 제외한다. `setting.RoastingFieldSettingService`는 설치본 코드에서 확인했지만 이번 F2의 설정 키 해독 결과에는 없었다. `roasting.RoastingService`는 세션·로스트 데이터가 섞일 수 있어 import allowlist에 넣지 않는다. Firebase DB는 별도 논리 DB이며 import 대상으로 읽지 않는다.
 

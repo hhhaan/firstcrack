@@ -67,11 +67,52 @@ export const mapFirescopeGraphSettings = (
             if (!patch.timeTickCustom) patch.timeTickPresetSec = tick;
         }
     }
+    if ('xAxisSubScaleUnit' in graph) {
+        const tick = graph.xAxisSubScaleUnit;
+        const major =
+            graph.xAxisScaleUnit ??
+            (previous.timeTickCustom ? previous.timeTickIntervalSec : previous.timeTickPresetSec);
+        const valid =
+            finite(tick) &&
+            Number.isInteger(tick) &&
+            tick >= 1 &&
+            finite(major) &&
+            major <= 3600 &&
+            tick < major &&
+            Number.isInteger(major / tick) &&
+            major / tick <= 100;
+        field('xAxisSubScaleUnit', 'timeMinorTickIntervalSec', valid ? 'mapped' : 'invalid');
+        if (valid) patch.timeMinorTickIntervalSec = tick;
+    }
+    if ('yAxisScaleUnit' in graph || 'yAxisSubScaleUnit' in graph) {
+        const major = graph.yAxisScaleUnit;
+        const minor = graph.yAxisSubScaleUnit;
+        const valid =
+            unit !== null &&
+            finite(major) &&
+            finite(minor) &&
+            minor >= 1 &&
+            major <= 500 &&
+            major >= minor &&
+            Number.isInteger(major / minor);
+        field('yAxisScaleUnit', 'tempLabelEvery', valid ? 'mapped' : 'invalid');
+        field('yAxisSubScaleUnit', 'tempGridInterval', valid ? 'mapped' : 'invalid');
+        if (valid) {
+            patch.tempGridInterval = minor;
+            patch.tempLabelEvery = major / minor;
+            patch.tempAxisMode = 'list';
+            patch.tempTickMode = 'interval';
+            patch.tempLabelCustom = true;
+        }
+    }
     const colors: [string, CurveChannel][] = [
         ['btLineColor', 'bt'],
         ['etLineColor', 'et'],
         ['btRorLineColor', 'ror'],
         ['etRorLineColor', 'etRor'],
+        ['burnerLineColor', 'heat'],
+        ['drumSpeedLineColor', 'drum'],
+        ['airflowLineColor', 'fan'],
     ];
     for (const [key, channel] of colors) {
         if (!(key in graph)) continue;
@@ -82,10 +123,21 @@ export const mapFirescopeGraphSettings = (
             patch.curveStyles[channel] = { ...previous.curveStyles[channel], color: color.toLowerCase() };
         }
     }
-    if ('etLineVisible' in graph) {
-        const visible = graph.etLineVisible;
-        field('etLineVisible', 'showET', typeof visible === 'boolean' ? 'mapped' : 'invalid');
-        if (typeof visible === 'boolean') patch.showET = visible;
+    const visibility = {
+        etLineVisible: 'showET',
+        btRorLineVisible: 'showRoRChart',
+        etRorLineVisible: 'showRoRET',
+        burnerVisible: 'showControlHeat',
+        drumSpeedVisible: 'showControlDrum',
+        airflowVisible: 'showControlFan',
+        extraValueVisible: 'showControlChart',
+        recordGraphVisible: 'showTargetCurve',
+    } as const;
+    for (const [key, target] of Object.entries(visibility)) {
+        if (!(key in graph)) continue;
+        const visible = graph[key];
+        field(key, target, typeof visible === 'boolean' ? 'mapped' : 'invalid');
+        if (typeof visible === 'boolean') patch[target] = visible;
     }
     for (const [key, value] of Object.entries(graph)) {
         if (!handled.has(key)) fields.push({ field: key, value, target: null, status: 'unsupported' });
