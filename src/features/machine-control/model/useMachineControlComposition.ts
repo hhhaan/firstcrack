@@ -22,6 +22,7 @@ export interface MachineControlCompositionInput {
     replayMachineMismatch: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록 제외용 */
     replayDropTime: number | null;
+    referenceTpTime?: number | null;
     /** 프로파일 heater_events jsonb (#435) */
     replayHeaterEvents?: unknown;
     /** Raw sensor BT. `observationQuality` must validate this stream, not the display EMA. */
@@ -57,6 +58,7 @@ export const useMachineControlComposition = ({
     replayPoints,
     replayMachineMismatch,
     replayDropTime,
+    referenceTpTime,
     replayHeaterEvents,
     liveBt,
     elapsed,
@@ -108,6 +110,7 @@ export const useMachineControlComposition = ({
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,
         referenceDropTime: replayDropTime,
+        referenceTpTime,
         profileHeaterEvents: replayHeaterEvents,
         liveBt,
         elapsed,

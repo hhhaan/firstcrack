@@ -45,7 +45,10 @@ describe('HeaterEventsEditor', () => {
             ],
             {},
         );
-        const events = [{ t: 0, bt: 100, heater: max * 0.8, trigger: 'time' as const }];
+        const events = [
+            { t: 0, bt: 100, heater: max * 0.8, trigger: 'time' as const },
+            ...(trigger === 'time' ? [{ t: 120, bt: 150, heater: max * 0.6, trigger: 'time' as const }] : []),
+        ];
         await act(async () => {
             root.render(
                 createElement(HeaterEventsEditor, {
@@ -63,13 +66,10 @@ describe('HeaterEventsEditor', () => {
                 }),
             );
         });
-        if (trigger === 'time') {
-            await act(async () => {
-                [...document.querySelectorAll('button')]
-                    .find((b) => b.textContent === 'heaterEventsEditor.addStep')
-                    ?.click();
-            });
-        }
+        expect(document.querySelector('tbody select')).toBeNull();
+        expect([...document.querySelectorAll('button')].map((b) => b.textContent)).not.toContain(
+            'heaterEventsEditor.addStep',
+        );
         const heatInputs = document.querySelectorAll<HTMLInputElement>(
             trigger === 'bt'
                 ? '[aria-labelledby="heater-events-rule-title"] input[aria-label="heaterEventsEditor.heat"]'
@@ -117,6 +117,85 @@ describe('HeaterEventsEditor', () => {
                 (input) => input.value,
             ),
         ).toEqual([String(max * 0.8), '0']);
+        expect(document.querySelectorAll('tbody input[aria-label="heaterEventsEditor.time"]')).toHaveLength(
+            trigger === 'time' ? 2 : 1,
+        );
+        expect(document.querySelectorAll('tbody input[aria-label="heaterEventsEditor.bt"]')).toHaveLength(
+            trigger === 'bt' ? 1 : 0,
+        );
+        expect(document.querySelector('tbody select')).toBeNull();
+        await act(async () => root.unmount());
+    });
+
+    it('shows only the effective criterion and preserves acknowledged row locks', async () => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        await act(async () =>
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'batch',
+                    events: [
+                        { t: 40, bt: 160, heater: 80 },
+                        { t: 60, bt: 95, heater: 70 },
+                        { t: 120, bt: 150, heater: 60 },
+                        { t: 180, bt: 160, heater: 50, trigger: 'time' },
+                    ],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'tsv',
+                    unit: 'C',
+                    lockedCount: 1,
+                    onClose: () => {},
+                    onApply: () => {},
+                }),
+            ),
+        );
+        const rows = document.querySelectorAll('tbody tr');
+        expect(rows[0].querySelector<HTMLInputElement>('input')?.readOnly).toBe(true);
+        expect(rows[0].querySelector<HTMLButtonElement>('button')?.disabled).toBe(true);
+        expect(rows[1].querySelector('[aria-label="heaterEventsEditor.time"]')).not.toBeNull();
+        expect(rows[2].querySelector('[aria-label="heaterEventsEditor.time"]')).toBeNull();
+        expect(rows[2].querySelector('[aria-label="heaterEventsEditor.bt"]')).not.toBeNull();
+        expect(rows[3].querySelector('[aria-label="heaterEventsEditor.time"]')).not.toBeNull();
+        expect(document.querySelectorAll('svg [role="button"]')[2].getAttribute('aria-label')).toBe('BT 150°C, 60%');
+        await act(async () => root.unmount());
+    });
+
+    it.each(['C', 'F'] as const)('preserves hidden reference precision in %s', async (unit) => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        const onApply = vi.fn();
+        await act(async () =>
+            root.render(
+                createElement(HeaterEventsEditor, {
+                    mode: 'profile',
+                    events: [
+                        { t: 40, bt: 160.12345, heater: 80, trigger: 'time' },
+                        { t: 120.375, bt: 150, heater: 60, trigger: 'bt' },
+                    ],
+                    tpTime: 60,
+                    btPoints: [],
+                    source: 'profile',
+                    unit,
+                    onClose: () => {},
+                    onApply,
+                }),
+            ),
+        );
+        await act(async () =>
+            [...document.querySelectorAll('button')]
+                .find((b) => b.textContent === 'heaterEventsEditor.ruleAdd')
+                ?.click(),
+        );
+        await act(async () =>
+            [...document.querySelectorAll('button')].find((b) => b.textContent === 'heaterEventsEditor.save')?.click(),
+        );
+        const saved = onApply.mock.calls[0][0];
+        expect(saved[0].bt).toBe(160.12345);
+        expect(saved[1].t).toBe(120.375);
+        expect(saved[2].t).toBe(120.375);
         await act(async () => root.unmount());
     });
 
@@ -236,7 +315,7 @@ describe('HeaterEventsEditor', () => {
         host?.remove();
     });
 
-    it('BT 규칙을 행으로 추가하고 적용한다', async () => {
+    it.each(['profile', 'batch'] as const)('adds only BT conditions in %s mode', async (mode) => {
         host = document.createElement('div');
         document.body.appendChild(host);
         const root = createRoot(host);
@@ -244,7 +323,7 @@ describe('HeaterEventsEditor', () => {
         await act(async () => {
             root.render(
                 createElement(HeaterEventsEditor, {
-                    mode: 'batch',
+                    mode,
                     events: [{ t: 0, bt: 180, heater: 80, trigger: 'time' as const }],
                     tpTime: 60,
                     btPoints: [{ t: 0, bt: 180, heater: 80 }],
@@ -261,8 +340,12 @@ describe('HeaterEventsEditor', () => {
         await act(async () => {
             addBt?.click();
         });
+        const added = document.querySelectorAll('tbody tr')[1];
+        expect(added.querySelector('[aria-label="heaterEventsEditor.time"]')).toBeNull();
+        expect(added.querySelector('[aria-label="heaterEventsEditor.bt"]')).not.toBeNull();
+        expect(document.querySelector('tbody select')).toBeNull();
         const apply = [...document.querySelectorAll('button')].find(
-            (b) => b.textContent === 'heaterEventsEditor.applyBatch',
+            (b) => b.textContent === (mode === 'batch' ? 'heaterEventsEditor.applyBatch' : 'heaterEventsEditor.save'),
         );
         await act(async () => {
             apply?.click();
@@ -620,7 +703,7 @@ describe('HeaterEventsEditor', () => {
             root.render(
                 createElement(HeaterEventsEditor, {
                     mode: 'batch',
-                    events: [{ t: 0, bt: 180, heater: 80, trigger: 'time' }],
+                    events: [{ t: 0, bt: 180, heater: 80, trigger: field === 'bt' ? 'bt' : 'time' }],
                     tpTime: 60,
                     btPoints: [],
                     source: 'tsv',

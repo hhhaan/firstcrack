@@ -101,7 +101,7 @@ test.describe('history record edit (#623)', () => {
         await expect(editor).toBeVisible();
         await expect(editor.getByRole('button', { name: /add/i })).toHaveCount(0);
 
-        const heat = editor.locator('tbody input[inputmode="decimal"]').nth(3);
+        const heat = editor.locator('tbody').getByLabel('Heat', { exact: true }).nth(1);
         await expect(heat).toHaveValue('50');
         await heat.fill('55');
         await editor.getByRole('button', { name: /^save$/i }).click();

@@ -8,6 +8,7 @@ import {
     type ReplayPlan,
     type ReplayPoint,
     type ReplayTrigger,
+    resolveReferenceTpTime,
 } from './replay';
 
 export {
@@ -78,6 +79,9 @@ export type HeaterDraftInput = {
     heater: string;
     trigger: ReplayTrigger;
     id?: string;
+    /** Hidden reference coordinates must survive display rounding. */
+    referenceT?: number;
+    referenceBt?: number;
 };
 
 /** Parsed events that still violate the plan rules. Row numbers are 1-based. */
@@ -107,11 +111,16 @@ export const validateHeaterDraft = (
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const rowNo = i + 1;
-        const t = parseEditTime(row.t);
-        if (t == null) return { ok: false, issue: { code: 'time', row: rowNo } };
+        const t = row.trigger === 'bt' && row.referenceT != null ? row.referenceT : parseEditTime(row.t);
+        if (t == null || !Number.isFinite(t) || t < 0) return { ok: false, issue: { code: 'time', row: rowNo } };
         const btDisplay = parseFiniteNumber(row.bt);
-        const bt = btDisplay == null ? Number.NaN : fromDisplayBt(btDisplay, unit);
-        if (btDisplay == null || !Number.isFinite(bt)) return { ok: false, issue: { code: 'bt', row: rowNo } };
+        const bt =
+            row.trigger === 'time' && row.referenceBt != null
+                ? row.referenceBt
+                : btDisplay == null
+                  ? Number.NaN
+                  : fromDisplayBt(btDisplay, unit);
+        if (!Number.isFinite(bt)) return { ok: false, issue: { code: 'bt', row: rowNo } };
         const heater = parseFiniteNumber(row.heater);
         if (heater == null) return { ok: false, issue: { code: 'heat-empty', row: rowNo } };
         if (heater < bounds.min || heater > bounds.max) return { ok: false, issue: { code: 'heat-range', row: rowNo } };
@@ -143,9 +152,16 @@ export const parseHeaterEvents = (raw: unknown): ReplayEvent[] | null => {
 };
 
 /** 프로파일의 저장된 지시를 우선해 차트용 화력 목표 계단선을 만든다. */
-export const profileHeatTarget = (points: ReplayPoint[], dropTime: number | null, profileEvents: unknown) => {
+export const profileHeatTarget = (
+    points: ReplayPoint[],
+    dropTime: number | null,
+    profileEvents: unknown,
+    referenceTpTime?: number | null,
+) => {
     const events =
-        profileEvents == null ? extractReplayEvents(points, dropTime)?.events : parseHeaterEvents(profileEvents);
+        profileEvents == null
+            ? extractReplayEvents(points, dropTime, referenceTpTime)?.events
+            : parseHeaterEvents(profileEvents);
     const end = dropTime ?? points[points.length - 1]?.t;
     const steps = events?.filter((event) => end != null && event.t < end).sort((a, b) => a.t - b.t);
     if (!steps?.length || end == null) return undefined;
@@ -373,6 +389,7 @@ export const normalizeHeaterPlan = (
 export const resolveReplayPlan = ({
     points,
     dropTime,
+    referenceTpTime,
     profileEvents,
     batchEvents,
     heaterMin,
@@ -381,14 +398,15 @@ export const resolveReplayPlan = ({
 }: {
     points: ReplayPoint[] | null | undefined;
     dropTime?: number | null;
+    referenceTpTime?: number | null;
     profileEvents?: unknown;
     batchEvents?: ReplayEvent[] | null;
     heaterMin?: number;
     heaterMax?: number;
     heaterStep?: number;
 }): { plan: ReplayPlan | null; source: ReplayPlanSource | null; overrideInvalid: boolean } => {
-    const extracted = points && points.length > 0 ? extractReplayEvents(points, dropTime) : null;
-    const tpTime = extracted?.tpTime ?? Number.POSITIVE_INFINITY;
+    const tpTime = resolveReferenceTpTime(points ?? [], dropTime, referenceTpTime);
+    const extracted = points && points.length > 0 ? extractReplayEvents(points, dropTime, tpTime) : null;
     const bounds = resolveHeaterBounds({ min: heaterMin, max: heaterMax, step: heaterStep });
 
     const inRangeTsv = extracted?.events.every((e) => heaterFitsBounds(e.heater, bounds)) ? extracted : null;
