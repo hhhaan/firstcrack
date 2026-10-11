@@ -1,17 +1,19 @@
+import { eventTrigger, type ReplayEvent } from './replay';
+
 /** TP 대기 UI — 다음 이벤트가 BT일 때만. TIME은 TP 게이트와 무관하다. */
 export type ReplayTpWaitState = 'waiting' | 'fallback' | 'detected' | null;
 
 export type ReplayTpWaitFacts = {
     active: boolean;
-    nextEvent: { t: number } | null;
-    /** plan.tpTime — judgeReplay와 같이 t ≤ tpTime 은 TIME */
+    nextEvent: ReplayEvent | null;
+    /** plan.tpTime — 명시적 기준이 없는 행의 TP 전후 분류에 사용 */
     tpTime: number | null;
     confirmedTurningPoint: { fallback?: boolean } | null;
 };
 
 /**
  * 다음이 BT이고 실제 TP가 없으면 waiting. fallback은 실감지와 구분한다.
- * TIME(다음 t ≤ tpTime)에는 TP 대기 UI를 쓰지 않는다.
+ * TIME에는 TP 대기 UI를 쓰지 않는다.
  */
 export const resolveReplayTpWait = ({
     active,
@@ -20,7 +22,7 @@ export const resolveReplayTpWait = ({
     confirmedTurningPoint,
 }: ReplayTpWaitFacts): ReplayTpWaitState => {
     if (!active || nextEvent == null || tpTime == null) return null;
-    if (nextEvent.t <= tpTime) return null;
+    if (eventTrigger(nextEvent, tpTime) === 'time') return null;
     if (confirmedTurningPoint == null) return 'waiting';
     if (confirmedTurningPoint.fallback) return 'fallback';
     return 'detected';

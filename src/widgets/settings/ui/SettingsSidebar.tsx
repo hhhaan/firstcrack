@@ -27,7 +27,7 @@ export function SettingsSidebar({
 }: SettingsNavigationProps & {
     query: string;
     onQueryChange: (query: string) => void;
-    activeRoastGroup: RoastSettingsGroup | null;
+    activeRoastGroup: RoastSettingsGroup;
     onRoastGroupChange: (group: RoastSettingsGroup) => void;
 }) {
     const { t } = useTranslation();
@@ -35,12 +35,11 @@ export function SettingsSidebar({
     const [roastNavOpen, setRoastNavOpen] = useState(true);
     const showRoastGroups = activeTab === 'roast' && !query.trim() && roastNavOpen;
     const selectTab = (id: SettingsTabId) => {
-        const onFullRoastPage = id === 'roast' && activeTab === 'roast' && activeRoastGroup === null && !query.trim();
-        if (onFullRoastPage) {
+        const onDefaultRoastPage =
+            id === 'roast' && activeTab === 'roast' && activeRoastGroup === 'general' && !query.trim();
+        if (onDefaultRoastPage) {
             setRoastNavOpen((open) => !open);
-            return;
-        }
-        if (id === 'roast') setRoastNavOpen(true);
+        } else if (id === 'roast') setRoastNavOpen(true);
         onTabChange(id);
     };
     return (
@@ -92,7 +91,7 @@ export function SettingsSidebar({
                                                 type="button"
                                                 onClick={() => selectTab(id)}
                                                 aria-current={
-                                                    activeTab === id && (id !== 'roast' || activeRoastGroup === null)
+                                                    activeTab === id && (id !== 'roast' || !showRoastGroups)
                                                         ? 'page'
                                                         : undefined
                                                 }

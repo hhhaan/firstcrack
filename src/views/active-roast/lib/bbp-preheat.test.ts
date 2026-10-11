@@ -128,7 +128,6 @@ describe('first-batch preheat display', () => {
         over: Partial<Parameters<typeof chartOnlyPreheatDecision>[0]> = {},
     ): Parameters<typeof chartOnlyPreheatDecision>[0] => ({
         visible: true,
-        justShown: false,
         bbp: useBbpStore.getState(),
         bootMs: BOOT,
         mountEpoch: 1,
@@ -139,11 +138,10 @@ describe('first-batch preheat display', () => {
     });
 
     const applyDecision = (decision: ReturnType<typeof chartOnlyPreheatDecision>, now: number) => {
-        if (decision === 'abort') useBbpStore.getState().abort();
         if (decision === 'begin') useBbpStore.getState().begin(now, [], false);
     };
 
-    it('restarts chart-only preheat when the roast view is shown again without unmounting', () => {
+    it.each(['preheating', 'standby'])('keeps collecting chart-only %s across sidebar navigation', (phase) => {
         noteChartOnlyPreheatMount(1);
         const started = BOOT + 5_000;
         useBbpStore.getState().begin(started, [], false);
@@ -153,20 +151,21 @@ describe('first-batch preheat display', () => {
         expect(live.points[live.points.length - 1]?.t).toBeGreaterThan(90);
         // Same mount epoch is what navigation actually is: Active Roast stays mounted.
         expect(shouldStartChartOnlyPreheat(live, BOOT, 1)).toBe(false);
-        expect(chartOnlyPreheatDecision(preheatInput({ justShown: true, bbp: live }))).toBe('begin');
+        expect(chartOnlyPreheatDecision(preheatInput({ phase, bbp: live }))).toBe('keep');
 
-        const hidden = chartOnlyPreheatDecision(preheatInput({ visible: false, bbp: live }));
-        expect(hidden).toBe('abort');
+        const hidden = chartOnlyPreheatDecision(preheatInput({ visible: false, phase, bbp: live }));
+        expect(hidden).toBe('keep');
         applyDecision(hidden, started + 100_000);
-        expect(useBbpStore.getState().active).toBe(false);
+        useBbpStore.getState().append(sample(215), started + 110_000);
 
-        const shown = chartOnlyPreheatDecision(preheatInput({ justShown: true, bbp: useBbpStore.getState() }));
-        expect(shown).toBe('begin');
+        const shown = chartOnlyPreheatDecision(preheatInput({ phase, bbp: useBbpStore.getState() }));
+        expect(shown).toBe('keep');
         applyDecision(shown, started + 120_000);
-        const restarted = useBbpStore.getState();
-        expect(restarted).toMatchObject({ active: true, recording: false, points: [] });
-        expect(restarted.startMs).toBe(started + 120_000);
-        expect(chartOf(restarted.points).bbpRange).toBeUndefined();
+        const continued = useBbpStore.getState();
+        expect(continued).toMatchObject({ active: true, recording: false, startMs: started });
+        expect(continued.points.slice(0, live.points.length)).toEqual(live.points);
+        expect(continued.points).toHaveLength(live.points.length + 1);
+        expect(chartOf(continued.points).bbpRange?.end).toBe(110);
     });
 
     it('full reload restarts a surviving chart-only session on the same mount', () => {
@@ -187,7 +186,6 @@ describe('first-batch preheat display', () => {
         const first = chartOnlyPreheatDecision(
             preheatInput({
                 bbp: live,
-                justShown: false,
                 navigationType: 'reload',
                 reloadConsumed: false,
             }),
@@ -235,7 +233,7 @@ describe('first-batch preheat display', () => {
             expect(live.recording).toBe(true);
             for (const input of [
                 preheatInput({ visible: false, bbp: live, awaitingNextCharge: true }),
-                preheatInput({ justShown: true, bbp: live, awaitingNextCharge: true }),
+                preheatInput({ bbp: live, awaitingNextCharge: true }),
                 preheatInput({ bbp: live, navigationType: 'reload', awaitingNextCharge: true }),
             ]) {
                 expect(chartOnlyPreheatDecision(input)).toBe('keep');

@@ -1,10 +1,12 @@
 // model
 
 export { ALERT_SOUND_KINDS, type AlertSoundKind, isAlertSoundKind, playAlertSound } from './lib/alertSound';
+export { artisanTemperatureUnit, mapArtisanGraphSettings } from './lib/artisan-settings';
 export type { RawTemperatureSample } from './lib/autoCharge';
 export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
 export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';
+export { cropsterTemperatureUnit, mapCropsterGraphSettings } from './lib/cropster-settings';
 export {
     CSS_CURVE_TOKENS,
     CURVE_CHANNELS,
@@ -14,6 +16,7 @@ export {
     type CurveChannel,
     type CurveLineType,
 } from './lib/curve-style';
+export { firescopeTemperatureUnit, mapFirescopeGraphSettings } from './lib/firescope-settings';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
 export type { ObservationQuality, SensorObservation } from './lib/sensorObservation';
@@ -48,6 +51,9 @@ export {
     FONT_SLIDER_MAX,
     FONT_SLIDER_MIN,
     fontScaleToSlider,
+    importArtisanGraphSettings,
+    importCropsterGraphSettings,
+    importFirescopeGraphSettings,
     resetCurveStyles,
     sliderToFontScale,
     TIME_RANGE_MIN_DEFAULT,

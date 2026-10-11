@@ -1,11 +1,27 @@
 import type { NetworkHost, RoasterDef, RoasterFormField, SerialPort } from '@entities/machine';
 import { isRoasterFieldVisible, networkScanProtocol } from '@entities/machine';
+import { cn } from '@shared/lib/cn';
 import { Badge } from '@shared/ui/Badge';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { platform } from '@tauri-apps/plugin-os';
 import { Info, Radio } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from './FormField';
+
+const PRIMARY_ADDRESS_KEYS = new Set([
+    'bt_register',
+    'bt_func',
+    'bt_unit_id',
+    'bt_db',
+    'bt_offset',
+    'bt_type',
+    'et_register',
+    'et_func',
+    'et_unit_id',
+    'et_db',
+    'et_offset',
+    'et_type',
+]);
 
 /** Official Phidget22 runtime — same URLs as docs/machines/phidget.md */
 const PHIDGET22_INSTALL: Record<'windows' | 'macos', string> = {
@@ -54,12 +70,23 @@ export const DriverSettingsSection = ({
     const protocol = selectedDef?.protocol;
     const scanKey = protocol ? networkScanProtocol(protocol) : null;
     const handleScanNetwork = scanKey && onScanNetwork && protocol ? () => onScanNetwork(protocol) : undefined;
+    const renderAddressField = (field: RoasterFormField) => (
+        <FormField
+            key={field.key}
+            field={field}
+            value={params[field.key] ?? ''}
+            onChange={(v) => setParam(field.key, v)}
+            serialPorts={serialPorts}
+            registryDefault=""
+            onRefreshPorts={onRefreshPorts}
+        />
+    );
 
     return (
-        <>
+        <div className={cn('grid gap-4', addressFields.length > 0 && 'md:grid-cols-2')}>
             {/* Driver settings: known model capabilities */}
             {selectedDef && !isCustom && (
-                <div className="bg-surface-warm-solid rounded-[14px] p-3.5 shadow-(--shadow-warm) flex gap-4 flex-wrap">
+                <div className="flex flex-wrap gap-2 md:col-span-full">
                     <div className="flex gap-1.5 flex-wrap">
                         <Badge tone="soft" className="px-2.5 font-semibold">
                             {selectedDef.protocol.toUpperCase()}
@@ -84,11 +111,8 @@ export const DriverSettingsSection = ({
             )}
 
             {/* Driver settings: custom protocol capabilities */}
-            {selectedDef && isCustom && (
-                <div className="bg-surface-warm-solid rounded-[14px] p-3.5 shadow-(--shadow-warm) flex gap-1.5 flex-wrap">
-                    <Badge tone="soft" className="px-2.5 font-semibold">
-                        {selectedDef.protocol.toUpperCase()}
-                    </Badge>
+            {selectedDef && isCustom && selectedDef.capabilities.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap md:col-span-full">
                     {selectedDef.capabilities.map((cap) => (
                         <Badge key={cap} tone="soft" className="px-2.5 font-semibold">
                             {cap}
@@ -99,7 +123,7 @@ export const DriverSettingsSection = ({
 
             {/* Driver settings: phidget notice */}
             {selectedDef?.protocol === 'phidget' && (
-                <div className="flex items-start gap-2.5 bg-[rgba(59,130,246,0.07)] dark:bg-blue-500/10 border border-[rgba(59,130,246,0.15)] dark:border-blue-500/20 rounded-xl px-3.5 py-[11px]">
+                <div className="flex items-start gap-2.5 bg-[rgba(59,130,246,0.07)] dark:bg-blue-500/10 border border-[rgba(59,130,246,0.15)] dark:border-blue-500/20 rounded-xl px-3.5 py-[11px] md:col-span-full">
                     <Info size={14} className="text-blue-500 dark:!text-blue-400 shrink-0 mt-px" />
                     <span className="text-[12px] text-secondary leading-relaxed">
                         {t('addMachine.phidgetDriverNotice')}{' '}
@@ -118,13 +142,19 @@ export const DriverSettingsSection = ({
 
             {/* Driver settings: connection form fields */}
             {selectedDef && selectedDef.form_fields.length > 0 && (
-                <div className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated grid grid-cols-2 gap-4">
-                    <div className="col-span-2 flex items-center gap-2 mb-1">
-                        <Radio size={14} className="text-secondary dark:!text-[#a3a3a3]" />
-                        <span className="text-[13px] font-semibold text-secondary">
+                <section
+                    className="min-w-0 self-start rounded-xl p-4 border border-border bg-surface/40 grid grid-cols-2 gap-3"
+                    aria-labelledby="machine-connection-heading"
+                >
+                    <h3
+                        id="machine-connection-heading"
+                        className="col-span-2 flex items-center gap-2 m-0 pb-3 border-b border-border-subtle"
+                    >
+                        <Radio size={14} className="text-secondary" />
+                        <span className="text-[13px] font-semibold text-primary">
                             {t('addMachine.connectionSettings')}
                         </span>
-                    </div>
+                    </h3>
                     {selectedDef.form_fields
                         .filter((f) => isRoasterFieldVisible(f.key, params.mode))
                         .map((field) => (
@@ -134,7 +164,7 @@ export const DriverSettingsSection = ({
                                 value={params[field.key] ?? ''}
                                 onChange={(v) => setParam(field.key, v)}
                                 serialPorts={serialPorts}
-                                registryDefault={(selectedDef?.default_params[field.key] as string) ?? ''}
+                                registryDefault={(selectedDef.default_params[field.key] as string | undefined) ?? ''}
                                 onRefreshPorts={onRefreshPorts}
                                 networkHosts={networkHosts}
                                 scanningNetwork={scanningNetwork}
@@ -142,36 +172,82 @@ export const DriverSettingsSection = ({
                                 onScanNetwork={handleScanNetwork}
                             />
                         ))}
-                </div>
+                </section>
             )}
 
             {/* Driver settings: address map */}
             {addressFields.length > 0 && (
                 <details
                     open={showAddressMap}
-                    className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated"
+                    className="min-w-0 self-start rounded-xl p-4 border border-border bg-main-bg"
                 >
-                    <summary className="cursor-pointer text-[13px] font-semibold text-secondary">
+                    <summary className="cursor-pointer text-[13px] font-semibold text-primary">
                         {t(showAddressMap ? 'addMachine.addressMap' : 'addMachine.supportedAddressMap')}
                     </summary>
-                    <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-2 gap-3 mt-3">
                         <p className="col-span-2 text-[11px] text-muted leading-relaxed m-0">
                             {t(showAddressMap ? 'addMachine.addressMapHint' : 'addMachine.supportedAddressHint')}
                         </p>
-                        {addressFields.map((field) => (
-                            <FormField
-                                key={field.key}
-                                field={field}
-                                value={params[field.key] ?? ''}
-                                onChange={(v) => setParam(field.key, v)}
-                                serialPorts={serialPorts}
-                                registryDefault=""
-                                onRefreshPorts={onRefreshPorts}
-                            />
-                        ))}
+                        {showAddressMap ? (
+                            <>
+                                {(['bt', 'et'] as const).map((channel) => (
+                                    <fieldset key={channel} className="min-w-0 m-0 p-0 border-0 space-y-3">
+                                        <legend className="mb-3 flex items-center gap-2 text-xs font-semibold text-primary">
+                                            <span
+                                                aria-hidden
+                                                className={cn(
+                                                    'h-1.5 w-1.5 rounded-full',
+                                                    channel === 'bt' ? 'bg-sensor-bt' : 'bg-sensor-et',
+                                                )}
+                                            />
+                                            {channel.toUpperCase()}
+                                            <span className="text-[11px] font-normal text-muted">
+                                                {t(
+                                                    channel === 'bt'
+                                                        ? 'machines.temperature.bean'
+                                                        : 'machines.temperature.environment',
+                                                )}
+                                            </span>
+                                        </legend>
+                                        {addressFields
+                                            .filter(
+                                                (field) =>
+                                                    field.key.startsWith(`${channel}_`) &&
+                                                    PRIMARY_ADDRESS_KEYS.has(field.key),
+                                            )
+                                            .map(renderAddressField)}
+                                    </fieldset>
+                                ))}
+                                <details className="col-span-2 border-t border-border-subtle pt-3">
+                                    <summary className="cursor-pointer text-xs font-medium text-secondary">
+                                        {t('addMachine.advancedSettings')}
+                                    </summary>
+                                    <div className="grid grid-cols-2 gap-3 mt-3">
+                                        {(['bt', 'et'] as const).map((channel) => (
+                                            <div key={channel} className="min-w-0 space-y-3">
+                                                {addressFields
+                                                    .filter(
+                                                        (field) =>
+                                                            field.key.startsWith(`${channel}_`) &&
+                                                            !PRIMARY_ADDRESS_KEYS.has(field.key),
+                                                    )
+                                                    .map(renderAddressField)}
+                                            </div>
+                                        ))}
+                                        {addressFields
+                                            .filter(
+                                                (field) => !field.key.startsWith('bt_') && !field.key.startsWith('et_'),
+                                            )
+                                            .map(renderAddressField)}
+                                    </div>
+                                </details>
+                            </>
+                        ) : (
+                            addressFields.map(renderAddressField)
+                        )}
                     </div>
                 </details>
             )}
-        </>
+        </div>
     );
 };

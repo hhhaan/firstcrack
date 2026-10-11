@@ -10,6 +10,9 @@ export const markEscapeKeyConsumed = (nativeEvent: KeyboardEvent): void => {
 export const isEscapeKeyConsumed = (event: KeyboardEvent): boolean =>
     Boolean(event.defaultPrevented || (event as EscapeMarkedEvent).__fcEscapeConsumed);
 
+export const isBeanComboboxListOpen = (): boolean =>
+    Boolean(document.querySelector('[data-bean-combobox] [role="combobox"][aria-expanded="true"]'));
+
 const isOpenBeanCombobox = (el: Element | null): boolean => {
     if (!el) return false;
     const root = el.closest('[data-bean-combobox]');
@@ -22,6 +25,7 @@ const isOpenBeanCombobox = (el: Element | null): boolean => {
 export const shouldDeferDialogEscape = (event: KeyboardEvent): boolean => {
     if (event.key !== 'Escape' || event.isComposing) return false;
     if (isEscapeKeyConsumed(event)) return true;
+    if (isBeanComboboxListOpen()) return true;
 
     const target = event.target instanceof Element ? event.target : null;
     const active = document.activeElement;

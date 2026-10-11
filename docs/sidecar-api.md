@@ -173,6 +173,8 @@ interface RoasterFormField {
 
 ## Endpoints
 
+로컬 로스팅 설정 가져오기는 Tauri IPC로 실행한다. Python HTTP 엔드포인트는 없다. 명령과 snapshot 계약은 [로컬 설정 가져오기](roasting-settings-import.md)를 참조한다.
+
 ### GET /roasters
 
 지원 로스터 목록과 프로토콜별 연결 폼 필드를 반환한다.
@@ -772,7 +774,7 @@ npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
 ## Known Behavior To Preserve
 
 - Tauri IPC가 아니라 localhost HTTP API를 사용한다.
-- 프론트는 BT/ET 주소값을 직접 알지 않는다.
+- preset 내부 BT/ET 주소맵은 공개하지 않는다. 사용자 정의 연결과 설정 import는 명시적인 주소를 프론트에서 검증·전달한다.
 - 기기별 BT/ET 주소 분기는 `roaster_registry.py`의 `channels`, `modbus_registers`, `channel_nodes`, 또는 Phidget channel 설정으로 처리한다.
 - `/roasters`는 내부 주소맵을 숨기고 폼 입력에 필요한 연결 파라미터만 반환한다.
 - 연결 실패는 HTTP error로 던지지 않고 `SidecarStatus.error`에 담기는 경우가 있다.

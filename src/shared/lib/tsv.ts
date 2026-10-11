@@ -1,7 +1,14 @@
-import type { TemperatureProcessing } from '@shared/types/sidecar';
+import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 import { z } from 'zod';
 
 const processingSchema: z.ZodType<TemperatureProcessing> = z.object({
+    read_units: z
+        .object({
+            heater: z.enum(['%', 'Pa', 'Hz', 'RPM']).optional(),
+            fan: z.enum(['%', 'Pa', 'Hz', 'RPM']).optional(),
+            drum: z.enum(['%', 'Pa', 'Hz', 'RPM']).optional(),
+        })
+        .optional(),
     algorithm_version: z.string().min(1),
     temperature_unit: z.literal('C'),
     ror_unit: z.literal('C/min'),
@@ -13,6 +20,15 @@ const processingSchema: z.ZodType<TemperatureProcessing> = z.object({
     ror_window_sec: z.number().finite().positive(),
     ror_warmup_reads: z.number().int().nonnegative(),
 });
+
+const extraReadingsSchema: z.ZodType<ExtraSensorReading[]> = z.array(
+    z.object({
+        id: z.string(),
+        label: z.string(),
+        unit: z.string(),
+        value: z.number().finite().nullable(),
+    }),
+);
 
 export interface TsvPoint {
     t: number;
@@ -35,6 +51,7 @@ export interface TsvPoint {
     /** Clock/connection segment; timestamps must not be compared across segments. */
     sensorClock?: string | null;
     processing?: TemperatureProcessing;
+    extraReadings?: ExtraSensorReading[];
 }
 
 const optionalCol = (raw: string | undefined): number | null => {
@@ -43,9 +60,19 @@ const optionalCol = (raw: string | undefined): number | null => {
     return Number.isFinite(n) ? n : null;
 };
 
+const extraReadingsCol = (raw: string | undefined): ExtraSensorReading[] | undefined => {
+    if (!raw) return undefined;
+    try {
+        const parsed = extraReadingsSchema.safeParse(JSON.parse(raw));
+        return parsed.success ? parsed.data : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
 // TSV 형식 (useSidecarPolling.ts:21):
-// time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock
-// 8~13열은 선택. '# processing\tJSON' 행은 이후 표본의 계산 설정이다.
+// time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\textra_readings
+// 8열 이후는 선택. '# processing\tJSON' 행은 이후 표본의 계산 설정이다.
 // t는 charge 시점(=0) 기준 post-charge 상대 시간(초).
 export const parseTsv = (text: string): TsvPoint[] => {
     const lines = text.split('\n');
@@ -69,6 +96,7 @@ export const parseTsv = (text: string): TsvPoint[] => {
         const t = parseFloat(cols[0]);
         const bt = parseFloat(cols[1]);
         if (!Number.isFinite(t) || !Number.isFinite(bt)) continue;
+        const extraReadings = extraReadingsCol(cols[13]);
         points.push({
             t,
             bt,
@@ -83,6 +111,7 @@ export const parseTsv = (text: string): TsvPoint[] => {
             rorEt: optionalCol(cols[10]),
             sensorTimestamp: optionalCol(cols[11]),
             sensorClock: /^[a-f0-9]{32}:\d+$/.test(cols[12] ?? '') ? cols[12] : null,
+            ...(extraReadings !== undefined ? { extraReadings } : {}),
             ...(processing ? { processing } : {}),
         });
     }

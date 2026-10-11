@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseTsv } from '@shared/lib/tsv';
 import { describe, expect, it } from 'vitest';
-import { eventTrigger, extractReplayEvents, hasHeatSetRecord, judgeReplay, type ReplayPoint } from './replay';
+import {
+    eventTrigger,
+    extractReplayEvents,
+    hasHeatSetRecord,
+    judgeReplay,
+    type ReplayPoint,
+    resolveReferenceTpTime,
+} from './replay';
 
 /** charge 180° → TP 95°(t=60) → 상승 → drop 205° 형태의 레퍼런스 */
 const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
@@ -15,6 +22,29 @@ const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
     }
     return pts;
 };
+
+describe('reference TP', () => {
+    it('uses stored TP for the time/BT boundary, including the exact TP time', () => {
+        const plan = extractReplayEvents(curve({ 0: 80, 40: 70, 120: 60, 180: 50 }), 600, 120);
+        if (!plan) throw new Error('fixture broken');
+        expect(plan.tpTime).toBe(120);
+        expect(plan.events.map((event) => eventTrigger(event, plan.tpTime))).toEqual(['time', 'time', 'time', 'bt']);
+    });
+
+    it.each([undefined, null, -1, Number.NaN, Number.POSITIVE_INFINITY, 600, 650])(
+        'falls back to the curve when stored TP is missing or invalid: %s',
+        (stored) => expect(resolveReferenceTpTime(curve({ 0: 80 }), 600, stored)).toBe(60),
+    );
+
+    it('resolves TP independently of recorded heater commands', () => {
+        const points = curve({});
+        expect(extractReplayEvents(points, 600, 120)).toBeNull();
+        expect(resolveReferenceTpTime(points, 600, 120)).toBe(120);
+        expect(resolveReferenceTpTime(points, 600)).toBe(60);
+        expect(resolveReferenceTpTime([], 600, 120)).toBe(120);
+        expect(resolveReferenceTpTime([], 600)).toBe(Number.POSITIVE_INFINITY);
+    });
+});
 
 describe('extractReplayEvents', () => {
     it('heater 변화점만 이벤트로 뽑고 첫 값을 초기 이벤트로 포함한다', () => {

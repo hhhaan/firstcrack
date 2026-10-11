@@ -308,6 +308,29 @@ it('routes Escape through bean dropdown, fields, and summary dismiss', () => {
     closeUnmount.unmount();
 });
 
+it('does not cancel drop when Escape closes the list opened via the chevron', () => {
+    const onClose = vi.fn();
+    const onCancelDrop = vi.fn();
+    const { unmount } = renderModal({ onClose, onCancelDrop, canCancelDrop: true });
+    const beanRoot = document.querySelector('[data-testid="roast-summary-bean"]') as HTMLElement;
+    const chevron = beanRoot.querySelector(
+        'button[aria-label="activeRoast.summary.beanComboboxToggle"]',
+    ) as HTMLButtonElement;
+    const beanInput = beanRoot.querySelector('[role="combobox"]') as HTMLInputElement;
+    act(() => {
+        chevron.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    });
+    expect(beanInput.getAttribute('aria-expanded')).toBe('true');
+    act(() => {
+        document.body.focus();
+        document.body.dispatchEvent(escapeKey());
+    });
+    expect(beanInput.getAttribute('aria-expanded')).toBe('false');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onCancelDrop).not.toHaveBeenCalled();
+    unmount();
+});
+
 it('cancels Drop from the header X while the roast can be restored', () => {
     const onClose = vi.fn();
     const onCancelDrop = vi.fn();

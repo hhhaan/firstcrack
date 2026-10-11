@@ -98,6 +98,7 @@ import { useRoastSaveFlow } from './model/useRoastSaveFlow';
 import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
+import { ReadFeedback } from './ui/ReadFeedback';
 import { ReplayProfileChangeModal } from './ui/ReplayProfileChangeModal';
 import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
@@ -277,10 +278,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => sourceEvents.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null,
         [sourceEvents, targetProfile?.duration_sec],
     );
+    const referenceTpTime = useMemo(() => sourceEvents.find((e) => e.type === 'TP')?.time_sec ?? null, [sourceEvents]);
     const heatTarget = useMemo(() => {
         if (!targetProfile) return undefined;
-        return profileHeatTarget(targetCurvePoints, replayDropTime, profileHeaterEvents(targetProfile));
-    }, [targetProfile, targetCurvePoints, replayDropTime]);
+        return profileHeatTarget(
+            targetCurvePoints,
+            replayDropTime,
+            profileHeaterEvents(targetProfile),
+            referenceTpTime,
+        );
+    }, [targetProfile, targetCurvePoints, replayDropTime, referenceTpTime]);
     const referenceFcStartSec = useMemo(
         () => sourceEvents.find((e) => e.type === 'FC Start')?.time_sec ?? null,
         [sourceEvents],
@@ -483,7 +490,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [resetAutoDetection, disableAutoCharge, disableAutoDrop, rearmAutoCharge, triggerCharge]);
 
     const [preheatMountEpoch] = useState(takePreheatMountEpoch);
-    const wasPreheatVisibleRef = useRef(false);
     const reloadRestartedRef = useRef(false);
     const isActiveRef = useRef(isActive);
     useLayoutEffect(() => {
@@ -495,12 +501,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         recoverLiveBbp();
     }, [recoverLiveBbp]);
     useEffect(() => {
-        const justShown = isActive && !wasPreheatVisibleRef.current;
-        wasPreheatVisibleRef.current = isActive;
         const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
         const decision = chartOnlyPreheatDecision({
             visible: isActive,
-            justShown,
             bbp: useBbpStore.getState(),
             bootMs: chartOnlyPreheatBootMs,
             mountEpoch: preheatMountEpoch,
@@ -510,10 +513,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             navigationType: nav?.type,
             reloadConsumed: reloadRestartedRef.current,
         });
-        if (decision === 'abort') {
-            useBbpStore.getState().abort();
-            return;
-        }
         if (decision === 'begin') {
             if (nav?.type === 'reload') reloadRestartedRef.current = true;
             useBbpStore.getState().begin(Date.now(), [], false);
@@ -881,6 +880,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayPoints,
         replayMachineMismatch,
         replayDropTime,
+        referenceTpTime,
         replayHeaterEvents: profileHeaterEvents(targetProfile),
         liveBt: replayBt,
         elapsed,
@@ -949,6 +949,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         showProfileDrum: roastSettings.showProfileDrum,
         showProfileHeat: roastSettings.showProfileHeat,
         showProfileFan: roastSettings.showProfileFan,
+        readUnits: chart.visibleReadUnits,
+        referenceReadUnits: chart.visibleTargetReadUnits,
         controlXs: chart.visibleControlXs,
         drumTemp: chart.visibleDrumTemp,
         heatPower: chart.visibleHeatPower,
@@ -1004,6 +1006,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 autoChargeMessage={t('settings.tabs.roast.autoChargeUnavailable')}
                 autoDropMessage={t('settings.tabs.roast.autoDropUnavailable')}
             />
+
+            <ReadFeedback />
 
             <div
                 className={chartFrame.className}

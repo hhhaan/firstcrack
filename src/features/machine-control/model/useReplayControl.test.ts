@@ -77,6 +77,33 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     };
 };
 
+describe('stored reference TP', () => {
+    it.each([false, true])('stops on a reference boundary change with savedOnly=%s', async (savedOnly) => {
+        const source = savedOnly
+            ? {
+                  referencePoints: [],
+                  profileHeaterEvents: [
+                      { t: 0, bt: 180, heater: 80 },
+                      { t: 120, bt: 110, heater: 60 },
+                      { t: 300, bt: 155, heater: 40 },
+                  ],
+              }
+            : {};
+        const h = await renderReplay({ ...source, referenceTpTime: 120, elapsed: 130, liveBt: 100 });
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenLastCalledWith(60);
+        expect(h.get().nextEventTrigger).toBe('bt');
+        h.writeHeater.mockClear();
+
+        await h.rerender({ ...source, referenceTpTime: 60, elapsed: 130, liveBt: 100 });
+        expect(h.get().active).toBe(false);
+        expect(h.get().stopReason).toBe('profileChanged');
+        expect(h.get().tpTime).toBe(60);
+        expect(h.writeHeater).not.toHaveBeenCalled();
+        h.unmount();
+    });
+});
+
 describe('Replay state restored on Drop cancel', () => {
     it.each([true, false])('restores the prior On/Off state: %s', async (wasActive) => {
         const h = await renderReplay({ dropBehavior: 'zero' });

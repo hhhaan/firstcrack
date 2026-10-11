@@ -1,8 +1,13 @@
 import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
+import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
+import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { useSyncExternalStore } from 'react';
 import { type AlertSoundKind, isAlertSoundKind } from '../lib/alertSound';
+import { mapArtisanGraphSettings } from '../lib/artisan-settings';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
+import { mapCropsterGraphSettings } from '../lib/cropster-settings';
 import {
     type CurveChannel,
     type CurveChannelStyle,
@@ -10,6 +15,7 @@ import {
     DEFAULT_CURVE_STYLES,
     normalizeCurveStyles,
 } from '../lib/curve-style';
+import { mapFirescopeGraphSettings } from '../lib/firescope-settings';
 import { normalizeTemperatureTicks } from '../lib/temperature';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
@@ -102,6 +108,8 @@ export type RoastSettings = {
     tempTicksC: number[];
     tempLabelEvery: number;
     timeTickIntervalSec: number;
+    /** Null keeps the default subdivisions of the major time ticks. */
+    timeMinorTickIntervalSec: number | null;
     /** Live chart time-axis floor, in minutes. The axis grows when the roast or profile is longer. */
     timeRangePresetMin: number;
     timeRangeCustom: boolean;
@@ -223,6 +231,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     tempTicksC: [],
     tempLabelEvery: 5,
     timeTickIntervalSec: 60,
+    timeMinorTickIntervalSec: null,
     timeRangePresetMin: TIME_RANGE_MIN_DEFAULT,
     timeRangeCustom: false,
     timeRangeMin: TIME_RANGE_MIN_DEFAULT,
@@ -369,6 +378,14 @@ export const normalizeRoastSettings = (
             merged.timeTickIntervalSec <= 3600
                 ? merged.timeTickIntervalSec
                 : (previous?.timeTickIntervalSec ?? DEFAULT_SETTINGS.timeTickIntervalSec),
+        timeMinorTickIntervalSec:
+            merged.timeMinorTickIntervalSec === null ||
+            (typeof merged.timeMinorTickIntervalSec === 'number' &&
+                Number.isInteger(merged.timeMinorTickIntervalSec) &&
+                merged.timeMinorTickIntervalSec >= 1 &&
+                merged.timeMinorTickIntervalSec <= 3600)
+                ? merged.timeMinorTickIntervalSec
+                : (previous?.timeMinorTickIntervalSec ?? DEFAULT_SETTINGS.timeMinorTickIntervalSec),
         timeRangePresetMin: pickPreset(
             merged.timeRangePresetMin,
             TIME_RANGE_PRESET_MIN,
@@ -501,7 +518,27 @@ const _hydrate = async () => {
     }
 };
 
-void _hydrate();
+const hydration = _hydrate();
+
+const importGraphSettings = async (mapPatch: (previous: RoastSettings) => Partial<RoastSettings>) => {
+    await hydration;
+    const patch = mapPatch(_settings);
+    if (Object.keys(patch).length === 0) return;
+    const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
+    _userTouched = true;
+    await settingsSet(STORE_KEY, next, { throwOnError: true });
+    _settings = next;
+    _emit();
+};
+
+export const importFirescopeGraphSettings = (source: FirescopeSettingsSnapshot, unit: TemperatureUnit | null) =>
+    importGraphSettings((previous) => mapFirescopeGraphSettings(source, previous, unit).patch);
+
+export const importArtisanGraphSettings = (source: ArtisanSettingsSnapshot) =>
+    importGraphSettings((previous) => mapArtisanGraphSettings(source, previous).patch);
+
+export const importCropsterGraphSettings = (source: CropsterSettingsSnapshot) =>
+    importGraphSettings((previous) => mapCropsterGraphSettings(source, previous).patch);
 
 export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
     _userTouched = true;

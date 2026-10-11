@@ -26,9 +26,14 @@ describe('bbp store', () => {
             sensorTimestamp: 123.456789,
             sensorClock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
             processing,
+            extraReadings: [{ id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: null }],
         };
         const tsv = bbpPointsToTsv([point, { ...point, t: 1, etRaw: -1 }, { ...point, t: 2, etRaw: undefined }]);
         expect(tsv.match(/# processing\t/g)).toHaveLength(1);
+        const noFeedback = bbpPointsToTsv([
+            { ...point, heater: 0, fan: 0, drum: 0, processing: { ...processing, read_units: {} } },
+        ]);
+        expect(parseTsv(noFeedback)[0]).toMatchObject({ heater: null, fan: null, drum: null });
         expect(parseTsv(tsv)).toMatchObject([
             {
                 bt: 200,
@@ -38,6 +43,7 @@ describe('bbp store', () => {
                 sensorTimestamp: 123.456789,
                 sensorClock: point.sensorClock,
                 processing,
+                extraReadings: point.extraReadings,
             },
             { t: 1, etRaw: -1, processing },
             { t: 2, etRaw: null, processing },
@@ -117,9 +123,9 @@ describe('bbp store', () => {
         expect(result?.seconds).toBe(1);
         expect(result?.chargeTemp).toBe(195.4); // 마지막 pre-charge 포인트 BT
         expect(result?.tsv).toBe(
-            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\n' +
-                '1.0\t210\t200\t\t50\t40\t60\t\t\t\t\t\t\n' +
-                '2.0\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\n',
+            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\textra_readings\n' +
+                '1.0\t210\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n' +
+                '2.0\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n',
         );
         const s = useBbpStore.getState();
         expect(s.finalized).toEqual({ sessionId: 's1', seconds: 1, chargeTemp: 195.4 });
@@ -190,10 +196,10 @@ describe('bbp store', () => {
         expect(result?.seconds).toBe(900);
         expect(result?.chargeTemp).toBe(195.4);
         expect(result?.tsv).toBe(
-            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\n' +
-                '0.0\t200\t200\t\t50\t40\t60\t\t\t\t\t\t\n' +
-                '1.0\t199\t200\t\t50\t40\t60\t\t\t\t\t\t\n' +
-                '900.0\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\n',
+            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\textra_readings\n' +
+                '0.0\t200\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n' +
+                '1.0\t199\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n' +
+                '900.0\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n',
         );
         expect(result?.tsv).not.toContain(String(waitSec));
         expect(useBbpStore.getState().finalized).toEqual({

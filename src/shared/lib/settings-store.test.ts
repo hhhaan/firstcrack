@@ -6,12 +6,16 @@ const mockSet = vi.fn(async (key: string, value: unknown) => {
     storeState.set(key, value);
 });
 const mockSave = vi.fn(async () => {});
+const mockDelete = vi.fn(async (key: string) => {
+    storeState.delete(key);
+});
 
 vi.mock('@tauri-apps/plugin-store', () => ({
     LazyStore: class {
         get = mockGet;
         set = mockSet;
         save = mockSave;
+        delete = mockDelete;
     },
 }));
 
@@ -21,6 +25,7 @@ describe('settings-store singleton', () => {
         mockGet.mockClear();
         mockSet.mockClear();
         mockSave.mockClear();
+        mockDelete.mockClear();
         vi.resetModules();
     });
 
@@ -53,5 +58,28 @@ describe('settings-store singleton', () => {
         await settingsFlush();
         expect(mockSave).toHaveBeenCalled();
         vi.useRealTimers();
+    });
+
+    it('strict writes restore cached settings when disk save fails', async () => {
+        const { settingsSet, settingsFlush } = await import('./settings-store');
+        storeState.set('roast.settings', { tempMinC: 130 });
+        mockSave.mockRejectedValueOnce(new Error('disk full'));
+        await expect(settingsSet('roast.settings', { tempMinC: 50 }, { throwOnError: true })).rejects.toThrow(
+            'disk full',
+        );
+        expect(storeState.get('roast.settings')).toEqual({ tempMinC: 130 });
+        await settingsSet('other.setting', true);
+        await settingsFlush();
+        expect(storeState.get('roast.settings')).toEqual({ tempMinC: 130 });
+    });
+
+    it('strict writes remove an uncommitted new key and propagate set failures', async () => {
+        const { settingsSet } = await import('./settings-store');
+        mockSave.mockRejectedValueOnce(new Error('disk full'));
+        await expect(settingsSet('new', true, { throwOnError: true })).rejects.toThrow('disk full');
+        expect(storeState.has('new')).toBe(false);
+        mockSet.mockRejectedValueOnce(new Error('write denied'));
+        await expect(settingsSet('new', true, { throwOnError: true })).rejects.toThrow('write denied');
+        expect(storeState.has('new')).toBe(false);
     });
 });

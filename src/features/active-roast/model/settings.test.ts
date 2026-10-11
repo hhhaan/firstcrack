@@ -1,5 +1,8 @@
 import { FEATURE, planHasFeature } from '@shared/lib/features';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
+import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
+import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../lib/curve-style';
 import {
@@ -19,6 +22,108 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsGet: vi.fn().mockResolvedValue(null),
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
+
+const firescopeSnapshot: FirescopeSettingsSnapshot = {
+    status: 'found',
+    source: { product: 'Firescope', version: null },
+    graphTemperatureUnit: '°C',
+    graph: { yAxisStart: 50, yAxisEnd: 250, btLineColor: '#44a56b' },
+    indicator: null,
+    global: null,
+    machines: [],
+};
+
+const artisanSnapshot: ArtisanSettingsSnapshot = {
+    status: 'found',
+    source: { product: 'Artisan', version: null, sourceId: 'native' },
+    settings: { Mode: 'F', 'Axis/ymin': 122, 'Axis/ymax': 482, Colors: { bt: '#44a56b' } },
+};
+
+const cropsterSnapshot: CropsterSettingsSnapshot = {
+    status: 'found',
+    source: { product: 'Cropster', version: '5.13', sourceId: 'default' },
+    machine: null,
+    preferences: { version: '5.13', temperatureUnit: 'CELSIUS', minTemp: 50, maxTemp: 250, time: 1020 },
+};
+
+it('waits for saved settings before importing and persists the merged result across restart', async () => {
+    vi.resetModules();
+    const stored = normalizeRoastSettings({ btSmoothing: 80 });
+    stored.curveStyles.bt = { ...stored.curveStyles.bt, width: 4, lineType: 'dashed' };
+    let resolveHydration: (value: typeof stored) => void = () => {};
+    vi.mocked(settingsGet).mockReturnValueOnce(
+        new Promise((resolve) => {
+            resolveHydration = resolve;
+        }),
+    );
+    const settings = await import('./settings');
+    const importing = settings.importFirescopeGraphSettings(firescopeSnapshot, 'C');
+    resolveHydration(stored);
+    await importing;
+    expect(settings.getRoastSettings()).toMatchObject({
+        tempMinC: 50,
+        tempMaxC: 250,
+        btSmoothing: 80,
+        curveStyles: { bt: { color: '#44a56b', width: 4, lineType: 'dashed' } },
+    });
+    expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', settings.getRoastSettings(), { throwOnError: true });
+    const persisted = structuredClone(settings.getRoastSettings());
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce(persisted);
+    const restarted = await import('./settings');
+    await Promise.resolve();
+    expect(restarted.getRoastSettings()).toEqual(persisted);
+});
+
+it.each(['Firescope', 'Artisan', 'Cropster'] as const)(
+    'keeps current graph settings when %s import persistence fails',
+    async (product) => {
+        vi.resetModules();
+        vi.mocked(settingsGet).mockResolvedValueOnce({ tempMinC: 130, btSmoothing: 80 });
+        const settings = await import('./settings');
+        await Promise.resolve();
+        const previous = settings.getRoastSettings();
+        vi.mocked(settingsSet).mockRejectedValueOnce(new Error('disk full'));
+        const importing =
+            product === 'Firescope'
+                ? settings.importFirescopeGraphSettings(firescopeSnapshot, 'C')
+                : product === 'Artisan'
+                  ? settings.importArtisanGraphSettings(artisanSnapshot)
+                  : settings.importCropsterGraphSettings(cropsterSnapshot);
+        await expect(importing).rejects.toThrow('disk full');
+        expect(settings.getRoastSettings()).toBe(previous);
+    },
+);
+
+it('persists Artisan graph fields without replacing unrelated settings', async () => {
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce({ btSmoothing: 80 });
+    const settings = await import('./settings');
+    await settings.importArtisanGraphSettings(artisanSnapshot);
+    expect(settings.getRoastSettings()).toMatchObject({
+        temperatureUnit: 'F',
+        tempMinC: 50,
+        tempMaxC: 250,
+        btSmoothing: 80,
+        curveStyles: { bt: { color: '#44a56b' } },
+    });
+    expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', settings.getRoastSettings(), { throwOnError: true });
+});
+
+it('persists Cropster graph fields without replacing unrelated settings', async () => {
+    vi.resetModules();
+    vi.mocked(settingsGet).mockResolvedValueOnce({ btSmoothing: 80 });
+    const settings = await import('./settings');
+    await settings.importCropsterGraphSettings(cropsterSnapshot);
+    expect(settings.getRoastSettings()).toMatchObject({
+        temperatureUnit: 'C',
+        tempMinC: 50,
+        tempMaxC: 250,
+        timeRangeMin: 17,
+        btSmoothing: 80,
+    });
+    expect(settingsSet).toHaveBeenLastCalledWith('roast.settings', settings.getRoastSettings(), { throwOnError: true });
+});
 
 it('restores and bounds display smoothing while preserving the original default', async () => {
     expect(normalizeRoastSettings({}).btSmoothing).toBe(0);

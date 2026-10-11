@@ -1,10 +1,13 @@
 name: CI
 
-# 문서/에이전트 설정만 바뀌면 CI 스킵.
+# 문서/에이전트 설정만 바뀌면 워크플로 전체 스킵.
 # apps/docs/** .md는 빌드 영향 → **.md 말고 루트 *.md만.
 # .gitignore ≠ CI 필터: 이미 추적 중인 docs/plans 등은 ignore여도 push되면 트리거됨.
-# PR과 main push가 같은 품질 job을 돈다. private repo는 branch protection을 쓸 수 없고
-# `pnpm release`가 main에 직접 push한다. 그 SHA의 check-run이 릴리스 게이트다.
+# main push는 품질 job을 전부 돈다. private repo는 branch protection이 없고
+# `pnpm release`가 main SHA의 check-run으로 릴리스를 연다.
+# PR만 clippy / sidecar / edge-check를 변경 경로로 좁힌다 (scripts/ci-changed-areas.mjs).
+# diff를 확신할 수 없거나 changes 잡이 실패하면 그 세 잡은 그대로 돈다.
+# main에서는 changes가 스킵된다. 스킵은 success가 아니라서 세 잡이 돈다.
 on:
   pull_request:
     branches: [main]
@@ -68,7 +71,28 @@ jobs:
             echo "src-tauri unchanged — skip ios-check"
           fi
 
+  # PR-only filter. Skipped (main) or failed → clippy/sidecar/edge-check run. Success with output false → skip.
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      clippy: ${{ steps.detect.outputs.clippy }}
+      sidecar: ${{ steps.detect.outputs.sidecar }}
+      edge: ${{ steps.detect.outputs.edge }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: detect
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.sha }}
+        run: node scripts/ci-changed-areas.mjs
+
   # Same order as verify:core, then lint + secretlint (those two stay out of the test process).
+  # dependency-cruiser and the bundle regression share this install.
   # Job id is the check-run name — keep in sync with scripts/check-release-ci.mjs.
   check:
     runs-on: ubuntu-latest
@@ -108,6 +132,12 @@ jobs:
       - name: Secretlint
         run: pnpm scan:secrets
 
+      - name: dependency-cruiser
+        run: pnpm check:architecture
+
+      - name: Bundle regression
+        run: pnpm check:bundle
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -142,6 +172,8 @@ jobs:
 
   # Host lint. macOS-only cfg (app_nap imp) is not compiled on ubuntu.
   clippy:
+    needs: changes
+    if: "${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.clippy == 'true') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -166,8 +198,36 @@ jobs:
       - name: Clippy
         run: cargo clippy --locked --all-targets -- -D warnings
         working-directory: src-tauri
+      - name: Native unit tests
+        run: cargo test --locked --lib
+        working-directory: src-tauri
+
+  native-tests:
+    needs: changes
+    if: "${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.clippy == 'true') }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      TAURI_CONFIG: '{"bundle":{"externalBin":[]}}'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
+        with:
+          toolchain: stable
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+      - name: Native unit tests
+        run: cargo test --locked --lib
+        working-directory: src-tauri
 
   sidecar:
+    needs: changes
+    if: "${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.sidecar == 'true') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -191,6 +251,8 @@ jobs:
   # --node-modules-dir=none: root package.json would otherwise make deno resolve npm: specifiers
   # from node_modules (byonm), which is not how the edge runtime resolves them.
   edge-check:
+    needs: changes
+    if: "${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.edge == 'true') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -265,27 +327,3 @@ jobs:
 
       - name: zizmor
         run: node scripts/check-zizmor.mjs
-
-  # FSD direction + circular imports. Warnings are existing active-roast cycles.
-  architecture:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
-      - name: dependency-cruiser
-        run: pnpm check:architecture
-
-  # vite build of the frontend Tauri ships. Dummy public env, no secrets.
-  bundle:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
-      - name: Bundle regression
-        run: pnpm check:bundle

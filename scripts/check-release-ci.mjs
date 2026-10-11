@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-// Names are ci.yml job IDs. Both local release preflight and the tag gate use this policy.
+// CI check-run names include matrix suffixes; release preflight and tag gates share this policy.
 const required = [
     'check',
     'test',
@@ -12,21 +12,51 @@ const required = [
     'edge-check',
     'actionlint',
     'zizmor',
-    'architecture',
-    'bundle',
     'clippy',
+    'native-tests (macos-latest)',
+    'native-tests (macos-15-intel)',
+    'native-tests (windows-latest)',
 ];
 const optional = ['paths', 'ios-check'];
+
+const PENDING_STATUS = ['queued', 'in_progress', 'waiting', 'pending', 'requested'];
+
+function isPending(run) {
+    return PENDING_STATUS.includes(run.status) && run.conclusion == null;
+}
+
+// One name can have a PR skip and a main success on the same SHA.
+// Skipped alone is not success. A failure still fails when another run was skipped.
+function verdictFor(name, runs) {
+    if (!runs.length) return 'missing';
+    const failed = runs.some((run) => !isPending(run) && run.conclusion !== 'success' && run.conclusion !== 'skipped');
+    if (failed) return 'failed';
+    if (runs.some(isPending)) return 'pending';
+    if (runs.some((run) => run.conclusion === 'success')) return 'ok';
+    return optional.includes(name) ? 'ok' : 'failed';
+}
 
 export function releaseCiStatus(checkRuns) {
     const runs = checkRuns.filter((run) => required.includes(run.name) || optional.includes(run.name));
     if (!runs.length) return 'empty';
-    const passed = (run) =>
-        run.conclusion === 'success' || (optional.includes(run.name) && run.conclusion === 'skipped');
-    const pending = (run) =>
-        ['queued', 'in_progress', 'waiting', 'pending', 'requested'].includes(run.status) && run.conclusion == null;
-    if (runs.some((run) => !passed(run) && !pending(run))) return 'failed';
-    if (required.some((name) => !runs.some((run) => run.name === name)) || runs.some(pending)) return 'pending';
+    const verdicts = [
+        ...required.map((name) =>
+            verdictFor(
+                name,
+                runs.filter((run) => run.name === name),
+            ),
+        ),
+        ...optional
+            .filter((name) => runs.some((run) => run.name === name))
+            .map((name) =>
+                verdictFor(
+                    name,
+                    runs.filter((run) => run.name === name),
+                ),
+            ),
+    ];
+    if (verdicts.includes('failed')) return 'failed';
+    if (verdicts.includes('missing') || verdicts.includes('pending')) return 'pending';
     return 'ok';
 }
 

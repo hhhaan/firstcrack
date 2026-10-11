@@ -1,4 +1,5 @@
 import asyncio
+import math
 import struct
 import time
 import logging
@@ -67,6 +68,7 @@ class ModbusAdapter:
         stopbits: float = 1,
         interval: float = 1.0,
         word_order: str = "little",
+        byte_order: str = "big",
         modbus_registers: dict[str, Any] | None = None,
         **_: Any,
     ) -> None:
@@ -79,8 +81,11 @@ class ModbusAdapter:
         self._parity = parity
         self._stopbits = int(stopbits)
         self._interval = interval
-        self._word_order = word_order.lower()  # "little" | "big"
+        self._word_order = word_order.lower() if isinstance(word_order, str) else ""
+        self._byte_order = byte_order.lower() if isinstance(byte_order, str) else ""
         self._regs: dict[str, Any] = modbus_registers or {}
+        self._validate_registers()
+        self._extra_cursor = 0
         self._client: Any = None
         # Artisan 기본값: TCP readRetries=0, serial_readRetries=1.
         # 우리도 동일하게 모드별 차등 — 500ms 폴링 사이클 안에 들어오도록.
@@ -91,6 +96,43 @@ class ModbusAdapter:
         # tcp/udp도 1회 재시도: Wi-Fi 브리지 등에서 250ms 스파이크 한 번에 read가
         # 실패하지 않도록. worst-case 5레지스터 × 2회 × 0.25s = 2.5s < READ_TIMEOUT 3s.
         self._read_retries: int = 1
+
+    def _validate_registers(self) -> None:
+        if self._word_order not in {"big", "little"} or self._byte_order not in {"big", "little"}:
+            raise ValueError("word_order and byte_order must be 'big' or 'little'")
+        if sum(channel is not None for channel in self._regs.values()) > 128:
+            raise ValueError("modbus_registers supports at most 128 channels")
+        for role, channel in self._regs.items():
+            if not isinstance(role, str) or not role or len(role) > 64:
+                raise ValueError("modbus channel id must be a non-empty string up to 64 characters")
+            if channel is None:
+                continue
+            if not isinstance(channel, dict):
+                raise ValueError(f"modbus channel {role} must be an object")
+            for field, low, high in (("register", 0, 65535), ("func", 1, 4), ("unit_id", 0, 247), ("div", 0, 9)):
+                value = channel.get(field, 0 if field == "div" else None)
+                if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+                    raise ValueError(f"modbus channel {role}.{field} must be an integer from {low} to {high}")
+            for field in ("word_order", "byte_order"):
+                if field in channel and channel[field] not in {"big", "little"}:
+                    raise ValueError(f"modbus channel {role}.{field} must be 'big' or 'little'")
+            if "preserve_precision" in channel and not isinstance(
+                channel["preserve_precision"], bool
+            ):
+                raise ValueError(f"modbus channel {role}.preserve_precision must be boolean")
+            if (channel.get("float") or channel.get("bcd")) and channel["register"] == 65535:
+                raise ValueError(f"modbus channel {role}.register cannot fit two registers")
+            compensation = channel.get("compensation", 0)
+            if (
+                isinstance(compensation, bool)
+                or not isinstance(compensation, (int, float))
+                or not math.isfinite(compensation)
+                or not -1_000_000 <= compensation <= 1_000_000
+            ):
+                raise ValueError(f"modbus channel {role}.compensation must be finite")
+            for field in ("label", "unit"):
+                if field in channel and (not isinstance(channel[field], str) or len(channel[field]) > 1024):
+                    raise ValueError(f"modbus channel {role}.{field} must be a string up to 1024 characters")
 
     async def connect(self) -> None:
         from pymodbus.client import (  # type: ignore[import]
@@ -175,7 +217,9 @@ class ModbusAdapter:
             except Exception as exc:
                 _log.warning("MODBUS close 실패/타임아웃 (무시): %s", exc)
 
-    async def _read_channel(self, cfg: dict[str, Any]) -> float:
+    async def _read_channel(
+        self, cfg: dict[str, Any], *, preserve_precision: bool = False
+    ) -> float:
         """단일 채널(BT 또는 ET) 읽기. retry 포함."""
         register: int = cfg["register"]
         func: int = cfg["func"]
@@ -183,6 +227,9 @@ class ModbusAdapter:
         is_float: bool = cfg.get("float", False)
         div: int = cfg.get("div", 0)
         temp_mode: str = cfg.get("mode", "C")
+        word_order: str = cfg.get("word_order", self._word_order)
+        byte_order: str = cfg.get("byte_order", self._byte_order)
+        compensation: float = cfg.get("compensation", 0)
         is_signed: bool = cfg.get("signed", False)
         # func=1/2(bit): count=1, func=3/4: float/bcd(32bit)→2, bcd16/int→1
         is_bcd32 = cfg.get("bcd", False)
@@ -231,14 +278,16 @@ class ModbusAdapter:
                 if func in (1, 2):
                     TRACE.record("rx", "modbus", f"register={register} bits", list(result.bits[:count]))
                     _log.debug("READ OK: bits=%s", result.bits)
-                    return float(result.bits[0]) if result.bits else 0.0
+                    if not result.bits:
+                        raise IOError(f"MODBUS empty bit response at register {register}")
+                    value = float(result.bits[0])
+                else:
+                    TRACE.record("rx", "modbus", f"register={register} raw", list(result.registers))
+                    _log.debug("READ OK: registers=%s", result.registers)
 
-                TRACE.record("rx", "modbus", f"register={register} raw", list(result.registers))
-                _log.debug("READ OK: registers=%s", result.registers)
-
-                if is_float:
+                if func not in (1, 2) and is_float:
                     # word_order="little": [low_word, high_word] → 스왑 후 big-endian unpack
-                    if self._word_order == "little":
+                    if word_order == "little":
                         raw = struct.pack(
                             ">HH", result.registers[1], result.registers[0]
                         )
@@ -246,11 +295,11 @@ class ModbusAdapter:
                         raw = struct.pack(
                             ">HH", result.registers[0], result.registers[1]
                         )
-                    value = struct.unpack(">f", raw)[0]
-                else:
+                    value = struct.unpack("<f" if byte_order == "little" else ">f", raw)[0]
+                elif func not in (1, 2):
                     if is_bcd32:
                         # 32-bit BCD: 2 registers (Artisan inputBCDs, Loring temp channels)
-                        if self._word_order == "little":
+                        if word_order == "little":
                             raw32 = (result.registers[1] << 16) | result.registers[0]
                         else:
                             raw32 = (result.registers[0] << 16) | result.registers[1]
@@ -265,20 +314,22 @@ class ModbusAdapter:
 
                     value = float(raw_int)
 
-                    if div == 1:
-                        value /= 10.0
-                    elif div == 2:
-                        value /= 100.0
+                value /= 10.0 ** div
 
                 if temp_mode == "F":
                     value = (value - 32.0) * 5.0 / 9.0
+                value += compensation
+                if not math.isfinite(value):
+                    raise ValueError("decoded MODBUS value is not finite")
 
-                value = round(value, 1)
+                preserve_precision = preserve_precision or cfg.get("preserve_precision", False)
+                if not preserve_precision and cfg.get("unit") not in ("%", "Pa", "Hz", "RPM"):
+                    value = round(value, 1)
                 TRACE.record(
                     "info", "modbus",
                     f"decoded register={register} float={is_float} bcd32={is_bcd32} "
                     f"bcd16={is_bcd16} signed={is_signed} div={div} mode={temp_mode} "
-                    f"word_order={self._word_order}",
+                    f"word_order={word_order} byte_order={byte_order}",
                     value,
                 )
                 return value
@@ -304,6 +355,7 @@ class ModbusAdapter:
         heater_cfg = self._regs.get("heater")
         fan_cfg = self._regs.get("fan")
         drum_cfg = self._regs.get("drum")
+        deadline = time.monotonic() + config.READ_TIMEOUT * 0.95
 
         bt = await self._read_channel(bt_cfg) if bt_cfg else -1.0
         et = await self._read_channel(et_cfg) if et_cfg else -1.0
@@ -311,8 +363,46 @@ class ModbusAdapter:
         fan = await self._read_channel(fan_cfg) if fan_cfg else 0.0
         drum = await self._read_channel(drum_cfg) if drum_cfg else 0.0
 
+        extras = [
+            (role, cfg)
+            for role, cfg in self._regs.items()
+            if role not in {"BT", "ET", "heater", "fan", "drum"} and cfg
+        ]
+        values: dict[str, float | None] = {}
+        start = self._extra_cursor % len(extras) if extras else 0
+        if extras:
+            self._extra_cursor = (start + 1) % len(extras)
+        for role, cfg in [*extras[start:], *extras[:start]]:
+            value: float | None = None
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                try:
+                    value = await asyncio.wait_for(
+                        self._read_channel(cfg, preserve_precision=True), remaining
+                    )
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    _log.warning("Optional MODBUS channel %s unavailable: %s", role, exc)
+            values[role] = value
+        extra_readings = [
+            {
+                "id": role,
+                "label": cfg.get("label") or role,
+                "unit": cfg.get("unit", ""),
+                "value": values.get(role),
+            }
+            for role, cfg in extras
+        ]
+
         return Reading(
-            bt=bt, et=et, heater=heater, fan=fan, drum=drum, timestamp=time.monotonic()
+            bt=bt,
+            et=et,
+            heater=heater,
+            fan=fan,
+            drum=drum,
+            timestamp=time.monotonic(),
+            extra_readings=extra_readings,
         )
 
     async def control(

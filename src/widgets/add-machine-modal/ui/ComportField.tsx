@@ -4,12 +4,14 @@ import { RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export const ComportField = ({
+    id,
     value,
     onChange,
     ports,
     registryDefault,
     onRefresh,
 }: {
+    id?: string;
     value: string;
     onChange: (v: string) => void;
     ports: SerialPort[];
@@ -24,6 +26,7 @@ export const ComportField = ({
     return (
         <div className="flex items-center gap-2">
             <input
+                id={id}
                 className={inputCls}
                 type="text"
                 list={listId}

@@ -33,6 +33,8 @@ export interface RoasterDef {
 
 export type RoastersResponse = Record<string, RoasterDef>;
 
+export type ReadUnits = Partial<Record<'heater' | 'fan' | 'drum', '%' | 'Pa' | 'Hz' | 'RPM'>>;
+
 // GET /status 응답
 /** 실제로 쓸 수 있는 채널의 클램프 범위. 사이드카 write_map에서 온다. */
 export interface ControlLimit {
@@ -76,6 +78,7 @@ export interface PidRuntime {
 }
 
 export interface SidecarStatus {
+    read_units?: ReadUnits;
     connected: boolean;
     reconnecting?: boolean;
     reconnect_attempt?: number;
@@ -90,6 +93,8 @@ export interface SidecarStatus {
 
 // GET /temperatures 응답
 export interface TemperatureProcessing {
+    /** Physical feedback units, independent of command limits. */
+    read_units?: ReadUnits;
     algorithm_version: string;
     temperature_unit: 'C';
     ror_unit: 'C/min';
@@ -104,6 +109,13 @@ export interface TemperatureProcessing {
     ror_warmup_reads: number;
 }
 
+export interface ExtraSensorReading {
+    id: string;
+    label: string;
+    unit: string;
+    value: number | null;
+}
+
 export interface TemperatureReading {
     bt: number | null;
     /** Unsmoothed sensor BT for Charge detection; absent on older sidecars. */
@@ -116,6 +128,8 @@ export interface TemperatureReading {
     heater: number | null;
     fan: number;
     drum: number;
+    /** Read-only telemetry channels reported by the connected machine. */
+    extra_readings?: ExtraSensorReading[];
     /** 사이드카가 이 연결에서 마지막으로 쓴 heater 세트포인트(수동·Replay·PID). 쓰기 전·쓰기 맵 없음·해제 후 null */
     heater_set?: number | null;
     timestamp: number;

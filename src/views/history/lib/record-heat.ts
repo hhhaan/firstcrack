@@ -5,6 +5,7 @@ import {
     extractReplayEvents,
     type ReplayEvent,
     type ReplayPoint,
+    resolveReferenceTpTime,
 } from '@features/machine-control/lib/replay';
 
 type SessionHeat = { events: unknown; heater_events: unknown; duration_seconds: number | null };
@@ -29,14 +30,17 @@ export const sessionHeatPlan = (
     session: SessionHeat,
     points: ReplayPoint[],
 ): { events: ReplayEvent[]; recorded: ReplayEvent[]; tpTime: number; source: ReplayPlanSource | null } => {
-    const extracted = points.length > 0 ? extractReplayEvents(points, sessionDropTime(session)) : null;
+    const dropTime = sessionDropTime(session);
+    const referenceTpTime = parseStoredRoastEvents(session.events).find((e) => e.type === 'TP')?.time_sec;
+    const tpTime = resolveReferenceTpTime(points, dropTime, referenceTpTime);
+    const extracted = points.length > 0 ? extractReplayEvents(points, dropTime, tpTime) : null;
     const stored = session.heater_events == null ? null : parseHeaterEvents(session.heater_events);
     const storedInvalid = session.heater_events != null && stored == null;
     const recorded = extracted?.events ?? [];
     return {
         events: storedInvalid ? [] : (stored ?? recorded),
         recorded,
-        tpTime: extracted?.tpTime ?? Number.POSITIVE_INFINITY,
+        tpTime,
         source: stored || storedInvalid ? 'session' : extracted ? 'tsv' : null,
     };
 };

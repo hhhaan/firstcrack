@@ -205,6 +205,8 @@ export const useSidecarPolling = ({
                               heater: sample?.heater ?? null,
                               fan: sample?.fan ?? 0,
                               drum: sample?.drum ?? 0,
+                              extraReadings:
+                                  lastPoint?.extraReadings ?? useRoastingStore.getState().liveData?.extra_readings,
                               heaterSet: lastPoint?.heaterSet ?? null,
                               etRaw,
                               btRaw,
@@ -417,6 +419,7 @@ export const useSidecarPolling = ({
                             heater: data.heater ?? null,
                             fan: data.fan ?? 0,
                             drum: data.drum ?? 0,
+                            extraReadings: data.extra_readings,
                         },
                         Date.now(),
                     );
@@ -452,6 +455,7 @@ export const useSidecarPolling = ({
                         heater: data.heater ?? null,
                         fan: data.fan ?? 0,
                         drum: data.drum ?? 0,
+                        extraReadings: data.extra_readings,
                         heaterSet: data.heater_set ?? null,
                         etRaw: finiteRawTemperature(data.et_raw),
                         btRaw: finiteRawTemperature(data.bt_raw),
@@ -489,6 +493,7 @@ export const useSidecarPolling = ({
                             heater: data.heater ?? null,
                             fan: data.fan ?? 0,
                             drum: data.drum ?? 0,
+                            extraReadings: data.extra_readings,
                             heaterSet: data.heater_set ?? null,
                             etRaw: finiteRawTemperature(data.et_raw),
                             btRaw: finiteRawTemperature(data.bt_raw),

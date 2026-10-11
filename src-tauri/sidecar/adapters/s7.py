@@ -79,6 +79,7 @@ class S7Adapter:
         self._rack = rack
         self._slot = slot
         self._channels = channels or []
+        self._validate_channels()
         self._write_map = write_map or {}
         self._plc: Any = None
         # snap7 클라이언트는 스레드 세이프하지 않다. read()의 asyncio.wait_for 타임아웃은
@@ -98,6 +99,56 @@ class S7Adapter:
         self._hp_ch: dict[str, Any] | None = None
         self._fc_ch: dict[str, Any] | None = None
         self._drum_ch: dict[str, Any] | None = None
+        self._extra_channels = [
+            channel
+            for channel in self._channels
+            if channel.get("role") not in {"BT", "ET", "heater", "fan", "drum"}
+        ]
+        self._extra_cursor = 0
+
+    def _validate_channels(self) -> None:
+        if len(self._channels) > 128:
+            raise ValueError("S7 channels supports at most 128 channels")
+        roles: set[str] = set()
+        for channel in self._channels:
+            if not isinstance(channel, dict):
+                raise ValueError("S7 channel must be an object")
+            role = channel.get("role")
+            if not isinstance(role, str) or not role or len(role) > 64 or role in roles:
+                raise ValueError("S7 channel role must be unique and up to 64 characters")
+            roles.add(role)
+            for field, low, high in (
+                ("db", 0, 65535),
+                ("offset", 0, 2147483647),
+                ("type", 0, 1),
+                ("div", 0, 9),
+            ):
+                value = channel.get(field, 0 if field in {"type", "div"} else None)
+                if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+                    raise ValueError(
+                        f"S7 channel {role}.{field} must be an integer from {low} to {high}"
+                    )
+            compensation = channel.get("compensation", 0)
+            if (
+                isinstance(compensation, bool)
+                or not isinstance(compensation, (int, float))
+                or not math.isfinite(compensation)
+                or not -1_000_000 <= compensation <= 1_000_000
+            ):
+                raise ValueError(f"S7 channel {role}.compensation must be finite")
+            if "preserve_precision" in channel and not isinstance(
+                channel["preserve_precision"], bool
+            ):
+                raise ValueError(f"S7 channel {role}.preserve_precision must be boolean")
+            if channel.get("type", 0) == 1 and channel["offset"] > 2147483643:
+                raise ValueError(f"S7 channel {role}.offset cannot fit a REAL value")
+            for field in ("label", "unit"):
+                if field in channel and (
+                    not isinstance(channel[field], str) or len(channel[field]) > 1024
+                ):
+                    raise ValueError(
+                        f"S7 channel {role}.{field} must be a string up to 1024 characters"
+                    )
 
     async def connect(self) -> None:
         import snap7  # type: ignore[import]
@@ -200,7 +251,12 @@ class S7Adapter:
         return self._min_interval + config.S7_RECV_TIMEOUT_MS / 1000.0
 
     def _read_channel_sync(
-        self, ch: dict[str, Any], plc: Any, deadline: float | None = None
+        self,
+        ch: dict[str, Any],
+        plc: Any,
+        deadline: float | None = None,
+        *,
+        preserve_precision: bool = False,
     ) -> float:
         """스레드에서 실행. snap7 db_read → float 변환. retry 포함.
 
@@ -216,6 +272,8 @@ class S7Adapter:
         offset: int = ch["offset"]
         ch_type: int = ch.get("type", 0)  # 0=int(2B), 1=float(4B)
         div: int = ch.get("div", 0)
+        temp_mode: str = ch.get("mode", "C")
+        compensation: float = ch.get("compensation", 0)
         size = 4 if ch_type == 1 else 2
 
         last_exc: Exception = RuntimeError("S7 읽기 실패")
@@ -238,14 +296,19 @@ class S7Adapter:
                 if len(ba) != size:
                     raise IOError(f"db_read 응답 크기 불일치: {len(ba)} != {size}")
                 value = float(get_real(ba, 0) if ch_type == 1 else get_int(ba, 0))
-                if div == 1:
-                    value /= 10.0
-                elif div == 2:
-                    value /= 100.0
-                value = round(value, 1)
+                value /= 10.0 ** div
+                if temp_mode == "F":
+                    value = (value - 32.0) * 5.0 / 9.0
+                value += compensation
+                if not math.isfinite(value):
+                    raise ValueError("decoded S7 value is not finite")
+                preserve_precision = preserve_precision or ch.get("preserve_precision", False)
+                if not preserve_precision and ch.get("unit") not in ("%", "Pa", "Hz", "RPM"):
+                    value = round(value, 1)
                 TRACE.record(
                     "info", "s7",
-                    f"decoded role={role} type={'REAL' if ch_type == 1 else 'INT'} div={div}",
+                    f"decoded role={role} type={'REAL' if ch_type == 1 else 'INT'} "
+                    f"div={div} mode={temp_mode}",
                     value,
                 )
                 return value
@@ -266,7 +329,14 @@ class S7Adapter:
         # "executor 스레드가 manager의 wait_for 만료 전에 락을 놓는다"가 성립한다.
         deadline = time.monotonic() + config.S7_READ_BUDGET_S
 
-        def _read_all() -> tuple[float, float, float | None, float, float]:
+        def _read_all() -> tuple[
+            float,
+            float,
+            float | None,
+            float,
+            float,
+            list[dict[str, str | float | None]],
+        ]:
             if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 획득 실패 — 이전 요청이 아직 진행 중입니다.")
             try:
@@ -283,13 +353,53 @@ class S7Adapter:
                 hp = self._read_channel_sync(self._hp_ch, plc, deadline) if self._hp_ch else None
                 fc = self._read_channel_sync(self._fc_ch, plc, deadline) if self._fc_ch else 0.0
                 drum = self._read_channel_sync(self._drum_ch, plc, deadline) if self._drum_ch else 0.0
-                return bt, et, hp, fc, drum
+                values: dict[str, float | None] = {}
+                start = (
+                    self._extra_cursor % len(self._extra_channels)
+                    if self._extra_channels
+                    else 0
+                )
+                if self._extra_channels:
+                    self._extra_cursor = (start + 1) % len(self._extra_channels)
+                for channel in [
+                    *self._extra_channels[start:],
+                    *self._extra_channels[:start],
+                ]:
+                    if time.monotonic() + self._attempt_cost() > deadline:
+                        break
+                    role = channel["role"]
+                    try:
+                        value = self._read_channel_sync(
+                            channel, plc, deadline, preserve_precision=True
+                        )
+                    except Exception as exc:
+                        value = None
+                        _log.warning("Optional S7 channel %s unavailable: %s", role, exc)
+                    values[role] = value
+                extra_readings = [
+                    {
+                        "id": channel["role"],
+                        "label": channel.get("label") or channel["role"],
+                        "unit": channel.get("unit", ""),
+                        "value": values.get(channel["role"]),
+                    }
+                    for channel in self._extra_channels
+                ]
+                return bt, et, hp, fc, drum, extra_readings
             finally:
                 self._io_lock.release()
 
         loop = asyncio.get_running_loop()
-        bt, et, hp, fc, drum = await loop.run_in_executor(None, _read_all)
-        return Reading(bt=bt, et=et, heater=hp, fan=fc, drum=drum, timestamp=time.monotonic())
+        bt, et, hp, fc, drum, extra_readings = await loop.run_in_executor(None, _read_all)
+        return Reading(
+            bt=bt,
+            et=et,
+            heater=hp,
+            fan=fc,
+            drum=drum,
+            timestamp=time.monotonic(),
+            extra_readings=extra_readings,
+        )
 
     async def read_raw_channel(self, role: str) -> float | None:
         """읽기 채널 하나만 조회. heater 피드백(Giesen DB2.48)처럼 Reading에 담기지 않는

@@ -1,14 +1,28 @@
 /**
  * Injected before app loads — stubs Tauri plugins so the real Vite entry works in Chromium.
  */
+import type { Page } from '@playwright/test';
+
 export const tauriInitScript = `
 (() => {
+  window.isTauri = true;
+  window.__TAURI_OS_PLUGIN_INTERNALS__ = {
+    platform: 'macos',
+    family: 'unix',
+    os_type: 'macos',
+    arch: 'aarch64',
+    version: '15.0.0',
+    eol: '\\n',
+    exe_extension: '',
+  };
   window.__TAURI_INTERNALS__ = {
     metadata: {
       currentWindow: { label: 'main' },
       currentWebview: { windowLabel: 'main', label: 'main' },
     },
     invoke: async function (cmd, args) {
+      const mock = window['__e2e_' + cmd];
+      if (typeof mock === 'function') return mock();
       if (cmd === 'plugin:dialog|message') {
         var buttons = args && args.buttons;
         if (typeof buttons === 'string') {
@@ -22,6 +36,9 @@ export const tauriInitScript = `
           if (buttons.YesNoCancelCustom) return buttons.YesNoCancelCustom[0];
         }
         return 'Ok';
+      }
+      if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') {
+        return true;
       }
       if (cmd === 'plugin:store|get' || cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
       if (cmd === 'plugin:os|locale') return 'en-US';
@@ -49,3 +66,6 @@ export const tauriInitScript = `
   } catch (e) {}
 })();
 `;
+
+export const mockTauriCommand = (page: Page, command: string, handler: () => unknown | Promise<unknown>) =>
+    page.exposeFunction(`__e2e_${command}`, handler);

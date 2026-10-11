@@ -169,6 +169,7 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
             targetRor: [toDisplayRoR(4, 'F'), null],
             controlData: expect.objectContaining({
                 reference: {
+                    readUnits: [undefined, undefined],
                     xs: [0, 30],
                     heater: [7, null],
                     fan: [0, null],

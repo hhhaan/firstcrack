@@ -30,7 +30,7 @@ export const ConfirmStepFooter = ({
     const { t } = useTranslation();
 
     return (
-        <div className="border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23]">
+        <div className="shrink-0 border-t border-border-subtle bg-main-bg">
             {/* Confirm step: connection test status */}
             {testState !== 'idle' && (
                 <div
@@ -53,7 +53,7 @@ export const ConfirmStepFooter = ({
             )}
 
             {/* Confirm step: actions */}
-            <div className="flex justify-between items-center gap-2.5 px-7 pt-3.5 pb-5.5">
+            <div className="flex flex-wrap justify-between items-center gap-2.5 px-6 py-4">
                 <button
                     type="button"
                     onClick={onTest}
@@ -69,7 +69,7 @@ export const ConfirmStepFooter = ({
                     {t('addMachine.testConnection')}
                 </button>
 
-                <div className="flex gap-2.5 items-center">
+                <div className="flex flex-wrap gap-2.5 items-center">
                     <button type="button" onClick={onClose} className={secondaryBtnCls}>
                         {t('common.cancel')}
                     </button>

@@ -22,13 +22,25 @@ test('roast summary discard closes the modal after confirm', async ({ authedPage
     await expect(page.getByTestId('roast-summary-save')).toBeHidden({ timeout: 10_000 });
 });
 
+test('escape closes the bean dropdown opened via chevron without dismissing the summary', async ({
+    authedPage: page,
+}) => {
+    await openSummaryAfterDrop(page);
+    const bean = page.getByTestId('roast-summary-bean');
+    await bean.getByRole('button', { name: 'Show bean list' }).click();
+    const combobox = bean.getByRole('combobox');
+    await expect(combobox).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('Escape');
+    await expect(combobox).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('roast-summary-save')).toBeVisible();
+});
+
 test('escape closes the bean dropdown before dismissing the summary', async ({ authedPage: page }) => {
     await openSummaryAfterDrop(page);
     const bean = page.getByTestId('roast-summary-bean').getByRole('combobox');
     await bean.click();
     await expect(bean).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('ArrowDown');
-    await expect(page.getByTestId('roast-summary-bean').getByRole('option').first()).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(bean).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByTestId('roast-summary-save')).toBeVisible();

@@ -15,6 +15,8 @@ export const modalPanel = {
     formMd: `max-w-[600px] max-h-[min(840px,calc(100vh-64px))] ${formChrome}`,
     /** Large forms (~640–680px): bean, profile, machine */
     formLg: `max-w-[680px] max-h-[min(860px,calc(100vh-56px))] ${formChrome}`,
+    /** Connection and sensor settings side by side. */
+    formXl: `max-w-[880px] max-h-[min(860px,calc(100vh-56px))] ${formChrome}`,
     /** Multi-session / multi-profile compare workspace */
     compare: `max-w-[1120px] h-[min(900px,calc(100vh-40px))] ${formChrome}`,
     /** Workspace settings (sidebar layout) */

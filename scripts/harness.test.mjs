@@ -170,15 +170,23 @@ test('release policy fails closed and is shared by CLI, local release and workfl
         'edge-check',
         'actionlint',
         'zizmor',
-        'architecture',
-        'bundle',
         'clippy',
+        'native-tests (macos-latest)',
+        'native-tests (macos-15-intel)',
+        'native-tests (windows-latest)',
     ];
     const green = checks.map((name) => ({ name, status: 'completed', conclusion: 'success' }));
     const cases = [
         [green, 'ok'],
         [[], 'empty'],
         [green.slice(1), 'pending'],
+        [green.filter((run) => run.name !== 'native-tests (windows-latest)'), 'pending'],
+        [
+            green.map((run) =>
+                run.name === 'native-tests (macos-15-intel)' ? { ...run, conclusion: 'failure' } : run,
+            ),
+            'failed',
+        ],
         [[...green, { name: 'ios-check', status: 'completed', conclusion: 'skipped' }], 'ok'],
         [[...green, { name: 'paths', status: 'completed', conclusion: 'skipped' }], 'ok'],
     ];
@@ -208,6 +216,13 @@ test('release policy fails closed and is shared by CLI, local release and workfl
     mock('git', 'if [ "$1" = rev-parse ]; then printf fixture; fi');
     mock('gh', 'printf "%s" "$CHECK_RUNS"');
     assert.match(read('.github/workflows/release.yml'), /node scripts\/check-release-ci\.mjs/);
+    const ci = read('.github/workflows/ci.yml');
+    const checkJob = ci.slice(ci.indexOf('\n  check:'), ci.indexOf('\n  test:'));
+    assert.match(checkJob, /pnpm check:architecture/);
+    assert.match(checkJob, /pnpm check:bundle/);
+    for (const name of checks) assert.match(ci, new RegExp(`\\n  ${name.split(' (')[0]}:`));
+    assert.doesNotMatch(ci, /\n {2}architecture:/);
+    assert.doesNotMatch(ci, /\n {2}bundle:/);
     for (const [runs, expected] of cases) {
         assert.equal(releaseCiStatus(runs), expected);
         const cli = spawnSync(process.execPath, [join(root, 'scripts/check-release-ci.mjs')], {

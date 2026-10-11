@@ -4,7 +4,7 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { Cpu, ShieldCheck } from 'lucide-react';
+import { Cpu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAddMachineForm } from '../model/useAddMachineForm';
 import { ConfirmStepFooter } from './ConfirmStepFooter';
@@ -34,36 +34,26 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
         <ModalShell
             onClose={form.handleClose}
             labelledBy="add-machine-modal-title"
-            contentClassName={modalPanel.formLg}
+            contentClassName={modalPanel.formXl}
         >
             <div className={modalHeaderChrome}>
                 <ModalHeader
                     titleId="add-machine-modal-title"
-                    title={
-                        <>
-                            <span className="mb-2.5 flex">
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-semibold tracking-[0.1px] text-secondary shadow-(--shadow-inset) dark:bg-surface-elevated">
-                                    <ShieldCheck size={13} strokeWidth={1.9} className="dark:!text-[#a3a3a3]" />
-                                    {form.isEdit ? t('addMachine.connectionSettings') : t('addMachine.onboarding')}
-                                </span>
-                            </span>
-                            {form.isEdit ? t('addMachine.editTitle') : t('addMachine.title')}
-                        </>
-                    }
+                    title={form.isEdit ? t('addMachine.editTitle') : t('addMachine.title')}
                     onClose={() => void form.handleClose()}
                     closeLabel={t('common.close')}
-                    className="items-start gap-4 px-7 pt-5.5 pb-4.5"
-                    titleClassName="font-(--font-display) text-[26px] font-normal tracking-[-0.04em] text-primary m-0"
+                    className="gap-4 px-6 py-4"
+                    titleClassName="font-(--font-display) text-[22px] font-normal tracking-[-0.04em] text-primary m-0"
                     leading={
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-primary text-white dark:bg-black">
-                            <Cpu size={20} strokeWidth={1.8} />
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white dark:bg-black">
+                            <Cpu size={18} strokeWidth={1.8} />
                         </div>
                     }
                 />
             </div>
 
             {/* Body */}
-            <ModalScrollBody contentClassName="px-7 py-6 flex flex-col gap-5">
+            <ModalScrollBody contentClassName="px-6 py-5 flex flex-col gap-4">
                 <ConnectionMethodSection
                     isEdit={form.isEdit}
                     isCustom={form.isCustom}

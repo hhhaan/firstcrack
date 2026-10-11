@@ -70,9 +70,10 @@ export const BeanCombobox = ({
         return () => document.removeEventListener('mousedown', onDoc);
     }, [open]);
 
-    const dismissEscape = useCallback((nativeEvent: KeyboardEvent, stopImmediate: boolean) => {
+    const dismissEscape = useCallback((nativeEvent: KeyboardEvent, stopImmediate: boolean, whileListOpen = false) => {
         const root = rootRef.current;
-        if (!root?.contains(nativeEvent.target as Node)) return;
+        if (!root) return;
+        if (!whileListOpen && !root.contains(nativeEvent.target as Node)) return;
         markEscapeKeyConsumed(nativeEvent);
         if (stopImmediate) nativeEvent.stopImmediatePropagation();
         nativeEvent.stopPropagation();
@@ -82,7 +83,7 @@ export const BeanCombobox = ({
 
     useDocumentEscapeCapture(open, (event) => {
         if (event.key !== 'Escape') return;
-        dismissEscape(event, true);
+        dismissEscape(event, true, true);
     });
 
     const filtered = useMemo(() => {
@@ -175,7 +176,14 @@ export const BeanCombobox = ({
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 border-none bg-transparent text-muted cursor-pointer disabled:cursor-not-allowed"
                     onMouseDown={(e) => {
                         e.preventDefault();
-                        if (!disabled) setOpen((o) => !o);
+                        if (disabled) return;
+                        setOpen((wasOpen) => {
+                            const next = !wasOpen;
+                            if (next) {
+                                rootRef.current?.querySelector<HTMLInputElement>('[role="combobox"]')?.focus();
+                            }
+                            return next;
+                        });
                     }}
                 >
                     <ChevronDown

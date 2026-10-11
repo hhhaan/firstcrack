@@ -17,7 +17,7 @@
         "check:i18n": "node scripts/check-i18n.mjs",
         "check:registry": "node scripts/check-roaster-registry.mjs",
         "check:plan-caps": "node scripts/check-plan-caps.mjs",
-        "check:harness": "node scripts/check-migration-rls.mjs && node --test scripts/harness.test.mjs",
+        "check:harness": "node scripts/check-migration-rls.mjs && node --test scripts/harness.test.mjs scripts/ci-changed-areas.test.mjs",
         "check:actions": "node scripts/check-actions.mjs",
         "check:zizmor": "node scripts/check-zizmor.mjs",
         "check:architecture": "depcruise --config .dependency-cruiser.cjs src",
