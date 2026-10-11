@@ -174,19 +174,19 @@ describe('ProfileHeaterEventsEditor status query', () => {
                 );
             });
             expect(await waitForEditor()).not.toBeNull();
-            await act(async () =>
-                [...document.querySelectorAll('button')]
-                    .find((b) => b.textContent === 'heaterEventsEditor.addStep')
-                    ?.click(),
+            const off = document.querySelector<HTMLInputElement>(
+                '[aria-labelledby="heater-events-rule-title"] input[aria-label="heaterEventsEditor.heat"]',
             );
-            const heats = document.querySelectorAll<HTMLInputElement>(
-                'tbody input[aria-label="heaterEventsEditor.heat"]',
-            );
-            const off = heats[heats.length - 1];
+            if (!off) throw new Error('BT rule input missing');
             await act(async () => {
                 Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(off, '0');
                 off.dispatchEvent(new Event('input', { bubbles: true }));
             });
+            await act(async () =>
+                [...document.querySelectorAll('button')]
+                    .find((b) => b.textContent === 'heaterEventsEditor.ruleAdd')
+                    ?.click(),
+            );
             await act(async () =>
                 [...document.querySelectorAll('button')]
                     .find((b) => b.textContent === 'heaterEventsEditor.save')

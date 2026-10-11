@@ -52,10 +52,11 @@ const toDraft = (events: ReplayEvent[], tpTime: number, unit: 'C' | 'F'): DraftR
         bt: String(Math.round(toDisplayBt(e.bt, unit) * 10) / 10),
         heater: String(e.heater),
         trigger: eventTrigger(e, tpTime),
+        referenceT: e.t,
+        referenceBt: e.bt,
     }));
 
-const draftInputs = (rows: DraftRow[]) =>
-    rows.map((row) => ({ t: row.t, bt: row.bt, heater: row.heater, trigger: row.trigger, id: row.key }));
+const draftInputs = (rows: DraftRow[]) => rows.map((row) => ({ ...row, id: row.key }));
 
 const invalidField = (issue: HeaterDraftIssue): 'time' | 'bt' | 'heat' | null => {
     if (issue.code === 'time') return 'time';
@@ -152,22 +153,6 @@ export const HeaterEventsEditor = ({
         clearError();
     };
 
-    const addStep = () => {
-        setSelected(rows.length);
-        clearError();
-        const last = parsed[parsed.length - 1];
-        setRows((prev) => [
-            ...prev,
-            {
-                key: `new-${Date.now()}`,
-                t: formatEditTime((last?.t ?? 0) + 30),
-                bt: String(Math.round(toDisplayBt(last?.bt ?? 180, unit) * 10) / 10),
-                heater: String(last?.heater ?? 50),
-                trigger: 'time',
-            },
-        ]);
-    };
-
     const addBtRule = () => {
         const bt = parseFiniteNumber(ruleBt);
         const heater = parseFiniteNumber(ruleHeater);
@@ -203,6 +188,7 @@ export const HeaterEventsEditor = ({
             {
                 key: `bt-${Date.now()}`,
                 t: formatEditTime(parsed[parsed.length - 1]?.t ?? 0),
+                referenceT: parsed[parsed.length - 1]?.t ?? 0,
                 bt: String(bt),
                 heater: String(heater),
                 trigger: 'bt',
@@ -308,6 +294,7 @@ export const HeaterEventsEditor = ({
                         <div className="h-[270px] shrink-0">
                             <HeatStepChart
                                 events={parsed}
+                                tpTime={tpTime}
                                 btPoints={btPoints}
                                 unit={unit}
                                 heaterUnit={heaterUnit}
@@ -316,13 +303,17 @@ export const HeaterEventsEditor = ({
                                 onSelect={setSelected}
                             />
                         </div>
+                        <p className="m-0 text-xs text-muted">{t('heaterEventsEditor.chartHint')}</p>
                         {rows[selected] && (
                             <div className="w-fit rounded-lg border border-border bg-main-bg px-3 py-2 text-xs text-secondary shadow-(--shadow-elevation)">
                                 <span className="font-semibold text-primary">
                                     #{String(selected + 1).padStart(2, '0')}
                                 </span>
                                 {' · '}
-                                {rows[selected].t} · {t('heaterEventsEditor.bt')} {rows[selected].bt}°{unit} ·{' '}
+                                {rows[selected].trigger === 'time'
+                                    ? `${t('heaterEventsEditor.conditionTime')} ${rows[selected].t}`
+                                    : `${t('heaterEventsEditor.conditionBt')} ${rows[selected].bt}°${unit}`}
+                                {' · '}
                                 {t('heaterEventsEditor.heat')} {rows[selected].heater}
                                 {heaterUnit}
                             </div>
@@ -336,7 +327,7 @@ export const HeaterEventsEditor = ({
                                 <h3 id="heater-events-rule-title" className="m-0 text-sm font-semibold text-primary">
                                     {t('heaterEventsEditor.ruleTitle')}
                                 </h3>
-                                <p className="mt-1 mb-3 text-xs text-muted">{t('heaterEventsEditor.chartHint')}</p>
+                                <p className="mt-1 mb-3 text-xs text-muted">{t('heaterEventsEditor.ruleHint')}</p>
                                 <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
                                     <label className="min-w-0 text-[11px] font-semibold text-muted">
                                         {t('heaterEventsEditor.ruleWhen')} (°{unit})
@@ -385,7 +376,6 @@ export const HeaterEventsEditor = ({
                         lockedCount={lockedCount}
                         invalidCell={invalidCell}
                         allowNegativeHeat={heaterBounds.min < 0}
-                        onAddStep={fixedRows ? undefined : addStep}
                         onSelect={setSelected}
                         onUpdate={update}
                         onDelete={fixedRows ? undefined : (key) => setRows((prev) => prev.filter((r) => r.key !== key))}

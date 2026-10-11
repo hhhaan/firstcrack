@@ -59,7 +59,7 @@ describe('resolveReplayTpWait', () => {
         expect(
             resolveReplayTpWait({
                 active: true,
-                nextEvent: { t: tpTime },
+                nextEvent: { ...timeNext, t: tpTime },
                 tpTime,
                 confirmedTurningPoint: { fallback: true },
             }),
@@ -81,6 +81,25 @@ describe('resolveReplayTpWait', () => {
                 nextEvent: null,
                 tpTime,
                 confirmedTurningPoint: null,
+            }),
+        ).toBeNull();
+    });
+
+    it('uses the explicit trigger rather than the reference timestamp', () => {
+        expect(
+            resolveReplayTpWait({
+                active: true,
+                nextEvent: { ...timeNext, trigger: 'bt' },
+                tpTime,
+                confirmedTurningPoint: null,
+            }),
+        ).toBe('waiting');
+        expect(
+            resolveReplayTpWait({
+                active: true,
+                nextEvent: { ...btNext, trigger: 'time' },
+                tpTime,
+                confirmedTurningPoint: { fallback: true },
             }),
         ).toBeNull();
     });

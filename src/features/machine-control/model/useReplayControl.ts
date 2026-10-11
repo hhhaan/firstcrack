@@ -27,6 +27,8 @@ export interface ReplayControlInputs {
     referenceMachineMismatch: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록(쿨다운 조작)을 재생에서 제외한다 */
     referenceDropTime: number | null;
+    /** 저장된 기준 TP. 이번 배치의 실제 TP 게이트와 별개다. */
+    referenceTpTime?: number | null;
     /** 프로파일 heater_events jsonb — null이면 TSV 추출 (#435) */
     profileHeaterEvents?: unknown;
     /** Raw BT, gated by collection-boundary `observationQuality`; never display EMA. */
@@ -176,6 +178,7 @@ export const useReplayControl = ({
     referencePoints,
     referenceMachineMismatch,
     referenceDropTime,
+    referenceTpTime,
     profileHeaterEvents,
     liveBt,
     elapsed,
@@ -210,16 +213,21 @@ export const useReplayControl = ({
     // null points = 로딩. 이전 프로파일 계획을 새 프로파일에 쓰지 않는다.
     // biome-ignore lint/correctness/useExhaustiveDependencies: pointsKey is the curve identity
     const extracted = useMemo(
-        () => (referencePoints ? extractReplayEvents(referencePoints, referenceDropTime) : null),
-        [pointsKey, referenceDropTime],
+        () => (referencePoints ? extractReplayEvents(referencePoints, referenceDropTime, referenceTpTime) : null),
+        [pointsKey, referenceDropTime, referenceTpTime],
     );
     const [batchEvents, setBatchEvents] = useState<ReplayEvent[] | null>(null);
     const [prevExtracted, setPrevExtracted] = useState(extracted);
     const [prevProfileKey, setPrevProfileKey] = useState(profileKey);
-    const sourceChanged = extracted !== prevExtracted || profileKey !== prevProfileKey;
+    const [prevReferenceTpTime, setPrevReferenceTpTime] = useState(referenceTpTime);
+    const sourceChanged =
+        extracted !== prevExtracted ||
+        profileKey !== prevProfileKey ||
+        !Object.is(referenceTpTime, prevReferenceTpTime);
     if (sourceChanged) {
         setPrevExtracted(extracted);
         setPrevProfileKey(profileKey);
+        setPrevReferenceTpTime(referenceTpTime);
         if (batchEvents != null) setBatchEvents(null);
     }
     const {
@@ -232,13 +240,24 @@ export const useReplayControl = ({
             resolveReplayPlan({
                 points: referencePoints,
                 dropTime: referenceDropTime,
+                referenceTpTime,
                 profileEvents: profileHeaterEvents,
                 batchEvents: sourceChanged ? null : batchEvents,
                 heaterMin: minHeater,
                 heaterMax: maxHeater,
                 heaterStep: heaterStep ?? undefined,
             }),
-        [pointsKey, referenceDropTime, profileKey, batchEvents, sourceChanged, minHeater, maxHeater, heaterStep],
+        [
+            pointsKey,
+            referenceDropTime,
+            referenceTpTime,
+            profileKey,
+            batchEvents,
+            sourceChanged,
+            minHeater,
+            maxHeater,
+            heaterStep,
+        ],
     );
     const rawPlan = overrideInvalid ? null : resolvedPlan;
     const rawEvents = rawPlan?.events ?? null;
@@ -661,7 +680,7 @@ export const useReplayControl = ({
         observationHold,
         /** nextEvent의 실제 발화축 — judgeReplay와 같은 eventTrigger. Off/소진이면 null */
         nextEventTrigger,
-        /** 계획 TP 시각 — 다음 이벤트가 TIME(t ≤ tpTime)인지 BT인지 파생 */
+        /** 기준 TP 시각 — 명시적 기준이 없는 행의 TIME/BT 분류에 사용 */
         tpTime: plan?.tpTime ?? null,
         /** 실기 TP 사실 — 패널이 대기/폴백/실감지를 파생한다 */
         confirmedTurningPoint,

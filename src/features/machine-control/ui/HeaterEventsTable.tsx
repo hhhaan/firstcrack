@@ -1,6 +1,6 @@
 import { logger } from '@shared/lib/logger';
 import { inputCls } from '@shared/ui/form-styles';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -8,17 +8,13 @@ import {
     BT_DECIMALS,
     commitEditTime,
     HEAT_DECIMALS,
+    type HeaterDraftInput,
     isDecimalDraft,
     type TimeEditKind,
 } from '../lib/heater-events';
-import { MAX_EVENTS, type ReplayTrigger } from '../lib/replay';
 
-export type DraftRow = {
+export type DraftRow = HeaterDraftInput & {
     key: string;
-    t: string;
-    bt: string;
-    heater: string;
-    trigger: ReplayTrigger;
 };
 
 export const HeaterEventsTable = ({
@@ -30,7 +26,6 @@ export const HeaterEventsTable = ({
     lockedCount,
     invalidCell,
     allowNegativeHeat,
-    onAddStep,
     onSelect,
     onUpdate,
     onDelete,
@@ -43,7 +38,6 @@ export const HeaterEventsTable = ({
     lockedCount: number;
     invalidCell?: { row: number; field: 'time' | 'bt' | 'heat' } | null;
     allowNegativeHeat: boolean;
-    onAddStep?: () => void;
     onSelect: (index: number) => void;
     onUpdate: (key: string, patch: Partial<DraftRow>) => void;
     onDelete?: (key: string) => void;
@@ -164,13 +158,9 @@ export const HeaterEventsTable = ({
                 <span className="text-xs text-muted">{rows.length}</span>
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
-                <table
-                    className={`w-full ${onDelete ? 'min-w-[420px]' : 'min-w-[380px]'} table-fixed border-separate border-spacing-y-1.5 text-xs`}
-                >
+                <table className="w-full min-w-[280px] table-fixed border-separate border-spacing-y-1.5 text-xs">
                     <colgroup>
                         <col className="w-8" />
-                        <col className="w-[72px]" />
-                        <col />
                         <col />
                         <col className="w-[84px]" />
                         <col className={onDelete ? 'w-8' : 'w-2'} />
@@ -179,16 +169,10 @@ export const HeaterEventsTable = ({
                         <tr className="text-[11px] font-semibold text-muted">
                             <th className="sticky top-0 z-10 bg-main-bg" />
                             <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
-                                {t('heaterEventsEditor.time')} (m:ss)
-                            </th>
-                            <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
-                                {t('heaterEventsEditor.bt')} (°{unit})
+                                {t('heaterEventsEditor.condition')}
                             </th>
                             <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
                                 {t('heaterEventsEditor.heat')} ({heaterUnit})
-                            </th>
-                            <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
-                                {t('heaterEventsEditor.trigger')}
                             </th>
                             <th className="sticky top-0 z-10 bg-main-bg" />
                         </tr>
@@ -215,41 +199,47 @@ export const HeaterEventsTable = ({
                                         {String(i + 1).padStart(2, '0')}
                                     </td>
                                     <td className={`${cellClass} border-y px-1 py-2`}>
-                                        <input
-                                            value={row.t}
-                                            onChange={(event) => {
-                                                if (event.target.value === row.t) return;
-                                                if (!unhandledTimeInputs.current.has(event.target)) {
-                                                    unhandledTimeInputs.current.add(event.target);
-                                                    logger.capture(
-                                                        new Error('Heater event time input bypassed beforeinput'),
-                                                    );
-                                                }
-                                                onUpdate(row.key, { t: event.target.value });
-                                            }}
-                                            data-time-key={row.key}
-                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('time') ? ' border-red-500' : ''}`}
-                                            aria-invalid={cellInvalid('time') || undefined}
-                                            inputMode="numeric"
-                                            autoComplete="off"
-                                            spellCheck={false}
-                                            aria-label={t('heaterEventsEditor.time')}
-                                            readOnly={locked}
-                                        />
-                                    </td>
-                                    <td className={`${cellClass} border-y px-1 py-2`}>
-                                        <input
-                                            value={row.bt}
-                                            onChange={(e) => {
-                                                if (isDecimalDraft(e.target.value, BT_DECIMALS))
-                                                    onUpdate(row.key, { bt: e.target.value });
-                                            }}
-                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('bt') ? ' border-red-500' : ''}`}
-                                            aria-invalid={cellInvalid('bt') || undefined}
-                                            inputMode="decimal"
-                                            aria-label={t('heaterEventsEditor.bt')}
-                                            readOnly={locked}
-                                        />
+                                        <div className="mb-1 text-[11px] font-semibold text-secondary">
+                                            {row.trigger === 'time'
+                                                ? `${t('heaterEventsEditor.conditionTime')} (m:ss)`
+                                                : `${t('heaterEventsEditor.conditionBt')} (°${unit})`}
+                                        </div>
+                                        {row.trigger === 'time' ? (
+                                            <input
+                                                value={row.t}
+                                                onChange={(event) => {
+                                                    if (event.target.value === row.t) return;
+                                                    if (!unhandledTimeInputs.current.has(event.target)) {
+                                                        unhandledTimeInputs.current.add(event.target);
+                                                        logger.capture(
+                                                            new Error('Heater event time input bypassed beforeinput'),
+                                                        );
+                                                    }
+                                                    onUpdate(row.key, { t: event.target.value });
+                                                }}
+                                                data-time-key={row.key}
+                                                className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('time') ? ' border-red-500' : ''}`}
+                                                aria-invalid={cellInvalid('time') || undefined}
+                                                inputMode="numeric"
+                                                autoComplete="off"
+                                                spellCheck={false}
+                                                aria-label={t('heaterEventsEditor.time')}
+                                                readOnly={locked}
+                                            />
+                                        ) : (
+                                            <input
+                                                value={row.bt}
+                                                onChange={(e) => {
+                                                    if (isDecimalDraft(e.target.value, BT_DECIMALS))
+                                                        onUpdate(row.key, { bt: e.target.value });
+                                                }}
+                                                className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('bt') ? ' border-red-500' : ''}`}
+                                                aria-invalid={cellInvalid('bt') || undefined}
+                                                inputMode="decimal"
+                                                aria-label={t('heaterEventsEditor.bt')}
+                                                readOnly={locked}
+                                            />
+                                        )}
                                     </td>
                                     <td className={`${cellClass} border-y px-1 py-2`}>
                                         <input
@@ -264,22 +254,6 @@ export const HeaterEventsTable = ({
                                             aria-label={t('heaterEventsEditor.heat')}
                                             readOnly={locked}
                                         />
-                                    </td>
-                                    <td className={`${cellClass} border-y px-1 py-2`}>
-                                        <select
-                                            value={row.trigger}
-                                            onChange={(e) =>
-                                                onUpdate(row.key, {
-                                                    trigger: e.target.value as ReplayTrigger,
-                                                })
-                                            }
-                                            className={`${inputCls} min-w-0 py-1.5 pr-5 pl-1.5 text-xs`}
-                                            aria-label={t('heaterEventsEditor.trigger')}
-                                            disabled={locked}
-                                        >
-                                            <option value="time">{t('heaterEventsEditor.triggerTime')}</option>
-                                            <option value="bt">{t('heaterEventsEditor.triggerBt')}</option>
-                                        </select>
                                     </td>
                                     <td className={`${cellClass} rounded-r-xl border-y border-r py-2 pr-1`}>
                                         {onDelete && (
@@ -303,17 +277,6 @@ export const HeaterEventsTable = ({
                     <p className="py-6 text-center text-sm text-muted">{t('heaterEventsEditor.empty')}</p>
                 )}
             </div>
-            {onAddStep && (
-                <button
-                    type="button"
-                    disabled={busy || rows.length >= MAX_EVENTS}
-                    onClick={onAddStep}
-                    className="mt-2 inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-transparent py-2.5 text-xs font-semibold text-secondary disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <Plus size={14} strokeWidth={2} />
-                    {t('heaterEventsEditor.addStep')}
-                </button>
-            )}
         </fieldset>
     );
 };

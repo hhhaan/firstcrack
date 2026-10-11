@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { formatEditTime, toDisplayBt } from '../lib/heater-events';
-import type { ReplayEvent, ReplayPoint } from '../lib/replay';
+import { eventTrigger, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import { formatReplayCondition } from '../lib/replayDisplay';
 
 const CHART_PAD = { l: 48, r: 50, t: 20, b: 28 };
 const CHART_WIDTH = 680;
@@ -8,6 +9,7 @@ const CHART_HEIGHT = 260;
 
 export const HeatStepChart = ({
     events,
+    tpTime,
     btPoints,
     unit,
     heaterUnit,
@@ -16,6 +18,7 @@ export const HeatStepChart = ({
     onSelect,
 }: {
     events: ReplayEvent[];
+    tpTime: number;
     btPoints: ReplayPoint[];
     unit: 'C' | 'F';
     heaterUnit: string;
@@ -121,7 +124,7 @@ export const HeatStepChart = ({
                         className="cursor-pointer"
                         role="button"
                         tabIndex={0}
-                        aria-label={`${formatEditTime(e.t)}, ${e.heater}${heaterUnit}`}
+                        aria-label={`${formatReplayCondition(e, eventTrigger(e, tpTime), unit)}, ${e.heater}${heaterUnit}`}
                         onKeyDown={(event) => {
                             if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault();
