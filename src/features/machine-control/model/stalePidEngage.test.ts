@@ -28,6 +28,19 @@ describe('shouldStaleEngageSafeOff', () => {
         ).toBe(false);
     });
 
+    it('does not arm during an active roast (mid-roast reconnect)', () => {
+        expect(
+            shouldStaleEngageSafeOff({
+                sidecarConnected: true,
+                roasting: true,
+                pidState: 'running',
+                userEngagedThisSession: false,
+                handledForConnectGeneration: 0,
+                connectGeneration: 2,
+            }),
+        ).toBe(false);
+    });
+
     it('runs once per connect generation', () => {
         expect(
             shouldStaleEngageSafeOff({

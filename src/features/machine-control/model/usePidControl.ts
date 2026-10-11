@@ -69,12 +69,15 @@ export const usePidControl = ({
         async (targetSv?: number): Promise<boolean> => {
             const value = targetSv ?? sv;
             if (targetSv != null) setSv(targetSv);
+            userEngagedThisSessionRef.current = true;
             setBusy(true);
             try {
                 await sidecar.pidOn(value);
-                userEngagedThisSessionRef.current = true;
+                setPendingSafeOff(false);
+                setOffAttempt(0);
                 return true;
             } catch (err) {
+                userEngagedThisSessionRef.current = false;
                 reportError(err, 'PID를 켜지 못했습니다.');
                 return false;
             } finally {

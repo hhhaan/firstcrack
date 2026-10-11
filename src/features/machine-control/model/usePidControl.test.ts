@@ -151,20 +151,97 @@ describe('usePidControl DROP 자동 해제 (#269)', () => {
         hook.unmount();
     });
 
-    it('safe-off 플래그는 PID가 off로 읽히면 즉시 해제한다', async () => {
+    it('safe-off pending → off → turnOn → running does not spurious pidOff (W6)', async () => {
         pidOff.mockRejectedValue(new Error('PLC unreachable'));
+        const hook = await renderPid({ ...base, runtime: runtime('running'), roastFinished: true });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(pidOff).toHaveBeenCalledTimes(1);
+        pidOff.mockClear();
+        pidOn.mockResolvedValue({ ok: true, pid: runtime('running') } as Awaited<ReturnType<typeof sidecar.pidOn>>);
+        await hook.rerender({ ...base, runtime: runtime('off'), roastFinished: false, roasting: true });
+        await act(async () => {
+            await hook.get().turnOn(200);
+        });
+        await hook.rerender({ ...base, runtime: runtime('running'), roastFinished: false, roasting: true });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(pidOn).toHaveBeenCalled();
+        expect(pidOff).not.toHaveBeenCalled();
+        hook.unmount();
+    });
+
+    it('sets userEngaged before pidOn resolves so an early running poll does not safe-off (race)', async () => {
+        let resolveOn!: (value: Awaited<ReturnType<typeof sidecar.pidOn>>) => void;
+        pidOn.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveOn = resolve;
+                }),
+        );
+        const hook = await renderPid({ ...base, runtime: runtime('off'), roastFinished: false, roasting: false });
+        await act(async () => {
+            void hook.get().turnOn(200);
+        });
+        await hook.rerender({ ...base, runtime: runtime('running'), roastFinished: false, roasting: false });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(pidOff).not.toHaveBeenCalled();
+        await act(async () => {
+            resolveOn({ ok: true, pid: runtime('running') } as Awaited<ReturnType<typeof sidecar.pidOn>>);
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(pidOff).not.toHaveBeenCalled();
+        hook.unmount();
+    });
+
+    it('successful turnOn clears pending safe-off retries after a fault', async () => {
+        pidOff.mockRejectedValue(new Error('fail'));
         const hook = await renderPid({ ...base, runtime: runtime('running'), roastFinished: true });
         await act(async () => {
             await vi.advanceTimersByTimeAsync(0);
         });
         pidOff.mockClear();
         pidOn.mockResolvedValue({ ok: true, pid: runtime('running') } as Awaited<ReturnType<typeof sidecar.pidOn>>);
-        await hook.rerender({ ...base, runtime: runtime('off'), roastFinished: false, roasting: true });
+        await hook.rerender({
+            ...base,
+            runtime: runtime('fault', 'PID fault'),
+            roastFinished: false,
+            roasting: false,
+        });
         await act(async () => {
-            await hook.get().turnOn(200);
+            await hook.get().turnOn(205);
+        });
+        await hook.rerender({ ...base, runtime: runtime('running'), roastFinished: false, roasting: false });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(pidOff).not.toHaveBeenCalled();
+        hook.unmount();
+    });
+
+    it('mid-roast reconnect with running PID does not stale-safe-off (W11)', async () => {
+        pidOff.mockResolvedValue({ ok: true, pid: runtime('off') } as Awaited<ReturnType<typeof sidecar.pidOff>>);
+        const hook = await renderPid({
+            ...base,
+            sidecarConnected: false,
+            runtime: runtime('running'),
+            roastFinished: false,
+            roasting: true,
+        });
+        await hook.rerender({
+            ...base,
+            sidecarConnected: true,
+            runtime: runtime('running'),
+            roastFinished: false,
+            roasting: true,
+        });
+        await act(async () => {
             await vi.advanceTimersByTimeAsync(0);
         });
-        expect(pidOn).toHaveBeenCalled();
         expect(pidOff).not.toHaveBeenCalled();
         hook.unmount();
     });
@@ -231,26 +308,6 @@ describe('usePidControl DROP 자동 해제 (#269)', () => {
             hook.unmount();
         },
     );
-
-    it('PID가 다른 경로로 off 되면 pending safe-off 누수를 막는다', async () => {
-        pidOff.mockRejectedValue(new Error('PLC unreachable'));
-        const hook = await renderPid({ ...base, runtime: runtime('running'), roastFinished: true });
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(0);
-        });
-        expect(pidOff).toHaveBeenCalledTimes(1);
-
-        pidOff.mockClear();
-        pidOn.mockResolvedValue({ ok: true, pid: runtime('running') } as Awaited<ReturnType<typeof sidecar.pidOn>>);
-        await hook.rerender({ ...base, runtime: runtime('off'), roastFinished: false, roasting: true });
-        await act(async () => {
-            await hook.get().turnOn(200);
-            await vi.advanceTimersByTimeAsync(0);
-        });
-        expect(pidOn).toHaveBeenCalledTimes(1);
-        expect(pidOff).not.toHaveBeenCalled();
-        hook.unmount();
-    });
 
     it('연결이 없으면 해제 요청을 보내지 않는다', async () => {
         const hook = await renderPid({
