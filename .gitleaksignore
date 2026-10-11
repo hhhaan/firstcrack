@@ -1,2 +1,6 @@
 # Public localStorage key for legacy pending roast recovery; not a credential.
 e424f17f04280d7d8228436fc10b4c6e8ce7157e:src/features/active-roast/model/pendingRoastSave.ts:generic-api-key:18
+# W60A discharge registry setting key + test roaster id (generic-api-key false positives).
+97804f93464ce4d189807a3705b600f01850cd22:src-tauri/sidecar/roaster_registry.py:generic-api-key:1806
+97804f93464ce4d189807a3705b600f01850cd22:src/entities/machine/roasterRegistry.ts:generic-api-key:800
+97804f93464ce4d189807a3705b600f01850cd22:src-tauri/sidecar/tests/test_w60a_discharge.py:generic-api-key:73

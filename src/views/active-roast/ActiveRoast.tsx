@@ -1,4 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
+import { pushMachineDoors, useMachines } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useBbpCurve } from '@entities/roast';
@@ -122,6 +123,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
     const bbpEnabled = bbpFeatureEnabled(useFeature(FEATURE.bbp), roastSettings.bbpEnabled);
+    const machineControlEntitled = useFeature(FEATURE.machineControl);
     const bbpElapsed = useBbpTimer();
     const bbpTimer = bbpElapsedWhenEnabled(bbpEnabled, bbpElapsed);
     const bbpActive = useBbpStore((s) => s.active);
@@ -413,6 +415,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const dropCancelable = useRoastingStore(selectDropCancelable);
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
+    const openDischargeRef = useRef<() => void>(() => {});
+    const openFillRef = useRef<() => void>(() => {});
 
     const {
         triggerCharge: startChargeAction,
@@ -464,7 +468,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const applyDrop = useCallback(
         (onset?: { timeSec: number; bt: number }) => {
-            lifecycle.finishDrop({
+            return lifecycle.finishDrop({
                 livePoints,
                 onset,
                 commitSummary: saveFlow.confirmEndRoast,
@@ -478,8 +482,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [applyDrop]);
 
     const markDrop = useCallback(() => {
-        applyDrop();
+        if (applyDrop()) openDischargeRef.current();
     }, [applyDrop]);
+
+    const markCharge = useCallback(() => {
+        void lifecycle.handleManualCharge().then((started) => {
+            if (started) openFillRef.current();
+        });
+    }, [lifecycle.handleManualCharge]);
 
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
@@ -599,6 +609,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         roastSettings.rorSmoothing,
         roastSettings.etRorSmoothing,
     ]);
+
+    const machines = useMachines((state) => state.machines);
+    useEffect(() => {
+        if (!sidecarConnected) return;
+        const key = machineSnapshot?.machine_roaster_key;
+        const machine = machines.find((item) => item.roasterKey === key);
+        if (machine) pushMachineDoors(machine);
+    }, [sidecarConnected, machineSnapshot?.machine_roaster_key, machines]);
 
     // ── Effect: 링크가 끊기면 예열·대기만 초기화 ──────────────────
     // 로스팅 중 장애는 세션을 보존한다. 재연결되면 끊긴 구간만 비고 커브가 이어진다.
@@ -725,9 +743,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onToggleFullscreen: toggleFullscreen,
         onExitFullscreen: exitFullscreen,
         onEnterStandby: lifecycle.handleEnterStandby,
-        onManualCharge: () => {
-            void lifecycle.handleManualCharge();
-        },
+        onManualCharge: markCharge,
         onMarkEvent: markEvent,
         onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
         onMarkDrop: markDrop,
@@ -896,7 +912,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
-    }, [machineControl.replay.active, machineControl.replay.stop]);
+        openDischargeRef.current = () => {
+            if (machineControlEntitled) void machineControl.discharge.send('open');
+        };
+        openFillRef.current = () => {
+            if (machineControlEntitled) void machineControl.fill.send('open');
+        };
+    }, [
+        machineControl.replay.active,
+        machineControl.replay.stop,
+        machineControl.discharge.send,
+        machineControl.fill.send,
+        machineControlEntitled,
+    ]);
 
     const handleCancelDrop = useCallback(() => {
         const sessionId = saveFlow.flow.summaryData?.sessionId;
@@ -1127,7 +1155,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                 : undefined
                         }
                         onEnterStandby={lifecycle.handleEnterStandby}
-                        onManualCharge={lifecycle.handleManualCharge}
+                        onManualCharge={markCharge}
                         onEndRoast={handleEndRoastClick}
                         bbpTimer={bbpTimer}
                         bbpChargeWait={bbpChargeWait}

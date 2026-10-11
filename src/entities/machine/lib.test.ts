@@ -6,7 +6,17 @@ import {
     snapshotFromSidecar,
     writeMapFormFlags,
 } from './lib';
+import { ROASTER_REGISTRY } from './roasterRegistry';
 import type { Machine } from './types';
+
+it('keeps W60A door switches out of the machine connection form', () => {
+    const definition = ROASTER_REGISTRY.giesen_w45a_w60a;
+    expect(definition.form_fields.some((field) => field.key === 'w60a_discharge' || field.key === 'w60a_fill')).toBe(
+        false,
+    );
+    expect(definition.default_params).not.toHaveProperty('w60a_discharge');
+    expect(definition.default_params).not.toHaveProperty('w60a_fill');
+});
 
 describe('isRoasterFieldVisible', () => {
     it.each(['rtu', 'ascii', 'serial'])('serial mode %s hides TCP fields, shows serial fields', (mode) => {

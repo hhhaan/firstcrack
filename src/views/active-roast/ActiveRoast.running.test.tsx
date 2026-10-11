@@ -2,6 +2,8 @@
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
+import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
+import * as featureAccess from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -114,6 +116,8 @@ vi.mock('@shared/lib/sidecar', () => ({
         resetRoast: vi.fn().mockResolvedValue({ ok: true }),
         enterStandby: vi.fn().mockResolvedValue(undefined),
         setControl: vi.fn().mockResolvedValue({ applied: {} }),
+        setDischarge: vi.fn().mockResolvedValue({ ok: true }),
+        setFill: vi.fn().mockResolvedValue({ ok: true }),
         pidOff: vi.fn().mockResolvedValue({ ok: true }),
         pidOn: vi.fn().mockResolvedValue({ ok: true }),
     },
@@ -244,6 +248,82 @@ describe('ActiveRoast running clock (#627)', () => {
         vi.unstubAllGlobals();
         vi.useRealTimers();
         Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+    });
+
+    it('opens the enabled W60A door once on manual Drop and preserves the completed batch on failure', async () => {
+        const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
+        const status = vi.mocked(sidecar.getStatus);
+        const originalStatus = status.getMockImplementation();
+        status.mockResolvedValue({
+            connected: true,
+            control: { writable: true, limits: { heater: { min: 0, max: 100, unit: '%' } }, discharge: true },
+        } as Awaited<ReturnType<typeof sidecar.getStatus>>);
+        vi.mocked(sidecar.setDischarge).mockClear().mockRejectedValueOnce(new Error('PLC write failed'));
+        seed({ liveData: { bt: 155, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 } });
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            expect(sidecar.setDischarge).not.toHaveBeenCalled();
+            const drop = [...host.querySelectorAll('button')].find((button) =>
+                button.textContent?.includes(markDropLabel()),
+            );
+            expect(drop).toBeDefined();
+            await act(async () => {
+                drop?.click();
+                drop?.click();
+            });
+            await flushMicrotasks();
+            expect(sidecar.setDischarge).toHaveBeenCalledExactlyOnceWith('open');
+            expect(useRoastingStore.getState().completed?.snapshot.sessionId).toBe('sess-remount');
+            expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
+            expect(sidecar.setFill).not.toHaveBeenCalled();
+        } finally {
+            unmount();
+            access.mockRestore();
+            if (originalStatus) status.mockImplementation(originalStatus);
+        }
+    });
+
+    it('opens the enabled W60A hopper once on manual Charge and not on Drop', async () => {
+        const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
+        const status = vi.mocked(sidecar.getStatus);
+        const originalStatus = status.getMockImplementation();
+        status.mockResolvedValue({
+            connected: true,
+            control: {
+                writable: true,
+                limits: { heater: { min: 0, max: 100, unit: '%' } },
+                fill: true,
+                discharge: true,
+            },
+        } as Awaited<ReturnType<typeof sidecar.getStatus>>);
+        vi.mocked(sidecar.setFill).mockClear().mockResolvedValue({ ok: true });
+        vi.mocked(sidecar.setDischarge).mockClear();
+        seed({
+            phase: 'standby',
+            roastStartMs: 0,
+            elapsed: 0,
+            liveData: { bt: 180, et: 200, ror: 0, ror_et: 0, heater: 20, fan: 0, drum: 0 },
+        });
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            const charge = host.querySelector('[data-testid="roast-charge"]');
+            expect(charge?.textContent).toContain(roastEventLabel('Charge'));
+            await act(async () => {
+                (charge as HTMLButtonElement | null)?.click();
+                await Promise.resolve();
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+            await flushMicrotasks();
+            expect(sidecar.setFill).toHaveBeenCalledExactlyOnceWith('open');
+            expect(sidecar.setDischarge).not.toHaveBeenCalled();
+        } finally {
+            unmount();
+            access.mockRestore();
+            if (originalStatus) status.mockImplementation(originalStatus);
+        }
     });
 
     it('passes raw BT to Replay and never substitutes the display EMA', async () => {

@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
+import { useDischargeControl } from './useDischargeControl';
+import { useFillControl } from './useFillControl';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { usePidControl } from './usePidControl';
 import { type ObservationQuality, type ReplayStopReason, useReplayControl } from './useReplayControl';
@@ -44,7 +46,7 @@ export interface MachineControlCompositionInput {
 }
 
 /**
- * Manual setpoint, PID, and Replay share one lifetime.
+ * Manual setpoint, discharge, fill, PID, and Replay share one lifetime.
  * Display (collapse, entitlement, empty panel) must not mount or unmount this hook.
  * Replay stop cancels unsent Replay heater writes and does not restart.
  */
@@ -80,6 +82,8 @@ export const useMachineControlComposition = ({
         [onCommitted, onHeaterCommitted],
     );
     const machine = useMachineControl(sidecarConnected, liveData, handleCommitted, onApplied);
+    const discharge = useDischargeControl(machine.dischargeSupported && !reconnecting);
+    const fill = useFillControl(machine.fillSupported && !reconnecting);
     useEffect(() => {
         heaterUnitRef.current = machine.limits.heater?.unit ?? '%';
     }, [machine.limits.heater?.unit]);
@@ -145,7 +149,7 @@ export const useMachineControlComposition = ({
         [replay.stop, machine.setValue],
     );
 
-    return { machine, pid, replay, pidActive, changeManual, commitManual };
+    return { machine, discharge, fill, pid, replay, pidActive, changeManual, commitManual };
 };
 
 export type MachineControlComposition = ReturnType<typeof useMachineControlComposition>;

@@ -1,19 +1,33 @@
+import { cn } from '@shared/lib/cn';
+import { selectIsAnyModalOpen, useModalStackStore } from '@shared/store/modalStack';
 import { useToastStore } from '@shared/store/toast';
 import { AlertCircle, CheckCircle, Info, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-/** Global feedback surface. Sits above modals (ModalShell is z-1000). */
+/** Mirrors bottom-6 when no modal; clears centered modal footers (Roast Complete, etc.). */
+export const TOAST_VIEWPORT_BOTTOM_CLASS = 'bottom-6';
+export const TOAST_VIEWPORT_TOP_CLASS = 'top-6';
+
+/** Global feedback surface. Above modal overlays (z-[10000]) and spotlight tour (z-[10050]). */
 export const ToastViewport = () => {
     const { t } = useTranslation();
     const toasts = useToastStore((s) => s.toasts);
     const dismiss = useToastStore((s) => s.dismiss);
     const pause = useToastStore((s) => s.pause);
     const resume = useToastStore((s) => s.resume);
+    const modalOpen = useModalStackStore(selectIsAnyModalOpen);
 
     if (toasts.length === 0) return null;
 
     return (
-        <div className="pointer-events-none fixed bottom-6 left-1/2 z-1100 flex w-full max-w-[440px] -translate-x-1/2 flex-col gap-2 px-4">
+        <div
+            data-toast-viewport=""
+            data-modal-open={modalOpen ? 'true' : 'false'}
+            className={cn(
+                'pointer-events-none fixed left-1/2 z-[10051] flex w-full max-w-[440px] -translate-x-1/2 flex-col gap-2 px-4',
+                modalOpen ? TOAST_VIEWPORT_TOP_CLASS : TOAST_VIEWPORT_BOTTOM_CLASS,
+            )}
+        >
             {toasts.map((toast) => (
                 <div
                     key={toast.id}

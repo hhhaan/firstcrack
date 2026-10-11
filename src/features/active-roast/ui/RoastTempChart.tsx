@@ -68,6 +68,7 @@ type ChartAxisInput = Pick<
     | 'tempTicksC'
     | 'tempLabelEvery'
     | 'timeTickIntervalSec'
+    | 'timeMinorTickIntervalSec'
     | 'tempLabelCustom'
     | 'timeTickCustom'
 >;
@@ -92,6 +93,7 @@ const chartAxisSettings = (settings: ChartAxisInput) => ({
     tempTicksC: settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' ? settings.tempTicksC : [],
     tempLabelEvery: labelEveryFor(settings),
     timeTickIntervalSec: settings.timeTickCustom ? settings.timeTickIntervalSec : settings.timeTickPresetSec,
+    timeMinorTickIntervalSec: settings.timeMinorTickIntervalSec,
 });
 
 interface Props {

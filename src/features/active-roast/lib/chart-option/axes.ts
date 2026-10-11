@@ -121,6 +121,17 @@ export const applyChartAxisSettings = (
     if (!settings) return;
     for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
         if (axis.type === 'value' && settings.timeTickIntervalSec > 0) axis.interval = settings.timeTickIntervalSec;
+        const minor = settings.timeMinorTickIntervalSec;
+        if (axis.type === 'value' && minor != null) {
+            const subdivisions = Number(axis.interval) / minor;
+            axis.minorTick = {
+                ...axis.minorTick,
+                splitNumber:
+                    Number.isInteger(subdivisions) && subdivisions >= 2 && subdivisions <= 100
+                        ? subdivisions
+                        : AXIS_MINOR_SPLIT_NUMBER,
+            };
+        }
         axis.axisLabel = { ...axis.axisLabel, hideOverlap: true };
     }
     const temperatureAxis = (Array.isArray(axes.yAxis) ? axes.yAxis : []).find(
