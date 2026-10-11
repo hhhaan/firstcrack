@@ -13,7 +13,9 @@ import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { useCsvFileExport } from '@features/export-csv';
 import { profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
+import type { TsvPoint } from '@shared/lib/tsv';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
@@ -21,13 +23,18 @@ import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveC
 import { AlertCircle, Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { profileExportBasename, profileToCsv } from '../lib/export-profile-csv';
+import {
+    profileExportBasename,
+    profileExtraSensorColumns,
+    profileExtraSensorValue,
+    profileToCsv,
+} from '../lib/export-profile-csv';
 import { useProfileTableRows } from '../model/useProfileTableRows';
 import { ConsistencyCard } from './ConsistencyCard';
 
 interface ProfileDetailProps {
     selected: RoastProfileWithSource;
-    selectedRealCurve: { t: number; bt: number }[];
+    selectedRealCurve: TsvPoint[];
     selectedHasReal: boolean;
     defaultId: string | null;
     chartKey: string;
@@ -60,6 +67,11 @@ export const ProfileDetail = ({
     const machines = useMachines((s) => s.machines);
     const heaterUnit = profileHeaterBounds(selected, machines, ROASTER_REGISTRY).unit;
     const sourceHeaterEvents = resolveSourceSession(selected.source_session)?.heater_events;
+    const extraSensorColumns = useMemo(() => profileExtraSensorColumns(selectedRealCurve), [selectedRealCurve]);
+    const extraSensorPoints = useMemo(
+        () => selectedRealCurve.filter((point) => point.extraReadings?.length),
+        [selectedRealCurve],
+    );
     const roastLogEntries = useMemo(
         () =>
             storedEventsToLogEntries(
@@ -190,6 +202,39 @@ export const ProfileDetail = ({
                     ]}
                 />
             </div>
+
+            {extraSensorColumns.length > 0 && (
+                <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5 overflow-x-auto">
+                    <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
+                        {t('profiles.detail.extraSensors')}
+                    </p>
+                    <table className="w-full border-collapse text-xs">
+                        <thead>
+                            <tr className="text-left text-muted">
+                                <th className="py-2 pr-4 font-medium">{t('activeRoast.noteEntry.time')}</th>
+                                {extraSensorColumns.map((column) => (
+                                    <th key={column.key} className="py-2 pr-4 font-medium whitespace-nowrap">
+                                        {column.label}
+                                        {column.unit ? ` (${column.unit})` : ''}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {extraSensorPoints.map((point) => (
+                                <tr key={point.t} className="border-t border-border-subtle">
+                                    <td className="py-2 pr-4 font-mono text-secondary">{formatElapsed(point.t)}</td>
+                                    {extraSensorColumns.map((column) => (
+                                        <td key={column.key} className="py-2 pr-4 font-mono text-primary">
+                                            {profileExtraSensorValue(point, column.key) ?? '—'}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             <div className="grid grid-cols-3 gap-3 mb-5">
                 {TABLE_ROWS.map(({ label, getValue }) => (

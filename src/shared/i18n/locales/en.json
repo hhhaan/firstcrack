@@ -143,7 +143,7 @@
             },
             "chooseSettings": "Choose what to import",
             "machineHeading": "Machine connections",
-            "machineHint": "Only temperature, heat, fan, and drum read settings are imported. Machine control and write settings are excluded.",
+            "machineHint": "Import read settings and calibration, including extra sensors. Machine control and write settings are excluded.",
             "noMachines": "No machines available to import.",
             "graph": "Also import graph settings",
             "graphHint": "Temperature and time ranges, plus curve colors",
@@ -1531,7 +1531,8 @@
             "selectToCompare": "Select profiles from the list to compare",
             "compareMode": "Compare mode · {{count}} selected",
             "editDisabledMulti": "Cannot edit when multiple selected",
-            "roastLog": "Roast Log"
+            "roastLog": "Roast Log",
+            "extraSensors": "Extra sensor readings"
         }
     },
     "newProfileModal": {

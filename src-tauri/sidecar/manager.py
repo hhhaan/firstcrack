@@ -58,6 +58,29 @@ def _validate_bt(bt: float) -> None:
         )
 
 
+def _serialize_extra_readings(
+    readings: list[dict[str, str | float | None]],
+) -> list[dict[str, str | float | None]]:
+    result: list[dict[str, str | float | None]] = []
+    for reading in readings:
+        reading_id = reading.get("id")
+        label = reading.get("label")
+        unit = reading.get("unit")
+        if not all(isinstance(value, str) for value in (reading_id, label, unit)):
+            continue
+        value = reading.get("value")
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            value = None
+        else:
+            value = float(value)
+        result.append({"id": reading_id, "label": label, "unit": unit, "value": value})
+    return result
+
+
 def _format_connection_error(
     exc: Exception,
     protocol: str,
@@ -804,6 +827,9 @@ class RoasterManager:
             "stale": False,
             "reconnecting": reconnecting,
         }
+        extra_readings = _serialize_extra_readings(reading.extra_readings)
+        if extra_readings:
+            payload["extra_readings"] = extra_readings
         self._last_good = payload
         self._last_good_ts = time.monotonic()
         return payload

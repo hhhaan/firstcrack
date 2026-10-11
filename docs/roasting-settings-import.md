@@ -20,7 +20,9 @@ Artisan의 binary/XML plist 및 QSettings 형식, Cropster의 재귀적 JSON 중
 
 프런트엔드는 기존 Zod 계약·ReactQuery·변환·미리보기·버전 확인·선택·저장·중복·quota 검사를 유지한다. 설정 저장은 장비에 연결하지 않는다.
 
-Firescope 가져오기는 읽기 설정만 허용한다. 원본의 쓰기 함수·`write_map` 등 쓰기 설정은 native snapshot과 저장할 머신 설정에서 제외한다. 온도·화력·팬·드럼의 읽기 주소와 시리얼 ASCII를 포함한 연결 설정을 유지하며, 가져오기에서 장비 제어를 활성화하지 않는다.
+Firescope 가져오기는 읽기 설정만 허용한다. 원본의 쓰기 함수·`write_map` 등 쓰기 설정은 native snapshot과 저장할 머신 설정에서 제외한다. 온도·화력·팬·드럼과 추가 센서의 읽기 주소, 이름, 단위, 배율, 보정값과 시리얼 ASCII를 포함한 연결 설정을 유지하며, 가져오기에서 장비 제어를 활성화하지 않는다.
+
+Modbus integer는 signed 16-bit, BCD는 한 레지스터, float32/float32-le는 각각 big/little word order와 big byte order로 읽는다. 모든 형식에 decimalPlace 배율을 적용한다. Firescope가 온도를 변환한 다음 보정하는 순서를 유지하며, 화씨 온도·보정은 FC의 섭씨 수집 기준으로 변환한다. 추가 센서는 `extra_<원본 순번>` 읽기 채널로 수집·표시하고 로스팅/BBP TSV와 기록 CSV에 보존한다. 기존 TSV도 읽을 수 있다. 재가져오기는 없는 채널만 추가하며 기존 편집값을 덮어쓰지 않는다. 원본 센서 순서가 바뀐 경우 기존 채널은 유지된다.
 
 검증: `cargo test --locked --lib`, `cargo clippy --locked --all-targets -- -D warnings`, `pnpm verify:all`, 세 가져오기 Playwright 시나리오. 2026-10-11 macOS에서 실제 Firescope·Artisan(`found`)과 Cropster(`not-found`)의 Rust 결과를 이관 전 Python과 대조해 snapshot 전체 일치 및 원본 9개 파일의 SHA-256 불변을 확인했다. Cropster `found` 결과는 fixture로 검증했다. CI는 Ubuntu 및 macOS arm64/x86_64·Windows에서 native 단위 테스트를 실행하도록 구성했다. 태그 전 전체 데스크톱 빌드·실행 검증은 별도로 수행한다.
 

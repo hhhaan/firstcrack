@@ -143,7 +143,7 @@
             },
             "chooseSettings": "インポートする設定を選択",
             "machineHeading": "マシン接続",
-            "machineHint": "温度・火力・ファン・ドラムの読み取り設定のみを読み込みます。機器の制御・書き込み設定は対象外です。",
+            "machineHint": "追加センサーを含む読み取り設定と補正値を読み込みます。機器の制御・書き込み設定は対象外です。",
             "noMachines": "インポートできるマシンがありません。",
             "graph": "グラフ設定もインポート",
             "graphHint": "温度・時間範囲とカーブの色",
@@ -1531,7 +1531,8 @@
             "selectToCompare": "リストから比較するプロファイルを選択してください",
             "compareMode": "比較モード · {{count}}件選択中",
             "editDisabledMulti": "複数選択時は編集できません",
-            "roastLog": "ローストログ"
+            "roastLog": "ローストログ",
+            "extraSensors": "追加センサーの読み取り値"
         }
     },
     "newProfileModal": {

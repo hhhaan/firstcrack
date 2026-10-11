@@ -143,7 +143,7 @@
             },
             "chooseSettings": "选择要导入的设置",
             "machineHeading": "机器连接",
-            "machineHint": "仅导入温度、火力、风机和滚筒的读取配置，不导入设备控制和写入配置。",
+            "machineHint": "导入包括附加传感器在内的读取设置和校准值。不导入设备控制或写入设置。",
             "noMachines": "没有可导入的机器。",
             "graph": "同时导入曲线设置",
             "graphHint": "温度和时间范围以及曲线颜色",
@@ -1543,7 +1543,8 @@
             "selectToCompare": "从列表中选择要比较的曲线",
             "compareMode": "比较模式 · 已选{{count}}条",
             "editDisabledMulti": "多选时无法编辑",
-            "roastLog": "烘焙日志"
+            "roastLog": "烘焙日志",
+            "extraSensors": "附加传感器读数"
         }
     },
     "newProfileModal": {

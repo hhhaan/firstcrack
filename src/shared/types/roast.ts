@@ -1,4 +1,4 @@
-import type { TemperatureProcessing } from './sidecar';
+import type { ExtraSensorReading, TemperatureProcessing } from './sidecar';
 
 /** Logical values acknowledged by an app control write, independent of sensor feedback. */
 export type AppliedRoastControl = Partial<Record<'heater' | 'fan' | 'drum', number>>;
@@ -51,6 +51,7 @@ export interface LiveRoastPoint {
     heater: number | null;
     fan: number;
     drum: number;
+    extraReadings?: ExtraSensorReading[];
     /** Last heater setpoint written by the sidecar, when supported. */
     heaterSet?: number | null;
     /** Unsmoothed ET for the archive; charts use `et`. */

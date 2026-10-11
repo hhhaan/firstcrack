@@ -13,5 +13,10 @@ export const livePointsFromBbp = (points: BbpPoint[]): LiveRoastPoint[] =>
         heater: p.heater,
         fan: p.fan,
         drum: p.drum,
+        extraReadings: p.extraReadings,
+        etRaw: p.etRaw,
+        btRaw: p.btRaw,
+        sensorTimestamp: p.sensorTimestamp,
+        sensorClock: p.sensorClock,
         processing: p.processing,
     }));

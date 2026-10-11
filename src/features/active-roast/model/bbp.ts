@@ -1,6 +1,6 @@
 import { feedbackValue } from '@shared/lib/feedback';
 import { formatTsvRows, TSV_HEADER } from '@shared/lib/tsv-writer';
-import type { TemperatureProcessing } from '@shared/types/sidecar';
+import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
 
 /** Rolling FIFO window (seconds) kept immediately before Charge. */
@@ -18,6 +18,7 @@ export interface BbpSample {
     heater: number | null;
     fan: number;
     drum: number;
+    extraReadings?: ExtraSensorReading[];
 }
 
 export interface BbpPoint extends BbpSample {
@@ -207,7 +208,7 @@ export const bbpPointsToTsv = (points: BbpPoint[]): string =>
     formatTsvRows(
         points,
         (p) =>
-            `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${feedbackValue(p.heater, 'heater', p.processing?.read_units) ?? ''}\t${feedbackValue(p.fan, 'fan', p.processing?.read_units) ?? ''}\t${feedbackValue(p.drum, 'drum', p.processing?.read_units) ?? ''}\t\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\n`,
+            `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${feedbackValue(p.heater, 'heater', p.processing?.read_units) ?? ''}\t${feedbackValue(p.fan, 'fan', p.processing?.read_units) ?? ''}\t${feedbackValue(p.drum, 'drum', p.processing?.read_units) ?? ''}\t\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\t${p.extraReadings === undefined ? '' : JSON.stringify(p.extraReadings)}\n`,
     );
 
 const toTsv = bbpPointsToTsv;
