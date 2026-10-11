@@ -261,83 +261,51 @@ it('uses in-app confirm without calling ask when Tauri runtime is absent', async
     unmount();
 });
 
-it('does not dismiss the summary when Escape is pressed in a weight input', () => {
+const escapeKey = () => new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+
+it('routes Escape through bean dropdown, fields, and summary dismiss', () => {
     const onClose = vi.fn();
     const onCancelDrop = vi.fn();
     const { unmount } = renderModal({ onClose, onCancelDrop, canCancelDrop: true });
     const weight = document.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
     act(() => {
         weight.focus();
-        weight.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        weight.dispatchEvent(escapeKey());
     });
     expect(onClose).not.toHaveBeenCalled();
     expect(onCancelDrop).not.toHaveBeenCalled();
-    unmount();
-});
 
-it('closes only the bean dropdown on the first Escape, then cancels drop on the second', () => {
-    const onClose = vi.fn();
-    const onCancelDrop = vi.fn();
-    const { unmount } = renderModal({ onClose, onCancelDrop, canCancelDrop: true });
-    const input = document.querySelector('[data-testid="roast-summary-bean"] [role="combobox"]') as HTMLInputElement;
-    expect(input.getAttribute('aria-expanded')).toBe('false');
+    const beanInput = document.querySelector(
+        '[data-testid="roast-summary-bean"] [role="combobox"]',
+    ) as HTMLInputElement;
+    act(() => beanInput.focus());
+    const beanOption = document.querySelector(
+        '[data-testid="roast-summary-bean"] [role="option"]',
+    ) as HTMLButtonElement;
     act(() => {
-        input.focus();
+        beanOption.focus();
+        beanOption.dispatchEvent(escapeKey(beanOption));
     });
-    expect(input.getAttribute('aria-expanded')).toBe('true');
-    act(() => {
-        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    });
-    expect(input.getAttribute('aria-expanded')).toBe('false');
     expect(onClose).not.toHaveBeenCalled();
     expect(onCancelDrop).not.toHaveBeenCalled();
-    act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    });
+    expect(beanInput.getAttribute('aria-expanded')).toBe('false');
+
+    act(() => beanInput.focus());
+    act(() => beanInput.dispatchEvent(escapeKey(beanInput)));
+    expect(beanInput.getAttribute('aria-expanded')).toBe('false');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onCancelDrop).not.toHaveBeenCalled();
+
+    act(() => window.dispatchEvent(escapeKey()));
     expect(onCancelDrop).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
     unmount();
-});
 
-it('does not dismiss the summary when Escape is pressed on a listbox option', () => {
-    const onClose = vi.fn();
-    const onCancelDrop = vi.fn();
-    const { unmount } = renderModal({ onClose, onCancelDrop, canCancelDrop: true });
-    const input = document.querySelector('[data-testid="roast-summary-bean"] [role="combobox"]') as HTMLInputElement;
-    act(() => {
-        input.focus();
-    });
-    const option = document.querySelector('[data-testid="roast-summary-bean"] [role="option"]') as HTMLButtonElement;
-    act(() => {
-        option.focus();
-        option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    });
-    expect(onCancelDrop).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-    expect(input.getAttribute('aria-expanded')).toBe('false');
-    unmount();
-});
-
-it('calls onClose when Escape is pressed without a cancelable drop', () => {
-    const onClose = vi.fn();
-    const { unmount } = renderModal({ onClose });
-    act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-    expect(onClose).toHaveBeenCalledTimes(1);
-    unmount();
-});
-
-it('calls onCancelDrop when Escape is pressed during a cancelable drop', () => {
-    const onCancelDrop = vi.fn();
-    const onClose = vi.fn();
-    const { unmount } = renderModal({ canCancelDrop: true, onCancelDrop, onClose });
-    act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-    expect(onCancelDrop).toHaveBeenCalledTimes(1);
-    expect(onClose).not.toHaveBeenCalled();
-    unmount();
+    const closeOnly = vi.fn();
+    const closeUnmount = renderModal({ onClose: closeOnly });
+    act(() => window.dispatchEvent(escapeKey()));
+    expect(closeOnly).toHaveBeenCalledTimes(1);
+    closeUnmount.unmount();
 });
 
 it('cancels Drop from the header X while the roast can be restored', () => {

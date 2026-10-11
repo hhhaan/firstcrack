@@ -1,4 +1,5 @@
 import { markEscapeKeyConsumed } from '@shared/ui/modal-shell/dialogEscape';
+import { useDocumentEscapeCapture } from '@shared/ui/modal-shell/useDocumentEscapeCapture';
 import { Check, ChevronDown } from 'lucide-react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { inputCls } from './form-styles';
@@ -80,15 +81,10 @@ export const BeanCombobox = ({
         setOpen(false);
     }, []);
 
-    useEffect(() => {
-        if (!open) return;
-        const onEscapeCapture = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape') return;
-            dismissEscape(event, true);
-        };
-        document.addEventListener('keydown', onEscapeCapture, true);
-        return () => document.removeEventListener('keydown', onEscapeCapture, true);
-    }, [open, dismissEscape]);
+    useDocumentEscapeCapture(open, (event) => {
+        if (event.key !== 'Escape') return;
+        dismissEscape(event, true);
+    });
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
