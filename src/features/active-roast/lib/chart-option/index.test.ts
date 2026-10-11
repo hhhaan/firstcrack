@@ -1043,3 +1043,22 @@ describe('buildRoastChartOption', () => {
         expect(profileBtOff).toContain('BT Actual');
     });
 });
+
+it('keeps raw Pa/Hz feedback visible outside percent chart bounds', () => {
+    const option = buildRoastChartOption({
+        ...baseParams(),
+        controlData: {
+            xs: [0],
+            heatPower: [42.25],
+            fanSpeed: [1234.56],
+            drumTemp: [31.25],
+            readUnits: [{ heater: '%', fan: 'Pa', drum: 'Hz' }],
+        },
+    });
+    const axes = option.yAxis as { min: number; max: number }[];
+    expect(axes[2].max).toBeGreaterThanOrEqual(1234.56);
+    expect(axes[3].max).toBeGreaterThanOrEqual(1234.56);
+    expect(option.series).toEqual(
+        expect.arrayContaining([expect.objectContaining({ name: 'Fan', data: [[0, 1234.56]] })]),
+    );
+});

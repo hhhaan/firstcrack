@@ -1,8 +1,8 @@
 import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import type { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
 import type { CurveStyles } from '@features/active-roast/lib/curve-style';
-
 import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
+import type { ReadUnits } from '@shared/types/sidecar';
 import type { RoastSettings } from '../../model/settings';
 
 export type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
@@ -19,6 +19,7 @@ export interface RoastEventMarker extends RoastNoteControls {
 }
 
 export interface ControlData {
+    readUnits?: (ReadUnits | undefined)[];
     /** Successful app writes only; measured changes never create these labels. */
     changes?: { timeSec: number; values: AppliedRoastControl }[];
     xs: number[];
@@ -30,6 +31,7 @@ export interface ControlData {
     heatTarget?: { xs: number[]; values: number[] };
     /** Stored reference controls. Same time axis; missing channels stay null. Not Heat target/set. */
     reference?: {
+        readUnits?: (ReadUnits | undefined)[];
         xs: number[];
         drum: (number | null)[];
         heater: (number | null)[];

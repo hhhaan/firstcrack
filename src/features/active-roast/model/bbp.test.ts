@@ -29,6 +29,10 @@ describe('bbp store', () => {
         };
         const tsv = bbpPointsToTsv([point, { ...point, t: 1, etRaw: -1 }, { ...point, t: 2, etRaw: undefined }]);
         expect(tsv.match(/# processing\t/g)).toHaveLength(1);
+        const noFeedback = bbpPointsToTsv([
+            { ...point, heater: 0, fan: 0, drum: 0, processing: { ...processing, read_units: {} } },
+        ]);
+        expect(parseTsv(noFeedback)[0]).toMatchObject({ heater: null, fan: null, drum: null });
         expect(parseTsv(tsv)).toMatchObject([
             {
                 bt: 200,

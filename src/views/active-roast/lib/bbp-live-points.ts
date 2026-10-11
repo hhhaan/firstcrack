@@ -13,4 +13,5 @@ export const livePointsFromBbp = (points: BbpPoint[]): LiveRoastPoint[] =>
         heater: p.heater,
         fan: p.fan,
         drum: p.drum,
+        processing: p.processing,
     }));

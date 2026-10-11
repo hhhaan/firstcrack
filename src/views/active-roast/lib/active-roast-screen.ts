@@ -115,6 +115,8 @@ const anySeriesOn = (drum: boolean, heat: boolean, fan: boolean) => drum || heat
 
 type ControlFrameInput = {
     controlChanges?: ControlData['changes'];
+    readUnits?: ControlData['readUnits'];
+    referenceReadUnits?: ControlData['readUnits'];
     showControlChart: boolean;
     showControlDrum: boolean;
     showControlHeat: boolean;
@@ -146,6 +148,7 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
     const liveOpen = anySeriesOn(input.showControlDrum, input.showControlHeat, input.showControlFan);
     if (!input.showControlChart || (!liveOpen && !profileControlRequested(input))) return undefined;
     return {
+        readUnits: input.readUnits,
         xs: input.controlXs,
         drumTemp: input.drumTemp,
         heatPower: input.heatPower,
@@ -156,6 +159,7 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
         reference:
             input.referenceXs.length > 0
                 ? {
+                      readUnits: input.referenceReadUnits,
                       xs: input.referenceXs,
                       drum: input.referenceDrum,
                       heater: input.referenceHeater,
@@ -167,6 +171,8 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
 
 export const buildChartFrame = <TTurningPoint>(input: {
     controlChanges?: ControlData['changes'];
+    readUnits?: ControlData['readUnits'];
+    referenceReadUnits?: ControlData['readUnits'];
     isFullscreen: boolean;
     bbpActive: boolean;
     bbpNowSec: number;

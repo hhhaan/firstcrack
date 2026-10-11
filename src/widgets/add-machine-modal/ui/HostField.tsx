@@ -4,6 +4,7 @@ import { Loader2, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export const HostField = ({
+    id,
     value,
     onChange,
     hosts,
@@ -12,6 +13,7 @@ export const HostField = ({
     onScan,
     scannedOnce,
 }: {
+    id?: string;
     value: string;
     onChange: (v: string) => void;
     hosts: NetworkHost[];
@@ -27,6 +29,7 @@ export const HostField = ({
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
                 <input
+                    id={id}
                     className={inputCls}
                     type="text"
                     list={listId}

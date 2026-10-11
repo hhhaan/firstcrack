@@ -226,6 +226,29 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     if (hasControlSeries && controlData) {
         // Grid: [0] Temp/RoR (+ phase overlay) · [1] Drum/Heat/Fan
+        // Physical feedback (Pa/Hz/RPM) is kept raw, never normalized to percent.
+        const physicalUnits = [...(controlData.readUnits ?? []), ...(controlData.reference?.readUnits ?? [])].some(
+            (units) => units && Object.values(units).some((unit) => unit !== '%'),
+        );
+        let readMin = controlYMin;
+        let readMax = controlYMax;
+        if (physicalUnits) {
+            for (const values of [
+                controlData.drumTemp,
+                controlData.heatPower,
+                controlData.fanSpeed,
+                controlData.reference?.drum ?? [],
+                controlData.reference?.heater ?? [],
+                controlData.reference?.fan ?? [],
+            ]) {
+                for (const value of values) {
+                    if (value != null && Number.isFinite(value)) {
+                        readMin = Math.min(readMin, value);
+                        readMax = Math.max(readMax, value);
+                    }
+                }
+            }
+        }
         const { grid, xAxis, yAxis } = buildDualGridLayout({
             leftMargin,
             rightMargin,
@@ -237,8 +260,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             tempYMax,
             rorYMin: rorYMinDisp,
             rorYMax: rorYMaxDisp,
-            controlYMin,
-            controlYMax,
+            controlYMin: readMin,
+            controlYMax: readMax,
             colors,
             axisLabelStyle,
             axisNameStyle,

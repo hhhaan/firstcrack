@@ -536,3 +536,9 @@ class TestConnectProbe:
         monkeypatch.setattr(socket, "create_connection", fake_create_connection)
         _probe_tcp("172.30.30.90", 102, 0.7)
         assert seen == {"addr": ("172.30.30.90", 102), "timeout": 0.7}
+
+
+def test_feedback_keeps_scaled_hundredths(adapter):
+    channel = {"role": "drum", "db": 2, "offset": 18, "type": 0, "div": 2, "unit": "Hz"}
+    adapter._plc.db_read.return_value = _int_bytes(3125)
+    assert adapter._read_channel_sync(channel, adapter._plc) == 31.25

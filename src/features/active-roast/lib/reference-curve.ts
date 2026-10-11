@@ -1,9 +1,12 @@
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { feedbackValue } from '@shared/lib/feedback';
 import type { TsvPoint } from '@shared/lib/tsv';
+import type { ReadUnits } from '@shared/types/sidecar';
 import { toDisplayRoR, toDisplayTemp } from './temperature';
 
 /** Display copy of a stored reference sample. heaterSet is intentionally absent. */
 export interface ReferenceCurvePoint {
+    readUnits?: ReadUnits;
     time: number;
     bt: number;
     et: number | null;
@@ -28,9 +31,10 @@ export const referenceCurveFromPoints = (points: readonly TsvPoint[]): Reference
         et: storedNumber(p.et),
         ror: storedNumber(p.ror),
         rorEt: storedNumber(p.rorEt),
-        heater: storedNumber(p.heater),
-        fan: storedNumber(p.fan),
-        drum: storedNumber(p.drum),
+        readUnits: p.processing?.read_units,
+        heater: feedbackValue(p.heater, 'heater', p.processing?.read_units),
+        fan: feedbackValue(p.fan, 'fan', p.processing?.read_units),
+        drum: feedbackValue(p.drum, 'drum', p.processing?.read_units),
     }));
 
 export const referenceCurveInRange = (
@@ -39,6 +43,7 @@ export const referenceCurveInRange = (
 ): ReferenceCurvePoint[] => (range ? curve.filter((p) => p.time >= range.start && p.time <= range.end) : curve);
 
 export const toDisplayReferenceCurve = (curve: readonly ReferenceCurvePoint[], unit: TemperatureUnit) => ({
+    readUnits: curve.map((p) => p.readUnits),
     xs: curve.map((p) => p.time),
     bt: curve.map((p) => toDisplayTemp(p.bt, unit)),
     et: curve.map((p) => (p.et == null ? null : toDisplayTemp(p.et, unit))),

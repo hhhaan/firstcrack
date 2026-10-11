@@ -32,6 +32,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
 import { CurveStyleSection } from './CurveStyleSection';
+import { RoastingSettingsImport } from './RoastingSettingsImport';
 import {
     SettingsCheckRow,
     SettingsOptionRow,
@@ -504,6 +505,7 @@ export const RoastSettingsTab = () => {
 
     return (
         <div className="settings-compact grid gap-0">
+            <RoastingSettingsImport />
             <SettingsSection group="general">
                 <SettingsSection.Header title={tk('temperatureUnit')} description={tk('temperatureUnitDescription')} />
                 <SettingsSection.Body className="flex-row flex-wrap gap-x-6 gap-y-1">

@@ -1,3 +1,4 @@
+import { feedbackValue } from '@shared/lib/feedback';
 import { formatTsvRows, TSV_HEADER } from '@shared/lib/tsv-writer';
 import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
@@ -206,7 +207,7 @@ export const bbpPointsToTsv = (points: BbpPoint[]): string =>
     formatTsvRows(
         points,
         (p) =>
-            `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\n`,
+            `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${feedbackValue(p.heater, 'heater', p.processing?.read_units) ?? ''}\t${feedbackValue(p.fan, 'fan', p.processing?.read_units) ?? ''}\t${feedbackValue(p.drum, 'drum', p.processing?.read_units) ?? ''}\t\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\n`,
     );
 
 const toTsv = bbpPointsToTsv;

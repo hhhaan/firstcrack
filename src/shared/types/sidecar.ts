@@ -33,6 +33,8 @@ export interface RoasterDef {
 
 export type RoastersResponse = Record<string, RoasterDef>;
 
+export type ReadUnits = Partial<Record<'heater' | 'fan' | 'drum', '%' | 'Pa' | 'Hz' | 'RPM'>>;
+
 // GET /status 응답
 /** 실제로 쓸 수 있는 채널의 클램프 범위. 사이드카 write_map에서 온다. */
 export interface ControlLimit {
@@ -76,6 +78,7 @@ export interface PidRuntime {
 }
 
 export interface SidecarStatus {
+    read_units?: ReadUnits;
     connected: boolean;
     reconnecting?: boolean;
     reconnect_attempt?: number;
@@ -90,6 +93,8 @@ export interface SidecarStatus {
 
 // GET /temperatures 응답
 export interface TemperatureProcessing {
+    /** Physical feedback units, independent of command limits. */
+    read_units?: ReadUnits;
     algorithm_version: string;
     temperature_unit: 'C';
     ror_unit: 'C/min';

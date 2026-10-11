@@ -1,3 +1,4 @@
+import { feedbackValue } from '@shared/lib/feedback';
 import { logger } from '@shared/lib/logger';
 import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { BaseDirectory, remove, writeTextFile } from '@tauri-apps/plugin-fs';
@@ -171,7 +172,7 @@ export type RoastTsvPoint = {
 };
 
 export const formatRoastTsvRow = (p: RoastTsvPoint): string =>
-    `${p.time.toFixed(2)}\t${p.bt}\t${p.et ?? ''}\t${p.ror ?? ''}\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\t${p.heaterSet ?? ''}\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\n`;
+    `${p.time.toFixed(2)}\t${p.bt}\t${p.et ?? ''}\t${p.ror ?? ''}\t${feedbackValue(p.heater, 'heater', p.processing?.read_units) ?? ''}\t${feedbackValue(p.fan, 'fan', p.processing?.read_units) ?? ''}\t${feedbackValue(p.drum, 'drum', p.processing?.read_units) ?? ''}\t${p.heaterSet ?? ''}\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\n`;
 
 /** Drop clip: replace the roast file so post-Drop samples are not uploaded with A. */
 export const replaceSessionTsv = async (sessionId: string, rows: string): Promise<void> => {

@@ -15,6 +15,7 @@ import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Trash2, Wifi, WifiOff 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { disconnectMachineWithRoastGuard } from './lib/roastDisconnectConfirm';
+import { MachineConnectionDetails } from './ui/MachineConnectionDetails';
 
 export const Machines = ({
     isActive = false,
@@ -263,28 +264,7 @@ export const Machines = ({
 
                                 {/* Connection params */}
                                 {Object.keys(selected.connectionParams).length > 0 && (
-                                    <div className="bg-surface-warm-solid dark:bg-surface-elevated rounded-lg px-4.5 py-4 mb-6">
-                                        <div className="text-[12px] font-semibold text-secondary mb-2.5">
-                                            {t('machines.connection')}
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {Object.entries(selected.connectionParams)
-                                                .filter(([, v]) => v !== '' && v != null)
-                                                .map(([k, v]) => (
-                                                    <div
-                                                        key={k}
-                                                        className="flex flex-col gap-1 px-2.5 py-2 rounded-lg bg-white/82 dark:bg-[#2e3338]"
-                                                    >
-                                                        <span className="text-[11px] text-muted uppercase tracking-wider">
-                                                            {k}
-                                                        </span>
-                                                        <span className="text-[13px] font-semibold text-primary">
-                                                            {String(v)}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    </div>
+                                    <MachineConnectionDetails machine={selected} />
                                 )}
 
                                 {sidecarStatus?.error && sidecarStatus.roaster === selected.roasterKey && (

@@ -3,7 +3,16 @@ import { CreditCard, Flame, Info, LayoutDashboard, type LucideIcon, MessageSquar
 
 export type SettingsTabId = 'general' | 'roast' | 'account' | 'billing' | 'team' | 'software' | 'feedback';
 
-export const roastSettingsGroups = ['general', 'alerts', 'automation', 'bbp', 'display', 'axes', 'sensors'] as const;
+export const roastSettingsGroups = [
+    'general',
+    'alerts',
+    'automation',
+    'bbp',
+    'display',
+    'axes',
+    'sensors',
+    'import',
+] as const;
 export type RoastSettingsGroup = (typeof roastSettingsGroups)[number];
 
 export interface TabConfig {
@@ -27,7 +36,7 @@ export function getSearchTabs(t: TFunction, query: string) {
                 ? [t('shortcuts.title'), t('shortcuts.description'), t('shortcuts.edit')].join(' ')
                 : '';
         const text =
-            `${searchText(t(`settings.tabs.${tab.id}`, { returnObjects: true }))} ${shortcutText}`.toLocaleLowerCase();
+            `${searchText(t(`settings.tabs.${tab.id}`, { returnObjects: true }))} ${shortcutText} ${tab.id === 'roast' ? `${searchText(t('settings.firescope', { returnObjects: true }))} ${searchText(t('settings.artisan', { returnObjects: true }))} ${searchText(t('settings.cropster', { returnObjects: true }))}` : ''}`.toLocaleLowerCase();
         return terms.every((term) => text.includes(term));
     });
 }

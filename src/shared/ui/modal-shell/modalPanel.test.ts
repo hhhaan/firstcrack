@@ -11,7 +11,7 @@ const src = (rel: string) => readFileSync(join(here, rel), 'utf8');
 describe('modalPanel + form-styles tokens', () => {
     it('exposes size keys used by form and confirm modals', () => {
         expect(Object.keys(modalPanel).sort()).toEqual(
-            ['compare', 'formLg', 'formMd', 'formSm', 'settings', 'sm'].sort(),
+            ['compare', 'formLg', 'formMd', 'formSm', 'formXl', 'settings', 'sm'].sort(),
         );
         for (const cls of Object.values(modalPanel)) {
             expect(cls.length).toBeGreaterThan(20);

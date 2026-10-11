@@ -47,6 +47,7 @@ export const MODBUS_ADDRESS_FORM_FIELDS: RoasterFormField[] = [
     { key: 'bt_func', label: 'BT Function', type: 'select', required: true, options: FUNC_OPTIONS },
     { key: 'bt_unit_id', label: 'BT Unit ID', type: 'number', required: true, placeholder: '1' },
     { key: 'bt_float', label: 'BT 32-bit Float', type: 'select', required: true, options: BOOL_OPTIONS },
+    { key: 'bt_signed', label: 'BT Signed Integer', type: 'select', required: true, options: BOOL_OPTIONS },
     { key: 'bt_div', label: 'BT Scale', type: 'select', required: true, options: DIV_OPTIONS },
     { key: 'bt_mode', label: 'BT Unit', type: 'select', required: true, options: TEMP_MODE_OPTIONS },
     {
@@ -59,6 +60,7 @@ export const MODBUS_ADDRESS_FORM_FIELDS: RoasterFormField[] = [
     { key: 'et_func', label: 'ET Function', type: 'select', required: false, options: FUNC_OPTIONS },
     { key: 'et_unit_id', label: 'ET Unit ID', type: 'number', required: false, placeholder: '1' },
     { key: 'et_float', label: 'ET 32-bit Float', type: 'select', required: false, options: BOOL_OPTIONS },
+    { key: 'et_signed', label: 'ET Signed Integer', type: 'select', required: false, options: BOOL_OPTIONS },
     { key: 'et_div', label: 'ET Scale', type: 'select', required: false, options: DIV_OPTIONS },
     { key: 'et_mode', label: 'ET Unit', type: 'select', required: false, options: TEMP_MODE_OPTIONS },
     {
@@ -144,12 +146,14 @@ const MODBUS_ADDRESS_DEFAULTS: Record<string, string> = {
     bt_func: '3',
     bt_unit_id: '1',
     bt_float: 'false',
+    bt_signed: 'false',
     bt_div: '0',
     bt_mode: 'C',
     et_register: '',
     et_func: '3',
     et_unit_id: '1',
     et_float: 'false',
+    et_signed: 'false',
     et_div: '0',
     et_mode: 'C',
     word_order: 'little',
@@ -185,6 +189,7 @@ type ModbusChannel = {
     func: number;
     unit_id: number;
     float: boolean;
+    signed: boolean;
     div: number;
     mode: string;
 };
@@ -199,6 +204,7 @@ const buildModbusChannel = (p: Record<string, string>, prefix: 'bt' | 'et'): Mod
         func: asNum(p[`${prefix}_func`], 3),
         unit_id: asNum(p[`${prefix}_unit_id`], 1),
         float: asBool(p[`${prefix}_float`]),
+        signed: asBool(p[`${prefix}_signed`]),
         div: asNum(p[`${prefix}_div`], 0),
         mode: p[`${prefix}_mode`] || 'C',
     };
@@ -263,12 +269,14 @@ export const flattenAddressMaps = (protocol: string, existing?: Record<string, u
             bt_func: String(bt.func ?? 3),
             bt_unit_id: String(bt.unit_id ?? 1),
             bt_float: String(Boolean(bt.float)),
+            bt_signed: String(Boolean(bt.signed)),
             bt_div: String(bt.div ?? 0),
             bt_mode: bt.mode ?? 'C',
             et_register: et ? String(et.register) : '',
             et_func: String(et?.func ?? 3),
             et_unit_id: String(et?.unit_id ?? 1),
             et_float: String(Boolean(et?.float)),
+            et_signed: String(Boolean(et?.signed)),
             et_div: String(et?.div ?? 0),
             et_mode: et?.mode ?? 'C',
             word_order: String(existing.word_order ?? 'little'),

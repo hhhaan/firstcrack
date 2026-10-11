@@ -1,5 +1,6 @@
 import { CHART_COLORS } from '@features/active-roast/lib/chart-config';
 import { type CurveLineStyle, curveSwatchCss, type ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
+import { type FeedbackRole, feedbackLabel, formatFeedback } from '@shared/lib/feedback';
 import { fmtSec } from './axes';
 import type { ControlData } from './types';
 
@@ -119,7 +120,25 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
             const y = p.value?.[1];
             if (y == null) continue;
             const row = tooltipRows[p.seriesName];
-            if (row?.visible) html += tooltipRow(row.style, row.label, row.format(y));
+            if (row?.visible) {
+                const role = (
+                    {
+                        Drum: 'drum',
+                        Heat: 'heater',
+                        Fan: 'fan',
+                        'Drum Target': 'drum',
+                        'Heater Target': 'heater',
+                        'Fan Target': 'fan',
+                    } as Record<string, FeedbackRole>
+                )[p.seriesName];
+                const reference = String(p.seriesName).endsWith(' Target');
+                const units = (reference ? controlData?.reference?.readUnits : controlData?.readUnits)?.[p.dataIndex];
+                html += tooltipRow(
+                    row.style,
+                    role && units ? `${reference ? 'Target ' : ''}${feedbackLabel(role, units)}` : row.label,
+                    role && units ? formatFeedback(y, role, units) : row.format(y),
+                );
+            }
         }
         return html;
     };

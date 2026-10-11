@@ -98,6 +98,7 @@ import { useRoastSaveFlow } from './model/useRoastSaveFlow';
 import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
+import { ReadFeedback } from './ui/ReadFeedback';
 import { ReplayProfileChangeModal } from './ui/ReplayProfileChangeModal';
 import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
@@ -941,6 +942,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         showProfileDrum: roastSettings.showProfileDrum,
         showProfileHeat: roastSettings.showProfileHeat,
         showProfileFan: roastSettings.showProfileFan,
+        readUnits: chart.visibleReadUnits,
+        referenceReadUnits: chart.visibleTargetReadUnits,
         controlXs: chart.visibleControlXs,
         drumTemp: chart.visibleDrumTemp,
         heatPower: chart.visibleHeatPower,
@@ -996,6 +999,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 autoChargeMessage={t('settings.tabs.roast.autoChargeUnavailable')}
                 autoDropMessage={t('settings.tabs.roast.autoDropUnavailable')}
             />
+
+            <ReadFeedback />
 
             <div
                 className={chartFrame.className}
