@@ -765,7 +765,7 @@
         "dischargeDoor": "出料口",
         "dischargeDoorHint": "通过 Drop 按钮或快捷键打开出料口",
         "fillDoor": "进料口",
-        "fillDoorHint": "通过 Charge 按钮或快捷键打开料斗门",
+        "fillDoorHint": "通过 Charge 按钮打开料斗门",
         "disconnect": "断开连接",
         "connect": "连接",
         "enterpriseOnly": "此机型仅限 Enterprise 账户连接。",

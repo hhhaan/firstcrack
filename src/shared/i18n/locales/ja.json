@@ -765,7 +765,7 @@
         "dischargeDoor": "排出口",
         "dischargeDoorHint": "Drop ボタンまたはショートカットで排出口を開きます",
         "fillDoor": "投入口",
-        "fillDoorHint": "Charge ボタンまたはショートカットでホッパーの扉を開きます",
+        "fillDoorHint": "Charge ボタンでホッパーの扉を開きます",
         "disconnect": "切断",
         "connect": "接続",
         "enterpriseOnly": "このモデルは Enterprise アカウントでのみ接続できます。",

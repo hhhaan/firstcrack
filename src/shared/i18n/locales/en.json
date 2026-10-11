@@ -765,7 +765,7 @@
         "dischargeDoor": "Discharge",
         "dischargeDoorHint": "Open the discharge door with the Drop button or shortcut",
         "fillDoor": "Charge",
-        "fillDoorHint": "Open the hopper door with the Charge button or shortcut",
+        "fillDoorHint": "Open the hopper door with the Charge button",
         "disconnect": "Disconnect",
         "connect": "Connect",
         "enterpriseOnly": "This model can only be connected from an Enterprise account.",
