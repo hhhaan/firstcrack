@@ -4,7 +4,7 @@ import { logger } from '@shared/lib/logger';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { heaterEventsToJson, parseHeaterEvents } from '../lib/heater-events';
+import { heaterEventsToJson, parseHeaterEvents, profileHeaterBounds } from '../lib/heater-events';
 import { HeaterEventsEditor } from './HeaterEventsEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -18,12 +18,34 @@ vi.mock('react-i18next', () => ({
 describe('HeaterEventsEditor', () => {
     let host: HTMLDivElement;
 
-    it.each(['time', 'bt'] as const)('applies an 80 to 0 OFF plan with %s trigger', async (trigger) => {
+    it.each([
+        ['giesen_standard', 'time'],
+        ['giesen_standard', 'bt'],
+        ['giesen_w45a_w60a', 'time'],
+        ['giesen_w45a_w60a', 'bt'],
+        ['giesen_wxa_coarse', 'time'],
+        ['giesen_wxa_coarse', 'bt'],
+    ] as const)('round-trips a saved %s plan with logical zero and %s trigger', async (key, trigger) => {
         host = document.createElement('div');
         document.body.appendChild(host);
         const root = createRoot(host);
         const onApply = vi.fn();
-        const events = [{ t: 0, bt: 100, heater: 80, trigger: 'time' as const }];
+        const max = key === 'giesen_wxa_coarse' ? 10 : 100;
+        const unit = key === 'giesen_wxa_coarse' ? 'step' : '%';
+        const bounds = profileHeaterBounds(
+            { machine_id: key },
+            [
+                {
+                    id: key,
+                    roasterKey: key,
+                    connectionParams: {
+                        write_map: { heater: { db: 2, offset: 14, area: 6, type: 0, div: 0, min: 1, max, unit } },
+                    },
+                },
+            ],
+            {},
+        );
+        const events = [{ t: 0, bt: 100, heater: max * 0.8, trigger: 'time' as const }];
         await act(async () => {
             root.render(
                 createElement(HeaterEventsEditor, {
@@ -33,8 +55,9 @@ describe('HeaterEventsEditor', () => {
                     btPoints: [],
                     source: 'profile',
                     unit: 'C',
-                    heaterMin: 0,
-                    heaterMax: 100,
+                    heaterMin: bounds.min,
+                    heaterMax: bounds.max,
+                    heaterUnit: bounds.unit,
                     onClose: () => {},
                     onApply,
                 }),
@@ -69,7 +92,7 @@ describe('HeaterEventsEditor', () => {
         await act(async () => apply?.click());
         expect(onApply).toHaveBeenCalledOnce();
         const saved = parseHeaterEvents(heaterEventsToJson(onApply.mock.calls[0][0]));
-        expect(saved?.map((e) => e.heater)).toEqual([80, 0]);
+        expect(saved?.map((e) => e.heater)).toEqual([max * 0.8, 0]);
         expect(saved?.[1].trigger).toBe(trigger);
         await act(async () => {
             root.render(
@@ -81,8 +104,9 @@ describe('HeaterEventsEditor', () => {
                     btPoints: [],
                     source: 'profile',
                     unit: 'C',
-                    heaterMin: 0,
-                    heaterMax: 100,
+                    heaterMin: bounds.min,
+                    heaterMax: bounds.max,
+                    heaterUnit: bounds.unit,
                     onClose: () => {},
                     onApply,
                 }),
@@ -92,7 +116,7 @@ describe('HeaterEventsEditor', () => {
             [...document.querySelectorAll<HTMLInputElement>('tbody input[aria-label="heaterEventsEditor.heat"]')].map(
                 (input) => input.value,
             ),
-        ).toEqual(['80', '0']);
+        ).toEqual([String(max * 0.8), '0']);
         await act(async () => root.unmount());
     });
 

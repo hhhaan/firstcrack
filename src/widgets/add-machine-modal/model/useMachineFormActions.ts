@@ -1,10 +1,12 @@
 import type { Machine, RoasterDef } from '@entities/machine';
+import { canConnectRoaster } from '@entities/machine';
 import {
     beginMachineConnectAttempt,
     endMachineConnectAttempt,
     noteUserMachineDisconnect,
     settleUserMachineDisconnect,
 } from '@features/machine-connection/lib/machineLinkNotice';
+import { useAccountPlan } from '@shared/lib/features/useAccountPlan';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { useMemo } from 'react';
@@ -59,6 +61,7 @@ export const useMachineFormActions = ({
     setTestMessage,
 }: Args) => {
     const { t } = useTranslation();
+    const accountPlan = useAccountPlan();
 
     const commit = async (action: CommitAction) => {
         if (!selectedDef || !connectKey) return;
@@ -149,6 +152,12 @@ export const useMachineFormActions = ({
             const status = await sidecar.disconnect().catch(() => null);
             settleUserMachineDisconnect(status?.connected === false);
             testConnectedRef.current = false;
+        }
+
+        if (!canConnectRoaster(connectKey, accountPlan)) {
+            setTestState('failed');
+            setTestMessage(t('machines.enterpriseOnly'));
+            return;
         }
 
         setTestState('testing');

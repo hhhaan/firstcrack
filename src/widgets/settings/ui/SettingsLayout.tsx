@@ -7,11 +7,12 @@ export function SettingsLayout({
     activeTab,
     onTabChange,
     onClose,
+    initialRoastGroup = null,
     children,
-}: SettingsNavigationProps & { children: ReactNode }) {
+}: SettingsNavigationProps & { initialRoastGroup?: RoastSettingsGroup | null; children: ReactNode }) {
     const { t } = useTranslation();
     const [query, setQuery] = useState('');
-    const [roastGroup, setRoastGroup] = useState<RoastSettingsGroup>('general');
+    const [roastGroup, setRoastGroup] = useState<RoastSettingsGroup>(initialRoastGroup ?? 'general');
     const contentRef = useRef<HTMLDivElement>(null);
     const emptyRef = useRef<HTMLParagraphElement>(null);
     const tab = getTabs(t).find((item) => item.id === activeTab);

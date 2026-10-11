@@ -17,6 +17,7 @@ from snap7.util.getters import get_int, get_real
 from snap7.util.setters import set_int
 
 from adapters.s7 import S7Adapter, _probe_tcp  # autouse 패치 이전의 원본을 잡아둔다
+from roaster_registry import ROASTER_REGISTRY
 
 
 GIESEN_CHANNELS = [
@@ -94,6 +95,27 @@ class TestControlWrite:
         assert adapter._plc.db_write.call_count == 1
         assert _written(adapter._plc)[1] == 14
 
+    @pytest.mark.parametrize("requested, logical", [(0, 40), (40, 40), (45, 45), (55, 55), (100, 55)])
+    async def test_w45a_w60a_drum_writes_int_hz_without_changing_heater(self, adapter, requested, logical):
+        from manager import RoasterManager
+
+        defaults = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
+        adapter._write_map = defaults["write_map"]
+        manager = RoasterManager()
+        manager._adapter = adapter
+        manager._protocol = "s7"
+        manager._connected = True
+        manager._merged_params = defaults
+        await manager.control(heater=22)
+        assert get_int(_written(adapter._plc)[2], 0) == 23
+        adapter._plc.db_write.reset_mock()
+
+        assert await manager.control(drum=requested) == {"drum": logical}
+        assert manager.last_applied() == {"heater": 22, "drum": logical}
+        adapter._plc.db_write.assert_called_once()
+        db, offset, payload = _written(adapter._plc)
+        assert (db, offset, len(payload), get_int(payload, 0)) == (2, 18, 2, logical)
+
     async def test_raises_when_plc_none(self, adapter):
         plc = adapter._plc
         adapter._plc = None
@@ -113,13 +135,16 @@ class TestControlWrite:
 
 
 class TestScalingAndEncoding:
-    @pytest.mark.parametrize("requested,logical,raw", [(0, 0, 1), (10, 10, 11), (100, 100, 101), (-10, 0, 1), (110, 100, 101)])
-    async def test_w60a_logical_command_and_plc_encoding(self, adapter, requested, logical, raw):
+    @pytest.mark.parametrize("key", [key for key in ROASTER_REGISTRY if key.startswith("giesen_")])
+    @pytest.mark.parametrize("requested", [0, 1, 10, 22, 100, -10, 110])
+    async def test_giesen_logical_command_and_plc_encoding(self, adapter, key, requested):
         from manager import RoasterManager
-        from roaster_registry import ROASTER_REGISTRY
 
-        defaults = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
+        defaults = ROASTER_REGISTRY[key]["default_params"]
+        logical = max(0, min(requested, 10 if key == "giesen_wxa_coarse" else 100))
+        raw = logical + (0 if key == "giesen_w6a_pro" else 1)
         adapter._write_map = defaults["write_map"]
+        adapter._channels = defaults["channels"]
         manager = RoasterManager()
         manager._adapter = adapter
         manager._protocol = "s7"
@@ -129,7 +154,13 @@ class TestScalingAndEncoding:
         assert manager.last_applied() == {"heater": logical}
         assert manager.write_limits()["heater"]["min"] == 0
         db, offset, payload = _written(adapter._plc)
-        assert (db, offset, get_int(payload, 0)) == (2, 14, raw)
+        cell = (1001, 42) if key == "giesen_w6a_pro" else (2, 14)
+        assert (db, offset, get_int(payload, 0)) == (*cell, raw)
+        assert adapter._plc.db_write.call_count == 1
+        adapter._plc.db_read.return_value = _int_bytes(72)
+        assert await adapter.read_raw_channel("heater") == 72.0
+        feedback = next(ch for ch in defaults["channels"] if ch["role"] == "heater")
+        assert adapter._plc.db_read.call_args.args[:2] == (feedback["db"], feedback["offset"])
 
     @pytest.mark.parametrize("value_offset", [True, "1", None, float("nan"), float("inf")])
     async def test_rejects_invalid_value_offset(self, adapter, value_offset):

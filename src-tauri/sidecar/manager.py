@@ -177,7 +177,7 @@ def _merge_connect_params(
     알려진 머신의 주소 맵을 통째로 지우지 않게 레지스트리 값을 유지한다 (#270).
     """
     merged = {**defaults, **params}
-    # Upgrade only an exact saved legacy heater map; retain custom maps and other roles.
+    # Upgrade exact saved default heater maps; retain custom maps and other roles.
     default_heater = (defaults.get("write_map") or {}).get("heater", {})
     saved_map = params.get("write_map")
     if default_heater.get("value_offset") == 1 and isinstance(saved_map, dict):
@@ -185,6 +185,8 @@ def _merge_connect_params(
         legacy_heater["min"] = 1
         if saved_map.get("heater") == legacy_heater:
             merged["write_map"] = {**saved_map, "heater": dict(default_heater)}
+        if merged.get("write_map") == {"heater": default_heater}:
+            merged["write_map"] = dict(defaults["write_map"])
     for key in _MAP_KEYS:
         if key not in params:
             continue

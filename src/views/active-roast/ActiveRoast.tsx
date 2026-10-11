@@ -287,10 +287,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [sourceEvents],
     );
 
-    // Replay는 같은 기기만 — 키가 양쪽 다 있고 다를 때만 차단(레거시 null 프로파일은 허용)
+    // 기존 Standard 기록은 같은 머신 ID의 W60 키 마이그레이션 뒤에도 재생한다.
     const referenceKey = targetProfile?.machine_roaster_key ?? null;
     const currentKey = machineSnapshot?.machine_roaster_key ?? null;
-    const replayMachineMismatch = isReplayMachineMismatch(referenceKey, currentKey);
+    const replayMachineMismatch = isReplayMachineMismatch(
+        referenceKey,
+        currentKey,
+        targetProfile?.machine_id,
+        machineSnapshot?.machine_id,
+    );
     // biome-ignore lint/correctness/useExhaustiveDependencies: identity for in-flight Replay profile confirm
     useEffect(() => {
         profileChangeGenRef.current += 1;

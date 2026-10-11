@@ -287,9 +287,36 @@ export const profileHeaterBounds = (
         };
     }
     const bounds = resolveHeaterBounds({ params });
-    if (key === 'giesen_w45a_w60a') {
+    if (
+        key &&
+        [
+            'giesen_standard',
+            'giesen_w30a',
+            'giesen_w30a_pro',
+            'giesen_w15e',
+            'giesen_w140a_v1',
+            'giesen_w140a_v2',
+            'giesen_w1',
+            'giesen_sample',
+            'giesen_w45a_w60a',
+            'giesen_wxa',
+            'giesen_wxa_plus',
+            'giesen_wxa_coarse',
+        ].includes(key)
+    ) {
         const heater = writeMapHeater(params);
-        const legacy = { db: 2, offset: 14, area: 6, type: 0, div: 0, min: 1, max: 100, unit: '%' };
+        // Offline registry omits write maps; match the frozen legacy default to preserve custom maps.
+        const coarse = key === 'giesen_wxa_coarse';
+        const legacy = {
+            db: 2,
+            offset: 14,
+            area: 6,
+            type: 0,
+            div: 0,
+            min: 1,
+            max: coarse ? 10 : 100,
+            unit: coarse ? 'step' : '%',
+        };
         if (
             heater &&
             Object.keys(heater).length === Object.keys(legacy).length &&

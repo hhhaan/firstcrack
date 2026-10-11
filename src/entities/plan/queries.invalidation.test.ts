@@ -1,4 +1,4 @@
-import { planQueryRoots } from '@shared/lib/query-keys';
+import { inventoryQueryRoots, planQueryRoots } from '@shared/lib/query-keys';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { invalidateAfterCreatePlanBatch, planKeys, scheduledBatchInvalidationKeys } from './queries';
@@ -11,6 +11,8 @@ describe('plan mutation invalidation', () => {
         expect(keys).toContainEqual(planQueryRoots.rangeSummary);
         expect(keys).toContainEqual(planQueryRoots.weekSummary);
         expect(keys).toContainEqual(planQueryRoots.monthSummary);
+        expect(keys).toContainEqual(inventoryQueryRoots.beanStockSummaries);
+        expect(keys).toContainEqual(inventoryQueryRoots.beanStockSummary);
         expect(planKeys.dayBatchesRoot).toEqual(planQueryRoots.dayBatches);
     });
 

@@ -40,8 +40,21 @@ export const replayPointsForProfile = <T>(
 
 export const isWaitingForCharge = (bbpActive: boolean, charged: boolean) => bbpActive || !charged;
 
-export const isReplayMachineMismatch = (referenceKey: string | null, currentKey: string | null) =>
-    referenceKey != null && currentKey != null && referenceKey !== currentKey;
+export const isReplayMachineMismatch = (
+    referenceKey: string | null,
+    currentKey: string | null,
+    referenceMachineId?: string | null,
+    currentMachineId?: string | null,
+) =>
+    referenceKey != null &&
+    currentKey != null &&
+    referenceKey !== currentKey &&
+    !(
+        referenceKey === 'giesen_standard' &&
+        currentKey === 'giesen_w45a_w60a' &&
+        Boolean(referenceMachineId) &&
+        referenceMachineId === currentMachineId
+    );
 
 export const latestSampleTime = (points: { t: number }[]) => (points.length > 0 ? points[points.length - 1].t : 0);
 

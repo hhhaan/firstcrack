@@ -1,9 +1,7 @@
 import type { StockSummary } from '@entities/bean-stock-event';
-import { beanStockEventApi, stockEventKeys } from '@entities/bean-stock-event';
 import type { BlendWithComponents } from '@entities/blend';
 import { isRecurringHorizonStockShort, recurringHorizonGreenNeededGrams } from '@shared/lib/batch-stock';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
-import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BatchType } from '../lib/types';
@@ -15,6 +13,7 @@ type Params = {
     selectedBlend: BlendWithComponents | undefined;
     selectedBeanId: string | null;
     stockSummary: StockSummary | undefined;
+    stockSummaries: Record<string, StockSummary>;
     plannedGrams: number;
     recurringInterval: RecurrenceInterval | null;
     date: Date | undefined;
@@ -28,6 +27,7 @@ export const useBatchStockChecks = ({
     selectedBlend,
     selectedBeanId,
     stockSummary,
+    stockSummaries,
     plannedGrams,
     recurringInterval,
     date,
@@ -42,19 +42,11 @@ export const useBatchStockChecks = ({
         return selectedBlend.blend_components ?? [];
     }, [isBlendType, selectedBlend]);
 
-    const blendStockQueries = useQueries({
-        queries: blendComponents.map((comp) => ({
-            queryKey: stockEventKeys.summary(comp.bean_id),
-            queryFn: () => beanStockEventApi.getStockSummary(comp.bean_id),
-            enabled: !!comp.bean_id,
-        })),
-    });
-
     const blendShortages = useMemo(() => {
         if (blendComponents.length === 0 || plannedGrams === 0) return [];
-        return blendComponents.map((comp, i) => {
+        return blendComponents.map((comp) => {
             const neededGrams = Math.round((Number(comp.ratio_pct) / 100) * plannedGrams);
-            const summary = blendStockQueries[i]?.data;
+            const summary = stockSummaries[comp.bean_id];
             return {
                 beanName: (comp as { beans?: { name: string } }).beans?.name ?? t('addBatchModal.unknown'),
                 ratioPct: comp.ratio_pct,
@@ -63,19 +55,19 @@ export const useBatchStockChecks = ({
                 isShort: summary ? summary.effectiveGrams < neededGrams : false,
             };
         });
-    }, [blendComponents, plannedGrams, blendStockQueries, t]);
+    }, [blendComponents, plannedGrams, stockSummaries, t]);
 
     const effectiveStockKg = (stockSummary?.effectiveGrams ?? 0) / 1000;
     const greenNeeded = plannedGrams > 0 ? plannedGrams / 1000 : 0;
-    const stockSufficient = greenNeeded === 0 || effectiveStockKg >= greenNeeded;
+    const stockSufficient = !stockSummary || greenNeeded === 0 || effectiveStockKg >= greenNeeded;
     const stockPct = greenNeeded > 0 ? Math.min(100, (effectiveStockKg / greenNeeded) * 100) : 100;
     const isShortage = !!stockSummary && plannedGrams > 0 && stockSummary.effectiveGrams < plannedGrams;
 
     const recurringHorizonShort = useMemo(() => {
-        if (!recurringInterval || batchType !== 'Single Origin' || !beanId || !date) return null;
+        if (!stockSummary || !recurringInterval || batchType !== 'Single Origin' || !beanId || !date) return null;
         const neededGrams = recurringHorizonGreenNeededGrams(recurringInterval, date, batchSizeNum, batchCount);
         if (neededGrams <= 0) return null;
-        const effectiveGrams = stockSummary?.effectiveGrams ?? 0;
+        const effectiveGrams = stockSummary.effectiveGrams;
         if (!isRecurringHorizonStockShort(effectiveGrams, recurringInterval, date, batchSizeNum, batchCount)) {
             return null;
         }
@@ -83,7 +75,7 @@ export const useBatchStockChecks = ({
             neededKg: (neededGrams / 1000).toFixed(1),
             availableKg: (effectiveGrams / 1000).toFixed(1),
         };
-    }, [recurringInterval, batchType, beanId, date, batchSizeNum, batchCount, stockSummary?.effectiveGrams]);
+    }, [recurringInterval, batchType, beanId, date, batchSizeNum, batchCount, stockSummary]);
 
     return {
         isBlendType,

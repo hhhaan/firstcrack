@@ -22,7 +22,7 @@ Canonical order data lives in Supabase (`orders`, `order_lines`). The desktop ap
 | Features | `src/features/fulfill-order/`, `src/features/cancel-order/`, `src/features/dispatch-order/` |
 | UI | `src/views/orders/Orders.tsx`, `src/widgets/add-order-modal/`, `src/widgets/connect-channel-modal/` |
 | Edge | `supabase/functions/channel-connect/`, `channel-disconnect/`, `cafe24-oauth-start/`, `cafe24-oauth-callback/`, `order-sync/`, `order-webhook/`, `order-dispatch/` |
-| Shared EF | `supabase/functions/_shared/channels/*` (adapters, normalize, status-map, inbound-actions, dispatch) |
+| Shared EF | `supabase/functions/_shared/channels/*` (adapters, normalize, status-map, dispatch) |
 
 ---
 
@@ -67,7 +67,7 @@ there silently deleted nothing for members.
 ## Inbound order sync
 
 1. Manual "Sync now" (user JWT) or 15m pg_cron (`x-cron-secret` on `order-sync`)
-2. Adapter pulls platform orders → normalize → upsert `orders` / `order_lines`
+2. Adapter pulls platform orders → normalize product candidates → `sync_channel_orders_batch` atomically writes orders, lines, and stock effects in chunks of 100
 3. Webhooks: `order-webhook` (Shopify HMAC / Cafe24 shared secret) — fail closed on bad signature
 4. App reads tables only via `orderApi.list(workspaceOwnerId)`
 
@@ -122,7 +122,7 @@ server-side; Naver returns `[]` → manual key entry) and writes `product_channe
 offers **Link**: it saves the line's own variant/product id as a mapping and binds the line immediately
 (`orderApi.setLineProduct`). Both the direct bind and the sync-time re-resolution refuse lines of an order
 that is already fulfilled — such a line was never deducted, and a later cancel would restore stock that
-never left (`planInboundStockActions` gates restores on `fulfilled_at`).
+never left (`sync_channel_orders_batch` gates mapping and restores on `fulfilled_at`).
 
 ---
 
@@ -135,7 +135,9 @@ never left (`planInboundStockActions` gates restores on `fulfilled_at`).
 | **Cancel** | Cancel order; restore stock if already fulfilled | RPC `cancel_order` | product restore via cancel path |
 
 **Do not** equate `fulfilled_at` with platform "shipped".  
-**Do not** flip `orders.status` with ad-hoc updates — inbound status merge is rank-based in `_shared/channels/status-map.ts` (cancelled/refunded are terminal).
+**Do not** flip `orders.status` with ad-hoc updates — inbound status merge is owned by `sync_channel_orders_batch` (cancelled/refunded are terminal); outbound dispatch still uses `_shared/channels/status-map.ts`.
+
+Inbound persistence is service-role-only RPC `sync_channel_orders_batch`. It verifies the connection owner/platform, reads the latest `auto_fulfill_on_shipped`, serializes concurrent writes for the same external order, and preserves input order when an adapter repeats an external order ID. The RPC owns inbound status merge, earliest `ordered_at`, line diffs, stock idempotency, and dispatch confirmation; `normalize.ts` owns adapter payload validation and product candidate mapping.
 
 `order_dispatches` lifecycle: pending → sent → confirmed (via poll/webhook).
 

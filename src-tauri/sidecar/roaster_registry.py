@@ -204,16 +204,15 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
 # ---------------------------------------------------------------------------
 
 # Giesen db2 계열 공통 (W1A~W140A, WxA/WxA+): slidercommands "setDBint(2,14,{})"
-# heater duty만 노출한다. fan(DB2.10)/drum(DB2.18)/pressure(DB2.16)은 모델마다
-# slidermin/max가 달라(fan 250~280, drum 34~60Hz) 레지스트리 키 분리가 선행돼야 한다.
-# min=1: DB2.14에 0을 쓰면 버너가 꺼지는 게 아니라 **기센 자체 자동 모드로 넘어간다**.
+# 공유 맵은 heater duty만 노출한다. drum(DB2.18)은 모델마다 범위가 달라 별도 맵이 필요하다.
+# DB2.10은 Artisan 온도 SP이고, pressure(DB2.16)도 여기서는 노출하지 않는다.
+# DB2.14 raw 0은 버너 OFF가 아니라 기센 AUTO 인계다.
 # 근거 (2026-09-03 조사, docs/research/giesen-remote-access-unlock.md):
 #   - Artisan 메인테이너, discussion #827: "Setting the burner to 0 activates the
 #     automatic mode on those machines"
 #   - 클래식 기센 .aset 전부 PID_ON_action="setDBint(2,14,0)" (= 머신에 화력 인계)
 #   - heater 슬라이더만 slideroffsets=1 → Artisan 수동 슬라이더는 0을 절대 안 보낸다(1..101)
-# 이 하한이 없으면 배출·연결끊김·PID FAULT의 "안전 정지"가 전부 자동 모드를 켠다 —
-# 아무도 안 보는 로스터가 스스로 재점화할 수 있다. 진짜 가스 차단은 조작반/인터락 몫이다.
+# 논리 0~100에 value_offset=1을 더해 raw 1~101을 쓴다. 실제 가스 차단은 조작반/인터락 몫이다.
 # W6A PRO는 예외다: AUTO 센티널이 -1이고 슬라이더 오프셋도 0이라 0이 정상 값 → min 0 유지.
 _GIESEN_DB2_WRITE_MAP: dict[str, dict[str, Any]] = {
     "heater": {
@@ -222,9 +221,10 @@ _GIESEN_DB2_WRITE_MAP: dict[str, dict[str, Any]] = {
         "area": 6,
         "type": 0,
         "div": 0,
-        "min": 1,
+        "min": 0,
         "max": 100,
         "unit": "%",
+        "value_offset": 1,
     },
 }
 
@@ -1785,9 +1785,13 @@ ROASTER_REGISTRY.update({
     "giesen_w45a_w60a": _giesen_variant(
         "giesen_standard", display_name="Giesen W45A / W60A",
         models=["W45A", "W60A"], host="172.30.30.90",
-        # Artisan W60A: logical 0..100 -> DB2.14 raw 1..101.
         write_map={
-            "heater": {**_GIESEN_DB2_WRITE_MAP["heater"], "min": 0, "value_offset": 1},
+            **_GIESEN_DB2_WRITE_MAP,
+            # Artisan W45A/W60A drum slider; Quantifiers max=45 is not the command limit.
+            "drum": {
+                "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0,
+                "min": 40, "max": 55, "unit": "Hz",
+            },
         },
     ),
     "giesen_w140a_v1": _giesen_variant(

@@ -51,6 +51,54 @@ describe('ChannelChip (#436)', () => {
         unmount();
     });
 
+    it.each([
+        [40, 'plus', 41],
+        [49, 'plus', 50],
+        [55, 'plus', 55],
+        [55, 'minus', 54],
+        [40, 'minus', 40],
+    ] as const)('drum %i Hz %s stays within 40–55 Hz in one-Hz steps', (current, direction, expected) => {
+        const { container, onChange, onCommit, unmount } = renderChip({
+            role: 'drum',
+            limit: { min: 40, max: 55, unit: 'Hz' },
+            value: current,
+            feedback: current,
+        });
+        expect(container.textContent).toContain('Hz');
+        act(() => (container.querySelector(`[aria-label="Drum ${direction}"]`) as HTMLButtonElement).click());
+        if (expected === current) {
+            expect(onChange).not.toHaveBeenCalled();
+            expect(onCommit).not.toHaveBeenCalled();
+        } else {
+            expect(onChange).toHaveBeenCalledExactlyOnceWith('drum', expected);
+            expect(onCommit).toHaveBeenCalledTimes(1);
+        }
+        unmount();
+    });
+
+    it.each([
+        ['1', 40],
+        ['99', 55],
+    ])('clamps typed drum value %s to %i Hz on Enter', (typed, expected) => {
+        const { container, onChange, onCommit, unmount } = renderChip({
+            role: 'drum',
+            limit: { min: 40, max: 55, unit: 'Hz' },
+            value: 45,
+            feedback: 45,
+        });
+        const input = container.querySelector('[data-channel-input]') as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        act(() => {
+            setValue?.call(input, typed);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(onChange).not.toHaveBeenCalled();
+        act(() => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('drum', expected);
+        expect(onCommit).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
     it.each(['fan', 'drum'] as const)('%s commits once per full pointer click and ignores right-clicks', (role) => {
         const { container, onChange, onCommit, unmount } = renderChip({ role });
         const plus = container.querySelector('[data-step="5"]') as HTMLButtonElement;

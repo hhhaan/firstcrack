@@ -79,7 +79,7 @@ _Avoid_: The cooling that follows. Cooling is a different track.
 ## Controls
 
 **Gas**:
-화력, in percent. The operator name for heat power. The application command is Heat set.
+화력. The operator's heating setting, expressed in the connected roaster's control unit, commonly percent. The application command is Heat set.
 _Avoid_: Heat feedback. Airflow.
 
 **Airflow**:
@@ -127,15 +127,15 @@ _Avoid_: Feedforward.
 _Avoid_: The live batch. The account profile.
 
 **Replay assist**:
-기준 로스팅을 자동 재현하는 기능.
+기준 로스팅의 Heat set 명령을 시간·온도 조건에 맞춰 적용하는 운전 보조. 명령의 재현은 온도 커브나 향미 결과의 일치를 뜻하지 않는다.
 _Avoid_: A manual gas change.
 
 **Event mapping**:
-가스 변경을 온도에 묶어 두는 방식.
-_Avoid_: A time-only gas list when the binding is temperature.
+화력 변경 명령을 재생 조건에 연결하는 것. 조건은 투입 후 경과 시간이나 TP 이후 BT 도달처럼 명령을 적용할 기준이다.
+_Avoid_: A temperature-curve target as a synonym for a command's replay condition.
 
 **Gas replay**:
-기준 로스팅의 가스 커브 재생.
+기준 로스팅에 기록된 Heat set 명령의 재생. 기계가 보고한 Heat feedback 곡선과는 구별된다.
 _Avoid_: Replaying bean temperature as if it were the gas command.
 
 ## Quality

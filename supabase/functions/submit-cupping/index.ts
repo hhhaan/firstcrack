@@ -1,14 +1,15 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
 import {
+    type CuppingFormSchema,
     formSchemaOrSca,
     parseScoresForForm,
     totalScoreForForm,
-    type CuppingFormSchema,
 } from '../_shared/cupping-form.ts';
 import { normalizeCuppedBy, parseInviteAction, parsePublishSamples } from '../_shared/cupping-publish.ts';
 import { normalizeDescriptors } from '../_shared/cupping-score.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
+import { type WrittenRow, writeScorecardsBatch } from './write-scorecards.ts';
 
 const serviceClient = () =>
     createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
@@ -95,14 +96,12 @@ async function handleInvite(supabase: Sb, body: Body): Promise<Response> {
     }
 
     const cuppedBy = normalizeCuppedBy(body.cuppedBy);
-    const token = body.token!.trim();
+    const token = body.token?.trim() ?? '';
     const participantId = typeof body.participantId === 'string' ? body.participantId.trim() : '';
 
     const { data: invite, error } = await supabase
         .from('cupping_invites')
-        .select(
-            'id, user_id, roast_session_id, sample_id, event_id, expires_at, max_uses, used_count, revoked_at',
-        )
+        .select('id, user_id, roast_session_id, sample_id, event_id, expires_at, max_uses, used_count, revoked_at')
         .eq('token', token)
         .maybeSingle();
 
@@ -153,7 +152,7 @@ async function handleInvite(supabase: Sb, body: Body): Promise<Response> {
     }
 
     if (action === 'publish') {
-        let rawSamples;
+        let rawSamples: ReturnType<typeof parsePublishSamples>;
         try {
             rawSamples = parsePublishSamples(body.samples);
         } catch (e) {
@@ -179,16 +178,20 @@ async function handleInvite(supabase: Sb, body: Body): Promise<Response> {
             }
         }
 
-        const written = await writeScorecards(supabase, invite, ctx, cuppedBy, cards);
+        const written = await writeScorecards(supabase, invite, seat.participant.id, cuppedBy, true, cards);
         if (written instanceof Response) return written;
 
-        const locked = await lockParticipant(supabase, seat.participant.id);
-        if (locked instanceof Response) return locked;
+        const published = await loadParticipant(supabase, invite.id, {
+            id: seat.participant.id,
+            cuppedBy,
+        });
+        if (published instanceof Response) return published;
+        if (!published?.published_at) return respondServerError('submit-cupping', 'publish failed');
 
         return jsonResponse(
             {
                 participantId: seat.participant.id,
-                publishedAt: locked,
+                publishedAt: published.published_at,
                 remainingUses: Math.max(0, invite.max_uses - invite.used_count),
                 results: written,
             },
@@ -213,7 +216,9 @@ async function handleInvite(supabase: Sb, body: Body): Promise<Response> {
     const sample = ctx.sampleById.get(sampleId);
     if (!sample) return jsonResponse({ error: 'sample_not_found' }, 404);
 
-    const written = await writeScorecards(supabase, invite, ctx, cuppedBy, [{ ...card, sample }]);
+    const written = await writeScorecards(supabase, invite, seat.participant.id, cuppedBy, false, [
+        { ...card, sample },
+    ]);
     if (written instanceof Response) return written;
     const row = written[0];
     return jsonResponse({ id: row.id, totalScore: row.totalScore, cuppedAt: row.cuppedAt }, row.created ? 201 : 200);
@@ -231,9 +236,7 @@ function scoreFromForm(
 ): Scorecard {
     const scores = parseScoresForForm(schema, body.scores);
     const defects =
-        typeof body.defects === 'number' && Number.isInteger(body.defects) && body.defects >= 0
-            ? body.defects
-            : 0;
+        typeof body.defects === 'number' && Number.isInteger(body.defects) && body.defects >= 0 ? body.defects : 0;
     return {
         scores,
         defects,
@@ -248,7 +251,6 @@ type InviteCtx = {
     schema: CuppingFormSchema;
     sampleById: Map<string, SampleRef>;
     allowedIds: Set<string>;
-    profileByRoast: Map<string, string | null>;
 };
 
 async function resolveInviteContext(
@@ -271,8 +273,7 @@ async function resolveInviteContext(
             .select('id, roast_session_id, event_id')
             .eq('event_id', invite.event_id);
         for (const row of rows ?? []) sampleById.set(row.id, row);
-        const profileByRoast = await loadProfiles(supabase, sampleById);
-        return { schema, sampleById, allowedIds: new Set(sampleById.keys()), profileByRoast };
+        return { schema, sampleById, allowedIds: new Set(sampleById.keys()) };
     }
 
     const sampleId = (bodySampleId?.trim() || invite.sample_id) as string | null;
@@ -309,21 +310,7 @@ async function resolveInviteContext(
         schema = formSchemaOrSca(event?.form_snapshot);
     }
 
-    const profileByRoast = await loadProfiles(supabase, sampleById);
-    return { schema, sampleById, allowedIds: new Set(sampleById.keys()), profileByRoast };
-}
-
-async function loadProfiles(supabase: Sb, sampleById: Map<string, SampleRef>): Promise<Map<string, string | null>> {
-    const roastIds = [
-        ...new Set(
-            [...sampleById.values()].map((s) => s.roast_session_id).filter((id): id is string => Boolean(id)),
-        ),
-    ];
-    const profileByRoast = new Map<string, string | null>();
-    if (!roastIds.length) return profileByRoast;
-    const { data: sessions } = await supabase.from('roast_sessions').select('id, profile_id').in('id', roastIds);
-    for (const s of sessions ?? []) profileByRoast.set(s.id, s.profile_id ?? null);
-    return profileByRoast;
+    return { schema, sampleById, allowedIds: new Set(sampleById.keys()) };
 }
 
 async function loadParticipant(
@@ -457,118 +444,23 @@ async function bumpUsedCount(supabase: Sb, invite: InviteRow): Promise<true | Re
     return jsonResponse({ error: 'full' }, 410);
 }
 
-type WrittenRow = {
-    id: string;
-    sampleId: string;
-    totalScore: number;
-    cuppedAt: string;
-    created: boolean;
-};
-
 async function writeScorecards(
     supabase: Sb,
     invite: InviteRow,
-    ctx: InviteCtx,
+    participantId: string,
     cuppedBy: string,
+    publish: boolean,
     cards: Array<Scorecard & { sample: SampleRef }>,
 ): Promise<WrittenRow[] | Response> {
-    const sampleIds = cards.map((c) => c.sample.id);
-    const { data: existing, error: exErr } = await supabase
-        .from('cuppings')
-        .select('id, sample_id, cupped_at')
-        .eq('invite_id', invite.id)
-        .eq('cupped_by', cuppedBy)
-        .in('sample_id', sampleIds);
-    if (exErr) {
-        console.error('[submit-cupping] existing lookup', exErr);
-        return respondServerError('submit-cupping', 'lookup failed', exErr);
-    }
-    const existingBySample = new Map((existing ?? []).map((row) => [row.sample_id as string, row]));
-    const out: WrittenRow[] = [];
-    const inserts: Array<Record<string, unknown>> = [];
-
-    for (const card of cards) {
-        const roastSessionId = card.sample.roast_session_id ?? invite.roast_session_id;
-        const profileId = roastSessionId ? (ctx.profileByRoast.get(roastSessionId) ?? null) : null;
-        const payload = {
-            roast_session_id: roastSessionId,
-            roast_profile_id: profileId,
-            scores: card.scores,
-            total_score: card.totalScore,
-            defects: card.defects,
-            notes: card.notes,
-            descriptors: card.descriptors,
-            form_version: card.formVersion,
-        };
-        const found = existingBySample.get(card.sample.id);
-        if (found) {
-            const { data: row, error: updErr } = await supabase
-                .from('cuppings')
-                .update(payload)
-                .eq('id', found.id)
-                .select('id, total_score, cupped_at, sample_id')
-                .single();
-            if (updErr || !row) {
-                console.error('[submit-cupping] update', updErr);
-                return respondServerError('submit-cupping', 'update failed', updErr);
-            }
-            out.push({
-                id: row.id,
-                sampleId: row.sample_id,
-                totalScore: Number(row.total_score),
-                cuppedAt: row.cupped_at,
-                created: false,
-            });
-        } else {
-            inserts.push({
-                ...payload,
-                user_id: invite.user_id,
-                sample_id: card.sample.id,
-                cupped_by: cuppedBy,
-                source: 'invite',
-                invite_id: invite.id,
-            });
+    try {
+        return await writeScorecardsBatch(supabase, invite, participantId, cuppedBy, publish, cards);
+    } catch (error) {
+        console.error('[submit-cupping] batch write', error);
+        if ((error as { code?: string })?.code === 'PT409') {
+            return jsonResponse({ error: 'already_published' }, 409);
         }
+        return respondServerError('submit-cupping', 'write failed', error);
     }
-
-    if (inserts.length) {
-        const { data: rows, error: insertErr } = await supabase
-            .from('cuppings')
-            .insert(inserts)
-            .select('id, total_score, cupped_at, sample_id');
-        if (insertErr || !rows) {
-            console.error('[submit-cupping] insert', insertErr);
-            return respondServerError('submit-cupping', 'insert failed', insertErr);
-        }
-        for (const row of rows) {
-            out.push({
-                id: row.id,
-                sampleId: row.sample_id,
-                totalScore: Number(row.total_score),
-                cuppedAt: row.cupped_at,
-                created: true,
-            });
-        }
-    }
-
-    return out;
-}
-
-async function lockParticipant(supabase: Sb, participantId: string): Promise<string | Response> {
-    const now = new Date().toISOString();
-    const { data, error } = await supabase
-        .from('cupping_participants')
-        .update({ published_at: now })
-        .eq('id', participantId)
-        .is('published_at', null)
-        .select('published_at')
-        .maybeSingle();
-    if (error) {
-        console.error('[submit-cupping] lock', error);
-        return respondServerError('submit-cupping', 'update failed', error);
-    }
-    if (!data?.published_at) return jsonResponse({ error: 'already_published' }, 409);
-    return data.published_at;
 }
 
 async function loadSubmissions(supabase: Sb, inviteId: string, cuppedBy: string) {

@@ -568,19 +568,31 @@ Notes:
 - 상태 코드: `400` 형식 오류(JSON이 객체가 아님, 비수치, NaN/Inf), `409` 미연결·쓰기 미지원.
   값이 없는 빈 요청 `{}`만 연결 여부와 무관하게 `200` no-op이다.
 - 응답의 `applied`는 클램프 이후의 논리값이다 — PLC 인코딩 값과 구분한다.
-- W45A/W60A (`giesen_w45a_w60a`)는 논리 화력 0~100%를 사용하며,
+- 클래식 Giesen DB2.14 계열(Standard W6A/W6E/W15A, W1, Sample, W15E,
+  W30A/PRO, W45A/W60A, W140A v1/v2, WxA/+)은 논리 화력 0~100%를 사용하며,
   S7 쓰기 경계에서 `value_offset=1`을 더해 DB2.14에 1~101을 전송한다.
   0%는 raw 1이고 raw 0(AUTO)은 보내지 않는다. `applied`/`heater_set`은 논리 0%를 유지한다.
   `value_offset`은 byte 주소 `offset`과 별개이며, 생략 시 0이다. 실측 피드백에는 적용하지 않는다.
+  WxA coarse는 논리 0~10 step을 raw 1~11로 전송한다. W6A PRO(DB1001.42)는 오프셋 없이 0~100을 쓴다.
+  저장된 heater 맵이 해당 모델의 구형 기본 맵과 정확히 일치할 때만 새 기본 맵으로 업그레이드한다.
+  커스텀 주소·스케일·오프셋은 보존한다. 논리 0 입력·저장·Replay는 AUTO를 요청하지 않으며,
+  raw 1에서 실제 버너/히터가 정지하는지는 모델별 실기 검증이 필요하다.
+- 변경 안내 (#679): 기존 프로파일을 W45A/W60A 외 클래식 DB2 모델에서 Replay하면,
+  1~100% 명령은 이전보다 1%p 높은 설정값으로 전달된다(누락된 +1 보정 복구).
+  WxA coarse는 1~10 step 명령이 한 단계 높아진다. 커스텀 맵과 이미 보정된 W45A/W60A는 제외한다.
 - 성공한 쓰기의 `applied`는 role별로 기억돼 `GET /temperatures`의 `heater_set`으로 나간다(해제 시 초기화).
 - **쓰기는 `write_map`이 있는 로스터에서만 일어난다.** `write_map`은 레지스트리
-  `default_params` 안에 있고, 읽기용 `channels`와 **셀이 다르다**. Giesen을 예로 들면
-  heater 피드백은 DB2.48(읽기 전용)이고 duty 세트포인트는 DB2.14(쓰기 대상)다.
-  읽기 role에 그대로 쓰면 피드백 레지스터를 덮어쓰게 되므로 절대 공유하지 않는다.
-- `write_map`에 없는 role, 또는 `write_map` 자체가 없는 로스터는 조용히 무시된다(no-op).
+  `default_params` 안에 있고, 읽기용 `channels`와 별도로 정의한다. Giesen 화력은
+  피드백 DB2.48(읽기 전용)과 duty 세트포인트 DB2.14(쓰기 대상)가 다르다.
+  클래식 W45A/W60A 드럼은 예외로 DB2.18을 읽고 쓴다.
+- `write_map`에 없는 role 요청은 `400`, 쓰기 맵이 없는 로스터는 `409`를 반환한다.
   현재 쓰기 맵이 있는 것은 Giesen S7 계열(db2 계열 `DB2.14`, W6A PRO `DB1001.42`)의
-  `heater`와 가상 머신뿐이다. fan/drum은 모델마다 slidermin/max가 달라(fan 250~280,
-  drum 34~60Hz) 레지스트리 키 분리가 선행돼야 한다.
+  `heater`, 클래식 `giesen_w45a_w60a`의 `drum`, 가상 머신이다.
+  W45A/W60A 드럼은 DB2.18 INT, 40~55 Hz, 오프셋 0이며 `/status.control.limits.drum`으로 노출한다.
+  이 범위는 Artisan W45A/W60A 슬라이더 기준이며 Quantifiers 상한 45나 W60A Pro 범위와 구분한다.
+  저장된 화력 전용 맵이 현재 또는 구형 기본 맵과 정확히 같으면 드럼을 추가하고, 커스텀 맵은 보존한다.
+  다른 Giesen 키의 쓰기 맵은 heater만 유지한다. fan/압력 쓰기와 드럼 Replay는 지원하지 않는다.
+  DB2.10은 Artisan에서 온도 SP로 지정돼 있으므로 팬 명령을 보내지 않는다.
 - 어댑터 쓰기 순서: `min`/`max` 클램프 → `div` 역스케일(읽기의 ÷10/÷100 반대) → `value_offset` 추가 →
   INT16 반올림·범위 검사 → `db_write`. 유한하지 않은 값(NaN/Inf)과 INT16 초과는
   `ValueError`로 거부한다.

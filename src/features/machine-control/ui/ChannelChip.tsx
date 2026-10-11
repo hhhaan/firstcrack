@@ -138,6 +138,7 @@ export const ChannelChip = ({
                         )}
                     />
                 )}
+                {!unsupported && limit.unit && <span className="text-[10px] text-muted">{limit.unit}</span>}
                 <button
                     type="button"
                     data-step="5"

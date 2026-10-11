@@ -1,29 +1,117 @@
 import { describe, expect, it } from 'vitest';
-import { buildProductMap, earliestOrderedAt, resolveProductId } from './normalize.ts';
+import { buildProductMap, resolveProductId, upsertCanonicalOrders } from './normalize.ts';
 import type { CanonicalOrder, CanonicalOrderLine } from './types.ts';
 
-describe('earliestOrderedAt (#125 degraded sync poisons ordered_at)', () => {
-    const real = '2026-07-20T03:00:00.000Z';
-    const fabricatedNow = '2026-07-26T09:00:00.000Z';
-
-    it('takes the incoming value for a brand new order', () => {
-        expect(earliestOrderedAt(null, real)).toBe(real);
+describe('sync_channel_orders_batch boundary', () => {
+    const order = (i: number): CanonicalOrder => ({
+        platformOrderId: `O-${i}`,
+        status: 'paid',
+        orderedAt: '2026-10-10T00:00:00.000Z',
+        buyerName: null,
+        currency: 'KRW',
+        totalAmount: 1000,
+        raw: {},
+        lines: [
+            {
+                platformLineId: `L-${i}`,
+                platformProductId: `P-${i}`,
+                platformVariantId: null,
+                title: 'Coffee',
+                quantity: 1,
+                unitPrice: 1000,
+                status: 'active',
+            },
+        ],
     });
 
-    it('repairs a fabricated `now` once the real timestamp arrives', () => {
-        expect(earliestOrderedAt(fabricatedNow, real)).toBe(real);
+    it.each([
+        [1, 1],
+        [10, 1],
+        [100, 1],
+        [201, 3],
+    ])('uses two mapping reads plus chunked RPCs for %i orders', async (count, rpcCount) => {
+        const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+        let reads = 0;
+        const supabase = {
+            from: (_name: string) => {
+                reads += 1;
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            eq: () => Promise.resolve({ data: [] }),
+                            not: () => Promise.resolve({ data: [] }),
+                        }),
+                    }),
+                };
+            },
+            rpc: (name: string, args: Record<string, unknown>) => {
+                calls.push({ name, args });
+                return Promise.resolve({
+                    data: {
+                        upserted: (args.p_orders as CanonicalOrder[]).length,
+                        cancelledCompensations: 0,
+                        autoFulfillments: 0,
+                        stockEventSkips: [],
+                    },
+                    error: null,
+                });
+            },
+        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+
+        await expect(
+            upsertCanonicalOrders(
+                supabase,
+                { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+                Array.from({ length: count }, (_, i) => order(i)),
+            ),
+        ).resolves.toMatchObject({ upserted: count });
+        expect(reads).toBe(2);
+        expect(calls).toHaveLength(rpcCount);
+        expect(calls.every((call) => call.name === 'sync_channel_orders_batch')).toBe(true);
+        expect(calls.every((call) => (call.args.p_orders as CanonicalOrder[]).length <= 100)).toBe(true);
     });
 
-    it('cannot be re-poisoned by a later degraded sync', () => {
-        expect(earliestOrderedAt(real, fabricatedNow)).toBe(real);
-    });
+    it('passes resolved product candidates and preserves repeated order ids', async () => {
+        const payloads: unknown[] = [];
+        const supabase = {
+            from: (name: string) => ({
+                select: () => ({
+                    eq: () => ({
+                        eq: () =>
+                            Promise.resolve({
+                                data:
+                                    name === 'product_channel_skus'
+                                        ? [{ external_key: 'P-1', product_id: 'prod-1' }]
+                                        : [],
+                            }),
+                        not: () => Promise.resolve({ data: [] }),
+                    }),
+                }),
+            }),
+            rpc: (_name: string, args: Record<string, unknown>) => {
+                payloads.push(args.p_orders);
+                return Promise.resolve({
+                    data: {
+                        upserted: 2,
+                        cancelledCompensations: 0,
+                        autoFulfillments: 0,
+                        stockEventSkips: [],
+                    },
+                    error: null,
+                });
+            },
+        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+        const repeated = [order(1), { ...order(1), status: 'shipped' as const }];
 
-    it('keeps the stored value when the incoming one is unparseable', () => {
-        expect(earliestOrderedAt(real, 'garbage')).toBe(real);
-    });
+        await upsertCanonicalOrders(
+            supabase,
+            { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+            repeated,
+        );
 
-    it('replaces an unparseable stored value', () => {
-        expect(earliestOrderedAt('garbage', real)).toBe(real);
+        const sent = payloads[0] as Array<CanonicalOrder & { lines: Array<{ productId: string | null }> }>;
+        expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-1']);
+        expect(sent[0]?.lines[0]?.productId).toBe('prod-1');
     });
 });
 
