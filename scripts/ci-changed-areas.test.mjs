@@ -170,19 +170,7 @@ test('PR area jobs fail open and main push does not depend on a successful filte
 
 test('a skipped required check does not satisfy the release gate unless a success run exists', async () => {
     const { releaseCiStatus } = await import('./check-release-ci.mjs');
-    const checks = [
-        'check',
-        'test',
-        'sidecar',
-        'semgrep',
-        'gitleaks',
-        'edge-check',
-        'actionlint',
-        'zizmor',
-        'architecture',
-        'bundle',
-        'clippy',
-    ];
+    const checks = ['check', 'test', 'sidecar', 'semgrep', 'gitleaks', 'edge-check', 'actionlint', 'zizmor', 'clippy'];
     const green = checks.map((name) => ({ name, status: 'completed', conclusion: 'success' }));
     const withClippy = (extra) =>
         green.map((run) => (run.name === 'clippy' ? extra : run)).concat(extra.name === 'clippy' ? [] : []);

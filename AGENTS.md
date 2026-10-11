@@ -31,7 +31,7 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | `git commit` (2) | migration staged w/o `database.types.ts` → block (bypass `SKIP_TYPES_GEN=1`) | no |
 | `git push` | `pnpm verify:all` (core + lint + sidecar + actionlint + architecture) | no |
 | main push `supabase/functions/**` | EF deploy → POST probe each deployed fn (transport errors/5xx/BOOT_ERROR = fail) | no |
-| CI (PR and main — main direct push is still possible) | Always: `check` (biome+i18n+registry+plan-caps+harness+knip+typecheck+eslint+secretlint), test, semgrep (ERROR only), gitleaks (this change), actionlint, zizmor, dependency-cruiser, bundle. PR only: clippy, sidecar, edge-check run when that area changes (`scripts/ci-changed-areas.mjs`); a shared CI config change or an untrusted diff runs all three. main push always runs those three. ios-check off until iPad (`IOS_CHECK=true` and `src-tauri/**`). React Doctor skips the same docs-only paths as CI. | no |
+| CI (PR and main — main direct push is still possible) | Always: `check` (biome+i18n+registry+plan-caps+harness+knip+typecheck+eslint+secretlint+dependency-cruiser+bundle, one install), test, semgrep (ERROR only), gitleaks (this change), actionlint, zizmor. PR only: clippy, sidecar, edge-check run when that area changes (`scripts/ci-changed-areas.mjs`); a shared CI config change or an untrusted diff runs all three. main push always runs those three. ios-check off until iPad (`IOS_CHECK=true` and `src-tauri/**`). React Doctor skips the same docs-only paths as CI. | no |
 | schedule (Mon 09:00 KST) | gitleaks (HEAD tree + last 7d history) | no |
 | `pnpm release` / `v*` tag | 3-platform build (+ sidecar `/status` smoke) → `supabase db push` → R2 publish | no |
 

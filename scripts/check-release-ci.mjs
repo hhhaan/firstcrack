@@ -3,19 +3,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Names are ci.yml job IDs. Both local release preflight and the tag gate use this policy.
-const required = [
-    'check',
-    'test',
-    'sidecar',
-    'semgrep',
-    'gitleaks',
-    'edge-check',
-    'actionlint',
-    'zizmor',
-    'architecture',
-    'bundle',
-    'clippy',
-];
+const required = ['check', 'test', 'sidecar', 'semgrep', 'gitleaks', 'edge-check', 'actionlint', 'zizmor', 'clippy'];
 const optional = ['paths', 'ios-check'];
 
 const PENDING_STATUS = ['queued', 'in_progress', 'waiting', 'pending', 'requested'];

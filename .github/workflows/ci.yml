@@ -92,6 +92,7 @@ jobs:
         run: node scripts/ci-changed-areas.mjs
 
   # Same order as verify:core, then lint + secretlint (those two stay out of the test process).
+  # dependency-cruiser and the bundle regression share this install.
   # Job id is the check-run name — keep in sync with scripts/check-release-ci.mjs.
   check:
     runs-on: ubuntu-latest
@@ -130,6 +131,12 @@ jobs:
 
       - name: Secretlint
         run: pnpm scan:secrets
+
+      - name: dependency-cruiser
+        run: pnpm check:architecture
+
+      - name: Bundle regression
+        run: pnpm check:bundle
 
   test:
     runs-on: ubuntu-latest
@@ -294,27 +301,3 @@ jobs:
 
       - name: zizmor
         run: node scripts/check-zizmor.mjs
-
-  # FSD direction + circular imports. Warnings are existing active-roast cycles.
-  architecture:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
-      - name: dependency-cruiser
-        run: pnpm check:architecture
-
-  # vite build of the frontend Tauri ships. Dummy public env, no secrets.
-  bundle:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
-      - name: Bundle regression
-        run: pnpm check:bundle

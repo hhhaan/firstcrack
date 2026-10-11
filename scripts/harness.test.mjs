@@ -161,19 +161,7 @@ test('deployment probes reject transport errors, 5xx and boot errors', (t) => {
 });
 
 test('release policy fails closed and is shared by CLI, local release and workflow', (t) => {
-    const checks = [
-        'check',
-        'test',
-        'sidecar',
-        'semgrep',
-        'gitleaks',
-        'edge-check',
-        'actionlint',
-        'zizmor',
-        'architecture',
-        'bundle',
-        'clippy',
-    ];
+    const checks = ['check', 'test', 'sidecar', 'semgrep', 'gitleaks', 'edge-check', 'actionlint', 'zizmor', 'clippy'];
     const green = checks.map((name) => ({ name, status: 'completed', conclusion: 'success' }));
     const cases = [
         [green, 'ok'],
@@ -208,6 +196,13 @@ test('release policy fails closed and is shared by CLI, local release and workfl
     mock('git', 'if [ "$1" = rev-parse ]; then printf fixture; fi');
     mock('gh', 'printf "%s" "$CHECK_RUNS"');
     assert.match(read('.github/workflows/release.yml'), /node scripts\/check-release-ci\.mjs/);
+    const ci = read('.github/workflows/ci.yml');
+    const checkJob = ci.slice(ci.indexOf('\n  check:'), ci.indexOf('\n  test:'));
+    assert.match(checkJob, /pnpm check:architecture/);
+    assert.match(checkJob, /pnpm check:bundle/);
+    for (const name of checks) assert.match(ci, new RegExp(`\\n  ${name}:`));
+    assert.doesNotMatch(ci, /\n {2}architecture:/);
+    assert.doesNotMatch(ci, /\n {2}bundle:/);
     for (const [runs, expected] of cases) {
         assert.equal(releaseCiStatus(runs), expected);
         const cli = spawnSync(process.execPath, [join(root, 'scripts/check-release-ci.mjs')], {
