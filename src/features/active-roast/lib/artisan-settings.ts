@@ -1,6 +1,7 @@
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
 import type { RoastSettings, TemperatureUnit } from '../model/settings';
 import { type CurveChannel, isCurveColor } from './curve-style';
+import { fromDisplayTemp } from './temperature';
 
 export interface ArtisanGraphField {
     field: string;
@@ -31,7 +32,7 @@ export const mapArtisanGraphSettings = (
     const ymin = settings['Axis/ymin'];
     const ymax = settings['Axis/ymax'];
     if ('Axis/ymin' in settings || 'Axis/ymax' in settings) {
-        const toC = (value: number) => (unit === 'F' ? ((value - 32) * 5) / 9 : value);
+        const toC = (value: number) => fromDisplayTemp(value, unit ?? 'C');
         const valid = unit && finite(ymin) && finite(ymax) && ymin < ymax && toC(ymin) >= -100 && toC(ymax) <= 500;
         add('Axis/ymin', ymin, 'tempMinC', valid ? 'mapped' : unit ? 'invalid' : 'unsupported');
         add('Axis/ymax', ymax, 'tempMaxC', valid ? 'mapped' : unit ? 'invalid' : 'unsupported');

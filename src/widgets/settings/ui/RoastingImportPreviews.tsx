@@ -3,6 +3,7 @@ import {
     type mapFirescopeGraphSettings,
     type TemperatureUnit,
     toDisplayRoR,
+    toDisplayTemp,
     type useRoastSettings,
 } from '@features/active-roast';
 import { Badge } from '@shared/ui/Badge';
@@ -20,7 +21,7 @@ const readValue = (value: unknown, path: string): unknown =>
         );
 
 const temperature = (value: number, displayUnit: TemperatureUnit) =>
-    `${Math.round((displayUnit === 'F' ? (value * 9) / 5 + 32 : value) * 10) / 10} °${displayUnit}`;
+    `${Math.round(toDisplayTemp(value, displayUnit) * 10) / 10} °${displayUnit}`;
 
 function ColorSample({ color }: { color: string }) {
     return (

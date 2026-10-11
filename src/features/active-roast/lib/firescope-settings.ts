@@ -1,6 +1,7 @@
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import type { RoastSettings, TemperatureUnit } from '../model/settings';
 import { type CurveChannel, isCurveColor } from './curve-style';
+import { fromDisplayTemp } from './temperature';
 
 export interface FirescopeGraphField {
     field: string;
@@ -37,7 +38,7 @@ export const mapFirescopeGraphSettings = (
     if ('yAxisStart' in graph || 'yAxisEnd' in graph) {
         const min = graph.yAxisStart;
         const max = graph.yAxisEnd;
-        const toC = (value: number) => (unit === 'F' ? ((value - 32) * 5) / 9 : value);
+        const toC = (value: number) => fromDisplayTemp(value, unit ?? 'C');
         const valid = unit && finite(min) && finite(max) && min < max && toC(min) >= -100 && toC(max) <= 500;
         field('yAxisStart', 'tempMinC', valid ? 'mapped' : unit ? 'invalid' : 'unsupported');
         field('yAxisEnd', 'tempMaxC', valid ? 'mapped' : unit ? 'invalid' : 'unsupported');

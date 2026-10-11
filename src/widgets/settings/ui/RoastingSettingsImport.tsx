@@ -1,189 +1,42 @@
-import {
-    firescopeFeedbackUpdate,
-    type Machine,
-    mapArtisanMachine,
-    mapCropsterMachine,
-    mapFirescopeMachine,
-    useMachines,
-    VIRTUAL_ID,
-} from '@entities/machine';
-import {
-    artisanTemperatureUnit,
-    cropsterTemperatureUnit,
-    firescopeTemperatureUnit,
-    importArtisanGraphSettings,
-    importCropsterGraphSettings,
-    importFirescopeGraphSettings,
-    mapArtisanGraphSettings,
-    mapCropsterGraphSettings,
-    mapFirescopeGraphSettings,
-    type TemperatureUnit,
-    useRoastSettings,
-} from '@features/active-roast';
-import {
-    artisanSettingsKey,
-    cropsterSettingsKey,
-    firescopeSettingsKey,
-    useArtisanSettings,
-    useCropsterSettings,
-    useFirescopeSettings,
-} from '@features/import-roasting-settings';
-import { canAddMachine, useEffectivePlan } from '@shared/lib/features';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { PillButton } from '@shared/ui/PillButton';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRoastingSettingsImport } from '../model/useRoastingSettingsImport';
 import { RoastingGraphPreview, RoastingMachinePreview } from './RoastingImportPreviews';
 import { SettingsSection } from './SettingsSection';
 
 export function RoastingSettingsImport() {
     const { t } = useTranslation();
-    const [product, setProduct] = useState<'Firescope' | 'Artisan' | 'Cropster'>('Firescope');
-    const [confirmedVersion, setConfirmedVersion] = useState<'4.2.0' | null>(null);
-    const firescopeQuery = useFirescopeSettings(product === 'Firescope');
-    const artisanQuery = useArtisanSettings(product === 'Artisan');
-    const cropsterQuery = useCropsterSettings(product === 'Cropster');
-    const query = { Firescope: firescopeQuery, Artisan: artisanQuery, Cropster: cropsterQuery }[product];
-    const queryClient = useQueryClient();
-    const machines = useMachines((state) => state.machines);
-    const plan = useEffectivePlan();
-    const roastSettings = useRoastSettings();
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-    const [includeGraph, setIncludeGraph] = useState(true);
-    const [unitOverride, setUnitOverride] = useState<TemperatureUnit | null>(null);
-    const [applying, setApplying] = useState(false);
-    const [result, setResult] = useState<'saved' | 'failed' | 'graphSavedMachinesFailed' | 'planLimit' | null>(null);
+    const {
+        product,
+        confirmedVersion,
+        query,
+        snapshot,
+        artisan,
+        unit,
+        graph,
+        candidates,
+        roastSettings,
+        selectedIds,
+        includeGraph,
+        applying,
+        result,
+        busy,
+        withinLimit,
+        canApply,
+        hasGraph,
+        selectedCount,
+        apply,
+        selectProduct,
+        rescan,
+        confirmVersion,
+        selectMachine,
+        setIncludeGraph,
+        setUnitOverride,
+    } = useRoastingSettingsImport();
     const tk = (key: string, options?: Record<string, string | number>) =>
         t([`settings.${product.toLowerCase()}.${key}`, `settings.firescope.${key}`], options);
-    const snapshot = query.error ? undefined : query.data;
-    const firescope = product === 'Firescope' && !firescopeQuery.error ? firescopeQuery.data : undefined;
-    const artisan = product === 'Artisan' && !artisanQuery.error ? artisanQuery.data : undefined;
-    const cropster = product === 'Cropster' && !cropsterQuery.error ? cropsterQuery.data : undefined;
-    const unit = artisan
-        ? artisanTemperatureUnit(artisan.settings?.Mode)
-        : cropster
-          ? cropsterTemperatureUnit(cropster.preferences?.temperatureUnit)
-          : (unitOverride ??
-            firescopeTemperatureUnit(firescope?.graphTemperatureUnit ?? firescope?.global?.temperature));
-    const graph = artisan
-        ? mapArtisanGraphSettings(artisan, roastSettings)
-        : cropster
-          ? mapCropsterGraphSettings(cropster, roastSettings)
-          : firescope
-            ? mapFirescopeGraphSettings(firescope, roastSettings, unit)
-            : null;
-    const importedMachine = (sourceId: string | number | null, saved = machines) =>
-        saved.find(
-            (machine) => machine.importSource?.product === product && machine.importSource.sourceId === sourceId,
-        );
-    const singleMapping = artisan?.settings
-        ? mapArtisanMachine(artisan, confirmedVersion)
-        : cropster?.machine
-          ? mapCropsterMachine(cropster)
-          : null;
-    const serialConnection = ['rtu', 'ascii'].includes(singleMapping?.transport ?? '');
-    const candidates = singleMapping
-        ? [
-              {
-                  sequence: 0,
-                  current: product === 'Artisan',
-                  mapping: singleMapping,
-                  existing: importedMachine(singleMapping.sourceId),
-                  update: null,
-                  connection: {
-                      serial: serialConnection,
-                      endpoint: singleMapping.draft?.connectionParams[serialConnection ? 'comport' : 'host'],
-                      subtype: singleMapping.transport,
-                      protocol: 'modbus',
-                  },
-              },
-          ]
-        : (firescope?.machines.map((candidate) => {
-              const mapping = mapFirescopeMachine(candidate.settings);
-              const existing = importedMachine(mapping.sourceId);
-              const update = existing && mapping.draft ? firescopeFeedbackUpdate(existing, mapping.draft) : null;
-              const raw = candidate.settings.connection as Record<string, unknown> | undefined;
-              const serial = raw?.type === 'serial';
-              const details = raw?.[serial ? 'serial' : 'ethernet'] as Record<string, unknown> | undefined;
-              return {
-                  ...candidate,
-                  mapping,
-                  existing,
-                  update,
-                  connection: {
-                      serial: serial || raw?.type === 'usb',
-                      endpoint: details?.[serial ? 'path' : 'ip'],
-                      subtype: details?.type,
-                      protocol: raw?.protocol,
-                  },
-              };
-          }) ?? []);
-    const selected = candidates.filter(
-        (candidate) =>
-            candidate.mapping.draft && (!candidate.existing || candidate.update) && selectedIds.has(candidate.sequence),
-    );
-    const hasGraph = graph !== null && Object.keys(graph.patch).length > 0;
-    const busy = applying || query.isFetching;
-    const newCount = selected.filter((candidate) => !candidate.existing).length;
-    const withinLimit =
-        newCount === 0 ||
-        canAddMachine(plan, machines.filter((machine) => machine.id !== VIRTUAL_ID).length + newCount - 1);
-    const canApply =
-        snapshot?.status === 'found' && !busy && withinLimit && (selected.length > 0 || (includeGraph && hasGraph));
-
-    const apply = async () => {
-        if (!snapshot || !canApply) return;
-        const state = useMachines.getState();
-        const newCount = selected.filter(({ mapping }) => !importedMachine(mapping.sourceId, state.machines)).length;
-        if (
-            newCount > 0 &&
-            !canAddMachine(plan, state.machines.filter((machine) => machine.id !== VIRTUAL_ID).length + newCount - 1)
-        ) {
-            setResult('planLimit');
-            return;
-        }
-        setApplying(true);
-        setResult(null);
-        let graphApplied = false;
-        try {
-            if (includeGraph && hasGraph) {
-                if (artisan) await importArtisanGraphSettings(artisan);
-                else if (cropster) await importCropsterGraphSettings(cropster);
-                else if (firescope) await importFirescopeGraphSettings(firescope, unit);
-                graphApplied = true;
-            }
-            const latest = useMachines.getState();
-            const pending: Omit<Machine, 'id' | 'createdAt'>[] = [];
-            const updates: { id: string; patch: Pick<Machine, 'connectionParams' | 'capabilities'> }[] = [];
-            for (const { mapping } of selected) {
-                if (!mapping.draft) continue;
-                const existing = importedMachine(mapping.sourceId, latest.machines);
-                if (!existing) pending.push(mapping.draft);
-                else if (product === 'Firescope') {
-                    const patch = firescopeFeedbackUpdate(existing, mapping.draft);
-                    if (patch) updates.push({ id: existing.id, patch });
-                }
-            }
-            if (pending.length > 0 || updates.length > 0) {
-                if (
-                    pending.length > 0 &&
-                    !canAddMachine(
-                        plan,
-                        latest.machines.filter((machine) => machine.id !== VIRTUAL_ID).length + pending.length - 1,
-                    )
-                )
-                    throw new Error('machine limit');
-                latest.importMachines(pending, updates);
-            }
-            setResult('saved');
-        } catch {
-            setResult(graphApplied ? 'graphSavedMachinesFailed' : 'failed');
-        } finally {
-            setApplying(false);
-        }
-    };
 
     return (
         <SettingsSection group="import">
@@ -196,13 +49,7 @@ export function RoastingSettingsImport() {
                         disabled={applying}
                         wrapperClassName="w-40"
                         className="h-8 py-1 text-xs"
-                        onChange={(event) => {
-                            setProduct(event.currentTarget.value as 'Firescope' | 'Artisan' | 'Cropster');
-                            setSelectedIds(new Set());
-                            setUnitOverride(null);
-                            setConfirmedVersion(null);
-                            setResult(null);
-                        }}
+                        onChange={(event) => selectProduct(event.currentTarget.value as typeof product)}
                     >
                         <option value="Firescope">Firescope</option>
                         <option value="Artisan">Artisan</option>
@@ -219,22 +66,7 @@ export function RoastingSettingsImport() {
                                 ? tk(`status.${snapshot.status}`)
                                 : tk('searching')}
                     </p>
-                    <SurfaceButton
-                        disabled={busy}
-                        onClick={() => {
-                            setResult(null);
-                            setSelectedIds(new Set());
-                            setUnitOverride(null);
-                            setConfirmedVersion(null);
-                            void queryClient.invalidateQueries({
-                                queryKey: {
-                                    Firescope: firescopeSettingsKey,
-                                    Artisan: artisanSettingsKey,
-                                    Cropster: cropsterSettingsKey,
-                                }[product],
-                            });
-                        }}
-                    >
+                    <SurfaceButton disabled={busy} onClick={rescan}>
                         {tk('rescan')}
                     </SurfaceButton>
                 </div>
@@ -247,10 +79,7 @@ export function RoastingSettingsImport() {
                                     className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
                                     checked={confirmedVersion !== null}
                                     disabled={applying}
-                                    onChange={(event) => {
-                                        setConfirmedVersion(event.currentTarget.checked ? '4.2.0' : null);
-                                        setSelectedIds(new Set());
-                                    }}
+                                    onChange={(event) => confirmVersion(event.currentTarget.checked)}
                                 />
                                 <span>{tk('confirmVersion')}</span>
                             </label>
@@ -271,14 +100,7 @@ export function RoastingSettingsImport() {
                                         updateAvailable={Boolean(update)}
                                         selected={selectedIds.has(sequence)}
                                         disabled={applying}
-                                        onSelectedChange={(checked) =>
-                                            setSelectedIds((previous) => {
-                                                const next = new Set(previous);
-                                                if (checked) next.add(sequence);
-                                                else next.delete(sequence);
-                                                return next;
-                                            })
-                                        }
+                                        onSelectedChange={(checked) => selectMachine(sequence, checked)}
                                         tk={tk}
                                     />
                                 ))}
@@ -315,9 +137,9 @@ export function RoastingSettingsImport() {
                         >
                             {applying
                                 ? tk('saving')
-                                : selected.length > 0
+                                : selectedCount > 0
                                   ? tk(includeGraph && hasGraph ? 'applyBoth' : 'applyMachines', {
-                                        count: selected.length,
+                                        count: selectedCount,
                                     })
                                   : tk(includeGraph && hasGraph ? 'applyGraph' : 'apply')}
                         </PillButton>

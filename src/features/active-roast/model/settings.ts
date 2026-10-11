@@ -509,9 +509,9 @@ const _hydrate = async () => {
 
 const hydration = _hydrate();
 
-export const importFirescopeGraphSettings = async (source: FirescopeSettingsSnapshot, unit: TemperatureUnit | null) => {
+const importGraphSettings = async (mapPatch: (previous: RoastSettings) => Partial<RoastSettings>) => {
     await hydration;
-    const { patch } = mapFirescopeGraphSettings(source, _settings, unit);
+    const patch = mapPatch(_settings);
     if (Object.keys(patch).length === 0) return;
     const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
     _userTouched = true;
@@ -520,27 +520,14 @@ export const importFirescopeGraphSettings = async (source: FirescopeSettingsSnap
     _emit();
 };
 
-export const importArtisanGraphSettings = async (source: ArtisanSettingsSnapshot) => {
-    await hydration;
-    const { patch } = mapArtisanGraphSettings(source, _settings);
-    if (Object.keys(patch).length === 0) return;
-    const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
-    _userTouched = true;
-    await settingsSet(STORE_KEY, next, { throwOnError: true });
-    _settings = next;
-    _emit();
-};
+export const importFirescopeGraphSettings = (source: FirescopeSettingsSnapshot, unit: TemperatureUnit | null) =>
+    importGraphSettings((previous) => mapFirescopeGraphSettings(source, previous, unit).patch);
 
-export const importCropsterGraphSettings = async (source: CropsterSettingsSnapshot) => {
-    await hydration;
-    const { patch } = mapCropsterGraphSettings(source, _settings);
-    if (Object.keys(patch).length === 0) return;
-    const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
-    _userTouched = true;
-    await settingsSet(STORE_KEY, next, { throwOnError: true });
-    _settings = next;
-    _emit();
-};
+export const importArtisanGraphSettings = (source: ArtisanSettingsSnapshot) =>
+    importGraphSettings((previous) => mapArtisanGraphSettings(source, previous).patch);
+
+export const importCropsterGraphSettings = (source: CropsterSettingsSnapshot) =>
+    importGraphSettings((previous) => mapCropsterGraphSettings(source, previous).patch);
 
 export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
     _userTouched = true;

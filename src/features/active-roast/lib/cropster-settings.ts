@@ -1,5 +1,6 @@
 import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
 import type { RoastSettings, TemperatureUnit } from '../model/settings';
+import { fromDisplayTemp } from './temperature';
 
 export interface CropsterGraphField {
     field: string;
@@ -38,7 +39,7 @@ export const mapCropsterGraphSettings = (
     const minTemp = preferences.minTemp;
     const maxTemp = preferences.maxTemp;
     if ('minTemp' in preferences || 'maxTemp' in preferences) {
-        const toC = (value: number) => (unit === 'F' ? ((value - 32) * 5) / 9 : value);
+        const toC = (value: number) => fromDisplayTemp(value, unit ?? 'C');
         const valid = unit && finite(minTemp) && finite(maxTemp) && minTemp < maxTemp;
         const inRange = valid && toC(minTemp) >= -100 && toC(maxTemp) <= 500;
         add('minTemp', minTemp, 'tempMinC', inRange ? 'mapped' : unit ? 'invalid' : 'unsupported');

@@ -75,16 +75,25 @@ it('waits for saved settings before importing and persists the merged result acr
     expect(restarted.getRoastSettings()).toEqual(persisted);
 });
 
-it('keeps current graph settings when import persistence fails', async () => {
-    vi.resetModules();
-    vi.mocked(settingsGet).mockResolvedValueOnce({ tempMinC: 130, btSmoothing: 80 });
-    const settings = await import('./settings');
-    await Promise.resolve();
-    const previous = settings.getRoastSettings();
-    vi.mocked(settingsSet).mockRejectedValueOnce(new Error('disk full'));
-    await expect(settings.importFirescopeGraphSettings(firescopeSnapshot, 'C')).rejects.toThrow('disk full');
-    expect(settings.getRoastSettings()).toBe(previous);
-});
+it.each(['Firescope', 'Artisan', 'Cropster'] as const)(
+    'keeps current graph settings when %s import persistence fails',
+    async (product) => {
+        vi.resetModules();
+        vi.mocked(settingsGet).mockResolvedValueOnce({ tempMinC: 130, btSmoothing: 80 });
+        const settings = await import('./settings');
+        await Promise.resolve();
+        const previous = settings.getRoastSettings();
+        vi.mocked(settingsSet).mockRejectedValueOnce(new Error('disk full'));
+        const importing =
+            product === 'Firescope'
+                ? settings.importFirescopeGraphSettings(firescopeSnapshot, 'C')
+                : product === 'Artisan'
+                  ? settings.importArtisanGraphSettings(artisanSnapshot)
+                  : settings.importCropsterGraphSettings(cropsterSnapshot);
+        await expect(importing).rejects.toThrow('disk full');
+        expect(settings.getRoastSettings()).toBe(previous);
+    },
+);
 
 it('persists Artisan graph fields without replacing unrelated settings', async () => {
     vi.resetModules();
