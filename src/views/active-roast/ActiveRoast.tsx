@@ -487,7 +487,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     });
 
     const dropMachineWiringRef = useRef({
-        batchEvents: null as import('@features/machine-control/lib/replay').ReplayEvent[] | null,
+        batchEvents: null as
+            | import('@features/active-roast/lib/replay-batch-snapshot').ReplayBatchEventSnapshot[]
+            | null,
         pidActive: false,
     });
     const applyDrop = useCallback(
@@ -958,7 +960,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             logger.capture(new Error('Roast summary Drop cancellation failed'));
             return;
         }
-        machineControl.replay.restore(restore.replayActive ?? false, restore.replayBatchEvents);
+        machineControl.replay.restore(
+            restore.replayActive ?? false,
+            restore.replayBatchEvents as import('@features/machine-control/lib/replay').ReplayEvent[] | null,
+        );
         setDropCancelControlWarning(dropCancelBannerAfterSuccessfulCancel(restore));
         if (restore.controlBeforeDrop.pidEngaged) {
             void machineControl.pid.turnOff(roastSettings.pidDropBehavior);

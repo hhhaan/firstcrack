@@ -1,9 +1,9 @@
 import type { MachineSnapshot } from '@entities/machine';
-import type { ReplayEvent } from '@features/machine-control/lib/replay';
 import { formatElapsed } from '@shared/lib/format';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
 import { buildDropSummary, type DropOnset, planDropTransition } from '../lib/drop-transition';
+import type { ReplayBatchEventSnapshot } from '../lib/replay-batch-snapshot';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
 
@@ -53,7 +53,7 @@ export interface CompletedRoastRestore {
     livePoints: LiveRoastPoint[];
     replayActive: boolean;
     /** Session heat-curve edits at Drop — restored on Cancel Drop (#753 QA). */
-    replayBatchEvents: ReplayEvent[] | null;
+    replayBatchEvents: ReplayBatchEventSnapshot[] | null;
     selection: RoastSelection;
     machineSnapshot: MachineSnapshot | null;
     controlBeforeDrop: DropControlSnapshot;
@@ -272,7 +272,7 @@ export const createBatchActions = (
         unit: TemperatureUnit;
         onset?: DropOnset;
         replayActive: boolean;
-        replayBatchEvents?: ReplayEvent[] | null;
+        replayBatchEvents?: ReplayBatchEventSnapshot[] | null;
         livePoints?: LiveRoastPoint[];
         controlBeforeDrop?: DropControlSnapshot;
     }) => {

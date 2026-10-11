@@ -199,7 +199,9 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             livePoints: LiveRoastPoint[];
             onset?: DropOnset;
             commitSummary?: (summary: RoastSummaryData) => void;
-            replayBatchEvents?: import('@features/machine-control/lib/replay').ReplayEvent[] | null;
+            replayBatchEvents?:
+                | import('@features/active-roast/lib/replay-batch-snapshot').ReplayBatchEventSnapshot[]
+                | null;
             controlBeforeDrop?: import('@features/active-roast/model/batch').DropControlSnapshot;
         }): RoastSummaryData | null => {
             const roastState = useRoastingStore.getState();
@@ -233,7 +235,9 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             onset?: DropOnset;
             commitSummary: (summary: RoastSummaryData) => void;
             holdAutoChargeUntilRecovery: () => void;
-            replayBatchEvents?: import('@features/machine-control/lib/replay').ReplayEvent[] | null;
+            replayBatchEvents?:
+                | import('@features/active-roast/lib/replay-batch-snapshot').ReplayBatchEventSnapshot[]
+                | null;
             controlBeforeDrop?: import('@features/active-roast/model/batch').DropControlSnapshot;
         }): RoastSummaryData | null => {
             disableAutoDropRef.current();
