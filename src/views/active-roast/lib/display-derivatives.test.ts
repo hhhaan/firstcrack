@@ -89,7 +89,7 @@ describe('calcTargetDelta', () => {
 describe('buildEventMarkers', () => {
     afterEach(() => vi.unstubAllGlobals());
 
-    it('carries Note/Heater identity, body, and raw BT while excluding TP/unknown/Now', () => {
+    it('carries Note/Heater and a custom name, and excludes TP/Now/Control', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
         const entries: LogEntry[] = [
@@ -104,8 +104,9 @@ describe('buildEventMarkers', () => {
                 note: '50%',
             },
             { id: 'tp', time: '0:30', timeSec: 30, event: 'TP', temp: '90.0°C', tempC: 90, note: '' },
-            { id: 'unknown', time: '3:00', timeSec: 180, event: 'Unknown', temp: '', note: '' },
+            { id: 'aroma', time: '3:00', timeSec: 180, event: 'Aroma', temp: '190.0°C', tempC: 190, note: '' },
             { time: '3:01', timeSec: 181, event: 'Now', temp: '', note: '', current: true },
+            { id: 'control', time: '3:02', timeSec: 182, event: 'Control', temp: '', note: '' },
         ];
 
         expect(buildEventMarkers(entries)).toEqual([
@@ -128,6 +129,16 @@ describe('buildEventMarkers', () => {
                 temp: '180.0°C',
                 tempC: 180,
                 note: '50%',
+            },
+            {
+                logId: 'aroma',
+                timeSec: 180,
+                event: 'Aroma',
+                color: '#abc',
+                timeStr: '3:00',
+                temp: '190.0°C',
+                tempC: 190,
+                note: '',
             },
         ]);
     });

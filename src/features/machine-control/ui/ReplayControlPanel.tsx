@@ -95,7 +95,7 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit, onEditHeat }: Pro
                     disabled={!replay.available || (!replay.active && replay.blocked)}
                     className="h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
                 />
-                <span className="text-[12px] text-secondary">레퍼런스 화력 재생</span>
+                <span className="text-[12px] text-secondary">{t('activeRoast.replay.label')}</span>
                 {disabledHint && (
                     <span
                         role="tooltip"

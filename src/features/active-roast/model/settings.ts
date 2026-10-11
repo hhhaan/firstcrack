@@ -15,6 +15,7 @@ import {
     DEFAULT_CURVE_STYLES,
     normalizeCurveStyles,
 } from '../lib/curve-style';
+import { DEFAULT_EVENT_BUTTONS, normalizeEventButtons, type RoastEventButtons } from '../lib/event-buttons';
 import { mapFirescopeGraphSettings } from '../lib/firescope-settings';
 import { normalizeTemperatureTicks } from '../lib/temperature';
 
@@ -92,6 +93,8 @@ export type RoastSettings = {
     showFcBand: boolean;
     bbpEnabled: boolean;
     eventMarkerStyle: EventMarkerStyle;
+    /** Which side-panel mark buttons are shown. Drop stays on. */
+    eventButtons: RoastEventButtons;
     /** Per-channel line color, width, and dash for live and reference curves. */
     curveStyles: CurveStyles;
     tempMinC: number;
@@ -217,6 +220,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showFcBand: true,
     bbpEnabled: true,
     eventMarkerStyle: 'line',
+    eventButtons: DEFAULT_EVENT_BUTTONS,
     curveStyles: DEFAULT_CURVE_STYLES,
     tempMinC: 130,
     tempMaxC: 240,
@@ -405,6 +409,7 @@ export const normalizeRoastSettings = (
         etRorSmoothing: Math.round(clampNum(merged.etRorSmoothing, 0, 100, DEFAULT_SETTINGS.etRorSmoothing)),
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: eventMarkerStyleOf(merged.eventMarkerStyle),
+        eventButtons: normalizeEventButtons(merged.eventButtons),
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
         // curveStyles: invalid per-field values fall back to channel defaults (see normalizeCurveStyles), not prior settings.
         curveStyles: normalizeCurveStyles(merged.curveStyles),

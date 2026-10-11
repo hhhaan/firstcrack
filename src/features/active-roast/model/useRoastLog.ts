@@ -1,7 +1,7 @@
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { type SetStateAction, useCallback, useState } from 'react';
-import { REMOVABLE_LOG_EVENTS, TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
+import { isRemovableLogEvent, isToggleableLogEvent } from '../lib/constants';
 import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
@@ -58,8 +58,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
             )
                 return;
 
-            const isRemoval =
-                !historical && TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((e) => e.event === event);
+            const isRemoval = !historical && isToggleableLogEvent(event) && logEntries.some((e) => e.event === event);
             const rounded = historical ? Math.max(Math.round(historical.timeSec), 0) : elapsed;
             // Notes can be placed ahead of the live curve. Other events stay at or before now.
             const timeSec = historical && event !== 'Note' ? Math.min(rounded, Math.floor(elapsed)) : rounded;
@@ -68,7 +67,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
             const id = crypto.randomUUID();
 
             setLogEntries((prev) => {
-                if (TOGGLEABLE_LOG_EVENTS.has(event) && prev.some((e) => e.event === event)) {
+                if (isToggleableLogEvent(event) && prev.some((e) => e.event === event)) {
                     return historical ? prev : withoutLogEvent(prev, event);
                 }
 
@@ -109,8 +108,8 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
         (id: string) => {
             setLogEntries((prev) => {
                 const target = prev.find((entry) => entry.id === id);
-                if (!target || !REMOVABLE_LOG_EVENTS.has(target.event)) return prev;
-                return TOGGLEABLE_LOG_EVENTS.has(target.event)
+                if (!target || !isRemovableLogEvent(target.event)) return prev;
+                return isToggleableLogEvent(target.event)
                     ? withoutLogEvent(prev, target.event)
                     : prev.filter((entry) => entry.id !== id);
             });

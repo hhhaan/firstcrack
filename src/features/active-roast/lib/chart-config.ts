@@ -1,3 +1,5 @@
+import { isCustomRoastEvent } from './event-buttons';
+
 // ── Grid margins ─────────────────────────────────────────────────────────────
 export const CHART_GRID_LEFT = 38;
 export const CHART_GRID_TOP = 10;
@@ -199,7 +201,8 @@ const CHART_EVENT_MARKERS = new Set([
     'Heater',
 ]);
 
-export const isChartEventMarker = (event: string): boolean => CHART_EVENT_MARKERS.has(event);
+export const isChartEventMarker = (event: string): boolean =>
+    CHART_EVENT_MARKERS.has(event) || isCustomRoastEvent(event);
 
 export const PHASE_SECS = [180, 300, 630] as const;
 export const ROR_Y_MIN = -5;

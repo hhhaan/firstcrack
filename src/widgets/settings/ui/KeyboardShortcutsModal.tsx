@@ -1,8 +1,11 @@
+import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
+import { useRoastSettings } from '@features/active-roast/model/settings';
 import {
     eventToShortcut,
     formatShortcut,
     SHORTCUTS,
     type ShortcutId,
+    shortcutBindingError,
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -17,6 +20,7 @@ export function KeyboardShortcutsModal() {
     const { t } = useTranslation();
     const { bindings, disabled, setEnabled, setBinding, resetBindings, setRecording, setDialogOpen } =
         useShortcutStore();
+    const customEvents = useRoastSettings().eventButtons.custom;
     const [query, setQuery] = useState('');
     const [editingId, setEditingId] = useState<ShortcutId | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -56,7 +60,11 @@ export function KeyboardShortcutsModal() {
                 }
                 const key = eventToShortcut(event);
                 if (!key) return;
-                const failure = setBinding(editingId, key);
+                const otherBindings = SHORTCUTS.flatMap(({ id }) => (id === editingId ? [] : bindings[id]));
+                const customKeys = effectiveCustomShortcuts(customEvents, otherBindings).filter(
+                    (item): item is string => Boolean(item),
+                );
+                const failure = shortcutBindingError(key, customKeys) ?? setBinding(editingId, key);
                 if (failure) {
                     setError(failure);
                     return;
@@ -88,7 +96,7 @@ export function KeyboardShortcutsModal() {
         };
         document.addEventListener('keydown', onKey, true);
         return () => document.removeEventListener('keydown', onKey, true);
-    }, [editingId, setBinding, setRecording, setDialogOpen]);
+    }, [bindings, customEvents, editingId, setBinding, setRecording, setDialogOpen]);
 
     return (
         <ModalShell

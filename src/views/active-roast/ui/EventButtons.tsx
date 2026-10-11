@@ -19,7 +19,9 @@ function formatDoubleTapShortcut(keys: readonly string[]): string {
 export type EventButtonDef = {
     label: string;
     event: string | null;
-    shortcutId: ShortcutId;
+    shortcutId?: ShortcutId;
+    /** Keys for a custom mark. Built-in buttons keep using `shortcutId`. */
+    shortcutKeys?: readonly string[];
     pressKey: string;
     onClick: () => void;
     /** 이벤트 고유 색상 (sidebar variant에서 미등록 상태 배경/테두리로 사용) */
@@ -55,8 +57,25 @@ export const EventButtons = ({
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isSidebar ? 8 : 10 }}>
             {buttons.map(
-                ({ label, event, shortcutId, pressKey, onClick, color, dualStage, disabled: buttonDisabled }) => {
-                    const keys = disabledShortcuts.includes(shortcutId) ? [] : bindings[shortcutId];
+                (
+                    {
+                        label,
+                        event,
+                        shortcutId,
+                        shortcutKeys,
+                        pressKey,
+                        onClick,
+                        color,
+                        dualStage,
+                        disabled: buttonDisabled,
+                    },
+                    index,
+                ) => {
+                    const spanRow = buttons.length % 2 === 1 && index === buttons.length - 1;
+                    const keys =
+                        shortcutKeys ??
+                        (shortcutId && !disabledShortcuts.includes(shortcutId) ? bindings[shortcutId] : []);
+                    const showShortcut = shortcutKeys ? shortcutKeys.length > 0 : Boolean(shortcutId);
                     const off = disabled || !!buttonDisabled;
                     const registered = event ? registeredEvents.has(event) : false;
                     const pressed = pressedButtons.has(pressKey);
@@ -100,13 +119,16 @@ export const EventButtons = ({
                     return (
                         <button
                             type="button"
-                            key={shortcutId}
+                            key={shortcutId ?? event ?? label}
                             onClick={onClick}
                             disabled={off}
-                            aria-keyshortcuts={keys
-                                .map((key) => key.replace(/\bmod\b/g, apple ? 'Meta' : 'Control'))
-                                .join(' ')}
+                            aria-keyshortcuts={
+                                keys.length
+                                    ? keys.map((key) => key.replace(/\bmod\b/g, apple ? 'Meta' : 'Control')).join(' ')
+                                    : undefined
+                            }
                             style={{
+                                gridColumn: spanRow ? '1 / -1' : undefined,
                                 display: 'flex',
                                 flexDirection: isSidebar ? 'column' : 'row',
                                 alignItems: 'center',
@@ -153,22 +175,24 @@ export const EventButtons = ({
                             >
                                 {label}
                             </span>
-                            <span
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 1,
-                                    fontSize: isSidebar ? 11 : 11,
-                                    color: shortcutColor,
-                                    fontFamily: 'var(--font-mono)',
-                                    letterSpacing: 'normal',
-                                    transition: 'color 0.15s',
-                                }}
-                            >
-                                <span>
-                                    {shortcutId === 'drop' ? formatDoubleTapShortcut(keys) : formatShortcut(keys)}
+                            {showShortcut ? (
+                                <span
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        fontSize: isSidebar ? 11 : 11,
+                                        color: shortcutColor,
+                                        fontFamily: 'var(--font-mono)',
+                                        letterSpacing: 'normal',
+                                        transition: 'color 0.15s',
+                                    }}
+                                >
+                                    <span>
+                                        {shortcutId === 'drop' ? formatDoubleTapShortcut(keys) : formatShortcut(keys)}
+                                    </span>
                                 </span>
-                            </span>
+                            ) : null}
                         </button>
                     );
                 },

@@ -1,6 +1,19 @@
 import { isAppleOs } from '@shared/lib/mod-key';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
+import {
+    canonicalize,
+    canonicalShortcut,
+    conflictKey,
+    isReservedShortcut,
+    normalizeKey,
+    parseShortcut,
+    type ShortcutBindingResult,
+    shortcutBindingError,
+} from '@shared/lib/shortcut-key';
 import { create } from 'zustand';
+
+export { canonicalShortcut, sameShortcut, shortcutBindingError } from '@shared/lib/shortcut-key';
+export type { ShortcutBindingResult };
 
 export const SHORTCUTS = [
     { id: 'openSettings', defaultKeys: ['mod+,'], group: 'app', editable: true },
@@ -27,84 +40,14 @@ export const SHORTCUTS = [
 }[];
 
 export type ShortcutId = (typeof SHORTCUTS)[number]['id'];
-export type ShortcutBindingResult = 'conflict' | 'reserved' | 'invalid' | undefined;
 export type ShortcutBindings = Record<ShortcutId, string[]>;
 
 const STORE_KEY = 'keyboard.bindings';
 const DISABLED_STORE_KEY = 'keyboard.disabled';
 const EMPTY_KEYS: string[] = [];
-const RESERVED_KEYS = new Set(['escape', 'tab', 'backspace', 'f5', 'mod+r', 'mod+shift+r']);
 const DEFAULT_BINDINGS = Object.fromEntries(
     SHORTCUTS.map(({ id, defaultKeys }) => [id, [...defaultKeys]]),
 ) as ShortcutBindings;
-
-const KEY_ALIASES: Record<string, string> = {
-    arrowleft: 'left',
-    arrowright: 'right',
-    arrowup: 'up',
-    arrowdown: 'down',
-    return: 'enter',
-    ' ': 'space',
-};
-const MODIFIERS = ['mod', 'ctrl', 'alt', 'shift'] as const;
-const NAMED_KEYS = new Set([
-    'enter',
-    'escape',
-    'tab',
-    'backspace',
-    'delete',
-    'home',
-    'end',
-    'pageup',
-    'pagedown',
-    'left',
-    'right',
-    'up',
-    'down',
-]);
-const normalizeKey = (key: string): string => KEY_ALIASES[key.toLowerCase()] ?? key.toLowerCase();
-const isPunctuationKey = (key: string): boolean => {
-    const code = key.charCodeAt(0);
-    return key.length === 1 && code >= 33 && code <= 126 && !/^[a-z0-9]$/.test(key);
-};
-
-function parseShortcut(shortcut: string): { modifiers: string[]; key: string } | null {
-    const value = shortcut.trim().toLowerCase();
-    let parts: string[];
-    let key: string | undefined;
-    if (value === '+') {
-        parts = [];
-        key = '+';
-    } else if (value.endsWith('++')) {
-        parts = value.slice(0, -2).split('+');
-        key = '+';
-    } else {
-        parts = value.split('+');
-        key = parts.pop();
-    }
-    if (!key || parts.some((part) => !part)) return null;
-    const modifiers = MODIFIERS.filter((modifier) => parts.includes(modifier));
-    if (parts.length !== modifiers.length) return null;
-    key = normalizeKey(key);
-    if (
-        MODIFIERS.includes(key as (typeof MODIFIERS)[number]) ||
-        !(/^[a-z0-9]$/.test(key) || /^f(?:[1-9]|1[0-2])$/.test(key) || NAMED_KEYS.has(key) || isPunctuationKey(key))
-    )
-        return null;
-    return { modifiers, key };
-}
-
-const canonicalize = (shortcut: string): string => {
-    const parsed = parseShortcut(shortcut);
-    if (!parsed) return '';
-    const modifiers = ['+', '_'].includes(parsed.key)
-        ? parsed.modifiers.filter((modifier) => modifier !== 'shift')
-        : parsed.modifiers;
-    return [...modifiers, parsed.key].join('+');
-};
-
-const conflictKey = (shortcut: string): string =>
-    isAppleOs() ? shortcut : shortcut.replace(/(^|\+)ctrl(?=\+|$)/, '$1mod');
 
 export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings> {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -117,7 +60,7 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
         const keys = (value as Record<string, unknown>)[id];
         if (!Array.isArray(keys)) continue;
         const normalized = keys.map((key) => (typeof key === 'string' ? canonicalize(key) : ''));
-        if (!normalized.length || normalized.some((key) => !key || RESERVED_KEYS.has(key))) continue;
+        if (!normalized.length || normalized.some((key) => !key || isReservedShortcut(key))) continue;
         candidate[id] = [...new Set(normalized)];
         customized.add(id);
     }
@@ -179,18 +122,11 @@ export const useShortcutStore = create<ShortcutState>((set, get) => ({
     setDialogOpen: (dialogOpen) => set({ dialogOpen, ...(dialogOpen ? {} : { recording: false }) }),
     setBinding: (id, key) => {
         const definition = SHORTCUTS.find((shortcut) => shortcut.id === id);
-        const canonical = canonicalize(key);
-        if (!definition?.editable || !canonical) return 'invalid';
-        if (RESERVED_KEYS.has(canonical)) return 'reserved';
-        if (
-            Object.entries(get().bindings).some(
-                ([otherId, keys]) =>
-                    otherId !== id &&
-                    keys.some((existing) => conflictKey(canonicalize(existing)) === conflictKey(canonical)),
-            )
-        )
-            return 'conflict';
-        const bindings = { ...get().bindings, [id]: [canonical] };
+        if (!definition?.editable) return 'invalid';
+        const taken = Object.entries(get().bindings).flatMap(([otherId, keys]) => (otherId === id ? [] : keys));
+        const failure = shortcutBindingError(key, taken);
+        if (failure) return failure;
+        const bindings = { ...get().bindings, [id]: [canonicalShortcut(key)] };
         set({ bindings });
         persistSetting(STORE_KEY, bindings);
     },

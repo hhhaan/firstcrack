@@ -1,6 +1,6 @@
 import { eventMarkerCssColor, isControlEvent } from '@features/active-roast/lib/chart-config';
 import { STATUS_COLORS } from '@features/active-roast/lib/colors';
-import { REMOVABLE_LOG_EVENTS } from '@features/active-roast/lib/constants';
+import { isRemovableLogEvent } from '@features/active-roast/lib/constants';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { LogEntry } from '@shared/types/roast';
@@ -45,8 +45,7 @@ export const RoastLog = ({
             {entries.map((entry, i, arr) => {
                 const key = entry.current ? 'current' : (entry.id ?? `${entry.time}-${entry.event}`);
                 const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
-                const canRemove =
-                    REMOVABLE_LOG_EVENTS.has(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
+                const canRemove = isRemovableLogEvent(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
                 const canEdit = !!editOptions && !!entry.id && !entry.current && entry.event !== 'Charge';
                 const deleteLabel = `Delete ${roastEventLabel(entry.event).toLowerCase()}`;
                 const editor =

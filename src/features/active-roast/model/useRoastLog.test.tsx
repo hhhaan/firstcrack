@@ -110,6 +110,15 @@ describe('useRoastLog markEvent', () => {
         hook.unmount();
     });
 
+    it('toggles a user-named mark off on the second press', async () => {
+        const hook = await renderHook('C', 180, 30);
+        act(() => hook.get().markEvent('Aroma', '', 'custom-1'));
+        expect(hook.get().logEntries.map((entry) => entry.event)).toEqual(['Aroma']);
+        act(() => hook.get().markEvent('Aroma', '', 'custom-1'));
+        expect(hook.get().logEntries).toHaveLength(0);
+        hook.unmount();
+    });
+
     it.each(['Yellow', 'FC Start', 'FC End'])(
         'adds a historical %s once while keeping current-time toggles',
         async (event) => {

@@ -377,6 +377,25 @@ describe('normalize — font scale', () => {
     );
 });
 
+describe('normalize — event buttons', () => {
+    it('shows the three built-in buttons when the store has no event buttons', () => {
+        expect(normalizeRoastSettings({}).eventButtons).toEqual({
+            yellow: true,
+            fcStart: true,
+            fcEnd: true,
+            custom: [],
+        });
+    });
+
+    it('keeps a hidden color-change button', () => {
+        expect(
+            normalizeRoastSettings({
+                eventButtons: { yellow: false, fcStart: true, fcEnd: true, custom: [] },
+            }).eventButtons.yellow,
+        ).toBe(false);
+    });
+});
+
 describe('normalize — event marker style', () => {
     it('defaults missing and invalid values to line', () => {
         expect(normalizeRoastSettings({}).eventMarkerStyle).toBe('line');

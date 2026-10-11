@@ -1,12 +1,14 @@
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
+import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
-import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { type TemperatureUnit, useRoastSettings } from '@features/active-roast/model/settings';
 import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
 import type { RoastLogEditOptions } from '@features/active-roast/ui/RoastLogEntryEditor';
 import { endRoastLabel, markDropLabel, roastEventLabel, roastReadyLabel } from '@shared/i18n/roast-event-label';
+import { useShortcutStore } from '@shared/store/keyboard-shortcuts';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -113,6 +115,10 @@ export const RoastSidePanel = ({
     const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
     const endDisabled = !charged && !roastEnded;
     const curves = useCurveStyles();
+    const eventButtons = useRoastSettings().eventButtons;
+    const shortcutBindings = useShortcutStore((state) => state.bindings);
+    const customShortcuts = effectiveCustomShortcuts(eventButtons.custom, Object.values(shortcutBindings).flat());
+    const customShortcutById = new Map(eventButtons.custom.map((item, index) => [item.id, customShortcuts[index]]));
 
     return (
         <RoastSidePanelLayout
@@ -332,44 +338,73 @@ export const RoastSidePanel = ({
                     pressedButtons={pressedButtons}
                     disabled={!canMark}
                     buttons={[
-                        {
-                            label: roastEventLabel('Yellow'),
-                            event: 'Yellow',
-                            shortcutId: 'yellow',
-                            pressKey: 'Mark Yellow',
-                            onClick: () => {
-                                if (!canMark) return;
-                                onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
-                            },
-                        },
-                        {
-                            label: roastEventLabel(
-                                fcDualStage != null ? fcDualButtonLabel(fcDualStage, fcDualUnwind) : 'FC Start',
-                            ),
-                            event: 'FC Start',
-                            shortcutId: 'fcStart',
-                            pressKey: 'Mark FC Start',
-                            onClick: () => {
-                                if (!canMark) return;
-                                if (fcDualMarkEnabled) onCycleFc();
-                                else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
-                            },
-                            dualStage: fcDualStage,
-                        },
-                        {
-                            label: roastEventLabel('FC End'),
-                            event: 'FC End',
-                            shortcutId: 'fcEnd',
-                            pressKey: 'Mark FC End',
-                            onClick: () => {
-                                if (!canMark) return;
-                                onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
-                            },
-                        },
+                        ...(eventButtons.yellow
+                            ? [
+                                  {
+                                      label: roastEventLabel('Yellow'),
+                                      event: 'Yellow',
+                                      shortcutId: 'yellow' as const,
+                                      pressKey: 'Mark Yellow',
+                                      onClick: () => {
+                                          if (!canMark) return;
+                                          onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
+                                      },
+                                  },
+                              ]
+                            : []),
+                        ...(eventButtons.fcStart
+                            ? [
+                                  {
+                                      label: roastEventLabel(
+                                          fcDualStage != null
+                                              ? fcDualButtonLabel(fcDualStage, fcDualUnwind)
+                                              : 'FC Start',
+                                      ),
+                                      event: 'FC Start',
+                                      shortcutId: 'fcStart' as const,
+                                      pressKey: 'Mark FC Start',
+                                      onClick: () => {
+                                          if (!canMark) return;
+                                          if (fcDualMarkEnabled) onCycleFc();
+                                          else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+                                      },
+                                      dualStage: fcDualStage,
+                                  },
+                              ]
+                            : []),
+                        ...(eventButtons.fcEnd
+                            ? [
+                                  {
+                                      label: roastEventLabel('FC End'),
+                                      event: 'FC End',
+                                      shortcutId: 'fcEnd' as const,
+                                      pressKey: 'Mark FC End',
+                                      onClick: () => {
+                                          if (!canMark) return;
+                                          onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
+                                      },
+                                  },
+                              ]
+                            : []),
+                        ...eventButtons.custom
+                            .filter((item) => item.enabled)
+                            .map((item) => {
+                                const shortcut = customShortcutById.get(item.id);
+                                return {
+                                    label: item.name,
+                                    event: item.name,
+                                    pressKey: item.id,
+                                    ...(shortcut ? { shortcutKeys: [shortcut] } : {}),
+                                    onClick: () => {
+                                        if (!canMark) return;
+                                        onMarkEvent(item.name, '', item.id);
+                                    },
+                                };
+                            }),
                         {
                             label: markDropLabel(),
                             event: 'Drop',
-                            shortcutId: 'drop',
+                            shortcutId: 'drop' as const,
                             pressKey: 'Mark Drop',
                             onClick: () => {
                                 if (!canMark) return;

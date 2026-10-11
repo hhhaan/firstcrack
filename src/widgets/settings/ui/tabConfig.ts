@@ -8,6 +8,7 @@ export const roastSettingsGroups = [
     'alerts',
     'automation',
     'bbp',
+    'events',
     'display',
     'axes',
     'sensors',

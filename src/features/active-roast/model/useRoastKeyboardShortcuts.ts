@@ -1,12 +1,17 @@
+import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
+import { useRoastSettings } from '@features/active-roast/model/settings';
 import { i18n } from '@shared/i18n';
 import {
+    eventToShortcut,
     SHORTCUT_HOTKEY_OPTIONS,
+    SHORTCUTS,
+    sameShortcut,
     shortcutHotkeys,
     useShortcutKeys,
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { message } from '@tauri-apps/plugin-dialog';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 interface UseRoastKeyboardShortcutsParams {
@@ -256,5 +261,26 @@ export const useRoastKeyboardShortcuts = ({
         },
         { enabled: canMark && dropKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMark, onMarkDrop],
+    );
+
+    const customEvents = useRoastSettings().eventButtons.custom;
+    const bindingList = useShortcutStore((state) => state.bindings);
+    const customHotkeyPlan = useMemo(() => {
+        const taken = SHORTCUTS.flatMap(({ id }) => bindingList[id]);
+        const keys = effectiveCustomShortcuts(customEvents, taken);
+        return { keys, hotkeys: shortcutHotkeys(keys.filter((key): key is string => Boolean(key))) };
+    }, [customEvents, bindingList]);
+    useHotkeys(
+        customHotkeyPlan.hotkeys,
+        (event) => {
+            event.preventDefault();
+            const pressed = eventToShortcut(event);
+            const index = customHotkeyPlan.keys.findIndex((key) => key != null && sameShortcut(key, pressed));
+            const item = index >= 0 ? customEvents[index] : undefined;
+            if (!item) return;
+            onMarkEvent(item.name, '', item.id);
+        },
+        { enabled: canMark && customHotkeyPlan.hotkeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        [canMark, customEvents, customHotkeyPlan, onMarkEvent],
     );
 };

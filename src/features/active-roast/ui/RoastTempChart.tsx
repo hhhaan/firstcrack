@@ -22,7 +22,7 @@ import {
     noteAnchoredAtTop,
     noteLabelTopInsetPx,
 } from '@features/active-roast/lib/chart-option/markers';
-import { REMOVABLE_LOG_EVENTS, TP_MARKER_ID } from '@features/active-roast/lib/constants';
+import { isRemovableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
@@ -1083,7 +1083,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     };
 
     const deleteEdit = useCallback(() => {
-        if (!editForm || !onEventMarkerDelete || !REMOVABLE_LOG_EVENTS.has(editForm.event)) return;
+        if (!editForm || !onEventMarkerDelete || !isRemovableLogEvent(editForm.event)) return;
         onEventMarkerDelete(editForm.logId);
         setEditForm(null);
         chartRef.current?.focus();
@@ -1268,7 +1268,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         />
                     )}
                     <div className="flex items-center justify-end gap-1">
-                        {onEventMarkerDelete && REMOVABLE_LOG_EVENTS.has(editForm.event) && (
+                        {onEventMarkerDelete && isRemovableLogEvent(editForm.event) && (
                             <button
                                 type="button"
                                 data-chart-marker-delete

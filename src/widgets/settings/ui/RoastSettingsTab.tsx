@@ -32,6 +32,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
 import { CurveStyleSection } from './CurveStyleSection';
+import { EventButtonSection } from './EventButtonSection';
 import { RoastingSettingsImport } from './RoastingSettingsImport';
 import {
     SettingsCheckRow,
@@ -802,6 +803,8 @@ export const RoastSettingsTab = () => {
                     />
                 </SettingsSection.Body>
             </SettingsSection>
+            <EventButtonSection />
+
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />
                 <SettingsSection.Body className="grid items-start gap-x-6 gap-y-1 @[480px]:grid-cols-2">

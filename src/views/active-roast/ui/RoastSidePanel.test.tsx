@@ -97,6 +97,33 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(row?.textContent).toContain('1:05');
     });
 
+    it('hides turned-off mark buttons and shows an enabled custom name', () => {
+        act(() => {
+            updateRoastSettings({
+                eventButtons: {
+                    yellow: false,
+                    fcStart: true,
+                    fcEnd: false,
+                    custom: [
+                        { id: 'aroma', name: 'Aroma', enabled: true },
+                        { id: 'off', name: 'Hidden', enabled: false },
+                    ],
+                },
+            });
+        });
+        renderPanel();
+        const labels = [...container.querySelectorAll('button')].map((button) => button.textContent ?? '');
+        expect(labels.some((label) => label.includes('Yellow'))).toBe(false);
+        expect(labels.some((label) => label.includes('FC End'))).toBe(false);
+        expect(labels.some((label) => label.includes('FC Start'))).toBe(true);
+        expect(labels.some((label) => label.includes('Aroma'))).toBe(true);
+        expect(labels.some((label) => label.includes('Hidden'))).toBe(false);
+        expect(labels.some((label) => label.includes('Mark Drop'))).toBe(true);
+        act(() => {
+            updateRoastSettings({ eventButtons: { yellow: true, fcStart: true, fcEnd: true, custom: [] } });
+        });
+    });
+
     it('BBP wait shows Charge, not Roast Ready', () => {
         renderPanel({
             phase: 'preheating',
