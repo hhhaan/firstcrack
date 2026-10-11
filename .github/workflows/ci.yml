@@ -1,10 +1,13 @@
 name: CI
 
-# 문서/에이전트 설정만 바뀌면 CI 스킵.
+# 문서/에이전트 설정만 바뀌면 워크플로 전체 스킵.
 # apps/docs/** .md는 빌드 영향 → **.md 말고 루트 *.md만.
 # .gitignore ≠ CI 필터: 이미 추적 중인 docs/plans 등은 ignore여도 push되면 트리거됨.
-# PR과 main push가 같은 품질 job을 돈다. private repo는 branch protection을 쓸 수 없고
-# `pnpm release`가 main에 직접 push한다. 그 SHA의 check-run이 릴리스 게이트다.
+# main push는 품질 job을 전부 돈다. private repo는 branch protection이 없고
+# `pnpm release`가 main SHA의 check-run으로 릴리스를 연다.
+# PR만 clippy / sidecar / edge-check를 변경 경로로 좁힌다 (scripts/ci-changed-areas.mjs).
+# diff를 확신할 수 없거나 changes 잡이 실패하면 그 세 잡은 그대로 돈다.
+# main에서는 changes가 스킵된다. 스킵은 success가 아니라서 세 잡이 돈다.
 on:
   pull_request:
     branches: [main]
@@ -67,6 +70,26 @@ jobs:
             echo "tauri=false" >> "$GITHUB_OUTPUT"
             echo "src-tauri unchanged — skip ios-check"
           fi
+
+  # PR-only filter. Skipped (main) or failed → clippy/sidecar/edge-check run. Success with output false → skip.
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      clippy: ${{ steps.detect.outputs.clippy }}
+      sidecar: ${{ steps.detect.outputs.sidecar }}
+      edge: ${{ steps.detect.outputs.edge }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: detect
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.sha }}
+        run: node scripts/ci-changed-areas.mjs
 
   # Same order as verify:core, then lint + secretlint (those two stay out of the test process).
   # Job id is the check-run name — keep in sync with scripts/check-release-ci.mjs.
@@ -142,6 +165,8 @@ jobs:
 
   # Host lint. macOS-only cfg (app_nap imp) is not compiled on ubuntu.
   clippy:
+    needs: changes
+    if: "${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.clippy == 'true') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -168,6 +193,8 @@ jobs:
         working-directory: src-tauri
 
   sidecar:
+    needs: changes
+    if: "${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.sidecar == 'true') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -191,6 +218,8 @@ jobs:
   # --node-modules-dir=none: root package.json would otherwise make deno resolve npm: specifiers
   # from node_modules (byonm), which is not how the edge runtime resolves them.
   edge-check:
+    needs: changes
+    if: "${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.edge == 'true') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
