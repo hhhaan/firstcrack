@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { type Machine, useMachines } from '@entities/machine';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
@@ -6,6 +7,7 @@ import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import * as featureAccess from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
+import { useToastStore } from '@shared/store/toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -99,6 +101,7 @@ vi.mock('@shared/lib/settings-store', () => ({
 }));
 
 vi.mock('@shared/lib/sidecar', () => ({
+    subscribeSidecarSettings: vi.fn(() => () => {}),
     sidecar: {
         waitUntilReady: () => new Promise(() => undefined),
         getStatus: vi.fn().mockResolvedValue({ connected: true, control: { writable: false, limits: {} } }),
@@ -129,6 +132,40 @@ const originalTick = useRoastingStore.getState().tick;
 let tickCalls = 0;
 
 const clockText = (host: HTMLElement) => host.querySelector('[data-testid="roast-time"]')?.textContent ?? '';
+
+const DOOR_MACHINE_ID = 'w60-door-test';
+
+const doorSnapshot = {
+    machine_id: DOOR_MACHINE_ID,
+    machine_name: 'W60',
+    machine_roaster_key: 'giesen_w45a_w60a',
+    machine_brand: 'Giesen',
+    machine_protocol: 's7',
+};
+
+const installDoorMachine = (doors: Pick<Machine, 'dischargeDoor' | 'fillDoor'>) => {
+    const previous = useMachines.getState().machines;
+    const machine: Machine = {
+        id: DOOR_MACHINE_ID,
+        name: 'W60',
+        roasterKey: 'giesen_w45a_w60a',
+        displayName: 'Giesen W45A / W60A',
+        brand: 'Giesen',
+        models: ['W60A'],
+        protocol: 's7',
+        connectionParams: {},
+        capabilities: [],
+        pid: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        ...doors,
+    };
+    useMachines.setState({
+        machines: [...previous.filter((item) => item.id !== DOOR_MACHINE_ID), machine],
+    });
+    return () => {
+        useMachines.setState({ machines: previous });
+    };
+};
 
 const seed = (patch: Partial<ReturnType<typeof useRoastingStore.getState>>) => {
     tickCalls = 0;
@@ -252,15 +289,26 @@ describe('ActiveRoast running clock (#627)', () => {
 
     it('opens the enabled W60A door once on manual Drop and preserves the completed batch on failure', async () => {
         const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
+        const restoreMachines = installDoorMachine({ dischargeDoor: true, fillDoor: false });
         const status = vi.mocked(sidecar.getStatus);
         const originalStatus = status.getMockImplementation();
         status.mockResolvedValue({
             connected: true,
-            control: { writable: true, limits: { heater: { min: 0, max: 100, unit: '%' } }, discharge: true },
+            roaster: 'giesen_w45a_w60a',
+            machine_id: DOOR_MACHINE_ID,
+            connection_epoch: 1,
+            control: {
+                writable: true,
+                limits: { heater: { min: 0, max: 100, unit: '%' } },
+                discharge: true,
+            },
         } as Awaited<ReturnType<typeof sidecar.getStatus>>);
         vi.mocked(sidecar.setDischarge).mockClear().mockRejectedValueOnce(new Error('PLC write failed'));
-        seed({ liveData: { bt: 155, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 } });
-        const unmount = mount();
+        seed({
+            liveData: { bt: 155, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 },
+            machineSnapshot: doorSnapshot,
+        });
+        let unmount = mount();
         try {
             await flushMicrotasks();
             expect(sidecar.setDischarge).not.toHaveBeenCalled();
@@ -273,23 +321,76 @@ describe('ActiveRoast running clock (#627)', () => {
                 drop?.click();
             });
             await flushMicrotasks();
-            expect(sidecar.setDischarge).toHaveBeenCalledExactlyOnceWith('open');
+            expect(sidecar.setDischarge).toHaveBeenCalledExactlyOnceWith('open', {
+                machine_id: DOOR_MACHINE_ID,
+                connection_epoch: 1,
+            });
             expect(useRoastingStore.getState().completed?.snapshot.sessionId).toBe('sess-remount');
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(sidecar.setFill).not.toHaveBeenCalled();
+            await act(async () => {
+                useRoastingStore.getState().cancelDrop('sess-remount');
+            });
+            unmount();
+            unmount = mount();
+            await flushMicrotasks();
+            const secondDrop = [...host.querySelectorAll('button')].find((button) =>
+                button.textContent?.includes(markDropLabel()),
+            );
+            await act(async () => {
+                secondDrop?.click();
+            });
+            await flushMicrotasks();
+            expect(sidecar.setDischarge).toHaveBeenCalledTimes(1);
         } finally {
             unmount();
+            restoreMachines();
             access.mockRestore();
             if (originalStatus) status.mockImplementation(originalStatus);
         }
     });
 
+    it('explains a skipped opted-in door after disconnect while preserving manual Drop', async () => {
+        const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
+        const restoreMachines = installDoorMachine({ dischargeDoor: true, fillDoor: false });
+        const show = vi.spyOn(useToastStore.getState(), 'show');
+        vi.mocked(sidecar.setDischarge).mockClear();
+        seed({
+            sidecarConnected: false,
+            machineSnapshot: doorSnapshot,
+            liveData: { bt: 155, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 },
+        });
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            const drop = [...host.querySelectorAll('button')].find((button) =>
+                button.textContent?.includes(markDropLabel()),
+            );
+            await act(async () => {
+                drop?.click();
+            });
+            await flushMicrotasks();
+            expect(useRoastingStore.getState().completed?.snapshot.sessionId).toBe('sess-remount');
+            expect(sidecar.setDischarge).not.toHaveBeenCalled();
+            expect(show).toHaveBeenCalledWith(expect.stringContaining('문을 움직이지 않았습니다'), 'error');
+        } finally {
+            unmount();
+            restoreMachines();
+            access.mockRestore();
+            show.mockRestore();
+        }
+    });
+
     it('opens the enabled W60A hopper once on manual Charge and not on Drop', async () => {
         const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
+        const restoreMachines = installDoorMachine({ dischargeDoor: false, fillDoor: true });
         const status = vi.mocked(sidecar.getStatus);
         const originalStatus = status.getMockImplementation();
         status.mockResolvedValue({
             connected: true,
+            roaster: 'giesen_w45a_w60a',
+            machine_id: DOOR_MACHINE_ID,
+            connection_epoch: 1,
             control: {
                 writable: true,
                 limits: { heater: { min: 0, max: 100, unit: '%' } },
@@ -303,6 +404,7 @@ describe('ActiveRoast running clock (#627)', () => {
             phase: 'standby',
             roastStartMs: 0,
             elapsed: 0,
+            machineSnapshot: doorSnapshot,
             liveData: { bt: 180, et: 200, ror: 0, ror_et: 0, heater: 20, fan: 0, drum: 0 },
         });
         const unmount = mount();
@@ -317,10 +419,14 @@ describe('ActiveRoast running clock (#627)', () => {
                 await Promise.resolve();
             });
             await flushMicrotasks();
-            expect(sidecar.setFill).toHaveBeenCalledExactlyOnceWith('open');
+            expect(sidecar.setFill).toHaveBeenCalledExactlyOnceWith('open', {
+                machine_id: DOOR_MACHINE_ID,
+                connection_epoch: 1,
+            });
             expect(sidecar.setDischarge).not.toHaveBeenCalled();
         } finally {
             unmount();
+            restoreMachines();
             access.mockRestore();
             if (originalStatus) status.mockImplementation(originalStatus);
         }

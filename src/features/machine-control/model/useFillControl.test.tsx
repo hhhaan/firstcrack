@@ -47,7 +47,10 @@ describe('W60A fill control', () => {
         render(true);
         await act(async () => expect(await model.send('open')).toBe(true));
         await act(async () => expect(await model.send('close')).toBe(true));
-        expect(vi.mocked(sidecar.setFill).mock.calls).toEqual([['open'], ['close']]);
+        expect(vi.mocked(sidecar.setFill).mock.calls).toEqual([
+            ['open', undefined],
+            ['close', undefined],
+        ]);
     });
 
     it('blocks duplicate requests until the in-flight write finishes', async () => {

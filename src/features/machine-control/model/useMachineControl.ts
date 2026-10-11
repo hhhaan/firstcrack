@@ -1,6 +1,6 @@
-import type { ControlCapability } from '@entities/machine';
+import type { ControlCapability, SidecarStatus } from '@entities/machine';
 import { logger } from '@shared/lib/logger';
-import { sidecar } from '@shared/lib/sidecar';
+import { sidecar, subscribeSidecarSettings } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { convergeTolerance } from '../lib/controlScale';
@@ -11,6 +11,7 @@ import {
     createControlSender,
     settledRoles,
 } from '../lib/controlSender';
+import { devRoasterControl } from '../lib/devRoasterPreview';
 
 export type { ControlOrigin, ControlRole } from '../lib/controlSender';
 
@@ -48,7 +49,8 @@ export const useMachineControl = (
     onCommitted?: (committed: ControlCommand) => void,
     onApplied?: (applied: ControlCommand) => void,
 ) => {
-    const [capability, setCapability] = useState<ControlCapability | null>(null);
+    const [connectionStatus, setConnectionStatus] = useState<SidecarStatus | null>(null);
+    const capability = connectionStatus?.control;
     /**
      * desired: 사용자가 지시했지만 기기가 아직 따라오지 않은 값
      * unackPolls: role별로 "지시했는데 기기가 그대로였던" 폴링 횟수
@@ -93,27 +95,51 @@ export const useMachineControl = (
     useEffect(() => {
         if (!sidecarConnected) {
             sender.dispose();
-            setCapability(null);
+            setConnectionStatus(null);
             setTracking({ desired: {}, unackPolls: {} });
             return;
         }
         let cancelled = false;
+        let requestSequence = 0;
         let timer: ReturnType<typeof setTimeout> | undefined;
         const fetchCapability = () => {
+            const request = ++requestSequence;
+            if (timer) clearTimeout(timer);
             sidecar
                 .getStatus()
                 .then((s) => {
-                    if (!cancelled) setCapability(s.control ?? { writable: false, limits: EMPTY_LIMITS });
+                    if (!cancelled && request === requestSequence) {
+                        setConnectionStatus(s);
+                        timer = setTimeout(fetchCapability, 1000);
+                    }
                 })
                 .catch(() => {
                     // 일시 실패로 capability를 null로 덮으면 패널이 통째로 사라지고
                     // PID 안전 훅까지 언마운트됐었다(#269). 기존 값을 유지한 채
                     // 재시도한다 — 연결 자체가 끊기면 위 분기가 정리한다.
-                    if (!cancelled) timer = setTimeout(fetchCapability, CAPABILITY_RETRY_MS);
+                    if (!cancelled && request === requestSequence) {
+                        setConnectionStatus((previous) =>
+                            previous
+                                ? {
+                                      ...previous,
+                                      control: {
+                                          ...previous.control,
+                                          writable: previous.control?.writable ?? false,
+                                          limits: previous.control?.limits ?? EMPTY_LIMITS,
+                                          discharge: false,
+                                          fill: false,
+                                      },
+                                  }
+                                : null,
+                        );
+                        timer = setTimeout(fetchCapability, CAPABILITY_RETRY_MS);
+                    }
                 });
         };
+        const unsubscribe = subscribeSidecarSettings(fetchCapability);
         fetchCapability();
         return () => {
+            unsubscribe();
             cancelled = true;
             if (timer) clearTimeout(timer);
         };
@@ -187,13 +213,16 @@ export const useMachineControl = (
         });
     }, [unackKey]);
 
+    // 연결이 없으면 env로 고른 기기의 제어 화면만 채운다. 쓰기는 사이드카가 그대로 거절한다.
+    const preview = sidecarConnected ? null : devRoasterControl();
     return {
-        writable: Boolean(capability?.writable) && sidecarConnected,
-        dischargeSupported: Boolean(capability?.discharge) && sidecarConnected,
-        fillSupported: Boolean(capability?.fill) && sidecarConnected,
-        limits: capability?.limits ?? EMPTY_LIMITS,
+        writable: (Boolean(capability?.writable) && sidecarConnected) || Boolean(preview?.writable),
+        dischargeSupported: (Boolean(capability?.discharge) && sidecarConnected) || Boolean(preview?.discharge),
+        fillSupported: (Boolean(capability?.fill) && sidecarConnected) || Boolean(preview?.fill),
+        connectionStatus: sidecarConnected ? connectionStatus : null,
+        limits: sidecarConnected ? (capability?.limits ?? EMPTY_LIMITS) : (preview?.limits ?? EMPTY_LIMITS),
         /** PID 지원 여부 — 같은 /status 응답에서 오므로 따로 조회하지 않는다 */
-        pidCapability: capability?.pid,
+        pidCapability: sidecarConnected ? capability?.pid : preview?.pid,
         desired: tracking.desired,
         unacknowledged,
         sending,

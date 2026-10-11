@@ -3,6 +3,14 @@ import { invoke } from '@tauri-apps/api/core';
 import { isSidecarStartingError } from './errorMessage';
 import { logger } from './logger';
 
+const settingsListeners = new Set<() => void>();
+export const subscribeSidecarSettings = (listener: () => void) => {
+    settingsListeners.add(listener);
+    return () => {
+        settingsListeners.delete(listener);
+    };
+};
+
 export const SIDECAR_BASE = 'http://127.0.0.1:9999';
 
 /** 폴링·상태 조회 등 즉답 요청 기준 */
@@ -95,14 +103,14 @@ export const sidecar = {
             READY_RETRY_BUDGET_MS,
         ),
 
-    connect: (roasterKey: string, params: Record<string, unknown>) =>
+    connect: (roasterKey: string, params: Record<string, unknown>, machineId?: string) =>
         retryWhileSidecarStarts(
             () =>
                 request<SidecarStatus>(
                     '/connect',
                     {
                         method: 'POST',
-                        body: JSON.stringify({ roaster: roasterKey, ...params }),
+                        body: JSON.stringify({ ...params, roaster: roasterKey, machine_id: machineId }),
                     },
                     CONNECT_TIMEOUT_MS,
                     false,
@@ -117,7 +125,10 @@ export const sidecar = {
     getTemperatures: () => request<TemperatureReading>('/temperatures'),
 
     updateSettings: (settings: Record<string, unknown>) =>
-        request<{ ok: boolean }>('/settings', { method: 'POST', body: JSON.stringify(settings) }),
+        request<{ ok: boolean }>('/settings', { method: 'POST', body: JSON.stringify(settings) }).then((result) => {
+            for (const listener of settingsListeners) listener();
+            return result;
+        }),
 
     // READY 버튼과 연동 — 가상 머신에 standby 진입 알림 (생두 투입 시뮬레이션 시작)
     enterStandby: () => request<{ ok: boolean }>('/standby', { method: 'POST' }),
@@ -138,16 +149,16 @@ export const sidecar = {
             body: JSON.stringify(cmd),
         }),
 
-    setDischarge: (action: 'open' | 'close') =>
+    setDischarge: (action: 'open' | 'close', target?: Pick<SidecarStatus, 'machine_id' | 'connection_epoch'>) =>
         request<{ ok: boolean }>('/discharge', {
             method: 'POST',
-            body: JSON.stringify({ action }),
+            body: JSON.stringify({ action, ...target }),
         }),
 
-    setFill: (action: 'open' | 'close') =>
+    setFill: (action: 'open' | 'close', target?: Pick<SidecarStatus, 'machine_id' | 'connection_epoch'>) =>
         request<{ ok: boolean }>('/fill', {
             method: 'POST',
-            body: JSON.stringify({ action }),
+            body: JSON.stringify({ action, ...target }),
         }),
 
     /** PID 제어 시작. sv = 목표 BT(°C). 409 = 미연결/미지원, 400 = 범위 밖 */

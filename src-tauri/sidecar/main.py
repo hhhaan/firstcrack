@@ -166,10 +166,13 @@ async def handle_connect(request: web.Request) -> web.Response:
     except Exception:
         return web.json_response({"error": "invalid JSON"}, status=400)
     roaster_key = body.pop("roaster", None)
+    machine_id = body.pop("machine_id", None)
+    if machine_id is not None and (not isinstance(machine_id, str) or not machine_id):
+        return web.json_response({"error": "machine_id must be a nonempty string"}, status=400)
     if not roaster_key:
         return web.json_response({"error": "roaster field required"}, status=400)
     try:
-        await manager.connect(roaster_key, body)
+        await manager.connect(roaster_key, body, machine_id)
     except ValueError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     return web.json_response(manager.status())
@@ -225,7 +228,12 @@ async def handle_settings(request: web.Request) -> web.Response:
     except Exception:
         return web.json_response({"error": "invalid JSON"}, status=400)
     manager: RoasterManager = request.app["manager"]
-    manager.update_settings(body)
+    if not isinstance(body, dict):
+        return web.json_response({"error": "settings must be an object"}, status=400)
+    try:
+        manager.update_settings(body)
+    except control_guard.ControlUnavailable as exc:
+        return web.json_response({"error": str(exc)}, status=409)
     return web.json_response({"ok": True})
 
 
@@ -270,11 +278,11 @@ async def handle_discharge(request: web.Request) -> web.Response:
         body = await request.json()
     except Exception:
         return web.Response(status=400, text="invalid json")
-    if not isinstance(body, dict) or set(body) != {"action"} or body["action"] not in ("open", "close"):
+    if not isinstance(body, dict) or "action" not in body or set(body) - {"action", "machine_id", "connection_epoch"} or body["action"] not in ("open", "close"):
         return web.json_response({"error": "action must be open or close"}, status=400)
     manager: RoasterManager = request.app["manager"]
     try:
-        await manager.discharge(body["action"])
+        await manager.discharge(body["action"], body)
     except control_guard.ControlRangeError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     except control_guard.ControlUnavailable as exc:
@@ -291,11 +299,11 @@ async def handle_fill(request: web.Request) -> web.Response:
         body = await request.json()
     except Exception:
         return web.Response(status=400, text="invalid json")
-    if not isinstance(body, dict) or set(body) != {"action"} or body["action"] not in ("open", "close"):
+    if not isinstance(body, dict) or "action" not in body or set(body) - {"action", "machine_id", "connection_epoch"} or body["action"] not in ("open", "close"):
         return web.json_response({"error": "action must be open or close"}, status=400)
     manager: RoasterManager = request.app["manager"]
     try:
-        await manager.fill(body["action"])
+        await manager.fill(body["action"], body)
     except control_guard.ControlRangeError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     except control_guard.ControlUnavailable as exc:

@@ -82,6 +82,8 @@ export interface PidRuntime {
 }
 
 export interface SidecarStatus {
+    machine_id?: string | null;
+    connection_epoch?: number;
     read_units?: ReadUnits;
     connected: boolean;
     reconnecting?: boolean;

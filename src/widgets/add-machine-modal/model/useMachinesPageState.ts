@@ -27,8 +27,11 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
     const allowAddMachine = canAddMachine(plan, realMachineCount);
 
     const isThisMachineConnected = useCallback(
-        (m: Machine) => Boolean(sidecarStatus?.connected && sidecarStatus.roaster === m.roasterKey),
-        [sidecarStatus?.connected, sidecarStatus?.roaster],
+        (m: Machine) =>
+            Boolean(
+                sidecarStatus?.connected && sidecarStatus.machine_id === m.id && sidecarStatus.roaster === m.roasterKey,
+            ),
+        [sidecarStatus?.connected, sidecarStatus?.roaster, sidecarStatus?.machine_id],
     );
 
     const handleAdd = useCallback(
@@ -36,7 +39,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
             roasterKey: string,
             def: RoasterDef,
             params: Record<string, unknown>,
-            meta?: { name?: string; brand?: string },
+            meta?: { id?: string; name?: string; brand?: string },
         ) => {
             if (!canConnectRoaster(roasterKey, accountPlan)) return;
             if (!canAddMachine(plan, realMachineCount)) {
@@ -46,6 +49,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
             const name = meta?.name?.trim() || def.display_name;
             const brand = meta?.brand?.trim() || def.brand;
             addMachine({
+                id: meta?.id,
                 name,
                 roasterKey,
                 displayName: name,

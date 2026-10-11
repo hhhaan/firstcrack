@@ -9,7 +9,7 @@ import {
 import { useAccountPlan } from '@shared/lib/features/useAccountPlan';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { assembleConnectionParams } from './assembleConnectionParams';
 import type { CommitAction, SuccessActions } from './types';
@@ -30,7 +30,7 @@ type Args = {
         roasterKey: string,
         def: RoasterDef,
         params: Record<string, unknown>,
-        meta?: { name?: string; brand?: string },
+        meta?: { id?: string; name?: string; brand?: string },
     ) => void;
     onClose: () => void;
     testConnectedRef: { current: boolean };
@@ -62,6 +62,7 @@ export const useMachineFormActions = ({
 }: Args) => {
     const { t } = useTranslation();
     const accountPlan = useAccountPlan();
+    const [machineId, setMachineId] = useState(() => editing?.id ?? crypto.randomUUID());
 
     const commit = async (action: CommitAction) => {
         if (!selectedDef || !connectKey) return;
@@ -107,13 +108,12 @@ export const useMachineFormActions = ({
                 // biome-ignore lint/style/noNonNullAssertion: error already checked above
                 await onEdit!(editing!.id, assembled.typed, keepTest);
             } else {
-                onAdd(
-                    connectKey,
-                    selectedDef,
-                    assembled.typed,
-                    isCustom ? { name: customName.trim(), brand: customBrand.trim() || 'Custom' } : undefined,
-                );
+                onAdd(connectKey, selectedDef, assembled.typed, {
+                    id: machineId,
+                    ...(isCustom ? { name: customName.trim(), brand: customBrand.trim() || 'Custom' } : {}),
+                });
                 if (action === 'addAndConnect') testConnectedRef.current = false;
+                setMachineId(crypto.randomUUID());
             }
             if (!keepTest) onClose();
         } catch (err) {
@@ -167,14 +167,18 @@ export const useMachineFormActions = ({
         let connected = false;
         beginMachineConnectAttempt();
         try {
-            const status = await sidecar.connect(connectKey, assembled.typed);
+            const status = await sidecar.connect(connectKey, assembled.typed, machineId);
             connected = status.connected;
             if (status.connected) {
-                pushMachineDoors({
-                    roasterKey: connectKey,
-                    dischargeDoor: editing?.dischargeDoor,
-                    fillDoor: editing?.fillDoor,
-                });
+                pushMachineDoors(
+                    {
+                        id: machineId,
+                        roasterKey: connectKey,
+                        dischargeDoor: editing?.dischargeDoor,
+                        fillDoor: editing?.fillDoor,
+                    },
+                    status,
+                );
                 const temps = await sidecar.getTemperatures().catch(() => null);
                 setTestState('success');
                 setTestMessage(

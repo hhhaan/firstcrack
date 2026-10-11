@@ -548,12 +548,14 @@ Notes:
 
 ### POST /discharge
 
+W60A 문 제어 연결 대상: `POST /connect`는 선택한 로스터의 저장 ID를 `machine_id`로 받으며 `GET /status`는 이를 `connection_epoch`와 함께 반환한다. 명시적 새 연결은 두 문 스위치를 OFF로 시작한다. 같은 연결의 자동 재연결과 배치 reset은 기기 ID를 유지하고, 의도적 disconnect는 ID를 지운다. `POST /settings`의 문 스위치와 `POST /fill`, `POST /discharge`는 현재 상태의 `machine_id`와 `connection_epoch`를 함께 보내야 한다. 이전 연결의 요청은 409로 거절하며 재전송하지 않는다. 앱은 같은 프리셋을 쓰는 다른 저장 기기로 대체하지 않는다.
+
 Giesen **W60A 배출문** 열기·닫기. 머신 상세의 배출구 스위치가 켜져 있어야 한다.
 기본값은 꺼짐이며, W60A가 아닌 연결에서는 적용되지 않는다.
 활성화 여부는 `GET /status.control.discharge`로 확인한다. 앱은 `POST /settings`의 `w60a_discharge`로 바꾼다.
 
 ```json
-{ "action": "open" }
+{ "action": "open", "machine_id": "saved-machine-id", "connection_epoch": 1 }
 ```
 
 - `open` → S7 INT16 `DB2.30 = 5`, `close` → `DB2.30 = 6`.
@@ -574,7 +576,7 @@ Giesen **W60A 투입구**(호퍼 → 드럼) 열기·닫기. 머신 상세의 �
 기본값은 꺼짐이다. 활성화 여부는 `GET /status.control.fill`로 확인한다. 앱은 `POST /settings`의 `w60a_fill`로 바꾼다.
 
 ```json
-{ "action": "open" }
+{ "action": "open", "machine_id": "saved-machine-id", "connection_epoch": 1 }
 ```
 
 - `open` → S7 INT16 `DB2.30 = 1`, `close` → `DB2.30 = 2`.

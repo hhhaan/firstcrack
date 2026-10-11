@@ -23,7 +23,7 @@ const VIRTUAL_MACHINE: Machine = {
 
 interface MachinesState {
     machines: Machine[];
-    addMachine: (draft: Omit<Machine, 'id' | 'createdAt'>) => Machine;
+    addMachine: (draft: Omit<Machine, 'id' | 'createdAt'> & { id?: string }) => Machine;
     importMachines: (
         drafts: Omit<Machine, 'id' | 'createdAt'>[],
         updates?: { id: string; patch: Pick<Machine, 'connectionParams' | 'capabilities'> }[],
@@ -40,7 +40,7 @@ export const useMachines = create<MachinesState>()(
             addMachine: (draft) => {
                 const machine: Machine = {
                     ...draft,
-                    id: uid(),
+                    id: draft.id ?? uid(),
                     createdAt: new Date().toISOString(),
                 };
                 set((s) => ({ machines: [...s.machines, machine] }));

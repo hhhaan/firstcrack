@@ -167,7 +167,7 @@ it('sends the migrated W60 key and saved connection settings to the sidecar', as
         await act(async () => {
             await api.current?.handleConnect(migrated);
         });
-        expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('giesen_w45a_w60a', saved.connectionParams);
+        expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('giesen_w45a_w60a', saved.connectionParams, saved.id);
         expect(api.current?.sidecarStatus?.roaster).toBe('giesen_w45a_w60a');
     } finally {
         const root = rendered?.root;

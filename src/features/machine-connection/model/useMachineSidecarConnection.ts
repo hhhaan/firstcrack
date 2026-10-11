@@ -127,9 +127,11 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
     // biome-ignore lint/correctness/useExhaustiveDependencies: only re-run on connection change (user can reselect)
     useEffect(() => {
         if (!sidecarStatus?.connected || !onConnectedMachineId) return;
-        const connectedId = machines.find((m) => m.roasterKey === sidecarStatus.roaster)?.id;
+        const connectedId = machines.find(
+            (m) => m.id === sidecarStatus.machine_id && m.roasterKey === sidecarStatus.roaster,
+        )?.id;
         if (connectedId) onConnectedMachineId(connectedId);
-    }, [sidecarStatus?.connected, sidecarStatus?.roaster]);
+    }, [sidecarStatus?.connected, sidecarStatus?.roaster, sidecarStatus?.machine_id]);
 
     const handleConnect = useCallback(
         async (machine: Machine): Promise<SidecarStatus | null> => {
@@ -150,7 +152,7 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
             setConnecting(true);
             setSidecarStatus((prev) => (prev ? { ...prev, error: null } : prev));
             try {
-                const status = await sidecar.connect(machine.roasterKey, machine.connectionParams);
+                const status = await sidecar.connect(machine.roasterKey, machine.connectionParams, machine.id);
                 setSidecarStatus(status);
                 endMachineConnectAttempt(status.connected);
                 if (status.connected) {

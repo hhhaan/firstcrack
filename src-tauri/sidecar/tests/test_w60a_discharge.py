@@ -57,6 +57,7 @@ async def test_adapter_rejects_connection_changed_while_waiting_for_lock(changed
 
 def enable_discharge(manager):
     manager._roaster_key = "giesen_w45a_w60a"
+    manager._machine_id = "door-test"
     manager._protocol = "s7"
     manager._w60a_discharge_enabled = True
     manager._connected = True
@@ -76,8 +77,17 @@ async def test_manager_rejects_unavailable_discharge(manager, block):
     else:
         manager._resetting = True
     with pytest.raises(ControlUnavailable):
-        await manager.discharge("open")
+        await manager.discharge("open", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
     adapter.discharge.assert_not_awaited()
+
+
+async def test_reconnecting_manager_rejects_discharge_even_when_the_switch_is_on(manager):
+    enable_discharge(manager)
+    manager._reconnect_task = MagicMock()
+    manager._reconnect_task.done.return_value = False
+    with pytest.raises(ControlUnavailable):
+        await manager.discharge("open", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
+    manager._adapter.discharge.assert_not_awaited()
 
 
 async def test_manager_rejects_late_acknowledgement(manager):
@@ -88,7 +98,7 @@ async def test_manager_rejects_late_acknowledgement(manager):
 
     manager._adapter.discharge.side_effect = changed
     with pytest.raises(ControlUnavailable):
-        await manager.discharge("open")
+        await manager.discharge("open", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
 
 
 async def test_batch_reset_preserves_s7_connection_without_moving_door(manager):
@@ -97,7 +107,7 @@ async def test_batch_reset_preserves_s7_connection_without_moving_door(manager):
     await manager.reset_roast()
     adapter.discharge.assert_not_awaited()
     assert manager._adapter is adapter and manager._connection_epoch == epoch
-    await manager.discharge("open")
+    await manager.discharge("open", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
     adapter.discharge.assert_awaited_once_with("open")
 
 
@@ -128,12 +138,12 @@ async def test_endpoint_unavailable_success_and_write_failure(discharge_client):
     assert response.status == 409
     manager = discharge_client.server.app["manager"]
     enable_discharge(manager)
-    response = await discharge_client.post("/discharge", json={"action": "close"})
+    response = await discharge_client.post("/discharge", json={"action": "close", "machine_id": "door-test", "connection_epoch": 0})
     assert response.status == 200
     assert await response.json() == {"ok": True}
     manager._adapter.discharge.assert_awaited_once_with("close")
     manager._adapter.discharge.side_effect = ConnectionError("PLC write failed")
-    response = await discharge_client.post("/discharge", json={"action": "open"})
+    response = await discharge_client.post("/discharge", json={"action": "open", "machine_id": "door-test", "connection_epoch": 0})
     assert response.status == 502
 
 

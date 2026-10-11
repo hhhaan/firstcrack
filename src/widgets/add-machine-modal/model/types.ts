@@ -11,7 +11,7 @@ export type AddMachineFormArgs = {
         roasterKey: string,
         def: RoasterDef,
         params: Record<string, unknown>,
-        meta?: { name?: string; brand?: string },
+        meta?: { id?: string; name?: string; brand?: string },
     ) => void;
     editing?: Machine | null;
     onEdit?: (id: string, params: Record<string, unknown>, keepConnection?: boolean) => Promise<void>;

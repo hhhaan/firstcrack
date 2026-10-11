@@ -21,12 +21,19 @@ export const pidRuntime = (state: PidRuntime['state']): PidRuntime => ({
 });
 
 export const writableHeaterStatus = {
+    connected: true,
+    roaster: 'giesen_w6a',
+    display_name: 'Giesen',
+    brand: 'Giesen',
+    capabilities: [],
+    uptime: 0,
+    error: null,
     control: {
         writable: true,
         limits: { heater: { min: 0, max: 100, unit: '%' } },
         pid: { supported: true, sv_min: 50, sv_max: 250 },
     },
-} as Awaited<ReturnType<typeof sidecar.getStatus>>;
+} satisfies Awaited<ReturnType<typeof sidecar.getStatus>>;
 
 export const applyControl = async (cmd: Parameters<typeof sidecar.setControl>[0]) =>
     ({ applied: cmd }) as Awaited<ReturnType<typeof sidecar.setControl>>;

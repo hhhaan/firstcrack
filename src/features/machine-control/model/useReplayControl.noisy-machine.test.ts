@@ -12,6 +12,7 @@ import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@shared/lib/sidecar', () => ({
+    subscribeSidecarSettings: vi.fn(() => () => {}),
     sidecar: {
         getStatus: vi.fn(),
         setControl: vi.fn(),

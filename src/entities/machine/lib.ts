@@ -174,6 +174,8 @@ export const resolveCustomConnectKey = (protocol: string): string | null => CUST
 export const isSameSidecarStatus = (prev: SidecarStatus | null, next: SidecarStatus): boolean =>
     prev?.connected === next.connected &&
     prev?.roaster === next.roaster &&
+    prev?.machine_id === next.machine_id &&
+    prev?.connection_epoch === next.connection_epoch &&
     prev?.error === next.error &&
     prev?.reconnecting === next.reconnecting;
 
@@ -194,6 +196,7 @@ export const copyMachineSnapshot = (src: Partial<MachineSnapshot> | null | undef
 });
 
 type SidecarSnapshotSource = {
+    machine_id?: string | null;
     connected?: boolean;
     roaster?: string | null;
     display_name?: string | null;
@@ -206,7 +209,7 @@ export const snapshotFromSidecar = (
     machines: Machine[],
 ): MachineSnapshot | null => {
     if (!status?.connected || !status.roaster) return null;
-    const machine = machines.find((m) => m.roasterKey === status.roaster);
+    const machine = machines.find((m) => m.id === status.machine_id && m.roasterKey === status.roaster);
     const name = machine?.name || machine?.displayName || status.display_name || status.roaster;
     return {
         machine_id: machine?.id ?? null,

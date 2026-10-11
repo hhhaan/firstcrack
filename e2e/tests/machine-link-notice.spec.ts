@@ -1,6 +1,8 @@
 import { expect, goNav, test } from '../fixtures/app';
 
-test('machine link notice survives screen changes and re-arms only after a healthy reading', async ({ authedPage: page }) => {
+test('machine link notice survives screen changes and re-arms only after a healthy reading', async ({
+    authedPage: page,
+}) => {
     let connected = true;
     let failing = false;
     let liveReadings = 0;
@@ -23,7 +25,15 @@ test('machine link notice survives screen changes and re-arms only after a healt
                       stale: false,
                       reconnecting: false,
                   }
-                : { connected, reconnecting: false, roaster: 'virtual', capabilities: ['heater'], error: null };
+                : {
+                      connected,
+                      reconnecting: false,
+                      roaster: 'virtual',
+                      machine_id: connected ? '__virtual__' : null,
+                      connection_epoch: 1,
+                      capabilities: ['heater'],
+                      error: null,
+                  };
         await route.fulfill({ json: body, headers: { 'Access-Control-Allow-Origin': '*' } });
         if (path === '/temperatures') liveReadings += 1;
     });

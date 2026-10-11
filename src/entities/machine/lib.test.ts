@@ -81,6 +81,20 @@ const machine = (overrides: Partial<Machine> = {}): Machine => ({
 });
 
 describe('snapshotFromSidecar', () => {
+    it('identifies B among two same-key machines and never falls back for missing or mismatched IDs', () => {
+        const a = machine();
+        const b = { ...a, id: 'm2', name: 'B' };
+        expect(
+            snapshotFromSidecar({ connected: true, roaster: a.roasterKey, machine_id: b.id }, [a, b])?.machine_id,
+        ).toBe(b.id);
+        expect(
+            snapshotFromSidecar({ connected: true, roaster: a.roasterKey, machine_id: 'deleted' }, [a, b])?.machine_id,
+        ).toBeNull();
+        expect(
+            snapshotFromSidecar({ connected: true, roaster: 'other', machine_id: b.id }, [a, b])?.machine_id,
+        ).toBeNull();
+        expect(snapshotFromSidecar({ connected: true, roaster: a.roasterKey }, [a])?.machine_id).toBeNull();
+    });
     it('returns null when disconnected or missing roaster', () => {
         expect(snapshotFromSidecar({ connected: false, roaster: 'giesen_w6a' }, [machine()])).toBeNull();
         expect(snapshotFromSidecar({ connected: true, roaster: null }, [machine()])).toBeNull();
@@ -90,7 +104,13 @@ describe('snapshotFromSidecar', () => {
     it('joins local machine for id/protocol and sidecar for name fallback', () => {
         expect(
             snapshotFromSidecar(
-                { connected: true, roaster: 'giesen_w6a', display_name: 'Sidecar Name', brand: 'SidecarBrand' },
+                {
+                    connected: true,
+                    roaster: 'giesen_w6a',
+                    machine_id: 'm1',
+                    display_name: 'Sidecar Name',
+                    brand: 'SidecarBrand',
+                },
                 [machine()],
             ),
         ).toEqual({
@@ -105,7 +125,13 @@ describe('snapshotFromSidecar', () => {
     it('keeps sidecar identity when the local machine was deleted', () => {
         expect(
             snapshotFromSidecar(
-                { connected: true, roaster: 'giesen_w6a', display_name: 'Giesen W6A', brand: 'Giesen' },
+                {
+                    connected: true,
+                    roaster: 'giesen_w6a',
+                    machine_id: 'm1',
+                    display_name: 'Giesen W6A',
+                    brand: 'Giesen',
+                },
                 [],
             ),
         ).toEqual({

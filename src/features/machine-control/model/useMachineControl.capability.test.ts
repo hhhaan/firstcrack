@@ -4,13 +4,14 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@shared/lib/sidecar', () => ({
+    subscribeSidecarSettings: vi.fn(() => () => {}),
     sidecar: {
         getStatus: vi.fn(),
         setControl: vi.fn(),
     },
 }));
 
-import { sidecar } from '@shared/lib/sidecar';
+import { sidecar, subscribeSidecarSettings } from '@shared/lib/sidecar';
 import type { ControlCommand } from '../lib/controlSender';
 import { useMachineControl } from './useMachineControl';
 
@@ -22,7 +23,7 @@ const setControl = vi.mocked(sidecar.setControl);
 const CONTROL = {
     writable: true,
     limits: { heater: { min: 0, max: 100 } },
-} as Awaited<ReturnType<typeof sidecar.getStatus>>['control'];
+} as NonNullable<Awaited<ReturnType<typeof sidecar.getStatus>>['control']>;
 
 /** 실제 훅을 렌더해 반환값을 노출한다 (repo 표준 패턴 — useAutoDetection.test.ts). */
 const renderHook = async (connected: boolean, onCommitted?: (committed: ControlCommand) => void) => {
@@ -79,10 +80,65 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
         await act(async () => {
             vi.advanceTimersByTime(10_000);
         });
-        expect(getStatus).toHaveBeenCalledTimes(1);
+        expect(getStatus).toHaveBeenCalledTimes(2);
         expect(hook.get().writable).toBe(true);
         expect(hook.get().limits.heater).toEqual({ min: 0, max: 100 });
         hook.unmount();
+    });
+
+    it('ignores an older status response after settings refresh identifies a newer connection', async () => {
+        let refresh = () => {};
+        vi.mocked(subscribeSidecarSettings).mockImplementation((listener) => {
+            refresh = listener;
+            return () => {};
+        });
+        let resolveOld: (status: Awaited<ReturnType<typeof sidecar.getStatus>>) => void = () => {};
+        getStatus.mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveOld = resolve;
+            }),
+        );
+        const newer = {
+            connected: true,
+            machine_id: 'b',
+            connection_epoch: 2,
+            roaster: 'giesen_w45a_w60a',
+            control: CONTROL,
+        } as Awaited<ReturnType<typeof sidecar.getStatus>>;
+        getStatus.mockResolvedValue(newer);
+        const hook = await renderHook(true);
+        await act(async () => {
+            refresh();
+        });
+        expect(hook.get().connectionStatus?.machine_id).toBe('b');
+        await act(async () => {
+            resolveOld({ ...newer, machine_id: 'a', connection_epoch: 1 });
+        });
+        expect(hook.get().connectionStatus?.machine_id).toBe('b');
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(getStatus).toHaveBeenCalledTimes(3);
+        hook.unmount();
+        vi.mocked(subscribeSidecarSettings).mockImplementation(() => () => {});
+    });
+
+    it('does not resume polling when a pending status response resolves after unmount', async () => {
+        let resolveStatus: (status: Awaited<ReturnType<typeof sidecar.getStatus>>) => void = () => {};
+        getStatus.mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveStatus = resolve;
+            }),
+        );
+        const hook = await renderHook(true);
+        hook.unmount();
+        await act(async () => {
+            resolveStatus({ connected: true, control: CONTROL } as Awaited<ReturnType<typeof sidecar.getStatus>>);
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(getStatus).toHaveBeenCalledTimes(1);
     });
 
     it('언마운트 후에는 재시도 타이머가 조회를 다시 쏘지 않는다', async () => {
@@ -94,6 +150,26 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
             vi.advanceTimersByTime(10_000);
         });
         expect(getStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it('연결이 없으면 env 기기의 제어 화면을 보여 주고, 연결되면 실측만 쓴다', async () => {
+        vi.stubEnv('VITE_DEV_ROASTER', 'giesen_w45a_w60a');
+        const hook = await renderHook(false);
+        expect(hook.get().writable).toBe(true);
+        expect(hook.get().dischargeSupported).toBe(true);
+        expect(hook.get().fillSupported).toBe(true);
+        expect(getStatus).not.toHaveBeenCalled();
+
+        getStatus.mockResolvedValue({ control: CONTROL } as Awaited<ReturnType<typeof sidecar.getStatus>>);
+        const connected = await renderHook(true);
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(connected.get().dischargeSupported).toBe(false);
+        expect(connected.get().limits).toEqual(CONTROL.limits);
+        hook.unmount();
+        connected.unmount();
+        vi.unstubAllEnvs();
     });
 
     it('최신 onCommitted를 sender 재생성 없이 사용한다', async () => {

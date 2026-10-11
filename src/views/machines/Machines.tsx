@@ -72,7 +72,7 @@ export const Machines = ({
     const handleConnect = async (machine: Machine) => {
         const status = await connectMachine(machine);
         if (status?.connected) {
-            pushMachineDoors(machine);
+            pushMachineDoors(machine, status);
             const { phase, enterPreheating, setConnected } = useRoastingStore.getState();
             if (phase === 'idle' || phase === 'ended') {
                 enterPreheating(status.capabilities);
@@ -285,11 +285,13 @@ export const Machines = ({
                                         fillHint={t('machines.fillDoorHint')}
                                         onDischarge={(dischargeDoor) => {
                                             updateMachine(selected.id, { dischargeDoor });
-                                            if (isSelectedConnected) pushMachineDoors({ ...selected, dischargeDoor });
+                                            if (isSelectedConnected && sidecarStatus)
+                                                pushMachineDoors({ ...selected, dischargeDoor }, sidecarStatus);
                                         }}
                                         onFill={(fillDoor) => {
                                             updateMachine(selected.id, { fillDoor });
-                                            if (isSelectedConnected) pushMachineDoors({ ...selected, fillDoor });
+                                            if (isSelectedConnected && sidecarStatus)
+                                                pushMachineDoors({ ...selected, fillDoor }, sidecarStatus);
                                         }}
                                     />
                                 )}

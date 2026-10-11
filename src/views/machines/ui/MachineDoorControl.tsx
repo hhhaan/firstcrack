@@ -16,7 +16,9 @@ const DoorCard = ({ label, hint, checked, onChange }: DoorCardProps) => (
         </span>
         <input
             type="checkbox"
-            className={switchCls}
+            role="switch"
+            aria-checked={checked}
+            className={`${switchCls}${checked ? ' bg-primary before:translate-x-4' : ''}`}
             checked={checked}
             onChange={(event) => onChange(event.target.checked)}
         />

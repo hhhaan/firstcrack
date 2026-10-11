@@ -4,9 +4,12 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@shared/lib/sidecar', () => ({
+    subscribeSidecarSettings: vi.fn(() => () => {}),
     sidecar: {
         getStatus: vi.fn(),
         setControl: vi.fn(),
+        setDischarge: vi.fn(),
+        setFill: vi.fn(),
         pidOn: vi.fn(),
         pidOff: vi.fn(),
         pidSetSv: vi.fn(),
@@ -19,6 +22,7 @@ vi.mock('@shared/store/toast', () => ({
     useToastStore: { getState: () => ({ show: vi.fn() }) },
 }));
 
+import { useMachines } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
 import { type MachineControlCompositionInput, useMachineControlComposition } from './useMachineControlComposition';
 import {
@@ -91,6 +95,126 @@ describe('useMachineControlComposition', () => {
         });
         expect(pidOff).toHaveBeenCalledWith('zero');
         await zero.unmount();
+    });
+
+    it('rejects the other door while one command is in flight and does not run it later', async () => {
+        let release: (value: { ok: true }) => void = () => {};
+        const pending = new Promise<{ ok: true }>((resolve) => {
+            release = resolve;
+        });
+        vi.mocked(sidecar.setDischarge).mockReturnValue(pending);
+        vi.mocked(sidecar.setFill).mockResolvedValue({ ok: true });
+        useMachines.setState({
+            machines: [
+                {
+                    id: 'door-b',
+                    name: 'B',
+                    roasterKey: 'giesen_w45a_w60a',
+                    displayName: 'B',
+                    brand: 'Giesen',
+                    models: [],
+                    protocol: 's7',
+                    connectionParams: {},
+                    capabilities: [],
+                    pid: null,
+                    createdAt: '',
+                    dischargeDoor: true,
+                    fillDoor: true,
+                },
+            ],
+        });
+        getStatus.mockResolvedValue({
+            ...writableHeaterStatus,
+            connected: true,
+            machine_id: 'door-b',
+            connection_epoch: 1,
+            roaster: 'giesen_w45a_w60a',
+            control: {
+                ...writableHeaterStatus.control,
+                discharge: true,
+                fill: true,
+            },
+        });
+        const view = await renderComposition({ ...base(), doorControlEntitled: true });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(view.get().discharge.available).toBe(true);
+        expect(view.get().fill.available).toBe(true);
+        let opened!: Promise<boolean>;
+        await act(async () => {
+            opened = view.get().discharge.send('open');
+        });
+        await view.unmount();
+        const remounted = await renderComposition({ ...base(), doorControlEntitled: true });
+        let blocked = true;
+        await act(async () => {
+            blocked = await remounted.get().fill.send('open');
+            release({ ok: true });
+            await opened;
+        });
+        expect(blocked).toBe(false);
+        expect(sidecar.setDischarge).toHaveBeenCalledExactlyOnceWith('open', {
+            machine_id: 'door-b',
+            connection_epoch: 1,
+        });
+        expect(sidecar.setFill).not.toHaveBeenCalled();
+        await remounted.unmount();
+    });
+
+    it('binds both controls to B among same-key machines and follows settings OFF/ON', async () => {
+        const previous = useMachines.getState().machines;
+        const common = {
+            name: 'W60',
+            displayName: 'W60',
+            roasterKey: 'giesen_w45a_w60a',
+            brand: 'Giesen',
+            models: [],
+            protocol: 's7',
+            connectionParams: {},
+            capabilities: [],
+            pid: null,
+            createdAt: '',
+        };
+        useMachines.setState({
+            machines: [
+                { ...common, id: 'a', dischargeDoor: true, fillDoor: true },
+                { ...common, id: 'b', dischargeDoor: false, fillDoor: false },
+            ],
+        });
+        const status = {
+            ...writableHeaterStatus,
+            machine_id: 'b',
+            connection_epoch: 2,
+            roaster: common.roasterKey,
+            control: { ...writableHeaterStatus.control, discharge: false, fill: false },
+        };
+        getStatus.mockResolvedValue(status);
+        const input = { ...base(), doorControlEntitled: true };
+        const view = await renderComposition(input);
+        try {
+            expect(view.get().doorMachine?.id).toBe('b');
+            expect(view.get().discharge.available).toBe(false);
+            useMachines.getState().updateMachine('b', { dischargeDoor: true, fillDoor: true });
+            await view.rerender(input);
+            expect(view.get().discharge.available).toBe(false);
+            getStatus.mockResolvedValue({ ...status, control: { ...status.control, discharge: true, fill: true } });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(1000);
+            });
+            expect(view.get().discharge.available).toBe(true);
+            expect(view.get().fill.available).toBe(true);
+            await act(async () => {
+                useMachines.getState().updateMachine('b', { dischargeDoor: false, fillDoor: false });
+            });
+            expect(view.get().discharge.available).toBe(false);
+            expect(view.get().fill.available).toBe(false);
+            await view.rerender({ ...input, reconnecting: true });
+            expect(await view.get().fill.send('close')).toBe(false);
+        } finally {
+            await view.unmount();
+            useMachines.setState({ machines: previous });
+        }
     });
 
     it('PID engagement stops Replay and a later manual edit does not zero the burner', async () => {

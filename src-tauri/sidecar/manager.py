@@ -297,6 +297,7 @@ class RoasterManager:
     def __init__(self) -> None:
         self._adapter: Any = None
         self._roaster_key: str = ""
+        self._machine_id: str | None = None
         self._protocol: str = ""
         self._merged_params: dict[str, Any] = {}
         # Roast settings, not the machine connection form. Default off until the app pushes them.
@@ -440,11 +441,14 @@ class RoasterManager:
         if rt is not None and not rt.done():
             rt.cancel()
 
-    async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
+    async def connect(self, roaster_key: str, params: dict[str, Any], machine_id: str | None = None) -> None:
         async with self._lock:
             if self._adapter is not None:
                 await self._disconnect_internal()
             self._connection_epoch += 1
+            self._machine_id = machine_id
+            self._w60a_discharge_enabled = False
+            self._w60a_fill_enabled = False
 
             reg = ROASTER_REGISTRY.get(roaster_key)
             if reg is None:
@@ -521,6 +525,7 @@ class RoasterManager:
         self._cancel_pending_connect()
         async with self._lock:
             await self._disconnect_internal()
+            self._machine_id = None
 
     async def _disconnect_internal(self) -> None:
         self._connection_epoch += 1
@@ -879,7 +884,10 @@ class RoasterManager:
         adapter = self._adapter
         if adapter is None or not hasattr(adapter, "set_w60a_doors"):
             return
-        adapter.set_w60a_doors(discharge=self._w60a_discharge_enabled, fill=self._w60a_fill_enabled)
+        adapter.set_w60a_doors(
+            discharge=self._w60a_discharge_enabled,
+            fill=self._w60a_fill_enabled,
+        )
 
     def discharge_enabled(self) -> bool:
         return (
@@ -888,11 +896,18 @@ class RoasterManager:
             and self._w60a_discharge_enabled
         )
 
-    async def discharge(self, action: str) -> None:
+    def check_door_target(self, target: dict[str, Any]) -> None:
+        machine_id = target.get("machine_id")
+        epoch = target.get("connection_epoch")
+        if not isinstance(machine_id, str) or not machine_id or machine_id != self._machine_id or type(epoch) is not int or epoch != self._connection_epoch:
+            raise ControlUnavailable("문 명령의 연결 대상이 변경되었습니다. 다시 확인하세요.")
+
+    async def discharge(self, action: str, target: dict[str, Any] | None = None) -> None:
+        self.check_door_target(target or {})
         if action not in ("open", "close"):
             raise ControlRangeError("배출문 명령은 open 또는 close여야 합니다.")
         adapter, epoch = self._adapter, self._connection_epoch
-        if not self._connected or adapter is None or self._resetting or not self.discharge_enabled():
+        if not self._connected or adapter is None or self._resetting or self._reconnecting() or not self.discharge_enabled():
             raise ControlUnavailable("연결된 W60A의 배출구 제어를 로스팅 설정에서 켜세요.")
         await adapter.discharge(action)
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
@@ -905,11 +920,12 @@ class RoasterManager:
             and self._w60a_fill_enabled
         )
 
-    async def fill(self, action: str) -> None:
+    async def fill(self, action: str, target: dict[str, Any] | None = None) -> None:
+        self.check_door_target(target or {})
         if action not in ("open", "close"):
             raise ControlRangeError("투입구 명령은 open 또는 close여야 합니다.")
         adapter, epoch = self._adapter, self._connection_epoch
-        if not self._connected or adapter is None or self._resetting or not self.fill_enabled():
+        if not self._connected or adapter is None or self._resetting or self._reconnecting() or not self.fill_enabled():
             raise ControlUnavailable("연결된 W60A의 투입구 제어를 로스팅 설정에서 켜세요.")
         await adapter.fill(action)
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
@@ -1187,6 +1203,8 @@ class RoasterManager:
                     self._ror_window_secs = max(5.0, min(120.0, v))
             except (TypeError, ValueError):
                 pass
+        if "w60a_discharge" in settings or "w60a_fill" in settings:
+            self.check_door_target(settings)
         changed = False
         for key, attr in (
             ("w60a_discharge", "_w60a_discharge_enabled"),
@@ -1205,6 +1223,8 @@ class RoasterManager:
         reconnecting = self._reconnect_task is not None and not self._reconnect_task.done()
         return {
             "connected": self._connected,
+            "machine_id": self._machine_id,
+            "connection_epoch": self._connection_epoch,
             "reconnecting": reconnecting,
             "reconnect_attempt": self._reconnect_attempt,
             "roaster": self._roaster_key,

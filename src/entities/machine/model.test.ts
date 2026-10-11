@@ -60,7 +60,7 @@ describe('saved machine migration', () => {
         expect(restarted.persist.hasHydrated()).toBe(true);
         expect(restarted.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([migrated]);
         const snapshot = snapshotFromSidecar(
-            { connected: true, roaster: 'giesen_w45a_w60a' },
+            { connected: true, roaster: 'giesen_w45a_w60a', machine_id: legacyW60.id },
             restarted.getState().machines,
         );
         expect(snapshot).toEqual({
