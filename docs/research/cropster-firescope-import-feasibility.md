@@ -225,7 +225,7 @@ ccl의 일반 package import에는 Brotli/zstd가 포함되고 Snappy 의존성�
 
 설정의 공통 가져오기 화면에서 Firescope·Artisan·Cropster를 선택할 수 있다. [조회/검증](../../src/features/import-roasting-settings/index.ts), [머신 출처 타입](../../src/entities/machine/types.ts), [미리보기·적용 화면](../../src/widgets/settings/ui/RoastingSettingsImport.tsx)을 사용하며 원본이나 기존 머신·제어/PID 설정은 자동 덮어쓰지 않고 장비에 자동 연결하지 않는다.
 
-Cropster는 `/imports/cropster`에서 macOS 기본 `CropsterRoastingIntelligence/default`의 두 JSON 파일만 읽는다. 각 파일이 기록한 writer version `5.13`을 독립 검증한다. 일반 Modbus RTU/ASCII/TCP의 BT/ET, unsigned 16-bit와 10/100 배율, 그래프 온도·시간·RoR 범위를 지원한다. 필터가 켜졌거나 채널 보정값이 0이 아니면 머신 가져오기를 막는다. TCP는 RI의 고정 slave 1/FC3, RTU는 명시적 slave/function을 보존하며 register를 그대로 전달한다.
+Cropster는 Tauri `read_cropster_settings`에서 macOS 기본 `CropsterRoastingIntelligence/default`의 두 JSON 파일만 읽는다. 각 파일이 기록한 writer version `5.13`을 독립 검증한다. 일반 Modbus RTU/ASCII/TCP의 BT/ET, unsigned 16-bit와 10/100 배율, 그래프 온도·시간·RoR 범위를 지원한다. 필터가 켜졌거나 채널 보정값이 0이 아니면 머신 가져오기를 막는다. TCP는 RI의 고정 slave 1/FC3, RTU는 명시적 slave/function을 보존하며 register를 그대로 전달한다.
 
 Java Preferences의 사용자 지정 `dataDirectory`, 다른 instance·OS, 전용 장치·S7·32-bit 형식, 채널 색상·감지·이벤트·제어는 미구현이다. 기본 폴더가 현재 선택된 폴더라고 가정하지 않으며 UI에 기본 폴더 설정임을 표시한다. RI 5.13 JAR bytecode와 합성 fixture·단위·E2E로 확인했으며 실제 RI 설정 파일 및 실기기 대조는 하지 않았다. Artisan 범위는 [별도 조사](artisan-settings-import-feasibility.md)에 정리했다.
 

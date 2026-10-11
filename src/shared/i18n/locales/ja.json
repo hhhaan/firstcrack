@@ -643,7 +643,8 @@
             "application": "アプリケーション"
         },
         "roastingImport": {
-            "macosOnly": "設定の読み込みはmacOSでのみ利用できます。",
+            "browser": "ローカル設定を読み込むにはmacOSデスクトップアプリを開いてください。",
+            "unsupported-os": "ローカル設定の読み込みはmacOSでのみ利用できます。",
             "source": "読み込み元"
         },
         "artisan": {

@@ -643,7 +643,8 @@
             "application": "应用程序"
         },
         "roastingImport": {
-            "macosOnly": "设置导入仅适用于macOS。",
+            "browser": "请打开macOS桌面应用以导入本地设置。",
+            "unsupported-os": "本地设置导入仅适用于macOS。",
             "source": "导入来源"
         },
         "artisan": {

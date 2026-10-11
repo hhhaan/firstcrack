@@ -1,11 +1,13 @@
 # 로스팅 설정 reader의 Rust 이전 적합성
 
+
+2026-10-11: [#758](https://github.com/hhhaan/firstcrack/issues/758)에 따라 세 reader와 프런트엔드 호출을 Rust/Tauri IPC로 이관했다. 아래 조사는 이관 전 판단 근거다. 현재 실행 경계·지원 범위·검증은 [로컬 설정 가져오기](../roasting-settings-import.md)에 정리한다.
 조사일: 2026-10-11. 공식 문서·업스트림 소스 확인과 현재 reader 소스 열람에 근거한 조사이며, 이식 구현·성능 측정 결과는 아니다. 아래의 **사실**과 **판단**을 구분한다. 업스트림 `main`/`latest`의 동작이 현재 설치된 타사 앱 버전과 같다고 가정하지 않는다.
 
 ## 프로젝트 코드와 직접 확인한 결과
 
 - **기존 Rust 기반:** `src-tauri/Cargo.toml`은 Tauri 2와 `serde`·`serde_json`을 이미 사용한다. 조사 시 `Cargo.lock`에는 Tauri 2.11.1, serde_json 1.0.151, plist 1.9.0이 잠겨 있다. plist는 현재 직접 의존성이 아니므로 앱 reader에서 사용하려면 직접 선언이 필요하다. 새 언어·별도 런타임을 도입하는 작업은 아니다. [manifest](../../src-tauri/Cargo.toml), [lockfile](../../src-tauri/Cargo.lock)
-- **이관 범위:** Firescope는 scanner·필터 174줄, IndexedDB/V8 decoder 224줄, LevelDB decoder 265줄로 총 663줄이다. Artisan 152줄, Cropster 234줄까지 합하면 현재 Python 구현은 1,049줄이다. 줄 수는 개발 기간 추정치가 아니며, Firescope의 주요 비용은 포맷·거부 동작 보존이다. [Firescope](../../src-tauri/sidecar/firescope_import/), [Artisan](../../src-tauri/sidecar/artisan_import.py), [Cropster](../../src-tauri/sidecar/cropster_import.py)
+- **이관 범위:** Firescope는 scanner·필터 174줄, IndexedDB/V8 decoder 224줄, LevelDB decoder 265줄로 총 663줄이다. Artisan 152줄, Cropster 234줄까지 합하면 현재 Python 구현은 1,049줄이다. 줄 수는 개발 기간 추정치가 아니며, Firescope의 주요 비용은 포맷·거부 동작 보존이다. [현재 Rust reader](../../src-tauri/src/roasting_import/); 위 줄 수는 이관 전 Python 구현 기준
 - **기존 코드 검증:** 현재 macOS에서 `cargo test --manifest-path src-tauri/Cargo.toml --locked --lib`의 기존 Rust 테스트 6개와 세 importer의 pytest 45개가 통과했다. Rust 6개는 Sentry 정제와 사이드카 준비 감시 테스트이며, 새로운 Rust importer를 검증한 결과는 아니다.
 - **포맷 실험:** 프로젝트의 빌드된 `plist`·`serde_json` 라이브러리를 연결한 임시 Rust 프로그램으로 Python이 생성한 binary/XML plist를 모두 읽었다. 문자열·정수·Data 바이트가 보존됐다. 기본 `serde_json::Value`는 중복 `version` 키의 마지막 값을 선택했다. 따라서 plist 해석의 실행 가능성은 확인됐고 Cropster의 중복 키 거부는 별도 구현이 필요하다. 이 실험은 허용 목록·QSettings 변환·전체 scanner의 호환성을 보증하지 않는다.
 - **잠금 실험:** Rust 1.94.1에서 별도 프로세스의 Python `fcntl.lockf`가 exclusive lock을 보유한 동안 Rust `File::try_lock_shared()`도 잠금 획득을 거부했다. 임시 파일만 사용했다. 현재 macOS 실행 환경의 호환성 근거이며, 실제 Chromium DB 및 다른 OS·파일시스템을 검증한 결과는 아니다.

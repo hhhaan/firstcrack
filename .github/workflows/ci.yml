@@ -198,6 +198,32 @@ jobs:
       - name: Clippy
         run: cargo clippy --locked --all-targets -- -D warnings
         working-directory: src-tauri
+      - name: Native unit tests
+        run: cargo test --locked --lib
+        working-directory: src-tauri
+
+  native-tests:
+    needs: changes
+    if: "${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.clippy == 'true') }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      TAURI_CONFIG: '{"bundle":{"externalBin":[]}}'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
+        with:
+          toolchain: stable
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+      - name: Native unit tests
+        run: cargo test --locked --lib
+        working-directory: src-tauri
 
   sidecar:
     needs: changes

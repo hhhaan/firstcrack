@@ -161,12 +161,32 @@ test('deployment probes reject transport errors, 5xx and boot errors', (t) => {
 });
 
 test('release policy fails closed and is shared by CLI, local release and workflow', (t) => {
-    const checks = ['check', 'test', 'sidecar', 'semgrep', 'gitleaks', 'edge-check', 'actionlint', 'zizmor', 'clippy'];
+    const checks = [
+        'check',
+        'test',
+        'sidecar',
+        'semgrep',
+        'gitleaks',
+        'edge-check',
+        'actionlint',
+        'zizmor',
+        'clippy',
+        'native-tests (macos-latest)',
+        'native-tests (macos-15-intel)',
+        'native-tests (windows-latest)',
+    ];
     const green = checks.map((name) => ({ name, status: 'completed', conclusion: 'success' }));
     const cases = [
         [green, 'ok'],
         [[], 'empty'],
         [green.slice(1), 'pending'],
+        [green.filter((run) => run.name !== 'native-tests (windows-latest)'), 'pending'],
+        [
+            green.map((run) =>
+                run.name === 'native-tests (macos-15-intel)' ? { ...run, conclusion: 'failure' } : run,
+            ),
+            'failed',
+        ],
         [[...green, { name: 'ios-check', status: 'completed', conclusion: 'skipped' }], 'ok'],
         [[...green, { name: 'paths', status: 'completed', conclusion: 'skipped' }], 'ok'],
     ];
@@ -200,7 +220,7 @@ test('release policy fails closed and is shared by CLI, local release and workfl
     const checkJob = ci.slice(ci.indexOf('\n  check:'), ci.indexOf('\n  test:'));
     assert.match(checkJob, /pnpm check:architecture/);
     assert.match(checkJob, /pnpm check:bundle/);
-    for (const name of checks) assert.match(ci, new RegExp(`\\n  ${name}:`));
+    for (const name of checks) assert.match(ci, new RegExp(`\\n  ${name.split(' (')[0]}:`));
     assert.doesNotMatch(ci, /\n {2}architecture:/);
     assert.doesNotMatch(ci, /\n {2}bundle:/);
     for (const [runs, expected] of cases) {

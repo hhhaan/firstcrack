@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import type { ArtisanSettingsSnapshot } from '../../src/shared/types/artisan';
 import { expect, test } from '../fixtures/app';
 import { installPersistentStore } from '../fixtures/persistent-store';
+import { mockTauriCommand } from '../fixtures/tauri-stub';
 
 test.use({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' });
 
@@ -44,10 +45,9 @@ test('imports Artisan machine and graph settings once without connecting hardwar
     authedPage: page,
 }, testInfo) => {
     let connections = 0;
-    await page.route('http://127.0.0.1:9999/**', async (route) => {
-        const path = new URL(route.request().url()).pathname;
-        if (path === '/imports/artisan') return route.fulfill({ json: snapshot() });
-        if (path === '/connect') connections += 1;
+    await mockTauriCommand(page, 'read_artisan_settings', snapshot);
+    await page.route('http://127.0.0.1:9999/connect', async (route) => {
+        connections += 1;
         return route.abort();
     });
     await installPersistentStore(page);
@@ -94,7 +94,7 @@ test('imports Artisan machine and graph settings once without connecting hardwar
 test('requires explicit version confirmation before reconstructing omitted machine defaults', async ({
     authedPage: page,
 }) => {
-    await page.route('http://127.0.0.1:9999/imports/artisan', (route) => route.fulfill({ json: snapshot(null) }));
+    await mockTauriCommand(page, 'read_artisan_settings', () => snapshot(null));
     const settings = await openImporter(page);
     const machine = settings.getByRole('checkbox', { name: /Artisan Modbus/ });
     await expect(machine).toBeDisabled();
@@ -112,10 +112,10 @@ test('requires explicit version confirmation before reconstructing omitted machi
 
 test('rescan after quitting Artisan and blocks configured sensor corrections', async ({ authedPage: page }) => {
     let closed = false;
-    await page.route('http://127.0.0.1:9999/imports/artisan', (route) => {
+    await mockTauriCommand(page, 'read_artisan_settings', () => {
         const data = snapshot();
-        if (!closed) return route.fulfill({ json: { ...data, status: 'needs-app-closed', settings: null } });
-        return route.fulfill({ json: { ...data, settings: { ...data.settings, BTfunction: 'x + 5' } } });
+        if (!closed) return { ...data, status: 'needs-app-closed', settings: null };
+        return { ...data, settings: { ...data.settings, BTfunction: 'x + 5' } };
     });
     const settings = await openImporter(page);
     await expect(settings.getByText('Quit Artisan completely, then search again.', { exact: true })).toBeVisible();

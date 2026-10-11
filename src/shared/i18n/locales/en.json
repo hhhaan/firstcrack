@@ -643,7 +643,8 @@
             "application": "Application"
         },
         "roastingImport": {
-            "macosOnly": "Settings import is only available on macOS.",
+            "browser": "Open the macOS desktop app to import local settings.",
+            "unsupported-os": "Local settings import is only available on macOS.",
             "source": "Import from"
         },
         "artisan": {
