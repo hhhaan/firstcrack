@@ -100,6 +100,27 @@ describe('Replay state restored on Drop cancel', () => {
         h.unmount();
     });
 
+    it('restores batch heat-curve edits on Drop cancel', async () => {
+        const edited = [{ id: 'edit-1', t: 120, bt: 110, heater: 55, kind: 'time' as const }];
+        const h = await renderReplay({ dropBehavior: 'hold' });
+        await act(async () => h.get().applyBatchEvents(edited));
+        await act(async () => h.get().toggle());
+        await h.rerender({ roastFinished: true, roasting: false, dropBehavior: 'hold' });
+        await act(async () => {
+            h.get().restore(true, edited);
+            await h.rerender({
+                roastFinished: false,
+                roasting: true,
+                elapsed: 130,
+                liveBt: 120,
+                confirmedTurningPoint: {},
+            });
+        });
+        expect(h.get().active).toBe(true);
+        expect(h.get().plan?.events.some((e) => e.id === 'edit-1' && e.heater === 55)).toBe(true);
+        h.unmount();
+    });
+
     it('keeps safety guards when restoring On after a disconnection', async () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle());

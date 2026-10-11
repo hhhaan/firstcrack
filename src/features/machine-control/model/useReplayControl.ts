@@ -253,7 +253,10 @@ export const useReplayControl = ({
     });
 
     const [active, setActive] = useState(false);
-    const [restoreRequest, setRestoreRequest] = useState<boolean | null>(null);
+    const [restoreRequest, setRestoreRequest] = useState<{
+        enabled: boolean;
+        batchEvents?: ReplayEvent[] | null;
+    } | null>(null);
     const [index, setIndex] = useState(0);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
@@ -543,16 +546,17 @@ export const useReplayControl = ({
     }, [active, plan, referenceMachineMismatch, stopCause, setEnabled, invalidateInFlightWrite]);
 
     const restore = useCallback(
-        (enabled: boolean) => {
+        (enabled: boolean, batchEvents?: ReplayEvent[] | null) => {
             invalidateInFlightWrite();
-            setRestoreRequest(enabled);
+            setRestoreRequest({ enabled, batchEvents });
         },
         [invalidateInFlightWrite],
     );
 
     // Drop 취소의 스토어 변경이 반영된 뒤 복원해 이전 finished 입력에 다시 중지되지 않는다.
     if (restoreRequest != null && !roastFinished) {
-        setEnabled(restoreRequest);
+        if (restoreRequest.batchEvents?.length) setBatchEvents(restoreRequest.batchEvents);
+        setEnabled(restoreRequest.enabled);
         setRestoreRequest(null);
     }
 
@@ -667,6 +671,7 @@ export const useReplayControl = ({
         confirmedTurningPoint,
         toggle,
         restore,
+        batchEvents,
         /** 수동 개입 시 부모가 부른다 — 슬라이더 onChange에서, Replay 자신의 쓰기 경로에서는 부르지 않는다 */
         stop,
     };

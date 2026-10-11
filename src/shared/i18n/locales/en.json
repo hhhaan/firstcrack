@@ -818,6 +818,7 @@
         "dropCancelControl": {
             "pidOff": "PID is off",
             "heaterAt": "Heater {{heater}}%",
+            "heaterUnknown": "Heater reading unavailable",
             "joiner": " · ",
             "restorePid": "Turn PID back on (previous target)"
         },

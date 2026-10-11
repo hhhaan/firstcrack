@@ -45,6 +45,8 @@ export interface UseRoastLifecycleReturn {
         onset?: DropOnset;
         commitSummary: (summary: RoastSummaryData) => void;
         holdAutoChargeUntilRecovery: () => void;
+        replayBatchEvents?: import('@features/machine-control/lib/replay').ReplayEvent[] | null;
+        controlBeforeDrop?: import('@features/active-roast/model/batch').DropControlSnapshot;
     }) => RoastSummaryData | null;
     cancelDrop: (expectedSessionId?: string | null) => boolean;
     recoverLiveBbp: () => void;
@@ -197,6 +199,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             livePoints: LiveRoastPoint[];
             onset?: DropOnset;
             commitSummary?: (summary: RoastSummaryData) => void;
+            replayBatchEvents?: import('@features/machine-control/lib/replay').ReplayEvent[] | null;
+            controlBeforeDrop?: import('@features/active-roast/model/batch').DropControlSnapshot;
         }): RoastSummaryData | null => {
             const roastState = useRoastingStore.getState();
             const planned = roastState.drop({
@@ -204,7 +208,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 rawBT,
                 unit,
                 replayActive: replayActiveRef?.current ?? false,
-                controlBeforeDrop: captureDropControlSnapshot(roastState),
+                replayBatchEvents: input.replayBatchEvents ?? null,
+                controlBeforeDrop: input.controlBeforeDrop ?? captureDropControlSnapshot(roastState),
             });
             if (!planned) return null;
             input.commitSummary?.(planned.summary);
@@ -228,6 +233,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             onset?: DropOnset;
             commitSummary: (summary: RoastSummaryData) => void;
             holdAutoChargeUntilRecovery: () => void;
+            replayBatchEvents?: import('@features/machine-control/lib/replay').ReplayEvent[] | null;
+            controlBeforeDrop?: import('@features/active-roast/model/batch').DropControlSnapshot;
         }): RoastSummaryData | null => {
             disableAutoDropRef.current();
             const summary = completeDrop(input);

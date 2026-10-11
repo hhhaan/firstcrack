@@ -818,6 +818,7 @@
         "dropCancelControl": {
             "pidOff": "PID 已关闭",
             "heaterAt": "火力 {{heater}}%",
+            "heaterUnknown": "无法读取火力",
             "joiner": " · ",
             "restorePid": "重新开启 PID（上次目标值）"
         },

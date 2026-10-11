@@ -28,6 +28,8 @@ export interface MachineControlCompositionInput {
     liveBt: number | null;
     elapsed: number;
     roasting: boolean;
+    /** Cancel Drop banner: block pidOn until user taps restore */
+    blockPidAutoEngage?: boolean;
     /** 실기 TP 사실 — 게이트·대기 UI는 Replay 모듈이 파생 (#314, R08) */
     confirmedTurningPoint: { fallback?: boolean } | null;
     /** R04 제어용 관측 품질. null = 현재 generation 관측 없음 */
@@ -61,6 +63,7 @@ export const useMachineControlComposition = ({
     liveBt,
     elapsed,
     roasting,
+    blockPidAutoEngage,
     confirmedTurningPoint,
     observationQuality,
     lastValidReceivedAtMs,
@@ -88,7 +91,9 @@ export const useMachineControlComposition = ({
         capability: machine.pidCapability,
         runtime: pidRuntime,
         roastFinished,
+        roasting,
         dropBehavior: pidDropBehavior,
+        blockAutoEngage: blockPidAutoEngage,
     });
     const pidActive = (pidRuntime?.state ?? 'off') !== 'off';
 

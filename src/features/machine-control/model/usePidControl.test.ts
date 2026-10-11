@@ -59,12 +59,14 @@ const base = {
     sidecarConnected: true,
     capability: CAP,
     dropBehavior: 'zero' as const,
+    roasting: false,
 };
 
 describe('usePidControl DROP 자동 해제 (#269)', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         pidOff.mockReset();
+        pidOn.mockReset();
         capture.mockReset();
     });
     afterEach(() => {
@@ -128,6 +130,60 @@ describe('usePidControl DROP 자동 해제 (#269)', () => {
         });
         expect(ok).toBe(true);
         expect(pidOn).toHaveBeenCalledWith(215);
+        hook.unmount();
+    });
+
+    it('Cancel Drop이 roastFinished를 false로 바꿔도 safe-off 재시도를 취소하지 않는다', async () => {
+        pidOff.mockRejectedValueOnce(new Error('busy')).mockResolvedValue({
+            ok: true,
+            pid: runtime('off'),
+        } as Awaited<ReturnType<typeof sidecar.pidOff>>);
+        const hook = await renderPid({ ...base, runtime: runtime('running'), roastFinished: true, roasting: false });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(pidOff).toHaveBeenCalledTimes(1);
+        await hook.rerender({ ...base, runtime: runtime('running'), roastFinished: false, roasting: true });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(pidOff).toHaveBeenCalledTimes(2);
+        hook.unmount();
+    });
+
+    it('로스트 밖에 PID가 남아 있으면 자동 해제한다 (리로드/READY)', async () => {
+        pidOff.mockResolvedValue({ ok: true, pid: runtime('off') } as Awaited<ReturnType<typeof sidecar.pidOff>>);
+        const hook = await renderPid({
+            ...base,
+            runtime: runtime('running'),
+            roastFinished: false,
+            roasting: false,
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(pidOff).toHaveBeenCalledWith('zero');
+        hook.unmount();
+    });
+
+    it('blockAutoEngage는 사용자 복원 전 pidOn을 막는다', async () => {
+        const hook = await renderPid({
+            ...base,
+            runtime: runtime('off'),
+            roastFinished: false,
+            roasting: true,
+            blockAutoEngage: true,
+        });
+        let ok = true;
+        await act(async () => {
+            ok = await hook.get().turnOn(215);
+        });
+        expect(ok).toBe(false);
+        expect(pidOn).not.toHaveBeenCalled();
+        await act(async () => {
+            ok = await hook.get().turnOn(215, { userInitiated: true });
+        });
+        expect(pidOn).toHaveBeenCalled();
         hook.unmount();
     });
 

@@ -946,13 +946,21 @@ class RoasterManager:
             self._pid_task = asyncio.create_task(self._pid_loop())
         return self._pid.state()
 
+    def _teardown_pid_worker(self) -> None:
+        """Stop the tick task and drop the runner so /temperatures.pid stays off after /pid/off."""
+        if self._pid_task is not None and not self._pid_task.done():
+            self._pid_task.cancel()
+        self._pid_task = None
+        self._pid = None
+
     async def pid_stop(self, mode: str = STOP_HOLD) -> dict[str, Any]:
         if self._pid is None:
             return {"state": "off", "error": None}
         await self._pid.stop("user", mode=mode)
         # 다음 사고는 다시 알릴 수 있게 — 재시도 루프가 끝난 뒤에만 여기 온다
         self._hw_alerts_sent.discard("pid_request_failed")
-        return self._pid.state()
+        self._teardown_pid_worker()
+        return {"state": "off", "error": None}
 
     async def pid_set_sv(self, sv: float) -> dict[str, Any]:
         cap = self.pid_capability()
@@ -1035,10 +1043,7 @@ class RoasterManager:
                         pass
                 elif hasattr(self._pid, "abandon"):
                     self._pid.abandon()
-            if self._pid_task is not None and not self._pid_task.done():
-                self._pid_task.cancel()
-            self._pid_task = None
-            self._pid = None
+            self._teardown_pid_worker()
 
             # 실제 장비 연결은 배치 경계와 무관하게 유지한다.
             if self._protocol != "virtual":

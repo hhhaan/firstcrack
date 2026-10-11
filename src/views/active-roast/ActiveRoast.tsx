@@ -93,7 +93,12 @@ import {
     calcDevTime,
     calcTargetDelta,
 } from './lib/display-derivatives';
-import { buildDropCancelControlMessage, isPidEngaged, shouldWarnDropCancelControl } from './lib/drop-cancel-control';
+import {
+    buildDropCancelControlMessage,
+    captureDropControlSnapshot,
+    isPidEngaged,
+    shouldWarnDropCancelControl,
+} from './lib/drop-cancel-control';
 import { applyExplicitDisconnectReset } from './lib/explicit-disconnect-reset';
 import { resolveLiveChartView } from './lib/live-chart-view';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
@@ -481,14 +486,23 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         autoYellowEnabled: roastSettings.autoYellowEnabled,
     });
 
+    const dropMachineWiringRef = useRef({
+        batchEvents: null as import('@features/machine-control/lib/replay').ReplayEvent[] | null,
+        pidActive: false,
+    });
     const applyDrop = useCallback(
         (onset?: { timeSec: number; bt: number }) => {
             setDropCancelControlWarning(null);
+            const wiring = dropMachineWiringRef.current;
             lifecycle.finishDrop({
                 livePoints,
                 onset,
                 commitSummary: saveFlow.confirmEndRoast,
                 holdAutoChargeUntilRecovery,
+                replayBatchEvents: wiring.batchEvents,
+                controlBeforeDrop: captureDropControlSnapshot(useRoastingStore.getState(), {
+                    pidActive: wiring.pidActive,
+                }),
             });
         },
         [lifecycle, livePoints, saveFlow, holdAutoChargeUntilRecovery],
@@ -913,6 +927,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         liveBt: replayBt,
         elapsed,
         roasting: phase === 'roasting',
+        blockPidAutoEngage: Boolean(dropCancelControlWarning?.pidEngaged),
         confirmedTurningPoint: confirmedTP,
         observationQuality,
         lastValidReceivedAtMs,
@@ -924,7 +939,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
-    }, [machineControl.replay.active, machineControl.replay.stop]);
+        dropMachineWiringRef.current = {
+            batchEvents: machineControl.replay.batchEvents,
+            pidActive: machineControl.pidActive,
+        };
+    }, [
+        machineControl.replay.active,
+        machineControl.replay.stop,
+        machineControl.replay.batchEvents,
+        machineControl.pidActive,
+    ]);
 
     const handleCancelDrop = useCallback(() => {
         const sessionId = saveFlow.flow.summaryData?.sessionId;
@@ -934,10 +958,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             logger.capture(new Error('Roast summary Drop cancellation failed'));
             return;
         }
-        machineControl.replay.restore(restore.replayActive ?? false);
+        machineControl.replay.restore(restore.replayActive ?? false, restore.replayBatchEvents);
         setDropCancelControlWarning(dropCancelBannerAfterSuccessfulCancel(restore));
+        if (restore.controlBeforeDrop.pidEngaged) {
+            void machineControl.pid.turnOff(roastSettings.pidDropBehavior);
+        }
         saveFlow.flow.closeSummary();
-    }, [lifecycle, machineControl.replay, saveFlow.flow]);
+    }, [lifecycle, machineControl, saveFlow.flow, roastSettings.pidDropBehavior]);
 
     const dropCancelControlMessage = useMemo(() => {
         if (!dropCancelControlWarning) return '';
@@ -945,6 +972,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             buildDropCancelControlMessage(dropCancelControlWarning, pidRuntime, liveData?.heater ?? null, {
                 pidOff: t('activeRoast.dropCancelControl.pidOff'),
                 heaterAt: (heater) => t('activeRoast.dropCancelControl.heaterAt', { heater: Math.round(heater) }),
+                heaterUnknown: t('activeRoast.dropCancelControl.heaterUnknown'),
                 joiner: t('activeRoast.dropCancelControl.joiner'),
             }) ?? ''
         );
@@ -956,7 +984,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         const sv = dropCancelControlWarning?.pidSv;
         if (sv == null || !sidecarConnected) return;
         restoringPidAfterDropCancelRef.current = true;
-        void machineControl.pid.turnOn(sv).then((ok) => {
+        void machineControl.pid.turnOn(sv, { userInitiated: true }).then((ok) => {
             if (!ok) restoringPidAfterDropCancelRef.current = false;
         });
     }, [dropCancelControlWarning, machineControl.pid, sidecarConnected]);
@@ -976,12 +1004,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             setDropCancelControlWarning(null);
         }
     }, [dropCancelControlWarning, pidRuntime, liveData?.heater]);
-
-    useEffect(() => {
-        if (dropCancelControlWarning && machineControl.replay.active) {
-            setDropCancelControlWarning(null);
-        }
-    }, [dropCancelControlWarning, machineControl.replay.active]);
 
     const [noteInput, setNoteInput] = useState('');
     const handleNoteSubmit = useCallback(() => {

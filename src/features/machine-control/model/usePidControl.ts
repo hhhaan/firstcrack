@@ -35,19 +35,27 @@ export const usePidControl = ({
     runtime,
     /** 배출/종료 등 "이 로스트는 끝났다" 신호 */
     roastFinished,
+    /** phase === 'roasting' — 로스트 중이 아닐 때 남은 PID는 안전 해제 */
+    roasting,
     /** DROP 시 화력 처리 — 설정에서 온다 */
     dropBehavior,
+    /** Cancel Drop 후 사용자가 "PID 다시 켜기"를 누르기 전까지 pidOn 차단 */
+    blockAutoEngage,
 }: {
     sidecarConnected: boolean;
     capability: PidCapability | undefined;
     runtime: PidRuntime | null;
     roastFinished: boolean;
+    roasting: boolean;
     dropBehavior: 'hold' | 'zero';
+    blockAutoEngage?: boolean;
 }) => {
     const [sv, setSv] = useState<number>(FALLBACK_SV_C);
     const [busy, setBusy] = useState(false);
     /** 자동 해제 실패 횟수 — deps에 들어가 재시도 effect를 다시 발사시킨다 */
     const [offAttempt, setOffAttempt] = useState(0);
+    /** 배출/End safe-off는 완료될 때까지 유지 — Cancel Drop이 roastFinished를 false로 바꿔도 취소하지 않는다 */
+    const [pendingSafeOff, setPendingSafeOff] = useState(false);
     const svAdoptedRef = useRef(false);
 
     const state = runtime?.state ?? 'off';
@@ -56,7 +64,8 @@ export const usePidControl = ({
     const engaged = state === 'running' || state === 'holding';
 
     const turnOn = useCallback(
-        async (targetSv?: number): Promise<boolean> => {
+        async (targetSv?: number, opts?: { userInitiated?: boolean }): Promise<boolean> => {
+            if (blockAutoEngage && !opts?.userInitiated) return false;
             const value = targetSv ?? sv;
             if (targetSv != null) setSv(targetSv);
             setBusy(true);
@@ -70,7 +79,7 @@ export const usePidControl = ({
                 setBusy(false);
             }
         },
-        [sv],
+        [sv, blockAutoEngage],
     );
 
     /** 성공 여부를 돌려준다 — 자동 해제가 실패를 알아야 재시도할 수 있다.
@@ -93,7 +102,7 @@ export const usePidControl = ({
 
     /**
      * 실제 목표 온도 변경. 슬라이더에서 손을 뗀 시점에만 부른다.
-     * 드래그 중 매 스텝을 보내면 켜져 있는 버너의 목표가 픽셀마다 흔들린다.
+     * 드래그 중 매 스텝을내면 켜져 있는 버너의 목표가 픽셀마다 흔들린다.
      */
     const commitSv = useCallback(
         async (next: number) => {
@@ -120,25 +129,20 @@ export const usePidControl = ({
         if (!engaged) svAdoptedRef.current = false;
     }, [engaged]);
 
-    // 로스트 종료(배출 포함) → 설정된 방식으로 해제.
-    // 연결이 없으면 보낼 경로도 없다 — 사이드카가 스스로 FAULT 처리한다.
-    //
-    // 실패하면 재시도한다. HTTP 한 번 실패하고 포기하면 아무도 보고 있지 않은
-    // 로스터에 불이 계속 들어가 있다 — 사이드카에는 배출을 인지하는 안전망이 없다.
-    // 시도 횟수 상한을 두지 않는 이유도 같다. 사이드카가 off를 반영하면
-    // 루프가 끝난다.
-    //
-    // 판정을 engaged가 아니라 state !== 'off'로 두는 이유: safe-off 쓰기 실패 시
-    // 사이드카는 FAULT로 남는다(#269). engaged(running/holding) 기준이면 그 순간
-    // 재시도가 죽어, 화력이 남았는데 아무도 다시 끄려 하지 않는다.
     const needsOff = state !== 'off';
+
     useEffect(() => {
-        if (!roastFinished || !needsOff || !sidecarConnected) return;
+        if (roastFinished && needsOff && sidecarConnected) setPendingSafeOff(true);
+    }, [roastFinished, needsOff, sidecarConnected]);
+
+    useEffect(() => {
+        if (!pendingSafeOff || !needsOff || !sidecarConnected) return;
         let cancelled = false;
         const timer = setTimeout(
             () => {
                 void turnOff(dropBehavior, offAttempt === 0).then((ok) => {
                     if (!ok && !cancelled) setOffAttempt((n) => n + 1);
+                    if (ok) setPendingSafeOff(false);
                 });
             },
             offAttempt === 0 ? 0 : PID_OFF_RETRY_MS,
@@ -147,12 +151,18 @@ export const usePidControl = ({
             cancelled = true;
             clearTimeout(timer);
         };
-    }, [roastFinished, needsOff, sidecarConnected, dropBehavior, turnOff, offAttempt]);
+    }, [pendingSafeOff, needsOff, sidecarConnected, dropBehavior, turnOff, offAttempt]);
 
-    // 다음 로스트의 첫 해제가 지난 배치의 재시도 지연을 물려받지 않게 되돌린다
+    // 로스트 밖(리로드·READY·charge 대기)에 사이드카 PID가 남아 있으면 명시적 조작 없이 켜진 것으로 보이면 안 된다.
     useEffect(() => {
-        if (!roastFinished) setOffAttempt(0);
-    }, [roastFinished]);
+        if (roasting || !sidecarConnected || blockAutoEngage) return;
+        if (runtime?.state !== 'running' && runtime?.state !== 'holding') return;
+        setPendingSafeOff(true);
+    }, [roasting, sidecarConnected, runtime?.state, blockAutoEngage, runtime]);
+
+    useEffect(() => {
+        if (!roastFinished && !pendingSafeOff) setOffAttempt(0);
+    }, [roastFinished, pendingSafeOff]);
 
     return {
         supported: Boolean(capability?.supported) && sidecarConnected,

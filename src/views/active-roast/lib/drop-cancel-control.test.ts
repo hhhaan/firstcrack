@@ -21,6 +21,7 @@ const pid = (state: PidRuntime['state'], sv = 200): PidRuntime => ({
 const parts = {
     pidOff: 'PID off',
     heaterAt: (h: number) => `Heater ${h}%`,
+    heaterUnknown: 'Heater unknown',
     joiner: ' · ',
 };
 
@@ -45,10 +46,16 @@ describe('shouldWarnDropCancelControl', () => {
 });
 
 describe('buildDropCancelControlMessage', () => {
-    it('shows PID off without implying heater 0 when hold kept duty', () => {
+    it('shows PID off and held heater when hold kept duty', () => {
         expect(buildDropCancelControlMessage({ pidEngaged: true, pidSv: 215, heater: 70 }, pid('off'), 45, parts)).toBe(
-            'PID off',
+            'PID off · Heater 45%',
         );
+    });
+
+    it('shows heater unknown when PID off and feedback missing', () => {
+        expect(
+            buildDropCancelControlMessage({ pidEngaged: true, pidSv: 215, heater: 70 }, pid('off'), null, parts),
+        ).toBe('PID off · Heater unknown');
     });
 
     it('shows actual heater percent when at zero', () => {

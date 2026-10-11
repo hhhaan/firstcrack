@@ -8,12 +8,16 @@ export const EMPTY_DROP_CONTROL_SNAPSHOT: DropControlSnapshot = {
     heater: null,
 };
 
-export const captureDropControlSnapshot = (state: Pick<RoastingState, 'pid' | 'liveData'>): DropControlSnapshot => {
+export const captureDropControlSnapshot = (
+    state: Pick<RoastingState, 'pid' | 'liveData'>,
+    opts?: { pidActive?: boolean },
+): DropControlSnapshot => {
     const pid = state.pid;
-    const pidEngaged = pid?.state === 'running' || pid?.state === 'holding';
+    const storeEngaged = pid?.state === 'running' || pid?.state === 'holding';
+    const pidEngaged = Boolean(opts?.pidActive || storeEngaged);
     return {
         pidEngaged,
-        pidSv: pidEngaged && pid?.sv != null ? pid.sv : null,
+        pidSv: pidEngaged ? (pid?.sv ?? null) : null,
         heater: state.liveData?.heater ?? null,
     };
 };
@@ -37,6 +41,7 @@ export const shouldWarnDropCancelControl = (
 export type DropCancelControlMessageParts = {
     pidOff: string;
     heaterAt: (heater: number) => string;
+    heaterUnknown: string;
     joiner: string;
 };
 
@@ -48,9 +53,13 @@ export const buildDropCancelControlMessage = (
 ): string | null => {
     if (!shouldWarnDropCancelControl(before, pid, heater)) return null;
     const segments: string[] = [];
-    if (before.pidEngaged && !isPidEngaged(pid)) segments.push(parts.pidOff);
-    if (before.heater != null && before.heater > 0 && heaterIsZero(heater)) {
+    const pidLost = before.pidEngaged && !isPidEngaged(pid);
+    if (pidLost) segments.push(parts.pidOff);
+    if (!pidLost && before.heater != null && before.heater > 0 && heaterIsZero(heater)) {
         segments.push(parts.heaterAt(heater ?? 0));
+    } else if (pidLost) {
+        if (heater != null) segments.push(parts.heaterAt(Math.round(heater)));
+        else segments.push(parts.heaterUnknown);
     }
     return segments.length > 0 ? segments.join(parts.joiner) : null;
 };
