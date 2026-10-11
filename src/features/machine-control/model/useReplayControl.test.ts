@@ -121,6 +121,34 @@ describe('Replay state restored on Drop cancel', () => {
         h.unmount();
     });
 
+    it('restores Replay On for edit-only profiles (no recorded heater curve)', async () => {
+        const flat: ReplayPoint[] = [
+            { t: 0, bt: 180 },
+            { t: 60, bt: 95 },
+            { t: 120, bt: 110 },
+            { t: 300, bt: 155 },
+        ];
+        const edited = [{ id: 'edit-only', t: 0, bt: 180, heater: 72, trigger: 'time' as const }];
+        const h = await renderReplay({ referencePoints: flat, dropBehavior: 'hold' });
+        await act(async () => h.get().applyBatchEvents(edited));
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(true);
+        await h.rerender({ roastFinished: true, roasting: false, dropBehavior: 'hold' });
+        await act(async () => {
+            h.get().restore(true, edited);
+            await h.rerender({
+                roastFinished: false,
+                roasting: true,
+                elapsed: 130,
+                liveBt: 120,
+                confirmedTurningPoint: {},
+            });
+        });
+        expect(h.get().active).toBe(true);
+        expect(h.get().plan?.events.some((e) => e.id === 'edit-only' && e.heater === 72)).toBe(true);
+        h.unmount();
+    });
+
     it('keeps safety guards when restoring On after a disconnection', async () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle());

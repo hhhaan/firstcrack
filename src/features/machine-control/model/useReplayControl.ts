@@ -553,12 +553,29 @@ export const useReplayControl = ({
         [invalidateInFlightWrite],
     );
 
-    // Drop 취소의 스토어 변경이 반영된 뒤 복원해 이전 finished 입력에 다시 중지되지 않는다.
-    if (restoreRequest != null && !roastFinished) {
-        if (restoreRequest.batchEvents?.length) setBatchEvents(restoreRequest.batchEvents);
-        setEnabled(restoreRequest.enabled);
+    // Drop 취소: batch 편집을 plan에 반영한 뒤에만 On을 복원한다 (edit-only 프로파일).
+    useEffect(() => {
+        if (restoreRequest == null || roastFinished) return;
+        const { enabled, batchEvents } = restoreRequest;
+        if (batchEvents?.length) {
+            setBatchEvents(batchEvents);
+            if (!enabled) {
+                setEnabled(false);
+                setRestoreRequest(null);
+            }
+            return;
+        }
+        setEnabled(enabled);
         setRestoreRequest(null);
-    }
+    }, [restoreRequest, roastFinished, setEnabled]);
+
+    useEffect(() => {
+        if (restoreRequest == null || roastFinished || !restoreRequest.enabled) return;
+        if (!restoreRequest.batchEvents?.length) return;
+        if (referenceMachineMismatch || overrideInvalid || resolvedPlan == null) return;
+        setEnabled(true);
+        setRestoreRequest(null);
+    }, [restoreRequest, roastFinished, referenceMachineMismatch, overrideInvalid, resolvedPlan, setEnabled]);
 
     // 현재 generation의 유효 관측이 있을 때만 일반 TIME/BT write. production의 null/unknown
     // (observation 미수신·generation 초기화)은 hold다 — 표시용 last-good BT로 발화하지 않는다.

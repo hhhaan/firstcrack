@@ -35,12 +35,10 @@ export const usePidControl = ({
     runtime,
     /** 배출/종료 등 "이 로스트는 끝났다" 신호 */
     roastFinished,
-    /** phase === 'roasting' — 로스트 중이 아닐 때 남은 PID는 안전 해제 */
+    /** phase === 'roasting' — Charge 시 safe-off 재시도 상태를 리셋 */
     roasting,
     /** DROP 시 화력 처리 — 설정에서 온다 */
     dropBehavior,
-    /** Cancel Drop 후 사용자가 "PID 다시 켜기"를 누르기 전까지 pidOn 차단 */
-    blockAutoEngage,
 }: {
     sidecarConnected: boolean;
     capability: PidCapability | undefined;
@@ -48,7 +46,6 @@ export const usePidControl = ({
     roastFinished: boolean;
     roasting: boolean;
     dropBehavior: 'hold' | 'zero';
-    blockAutoEngage?: boolean;
 }) => {
     const [sv, setSv] = useState<number>(FALLBACK_SV_C);
     const [busy, setBusy] = useState(false);
@@ -64,8 +61,7 @@ export const usePidControl = ({
     const engaged = state === 'running' || state === 'holding';
 
     const turnOn = useCallback(
-        async (targetSv?: number, opts?: { userInitiated?: boolean }): Promise<boolean> => {
-            if (blockAutoEngage && !opts?.userInitiated) return false;
+        async (targetSv?: number): Promise<boolean> => {
             const value = targetSv ?? sv;
             if (targetSv != null) setSv(targetSv);
             setBusy(true);
@@ -79,7 +75,7 @@ export const usePidControl = ({
                 setBusy(false);
             }
         },
-        [sv, blockAutoEngage],
+        [sv],
     );
 
     /** 성공 여부를 돌려준다 — 자동 해제가 실패를 알아야 재시도할 수 있다.
@@ -153,12 +149,19 @@ export const usePidControl = ({
         };
     }, [pendingSafeOff, needsOff, sidecarConnected, dropBehavior, turnOff, offAttempt]);
 
-    // 로스트 밖(리로드·READY·charge 대기)에 사이드카 PID가 남아 있으면 명시적 조작 없이 켜진 것으로 보이면 안 된다.
     useEffect(() => {
-        if (roasting || !sidecarConnected || blockAutoEngage) return;
-        if (runtime?.state !== 'running' && runtime?.state !== 'holding') return;
-        setPendingSafeOff(true);
-    }, [roasting, sidecarConnected, runtime?.state, blockAutoEngage, runtime]);
+        if (state === 'off') {
+            setPendingSafeOff(false);
+            setOffAttempt(0);
+        }
+    }, [state]);
+
+    useEffect(() => {
+        if (roasting) {
+            setPendingSafeOff(false);
+            setOffAttempt(0);
+        }
+    }, [roasting]);
 
     useEffect(() => {
         if (!roastFinished && !pendingSafeOff) setOffAttempt(0);

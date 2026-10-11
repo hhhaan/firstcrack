@@ -215,7 +215,7 @@ class TestResetRoast:
         assert any(call.get("heater") == 0 for call in new_calls)
         assert manager._pid is None
 
-    async def test_pid_stop_tears_down_runner(self, manager):
+    async def test_pid_stop_cancels_tick_keeps_off_state(self, manager):
         from pid_runner import STOP_HOLD
 
         fake = FakeAdapter(readings=[make_reading(bt=150.0)])
@@ -223,9 +223,12 @@ class TestResetRoast:
             await manager.connect("giesen_standard", {})
         await manager.pid_start(200.0)
         assert manager._pid is not None
-        await manager.pid_stop(STOP_HOLD)
-        assert manager._pid is None
+        state = await manager.pid_stop(STOP_HOLD)
+        assert state["state"] == "off"
+        assert manager._pid is not None
+        assert manager._pid.state_name == "off"
         assert manager._pid_task is None
+        assert manager.pid_state()["state"] == "off"
 
     async def test_end_roast_order_pid_stop_zero_then_reset(self, manager):
         from pid_runner import STOP_ZERO

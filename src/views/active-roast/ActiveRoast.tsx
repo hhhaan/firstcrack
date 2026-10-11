@@ -929,7 +929,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         liveBt: replayBt,
         elapsed,
         roasting: phase === 'roasting',
-        blockPidAutoEngage: Boolean(dropCancelControlWarning?.pidEngaged),
         confirmedTurningPoint: confirmedTP,
         observationQuality,
         lastValidReceivedAtMs,
@@ -989,7 +988,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         const sv = dropCancelControlWarning?.pidSv;
         if (sv == null || !sidecarConnected) return;
         restoringPidAfterDropCancelRef.current = true;
-        void machineControl.pid.turnOn(sv, { userInitiated: true }).then((ok) => {
+        void machineControl.pid.turnOn(sv).then((ok) => {
             if (!ok) restoringPidAfterDropCancelRef.current = false;
         });
     }, [dropCancelControlWarning, machineControl.pid, sidecarConnected]);

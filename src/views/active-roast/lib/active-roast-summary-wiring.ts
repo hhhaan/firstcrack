@@ -95,3 +95,24 @@ export const invokeSidecarResetAfterSave = (input: InvokeSidecarResetAfterSaveIn
 export const dropCancelBannerAfterSuccessfulCancel = (
     restore: CompletedRoastRestore | null | undefined,
 ): DropControlSnapshot | null => (restore ? cancelDropControlWarningAfterRestore(restore) : null);
+
+export type RunCancelDropMachineWiringInput = {
+    restore: CompletedRoastRestore | null | undefined;
+    replayRestore: (active: boolean, batchEvents?: CompletedRoastRestore['replayBatchEvents']) => void;
+    pidTurnOff: (mode: 'hold' | 'zero') => void;
+    pidDropBehavior: 'hold' | 'zero';
+};
+
+/** Mirrors ActiveRoast handleCancelDrop machine-control side effects (replay + explicit PID off). */
+export const runCancelDropMachineWiring = (input: RunCancelDropMachineWiringInput): DropControlSnapshot | null => {
+    const restore = input.restore;
+    if (!restore) return null;
+    input.replayRestore(
+        restore.replayActive ?? false,
+        restore.replayBatchEvents as CompletedRoastRestore['replayBatchEvents'],
+    );
+    if (restore.controlBeforeDrop.pidEngaged) {
+        input.pidTurnOff(input.pidDropBehavior);
+    }
+    return dropCancelBannerAfterSuccessfulCancel(restore);
+};

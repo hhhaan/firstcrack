@@ -3,6 +3,7 @@ import type { CompletedRoastRestore } from '@features/active-roast/model/batch';
 import { describe, expect, it } from 'vitest';
 import {
     buildDropCancelControlMessage,
+    captureDropControlSnapshot,
     dropCancelWarningFromRestore,
     shouldWarnDropCancelControl,
 } from './drop-cancel-control';
@@ -17,6 +18,8 @@ const pid = (state: PidRuntime['state'], sv = 200): PidRuntime => ({
     d: 0,
     error: null,
 });
+
+const live = (heater: number) => ({ bt: 180, et: 200, ror: 0, ror_et: 0, heater, fan: 0, drum: 0 });
 
 const parts = {
     pidOff: 'PID off',
@@ -62,6 +65,18 @@ describe('buildDropCancelControlMessage', () => {
         expect(buildDropCancelControlMessage({ pidEngaged: false, pidSv: null, heater: 70 }, null, 0, parts)).toBe(
             'Heater 0%',
         );
+    });
+});
+
+describe('captureDropControlSnapshot', () => {
+    it('uses pidActive from machine wiring when store PID is already off', () => {
+        const snap = captureDropControlSnapshot({ pid: pid('off'), liveData: live(60) }, { pidActive: true });
+        expect(snap).toEqual({ pidEngaged: true, pidSv: 200, heater: 60 });
+    });
+
+    it('records store PID when engaged', () => {
+        const snap = captureDropControlSnapshot({ pid: pid('running', 215), liveData: live(70) });
+        expect(snap).toEqual({ pidEngaged: true, pidSv: 215, heater: 70 });
     });
 });
 

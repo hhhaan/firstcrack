@@ -6,6 +6,7 @@ import {
     hadSummaryBeforeSummaryDiscard,
     invokeSidecarResetAfterSave,
     planSummaryDiscardSidecarReset,
+    runCancelDropMachineWiring,
     runSummaryDiscardSidecarReset,
     shouldResetSidecarAfterSave,
 } from './active-roast-summary-wiring';
@@ -134,6 +135,42 @@ describe('invokeSidecarResetAfterSave (M14 wiring)', () => {
             resetSidecarRoast: reset,
         });
         expect(reset).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('runCancelDropMachineWiring (M3 / cancel PID off)', () => {
+    it('restores replay and calls pid turnOff when PID was engaged at Drop', () => {
+        const replayRestore = vi.fn();
+        const pidTurnOff = vi.fn();
+        const restore = {
+            sessionId: 's-a',
+            replayActive: true,
+            replayBatchEvents: [{ id: 'e1', t: 0, bt: 180, heater: 80, trigger: 'time' }],
+            controlBeforeDrop: { pidEngaged: true, pidSv: 205, heater: 60 },
+        } as import('@features/active-roast/model/batch').CompletedRoastRestore;
+        const banner = runCancelDropMachineWiring({
+            restore,
+            replayRestore,
+            pidTurnOff,
+            pidDropBehavior: 'zero',
+        });
+        expect(replayRestore).toHaveBeenCalledWith(true, restore.replayBatchEvents);
+        expect(pidTurnOff).toHaveBeenCalledWith('zero');
+        expect(banner).toEqual({ pidEngaged: true, pidSv: 205, heater: 60 });
+    });
+
+    it('does not call pid turnOff when PID was off at Drop', () => {
+        const pidTurnOff = vi.fn();
+        const restore = {
+            controlBeforeDrop: { pidEngaged: false, pidSv: null, heater: 40 },
+        } as import('@features/active-roast/model/batch').CompletedRoastRestore;
+        runCancelDropMachineWiring({
+            restore,
+            replayRestore: vi.fn(),
+            pidTurnOff,
+            pidDropBehavior: 'hold',
+        });
+        expect(pidTurnOff).not.toHaveBeenCalled();
     });
 });
 

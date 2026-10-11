@@ -959,8 +959,10 @@ class RoasterManager:
         await self._pid.stop("user", mode=mode)
         # 다음 사고는 다시 알릴 수 있게 — 재시도 루프가 끝난 뒤에만 여기 온다
         self._hw_alerts_sent.discard("pid_request_failed")
-        self._teardown_pid_worker()
-        return {"state": "off", "error": None}
+        if self._pid_task is not None and not self._pid_task.done():
+            self._pid_task.cancel()
+        self._pid_task = None
+        return self._pid.state()
 
     async def pid_set_sv(self, sv: float) -> dict[str, Any]:
         cap = self.pid_capability()
