@@ -30,14 +30,22 @@ import {
 } from '@features/import-roasting-settings';
 import { canAddMachine, useEffectivePlan } from '@shared/lib/features';
 import { useQueryClient } from '@tanstack/react-query';
+import { platform } from '@tauri-apps/plugin-os';
 import { useState } from 'react';
 
 export function useRoastingSettingsImport() {
+    const [platformSupported] = useState(() => {
+        try {
+            return platform() === 'macos';
+        } catch {
+            return /Macintosh/i.test(navigator.userAgent);
+        }
+    });
     const [product, setProduct] = useState<'Firescope' | 'Artisan' | 'Cropster'>('Firescope');
     const [confirmedVersion, setConfirmedVersion] = useState<'4.2.0' | null>(null);
-    const firescopeQuery = useFirescopeSettings(product === 'Firescope');
-    const artisanQuery = useArtisanSettings(product === 'Artisan');
-    const cropsterQuery = useCropsterSettings(product === 'Cropster');
+    const firescopeQuery = useFirescopeSettings(platformSupported && product === 'Firescope');
+    const artisanQuery = useArtisanSettings(platformSupported && product === 'Artisan');
+    const cropsterQuery = useCropsterSettings(platformSupported && product === 'Cropster');
     const query = { Firescope: firescopeQuery, Artisan: artisanQuery, Cropster: cropsterQuery }[product];
     const queryClient = useQueryClient();
     const machines = useMachines((state) => state.machines);
@@ -122,7 +130,11 @@ export function useRoastingSettingsImport() {
         newCount === 0 ||
         canAddMachine(plan, machines.filter((machine) => machine.id !== VIRTUAL_ID).length + newCount - 1);
     const canApply =
-        snapshot?.status === 'found' && !busy && withinLimit && (selected.length > 0 || (includeGraph && hasGraph));
+        platformSupported &&
+        snapshot?.status === 'found' &&
+        !busy &&
+        withinLimit &&
+        (selected.length > 0 || (includeGraph && hasGraph));
 
     const apply = async () => {
         if (!snapshot || !canApply) return;
@@ -185,6 +197,7 @@ export function useRoastingSettingsImport() {
     };
 
     const rescan = () => {
+        if (!platformSupported) return;
         setResult(null);
         setSelectedIds(new Set());
         setUnitOverride(null);
@@ -213,6 +226,7 @@ export function useRoastingSettingsImport() {
     };
 
     return {
+        platformSupported,
         product,
         confirmedVersion,
         query,

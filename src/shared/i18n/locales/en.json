@@ -643,6 +643,7 @@
             "application": "Application"
         },
         "roastingImport": {
+            "macosOnly": "Settings import is only available on macOS.",
             "source": "Import from"
         },
         "artisan": {

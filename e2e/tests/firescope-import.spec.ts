@@ -2,6 +2,41 @@ import type { Page } from '@playwright/test';
 import { expect, goNav, test } from '../fixtures/app';
 import { installPersistentStore } from '../fixtures/persistent-store';
 
+test.use({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' });
+
+for (const desktop of [false, true]) {
+    test.describe(desktop ? 'Windows desktop' : 'Windows browser', () => {
+        test.use({
+            userAgent: desktop
+                ? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
+                : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        });
+
+        test('disables settings import without scanning local settings', async ({ authedPage: page }) => {
+            if (desktop) {
+                await page.addInitScript(() => {
+                    Object.defineProperty(window, '__TAURI_OS_PLUGIN_INTERNALS__', { value: { platform: 'windows' } });
+                });
+            }
+            let scans = 0;
+            await page.route('http://127.0.0.1:9999/**', (route) => {
+                if (new URL(route.request().url()).pathname.startsWith('/imports/')) scans++;
+                return route.abort();
+            });
+            await page.reload();
+            await expect(page.getByTestId('app-sidebar')).toBeVisible();
+            const settings = await openImporter(page);
+            await expect(settings.getByRole('status')).toHaveText('Settings import is only available on macOS.');
+            await expect(settings.getByRole('combobox', { name: 'Import from', exact: true })).toBeDisabled();
+            await expect(settings.getByRole('button', { name: 'Search again', exact: true })).toBeDisabled();
+            await expect(settings.getByRole('button', { name: 'Import selected settings', exact: true })).toHaveCount(
+                0,
+            );
+            expect(scans).toBe(0);
+        });
+    });
+}
+
 const modbusMachine = (id: string | number, name: string, address = 1000) => ({
     id,
     name,

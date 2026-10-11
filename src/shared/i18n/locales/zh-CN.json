@@ -643,6 +643,7 @@
             "application": "应用程序"
         },
         "roastingImport": {
+            "macosOnly": "设置导入仅适用于macOS。",
             "source": "导入来源"
         },
         "artisan": {

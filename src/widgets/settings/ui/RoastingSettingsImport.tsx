@@ -9,6 +9,7 @@ import { SettingsSection } from './SettingsSection';
 export function RoastingSettingsImport() {
     const { t } = useTranslation();
     const {
+        platformSupported,
         product,
         confirmedVersion,
         query,
@@ -46,7 +47,7 @@ export function RoastingSettingsImport() {
                     {t('settings.roastingImport.source')}
                     <FormSelect
                         value={product}
-                        disabled={applying}
+                        disabled={!platformSupported || applying}
                         wrapperClassName="w-40"
                         className="h-8 py-1 text-xs"
                         onChange={(event) => selectProduct(event.currentTarget.value as typeof product)}
@@ -58,19 +59,21 @@ export function RoastingSettingsImport() {
                 </label>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="m-0 text-xs text-secondary" role="status">
-                        {query.isFetching
-                            ? tk('searching')
-                            : query.error
-                              ? tk('scanFailed')
-                              : snapshot
-                                ? tk(`status.${snapshot.status}`)
-                                : tk('searching')}
+                        {!platformSupported
+                            ? t('settings.roastingImport.macosOnly')
+                            : query.isFetching
+                              ? tk('searching')
+                              : query.error
+                                ? tk('scanFailed')
+                                : snapshot
+                                  ? tk(`status.${snapshot.status}`)
+                                  : tk('searching')}
                     </p>
-                    <SurfaceButton disabled={busy} onClick={rescan}>
+                    <SurfaceButton disabled={!platformSupported || busy} onClick={rescan}>
                         {tk('rescan')}
                     </SurfaceButton>
                 </div>
-                {snapshot?.status === 'found' && (
+                {platformSupported && snapshot?.status === 'found' && (
                     <>
                         {artisan && artisan.source.version === null && (
                             <label className="flex items-start gap-3 text-xs text-secondary">

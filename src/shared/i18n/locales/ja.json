@@ -643,6 +643,7 @@
             "application": "アプリケーション"
         },
         "roastingImport": {
+            "macosOnly": "設定の読み込みはmacOSでのみ利用できます。",
             "source": "読み込み元"
         },
         "artisan": {

@@ -3,6 +3,8 @@ import type { ArtisanSettingsSnapshot } from '../../src/shared/types/artisan';
 import { expect, test } from '../fixtures/app';
 import { installPersistentStore } from '../fixtures/persistent-store';
 
+test.use({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' });
+
 const snapshot = (version: string | null = '4.2.0'): ArtisanSettingsSnapshot => ({
     status: 'found',
     source: { product: 'Artisan', version, sourceId: 'native' },
