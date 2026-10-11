@@ -55,6 +55,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
+import { runCancelDropMachineEffects } from './lib/active-roast-cancel-drop-wiring';
 import { finishDropControlSnapshot } from './lib/active-roast-drop-wiring';
 import {
     autoChargeUnavailable,
@@ -76,11 +77,7 @@ import {
     replayPointsForProfile,
     showPendingSummary,
 } from './lib/active-roast-screen';
-import {
-    invokeSidecarResetAfterSave,
-    runCancelDropMachineWiring,
-    runSummaryDiscardSidecarReset,
-} from './lib/active-roast-summary-wiring';
+import { invokeSidecarResetAfterSave, runSummaryDiscardSidecarReset } from './lib/active-roast-summary-wiring';
 import {
     chartOnlyPreheatDecision,
     noteChartOnlyPreheatMount,
@@ -954,16 +951,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             return;
         }
         setDropCancelControlWarning(
-            runCancelDropMachineWiring({
-                restore,
-                replayRestore: (active, batchEvents) =>
-                    machineControl.replay.restore(
-                        active,
-                        batchEvents as import('@features/machine-control/lib/replay').ReplayEvent[] | null,
-                    ),
-                pidTurnOff: (mode) => void machineControl.pid.turnOff(mode),
-                pidDropBehavior: roastSettings.pidDropBehavior,
-            }),
+            runCancelDropMachineEffects(restore, machineControl, roastSettings.pidDropBehavior),
         );
         saveFlow.flow.closeSummary();
     }, [lifecycle, machineControl, saveFlow.flow, roastSettings.pidDropBehavior]);

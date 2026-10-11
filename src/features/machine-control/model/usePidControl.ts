@@ -69,6 +69,7 @@ export const usePidControl = ({
         async (targetSv?: number): Promise<boolean> => {
             const value = targetSv ?? sv;
             if (targetSv != null) setSv(targetSv);
+            const previousEngaged = userEngagedThisSessionRef.current;
             userEngagedThisSessionRef.current = true;
             setBusy(true);
             try {
@@ -77,7 +78,7 @@ export const usePidControl = ({
                 setOffAttempt(0);
                 return true;
             } catch (err) {
-                userEngagedThisSessionRef.current = false;
+                userEngagedThisSessionRef.current = previousEngaged;
                 reportError(err, 'PID를 켜지 못했습니다.');
                 return false;
             } finally {

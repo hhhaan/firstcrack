@@ -198,6 +198,40 @@ describe('usePidControl DROP 자동 해제 (#269)', () => {
         hook.unmount();
     });
 
+    it('failed turnOn does not clear an earlier successful userEngaged (P9)', async () => {
+        pidOn.mockResolvedValueOnce({ ok: true, pid: runtime('running') } as Awaited<ReturnType<typeof sidecar.pidOn>>);
+        pidOn.mockRejectedValueOnce(new Error('busy'));
+        pidOff.mockResolvedValue({ ok: true, pid: runtime('off') } as Awaited<ReturnType<typeof sidecar.pidOff>>);
+        const hook = await renderPid({ ...base, runtime: runtime('off'), roastFinished: false, roasting: false });
+        await act(async () => {
+            await hook.get().turnOn(200);
+        });
+        await hook.rerender({ ...base, runtime: runtime('running'), roastFinished: false, roasting: false });
+        await act(async () => {
+            await hook.get().turnOn(210);
+        });
+        pidOff.mockClear();
+        await hook.rerender({
+            ...base,
+            sidecarConnected: false,
+            runtime: runtime('running'),
+            roastFinished: false,
+            roasting: false,
+        });
+        await hook.rerender({
+            ...base,
+            sidecarConnected: true,
+            runtime: runtime('running'),
+            roastFinished: false,
+            roasting: false,
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(pidOff).not.toHaveBeenCalled();
+        hook.unmount();
+    });
+
     it('successful turnOn clears pending safe-off retries after a fault', async () => {
         pidOff.mockRejectedValue(new Error('fail'));
         const hook = await renderPid({ ...base, runtime: runtime('running'), roastFinished: true });

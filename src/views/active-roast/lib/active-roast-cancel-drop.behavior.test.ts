@@ -1,54 +1,56 @@
 import type { CompletedRoastRestore } from '@features/active-roast/model/batch';
-import type { ReplayEvent } from '@features/machine-control/lib/replay';
 import { describe, expect, it, vi } from 'vitest';
-import { runCancelDropMachineWiring } from './active-roast-summary-wiring';
+import {
+    type CancelDropMachineControl,
+    createCancelDropMachineDeps,
+    runCancelDropMachineEffects,
+} from './active-roast-cancel-drop-wiring';
 
-/** Same machine-control leg as ActiveRoast `handleCancelDrop` after `cancelDrop` succeeds. */
-const runLikeActiveRoastCancelDrop = (
-    restore: CompletedRoastRestore,
-    machineControl: {
-        replay: { restore: (active: boolean, batchEvents?: ReplayEvent[] | null) => void };
-        pid: { turnOff: (mode: 'hold' | 'zero') => Promise<boolean> };
+const machineControl = (overrides?: {
+    replayRestore?: ReturnType<typeof vi.fn>;
+    pidTurnOff?: ReturnType<typeof vi.fn>;
+}): CancelDropMachineControl => ({
+    replay: {
+        restore: (overrides?.replayRestore ?? vi.fn()) as CancelDropMachineControl['replay']['restore'],
     },
-    pidDropBehavior: 'hold' | 'zero',
-) =>
-    runCancelDropMachineWiring({
-        restore,
-        replayRestore: (active, batchEvents) =>
-            machineControl.replay.restore(active, batchEvents as ReplayEvent[] | null),
-        pidTurnOff: (mode) => void machineControl.pid.turnOff(mode),
-        pidDropBehavior,
-    });
+    pid: {
+        turnOff: (overrides?.pidTurnOff ??
+            vi.fn().mockResolvedValue(true)) as CancelDropMachineControl['pid']['turnOff'],
+    },
+});
 
-describe('ActiveRoast cancel Drop machine effects (behavioral)', () => {
-    it('W1: calls pid.turnOff when PID was engaged at Drop', async () => {
+describe('createCancelDropMachineDeps (ActiveRoast cancel Drop wiring)', () => {
+    it('W1: pidTurnOff delegates to machineControl.pid.turnOff', () => {
         const pidTurnOff = vi.fn().mockResolvedValue(true);
-        const restore = {
-            sessionId: 's-a',
-            replayActive: false,
-            replayBatchEvents: null,
-            controlBeforeDrop: { pidEngaged: true, pidSv: 205, heater: 60 },
-        } as CompletedRoastRestore;
-        runLikeActiveRoastCancelDrop(restore, { replay: { restore: vi.fn() }, pid: { turnOff: pidTurnOff } }, 'zero');
+        const deps = createCancelDropMachineDeps(machineControl({ pidTurnOff }), 'zero');
+        deps.pidTurnOff('zero');
         expect(pidTurnOff).toHaveBeenCalledTimes(1);
         expect(pidTurnOff).toHaveBeenCalledWith('zero');
     });
 
-    it('W2: passes replayBatchEvents through to replay.restore', () => {
-        const batchEvents = [{ id: 'edit-1', t: 0, bt: 180, heater: 72, trigger: 'time' as const }];
+    it('W2: replayRestore forwards batchEvents to machineControl.replay.restore', () => {
         const replayRestore = vi.fn();
+        const batchEvents = [{ id: 'edit-1', t: 0, bt: 180, heater: 72, trigger: 'time' as const }];
+        const deps = createCancelDropMachineDeps(machineControl({ replayRestore }), 'hold');
+        deps.replayRestore(true, batchEvents);
+        expect(replayRestore).toHaveBeenCalledTimes(1);
+        expect(replayRestore).toHaveBeenCalledWith(true, batchEvents);
+    });
+});
+
+describe('runCancelDropMachineEffects', () => {
+    it('runs full cancel path with PID off and replay batch events', () => {
+        const pidTurnOff = vi.fn().mockResolvedValue(true);
+        const replayRestore = vi.fn();
+        const batchEvents = [{ id: 'edit-1', t: 0, bt: 180, heater: 72, trigger: 'time' as const }];
         const restore = {
             sessionId: 's-a',
             replayActive: true,
             replayBatchEvents: batchEvents,
-            controlBeforeDrop: { pidEngaged: false, pidSv: null, heater: 40 },
+            controlBeforeDrop: { pidEngaged: true, pidSv: 205, heater: 60 },
         } as CompletedRoastRestore;
-        runLikeActiveRoastCancelDrop(
-            restore,
-            { replay: { restore: replayRestore }, pid: { turnOff: vi.fn().mockResolvedValue(true) } },
-            'hold',
-        );
-        expect(replayRestore).toHaveBeenCalledTimes(1);
+        runCancelDropMachineEffects(restore, machineControl({ pidTurnOff, replayRestore }), 'zero');
+        expect(pidTurnOff).toHaveBeenCalledWith('zero');
         expect(replayRestore).toHaveBeenCalledWith(true, batchEvents);
     });
 });
