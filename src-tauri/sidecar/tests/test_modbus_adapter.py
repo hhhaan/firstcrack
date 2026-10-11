@@ -120,6 +120,23 @@ class TestConnect:
         assert kwargs["framer"] == FramerType.RTU
 
     @patch("pymodbus.client.AsyncModbusSerialClient")
+    async def test_serial_empty_comport_does_not_open(self, MockClient):
+        regs = {"BT": {"register": 0, "func": 3, "unit_id": 1}}
+        cases = (
+            {"mode": "rtu", "comport": "", "modbus_registers": regs},
+            {"mode": "rtu", "comport": "   ", "modbus_registers": regs},
+            {"mode": "ascii", "comport": "", "modbus_registers": regs},
+            {"mode": "rtu", "comport": None, "modbus_registers": regs},
+            {"mode": "rtu", "modbus_registers": regs},
+        )
+        for kwargs in cases:
+            MockClient.reset_mock()
+            adapter = ModbusAdapter(**kwargs)
+            with pytest.raises(ValueError, match="comport가 비어"):
+                await adapter.connect()
+            MockClient.assert_not_called()
+
+    @patch("pymodbus.client.AsyncModbusSerialClient")
     async def test_ascii_connect_uses_ascii_framer(self, MockClient):
         regs = {"BT": {"register": 0, "func": 3, "unit_id": 1}}
         a = ModbusAdapter(mode="ascii", comport="/dev/ttyUSB0", baudrate=9600, modbus_registers=regs)

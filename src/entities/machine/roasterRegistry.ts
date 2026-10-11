@@ -37,7 +37,8 @@ const STOPBITS_OPTIONS = [
 
 /** 시리얼 공통 폼 필드 (kaleido/modbus 공유) — py _SERIAL_FORM_FIELDS와 미러. */
 const SERIAL_FORM_FIELDS: RoasterDef['form_fields'] = [
-    { key: 'comport', label: 'Serial Port', type: 'text', required: false, placeholder: COMPORT_PLACEHOLDER },
+    // required는 필드가 보일 때만 검사된다. TCP/UDP는 comport를 숨긴다.
+    { key: 'comport', label: 'Serial Port', type: 'text', required: true, placeholder: COMPORT_PLACEHOLDER },
     { key: 'baudrate', label: 'Baud Rate', type: 'number', required: false, options: BAUD_RATE_OPTIONS },
     { key: 'bytesize', label: 'Byte Size', type: 'number', required: false, options: BYTESIZE_OPTIONS },
     { key: 'parity', label: 'Parity', type: 'select', required: false, options: PARITY_OPTIONS },

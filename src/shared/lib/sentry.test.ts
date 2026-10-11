@@ -94,6 +94,19 @@ describe('isActionableError', () => {
         expect(isActionableError('Command plugin:dialog|confirm not allowed by ACL')).toBe(false);
     });
 
+    it('drops a missing serial port as user configuration and keeps a real port failure (FC-1Y)', () => {
+        expect(
+            isActionableError(
+                '로스터 연결 실패: probatino — 시리얼 포트가 선택되지 않았습니다. 머신 설정에서 포트를 선택하세요.',
+            ),
+        ).toBe(false);
+        expect(
+            isActionableError(
+                '로스터 연결 실패: probatino — MODBUS RTU 연결 실패 (/dev/ttyUSB0). 시리얼 포트를 확인하세요.',
+            ),
+        ).toBe(true);
+    });
+
     it('drops deterministic PostgREST errors that have no HTTP status (42703)', () => {
         const missingColumn = {
             code: '42703',

@@ -112,7 +112,11 @@ def _format_connection_error(
         "ascii",
         "serial",
     ):
-        comport = params.get("comport", "")
+        raw_port = params.get("comport", "")
+        comport = raw_port if isinstance(raw_port, str) else ""
+        # 빈 포트로 연 실패만. 포트 없이 첫 read가 실패한 경우는 아래 설정 불일치 안내를 유지한다.
+        if "comport가 비어" in msg or (not comport.strip() and "MODBUS 연결 실패" in msg):
+            return "시리얼 포트가 선택되지 않았습니다. 머신 설정에서 포트를 선택하세요."
         if "No such file or directory" in msg or "could not open port" in msg:
             return f"시리얼 포트 '{comport}'를 찾을 수 없습니다. 포트 이름과 케이블 연결을 확인하세요."
         if "Device or resource busy" in msg or "Access is denied" in msg:
