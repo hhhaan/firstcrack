@@ -3,6 +3,7 @@ import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { shouldStaleEngageSafeOff } from './stalePidEngage';
 
 /** 서버가 SV 범위를 알려주기 전 슬라이더 초기값 */
 const FALLBACK_SV_C = 200;
@@ -54,6 +55,10 @@ export const usePidControl = ({
     /** 배출/End safe-off는 완료될 때까지 유지 — Cancel Drop이 roastFinished를 false로 바꿔도 취소하지 않는다 */
     const [pendingSafeOff, setPendingSafeOff] = useState(false);
     const svAdoptedRef = useRef(false);
+    /** Explicit pidOn in this tab session — preheat before Charge must not trigger stale backstop. */
+    const userEngagedThisSessionRef = useRef(false);
+    const connectGenerationRef = useRef(0);
+    const staleSafeOffHandledGenerationRef = useRef(0);
 
     const state = runtime?.state ?? 'off';
     // 사이드카가 보고하는 상태가 유일한 진실 — 로컬 토글 상태를 따로 들면
@@ -67,6 +72,7 @@ export const usePidControl = ({
             setBusy(true);
             try {
                 await sidecar.pidOn(value);
+                userEngagedThisSessionRef.current = true;
                 return true;
             } catch (err) {
                 reportError(err, 'PID를 켜지 못했습니다.');
@@ -128,6 +134,27 @@ export const usePidControl = ({
     const needsOff = state !== 'off';
 
     useEffect(() => {
+        if (!sidecarConnected) return;
+        connectGenerationRef.current += 1;
+    }, [sidecarConnected]);
+
+    useEffect(() => {
+        if (
+            !shouldStaleEngageSafeOff({
+                sidecarConnected,
+                roasting,
+                pidState: state,
+                userEngagedThisSession: userEngagedThisSessionRef.current,
+                handledForConnectGeneration: staleSafeOffHandledGenerationRef.current,
+                connectGeneration: connectGenerationRef.current,
+            })
+        )
+            return;
+        staleSafeOffHandledGenerationRef.current = connectGenerationRef.current;
+        setPendingSafeOff(true);
+    }, [sidecarConnected, roasting, state]);
+
+    useEffect(() => {
         if (roastFinished && needsOff && sidecarConnected) setPendingSafeOff(true);
     }, [roastFinished, needsOff, sidecarConnected]);
 
@@ -155,13 +182,6 @@ export const usePidControl = ({
             setOffAttempt(0);
         }
     }, [state]);
-
-    useEffect(() => {
-        if (roasting) {
-            setPendingSafeOff(false);
-            setOffAttempt(0);
-        }
-    }, [roasting]);
 
     useEffect(() => {
         if (!roastFinished && !pendingSafeOff) setOffAttempt(0);

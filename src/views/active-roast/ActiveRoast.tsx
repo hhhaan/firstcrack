@@ -55,6 +55,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
+import { finishDropControlSnapshot } from './lib/active-roast-drop-wiring';
 import {
     autoChargeUnavailable,
     autoDropUnavailable,
@@ -76,8 +77,8 @@ import {
     showPendingSummary,
 } from './lib/active-roast-screen';
 import {
-    dropCancelBannerAfterSuccessfulCancel,
     invokeSidecarResetAfterSave,
+    runCancelDropMachineWiring,
     runSummaryDiscardSidecarReset,
 } from './lib/active-roast-summary-wiring';
 import {
@@ -93,12 +94,7 @@ import {
     calcDevTime,
     calcTargetDelta,
 } from './lib/display-derivatives';
-import {
-    buildDropCancelControlMessage,
-    captureDropControlSnapshot,
-    isPidEngaged,
-    shouldWarnDropCancelControl,
-} from './lib/drop-cancel-control';
+import { buildDropCancelControlMessage, isPidEngaged, shouldWarnDropCancelControl } from './lib/drop-cancel-control';
 import { applyExplicitDisconnectReset } from './lib/explicit-disconnect-reset';
 import { resolveLiveChartView } from './lib/live-chart-view';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
@@ -502,9 +498,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 commitSummary: saveFlow.confirmEndRoast,
                 holdAutoChargeUntilRecovery,
                 replayBatchEvents: wiring.batchEvents,
-                controlBeforeDrop: captureDropControlSnapshot(useRoastingStore.getState(), {
-                    pidActive: wiring.pidActive,
-                }),
+                controlBeforeDrop: finishDropControlSnapshot(useRoastingStore.getState(), wiring),
             });
         },
         [lifecycle, livePoints, saveFlow, holdAutoChargeUntilRecovery],
@@ -959,14 +953,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             logger.capture(new Error('Roast summary Drop cancellation failed'));
             return;
         }
-        machineControl.replay.restore(
-            restore.replayActive ?? false,
-            restore.replayBatchEvents as import('@features/machine-control/lib/replay').ReplayEvent[] | null,
+        setDropCancelControlWarning(
+            runCancelDropMachineWiring({
+                restore,
+                replayRestore: (active, batchEvents) =>
+                    machineControl.replay.restore(
+                        active,
+                        batchEvents as import('@features/machine-control/lib/replay').ReplayEvent[] | null,
+                    ),
+                pidTurnOff: (mode) => void machineControl.pid.turnOff(mode),
+                pidDropBehavior: roastSettings.pidDropBehavior,
+            }),
         );
-        setDropCancelControlWarning(dropCancelBannerAfterSuccessfulCancel(restore));
-        if (restore.controlBeforeDrop.pidEngaged) {
-            void machineControl.pid.turnOff(roastSettings.pidDropBehavior);
-        }
         saveFlow.flow.closeSummary();
     }, [lifecycle, machineControl, saveFlow.flow, roastSettings.pidDropBehavior]);
 

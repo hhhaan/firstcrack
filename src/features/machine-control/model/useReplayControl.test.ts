@@ -133,10 +133,11 @@ describe('Replay state restored on Drop cancel', () => {
         await act(async () => h.get().applyBatchEvents(edited));
         await act(async () => h.get().toggle());
         expect(h.get().active).toBe(true);
-        await h.rerender({ roastFinished: true, roasting: false, dropBehavior: 'hold' });
+        await h.rerender({ referencePoints: flat, roastFinished: true, roasting: false, dropBehavior: 'hold' });
         await act(async () => {
             h.get().restore(true, edited);
             await h.rerender({
+                referencePoints: flat,
                 roastFinished: false,
                 roasting: true,
                 elapsed: 130,

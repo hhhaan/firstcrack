@@ -235,6 +235,8 @@ class PidRunner:
 
     async def _emit(self, duty: float) -> None:
         """deadband/주기 조건을 만족할 때만 실제로 쓴다."""
+        if self._state not in (RUNNING, HOLDING):
+            return
         should_send = (
             self._last_sent is None
             or abs(duty - self._last_sent) >= self._duty_deadband
