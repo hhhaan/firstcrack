@@ -551,6 +551,11 @@ export const RoastSummaryModal = ({
                 modalTestId="roast-summary-discard-modal"
                 cancelTestId="roast-summary-discard-cancel"
                 confirmTestId="roast-summary-discard-confirm"
+                actionsClassName="flex gap-2 justify-end"
+                titleClassName="mb-3 text-lg font-semibold text-primary"
+                contentClassName={`${modalPanel.sm} !p-6`}
+                cancelButtonClassName="rounded-lg bg-surface px-3 py-2 text-sm text-secondary"
+                confirmButtonClassName="rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400"
             />
         </ModalShell>
     );

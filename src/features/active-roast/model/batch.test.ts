@@ -152,6 +152,47 @@ describe('central batch ownership and transitions', () => {
         expect(useRoastingStore.getState().sessionId).toBe(nextId);
     });
 
+    it.each([
+        {
+            label: 'accepts workspace owner when snapshot sessionOwnerId is still null',
+            discardOwner: 'owner',
+            snapshotOwnerId: null as string | null,
+            expectSuccess: true,
+        },
+        {
+            label: 'rejects a mismatched owner when snapshot owner is set',
+            discardOwner: 'other-owner',
+            snapshotOwnerId: 'owner' as string | null,
+            expectSuccess: false,
+        },
+    ])('discardSummary $label', ({ discardOwner, snapshotOwnerId, expectSuccess }) => {
+        charge();
+        const dropped = drop();
+        const sessionId = dropped?.sessionId ?? null;
+        useRoastingStore.setState({
+            completed: {
+                ...useRoastingStore.getState().completed!,
+                snapshot: {
+                    ...useRoastingStore.getState().completed!.snapshot,
+                    sessionOwnerId: snapshotOwnerId,
+                },
+            },
+        });
+        expect(useRoastingStore.getState().discardSummary(discardOwner, sessionId)).toBe(expectSuccess);
+        if (expectSuccess) {
+            expect(useRoastingStore.getState().completed?.summary).toBeNull();
+        } else {
+            expect(useRoastingStore.getState().completed?.summary).not.toBeNull();
+        }
+    });
+
+    it('discardSummary rejects a different sessionId', () => {
+        charge();
+        drop();
+        expect(useRoastingStore.getState().discardSummary('owner', 'not-the-active-session')).toBe(false);
+        expect(useRoastingStore.getState().completed?.summary).not.toBeNull();
+    });
+
     it('late A save cannot clear B summary or unlock another owner', () => {
         charge();
         const a = drop();

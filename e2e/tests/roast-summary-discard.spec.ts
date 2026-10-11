@@ -27,6 +27,8 @@ test('escape closes the bean dropdown before dismissing the summary', async ({ a
     const bean = page.getByTestId('roast-summary-bean').getByRole('combobox');
     await bean.click();
     await expect(bean).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByTestId('roast-summary-bean').getByRole('option').first()).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(bean).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByTestId('roast-summary-save')).toBeVisible();
