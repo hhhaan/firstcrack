@@ -6,11 +6,10 @@ import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/data
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { formErrorCls } from '@shared/ui/form-styles';
 import { DiscardConfirmModal } from '@shared/ui/modal-shell/DiscardConfirmModal';
+import { useCaptureEscapeDismiss, useTopmostDialogEscapeKey } from '@shared/ui/modal-shell/dialogEscape';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { useCaptureEscapeDismiss } from '@shared/ui/modal-shell/useCaptureEscapeDismiss';
-import { useTopmostDialogEscapeKey } from '@shared/ui/modal-shell/useTopmostDialogEscapeKey';
 import { Spinner } from '@shared/ui/Spinner';
 import { Check, Coffee, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -552,11 +551,6 @@ export const RoastSummaryModal = ({
                 modalTestId="roast-summary-discard-modal"
                 cancelTestId="roast-summary-discard-cancel"
                 confirmTestId="roast-summary-discard-confirm"
-                actionsClassName="flex gap-2 justify-end"
-                titleClassName="mb-3 text-lg font-semibold text-primary"
-                contentClassName={`${modalPanel.sm} !p-6`}
-                cancelButtonClassName="rounded-lg bg-surface px-3 py-2 text-sm text-secondary"
-                confirmButtonClassName="rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400"
             />
         </ModalShell>
     );

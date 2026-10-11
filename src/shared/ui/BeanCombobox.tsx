@@ -1,5 +1,4 @@
-import { markEscapeKeyConsumed } from '@shared/ui/modal-shell/dialogEscape';
-import { useDocumentEscapeCapture } from '@shared/ui/modal-shell/useDocumentEscapeCapture';
+import { markEscapeKeyConsumed, useDocumentEscapeCapture } from '@shared/ui/modal-shell/dialogEscape';
 import { Check, ChevronDown } from 'lucide-react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { inputCls } from './form-styles';

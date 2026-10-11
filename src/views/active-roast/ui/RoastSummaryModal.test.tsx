@@ -284,14 +284,14 @@ it('routes Escape through bean dropdown, fields, and summary dismiss', () => {
     ) as HTMLButtonElement;
     act(() => {
         beanOption.focus();
-        beanOption.dispatchEvent(escapeKey(beanOption));
+        beanOption.dispatchEvent(escapeKey());
     });
     expect(onClose).not.toHaveBeenCalled();
     expect(onCancelDrop).not.toHaveBeenCalled();
     expect(beanInput.getAttribute('aria-expanded')).toBe('false');
 
     act(() => beanInput.focus());
-    act(() => beanInput.dispatchEvent(escapeKey(beanInput)));
+    act(() => beanInput.dispatchEvent(escapeKey()));
     expect(beanInput.getAttribute('aria-expanded')).toBe('false');
     expect(onClose).not.toHaveBeenCalled();
     expect(onCancelDrop).not.toHaveBeenCalled();
