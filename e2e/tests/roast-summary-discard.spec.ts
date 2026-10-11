@@ -17,6 +17,25 @@ test('roast summary discard closes the modal after confirm', async ({ authedPage
     await expect(page.getByTestId('roast-summary-save')).toBeHidden({ timeout: 10_000 });
 });
 
+test('escape closes the bean dropdown before dismissing the summary', async ({ authedPage: page }) => {
+    await goNav(page, 'roast');
+    await page.waitForFunction(() => Boolean(window.__FC_E2E__?.forceChargedSession), null, { timeout: 15_000 });
+    await page.evaluate(() => window.__FC_E2E__?.forceChargedSession());
+    await expect(page.getByTestId('roast-end')).toBeEnabled({ timeout: 10_000 });
+    await page.getByTestId('roast-end').click({ force: true });
+    await page.getByTestId('end-roast-confirm').click({ force: true });
+    await expect(page.getByTestId('roast-summary-save')).toBeVisible({ timeout: 10_000 });
+    const bean = page.getByTestId('roast-summary-bean').getByRole('combobox');
+    await bean.click();
+    await expect(bean).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('Escape');
+    await expect(bean).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('roast-summary-save')).toBeVisible();
+    await page.locator('#roast-summary-modal-title').click({ force: true });
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('roast-summary-save')).toBeHidden({ timeout: 10_000 });
+});
+
 test('roast summary discard uses in-app confirm when Tauri runtime is absent', async ({ authedPage: page }) => {
     await goNav(page, 'roast');
     await page.waitForFunction(() => Boolean(window.__FC_E2E__?.forceChargedSession), null, { timeout: 15_000 });

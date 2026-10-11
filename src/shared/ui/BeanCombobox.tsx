@@ -1,3 +1,4 @@
+import { markEscapeKeyConsumed } from '@shared/ui/modal-shell/dialogEscape';
 import { Check, ChevronDown } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { inputCls } from './form-styles';
@@ -69,6 +70,20 @@ export const BeanCombobox = ({
         return () => document.removeEventListener('mousedown', onDoc);
     }, [open]);
 
+    useEffect(() => {
+        if (!open) return;
+        const onEscapeCapture = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            const root = rootRef.current;
+            if (!root?.contains(event.target as Node)) return;
+            markEscapeKeyConsumed(event);
+            event.stopImmediatePropagation();
+            setOpen(false);
+        };
+        document.addEventListener('keydown', onEscapeCapture, true);
+        return () => document.removeEventListener('keydown', onEscapeCapture, true);
+    }, [open]);
+
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q) return items;
@@ -124,7 +139,7 @@ export const BeanCombobox = ({
                     }}
                     onKeyDown={(e) => {
                         if (e.key === 'Escape') {
-                            e.preventDefault();
+                            markEscapeKeyConsumed(e.nativeEvent);
                             e.stopPropagation();
                             setOpen(false);
                             return;
@@ -175,6 +190,13 @@ export const BeanCombobox = ({
                 <div
                     id={listId}
                     role="listbox"
+                    onKeyDown={(e) => {
+                        if (e.key !== 'Escape') return;
+                        markEscapeKeyConsumed(e.nativeEvent);
+                        e.stopPropagation();
+                        setOpen(false);
+                        rootRef.current?.querySelector<HTMLInputElement>('[role="combobox"]')?.focus();
+                    }}
                     className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#262b31] rounded-2xl border border-black/8 dark:border-[#585d61] shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
                 >
                     <div className="max-h-[200px] overflow-y-auto py-1">
@@ -190,6 +212,13 @@ export const BeanCombobox = ({
                                     role="option"
                                     aria-selected={item.id === selectedId}
                                     className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13px] hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent transition-colors"
+                                    onKeyDown={(e) => {
+                                        if (e.key !== 'Escape') return;
+                                        markEscapeKeyConsumed(e.nativeEvent);
+                                        e.stopPropagation();
+                                        setOpen(false);
+                                        rootRef.current?.querySelector<HTMLInputElement>('[role="combobox"]')?.focus();
+                                    }}
                                     onMouseDown={(e) => {
                                         e.preventDefault();
                                         onSelect(item.id);

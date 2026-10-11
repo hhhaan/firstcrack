@@ -275,17 +275,46 @@ it('does not dismiss the summary when Escape is pressed in a weight input', () =
     unmount();
 });
 
-it('does not dismiss the summary when Escape closes the bean dropdown', () => {
+it('closes only the bean dropdown on the first Escape, then cancels drop on the second', () => {
     const onClose = vi.fn();
     const onCancelDrop = vi.fn();
     const { unmount } = renderModal({ onClose, onCancelDrop, canCancelDrop: true });
-    const input = document.querySelector('[data-testid="roast-summary-bean"] input') as HTMLInputElement;
+    const input = document.querySelector('[data-testid="roast-summary-bean"] [role="combobox"]') as HTMLInputElement;
+    expect(input.getAttribute('aria-expanded')).toBe('false');
     act(() => {
         input.focus();
+    });
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    act(() => {
         input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     });
+    expect(input.getAttribute('aria-expanded')).toBe('false');
     expect(onClose).not.toHaveBeenCalled();
     expect(onCancelDrop).not.toHaveBeenCalled();
+    act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    });
+    expect(onCancelDrop).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    unmount();
+});
+
+it('does not dismiss the summary when Escape is pressed on a listbox option', () => {
+    const onClose = vi.fn();
+    const onCancelDrop = vi.fn();
+    const { unmount } = renderModal({ onClose, onCancelDrop, canCancelDrop: true });
+    const input = document.querySelector('[data-testid="roast-summary-bean"] [role="combobox"]') as HTMLInputElement;
+    act(() => {
+        input.focus();
+    });
+    const option = document.querySelector('[data-testid="roast-summary-bean"] [role="option"]') as HTMLButtonElement;
+    act(() => {
+        option.focus();
+        option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    });
+    expect(onCancelDrop).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(input.getAttribute('aria-expanded')).toBe('false');
     unmount();
 });
 
