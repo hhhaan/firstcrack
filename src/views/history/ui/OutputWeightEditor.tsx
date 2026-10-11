@@ -32,11 +32,21 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
         session.roast_level,
     );
 
+    const charge = session.weight_grams;
+    const hasCharge = charge > 0;
+
     const commit = async () => {
         const trimmed = draft.trim();
+        // Charge 0 is unset, so it is not a ceiling. 1–0g is an empty range.
+        if (!hasCharge) {
+            const unset = trimmed === '' || Number(trimmed) === 0;
+            setInvalid(!unset);
+            if (unset) setDraft('');
+            return;
+        }
         const next = trimmed === '' ? null : Number(trimmed);
         // mirrors the DB check: null, or 0 < g <= green input
-        const valid = next === null || (Number.isInteger(next) && next > 0 && next <= session.weight_grams);
+        const valid = next === null || (Number.isInteger(next) && next > 0 && next <= charge);
         if (!valid) {
             setInvalid(true);
             return;
@@ -46,7 +56,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
         if (!isWorkspaceReady || !workspaceOwnerId) return;
         try {
             const inbound = buildRoastedInbound({
-                greenGrams: session.weight_grams,
+                greenGrams: charge,
                 outputWeightGrams: next,
                 roastLevel: session.roast_level,
             });
@@ -74,8 +84,8 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
                     id={`history-output-weight-${session.id}`}
                     type="number"
                     inputMode="numeric"
-                    min={1}
-                    max={session.weight_grams}
+                    min={hasCharge ? 1 : undefined}
+                    max={hasCharge ? charge : undefined}
                     value={draft}
                     disabled={isPending}
                     placeholder="—"
@@ -93,7 +103,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
                     }`}
                 />
                 <span className="text-[11px] font-semibold text-muted">g</span>
-                {session.weight_grams > 0 && (
+                {hasCharge && (
                     <span className="font-mono text-[12px] text-secondary">
                         −{lossRate.toFixed(1)}%{!measured && ` (${t('history.expanded.estimated')})`}
                     </span>
@@ -101,7 +111,9 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
             </div>
             {invalid && (
                 <p className={formErrorCls}>
-                    {t('history.expanded.outputWeightInvalid', { max: session.weight_grams })}
+                    {hasCharge
+                        ? t('history.expanded.outputWeightInvalid', { max: charge })
+                        : t('history.expanded.outputNeedsCharge')}
                 </p>
             )}
         </div>

@@ -59,8 +59,9 @@ const MEASUREMENTS: {
 ];
 
 /**
- * Corrects green charge after save. Session-owned roast deductions are rescaled
- * to the new weight inside set_session_charge_weight. Batch-level deduct is not.
+ * Corrects green charge after save. 0 is the same unset value the summary saves.
+ * A positive weight rescales session-owned roast deductions. 0 does not: a roast
+ * ledger row cannot be 0g, so those rows stay until a positive weight is entered.
  */
 export const ChargeWeightEditor = ({ session }: { session: RoastSessionWithRelations }) => {
     const { t } = useTranslation();
@@ -69,7 +70,7 @@ export const ChargeWeightEditor = ({ session }: { session: RoastSessionWithRelat
     const [draft, setDraft] = useState(() => String(session.weight_grams));
     const [invalid, setInvalid] = useState(false);
     const min =
-        session.output_weight_grams != null && session.output_weight_grams > 0 ? session.output_weight_grams : 1;
+        session.output_weight_grams != null && session.output_weight_grams > 0 ? session.output_weight_grams : 0;
 
     const commit = async () => {
         const trimmed = draft.trim();

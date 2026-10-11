@@ -1043,6 +1043,7 @@
             "outputWeight": "배출량",
             "estimated": "추정",
             "outputWeightInvalid": "1–{{max}}g 사이로 입력하세요 (투입량 초과 불가).",
+            "outputNeedsCharge": "투입량을 먼저 입력하세요.",
             "chargeWeight": "투입량",
             "chargeWeightInvalid": "{{min}}–{{max}}g 사이의 정수로 입력하세요.",
             "ambientTemp": "기온 (°C)",

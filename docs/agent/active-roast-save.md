@@ -83,7 +83,7 @@ Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 | Green − | `roast` events / `insert_stock_events_batch` / inside `save_roast_op` | session id (or batch complete path uses plan_batch id) |
 | Bulk + | `upsert_roasted_inbound` | session id (one inbound; upsert for measured correction) |
 | History remeasure | History `OutputWeightEditor` | same upsert |
-| History charge correction | `set_session_charge_weight` | rescales session-owned `roast` events to the new `weight_grams`. Batch-level deduct (`reference_id` = plan batch) is left alone. Estimated roasted inbound follows the new green weight |
+| History charge correction | `set_session_charge_weight` | rescales session-owned `roast` events to the new `weight_grams`. Minimum is 0, same as the summary (`null` is not used). 0 does not rewrite those events — a roast ledger row cannot be 0g — and drops the estimated roasted inbound. Batch-level deduct (`reference_id` = plan batch) is left alone. A positive weight's estimated inbound follows the new green weight |
 
 Blends: `buildRoastStockEvents` expands components before batch insert.
 

@@ -88,6 +88,17 @@ describe('History QC editors', () => {
         });
     });
 
+    it('saves 0g, the same unset charge the summary stores', async () => {
+        await render(createElement(ChargeWeightEditor, { session }));
+        await blur(field('history-charge-weight'), '0');
+        expect(setCharge).toHaveBeenCalledWith({
+            sessionId: 's1',
+            weightGrams: 0,
+            inboundGrams: 0,
+            inboundIsEstimate: false,
+        });
+    });
+
     it('leaves an existing zero charge untouched', async () => {
         await render(createElement(ChargeWeightEditor, { session: { ...session, weight_grams: 0 } }));
         await blur(field('history-charge-weight'), '0');

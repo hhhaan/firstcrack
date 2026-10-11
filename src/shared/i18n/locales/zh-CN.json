@@ -1347,6 +1347,7 @@
             "outputWeight": "出豆量",
             "estimated": "估算",
             "outputWeightInvalid": "请输入 1–{{max}}g（不能超过投入量）。",
+            "outputNeedsCharge": "请先输入投入量。",
             "chargeWeight": "投入量",
             "chargeWeightInvalid": "请输入 {{min}}–{{max}}g 的整数。",
             "ambientTemp": "气温 (°C)",

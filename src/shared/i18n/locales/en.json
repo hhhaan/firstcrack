@@ -1347,6 +1347,7 @@
             "outputWeight": "Output Weight",
             "estimated": "est.",
             "outputWeightInvalid": "Enter 1–{{max}}g (cannot exceed green input).",
+            "outputNeedsCharge": "Enter the charge weight first.",
             "chargeWeight": "Charge weight",
             "chargeWeightInvalid": "Enter an integer from {{min}}–{{max}}g.",
             "ambientTemp": "Room temp (°C)",

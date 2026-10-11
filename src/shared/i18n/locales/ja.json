@@ -1347,6 +1347,7 @@
             "outputWeight": "排出量",
             "estimated": "推定",
             "outputWeightInvalid": "1–{{max}}gの範囲で入力してください（投入量超過不可）。",
+            "outputNeedsCharge": "投入量を先に入力してください。",
             "chargeWeight": "投入量",
             "chargeWeightInvalid": "{{min}}–{{max}}gの整数で入力してください。",
             "ambientTemp": "気温 (°C)",
