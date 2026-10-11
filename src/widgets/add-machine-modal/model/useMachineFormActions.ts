@@ -1,5 +1,5 @@
 import type { Machine, RoasterDef } from '@entities/machine';
-import { canConnectRoaster } from '@entities/machine';
+import { canConnectRoaster, pushMachineDoors } from '@entities/machine';
 import {
     beginMachineConnectAttempt,
     endMachineConnectAttempt,
@@ -170,6 +170,11 @@ export const useMachineFormActions = ({
             const status = await sidecar.connect(connectKey, assembled.typed);
             connected = status.connected;
             if (status.connected) {
+                pushMachineDoors({
+                    roasterKey: connectKey,
+                    dischargeDoor: editing?.dischargeDoor,
+                    fillDoor: editing?.fillDoor,
+                });
                 const temps = await sidecar.getTemperatures().catch(() => null);
                 setTestState('success');
                 setTestMessage(

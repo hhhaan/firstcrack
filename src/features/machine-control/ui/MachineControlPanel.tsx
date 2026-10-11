@@ -47,7 +47,7 @@ export const MachineControlPanel = ({
     hotkeysEnabled = false,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
-    const { machine, discharge, pid, replay, pidActive, changeManual, commitManual } = model;
+    const { machine, discharge, fill, pid, replay, pidActive, changeManual, commitManual } = model;
     const { writable, limits, desired, unacknowledged, sending } = machine;
     const [collapsed, setCollapsed] = useState(false);
     const [heatEditorOpen, setHeatEditorOpen] = useState(false);
@@ -143,6 +143,27 @@ export const MachineControlPanel = ({
                         </div>
                         <span className="text-[10px] leading-snug text-muted">
                             Drop 버튼을 누르면 열기 명령을 보냅니다.
+                        </span>
+                    </div>
+                )}
+                {fill.available && (
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-[11px] font-semibold text-secondary">투입구</span>
+                        <div className="flex gap-1">
+                            {(['open', 'close'] as const).map((action) => (
+                                <button
+                                    key={action}
+                                    type="button"
+                                    disabled={fill.sending}
+                                    onClick={() => void fill.send(action)}
+                                    className="flex-1 rounded-md border border-border-subtle px-2 py-1 text-xs text-primary hover:bg-surface disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {action === 'open' ? '열기' : '닫기'}
+                                </button>
+                            ))}
+                        </div>
+                        <span className="text-[10px] leading-snug text-muted">
+                            Charge 버튼을 누르면 열기 명령을 보냅니다.
                         </span>
                     </div>
                 )}

@@ -2,6 +2,7 @@ export type { ArtisanMachineIssue, ArtisanMachineMapping } from './artisan';
 export { mapArtisanMachine } from './artisan';
 export type { CropsterMachineMapping } from './cropster';
 export { mapCropsterMachine } from './cropster';
+export { machineDoorControl, pushMachineDoors } from './doorControl';
 export type { FirescopeMachineIssue, FirescopeMachineMapping } from './firescope';
 export { firescopeFeedbackUpdate, mapFirescopeMachine } from './firescope';
 export {

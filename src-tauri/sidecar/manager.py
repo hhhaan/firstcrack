@@ -299,6 +299,9 @@ class RoasterManager:
         self._roaster_key: str = ""
         self._protocol: str = ""
         self._merged_params: dict[str, Any] = {}
+        # Roast settings, not the machine connection form. Default off until the app pushes them.
+        self._w60a_discharge_enabled = False
+        self._w60a_fill_enabled = False
         self._connected: bool = False
         self._error: str | None = None
         self._start_time: float = 0.0
@@ -451,6 +454,7 @@ class RoasterManager:
             merged = _merge_connect_params(reg["default_params"], params)
 
             self._adapter = make_adapter(protocol, merged)
+            self._apply_door_flags()
             self._roaster_key = roaster_key
             self._protocol = protocol
             self._merged_params = merged
@@ -871,12 +875,17 @@ class RoasterManager:
         """실제로 하드웨어에 쓸 수 있는지. write_map ∩ WRITABLE_PROTOCOLS."""
         return bool(self.write_limits()) and self._protocol in WRITABLE_PROTOCOLS
 
+    def _apply_door_flags(self) -> None:
+        adapter = self._adapter
+        if adapter is None or not hasattr(adapter, "set_w60a_doors"):
+            return
+        adapter.set_w60a_doors(discharge=self._w60a_discharge_enabled, fill=self._w60a_fill_enabled)
+
     def discharge_enabled(self) -> bool:
-        # The shared W45A/W60A preset requires explicit confirmation of W60A hardware.
         return (
             self._roaster_key == "giesen_w45a_w60a"
             and self._protocol == "s7"
-            and self._merged_params.get("w60a_discharge") == "on"
+            and self._w60a_discharge_enabled
         )
 
     async def discharge(self, action: str) -> None:
@@ -884,10 +893,27 @@ class RoasterManager:
             raise ControlRangeError("배출문 명령은 open 또는 close여야 합니다.")
         adapter, epoch = self._adapter, self._connection_epoch
         if not self._connected or adapter is None or self._resetting or not self.discharge_enabled():
-            raise ControlUnavailable("연결된 W60A의 배출문 제어를 기기 설정에서 켜세요.")
+            raise ControlUnavailable("연결된 W60A의 배출구 제어를 로스팅 설정에서 켜세요.")
         await adapter.discharge(action)
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
             raise ControlUnavailable("배출문 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+
+    def fill_enabled(self) -> bool:
+        return (
+            self._roaster_key == "giesen_w45a_w60a"
+            and self._protocol == "s7"
+            and self._w60a_fill_enabled
+        )
+
+    async def fill(self, action: str) -> None:
+        if action not in ("open", "close"):
+            raise ControlRangeError("투입구 명령은 open 또는 close여야 합니다.")
+        adapter, epoch = self._adapter, self._connection_epoch
+        if not self._connected or adapter is None or self._resetting or not self.fill_enabled():
+            raise ControlUnavailable("연결된 W60A의 투입구 제어를 로스팅 설정에서 켜세요.")
+        await adapter.fill(action)
+        if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
+            raise ControlUnavailable("투입구 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
 
     async def control(
         self,
@@ -1161,6 +1187,17 @@ class RoasterManager:
                     self._ror_window_secs = max(5.0, min(120.0, v))
             except (TypeError, ValueError):
                 pass
+        changed = False
+        for key, attr in (
+            ("w60a_discharge", "_w60a_discharge_enabled"),
+            ("w60a_fill", "_w60a_fill_enabled"),
+        ):
+            if key not in settings:
+                continue
+            setattr(self, attr, bool(settings[key]))
+            changed = True
+        if changed:
+            self._apply_door_flags()
 
     def status(self) -> dict[str, Any]:
         uptime = round(time.monotonic() - self._start_time, 1) if self._connected else 0
@@ -1181,6 +1218,7 @@ class RoasterManager:
                 "writable": self._control_writable(),
                 "limits": self.write_limits(),
                 "discharge": self.discharge_enabled(),
+                "fill": self.fill_enabled(),
                 "pid": self.pid_capability(),
             },
             "uptime": uptime,

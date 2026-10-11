@@ -58,7 +58,7 @@ async def test_adapter_rejects_connection_changed_while_waiting_for_lock(changed
 def enable_discharge(manager):
     manager._roaster_key = "giesen_w45a_w60a"
     manager._protocol = "s7"
-    manager._merged_params = {"w60a_discharge": "on"}
+    manager._w60a_discharge_enabled = True
     manager._connected = True
     manager._adapter = AsyncMock()
 
@@ -68,7 +68,7 @@ async def test_manager_rejects_unavailable_discharge(manager, block):
     enable_discharge(manager)
     adapter = manager._adapter
     if block == "disabled":
-        manager._merged_params = {}
+        manager._w60a_discharge_enabled = False
     elif block == "other_model":
         manager._roaster_key = "giesen_w6a_pro"  # gitleaks:allow
     elif block == "disconnected":
@@ -108,13 +108,13 @@ async def discharge_client(monkeypatch):
         yield client
 
 
-async def test_machine_catalog_exposes_discharge_setting_only_on_w60_preset(discharge_client):
+async def test_machine_catalog_does_not_put_discharge_on_the_connection_form(discharge_client):
     response = await discharge_client.get("/roasters")
     catalog = await response.json()
-    assert catalog["giesen_w45a_w60a"]["default_params"]["w60a_discharge"] == "off"
+    assert "w60a_discharge" not in catalog["giesen_w45a_w60a"]["default_params"]
     keys = {key for key, definition in catalog.items()
             if any(field["key"] == "w60a_discharge" for field in definition["form_fields"])}
-    assert keys == {"giesen_w45a_w60a"}
+    assert keys == set()
 
 
 @pytest.mark.parametrize("body", [[], None, {"action": "release"}, {"action": "open", "db": 3}])
@@ -137,7 +137,7 @@ async def test_endpoint_unavailable_success_and_write_failure(discharge_client):
     assert response.status == 502
 
 
-def test_discharge_is_disabled_in_default_machine_settings():
+def test_discharge_is_not_a_connection_setting():
     definition = ROASTER_REGISTRY["giesen_w45a_w60a"]
-    assert definition["default_params"]["w60a_discharge"] == "off"
-    assert any(field["key"] == "w60a_discharge" for field in definition["form_fields"])
+    assert "w60a_discharge" not in definition["default_params"]
+    assert all(field["key"] != "w60a_discharge" for field in definition.get("form_fields", []))

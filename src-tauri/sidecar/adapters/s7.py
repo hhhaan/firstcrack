@@ -73,6 +73,7 @@ class S7Adapter:
         channels: list[dict[str, Any]] | None = None,
         write_map: dict[str, dict[str, Any]] | None = None,
         w60a_discharge: str = "off",
+        w60a_fill: str = "off",
         **_: Any,
     ) -> None:
         self._host = host
@@ -83,6 +84,7 @@ class S7Adapter:
         self._validate_channels()
         self._write_map = write_map or {}
         self._w60a_discharge = w60a_discharge == "on"
+        self._w60a_fill = w60a_fill == "on"
         self._plc: Any = None
         # snap7 클라이언트는 스레드 세이프하지 않다. read()의 asyncio.wait_for 타임아웃은
         # executor 스레드를 중단시키지 못하므로(manager H7), 타임아웃 직후 들어온 쓰기가
@@ -151,6 +153,12 @@ class S7Adapter:
                     raise ValueError(
                         f"S7 channel {role}.{field} must be a string up to 1024 characters"
                     )
+
+    def set_w60a_doors(self, *, discharge: bool | None = None, fill: bool | None = None) -> None:
+        if discharge is not None:
+            self._w60a_discharge = discharge
+        if fill is not None:
+            self._w60a_fill = fill
 
     async def connect(self) -> None:
         import snap7  # type: ignore[import]
@@ -526,9 +534,8 @@ class S7Adapter:
         """쓰기 가능한 role → spec. 빈 dict면 이 머신은 쓰기 미지원."""
         return self._write_map
 
-    async def discharge(self, action: str) -> None:
-        if not self._w60a_discharge or action not in ("open", "close"):
-            raise ValueError("W60A discharge control is disabled or invalid")
+    async def _write_db2_command(self, role: str, value: int) -> None:
+        """Latch one INT16 on the shared W60A command word. The PLC keeps it until the next command."""
         plc, session = self._plc, self._session
         if plc is None:
             raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
@@ -538,16 +545,26 @@ class S7Adapter:
                 raise TimeoutError("S7 I/O 락 대기 시간 초과")
             try:
                 if self._plc is not plc or self._session != session:
-                    raise ConnectionError("S7 connection changed before discharge")
-                # Artisan W60A: DB2.30 command word, latched 5/6 (no reset-to-zero).
+                    raise ConnectionError(f"S7 connection changed before {role}")
                 self._write_channel_sync(
-                    "discharge", {"db": 2, "offset": 30, "type": 0, "div": 0},
-                    5 if action == "open" else 6, plc,
+                    role, {"db": 2, "offset": 30, "type": 0, "div": 0}, value, plc,
                 )
             finally:
                 self._io_lock.release()
 
         await asyncio.get_running_loop().run_in_executor(None, _do_write)
+
+    async def discharge(self, action: str) -> None:
+        if not self._w60a_discharge or action not in ("open", "close"):
+            raise ValueError("W60A discharge control is disabled or invalid")
+        # Artisan W60A: DB2.30 latched 5/6. Do not reset to 0.
+        await self._write_db2_command("discharge", 5 if action == "open" else 6)
+
+    async def fill(self, action: str) -> None:
+        if not self._w60a_fill or action not in ("open", "close"):
+            raise ValueError("W60A fill control is disabled or invalid")
+        # Artisan W60A: DB2.30 latched 1/2. Same word as discharge; the last command replaces it.
+        await self._write_db2_command("fill", 1 if action == "open" else 2)
 
     @property
     def connected(self) -> bool:

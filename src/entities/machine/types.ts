@@ -25,6 +25,9 @@ export interface Machine {
     connectionParams: Record<string, unknown>;
     capabilities: string[];
     pid: { Kp: number; Ki: number; Kd: number } | null;
+    /** W45A / W60A only. Absent means off. */
+    dischargeDoor?: boolean;
+    fillDoor?: boolean;
     createdAt: string;
     importSource?: { product: 'Firescope' | 'Artisan' | 'Cropster'; sourceId: string | number };
 }
