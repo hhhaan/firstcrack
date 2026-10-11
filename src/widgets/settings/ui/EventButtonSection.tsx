@@ -5,7 +5,7 @@ import {
     eventNameError,
     nextCustomEventShortcut,
 } from '@features/active-roast/lib/event-buttons';
-import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
+import { getRoastSettings, updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import {
     eventToShortcut,
@@ -15,7 +15,7 @@ import {
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsCheckRow } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
@@ -38,8 +38,6 @@ export function EventButtonSection() {
     const [error, setError] = useState<EventNameError | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [shortcutError, setShortcutError] = useState<Exclude<ShortcutBindingResult, undefined> | null>(null);
-    const buttonsRef = useRef(buttons);
-    buttonsRef.current = buttons;
     const atLimit = buttons.custom.length >= CUSTOM_EVENT_LIMIT;
     const takenGlobals = Object.values(bindings).flat();
     const liveShortcuts = effectiveCustomShortcuts(buttons.custom, takenGlobals);
@@ -97,7 +95,7 @@ export function EventButtonSection() {
             }
             const key = eventToShortcut(event);
             if (!key) return;
-            const current = buttonsRef.current;
+            const current = getRoastSettings().eventButtons;
             const globals = Object.values(useShortcutStore.getState().bindings).flat();
             const others = effectiveCustomShortcuts(
                 current.custom.filter((row) => row.id !== editingId),

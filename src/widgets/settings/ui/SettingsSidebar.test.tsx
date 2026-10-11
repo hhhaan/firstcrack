@@ -59,7 +59,8 @@ describe('SettingsSidebar roast groups', () => {
 
         act(() => roastButton().click());
         expect(roastButton().getAttribute('aria-expanded')).toBe('true');
-        expect(groupList()?.querySelectorAll('button')).toHaveLength(8);
+        expect(groupList()?.querySelectorAll('button')).toHaveLength(9);
+        expect(groupList()?.textContent).toContain('settings.tabs.roast.groups.events');
         expect(host.querySelector('[aria-current="page"]')?.textContent).toBe('settings.tabs.roast.groups.general');
     });
 

@@ -247,7 +247,7 @@ describe('storedEventsToLogEntries', () => {
 });
 
 describe('storedEventsToMarkers', () => {
-    it('includes TP/Note/Heater data while filtering unknown events', () => {
+    it('includes TP/Note/Heater and custom marks while filtering transient and control events', () => {
         // getResolvedEventColor reads CSS vars via getComputedStyle
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
@@ -258,14 +258,16 @@ describe('storedEventsToMarkers', () => {
             { id: '3', type: 'Note', time_sec: 90, note: 'hi' },
             { id: '4', type: 'Drop', time_sec: 600, temp_c: 210 },
             { id: '5', type: 'Heater', time_sec: 610, temp_c: 211, note: '40%' },
-            { id: '6', type: 'Unknown', time_sec: 620 },
+            { id: '6', type: 'Aroma', time_sec: 620, note: 'sweet' },
             { id: '7', type: 'Now', time_sec: 630 },
+            { id: '8', type: 'Control', time_sec: 635, applied_control: { heater: 30 } },
         ]);
-        expect(markers.map((m) => m.event)).toEqual(['Charge', 'TP', 'Note', 'Drop', 'Heater']);
+        expect(markers.map((m) => m.event)).toEqual(['Charge', 'TP', 'Note', 'Drop', 'Heater', 'Aroma']);
         expect(markers[1]).toMatchObject({ logId: '2', event: 'TP', temp: '90', tempC: 90.4, timeStr: '1:00' });
         expect(markers[2]).toMatchObject({ logId: '3', note: 'hi', tempC: null });
         expect(markers[3]).toMatchObject({ temp: '210', tempC: 210, timeStr: '10:00' });
         expect(markers[4]).toMatchObject({ logId: '5', note: '40%', tempC: 211 });
+        expect(markers[5]).toMatchObject({ logId: '6', event: 'Aroma', note: 'sweet' });
         expect(markers[0].color).toBe('#abc');
 
         const fMarkers = storedEventsToMarkers([{ id: '4', type: 'Drop', time_sec: 600, temp_c: 210 }], 'F');
