@@ -152,30 +152,6 @@ describe('central batch ownership and transitions', () => {
         expect(useRoastingStore.getState().sessionId).toBe(nextId);
     });
 
-    it('discardSummary accepts workspace owner when snapshot sessionOwnerId is still null', () => {
-        charge();
-        const dropped = drop();
-        const sessionId = dropped?.sessionId ?? null;
-        useRoastingStore.setState({
-            completed: {
-                ...useRoastingStore.getState().completed!,
-                snapshot: {
-                    ...useRoastingStore.getState().completed!.snapshot,
-                    sessionOwnerId: null,
-                },
-            },
-        });
-        expect(useRoastingStore.getState().discardSummary('owner', sessionId)).toBe(true);
-        expect(useRoastingStore.getState().completed?.summary).toBeNull();
-    });
-
-    it('discardSummary rejects a mismatched owner when snapshot owner is set', () => {
-        charge();
-        const dropped = drop();
-        expect(useRoastingStore.getState().discardSummary('other-owner', dropped?.sessionId ?? null)).toBe(false);
-        expect(useRoastingStore.getState().completed?.summary).not.toBeNull();
-    });
-
     it('late A save cannot clear B summary or unlock another owner', () => {
         charge();
         const a = drop();

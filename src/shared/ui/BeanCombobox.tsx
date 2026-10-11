@@ -205,11 +205,6 @@ export const BeanCombobox = ({
                                     role="option"
                                     aria-selected={item.id === selectedId}
                                     className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13px] hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent transition-colors"
-                                    onKeyDown={(e) => {
-                                        if (e.key !== 'Escape') return;
-                                        dismissEscape(e.nativeEvent, false);
-                                        e.stopPropagation();
-                                    }}
                                     onMouseDown={(e) => {
                                         e.preventDefault();
                                         onSelect(item.id);
