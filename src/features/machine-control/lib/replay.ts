@@ -36,7 +36,7 @@ export interface ReplayEvent {
 
 export interface ReplayPlan {
     events: ReplayEvent[];
-    /** 레퍼런스 커브의 TP 시각 — 이 시각 이전 이벤트는 시간축으로 재생한다 */
+    /** 기준 기록의 TP 시각 — 이전·동일 시각 이벤트는 시간축으로 재생한다 */
     tpTime: number;
 }
 
@@ -80,6 +80,30 @@ const TP_RISE_MARGIN = 2;
  */
 const TP_MIN_ELAPSED_S = 20;
 
+/** 저장 TP(폴백 포함)를 우선하고, 없는 구기록은 기존 곡선 판정을 사용한다. */
+export const resolveReferenceTpTime = (
+    points: ReplayPoint[],
+    dropTime?: number | null,
+    referenceTpTime?: number | null,
+): number => {
+    if (dropTime != null && !Number.isFinite(dropTime)) return Number.POSITIVE_INFINITY;
+    const cutoff = dropTime ?? Number.POSITIVE_INFINITY;
+    if (referenceTpTime != null && Number.isFinite(referenceTpTime) && referenceTpTime >= 0 && referenceTpTime < cutoff)
+        return referenceTpTime;
+    if (points.some((p) => !Number.isFinite(p.t) || !Number.isFinite(p.bt))) return Number.POSITIVE_INFINITY;
+    const post = points.filter((p) => p.t >= 0 && p.t < cutoff);
+
+    // 첫 골짜기에서 2°C 회복을 확인한다. 배출 뒤 꼬리와 투입 직후 범프는 제외한다.
+    let min = -1;
+    for (let i = 0; i < post.length; i++) {
+        if (post[i].t < TP_MIN_ELAPSED_S) continue;
+        if (min < 0 || post[i].bt < post[min].bt) min = i;
+        else if (post[i].bt >= post[min].bt + TP_RISE_MARGIN) return post[min].t;
+    }
+    // 상승이 없는 구기록은 기존처럼 시간으로 재현한다.
+    return Number.POSITIVE_INFINITY;
+};
+
 /**
  * 레퍼런스 커브에서 재생 계획을 뽑는다. Heat set 지시가 없거나(구 TSV·합성 프로파일),
  * 이벤트가 비정상적으로 많으면(PID 기록) null — Replay 부적합.
@@ -98,7 +122,11 @@ const TP_MIN_ELAPSED_S = 20;
  * 이번 배치의 발전 구간과 겹쳐 배출 후 조작이 로스팅 한복판에 발화한다
  * (Artisan도 DROP 이후 이벤트는 재생하지 않는다).
  */
-export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | null): ReplayPlan | null => {
+export const extractReplayEvents = (
+    points: ReplayPoint[],
+    dropTime?: number | null,
+    referenceTpTime?: number | null,
+): ReplayPlan | null => {
     if (dropTime != null && !Number.isFinite(dropTime)) return null;
     const cutoff = dropTime ?? Number.POSITIVE_INFINITY;
     if (points.some((p) => !Number.isFinite(p.t) || !Number.isFinite(p.bt))) return null;
@@ -121,26 +149,7 @@ export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | n
     }
     if (!events.some((e) => e.heater > 0)) return null;
 
-    // TP는 첫 하강→상승 전환점: running min을 추적하다 BT가 마진 이상 회복하는
-    // 순간 그 min 지점으로 확정한다. 전역 최솟값은 쿨다운 꼬리(phase는 endRoast까지
-    // 'roasting'이라 TSV에 남는다)에 오염되고, "피크 이전 최솟값"(ff9dbb0)은 charge가
-    // 전 구간 최대인 커브(#310)에서 탐색 구간이 charge로 붕괴한다 — 둘 다 안 된다.
-    // 회복이 끝까지 없으면(단조 하강 초단기 세션) Infinity → 전 이벤트 시간축 재생.
-    // 시간축은 오발이 불가능한 안전한 퇴화 케이스다.
-    // floor는 골짜기 후보 자체에 건다 — 회복 샘플에만 걸면 t<20의 글리치 골짜기가
-    // 20초 이후 첫 샘플의 회복으로 그대로 확정된다.
-    let tpTime = Number.POSITIVE_INFINITY;
-    let min = -1;
-    for (let i = 0; i < post.length; i++) {
-        if (post[i].t < TP_MIN_ELAPSED_S) continue;
-        if (min < 0 || post[i].bt < post[min].bt) min = i;
-        else if (post[i].bt >= post[min].bt + TP_RISE_MARGIN) {
-            tpTime = post[min].t;
-            break;
-        }
-    }
-
-    return { events, tpTime };
+    return { events, tpTime: resolveReferenceTpTime(post, dropTime, referenceTpTime) };
 };
 
 export interface ReplaySample {

@@ -278,10 +278,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => sourceEvents.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null,
         [sourceEvents, targetProfile?.duration_sec],
     );
+    const referenceTpTime = useMemo(() => sourceEvents.find((e) => e.type === 'TP')?.time_sec ?? null, [sourceEvents]);
     const heatTarget = useMemo(() => {
         if (!targetProfile) return undefined;
-        return profileHeatTarget(targetCurvePoints, replayDropTime, profileHeaterEvents(targetProfile));
-    }, [targetProfile, targetCurvePoints, replayDropTime]);
+        return profileHeatTarget(
+            targetCurvePoints,
+            replayDropTime,
+            profileHeaterEvents(targetProfile),
+            referenceTpTime,
+        );
+    }, [targetProfile, targetCurvePoints, replayDropTime, referenceTpTime]);
     const referenceFcStartSec = useMemo(
         () => sourceEvents.find((e) => e.type === 'FC Start')?.time_sec ?? null,
         [sourceEvents],
@@ -874,6 +880,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayPoints,
         replayMachineMismatch,
         replayDropTime,
+        referenceTpTime,
         replayHeaterEvents: profileHeaterEvents(targetProfile),
         liveBt: replayBt,
         elapsed,

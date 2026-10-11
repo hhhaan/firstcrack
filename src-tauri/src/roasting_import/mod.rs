@@ -263,7 +263,15 @@ mod tests {
         let before = identity(&fs::symlink_metadata(&path).unwrap());
         assert_eq!(read_stable(&path, &before, 64).unwrap(), b"original");
         assert_eq!(fs::read(&path).unwrap(), b"original");
-        fs::write(&path, b"modified").unwrap();
+        // Linux mtime/ctime can stay identical for a same-size rewrite within one timestamp tick.
+        // Exercise the two replacement shapes the fingerprint must catch deterministically.
+        fs::write(&path, b"modified!").unwrap();
+        assert_eq!(read_stable(&path, &before, 64), Err(ImportError::Changed));
+        fs::write(&path, b"original").unwrap();
+        let before = identity(&fs::symlink_metadata(&path).unwrap());
+        let replacement = directory.path().join("settings.new");
+        fs::write(&replacement, b"modified").unwrap();
+        fs::rename(&replacement, &path).unwrap();
         assert_eq!(read_stable(&path, &before, 64), Err(ImportError::Changed));
     }
 

@@ -11,6 +11,7 @@ import ko from '../../../shared/i18n/locales/ko.json';
 import zhCN from '../../../shared/i18n/locales/zh-CN.json';
 import type { ReplayEvent } from '../lib/replay';
 import type { useReplayControl } from '../model/useReplayControl';
+import { CollapsedControlStatus } from './CollapsedControlStatus';
 import { ReplayControlPanel } from './ReplayControlPanel';
 import panelSrc from './ReplayControlPanel.tsx?raw';
 
@@ -40,7 +41,7 @@ const baseReplay = (over: Partial<Replay> = {}): Replay =>
         ...over,
     }) as Replay;
 
-const mount = async (props: { replay?: Replay; unit?: 'C' | 'F'; heaterUnit?: string }) => {
+const mount = async (props: { replay?: Replay; unit?: 'C' | 'F'; heaterUnit?: string; folded?: boolean }) => {
     const container = document.createElement('div');
     const root = createRoot(container);
     const render = (next: { replay?: Replay; unit?: 'C' | 'F'; heaterUnit?: string }) =>
@@ -49,11 +50,17 @@ const mount = async (props: { replay?: Replay; unit?: 'C' | 'F'; heaterUnit?: st
                 createElement(
                     I18nextProvider,
                     { i18n },
-                    createElement(ReplayControlPanel, {
-                        replay: next.replay ?? baseReplay(),
-                        unit: next.unit ?? 'C',
-                        heaterUnit: next.heaterUnit,
-                    }),
+                    props.folded
+                        ? createElement(CollapsedControlStatus, {
+                              pidState: 'off',
+                              anyUnacknowledged: false,
+                              replay: next.replay ?? baseReplay(),
+                          })
+                        : createElement(ReplayControlPanel, {
+                              replay: next.replay ?? baseReplay(),
+                              unit: next.unit ?? 'C',
+                              heaterUnit: next.heaterUnit,
+                          }),
                 ),
             );
         });
@@ -206,6 +213,34 @@ describe('ReplayControlPanel TP wait (#368 R08)', () => {
         expect(status?.getAttribute('data-replay-status')).toBe('waiting');
         expect(status?.className).toContain('text-amber');
         expect(status?.className).not.toContain('text-emerald');
+        unmount();
+    });
+
+    it.each([false, true])('uses explicit conditions for TP hold with folded=%s', async (folded) => {
+        const { container, rerender, unmount } = await mount({
+            folded,
+            replay: baseReplay({
+                nextEvent: { ...timeEvent, trigger: 'bt' },
+                nextEventTrigger: 'bt',
+                confirmedTurningPoint: null,
+            }),
+        });
+        if (folded)
+            expect(container.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe(
+                en.activeRoast.replay.tp.collapsedWaiting,
+            );
+        else
+            expect(container.querySelector('[data-replay-status]')?.getAttribute('data-replay-status')).toBe('waiting');
+        await rerender(
+            baseReplay({
+                nextEvent: { ...btEvent, trigger: 'time' },
+                nextEventTrigger: 'time',
+                confirmedTurningPoint: { fallback: true },
+            }),
+        );
+        if (folded) expect(container.querySelector('[role="img"]')?.className).toContain('bg-emerald');
+        else
+            expect(container.querySelector('[data-replay-status]')?.getAttribute('data-replay-status')).toBe('running');
         unmount();
     });
 

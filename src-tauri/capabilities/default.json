@@ -5,7 +5,7 @@
   "platforms": ["linux", "macOS", "windows"],
   "windows": ["main"],
   "permissions": [
-        "desktop-commands",
+    "desktop-commands",
     "core:default",
     "core:window:allow-set-title",
     "core:window:allow-close",

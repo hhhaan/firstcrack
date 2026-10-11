@@ -195,6 +195,24 @@ describe('resolveReplayPlan', () => {
         expect(hit).toEqual({ nextIndex: 1, heater: 50 });
     });
 
+    it('classifies saved rows with stored TP even without TSV commands, preserving explicit triggers', () => {
+        const events = [
+            { t: 40, bt: 160, heater: 80 },
+            { t: 120, bt: 110, heater: 60 },
+            { t: 180, bt: 150, heater: 50, trigger: 'time' },
+            { t: 200, bt: 160, heater: 40, trigger: 'bt' },
+        ];
+        const resolved = resolveReplayPlan({ points: [], referenceTpTime: 120, profileEvents: events });
+        const plan = resolved.plan;
+        if (!plan) throw new Error('fixture broken');
+        expect(plan.tpTime).toBe(120);
+        expect(plan.events).toEqual(events);
+        expect(judgeReplay(plan, 0, { elapsed: 180, bt: 200, afterTurningPoint: false })).toEqual({
+            nextIndex: 3,
+            heater: 50,
+        });
+    });
+
     it('0만 있는 편집본도 끄기 명령으로 남긴다', () => {
         expect(normalizeHeaterPlan([{ t: 0, bt: 180, heater: 0 }], 60)?.events).toEqual([{ t: 0, bt: 180, heater: 0 }]);
     });
