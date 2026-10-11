@@ -548,7 +548,7 @@ Notes:
 
 ### POST /discharge
 
-Giesen **W60A 배출문** 열기·닫기. 로스팅 설정의 배출구 스위치가 켜져 있어야 한다.
+Giesen **W60A 배출문** 열기·닫기. 머신 상세의 배출구 스위치가 켜져 있어야 한다.
 기본값은 꺼짐이며, W60A가 아닌 연결에서는 적용되지 않는다.
 활성화 여부는 `GET /status.control.discharge`로 확인한다. 앱은 `POST /settings`의 `w60a_discharge`로 바꾼다.
 
@@ -570,7 +570,7 @@ Giesen **W60A 배출문** 열기·닫기. 로스팅 설정의 배출구 스위�
 
 ### POST /fill
 
-Giesen **W60A 투입구**(호퍼 → 드럼) 열기·닫기. 로스팅 설정의 투입구 스위치가 켜져 있어야 한다.
+Giesen **W60A 투입구**(호퍼 → 드럼) 열기·닫기. 머신 상세의 투입구 스위치가 켜져 있어야 한다.
 기본값은 꺼짐이다. 활성화 여부는 `GET /status.control.fill`로 확인한다. 앱은 `POST /settings`의 `w60a_fill`로 바꾼다.
 
 ```json

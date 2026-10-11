@@ -726,24 +726,6 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            <SettingsSection group="automation">
-                <SettingsSection.Header title={tk('w60aDoors')} description={tk('w60aDoorsDescription')} />
-                <SettingsSection.Body className="grid gap-1.5">
-                    <SettingsCheckRow
-                        checked={roastSettings.w60aDischargeDoor}
-                        label={tk('w60aDischargeDoor')}
-                        description={tk('w60aDischargeDoorDescription')}
-                        onChange={() => updateRoastSettings({ w60aDischargeDoor: !roastSettings.w60aDischargeDoor })}
-                    />
-                    <SettingsCheckRow
-                        checked={roastSettings.w60aFillDoor}
-                        label={tk('w60aFillDoor')}
-                        description={tk('w60aFillDoorDescription')}
-                        onChange={() => updateRoastSettings({ w60aFillDoor: !roastSettings.w60aFillDoor })}
-                    />
-                </SettingsSection.Body>
-            </SettingsSection>
-
             {/* PID 미사용. 나중에 넣을 때 주석 해제.
             <SettingsSection group="automation">
                 <SettingsSection.Header title={tk('pidDropBehavior')} description={tk('pidDropBehaviorDescription')} />

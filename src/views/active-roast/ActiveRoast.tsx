@@ -1,4 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
+import { pushMachineDoors, useMachines } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useBbpCurve } from '@entities/roast';
@@ -598,8 +599,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 et_display_ema_alpha: btSmoothingToAlpha(roastSettings.etSmoothing),
                 ror_ema_alpha: btSmoothingToAlpha(roastSettings.rorSmoothing),
                 et_ror_ema_alpha: btSmoothingToAlpha(roastSettings.etRorSmoothing),
-                w60a_discharge: roastSettings.w60aDischargeDoor,
-                w60a_fill: roastSettings.w60aFillDoor,
             })
             .catch(() => {});
     }, [
@@ -609,9 +608,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         roastSettings.etSmoothing,
         roastSettings.rorSmoothing,
         roastSettings.etRorSmoothing,
-        roastSettings.w60aDischargeDoor,
-        roastSettings.w60aFillDoor,
     ]);
+
+    const machines = useMachines((state) => state.machines);
+    useEffect(() => {
+        if (!sidecarConnected) return;
+        const key = machineSnapshot?.machine_roaster_key;
+        const machine = machines.find((item) => item.roasterKey === key);
+        if (machine) pushMachineDoors(machine);
+    }, [sidecarConnected, machineSnapshot?.machine_roaster_key, machines]);
 
     // ── Effect: 링크가 끊기면 예열·대기만 초기화 ──────────────────
     // 로스팅 중 장애는 세션을 보존한다. 재연결되면 끊긴 구간만 비고 커브가 이어진다.

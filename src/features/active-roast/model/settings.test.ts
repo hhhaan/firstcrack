@@ -265,15 +265,7 @@ describe('normalize — phase temperatures', () => {
     });
 
     it('defaults fcDualMarkEnabled to false', () => {
-        expect(normalizeRoastSettings({})).toMatchObject({
-            fcDualMarkEnabled: false,
-            w60aDischargeDoor: false,
-            w60aFillDoor: false,
-        });
-        expect(normalizeRoastSettings({ w60aDischargeDoor: true, w60aFillDoor: true })).toMatchObject({
-            w60aDischargeDoor: true,
-            w60aFillDoor: true,
-        });
+        expect(normalizeRoastSettings({})).toMatchObject({ fcDualMarkEnabled: false });
     });
 
     it('normalizes fcDualMarkEnabled boolean', () => {

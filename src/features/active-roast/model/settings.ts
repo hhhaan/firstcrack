@@ -1,6 +1,5 @@
 import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
-import { sidecar } from '@shared/lib/sidecar';
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
 import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
@@ -161,10 +160,6 @@ export type RoastSettings = {
      * 과열·쓰기 실패 등 이상 정지는 이 설정과 무관하게 항상 0을 시도한다.
      */
     pidDropBehavior: PidDropBehavior;
-    /** W60A discharge door. Other machines ignore it. */
-    w60aDischargeDoor: boolean;
-    /** W60A hopper door. Other machines ignore it. */
-    w60aFillDoor: boolean;
 };
 
 export type PidDropBehavior = 'hold' | 'zero';
@@ -265,8 +260,6 @@ const DEFAULT_SETTINGS: RoastSettings = {
     alertAfterDropEnabled: false,
     alertAfterDropMin: 5,
     pidDropBehavior: 'hold',
-    w60aDischargeDoor: false,
-    w60aFillDoor: false,
 };
 
 const clampNum = (value: unknown, min: number, max: number, fallback: number) => {
@@ -460,8 +453,6 @@ export const normalizeRoastSettings = (
         pidDropBehavior: isPidDropBehavior(merged.pidDropBehavior)
             ? merged.pidDropBehavior
             : DEFAULT_SETTINGS.pidDropBehavior,
-        w60aDischargeDoor: asBool(merged.w60aDischargeDoor, DEFAULT_SETTINGS.w60aDischargeDoor),
-        w60aFillDoor: asBool(merged.w60aFillDoor, DEFAULT_SETTINGS.w60aFillDoor),
     };
 };
 
@@ -549,22 +540,11 @@ export const importArtisanGraphSettings = (source: ArtisanSettingsSnapshot) =>
 export const importCropsterGraphSettings = (source: CropsterSettingsSnapshot) =>
     importGraphSettings((previous) => mapCropsterGraphSettings(source, previous).patch);
 
-/** Push the W60A door switches to the connected sidecar. Other machines ignore them. */
-export const syncW60aDoorSettings = () => {
-    void sidecar
-        .updateSettings({
-            w60a_discharge: _settings.w60aDischargeDoor,
-            w60a_fill: _settings.w60aFillDoor,
-        })
-        .catch(() => {});
-};
-
 export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
     _userTouched = true;
     _settings = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
     _emit();
     void _flush();
-    if ('w60aDischargeDoor' in patch || 'w60aFillDoor' in patch) syncW60aDoorSettings();
 };
 
 /** Patches one channel. Other channels keep their stored style. */
