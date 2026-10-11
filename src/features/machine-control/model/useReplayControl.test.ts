@@ -101,7 +101,7 @@ describe('Replay state restored on Drop cancel', () => {
     });
 
     it('restores batch heat-curve edits on Drop cancel', async () => {
-        const edited = [{ id: 'edit-1', t: 120, bt: 110, heater: 55, kind: 'time' as const }];
+        const edited = [{ id: 'edit-1', t: 120, bt: 110, heater: 55, trigger: 'time' as const }];
         const h = await renderReplay({ dropBehavior: 'hold' });
         await act(async () => h.get().applyBatchEvents(edited));
         await act(async () => h.get().toggle());
