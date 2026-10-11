@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useModalStackStore } from '@shared/store/modalStack';
+import { type ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalShellProps {
@@ -25,6 +26,11 @@ export const ModalShell = ({
     dismissable = true,
     'data-testid': testId,
 }: ModalShellProps) => {
+    useEffect(() => {
+        useModalStackStore.getState().register();
+        return () => useModalStackStore.getState().unregister();
+    }, []);
+
     const overlay = (
         <div
             onClick={dismissable ? onClose : undefined}

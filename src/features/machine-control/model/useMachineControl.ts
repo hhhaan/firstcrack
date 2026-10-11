@@ -189,6 +189,7 @@ export const useMachineControl = (
 
     return {
         writable: Boolean(capability?.writable) && sidecarConnected,
+        dischargeSupported: Boolean(capability?.discharge) && sidecarConnected,
         limits: capability?.limits ?? EMPTY_LIMITS,
         /** PID 지원 여부 — 같은 /status 응답에서 오므로 따로 조회하지 않는다 */
         pidCapability: capability?.pid,

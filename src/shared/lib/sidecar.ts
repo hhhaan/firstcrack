@@ -138,6 +138,12 @@ export const sidecar = {
             body: JSON.stringify(cmd),
         }),
 
+    setDischarge: (action: 'open' | 'close') =>
+        request<{ ok: boolean }>('/discharge', {
+            method: 'POST',
+            body: JSON.stringify({ action }),
+        }),
+
     /** PID 제어 시작. sv = 목표 BT(°C). 409 = 미연결/미지원, 400 = 범위 밖 */
     pidOn: (sv: number) =>
         request<{ ok: boolean; pid: PidRuntime }>('/pid/on', {

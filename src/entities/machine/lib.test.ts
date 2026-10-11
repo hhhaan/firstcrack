@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+    buildTypedConnectionParams,
     copyMachineSnapshot,
     EMPTY_MACHINE_SNAPSHOT,
+    initRoasterFormParams,
     isRoasterFieldVisible,
     snapshotFromSidecar,
     writeMapFormFlags,
 } from './lib';
+import { ROASTER_REGISTRY } from './roasterRegistry';
 import type { Machine } from './types';
+
+it('keeps W60A discharge opt-in across connection form save and reopen', () => {
+    const definition = ROASTER_REGISTRY.giesen_w45a_w60a;
+    const defaults = initRoasterFormParams(definition);
+    expect(buildTypedConnectionParams(definition, defaults).w60a_discharge).toBe('off');
+    const saved = buildTypedConnectionParams(definition, { ...defaults, w60a_discharge: 'on' });
+    expect(initRoasterFormParams(definition, saved).w60a_discharge).toBe('on');
+});
 
 describe('isRoasterFieldVisible', () => {
     it.each(['rtu', 'ascii', 'serial'])('serial mode %s hides TCP fields, shows serial fields', (mode) => {
