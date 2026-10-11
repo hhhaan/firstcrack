@@ -4,10 +4,13 @@ These tests verify the Modbus adapter's decoding logic, retry behavior,
 and protocol handling using mocked pymodbus clients. No hardware needed.
 """
 
+import asyncio
+import struct
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import config
 from pymodbus.framer import FramerType
 
 from adapters.modbus import ModbusAdapter, _bcd_decode
@@ -303,6 +306,48 @@ class TestReadChannel:
         val = await connected_adapter._read_channel(cfg)
         assert val == pytest.approx(180.0, abs=0.1)
 
+    async def test_channel_endian_float_scale_and_compensation(self, connected_adapter):
+        cfg = {
+            "register": 100,
+            "func": 3,
+            "unit_id": 1,
+            "float": True,
+            "div": 1,
+            "mode": "C",
+            "word_order": "big",
+            "byte_order": "little",
+            "compensation": 0.5,
+        }
+        raw = struct.pack("<f", 1234.0)
+        registers = [int.from_bytes(raw[:2], "big"), int.from_bytes(raw[2:], "big")]
+        connected_adapter._client.read_holding_registers = AsyncMock(
+            return_value=MockModbusResponse(registers=registers)
+        )
+
+        assert await connected_adapter._read_channel(cfg) == pytest.approx(123.9)
+
+    async def test_core_precision_is_opt_in(self, connected_adapter):
+        cfg = {
+            "register": 100,
+            "func": 3,
+            "unit_id": 1,
+            "float": True,
+            "div": 0,
+            "mode": "C",
+            "word_order": "big",
+            "byte_order": "big",
+            "compensation": 0.125,
+        }
+        raw = struct.pack(">f", 197.123)
+        registers = [int.from_bytes(raw[:2], "big"), int.from_bytes(raw[2:], "big")]
+        connected_adapter._client.read_holding_registers = AsyncMock(
+            return_value=MockModbusResponse(registers=registers)
+        )
+
+        assert await connected_adapter._read_channel(cfg) == 197.2
+        cfg["preserve_precision"] = True
+        assert await connected_adapter._read_channel(cfg) == pytest.approx(197.248, abs=0.0001)
+
     async def test_bcd16_decode(self, connected_adapter):
         cfg = {"register": 100, "func": 3, "unit_id": 1,
                "float": False, "div": 0, "mode": "C", "signed": False,
@@ -427,6 +472,91 @@ class TestRead:
 
         with pytest.raises(IOError, match="MODBUS 오류"):
             await adapter.read()
+
+    async def test_extra_failure_keeps_core_reading(self):
+        regs = {
+            "BT": {"register": 10, "func": 3, "unit_id": 1},
+            "extra_0": {
+                "register": 11,
+                "func": 3,
+                "unit_id": 1,
+                "label": "Pressure",
+                "unit": "kPa",
+                "div": 2,
+            },
+            "extra_1": {
+                "register": 12,
+                "func": 3,
+                "unit_id": 1,
+                "label": "Pressure",
+                "unit": "Pa",
+            },
+        }
+        adapter = ModbusAdapter(modbus_registers=regs)
+        client = AsyncMock()
+        client.connected = True
+
+        async def read(register, **_):
+            if register == 12:
+                raise IOError("missing")
+            return MockModbusResponse(registers=[180 if register == 10 else 12345])
+
+        client.read_holding_registers = AsyncMock(side_effect=read)
+        adapter._client = client
+        adapter._read_retries = 0
+
+        result = await adapter.read()
+
+        assert result.bt == 180.0
+        assert result.extra_readings == [
+            {"id": "extra_0", "label": "Pressure", "unit": "kPa", "value": 123.45},
+            {"id": "extra_1", "label": "Pressure", "unit": "Pa", "value": None},
+        ]
+
+    async def test_extra_read_start_rotates_when_budget_expires(self, monkeypatch):
+        regs = {
+            "BT": {"register": 10, "func": 3, "unit_id": 1},
+            "extra_0": {"register": 11, "func": 3, "unit_id": 1},
+            "extra_1": {"register": 12, "func": 3, "unit_id": 1},
+        }
+        adapter = ModbusAdapter(modbus_registers=regs)
+        client = AsyncMock()
+        client.connected = True
+
+        async def read(register, **_):
+            if register == 11:
+                await asyncio.sleep(0.03)
+            return MockModbusResponse(registers=[register])
+
+        client.read_holding_registers = AsyncMock(side_effect=read)
+        adapter._client = client
+        adapter._read_retries = 0
+        monkeypatch.setattr(config, "READ_TIMEOUT", 0.02)
+
+        first = await adapter.read()
+        second = await adapter.read()
+
+        assert first.extra_readings[1]["value"] is None
+        assert second.extra_readings[1]["value"] == 12.0
+
+    def test_channel_count_is_bounded(self):
+        channels = {
+            f"extra_{index}": {"register": index, "func": 3, "unit_id": 1}
+            for index in range(129)
+        }
+        with pytest.raises(ValueError, match="at most 128"):
+            ModbusAdapter(modbus_registers=channels)
+
+    def test_null_core_placeholder_does_not_consume_channel_limit(self):
+        channels = {
+            "ET": None,
+            **{
+                f"extra_{index}": {"register": index, "func": 3, "unit_id": 1}
+                for index in range(128)
+            },
+        }
+
+        ModbusAdapter(modbus_registers=channels)
 
 
 # ---------------------------------------------------------------------------

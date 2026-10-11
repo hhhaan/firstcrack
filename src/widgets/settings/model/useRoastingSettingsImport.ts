@@ -22,7 +22,8 @@ import {
 } from './roastingImport';
 
 export function useRoastingSettingsImport() {
-    const [platformSupported] = useState(detectImportPlatform);
+    const [importPlatform] = useState(detectImportPlatform);
+    const platformSupported = importPlatform === 'supported';
     const [product, setProduct] = useState<ImportProduct>('Firescope');
     const [confirmedVersion, setConfirmedVersion] = useState<'4.2.0' | null>(null);
     const enabled = importQueryEnabled(platformSupported, product);
@@ -121,6 +122,7 @@ export function useRoastingSettingsImport() {
     };
 
     return {
+        importPlatform,
         platformSupported,
         product,
         confirmedVersion,

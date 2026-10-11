@@ -1,10 +1,10 @@
 import { feedbackValue } from '@shared/lib/feedback';
 import { logger } from '@shared/lib/logger';
-import type { TemperatureProcessing } from '@shared/types/sidecar';
+import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 import { BaseDirectory, remove, writeTextFile } from '@tauri-apps/plugin-fs';
 
 export const TSV_HEADER =
-    'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\n';
+    'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\textra_readings\n';
 
 const processingLine = (processing?: TemperatureProcessing): string =>
     processing ? `# processing\t${JSON.stringify(processing)}\n` : '';
@@ -169,10 +169,11 @@ export type RoastTsvPoint = {
     sensorTimestamp?: number | null;
     sensorClock?: string | null;
     processing?: TemperatureProcessing;
+    extraReadings?: ExtraSensorReading[];
 };
 
 export const formatRoastTsvRow = (p: RoastTsvPoint): string =>
-    `${p.time.toFixed(2)}\t${p.bt}\t${p.et ?? ''}\t${p.ror ?? ''}\t${feedbackValue(p.heater, 'heater', p.processing?.read_units) ?? ''}\t${feedbackValue(p.fan, 'fan', p.processing?.read_units) ?? ''}\t${feedbackValue(p.drum, 'drum', p.processing?.read_units) ?? ''}\t${p.heaterSet ?? ''}\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\n`;
+    `${p.time.toFixed(2)}\t${p.bt}\t${p.et ?? ''}\t${p.ror ?? ''}\t${feedbackValue(p.heater, 'heater', p.processing?.read_units) ?? ''}\t${feedbackValue(p.fan, 'fan', p.processing?.read_units) ?? ''}\t${feedbackValue(p.drum, 'drum', p.processing?.read_units) ?? ''}\t${p.heaterSet ?? ''}\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\t${p.extraReadings === undefined ? '' : JSON.stringify(p.extraReadings)}\n`;
 
 /** Drop clip: replace the roast file so post-Drop samples are not uploaded with A. */
 export const replaceSessionTsv = async (sessionId: string, rows: string): Promise<void> => {

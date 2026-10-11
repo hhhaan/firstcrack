@@ -130,6 +130,57 @@ describe('custom Modbus address round trip', () => {
 });
 
 describe('assembleConnectionParams write-map gate', () => {
+    it.each(['modbus', 's7'])('preserves %s calibration and extra channels through edits', (protocol) => {
+        const def = buildProtocolRoasterDef(protocol);
+        const bt =
+            protocol === 'modbus'
+                ? {
+                      register: 10,
+                      func: 3,
+                      unit_id: 1,
+                      float: true,
+                      div: 2,
+                      mode: 'C',
+                      compensation: 1.25,
+                      preserve_precision: true,
+                      word_order: 'little',
+                  }
+                : {
+                      role: 'BT',
+                      db: 4,
+                      offset: 10,
+                      area: 6,
+                      type: 1,
+                      div: 2,
+                      compensation: 1.25,
+                      preserve_precision: true,
+                  };
+        const extra =
+            protocol === 'modbus'
+                ? { register: 20, func: 4, unit_id: 2, float: true, label: 'Pressure target', unit: 'Pa' }
+                : { role: 'extra_2', db: 4, offset: 20, area: 6, type: 1, label: 'Pressure target', unit: 'Pa' };
+        const existing = {
+            host: '10.0.0.1',
+            mode: 'tcp',
+            port: protocol === 'modbus' ? 502 : 102,
+            rack: 0,
+            slot: 1,
+            ...(protocol === 'modbus'
+                ? { modbus_registers: { BT: bt, ET: null, extra_2: extra } }
+                : { channels: [bt, extra] }),
+        };
+        const params = { ...initRoasterFormParams(def, existing, { includeAddressMap: true }), host: '10.0.0.2' };
+        const result = assembleConnectionParams(def, params, true, false, existing);
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.typed.host).toBe('10.0.0.2');
+        expect(protocol === 'modbus' ? result.typed.modbus_registers : result.typed.channels).toEqual(
+            protocol === 'modbus' ? { BT: { ...bt, signed: false }, ET: null, extra_2: extra } : [bt, extra],
+        );
+        const deleted = assembleConnectionParams(def, { ...params, et_register: '', et_db: '' }, true, false, existing);
+        expect(deleted.ok).toBe(true);
+    });
+
     it('known machine never persists write_map (includeWriteMap === showWriteMap === false)', () => {
         const def = ROASTER_REGISTRY.giesen_standard;
         const flags = writeMapFormFlags({

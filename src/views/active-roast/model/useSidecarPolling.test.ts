@@ -233,6 +233,10 @@ it('enqueues the first sample with controls while TSV initialization is pending'
         bt_raw: 199.25,
         timestamp: 123.456789,
         sensor_clock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+        extra_readings: [
+            { id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: 187.5 },
+            { id: 'pressure', label: 'Pressure', unit: 'Pa', value: null },
+        ],
     });
 
     useRoastingStore.setState({
@@ -262,7 +266,16 @@ it('enqueues the first sample with controls while TSV initialization is pending'
         expect(mocks.enqueueTsvRow).toHaveBeenCalledOnce();
         const [sessionId, row] = mocks.enqueueTsvRow.mock.calls[0];
         expect(sessionId).toBe('issue-315');
-        expect(row).toMatch(/\t80\t40\t60\t75\t212\.5\t199\.25\t4\t123\.456789\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1\n$/);
+        expect(row).toContain('\t80\t40\t60\t75\t212.5\t199.25\t4\t123.456789\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1\t');
+        expect(row).toContain(
+            JSON.stringify([
+                { id: 'inlet-2', label: 'Inlet 2', unit: '°C', value: 187.5 },
+                { id: 'pressure', label: 'Pressure', unit: 'Pa', value: null },
+            ]),
+        );
+        expect(useRoastingStore.getState().livePoints[0]?.extraReadings).toEqual(
+            useRoastingStore.getState().liveData?.extra_readings,
+        );
     } finally {
         await act(async () => {
             finishInit();
@@ -608,7 +621,7 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
         ]);
         expect(mocks.enqueueTsvRow).toHaveBeenCalledWith(
             'bbp-433',
-            '0.00\t210.1\t210\t\t80\t40\t60\t\t\t\t\t\t\n',
+            '0.00\t210.1\t210\t\t80\t40\t60\t\t\t\t\t\t\t\n',
             undefined,
         );
         await act(async () => {

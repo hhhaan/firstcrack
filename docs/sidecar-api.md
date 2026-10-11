@@ -173,61 +173,7 @@ interface RoasterFormField {
 
 ## Endpoints
 
-### GET /imports/firescope
-
-macOS 사용자의 알려진 Firescope IndexedDB 경로를 자동 탐색하고, 앱이 종료된 경우에만 읽기 전용 복사본에서 로스팅 설정을 추출한다. request body와 파일 경로 인자는 없다. 기존 `X-Sidecar-Token` 인증을 사용하며 장비·Firescope 서버에 연결하지 않는다.
-
-```ts
-interface FirescopeSettingsSnapshot {
-    status: 'found' | 'not-found' | 'needs-app-closed' | 'unsupported' | 'unreadable';
-    reason?: string;
-    source: { product: 'Firescope'; version: string | null };
-    graphTemperatureUnit: string | null;
-    graph: Record<string, unknown> | null;
-    indicator: Record<string, unknown> | null;
-    global: Record<string, unknown> | null;
-    machines: { sequence: number; current: boolean; settings: Record<string, unknown> }[];
-}
-```
-
-상태는 HTTP 200으로 반환한다. 현재 설정과 파일에 남은 과거 머신을 구분하고 데모 머신은 제외한다. 과거 후보는 성공적으로 연결했던 머신 목록을 의미하지 않는다. 반환값은 연결·그래프 설정 허용 목록으로 제한하며 계정·인증·재고·프로파일은 포함하지 않는다. `graphTemperatureUnit`은 최신 머신의 표시 단위이며, global 단위와 다를 수 있다.
-
-CURRENT/MANIFEST, 활성 SST/WAL, CRC32C, Snappy, IndexedDB/V8 값을 검증한다. 앱 실행·파일 변경·잠금 획득 실패는 `needs-app-closed`, 미지원 포맷·외부 blob·미완료 Chromium 복구 작업은 `unsupported`로 거부하며 원본 DB를 복구하거나 수정하지 않는다. frontend `sidecar.getFirescopeSettings()`는 20초 timeout이며 자동 재시도하지 않는다.
-
-### GET /imports/artisan
-
-macOS의 Artisan native plist를 자동 탐색해 읽는다. body와 파일 경로 인자는 없으며 기존 `X-Sidecar-Token` 인증을 사용한다. Artisan이 실행 중이면 `needs-app-closed`를 반환한다. 원본 설정을 수정하거나 장비에 연결하지 않는다.
-
-```ts
-interface ArtisanSettingsSnapshot {
-  status: 'found' | 'not-found' | 'needs-app-closed' | 'unsupported' | 'unreadable';
-  reason?: string;
-  source: { product: 'Artisan'; version: string | null; sourceId: 'native' };
-  settings: Record<string, unknown> | null;
-}
-```
-
-상태는 HTTP 200으로 반환한다. Qt native 키는 명시적 허용 목록에 따라 `/` 구분 키로 변환한다. 계정·최근 파일·이벤트 명령·PID 설정은 포함하지 않는다. 파일 크기 제한과 심볼릭 링크·동시 수정 검사를 적용한다.
-
-프런트엔드는 일반 Modbus BT/ET와 명시적 그래프 단위·축·곡선 색상만 가져온다. native 파일은 기본값을 생략하므로 머신 설정은 검증된 `4.2.0` 버전만 지원하며, 버전이 없으면 사용자가 해당 버전으로 저장했음을 확인해야 한다. 다른 장치·보정·수식·추가 장치는 수동 설정으로 안내한다.
-
-### GET /imports/cropster
-
-macOS의 `Path.home()/CropsterRoastingIntelligence/default`에서 `machine.json`과 `preferences.json`을 읽는다. 사용자 지정 Java Preferences `dataDirectory`와 다른 instance 폴더는 아직 탐색하지 않는다. body·경로 인자 없이 기존 `X-Sidecar-Token` 인증을 사용하며 RI가 실행 중이면 `needs-app-closed`를 반환한다.
-
-```ts
-interface CropsterSettingsSnapshot {
-  status: 'found' | 'not-found' | 'needs-app-closed' | 'unsupported' | 'unreadable';
-  reason?: string;
-  source: { product: 'Cropster'; version: string | null; sourceId: 'default' };
-  machine: Record<string, unknown> | null;
-  preferences: Record<string, unknown> | null;
-}
-```
-
-상태는 HTTP 200으로 반환한다. 두 파일의 버전이 다르면 읽기를 거부한다. 각 파일의 허용 목록만 반환하며 계정·인증·캐시·전송 이력·명령·제어 상태는 제외한다. 파일별 크기 제한, 심볼릭 링크 및 동시 수정 검사를 적용하고 원본은 수정하지 않는다.
-
-프런트엔드는 각 파일의 writer version이 정확히 `5.13`인지 개별 확인한다. 일반 Modbus RTU/ASCII/TCP의 활성 BT/ET와 unsigned 16-bit 배율 `1/10/100`, 그래프 온도·시간·RoR 범위를 지원한다. 소스 파라미터는 숫자 문자열을 검증해 변환하며 주소를 그대로 사용한다. 필터·채널 보정, 지원하지 않는 장치·형식은 수동 설정으로 안내하고 자동 연결·쓰기 설정을 생성하지 않는다.
+로컬 로스팅 설정 가져오기는 Tauri IPC로 실행한다. Python HTTP 엔드포인트는 없다. 명령과 snapshot 계약은 [로컬 설정 가져오기](roasting-settings-import.md)를 참조한다.
 
 ### GET /roasters
 
@@ -783,9 +729,6 @@ const BASE = 'http://127.0.0.1:9999';
 | Function                              | Endpoint            |
 | ------------------------------------- | ------------------- |
 | `sidecar.getRoasters()`               | `GET /roasters`     |
-| `sidecar.getFirescopeSettings()`       | `GET /imports/firescope` |
-| `sidecar.getArtisanSettings()`       | `GET /imports/artisan` |
-| `sidecar.getCropsterSettings()`       | `GET /imports/cropster` |
 | `sidecar.getStatus()`                 | `GET /status`       |
 | `sidecar.connect(roasterKey, params)` | `POST /connect`     |
 | `sidecar.disconnect()`                | `POST /disconnect`  |
