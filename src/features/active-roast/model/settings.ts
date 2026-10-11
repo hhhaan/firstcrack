@@ -108,6 +108,8 @@ export type RoastSettings = {
     tempTicksC: number[];
     tempLabelEvery: number;
     timeTickIntervalSec: number;
+    /** Null keeps the default subdivisions of the major time ticks. */
+    timeMinorTickIntervalSec: number | null;
     /** Live chart time-axis floor, in minutes. The axis grows when the roast or profile is longer. */
     timeRangePresetMin: number;
     timeRangeCustom: boolean;
@@ -229,6 +231,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     tempTicksC: [],
     tempLabelEvery: 5,
     timeTickIntervalSec: 60,
+    timeMinorTickIntervalSec: null,
     timeRangePresetMin: TIME_RANGE_MIN_DEFAULT,
     timeRangeCustom: false,
     timeRangeMin: TIME_RANGE_MIN_DEFAULT,
@@ -375,6 +378,14 @@ export const normalizeRoastSettings = (
             merged.timeTickIntervalSec <= 3600
                 ? merged.timeTickIntervalSec
                 : (previous?.timeTickIntervalSec ?? DEFAULT_SETTINGS.timeTickIntervalSec),
+        timeMinorTickIntervalSec:
+            merged.timeMinorTickIntervalSec === null ||
+            (typeof merged.timeMinorTickIntervalSec === 'number' &&
+                Number.isInteger(merged.timeMinorTickIntervalSec) &&
+                merged.timeMinorTickIntervalSec >= 1 &&
+                merged.timeMinorTickIntervalSec <= 3600)
+                ? merged.timeMinorTickIntervalSec
+                : (previous?.timeMinorTickIntervalSec ?? DEFAULT_SETTINGS.timeMinorTickIntervalSec),
         timeRangePresetMin: pickPreset(
             merged.timeRangePresetMin,
             TIME_RANGE_PRESET_MIN,

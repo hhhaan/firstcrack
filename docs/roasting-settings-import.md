@@ -24,6 +24,8 @@ Firescope 가져오기는 읽기 설정만 허용한다. 원본의 쓰기 함수
 
 Modbus integer는 signed 16-bit, BCD는 한 레지스터, float32/float32-le는 각각 big/little word order와 big byte order로 읽는다. 모든 형식에 decimalPlace 배율을 적용한다. Firescope가 온도를 변환한 다음 보정하는 순서를 유지하며, 화씨 온도·보정은 FC의 섭씨 수집 기준으로 변환한다. 추가 센서는 `extra_<원본 순번>` 읽기 채널로 수집·표시하고 로스팅/BBP TSV와 기록 CSV에 보존한다. 기존 TSV도 읽을 수 있다. 재가져오기는 없는 채널만 추가하며 기존 편집값을 덮어쓰지 않는다. 원본 센서 순서가 바뀐 경우 기존 채널은 유지된다.
 
+Firescope 그래프 가져오기는 온도 범위·단위, 시간 범위·눈금 외에 시간·온도 보조 눈금, BT/ET RoR·화력·드럼·풍량·제어 그래프·기준 프로파일 표시와 제어 곡선 색상도 적용한다. 온도 숫자 눈금은 보조 눈금의 정수 배수여야 하며 시간 보조 눈금은 주 눈금을 균등 분할해야 한다. 맞지 않는 값은 기존 설정을 유지한다. FC에 대응되는 표시 설정이 없는 센서·이벤트 및 자동 축 연장 등은 미지원으로 남는다.
+
 검증: `cargo test --locked --lib`, `cargo clippy --locked --all-targets -- -D warnings`, `pnpm verify:all`, 세 가져오기 Playwright 시나리오. 2026-10-11 macOS에서 실제 Firescope·Artisan(`found`)과 Cropster(`not-found`)의 Rust 결과를 이관 전 Python과 대조해 snapshot 전체 일치 및 원본 9개 파일의 SHA-256 불변을 확인했다. Cropster `found` 결과는 fixture로 검증했다. CI는 Ubuntu 및 macOS arm64/x86_64·Windows에서 native 단위 테스트를 실행하도록 구성했다. 태그 전 전체 데스크톱 빌드·실행 검증은 별도로 수행한다.
 
 사이드카 바이너리가 없는 환경의 native 단위 테스트는 `TAURI_CONFIG='{"bundle":{"externalBin":[]}}'`를 지정한다. CI의 native 테스트에도 이 설정을 적용하고, PR에서는 기존 Rust 변경 경로 gate를 재사용한다. 앱 패키징은 원래 사이드카 번들 설정을 사용한다.

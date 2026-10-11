@@ -1216,13 +1216,19 @@ pub(super) fn extract(path: &Path) -> Result<Value> {
                 "xAxisStart",
                 "xAxisEnd",
                 "xAxisScaleUnit",
+                "xAxisSubScaleUnit",
                 "yAxisStart",
                 "yAxisEnd",
+                "yAxisScaleUnit",
+                "yAxisSubScaleUnit",
                 "btLineColor",
                 "etLineColor",
                 "rorLineColor",
                 "btRorLineColor",
                 "etRorLineColor",
+                "burnerLineColor",
+                "drumSpeedLineColor",
+                "airflowLineColor",
                 "btLineWidth",
                 "etLineWidth",
                 "rorLineWidth",
@@ -1239,6 +1245,11 @@ pub(super) fn extract(path: &Path) -> Result<Value> {
                 "etLineVisible",
                 "btRorLineVisible",
                 "etRorLineVisible",
+                "burnerVisible",
+                "drumSpeedVisible",
+                "airflowVisible",
+                "extraValueVisible",
+                "recordGraphVisible",
                 "indicatorRorUnit",
                 "checkDryingEndEvent",
                 "checkFirstCrackEvent",
@@ -1654,6 +1665,24 @@ mod tests {
             result["machines"][0]["settings"]["connection"]["modbus"][0]["address"],
             1000
         );
+    }
+
+    #[test]
+    fn display_settings_and_minor_ticks_are_retained_without_secrets() {
+        let graph = hex("ff0f6f220e78417869735363616c65556e69744978221178417869735375625363616c65556e6974491e220e79417869735363616c65556e69744964221179417869735375625363616c65556e69744914220d6275726e657256697369626c654622106472756d537065656456697369626c6554220e616972666c6f7756697369626c65462211657874726156616c756556697369626c655422127265636f7264477261706856697369626c6546220f6275726e65724c696e65436f6c6f7222072339373832633622126472756d53706565644c696e65436f6c6f722207236564613333352210616972666c6f774c696e65436f6c6f72220723366362663130220870617373776f7264220668696464656e7b0d");
+        let dir = snapshot(&[(graph_key(), Some(envelope(&graph)))]);
+        let result = extract(dir.path()).unwrap();
+        assert_eq!(
+            result["graph"],
+            json!({
+                "xAxisScaleUnit": 60, "xAxisSubScaleUnit": 15,
+                "yAxisScaleUnit": 50, "yAxisSubScaleUnit": 10,
+                "burnerVisible": false, "drumSpeedVisible": true, "airflowVisible": false,
+                "extraValueVisible": true, "recordGraphVisible": false,
+                "burnerLineColor": "#9782c6", "drumSpeedLineColor": "#eda335", "airflowLineColor": "#6cbf10"
+            })
+        );
+        assert!(!result.to_string().contains("hidden"));
     }
 
     #[test]

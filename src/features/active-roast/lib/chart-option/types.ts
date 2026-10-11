@@ -41,7 +41,7 @@ export interface ControlData {
 
 export interface ChartOptionParams {
     axisSettings?: Pick<RoastSettings, 'tempGridInterval' | 'tempLabelEvery' | 'timeTickIntervalSec'> &
-        Partial<Pick<RoastSettings, 'tempTicksC'>>;
+        Partial<Pick<RoastSettings, 'tempTicksC' | 'timeMinorTickIntervalSec'>>;
     /** Saved-record presentation: sparse grid, no instrument frame. */
     report?: boolean;
     xs: number[];

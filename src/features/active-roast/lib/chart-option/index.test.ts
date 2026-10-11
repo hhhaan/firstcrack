@@ -43,6 +43,44 @@ const baseParams = (): ChartOptionParams => ({
     colors: mockColors,
 });
 
+describe('imported chart ticks', () => {
+    it.each([false, true])('renders minor ticks on every time axis (controls: %s)', (controls) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            controlData: controls ? { xs: [], drumTemp: [], heatPower: [], fanSpeed: [] } : undefined,
+            axisSettings: {
+                timeTickIntervalSec: 60,
+                timeMinorTickIntervalSec: 15,
+                tempGridInterval: 10,
+                tempLabelEvery: 5,
+            },
+        });
+        const xAxes = option.xAxis as { interval: number; minorTick: { splitNumber: number } }[];
+        expect(xAxes).toHaveLength(controls ? 2 : 1);
+        for (const axis of xAxes) {
+            expect(axis.interval).toBe(60);
+            expect(axis.minorTick.splitNumber).toBe(4);
+        }
+        const yAxes = option.yAxis as { interval: number; axisLabel: { formatter: (value: number) => string } }[];
+        expect(yAxes[0].interval).toBe(10);
+        expect(yAxes[0].axisLabel.formatter(50)).toBe('50');
+        expect(yAxes[0].axisLabel.formatter(60)).toBe('');
+    });
+
+    it('keeps usable subdivisions when the major tick is later changed', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            axisSettings: {
+                timeTickIntervalSec: 30,
+                timeMinorTickIntervalSec: 20,
+                tempGridInterval: 10,
+                tempLabelEvery: 5,
+            },
+        });
+        expect(option.xAxis).toMatchObject([{ minorTick: { splitNumber: 2 } }]);
+    });
+});
+
 describe('buildRoastChartOption font scale', () => {
     it.each([1, 1.01, 1.13, 1.25, 1.5, 1.75, 1.99, 2])(
         'scales chart labels by %s without moving the axes',
