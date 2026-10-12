@@ -213,8 +213,9 @@ export const buildChartFrame = <TTurningPoint>(input: {
     onEventMarkerDelete: (logId: string) => void;
     onAddNote: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
     onAddEvent: (event: string, timeSec: number) => void;
+    reviewing?: boolean;
 }) => {
-    const canEdit = canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
+    const canEdit = Boolean(input.reviewing) || canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
     return {
         className: `bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
             input.isFullscreen ? FULLSCREEN_CHART_CLASS : WINDOWED_CHART_CLASS

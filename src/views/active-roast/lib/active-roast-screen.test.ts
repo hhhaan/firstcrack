@@ -65,6 +65,18 @@ describe('buildChartFrame', () => {
         expect(frame.bbpRange?.label).toBe('PREHEAT');
     });
 
+    it('keeps marker edits available on a saved-curve review', () => {
+        const frame = buildChartFrame({
+            ...chartInput,
+            charged: false,
+            roastEnded: true,
+            reviewing: true,
+        });
+        expect(frame.onEventMarkerEdit).toBe(chartInput.onEventMarkerEdit);
+        expect(frame.onAddNote).toBe(chartInput.onAddNote);
+        expect(frame.onEventMarkerDelete).toBe(chartInput.onEventMarkerDelete);
+    });
+
     it('hides roast markers and labels a recording wait as BBP', () => {
         const frame = buildChartFrame({
             ...chartInput,
