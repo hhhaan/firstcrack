@@ -30,6 +30,7 @@ export const resolveLiveChartView = (input: {
     roastTarget: TsvPoint[];
     bbpTarget: TsvPoint[];
     bbpTargetError: boolean;
+    showRoastPreview?: boolean;
 }): LiveChartView => {
     if (input.charged || !input.bbpActive) {
         return {
@@ -52,7 +53,15 @@ export const resolveLiveChartView = (input: {
 
     return {
         livePoints: livePointsFromBbp(windowed.map((p) => ({ ...p, t: p.t - measuredStart }))),
-        targetPoints,
+        targetPoints: input.showRoastPreview
+            ? [
+                  ...targetPoints,
+                  ...input.roastTarget.map((point) => ({
+                      ...point,
+                      t: point.t + Math.max(measuredEnd, savedExtent.span) + 0.01,
+                  })),
+              ]
+            : targetPoints,
         xMin: 0,
         xMaxFloor: BBP_MAX_SECONDS,
         bbpRange: measuredEnd > 0 ? { start: 0, end: measuredEnd } : undefined,

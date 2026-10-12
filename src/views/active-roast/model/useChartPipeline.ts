@@ -20,6 +20,7 @@ export interface UseChartPipelineParams {
     targetCurvePoints: TsvPoint[];
     xMin: number;
     xMaxFloor?: number;
+    autoExpandTimeAxis?: boolean;
     showRoR: boolean;
     showControlChart: boolean;
     unit: TemperatureUnit;
@@ -69,6 +70,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         targetCurvePoints,
         xMin,
         xMaxFloor = CHART_TOTAL_SECS,
+        autoExpandTimeAxis = true,
         showRoR,
         showControlChart,
         unit,
@@ -77,10 +79,10 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
     const { chartData, targetSeries } = useMemo(() => {
         const profileDuration = targetCurvePoints.length > 0 ? targetCurvePoints[targetCurvePoints.length - 1].t : 0;
         return {
-            chartData: buildLiveChartData(livePoints, xMin, profileDuration, xMaxFloor),
+            chartData: buildLiveChartData(livePoints, xMin, profileDuration, xMaxFloor, autoExpandTimeAxis),
             targetSeries: referenceCurveFromPoints(targetCurvePoints),
         };
-    }, [livePoints, targetCurvePoints, xMin, xMaxFloor]);
+    }, [livePoints, targetCurvePoints, xMin, xMaxFloor, autoExpandTimeAxis]);
 
     const maxTime = chartData.length > 0 ? chartData[chartData.length - 1].time : xMaxFloor;
     const minTime = xMin;
@@ -130,8 +132,15 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
     }, [visibleChartData, unit]);
 
     const visibleReference = useMemo(
-        () => toDisplayReferenceCurve(referenceCurveInRange(targetSeries, effectiveZoomRange), unit),
-        [targetSeries, effectiveZoomRange, unit],
+        () =>
+            toDisplayReferenceCurve(
+                referenceCurveInRange(
+                    targetSeries,
+                    effectiveZoomRange ?? (autoExpandTimeAxis ? null : { start: xMin, end: xMaxFloor }),
+                ),
+                unit,
+            ),
+        [targetSeries, effectiveZoomRange, unit, autoExpandTimeAxis, xMin, xMaxFloor],
     );
 
     const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed, visibleHeatSet, visibleReadUnits } =

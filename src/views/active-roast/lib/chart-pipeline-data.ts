@@ -29,10 +29,12 @@ export const buildLiveChartData = (
     xMin: number,
     profileDuration: number,
     xMaxFloor: number = CHART_TOTAL_SECS,
+    autoExpand = true,
 ): LiveChartRow[] => {
     const seen = new Set<number>();
     const deduped: LiveChartRow[] = [];
     for (const p of livePoints) {
+        if (!autoExpand && (p.time < xMin || p.time > xMaxFloor)) continue;
         const key = Math.round(p.time * 100);
         if (seen.has(key)) continue;
         seen.add(key);
@@ -53,7 +55,7 @@ export const buildLiveChartData = (
     }
 
     const liveMax = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : 0;
-    const chartTotalSecs = Math.max(xMaxFloor, profileDuration, liveMax);
+    const chartTotalSecs = autoExpand ? Math.max(xMaxFloor, profileDuration, liveMax) : xMaxFloor;
     const needsStart = deduped.length === 0 || deduped[0].time > xMin + 0.5;
     const needsEnd = deduped.length === 0 || deduped[deduped.length - 1].time < chartTotalSecs - 1;
     return [...(needsStart ? [emptyRow(xMin)] : []), ...deduped, ...(needsEnd ? [emptyRow(chartTotalSecs)] : [])];

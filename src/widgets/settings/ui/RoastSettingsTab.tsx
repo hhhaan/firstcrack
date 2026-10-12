@@ -643,6 +643,19 @@ export const RoastSettingsTab = () => {
                     />
                 </SettingsSection.Body>
             </SettingsSection>
+            <SettingsSection group="bbp">
+                <SettingsSection.Header title={tk('chartDisplay')} />
+                <SettingsSection.Body className="grid gap-3">
+                    {(['bbpShowRoastPreview', 'autoExpandTimeAxis', 'autoExpandTempAxis'] as const).map((key) => (
+                        <SettingsCheckRow
+                            key={key}
+                            checked={roastSettings[key]}
+                            label={tk(key)}
+                            onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
+                        />
+                    ))}
+                </SettingsSection.Body>
+            </SettingsSection>
 
             <SettingsSection group="automation">
                 <SettingsSection.Header title={tk('autoCharge')} description={tk('autoChargeDescription')} />

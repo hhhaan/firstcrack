@@ -7,6 +7,7 @@ import { useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
 import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
+import { setSidebarCollapsed, useSidebarPreferences } from '@shared/store/sidebar-preferences';
 import { Spinner } from '@shared/ui/Spinner';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +30,7 @@ import { Beans } from './views/bean/Beans';
 import { Cupping } from './views/cupping/Cupping';
 import { Dashboard } from './views/dashboard/Dashboard';
 import { History } from './views/history/History';
+import { CompletedRoastReview } from './views/history/ui/CompletedRoastReview';
 import { Login } from './views/login/Login';
 import { Machines } from './views/machines/Machines';
 import { Orders } from './views/orders/Orders';
@@ -120,17 +122,12 @@ export const App = () => {
         if (!bridge) return;
         bridge.remountRoast = () => setRoastMount((n) => n + 1);
     }, []);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const { collapsed: sidebarCollapsed } = useSidebarPreferences();
     const [settingsTab, setSettingsTab] = useState<SettingsTabId>('general');
     const [settingsRoastGroup, setSettingsRoastGroup] = useState<RoastSettingsGroup | null>(null);
     const settingsReturnView = useRef<View>('dashboard');
     const startBatch = useRoastingStore((s) => s.startBatch);
     const completeBatch = useRoastingStore((s) => s.completeBatch);
-
-    // Active roast: collapse nav for chart real estate (also if user left it open elsewhere)
-    useEffect(() => {
-        if (view === 'roast') setSidebarCollapsed(true);
-    }, [view]);
 
     const openSettings = (tab: SettingsTabId = 'general', roastGroup: RoastSettingsGroup | null = null) => {
         if (view !== 'settings') settingsReturnView.current = view;
@@ -332,6 +329,9 @@ export const App = () => {
                                     isActive={view === 'roast'}
                                     onOpenRoastSettings={() => openSettings('roast')}
                                     onPlanBatchComplete={handlePlanBatchComplete}
+                                    renderCompletedReview={(id, onBack) => (
+                                        <CompletedRoastReview key={id} sessionId={id} onBack={onBack} />
+                                    )}
                                 />
                             </ViewErrorBoundary>
                         </div>

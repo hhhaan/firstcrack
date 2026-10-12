@@ -21,10 +21,16 @@ const detailTitleCls = 'm-0 text-[11px] font-medium tracking-[0.3px] text-muted'
 type HistorySessionDetailProps = {
     session: RoastSessionWithRelations;
     onBack: () => void;
+    backLabel?: string;
     onSaveAsProfile: (id: string) => void;
 };
 
-export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: HistorySessionDetailProps): ReactNode => {
+export const HistorySessionDetail = ({
+    session,
+    onBack,
+    onSaveAsProfile,
+    backLabel,
+}: HistorySessionDetailProps): ReactNode => {
     const { t } = useTranslation();
     const [exportContainer, setExportContainer] = useState<HTMLDivElement | null>(null);
     const { temperatureUnit } = useRoastSettings();
@@ -45,7 +51,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                 className="mb-3 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-[12px] text-muted transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--color-primary)"
             >
                 <ChevronLeft size={14} strokeWidth={2} />
-                {t('history.title')}
+                {backLabel ?? t('history.title')}
             </button>
             <header className="mb-4 flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
                 <div className="min-w-0 flex-1">

@@ -117,6 +117,9 @@ export type RoastSettings = {
     timeRangePresetMin: number;
     timeRangeCustom: boolean;
     timeRangeMin: number;
+    autoExpandTimeAxis: boolean;
+    autoExpandTempAxis: boolean;
+    bbpShowRoastPreview: boolean;
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;
@@ -239,6 +242,9 @@ const DEFAULT_SETTINGS: RoastSettings = {
     timeRangePresetMin: TIME_RANGE_MIN_DEFAULT,
     timeRangeCustom: false,
     timeRangeMin: TIME_RANGE_MIN_DEFAULT,
+    autoExpandTimeAxis: true,
+    autoExpandTempAxis: true,
+    bbpShowRoastPreview: true,
     rorYMin: -5,
     rorYMax: 20,
     yellowTempC: 150,
@@ -429,6 +435,9 @@ export const normalizeRoastSettings = (
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,
+        autoExpandTimeAxis: asBool(merged.autoExpandTimeAxis, DEFAULT_SETTINGS.autoExpandTimeAxis),
+        autoExpandTempAxis: asBool(merged.autoExpandTempAxis, DEFAULT_SETTINGS.autoExpandTempAxis),
+        bbpShowRoastPreview: asBool(merged.bbpShowRoastPreview, DEFAULT_SETTINGS.bbpShowRoastPreview),
         yellowTempC,
         autoChargeEnabled: asBool(merged.autoChargeEnabled, DEFAULT_SETTINGS.autoChargeEnabled),
         autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',

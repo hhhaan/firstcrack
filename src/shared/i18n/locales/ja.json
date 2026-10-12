@@ -125,7 +125,16 @@
             "pricing": "マージン計算",
             "cupping": "カッピング",
             "orders": "注文"
-        }
+        },
+        "groups": {
+            "roasting": "焙煎",
+            "business": "運営"
+        },
+        "customize": "サイドバー設定",
+        "fontSize": "文字サイズ",
+        "moveUp": "{{name}}を上に移動",
+        "moveDown": "{{name}}を下に移動",
+        "reset": "サイドバーをリセット"
     },
     "settings": {
         "firescope": {
@@ -528,7 +537,11 @@
                     "solid": "実線",
                     "dashed": "破線",
                     "dotted": "点線"
-                }
+                },
+                "chartDisplay": "チャート表示",
+                "bbpShowRoastPreview": "BBPの後に基準焙煎曲線を表示",
+                "autoExpandTimeAxis": "時間軸を自動拡張",
+                "autoExpandTempAxis": "温度軸を自動拡張"
             },
             "account": {
                 "label": "プロフィール",
@@ -1172,6 +1185,11 @@
                 "collapsedWaiting": "Replay 実測 TP 待ち",
                 "collapsedFallback": "Replay TP フォールバック — 実測の上昇ではない"
             }
+        },
+        "review": {
+            "title": "完了した焙煎を確認",
+            "return": "待機画面に戻る",
+            "failed": "保存した焙煎を読み込めませんでした。"
         }
     },
     "schedule": {

@@ -19,6 +19,7 @@ import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { useAuthStore } from '@shared/store/auth';
 import { formatShortcut, useShortcutKeys } from '@shared/store/keyboard-shortcuts';
+import { SIDEBAR_GROUPS, useSidebarPreferences } from '@shared/store/sidebar-preferences';
 import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
@@ -27,6 +28,7 @@ import { Check, Lock, Settings } from 'lucide-react';
 import { type ComponentType, type CSSProperties, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
+import { SidebarPreferences } from './SidebarPreferences';
 
 interface SidebarProps {
     activeView: View;
@@ -64,6 +66,7 @@ export const Sidebar = ({
     onOpenSettings,
 }: SidebarProps) => {
     const { t } = useTranslation();
+    const preferences = useSidebarPreferences();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
     const [wsOpen, setWsOpen] = useState(false);
     const settingsKeys = useShortcutKeys('openSettings');
@@ -248,68 +251,82 @@ export const Sidebar = ({
 
             {/* Nav */}
             <nav className={cn('flex-1 overflow-y-auto py-1', rail ? 'px-3' : edgePad)}>
-                <div className="mb-1">
-                    <div
-                        className={cn(
-                            'font-medium text-muted transition-all duration-220 overflow-hidden whitespace-nowrap',
-                            collapsed ? 'opacity-0 h-0 p-0' : 'opacity-100 mb-1.5 px-2.5 text-xs',
-                        )}
-                    >
-                        {t('sidebar.workspace')}
-                    </div>
-                    {navItems.map(({ id, labelKey, icon: Icon }) => {
-                        const isActive = activeView === id;
-                        const label = t(labelKey);
-                        const showBadge = id === 'beans' && alertCount > 0;
-                        const locked = (id === 'cupping' && !canCupping) || (id === 'orders' && !canOrders);
-                        return (
-                            <button
-                                type="button"
-                                key={id}
-                                data-testid={navTestId(id)}
-                                onClick={() => onNavigate(id)}
-                                aria-label={label}
-                                title={collapsed ? label : undefined}
-                                className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-primary/5 h-9 overflow-hidden"
-                            >
-                                <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
-                                    <Icon size={16} className={isActive ? 'text-primary' : 'text-muted'} />
-                                    {showBadge && collapsed && (
-                                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
-                                    )}
-                                    {locked && collapsed && (
-                                        <span className="absolute bottom-1 right-1 text-muted">
-                                            <Lock size={10} />
-                                        </span>
-                                    )}
-                                </div>
-                                <div
-                                    className={cn(
-                                        'flex items-center gap-2 transition-all duration-220 overflow-hidden whitespace-nowrap',
-                                        collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
-                                    )}
-                                >
-                                    <span
-                                        className={cn(
-                                            'text-[13px]',
-                                            isActive ? 'font-medium text-primary' : 'font-normal text-secondary',
-                                        )}
+                {SIDEBAR_GROUPS.map((group) => (
+                    <div key={group.label} className="mb-5">
+                        <div
+                            className={cn(
+                                'font-medium text-muted transition-all duration-220 overflow-hidden whitespace-nowrap',
+                                collapsed ? 'opacity-0 h-0 p-0' : 'opacity-100 mb-1.5 px-2.5 text-xs',
+                            )}
+                        >
+                            {t(group.label)}
+                        </div>
+                        {preferences.order
+                            .filter((id) => group.ids.includes(id))
+                            .map((id) => {
+                                const item = navItems.find((entry) => entry.id === id);
+                                if (!item) return null;
+                                const { labelKey, icon: Icon } = item;
+                                const isActive = activeView === id;
+                                const label = t(labelKey);
+                                const showBadge = id === 'beans' && alertCount > 0;
+                                const locked = (id === 'cupping' && !canCupping) || (id === 'orders' && !canOrders);
+                                return (
+                                    <button
+                                        type="button"
+                                        key={id}
+                                        data-testid={navTestId(id)}
+                                        onClick={() => onNavigate(id)}
+                                        aria-label={label}
+                                        title={collapsed ? label : undefined}
+                                        className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-primary/5 h-9 overflow-hidden"
                                     >
-                                        {label}
-                                    </span>
-                                    {locked && !collapsed && (
-                                        <Lock size={12} className="shrink-0 text-muted" aria-hidden />
-                                    )}
-                                    {showBadge && !collapsed && (
-                                        <Badge size="sm" tone="amber" className="font-semibold">
-                                            {alertCount}
-                                        </Badge>
-                                    )}
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
+                                        <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
+                                            <Icon size={16} className={isActive ? 'text-primary' : 'text-muted'} />
+                                            {showBadge && collapsed && (
+                                                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
+                                            )}
+                                            {locked && collapsed && (
+                                                <span className="absolute bottom-1 right-1 text-muted">
+                                                    <Lock size={10} />
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div
+                                            className={cn(
+                                                'flex items-center gap-2 transition-all duration-220 overflow-hidden whitespace-nowrap',
+                                                collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
+                                            )}
+                                        >
+                                            <span
+                                                className={cn(
+                                                    preferences.fontSize === 17
+                                                        ? 'text-[17px]'
+                                                        : preferences.fontSize === 15
+                                                          ? 'text-[15px]'
+                                                          : 'text-[13px]',
+                                                    isActive
+                                                        ? 'font-medium text-primary'
+                                                        : 'font-normal text-secondary',
+                                                )}
+                                            >
+                                                {label}
+                                            </span>
+                                            {locked && !collapsed && (
+                                                <Lock size={12} className="shrink-0 text-muted" aria-hidden />
+                                            )}
+                                            {showBadge && !collapsed && (
+                                                <Badge size="sm" tone="amber" className="font-semibold">
+                                                    {alertCount}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                    </div>
+                ))}
+                <SidebarPreferences collapsed={collapsed} />
             </nav>
 
             {/* Footer */}

@@ -85,6 +85,7 @@ export interface BatchState {
     activeSelection: RoastSelection | null;
     completed: CompletedRoast | null;
     lastAdhocSave: LastAdhocSave | null;
+    reviewSessionId: string | null;
 }
 export const emptySelection: RoastSelection = {
     beanId: null,
@@ -103,6 +104,7 @@ export const initialBatchState = {
     activeSelection: null as RoastSelection | null,
     completed: null as CompletedRoast | null,
     lastAdhocSave: null as LastAdhocSave | null,
+    reviewSessionId: null as string | null,
 };
 export const selectRoastSelection = (state: BatchState): RoastSelection => state.activeSelection ?? state.prepared;
 export const selectDropCancelable = (state: BatchState): boolean => {
@@ -156,6 +158,7 @@ export const createBatchActions = (
         if (get().prepared.workspaceOwnerId === workspaceOwnerId) return;
         const previous = get().prepared;
         set({
+            reviewSessionId: null,
             prepared: {
                 ...(previous.workspaceOwnerId === null ? previous : initialBatchState.prepared),
                 workspaceOwnerId,
@@ -219,6 +222,7 @@ export const createBatchActions = (
         const sessionId = crypto.randomUUID();
         set({
             phase: 'roasting',
+            reviewSessionId: null,
             sessionId,
             sessionOwnerId: ownerId || null,
             roastStartMs: origin,
@@ -382,9 +386,14 @@ export const createBatchActions = (
         const completed = get().completed;
         if (!completed || completed.snapshot.sessionId !== sessionId || completed.snapshot.sessionOwnerId !== ownerId)
             return false;
-        if (!completed.submitted) set({ completed: { ...completed, summary: null, restore: null, submitted: true } });
+        if (!completed.submitted)
+            set({
+                completed: { ...completed, summary: null, restore: null, submitted: true },
+                reviewSessionId: isChargedPhase(get().phase) ? null : sessionId,
+            });
         return true;
     },
+    dismissCompletedReview: () => set({ reviewSessionId: null }),
     discardSummary: (ownerId: string | null, sessionId: string | null) => {
         const completed = get().completed;
         if (!completed || completed.snapshot.sessionId !== sessionId || completed.snapshot.sessionOwnerId !== ownerId)

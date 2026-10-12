@@ -76,3 +76,14 @@ describe('buildLiveChartData', () => {
         expect(rows[rows.length - 1].time).toBe(900);
     });
 });
+
+it('fixed axes clip presentation without truncating collected data', () => {
+    const points = [pt(0), pt(600), pt(1100)];
+    const before = structuredClone(points);
+    const rows = buildLiveChartData(points, 0, 1500, 900, false);
+    expect(rows[rows.length - 1]?.time).toBe(900);
+    expect(rows.some((row) => row.time === 1100)).toBe(false);
+    expect(points).toEqual(before);
+    const expanded = buildLiveChartData(points, 0, 1500, 900, true);
+    expect(expanded[expanded.length - 1]?.time).toBe(1500);
+});

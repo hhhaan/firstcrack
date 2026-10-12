@@ -125,7 +125,16 @@
             "pricing": "Margin Calculator",
             "cupping": "Cupping",
             "orders": "Orders"
-        }
+        },
+        "groups": {
+            "roasting": "Roasting",
+            "business": "Business"
+        },
+        "customize": "Customize sidebar",
+        "fontSize": "Text size",
+        "moveUp": "Move {{name}} up",
+        "moveDown": "Move {{name}} down",
+        "reset": "Reset sidebar"
     },
     "settings": {
         "firescope": {
@@ -528,7 +537,11 @@
                     "solid": "Solid",
                     "dashed": "Dashed",
                     "dotted": "Dotted"
-                }
+                },
+                "chartDisplay": "Chart display",
+                "bbpShowRoastPreview": "Show roast reference after BBP",
+                "autoExpandTimeAxis": "Automatically extend time axis",
+                "autoExpandTempAxis": "Automatically extend temperature axis"
             },
             "account": {
                 "label": "Profile",
@@ -1172,6 +1185,11 @@
                 "collapsedWaiting": "Replay waiting for a real turning point",
                 "collapsedFallback": "Replay TP fallback — not a detected rise"
             }
+        },
+        "review": {
+            "title": "Review completed roast",
+            "return": "Return to charge wait",
+            "failed": "Could not load the saved roast."
         }
     },
     "schedule": {

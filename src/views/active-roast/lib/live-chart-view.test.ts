@@ -124,3 +124,22 @@ describe('resolveLiveChartView', () => {
         expect(view.xMaxFloor).toBe(900);
     });
 });
+
+it('BBP preview is optional and never modifies the recorded reference timeline', () => {
+    const input = {
+        ...base,
+        bbpActive: true,
+        charged: false,
+        bbpPoints: [bbpPt(0), bbpPt(60)],
+        bbpTarget: [roastPt(0), roastPt(120)],
+    };
+    const original = structuredClone(input);
+    const bbpOnly = resolveLiveChartView({ ...input, showRoastPreview: false });
+    const preview = resolveLiveChartView({ ...input, showRoastPreview: true });
+    expect(bbpOnly.targetPoints.map((p) => p.t)).toEqual([0, 120]);
+    expect(preview.targetPoints).toHaveLength(input.bbpTarget.length + input.roastTarget.length);
+    expect(preview.targetPoints[input.bbpTarget.length].t).toBeCloseTo(120.01);
+    expect(preview.bbpRange).toEqual(bbpOnly.bbpRange);
+    expect(preview.livePoints).toEqual(bbpOnly.livePoints);
+    expect(input).toEqual(original);
+});

@@ -37,6 +37,7 @@ export type BeanStockEvent = {
 };
 
 export type RoastSession = {
+    bean_label?: string | null;
     id: string;
     user_id: string;
     weight_grams: number;

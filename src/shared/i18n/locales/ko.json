@@ -125,7 +125,16 @@
             "schedule": "로스팅 일정",
             "cupping": "커핑",
             "orders": "주문"
-        }
+        },
+        "groups": {
+            "roasting": "로스팅",
+            "business": "운영"
+        },
+        "customize": "사이드바 설정",
+        "fontSize": "글자 크기",
+        "moveUp": "{{name}} 위로 이동",
+        "moveDown": "{{name}} 아래로 이동",
+        "reset": "사이드바 초기화"
     },
     "settings": {
         "firescope": {
@@ -528,7 +537,11 @@
                     "solid": "실선",
                     "dashed": "파선",
                     "dotted": "점선"
-                }
+                },
+                "chartDisplay": "차트 표시",
+                "bbpShowRoastPreview": "BBP 뒤에 로스팅 기준 곡선 표시",
+                "autoExpandTimeAxis": "시간 축 자동 확장",
+                "autoExpandTempAxis": "온도 축 자동 확장"
             },
             "account": {
                 "label": "프로필",
@@ -1518,6 +1531,11 @@
                 "collapsedWaiting": "Replay 실제 TP 대기",
                 "collapsedFallback": "Replay TP 폴백 — 실제 상승 아님"
             }
+        },
+        "review": {
+            "title": "완료한 로스팅 검토",
+            "return": "대기 화면으로 돌아가기",
+            "failed": "저장한 로스팅을 불러오지 못했습니다."
         }
     },
     "profiles": {

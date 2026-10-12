@@ -274,6 +274,7 @@ export async function installMockSupabase(page: Page, db: MockDb) {
             if (method === 'GET') {
                 const userId = params['user_id']?.replace('eq.', '') ?? E2E_USER.id;
                 let rows = db.sessions.filter((s) => s.user_id === userId);
+                if (params.id?.startsWith('eq.')) rows = rows.filter((session) => session.id === params.id.slice(3));
                 if (params['status']?.startsWith('eq.')) {
                     rows = rows.filter((s) => s.status === params['status']!.slice(3));
                 }
@@ -295,7 +296,23 @@ export async function installMockSupabase(page: Page, db: MockDb) {
                 ) {
                     // still return body for simplicity
                 }
-                return json(route, rows);
+                const joined = rows.map((session) => ({
+                    ...session,
+                    beans: session.beans ?? db.beans.find((bean) => bean.id === session.bean_id) ?? null,
+                }));
+                return json(
+                    route,
+                    route.request().headers().accept?.includes('application/vnd.pgrst.object+json')
+                        ? (joined[0] ?? null)
+                        : joined,
+                );
+            }
+            if (method === 'PATCH') {
+                const id = params.id?.replace('eq.', '');
+                const session = db.sessions.find((row) => row.id === id);
+                if (!session) return json(route, { message: 'record_not_found' }, 404);
+                if (body && typeof body === 'object') Object.assign(session, body);
+                return json(route, session);
             }
             if (method === 'POST') {
                 // rare direct insert

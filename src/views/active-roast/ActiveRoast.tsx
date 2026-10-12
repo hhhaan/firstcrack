@@ -77,6 +77,7 @@ import {
     replayPointsForProfile,
     showPendingSummary,
 } from './lib/active-roast-screen';
+import { resolveTemperatureBand } from './lib/axis-display';
 import {
     chartOnlyPreheatDecision,
     noteChartOnlyPreheatMount,
@@ -112,13 +113,20 @@ interface ActiveRoastProps {
     isActive: boolean;
     onOpenRoastSettings?: () => void;
     onPlanBatchComplete?: () => void;
+    renderCompletedReview?: (id: string, onBack: () => void) => React.ReactNode;
 }
 
 /** Chart-only preheat older than this module evaluation is not a saved Charge wait. */
 const chartOnlyPreheatBootMs = Date.now();
 
-export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
+export const ActiveRoast = ({
+    isActive,
+    onOpenRoastSettings,
+    onPlanBatchComplete,
+    renderCompletedReview,
+}: ActiveRoastProps) => {
     const { t } = useTranslation();
+    const reviewSessionId = useRoastingStore((state) => state.reviewSessionId);
     const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
@@ -342,11 +350,22 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 roastTarget: targetCurvePoints,
                 bbpTarget: bbpTarget.data ?? [],
                 bbpTargetError: bbpTarget.isError,
+                showRoastPreview: roastSettings.bbpShowRoastPreview,
             }),
-        [bbpActive, bbpEnabled, bbpPoints, bbpTarget.data, bbpTarget.isError, charged, livePoints, targetCurvePoints],
+        [
+            bbpActive,
+            bbpEnabled,
+            bbpPoints,
+            bbpTarget.data,
+            bbpTarget.isError,
+            charged,
+            livePoints,
+            targetCurvePoints,
+            roastSettings.bbpShowRoastPreview,
+        ],
     );
     const bbpNowSec = latestSampleTime(bbpPoints);
-    const { tempMinC: bbpTempMinC, tempMaxC: bbpTempMaxC } = chargeWaitTempBand({
+    const chargeWaitBand = chargeWaitTempBand({
         waiting: waitingForCharge,
         bbpActive,
         bbpPoints,
@@ -356,12 +375,20 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         tempMaxC: roastSettings.tempMaxC,
     });
 
+    const { tempMinC: bbpTempMinC, tempMaxC: bbpTempMaxC } = resolveTemperatureBand({
+        points: chartView.livePoints,
+        reference: chartView.targetPoints,
+        autoExpand: roastSettings.autoExpandTempAxis,
+        configured: { tempMinC: roastSettings.tempMinC, tempMaxC: roastSettings.tempMaxC },
+        waitingBand: waitingForCharge ? chargeWaitBand : null,
+    });
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
     const chart = useChartPipeline({
         livePoints: chartView.livePoints,
         targetCurvePoints: chartView.targetPoints,
         xMin: chartView.xMin,
         xMaxFloor: chartView.xMaxFloor ?? chartSpanSec(roastSettings),
+        autoExpandTimeAxis: roastSettings.autoExpandTimeAxis,
         showRoR: roastSettings.showRoRChart,
         showControlChart: roastSettings.showControlChart,
         unit,
@@ -1078,6 +1105,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onAddEvent: handleChartEvent,
     });
 
+    // Review only changes the visible surface; BBP collection and machine controls keep their lifecycle.
+    if (reviewSessionId && !charged && renderCompletedReview) {
+        return (
+            <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+                {renderCompletedReview(reviewSessionId, () => {
+                    useRoastingStore.getState().dismissCompletedReview();
+                })}
+            </div>
+        );
+    }
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
         <div className="px-[32px] py-[24px] flex flex-col gap-4 h-full min-h-0 overflow-hidden">

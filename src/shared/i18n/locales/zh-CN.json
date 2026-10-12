@@ -125,7 +125,16 @@
             "pricing": "利润计算器",
             "cupping": "杯测",
             "orders": "订单"
-        }
+        },
+        "groups": {
+            "roasting": "烘焙",
+            "business": "运营"
+        },
+        "customize": "侧边栏设置",
+        "fontSize": "字体大小",
+        "moveUp": "上移{{name}}",
+        "moveDown": "下移{{name}}",
+        "reset": "重置侧边栏"
     },
     "settings": {
         "firescope": {
@@ -528,7 +537,11 @@
                     "solid": "实线",
                     "dashed": "虚线",
                     "dotted": "点线"
-                }
+                },
+                "chartDisplay": "图表显示",
+                "bbpShowRoastPreview": "在BBP后显示参考烘焙曲线",
+                "autoExpandTimeAxis": "自动扩展时间轴",
+                "autoExpandTempAxis": "自动扩展温度轴"
             },
             "account": {
                 "label": "个人资料",
@@ -1172,6 +1185,11 @@
                 "collapsedWaiting": "Replay 等待实际转折点",
                 "collapsedFallback": "Replay TP 回退 — 不是实测上升"
             }
+        },
+        "review": {
+            "title": "查看已完成的烘焙",
+            "return": "返回投豆等待界面",
+            "failed": "无法加载已保存的烘焙。"
         }
     },
     "schedule": {
