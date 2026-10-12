@@ -517,7 +517,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         if (applyDrop()) openDischargeRef.current();
     }, [applyDrop]);
 
-    const readyLock = useLeadingLock(3000);
     const chargeLock = useLeadingLock(3000);
     const markCharge = useCallback(() => {
         chargeLock.run(() => {
@@ -526,10 +525,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             });
         });
     }, [chargeLock.run, lifecycle.handleManualCharge]);
-    const guardedEnterStandby = useCallback(() => {
-        readyLock.run(() => lifecycle.handleEnterStandby());
-    }, [lifecycle.handleEnterStandby, readyLock.run]);
-    // Returning from the saved curve swaps this slot to Charge. The same lock stops the rest of the mash from charging.
+    // This slot is return, then Charge. One lock covers the mash across that swap.
     const dismissReview = useCallback(() => {
         chargeLock.run(() => useRoastingStore.getState().dismissCompletedReview());
     }, [chargeLock.run]);
@@ -781,7 +777,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         awaitingNextCharge,
         onToggleFullscreen: toggleFullscreen,
         onExitFullscreen: exitFullscreen,
-        onEnterStandby: guardedEnterStandby,
+        onEnterStandby: lifecycle.handleEnterStandby,
         onManualCharge: markCharge,
         onMarkEvent: markEvent,
         onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
@@ -1341,9 +1337,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                   }
                                 : undefined
                         }
-                        onEnterStandby={guardedEnterStandby}
+                        onEnterStandby={lifecycle.handleEnterStandby}
                         onManualCharge={markCharge}
-                        readyLocked={readyLock.locked}
                         chargeLocked={chargeLock.locked}
                         reviewing={reviewing}
                         onDismissReview={dismissReview}

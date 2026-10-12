@@ -60,8 +60,7 @@ interface RoastSidePanelProps {
     logEditOptions?: RoastLogEditOptions;
     onEnterStandby: () => void;
     onManualCharge: () => void;
-    /** Charge and Roast Ready ignore repeats for a few seconds. */
-    readyLocked?: boolean;
+    /** The shared return/charge slot ignores repeats for a few seconds. */
     chargeLocked?: boolean;
     /** Saved curve is on screen. The charge slot returns to the wait chart instead of charging. */
     reviewing?: boolean;
@@ -108,7 +107,6 @@ export const RoastSidePanel = ({
     logEditOptions,
     onEnterStandby,
     onManualCharge,
-    readyLocked = false,
     chargeLocked = false,
     reviewing = false,
     onDismissReview,
@@ -305,10 +303,7 @@ export const RoastSidePanel = ({
                         <button
                             data-testid="roast-ready"
                             onClick={onEnterStandby}
-                            disabled={readyLocked}
-                            className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
-                                readyLocked ? 'cursor-default opacity-60' : 'cursor-pointer'
-                            }`}
+                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
                             style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
                             type="button"
                         >
@@ -321,7 +316,10 @@ export const RoastSidePanel = ({
                             <button
                                 data-testid="return-to-charge-wait"
                                 onClick={onDismissReview}
-                                className="flex items-center justify-center gap-1 rounded-md border border-border bg-main-bg px-2 py-2 text-xs font-semibold text-primary cursor-pointer"
+                                disabled={chargeLocked}
+                                className={`flex items-center justify-center gap-1 rounded-md border border-border bg-main-bg px-2 py-2 text-xs font-semibold text-primary ${
+                                    chargeLocked ? 'cursor-default opacity-60' : 'cursor-pointer'
+                                }`}
                                 type="button"
                             >
                                 {t('activeRoast.review.return')}
