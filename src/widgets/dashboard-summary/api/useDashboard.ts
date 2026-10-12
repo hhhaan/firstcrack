@@ -6,6 +6,7 @@ import { roastSessionApi } from '@entities/roast';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { dashboardKeys } from '@shared/lib/query-keys';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
+import { formatDateLocal } from '@shared/lib/rrule';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
@@ -85,7 +86,7 @@ const isUpcomingBatch = (batch: PlanBatchWithProgress, today: string): boolean =
 
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = formatDateLocal(now);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
