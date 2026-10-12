@@ -28,22 +28,20 @@ export const HistoryReferencePicker = ({
     const sessions = data?.pages.flatMap((page) => page.data) ?? [];
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const loadMoreRef = useRef({ hasNextPage: false, isFetchingNextPage: false, fetchNextPage });
-    loadMoreRef.current = { hasNextPage: Boolean(hasNextPage), isFetchingNextPage, fetchNextPage };
     const observerRef = useRef<IntersectionObserver | null>(null);
-    const sentinelRef = useCallback((node: HTMLDivElement | null) => {
-        observerRef.current?.disconnect();
-        observerRef.current = null;
-        if (!node) return;
-        const observer = new IntersectionObserver((entries) => {
-            const load = loadMoreRef.current;
-            if (entries.some((entry) => entry.isIntersecting) && load.hasNextPage && !load.isFetchingNextPage) {
-                void load.fetchNextPage();
-            }
-        });
-        observer.observe(node);
-        observerRef.current = observer;
-    }, []);
+    const sentinelRef = useCallback(
+        (node: HTMLDivElement | null) => {
+            observerRef.current?.disconnect();
+            observerRef.current = null;
+            if (!node || !hasNextPage || isFetchingNextPage) return;
+            const observer = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) void fetchNextPage();
+            });
+            observer.observe(node);
+            observerRef.current = observer;
+        },
+        [fetchNextPage, hasNextPage, isFetchingNextPage],
+    );
     const selected = sessions.find((session) => session.id === selectedId && session.user_id === ownerId);
     const curve = useRoastProfileCurve(selected?.tsv_path);
     const rows = sessions.filter((session) => title(session).toLowerCase().includes(search.trim().toLowerCase()));
