@@ -8,6 +8,8 @@ import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { getDateFnsLocale } from '@shared/i18n';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { useFormEscape } from '@shared/lib/useFormEscape';
+import { useAuthStore } from '@shared/store/auth';
+import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -52,6 +54,9 @@ export const AddBatchModal = ({
     onSaved,
 }: AddBatchModalProps) => {
     const { workspaceOwnerId: userId } = useActiveWorkspace();
+    const authUserId = useAuthStore((state) => state.user?.id ?? '');
+    const { hidden: hiddenBeans } = useCatalogVisibility(authUserId, userId, 'beans');
+    const { hidden: hiddenProfiles } = useCatalogVisibility(authUserId, userId, 'profiles');
     const { t } = useTranslation();
 
     const { data: beans = [] } = useBeans(userId);
@@ -180,11 +185,15 @@ export const AddBatchModal = ({
         }
     };
 
-    const beanItems = useMemo(() => beans.map((b) => ({ ...b })), [beans]);
+    const beanItems = useMemo(
+        () => beans.filter((b) => b.id === beanId || !hiddenBeans.has(b.id)).map((b) => ({ ...b })),
+        [beans, beanId, hiddenBeans],
+    );
     const defaultProfileId = userProfile?.default_roast_profile_id;
     const profileItems = useMemo(
         () =>
             [...profiles]
+                .filter((p) => p.id === profileId || !hiddenProfiles.has(p.id))
                 .sort((a, b) => {
                     if (!defaultProfileId) return 0;
                     if (a.id === defaultProfileId) return -1;
@@ -192,7 +201,7 @@ export const AddBatchModal = ({
                     return 0;
                 })
                 .map((p) => ({ ...p })),
-        [profiles, defaultProfileId],
+        [profiles, defaultProfileId, profileId, hiddenProfiles],
     );
 
     if (!open) return null;

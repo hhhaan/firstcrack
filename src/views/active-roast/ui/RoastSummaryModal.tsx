@@ -1,7 +1,10 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { isDeductDisplayEligible } from '@features/active-roast/lib/summaryPrefill';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
+import { useAuthStore } from '@shared/store/auth';
+import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { formErrorCls } from '@shared/ui/form-styles';
@@ -131,7 +134,16 @@ export const RoastSummaryModal = ({
         blendId: effectiveHandoff?.blendId ?? null,
     });
 
-    const beanComboboxItems = useMemo(() => beans.map((b) => ({ id: b.id, name: b.name })), [beans]);
+    const authUserId = useAuthStore((state) => state.user?.id ?? '');
+    const { workspaceOwnerId } = useActiveWorkspace();
+    const { hidden: hiddenBeans } = useCatalogVisibility(authUserId, workspaceOwnerId, 'beans');
+    const beanComboboxItems = useMemo(
+        () =>
+            beans
+                .filter((b) => b.id === formBeanId || b.id === selectedBeanId || !hiddenBeans.has(b.id))
+                .map((b) => ({ id: b.id, name: b.name })),
+        [beans, formBeanId, selectedBeanId, hiddenBeans],
+    );
 
     if (!open || !summaryData) {
         return null;
