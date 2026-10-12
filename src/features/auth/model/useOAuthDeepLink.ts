@@ -31,19 +31,23 @@ export const useOAuthDeepLink = () => {
             if (urls?.length) void handleUrl(urls[0], 'getCurrent');
         });
 
+        let cancelled = false;
         let unlistenDeepLink: (() => void) | undefined;
         void onOpenUrl((urls) => handleUrls(urls, 'onOpenUrl')).then((fn) => {
-            unlistenDeepLink = fn;
+            if (cancelled) fn();
+            else unlistenDeepLink = fn;
         });
 
         let unlistenBackup: (() => void) | undefined;
         void listen<string>('oauth-callback-url', (event) => {
             void handleUrl(event.payload, 'oauth-callback-url');
         }).then((fn) => {
-            unlistenBackup = fn;
+            if (cancelled) fn();
+            else unlistenBackup = fn;
         });
 
         return () => {
+            cancelled = true;
             unlistenDeepLink?.();
             unlistenBackup?.();
         };
