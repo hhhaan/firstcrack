@@ -153,7 +153,7 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
     const strip = (e: Record<string, unknown>) => {
         const { time_sec: _t, temp_c: _c, ...rest } = e;
         if (e.type === 'Note') {
-            const { note: _n, ...kept } = rest;
+            const { note: _n, gas: _g, airflow: _a, drum: _d, ...kept } = rest;
             return kept;
         }
         return rest;
@@ -176,15 +176,27 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
         if ('temp_c' in row && temp != null && typeof temp !== 'number') return false;
         const old = prevById.get(id);
         if (old) {
-            if (old.type === 'Note' && 'note' in row && row.note != null && typeof row.note !== 'string') return false;
+            if (old.type === 'Note') {
+                if ('note' in row && row.note != null && typeof row.note !== 'string') return false;
+                if (['gas', 'airflow', 'drum'].some((key) => key in row && typeof row[key] !== 'string')) return false;
+            }
             if (!same(strip(row), strip(old))) return false;
             if (old.type === 'Charge' && time !== old.time_sec && time !== 0) return false;
             if (time !== old.time_sec) touched.add(id);
             const tempMoved = 'temp_c' in row && temp !== old.temp_c;
             if (tempMoved && typeof temp === 'number' && (temp < 0 || temp > 400)) return false;
         } else if (row.type === 'Note') {
-            if (Object.keys(row).some((key) => !['id', 'type', 'time_sec', 'temp_c', 'note'].includes(key))) return false;
-            if (typeof row.note !== 'string' || !timeOk(time) || !tempOk(row)) return false;
+            const controlKeys = ['gas', 'airflow', 'drum'] as const;
+            if (
+                Object.keys(row).some(
+                    (key) => !['id', 'type', 'time_sec', 'temp_c', 'note', ...controlKeys].includes(key),
+                )
+            )
+                return false;
+            if (controlKeys.some((key) => key in row && typeof row[key] !== 'string')) return false;
+            const hasControl = controlKeys.some((key) => typeof row[key] === 'string');
+            const noteOk = typeof row.note === 'string' || (row.note == null && hasControl);
+            if (!noteOk || !timeOk(time) || !tempOk(row)) return false;
             touched.add(id);
         } else if (typeof row.type === 'string' && ADDABLE_RECORD_EVENTS.has(row.type)) {
             if (Object.keys(row).some((key) => !['id', 'type', 'time_sec', 'temp_c'].includes(key))) return false;

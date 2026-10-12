@@ -157,6 +157,60 @@ BEGIN
     (SELECT jsonb_agg(e) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'id' <> 'n2'),
     NULL, 212, 640, NULL);
   ASSERT (SELECT count(*) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'id' = 'n2') = 0, 'note removed';
+
+  -- Gas, airflow, and drum on a note may be set, added, or cleared. A non-string is rejected.
+  saved := update_roast_session_record(session2, saved.events, NULL,
+    (
+      SELECT jsonb_agg(
+        CASE WHEN e ->> 'id' = 'n'
+          THEN e || '{"gas":"safd","airflow":"4","drum":"55"}'::jsonb
+          ELSE e
+        END
+      )
+      FROM jsonb_array_elements(saved.events) e
+    ),
+    NULL, 212, 640, NULL);
+  ASSERT (SELECT e ->> 'gas' FROM jsonb_array_elements(saved.events) e WHERE e ->> 'id' = 'n') = 'safd', 'note gas saved';
+  ASSERT (SELECT e ->> 'extra' FROM jsonb_array_elements(saved.events) e WHERE e ->> 'id' = 'n') = '1', 'note extra kept';
+  saved := update_roast_session_record(session2, saved.events, NULL,
+    saved.events || '[{"id":"n3","type":"Note","time_sec":100,"temp_c":null,"note":null,"gas":"afdsf"}]'::jsonb,
+    NULL, 212, 640, NULL);
+  ASSERT (SELECT e ->> 'gas' FROM jsonb_array_elements(saved.events) e WHERE e ->> 'id' = 'n3') = 'afdsf', 'gas-only note saved';
+  saved := update_roast_session_record(session2, saved.events, NULL,
+    (
+      SELECT jsonb_agg(e - 'gas' - 'airflow' - 'drum')
+      FROM jsonb_array_elements(saved.events) e
+    ),
+    NULL, 212, 640, NULL);
+  ASSERT (SELECT e ? 'gas' FROM jsonb_array_elements(saved.events) e WHERE e ->> 'id' = 'n') = false, 'note gas cleared';
+  BEGIN
+    PERFORM update_roast_session_record(session2, saved.events, NULL,
+      (
+        SELECT jsonb_agg(CASE WHEN e ->> 'id' = 'n' THEN jsonb_set(e, '{gas}', '80') ELSE e END)
+        FROM jsonb_array_elements(saved.events) e
+      ),
+      NULL, 212, 640, NULL);
+    RAISE EXCEPTION 'numeric gas not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  BEGIN
+    PERFORM update_roast_session_record(session2, saved.events, NULL,
+      (
+        SELECT jsonb_agg(CASE WHEN e ->> 'type' = 'Yellow' THEN e || '{"gas":"1"}'::jsonb ELSE e END)
+        FROM jsonb_array_elements(saved.events) e
+      ),
+      NULL, 212, 640, NULL);
+    RAISE EXCEPTION 'gas on yellow not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+  BEGIN
+    PERFORM update_roast_session_record(session2, saved.events, NULL,
+      saved.events || '[{"id":"empty","type":"Note","time_sec":110,"temp_c":null,"note":null}]'::jsonb,
+      NULL, 212, 640, NULL);
+    RAISE EXCEPTION 'empty note not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+
   BEGIN
     PERFORM update_roast_session_record(session2, saved.events, NULL,
       (SELECT jsonb_agg(e) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'type' <> 'Drop'),
