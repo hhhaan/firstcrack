@@ -109,6 +109,10 @@ const isExpectedNoise = (error: unknown): boolean => {
  */
 export const isActionableError = (error: unknown): boolean => {
     if ((error as { name?: unknown } | null | undefined)?.name === 'AbortError') return false;
+    if ((error as { name?: unknown } | null | undefined)?.name === 'SidecarHttpError') {
+        const status = httpStatusOf(error);
+        return status !== 400 && status !== 409;
+    }
     if (isExpectedRefusal(error)) return httpStatusOf(error) === 429;
     if (isExpectedNoise(error)) return false;
     return true;
@@ -324,6 +328,7 @@ export const captureSidecarRequestFailure = (input: {
     }
     Sentry.captureMessage('sidecar request failed', {
         level: 'error',
+        fingerprint: ['sidecar', input.route, String(input.status)],
         tags: {
             feature: 'sidecar',
             'sidecar.route': input.route,
@@ -346,6 +351,7 @@ export const captureDoorSkipped = (door: 'discharge' | 'fill', reason: string) =
     doorSkippedReported[door] = true;
     Sentry.captureMessage('door.skipped', {
         level: 'warning',
+        fingerprint: ['door', 'skipped', door, reason],
         tags: { feature: 'door-control', door, reason },
     });
 };
@@ -358,6 +364,7 @@ export const captureDoorSettingsPushFailure = (error: unknown) => {
     if (status === 409) return;
     Sentry.captureMessage('door.settings-push failed', {
         level: 'error',
+        fingerprint: ['door', 'settings-push', 'settings', String(status)],
         tags: {
             feature: 'door-control',
             op: 'settings-push',
@@ -373,6 +380,7 @@ export const captureDoorWriteNoResponse = (input: {
 }) => {
     Sentry.captureMessage('door.write no-response', {
         level: input.status === 'timeout' ? 'warning' : 'error',
+        fingerprint: ['door', 'no-response', input.door, input.action],
         tags: {
             feature: 'door-control',
             door: input.door,

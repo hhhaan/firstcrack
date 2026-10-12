@@ -10,7 +10,11 @@ vi.mock('@shared/lib/sidecar', async (importOriginal) => {
 });
 vi.mock('@shared/lib/sentry', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@shared/lib/sentry')>();
-    return { ...actual, captureDoorSettingsPushFailure: vi.fn(), isSentryEnabled: true };
+    return {
+        ...actual,
+        captureDoorSettingsPushFailure: vi.fn(actual.captureDoorSettingsPushFailure),
+        isSentryEnabled: true,
+    };
 });
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: vi.fn() } }));
 
@@ -67,16 +71,16 @@ describe('pushMachineDoors settings push', () => {
         expect(blob).not.toContain('10.0.0.2');
     });
 
-    it('does not capture expected 409 settings target races', async () => {
-        vi.mocked(sidecar.updateSettings).mockRejectedValue(
-            new SidecarHttpError('/settings', 409, 'wrong target', false),
-        );
+    it('forwards settings push failures to the door-control capture helper (409 filtered inside)', async () => {
+        const err = new SidecarHttpError('/settings', 409, 'wrong target', false);
+        vi.mocked(sidecar.updateSettings).mockRejectedValue(err);
         pushMachineDoors(
             { id: 'w60', roasterKey: 'giesen_w45a_w60a', dischargeDoor: true, fillDoor: false },
             { machine_id: 'w60', connection_epoch: 1 },
         );
         await Promise.resolve();
-        expect(captureDoorSettingsPushFailure).not.toHaveBeenCalled();
+        expect(captureDoorSettingsPushFailure).toHaveBeenCalledOnce();
+        expect(captureDoorSettingsPushFailure).toHaveBeenCalledWith(err);
     });
 
     it('clearMachineDoors uses the same reporting path', async () => {

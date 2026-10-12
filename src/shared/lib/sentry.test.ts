@@ -341,8 +341,24 @@ describe('door-control capture helpers', () => {
         expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
         expect(Sentry.captureMessage).toHaveBeenCalledWith('door.skipped', {
             level: 'warning',
+            fingerprint: ['door', 'skipped', 'discharge', 'link-unsettled'],
             tags: { feature: 'door-control', door: 'discharge', reason: 'link-unsettled' },
         });
+    });
+
+    it('uses distinct fingerprints so Sentry dedupe does not merge different door events', () => {
+        captureDoorSkipped('discharge', 'link-unsettled');
+        captureDoorWriteNoResponse({ door: 'fill', action: 'open', status: 'network' });
+        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 503, message: 'x' });
+        const fingerprints = vi
+            .mocked(Sentry.captureMessage)
+            .mock.calls.map((call) => (call[1] as { fingerprint?: string[] }).fingerprint);
+        expect(fingerprints).toEqual([
+            ['door', 'skipped', 'discharge', 'link-unsettled'],
+            ['door', 'no-response', 'fill', 'open'],
+            ['door', 'settings-push', 'settings', '503'],
+        ]);
+        expect(new Set(fingerprints.map((fp) => JSON.stringify(fp)))).toHaveProperty('size', 3);
     });
 
     it('captureDoorWriteNoResponse uses warning on timeout and error on network', () => {
@@ -387,6 +403,7 @@ describe('captureSidecarRequestFailure', () => {
         captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
         expect(Sentry.captureMessage).toHaveBeenCalledWith('sidecar request failed', {
             level: 'error',
+            fingerprint: ['sidecar', '/control', '503'],
             tags: {
                 feature: 'sidecar',
                 'sidecar.route': '/control',

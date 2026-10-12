@@ -98,6 +98,7 @@ async def test_manager_rejects_late_acknowledgement_fill(manager):
         new_scope.return_value.__enter__.return_value = scope
         await manager.fill("close", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
     scope.capture_exception.assert_called_once()
+    assert scope.fingerprint == ["door_write_ambiguous", "fill", "close"]
     tag_args = [call.args for call in scope.set_tag.call_args_list]
     assert ("door", "fill") in tag_args
     assert ("action", "close") in tag_args

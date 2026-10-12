@@ -21,6 +21,15 @@ _log = logging.getLogger(__name__)
 _REDACT_IPV4 = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}")
 
 
+def _hardware_sentry_fingerprint(event: str, extra_tags: dict[str, str]) -> list[str]:
+    if event == "door_write_ambiguous":
+        return ["door_write_ambiguous", extra_tags.get("door", ""), extra_tags.get("action", "")]
+    door = extra_tags.get("door")
+    if door:
+        return ["hardware", event, door]
+    return ["hardware", event]
+
+
 def _scrub_hardware_exception(exc: Exception) -> Exception:
     """Sentry 이벤트에 IP/호스트 문자열이 실리지 않게 메시지만 정리한다."""
     msg = str(exc)
@@ -426,6 +435,7 @@ class RoasterManager:
                 # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
                 if self._merged_params:
                     scope.set_tag("mode", self._merged_params.get("mode"))
+                scope.fingerprint = _hardware_sentry_fingerprint(event, extra_tags)
                 scope.capture_exception(scrubbed)
             if once:
                 self._hw_alerts_sent.add(event)

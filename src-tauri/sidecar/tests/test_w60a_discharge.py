@@ -105,6 +105,7 @@ async def test_manager_rejects_late_acknowledgement(manager):
         new_scope.return_value.__enter__.return_value = scope
         await manager.discharge("open", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
     scope.capture_exception.assert_called_once()
+    assert scope.fingerprint == ["door_write_ambiguous", "discharge", "open"]
     assert "10.0.0.2" not in str(scope.capture_exception.call_args)
     tag_args = [call.args for call in scope.set_tag.call_args_list]
     assert ("door", "discharge") in tag_args
@@ -160,6 +161,7 @@ async def test_endpoint_unavailable_success_and_write_failure(discharge_client):
         response = await discharge_client.post("/discharge", json={"action": "open", "machine_id": "door-test", "connection_epoch": 0})
     assert response.status == 502
     scope.capture_exception.assert_called_once()
+    assert scope.fingerprint == ["hardware", "discharge", "discharge"]
     tag_args = [call.args for call in scope.set_tag.call_args_list]
     assert ("event", "discharge") in tag_args
     assert ("door", "discharge") in tag_args

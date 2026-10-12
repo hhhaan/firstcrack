@@ -19,6 +19,14 @@ describe('logger sidecar duplicate guard', () => {
         expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 
+    it('skips logger capture for HTTP 400 validation but not 401 (#771-7)', async () => {
+        expect(shouldSkipSidecarLoggerCapture(new SidecarHttpError('/connect', 400, 'Serial Port'))).toBe(true);
+        expect(shouldSkipSidecarLoggerCapture(new SidecarHttpError('/connect', 401, 'unauthorized'))).toBe(false);
+        const { logger } = await import('./logger');
+        logger.capture(new SidecarHttpError('/connect', 401, 'unauthorized'), { context: 'machine connect' });
+        expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    });
+
     it('promotes feature from logger context to Sentry tags', async () => {
         const { logger } = await import('./logger');
         logger.capture(new Error('control failed'), { feature: 'machine-control', action: 'setControl' });
