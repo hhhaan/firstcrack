@@ -179,6 +179,23 @@ def _format_connection_error(
     return msg
 
 
+_EMPTY_MODBUS_SERIAL_MSG = (
+    "Modbus 시리얼 연결에는 Serial Port가 필요합니다. 기기 설정에서 포트를 입력하세요."
+)
+
+
+def _validate_connect_params(protocol: str, params: dict[str, Any]) -> None:
+    """어댑터 생성 전에 Modbus RTU/ASCII 시리얼 포트를 검증한다 (#771-7)."""
+    if protocol != "modbus":
+        return
+    mode = str(params.get("mode", "tcp")).lower()
+    if mode not in ("rtu", "ascii"):
+        return
+    comport = params.get("comport")
+    if not isinstance(comport, str) or not comport.strip():
+        raise ValueError(_EMPTY_MODBUS_SERIAL_MSG)
+
+
 _MAP_KEYS = ("write_map", "channels")
 
 
@@ -347,7 +364,12 @@ class RoasterManager:
         self._hw_alerts_sent: set[str] = set()
 
     def _capture_hardware_error(
-        self, exc: Exception, event: str = "hardware_error", *, once: bool = False
+        self,
+        exc: Exception,
+        event: str = "hardware_error",
+        *,
+        once: bool = False,
+        **extra_tags: str,
     ) -> None:
         """하드웨어 에러를 Sentry/Slack에 캡처 — 프로토콜/로스터 정보 포함.
 
@@ -371,6 +393,8 @@ class RoasterManager:
             sentry_sdk.set_tag("roaster", self._roaster_key)
             sentry_sdk.set_tag("protocol", self._protocol)
             sentry_sdk.set_tag("event", event)
+            for key, value in extra_tags.items():
+                sentry_sdk.set_tag(key, value)
             sentry_sdk.set_context(
                 "sidecar",
                 {
@@ -456,6 +480,7 @@ class RoasterManager:
 
             protocol = reg["protocol"]
             merged = _merge_connect_params(reg["default_params"], params)
+            _validate_connect_params(protocol, merged)
 
             self._adapter = make_adapter(protocol, merged)
             self._apply_door_flags()
@@ -911,7 +936,14 @@ class RoasterManager:
             raise ControlUnavailable("연결된 W60A의 배출구 제어를 로스팅 설정에서 켜세요.")
         await adapter.discharge(action)
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
-            raise ControlUnavailable("배출문 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+            exc = ControlUnavailable("배출문 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+            self._capture_hardware_error(
+                exc,
+                "door_write_ambiguous",
+                door="discharge",
+                action=action,
+            )
+            raise exc
 
     def fill_enabled(self) -> bool:
         return (
@@ -929,7 +961,14 @@ class RoasterManager:
             raise ControlUnavailable("연결된 W60A의 투입구 제어를 로스팅 설정에서 켜세요.")
         await adapter.fill(action)
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
-            raise ControlUnavailable("투입구 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+            exc = ControlUnavailable("투입구 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+            self._capture_hardware_error(
+                exc,
+                "door_write_ambiguous",
+                door="fill",
+                action=action,
+            )
+            raise exc
 
     async def control(
         self,

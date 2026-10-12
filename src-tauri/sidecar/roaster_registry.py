@@ -57,6 +57,12 @@ _SERIAL_FORM_FIELDS: list[dict[str, Any]] = [
     {"key": "stopbits", "label": "Stop Bits", "type": "number", "required": False},
 ]
 
+# Modbus RTU/ASCII — comport required (#771-7); kaleido keeps optional serial fields.
+_MODBUS_SERIAL_FORM_FIELDS: list[dict[str, Any]] = [
+    {**_SERIAL_FORM_FIELDS[0], "required": True},
+    *_SERIAL_FORM_FIELDS[1:],
+]
+
 PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
     "s7": [
         {
@@ -152,7 +158,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "placeholder": "127.0.0.1",
         },
         {"key": "port", "label": "Port", "type": "number", "required": False},
-        *_SERIAL_FORM_FIELDS,
+        *_MODBUS_SERIAL_FORM_FIELDS,
     ],
     "phidget": [
         {

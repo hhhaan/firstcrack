@@ -86,7 +86,11 @@ export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
         },
         { key: 'host', label: 'IP Address', type: 'text', required: false, placeholder: '127.0.0.1' },
         { key: 'port', label: 'Port', type: 'number', required: false, placeholder: '502' },
-        ...SERIAL_FORM_FIELDS,
+        { key: 'comport', label: 'Serial Port', type: 'text', required: true, placeholder: COMPORT_PLACEHOLDER },
+        { key: 'baudrate', label: 'Baud Rate', type: 'number', required: false, options: BAUD_RATE_OPTIONS },
+        { key: 'bytesize', label: 'Byte Size', type: 'number', required: false, options: BYTESIZE_OPTIONS },
+        { key: 'parity', label: 'Parity', type: 'select', required: false, options: PARITY_OPTIONS },
+        { key: 'stopbits', label: 'Stop Bits', type: 'number', required: false, options: STOPBITS_OPTIONS },
         // { key: 'interval', label: 'Sampling Interval', type: 'number', required: false, options: INTERVAL_OPTIONS },
     ],
     phidget: [

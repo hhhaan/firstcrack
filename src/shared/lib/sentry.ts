@@ -272,6 +272,50 @@ export const captureSidecarRequestFailure = (input: {
     });
 };
 
+const doorSkippedReported: Record<'discharge' | 'fill', boolean> = { discharge: false, fill: false };
+
+/** @internal vitest — session dedupe must not leak across cases */
+export const resetDoorSkippedDedupeForTests = () => {
+    doorSkippedReported.discharge = false;
+    doorSkippedReported.fill = false;
+};
+
+export const captureDoorSkipped = (door: 'discharge' | 'fill', reason: string) => {
+    if (doorSkippedReported[door]) return;
+    doorSkippedReported[door] = true;
+    Sentry.captureMessage('door.skipped', {
+        level: 'warning',
+        tags: { feature: 'door-control', door, reason },
+    });
+};
+
+export const captureDoorSettingsPushFailure = (error: unknown) => {
+    const status =
+        error && typeof error === 'object' && (error as { name?: unknown }).name === 'SidecarHttpError'
+            ? (error as { status: number | 'network' | 'timeout' }).status
+            : 'network';
+    Sentry.captureMessage('door.settings-push failed', {
+        level: 'error',
+        tags: {
+            feature: 'door-control',
+            op: 'settings-push',
+            'http.status': String(status),
+        },
+    });
+};
+
+export const captureDoorWriteNoResponse = (input: { door: 'discharge' | 'fill'; action: 'open' | 'close' }) => {
+    Sentry.captureMessage('door.write no-response', {
+        level: 'error',
+        tags: {
+            feature: 'door-control',
+            door: input.door,
+            action: input.action,
+            reason: 'no-response',
+        },
+    });
+};
+
 export const captureRoastingImportFailure = (
     error: unknown,
     input: {

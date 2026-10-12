@@ -5,6 +5,9 @@ import { BatchLimitError } from './features/plan-matrix';
 import {
     buildSentryOptions,
     captureActionable,
+    captureDoorSettingsPushFailure,
+    captureDoorSkipped,
+    captureDoorWriteNoResponse,
     captureSidecarRequestFailure,
     isActionableError,
     isClientRefusal,
@@ -14,6 +17,7 @@ import {
     observeRoastingImportScan,
     reactRootOptions,
     reportTsvRestoreDroppedRows,
+    resetDoorSkippedDedupeForTests,
     resetRoastingImportScanDedupeForTests,
     retryUnlessClientRefusal,
     SupabaseError,
@@ -287,6 +291,44 @@ describe('reportTsvRestoreDroppedRows', () => {
         });
         const blob = JSON.stringify(vi.mocked(Sentry.captureMessage).mock.calls[0]);
         expect(blob).not.toMatch(/\d{1,3}(?:\.\d{1,3}){3}/);
+    });
+});
+
+describe('door-control capture helpers', () => {
+    afterEach(() => resetDoorSkippedDedupeForTests());
+
+    it('captureDoorSettingsPushFailure tags settings push without paths', () => {
+        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 503, message: '/dev/ttyUSB0' });
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('door.settings-push failed', {
+            level: 'error',
+            tags: { feature: 'door-control', op: 'settings-push', 'http.status': '503' },
+        });
+        const blob = JSON.stringify(vi.mocked(Sentry.captureMessage).mock.calls[0]);
+        expect(blob).not.toContain('/dev/');
+    });
+
+    it('captureDoorSkipped dedupes per door per session', () => {
+        captureDoorSkipped('discharge', 'link-unsettled');
+        captureDoorSkipped('discharge', 'not-entitled');
+        captureDoorSkipped('fill', 'door-not-armed');
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('door.skipped', {
+            level: 'warning',
+            tags: { feature: 'door-control', door: 'discharge', reason: 'link-unsettled' },
+        });
+    });
+
+    it('captureDoorWriteNoResponse uses no-response reason only', () => {
+        captureDoorWriteNoResponse({ door: 'fill', action: 'close' });
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('door.write no-response', {
+            level: 'error',
+            tags: {
+                feature: 'door-control',
+                door: 'fill',
+                action: 'close',
+                reason: 'no-response',
+            },
+        });
     });
 });
 

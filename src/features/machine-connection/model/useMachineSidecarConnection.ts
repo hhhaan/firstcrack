@@ -6,6 +6,7 @@ import { emitExplicitMachineDisconnect } from '@shared/lib/explicitMachineDiscon
 import { useAccountPlan } from '@shared/lib/features/useAccountPlan';
 import { logger } from '@shared/lib/logger';
 import { sendOsNotification } from '@shared/lib/osNotification';
+import { isClientRefusal } from '@shared/lib/sentry';
 import { sidecar } from '@shared/lib/sidecar';
 import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useState } from 'react';
@@ -185,7 +186,7 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
                 void sidecar.disconnect().catch(() => null);
                 // sidecar가 아직 bind 전일 때의 Load failed는 재시도로 흡수하고, 소진돼도
                 // 프로세스 사망은 Rust sidecar-dead가 남긴다. 401 등만 이슈로 남긴다.
-                if (!isOpaqueNetworkError(e)) logger.capture(e, { context: 'machine connect' });
+                if (!isOpaqueNetworkError(e) && !isClientRefusal(e)) logger.capture(e, { context: 'machine connect' });
                 Sentry.addBreadcrumb({
                     category: 'hardware.connection',
                     message: `로스터 연결 중 예외: ${machine.name}`,

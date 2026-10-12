@@ -1,5 +1,5 @@
-import { logger } from '@shared/lib/logger';
-import { sidecar } from '@shared/lib/sidecar';
+import { captureDoorWriteNoResponse } from '@shared/lib/sentry';
+import { isSidecarHttpError, sidecar } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
 import { useCallback, useState } from 'react';
 import { createDoorGate, type DoorGate } from '../lib/doorGate';
@@ -29,7 +29,9 @@ export const useFillControl = (available: boolean, gate?: DoorGate, target?: Doo
                 useToastStore.getState().show(sent(action), 'success');
                 return true;
             } catch (error) {
-                logger.capture(error, { feature: 'machine-control', action: 'fill' });
+                if (isSidecarHttpError(error) && (error.status === 'network' || error.status === 'timeout')) {
+                    captureDoorWriteNoResponse({ door: 'fill', action });
+                }
                 useToastStore
                     .getState()
                     .show('투입구 응답에 실패했습니다. 동작 확인이 필요합니다. 조작반에서 확인하세요.', 'error');

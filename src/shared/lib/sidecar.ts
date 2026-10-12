@@ -173,8 +173,13 @@ export const sidecar = {
 
     getTemperatures: () => request<TemperatureReading>('/temperatures'),
 
-    updateSettings: (settings: Record<string, unknown>) =>
-        request<{ ok: boolean }>('/settings', { method: 'POST', body: JSON.stringify(settings) }).then((result) => {
+    updateSettings: (settings: Record<string, unknown>, options?: { reportErrors?: boolean }) =>
+        request<{ ok: boolean }>(
+            '/settings',
+            { method: 'POST', body: JSON.stringify(settings) },
+            DEFAULT_TIMEOUT_MS,
+            options?.reportErrors ?? true,
+        ).then((result) => {
             for (const listener of settingsListeners) listener();
             return result;
         }),

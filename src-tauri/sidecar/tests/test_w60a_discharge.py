@@ -1,6 +1,6 @@
 """W60A discharge writes are fixed, opt-in and bound to one connection."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
@@ -97,8 +97,19 @@ async def test_manager_rejects_late_acknowledgement(manager):
         manager._connection_epoch += 1
 
     manager._adapter.discharge.side_effect = changed
-    with pytest.raises(ControlUnavailable):
+    with (
+        pytest.raises(ControlUnavailable),
+        patch("manager.sentry_sdk.capture_exception") as capture,
+        patch("manager.sentry_sdk.set_tag") as set_tag,
+    ):
         await manager.discharge("open", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
+    assert capture.call_count == 1
+    tag_args = [call.args for call in set_tag.call_args_list]
+    assert ("door", "discharge") in tag_args
+    assert ("action", "open") in tag_args
+    assert ("event", "door_write_ambiguous") in tag_args
+    tag_dump = repr(tag_args)
+    assert "COM" not in tag_dump and "/dev/" not in tag_dump
 
 
 async def test_batch_reset_preserves_s7_connection_without_moving_door(manager):
