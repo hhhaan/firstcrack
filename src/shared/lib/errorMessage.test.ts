@@ -45,4 +45,11 @@ describe('isSidecarStartingError', () => {
         expect(isSidecarStartingError(new Error('modbus handshake timeout'))).toBe(false);
         expect(isSidecarStartingError(new Error('HTTP 409'))).toBe(false);
     });
+
+    it('retries sidecar network during spawn but not request timeouts', () => {
+        const network = Object.assign(new Error('network error'), { name: 'SidecarHttpError', status: 'network' });
+        const timeout = Object.assign(new Error('timeout'), { name: 'SidecarHttpError', status: 'timeout' });
+        expect(isSidecarStartingError(network)).toBe(true);
+        expect(isSidecarStartingError(timeout)).toBe(false);
+    });
 });
