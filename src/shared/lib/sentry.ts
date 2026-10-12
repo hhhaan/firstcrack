@@ -34,11 +34,15 @@ const URL_QUERY = /(https?:\/\/[^\s?]+)\?[^\s"'<>)\]},;]*/gi;
 // 키 앞을 고정하지 않아 `access_token=…`처럼 접두사가 붙은 형태도 잡힌다.
 const SENSITIVE_ASSIGNMENT =
     /(password|token|secret|authorization|cookie|host|comport|serial|path)(["']?\s*[=:]\s*["']?)(?:(?:bearer|basic|token)\s+)?[^\s"',;)}\]&]+/gi;
+const HOME_PATH = /(?:\/(?:Users|home)\/[^\s/]+(?:\/[^\s"'<>)\]},;]*)*|C:\\Users\\[^\\\s]+(?:\\[^\\\s"'<>)\]},;]*)*)/gi;
+const IPV4_PORT = /\b(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?\b/g;
 
-const scrubText = (value: string) =>
+export const scrubText = (value: string) =>
     value
         .replace(URL_QUERY, `$1?${REDACTED}`)
-        .replace(SENSITIVE_ASSIGNMENT, (_match, key: string, separator: string) => `${key}${separator}${REDACTED}`);
+        .replace(SENSITIVE_ASSIGNMENT, (_match, key: string, separator: string) => `${key}${separator}${REDACTED}`)
+        .replace(HOME_PATH, REDACTED)
+        .replace(IPV4_PORT, REDACTED);
 
 export const scrubSensitive = (value: unknown, depth = 0): unknown => {
     if (typeof value === 'string') return scrubText(value);
@@ -67,7 +71,10 @@ export const isClientRefusal = (error: unknown): boolean => {
     // PostgREST often omits `status` and only sets SQLSTATE `code` (measured 42703).
     if (isDeterministicClientError(error)) return true;
     const status = httpStatusOf(error);
-    return status !== undefined && status >= 400 && status < 500;
+    if (status === undefined || status < 400 || status >= 500) return false;
+    // SidecarHttpError.status is for UI only — pre-#771 plain Error had no status and queries retried 4xx.
+    if ((error as { name?: unknown }).name === 'SidecarHttpError') return false;
+    return true;
 };
 
 /** Query retry: skip deterministic client/PostgREST failures; still retry transport and 5xx. */
@@ -147,7 +154,22 @@ export type CaptureActionableOptions = {
 };
 
 const isStructuredCaptureOptions = (value: Record<string, unknown>): boolean =>
-    'tags' in value || 'level' in value || 'fingerprint' in value;
+    'tags' in value || 'level' in value || 'fingerprint' in value || 'extra' in value;
+
+const promoteContextTags = (ctx: Record<string, unknown>, tags: Record<string, string>) => {
+    for (const key of ['feature', 'rpc', 'table'] as const) {
+        if (typeof ctx[key] === 'string') tags[key] = ctx[key];
+    }
+};
+
+const contextExtra = (ctx: Record<string, unknown>): Record<string, unknown> | undefined => {
+    const extra: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(ctx)) {
+        if (key === 'feature' || key === 'rpc' || key === 'table') continue;
+        extra[key] = value;
+    }
+    return Object.keys(extra).length > 0 ? extra : undefined;
+};
 
 export const tagsFromQueryMeta = (meta: Record<string, unknown> | undefined): Record<string, string> => {
     const tags: Record<string, string> = {};
@@ -218,6 +240,16 @@ export const reactRootOptions = (onHandled?: (error: unknown) => void) => {
 export const isSidecarSentryReported = (error: unknown): boolean =>
     Boolean(error && typeof error === 'object' && (error as { sentryReported?: unknown }).sentryReported === true);
 
+/** Sidecar already reported (or 502 hardware path) — callers must not double-capture. */
+export const shouldSkipSidecarLoggerCapture = (error: unknown): boolean => {
+    if (isSidecarSentryReported(error)) return true;
+    if (error && typeof error === 'object' && (error as { name?: unknown }).name === 'SidecarHttpError') {
+        const sidecar = error as { status?: unknown; sentryReported?: unknown };
+        return sidecar.sentryReported === true || sidecar.status === 502 || sidecar.status === 400;
+    }
+    return false;
+};
+
 /** 조치 가능한 오류만 Sentry로 보낸다. SDK 미초기화(DEV 기본)면 no-op. */
 export const captureActionable = (error: unknown, context?: CaptureActionableOptions | Record<string, unknown>) => {
     if (isSidecarSentryReported(error)) return;
@@ -237,7 +269,9 @@ export const captureActionable = (error: unknown, context?: CaptureActionableOpt
             fingerprint = opts.fingerprint;
             extra = opts.extra;
         } else {
-            extra = context as Record<string, unknown>;
+            const ctx = context as Record<string, unknown>;
+            promoteContextTags(ctx, tags);
+            extra = contextExtra(ctx);
         }
     }
 
@@ -246,6 +280,18 @@ export const captureActionable = (error: unknown, context?: CaptureActionableOpt
     if (!level && isClientSqlStateWarning(normalized)) level = 'warning';
     if (!fingerprint && code) fingerprint = supabaseFingerprint(code, tags);
 
+    const toCapture =
+        normalized instanceof SupabaseError && normalized.code.startsWith('22')
+            ? new SupabaseError(
+                  tags.rpc
+                      ? `SupabaseError ${normalized.code} ${tags.rpc}`
+                      : tags.table
+                        ? `SupabaseError ${normalized.code} ${tags.table}`
+                        : `SupabaseError ${normalized.code}`,
+                  normalized.code,
+              )
+            : normalized;
+
     const hint: NonNullable<Parameters<typeof Sentry.captureException>[1]> = {};
     if (extra) hint.extra = extra;
     if (Object.keys(tags).length > 0) hint.tags = tags;
@@ -253,14 +299,29 @@ export const captureActionable = (error: unknown, context?: CaptureActionableOpt
     if (fingerprint) hint.fingerprint = fingerprint;
 
     // 스크러빙은 beforeSend 한 곳에서만 — 중복 정책 금지.
-    Sentry.captureException(normalized, Object.keys(hint).length > 0 ? hint : undefined);
+    Sentry.captureException(toCapture, Object.keys(hint).length > 0 ? hint : undefined);
 };
+
+export const reportReactQueryError = (error: Error, meta?: Record<string, unknown>) =>
+    captureActionable(error, { tags: tagsFromQueryMeta(meta) });
+
+const sidecarNetworkReportAt = new Map<string, number>();
+const SIDECAR_NETWORK_REPORT_MS = 60_000;
+
+/** @internal vitest */
+export const resetSidecarFailureRateLimitForTests = () => sidecarNetworkReportAt.clear();
 
 export const captureSidecarRequestFailure = (input: {
     route: string;
     method: string;
     status: number | 'network' | 'timeout';
 }) => {
+    if (input.status === 'network' || input.status === 'timeout') {
+        const now = Date.now();
+        const last = sidecarNetworkReportAt.get(input.route) ?? 0;
+        if (now - last < SIDECAR_NETWORK_REPORT_MS) return;
+        sidecarNetworkReportAt.set(input.route, now);
+    }
     Sentry.captureMessage('sidecar request failed', {
         level: 'error',
         tags: {
@@ -321,6 +382,13 @@ export const captureDoorWriteNoResponse = (input: {
     });
 };
 
+const classOnlyCaptureError = (error: unknown): Error => {
+    const name = error instanceof Error ? error.constructor.name : 'Error';
+    const reported = new Error(name);
+    reported.name = name;
+    return reported;
+};
+
 export const captureRoastingImportFailure = (
     error: unknown,
     input: {
@@ -329,7 +397,7 @@ export const captureRoastingImportFailure = (
         counts: { selected: number; pending: number; updates: number };
     },
 ) => {
-    captureActionable(error, {
+    captureActionable(classOnlyCaptureError(error), {
         level: 'error',
         tags: { feature: 'roasting-import', product: input.product, stage: input.stage },
         extra: input.counts,
@@ -370,6 +438,7 @@ export const observeRoastingImportScan = (snapshot: {
     source: { product: string; version?: string | null };
 }) => {
     if (snapshot.status !== 'unreadable' && snapshot.status !== 'unsupported') return;
+    if (snapshot.status === 'unsupported' && snapshot.reason === 'platform') return;
     const reasonRaw = snapshot.reason ?? '';
     const dedupeKey = `${snapshot.source.product}:${snapshot.status}:${reasonRaw}`;
     if (reportedImportScans.has(dedupeKey)) return;

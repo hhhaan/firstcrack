@@ -2,6 +2,8 @@
  * Structural + unit surface for CQ-R2 machine connection feature.
  * Poll/connect must live here (not in views/machines/Machines.tsx).
  */
+
+import sentrySrc from '@shared/lib/sentry.ts?raw';
 import { describe, expect, it } from 'vitest';
 import machinesSrc from '../../../views/machines/Machines.tsx?raw';
 import hookSrc from './useMachineSidecarConnection.ts?raw';
@@ -25,9 +27,10 @@ describe('useMachineSidecarConnection', () => {
     });
 
     it('skips Sentry capture only for HTTP 400 connect validation (#771-7)', () => {
-        expect(hookSrc).toMatch(/isSidecarHttpError/);
-        expect(hookSrc).toMatch(/status\s*===\s*400/);
+        expect(hookSrc).toMatch(/logger\.capture/);
         expect(hookSrc).not.toMatch(/isClientRefusal\(e\)/);
+        expect(sentrySrc).toMatch(/shouldSkipSidecarLoggerCapture/);
+        expect(sentrySrc).toMatch(/status === 400/);
     });
 
     it('waits for authenticated sidecar readiness', () => {
