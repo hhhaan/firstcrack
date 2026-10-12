@@ -279,11 +279,13 @@ export const saveRoastingImport = async (input: {
         }
         return 'saved';
     } catch (error) {
-        captureRoastingImportFailure(error, {
-            product: input.product,
-            stage,
-            counts: { selected: input.selected.length, pending: pendingCount, updates: updatesCount },
-        });
+        if (!(error instanceof Error && error.message === 'machine limit')) {
+            captureRoastingImportFailure(error, {
+                product: input.product,
+                stage,
+                counts: { selected: input.selected.length, pending: pendingCount, updates: updatesCount },
+            });
+        }
         return graphApplied ? 'graphSavedMachinesFailed' : 'failed';
     }
 };

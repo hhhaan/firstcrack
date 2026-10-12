@@ -5,6 +5,7 @@ import { BatchLimitError } from './features/plan-matrix';
 import {
     buildSentryOptions,
     captureActionable,
+    captureRoastingImportFailure,
     captureSidecarRequestFailure,
     isActionableError,
     isClientRefusal,
@@ -15,12 +16,15 @@ import {
     reactRootOptions,
     reportTsvRestoreDroppedRows,
     resetRoastingImportScanDedupeForTests,
+    resetSidecarFailureRateLimitForTests,
     retryUnlessClientRefusal,
     SupabaseError,
     scrubSensitive,
+    scrubText,
     setSentryIdentity,
     tagsFromQueryMeta,
 } from './sentry';
+import { SidecarHttpError } from './sidecar';
 
 // 실 SDK 호출을 막고 위임만 관찰한다 (개발자 로컬 .env가 테스트에 새어도 전송되지 않는다).
 vi.mock('@sentry/react', async (importOriginal) => {
@@ -184,6 +188,20 @@ describe('retryUnlessClientRefusal', () => {
 });
 
 describe('captureActionable', () => {
+    it('sanitizes user-input SQLSTATE titles (22xxx)', () => {
+        captureActionable(
+            { code: '22P02', message: 'invalid input syntax for type uuid: "user-typed"', details: 'x', hint: 'y' },
+            { tags: { feature: 'history-qc', rpc: 'set_session_charge_weight' } },
+        );
+        const [captured] = vi.mocked(Sentry.captureException).mock.calls[0];
+        expect(captured).toMatchObject({
+            name: 'SupabaseError',
+            message: 'SupabaseError 22P02 set_session_charge_weight',
+            code: '22P02',
+        });
+        expect(String(captured)).not.toContain('user-typed');
+    });
+
     it('normalizes PostgREST plain objects before capture', () => {
         const plain = {
             code: '42703',
@@ -242,6 +260,15 @@ describe('captureActionable', () => {
 describe('observeRoastingImportScan', () => {
     afterEach(() => resetRoastingImportScanDedupeForTests());
 
+    it('ignores unsupported platform scans', () => {
+        observeRoastingImportScan({
+            status: 'unsupported',
+            reason: 'platform',
+            source: { product: 'Firescope', version: null },
+        });
+        expect(Sentry.captureMessage).not.toHaveBeenCalled();
+    });
+
     it('captures once per product+reason and scrubs unknown reasons', () => {
         observeRoastingImportScan({
             status: 'unreadable',
@@ -291,6 +318,14 @@ describe('reportTsvRestoreDroppedRows', () => {
 });
 
 describe('captureSidecarRequestFailure', () => {
+    afterEach(() => resetSidecarFailureRateLimitForTests());
+
+    it('rate-limits network/timeout reports per route', () => {
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'timeout' });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+    });
+
     it('uses a fixed message and route tags only', () => {
         captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
         expect(Sentry.captureMessage).toHaveBeenCalledWith('sidecar request failed', {
@@ -302,6 +337,18 @@ describe('captureSidecarRequestFailure', () => {
                 method: 'POST',
             },
         });
+    });
+});
+
+describe('captureRoastingImportFailure', () => {
+    it('captures only the error class name', () => {
+        captureRoastingImportFailure(new Error('failed /Users/secret'), {
+            product: 'Artisan',
+            stage: 'graph',
+            counts: { selected: 0, pending: 0, updates: 0 },
+        });
+        const [captured] = vi.mocked(Sentry.captureException).mock.calls[0];
+        expect(captured).toMatchObject({ name: 'Error', message: 'Error' });
     });
 });
 
@@ -365,6 +412,23 @@ describe('reactRootOptions', () => {
         options.onUncaughtError(new Error('uncaught'), info);
 
         expect(handled).toEqual(['Error: caught', 'Error: recoverable']);
+    });
+});
+
+describe('scrubText', () => {
+    it('redacts home paths and IPv4 hosts', () => {
+        expect(scrubText('failed /Users/alice/roast/settings on 192.168.0.5:502')).toBe(
+            'failed [redacted] on [redacted]',
+        );
+        expect(scrubText('C:\\Users\\bob\\AppData\\settings')).toBe('[redacted]');
+    });
+});
+
+describe('isClientRefusal sidecar retry parity', () => {
+    it('does not treat SidecarHttpError 4xx as non-retryable client refusal', () => {
+        const err = new SidecarHttpError('/control', 409, 'conflict');
+        expect(isClientRefusal(err)).toBe(false);
+        expect(retryUnlessClientRefusal(0, err)).toBe(true);
     });
 });
 

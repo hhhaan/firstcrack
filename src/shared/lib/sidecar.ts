@@ -38,6 +38,8 @@ export class SidecarHttpError extends Error {
 
 export const isSidecarHttpError = (error: unknown): error is SidecarHttpError => error instanceof SidecarHttpError;
 
+export { shouldSkipSidecarLoggerCapture } from './sentry';
+
 const routeWithoutQuery = (path: string) => path.split('?')[0] || path;
 
 const shouldReportSidecarFailure = (status: number | 'network' | 'timeout'): boolean => {
