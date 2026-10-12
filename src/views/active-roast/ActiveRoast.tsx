@@ -1215,7 +1215,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 {reviewing && (
                     <div
                         data-testid="completed-roast-review"
-                        className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-main-bg px-2 py-1.5"
+                        className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-main-bg px-2 py-1.5"
                     >
                         <span className="pl-2 text-sm text-secondary">{t('activeRoast.review.title')}</span>
                         <button
