@@ -1513,6 +1513,14 @@
                 "collapsedWaiting": "Replay 실제 TP 대기",
                 "collapsedFallback": "Replay TP 폴백 — 실제 상승 아님"
             }
+        },
+        "reference": {
+            "choose": "히스토리 배경 선택",
+            "clear": "프로파일 배경으로 복귀",
+            "failed": "로스팅 곡선을 불러오지 못했습니다.",
+            "noCurve": "기록된 곡선 없음",
+            "empty": "검색 결과가 없습니다",
+            "apply": "배경으로 표시"
         }
     },
     "profiles": {
