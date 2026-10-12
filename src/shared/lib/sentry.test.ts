@@ -356,6 +356,28 @@ describe('captureRoastingImportFailure', () => {
         const [captured] = vi.mocked(Sentry.captureException).mock.calls[0];
         expect(captured).toMatchObject({ name: 'Error', message: 'Error' });
     });
+
+    it('uses error.name for non-Error failures', () => {
+        captureRoastingImportFailure(new TypeError('not a roast file'), {
+            product: 'Cropster',
+            stage: 'machines',
+            counts: { selected: 1, pending: 0, updates: 2 },
+        });
+        const calls = vi.mocked(Sentry.captureException).mock.calls;
+        const [captured] = calls[calls.length - 1];
+        expect(captured).toMatchObject({ name: 'TypeError', message: 'TypeError' });
+    });
+
+    it('sets a stable roasting-import fingerprint', () => {
+        captureRoastingImportFailure(new Error('x'), {
+            product: 'Artisan',
+            stage: 'graph',
+            counts: { selected: 0, pending: 0, updates: 0 },
+        });
+        const calls = vi.mocked(Sentry.captureException).mock.calls;
+        const [, hint] = calls[calls.length - 1] as [unknown, { fingerprint?: string[] }];
+        expect(hint.fingerprint).toEqual(['roasting-import', 'Artisan', 'graph']);
+    });
 });
 
 describe('normalizeSupabaseError', () => {

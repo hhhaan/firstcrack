@@ -37,4 +37,24 @@ describe('createAppQueryClient (main.tsx wiring)', () => {
             'db.code': '50000',
         });
     });
+
+    it('maps MutationCache onError meta to Sentry tags', async () => {
+        const client = createAppQueryClient();
+        const err = new Error('mutation failed');
+        const mutation = client.getMutationCache().build(client, {
+            mutationFn: () => Promise.reject(err),
+            meta: { feature: 'roast-session', rpc: 'update_roast_session' },
+        });
+        await expect(mutation.execute(undefined)).rejects.toBe(err);
+
+        expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+        const [, hint] = vi.mocked(Sentry.captureException).mock.calls[0] as [
+            unknown,
+            { tags?: Record<string, string> },
+        ];
+        expect(hint.tags).toEqual({
+            feature: 'roast-session',
+            rpc: 'update_roast_session',
+        });
+    });
 });
