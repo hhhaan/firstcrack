@@ -1172,6 +1172,13 @@
                 "collapsedWaiting": "Replay 実測 TP 待ち",
                 "collapsedFallback": "Replay TP フォールバック — 実測の上昇ではない"
             }
+        },
+        "rorAxis": {
+            "edit": "RoR軸を調整",
+            "min": "最小値",
+            "max": "最大値",
+            "interval": "目盛り間隔",
+            "invalid": "有効な範囲と正の目盛り間隔を入力してください。"
         }
     },
     "schedule": {

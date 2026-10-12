@@ -1172,6 +1172,13 @@
                 "collapsedWaiting": "Replay 等待实际转折点",
                 "collapsedFallback": "Replay TP 回退 — 不是实测上升"
             }
+        },
+        "rorAxis": {
+            "edit": "调整RoR轴",
+            "min": "最小值",
+            "max": "最大值",
+            "interval": "刻度间隔",
+            "invalid": "请输入有效范围和正刻度间隔。"
         }
     },
     "schedule": {

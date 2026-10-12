@@ -1172,6 +1172,13 @@
                 "collapsedWaiting": "Replay waiting for a real turning point",
                 "collapsedFallback": "Replay TP fallback — not a detected rise"
             }
+        },
+        "rorAxis": {
+            "edit": "Edit RoR axis",
+            "min": "Minimum",
+            "max": "Maximum",
+            "interval": "Tick interval",
+            "invalid": "Enter a valid range and a positive tick interval."
         }
     },
     "schedule": {

@@ -117,6 +117,7 @@ export type RoastSettings = {
     timeRangePresetMin: number;
     timeRangeCustom: boolean;
     timeRangeMin: number;
+    rorGridInterval: number;
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;
@@ -239,6 +240,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     timeRangePresetMin: TIME_RANGE_MIN_DEFAULT,
     timeRangeCustom: false,
     timeRangeMin: TIME_RANGE_MIN_DEFAULT,
+    rorGridInterval: 5,
     rorYMin: -5,
     rorYMax: 20,
     yellowTempC: 150,
@@ -338,6 +340,12 @@ export const normalizeRoastSettings = (
         controlYMin = Math.max(-50, controlYMax - 1);
     }
 
+    let rorYMin = clampNum(merged.rorYMin, -100, 300, previous?.rorYMin ?? DEFAULT_SETTINGS.rorYMin);
+    let rorYMax = clampNum(merged.rorYMax, -100, 300, previous?.rorYMax ?? DEFAULT_SETTINGS.rorYMax);
+    if (rorYMax <= rorYMin) {
+        rorYMin = previous?.rorYMin ?? DEFAULT_SETTINGS.rorYMin;
+        rorYMax = previous?.rorYMax ?? DEFAULT_SETTINGS.rorYMax;
+    }
     const yellowTempC = clampNum(merged.yellowTempC, 50, 300, DEFAULT_SETTINGS.yellowTempC);
     const autoYellowEnabled = asBool(merged.autoYellowEnabled, DEFAULT_SETTINGS.autoYellowEnabled);
     const fcDualMarkEnabled = asBool(merged.fcDualMarkEnabled, DEFAULT_SETTINGS.fcDualMarkEnabled);
@@ -429,6 +437,14 @@ export const normalizeRoastSettings = (
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,
+        rorYMin,
+        rorYMax,
+        rorGridInterval: clampNum(
+            merged.rorGridInterval,
+            0.1,
+            100,
+            previous?.rorGridInterval ?? DEFAULT_SETTINGS.rorGridInterval,
+        ),
         yellowTempC,
         autoChargeEnabled: asBool(merged.autoChargeEnabled, DEFAULT_SETTINGS.autoChargeEnabled),
         autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',

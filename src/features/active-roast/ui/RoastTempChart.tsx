@@ -71,6 +71,7 @@ type ChartAxisInput = Pick<
     | 'timeMinorTickIntervalSec'
     | 'tempLabelCustom'
     | 'timeTickCustom'
+    | 'rorGridInterval'
 >;
 
 const usesCustomTickList = (settings: Pick<ChartAxisInput, 'tempAxisMode' | 'tempTickMode' | 'tempTicksC'>): boolean =>
@@ -89,6 +90,7 @@ const labelEveryFor = (settings: ChartAxisInput): number => {
 };
 
 const chartAxisSettings = (settings: ChartAxisInput) => ({
+    rorGridInterval: settings.rorGridInterval,
     tempGridInterval: gridIntervalFor(settings),
     tempTicksC: settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' ? settings.tempTicksC : [],
     tempLabelEvery: labelEveryFor(settings),

@@ -1513,6 +1513,13 @@
                 "collapsedWaiting": "Replay 실제 TP 대기",
                 "collapsedFallback": "Replay TP 폴백 — 실제 상승 아님"
             }
+        },
+        "rorAxis": {
+            "edit": "RoR 축 조절",
+            "min": "최소값",
+            "max": "최대값",
+            "interval": "눈금 간격",
+            "invalid": "올바른 범위와 양수 눈금 간격을 입력해 주세요."
         }
     },
     "profiles": {
