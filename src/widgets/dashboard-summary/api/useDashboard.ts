@@ -1,7 +1,7 @@
 import { beanApi } from '@entities/bean';
 import { beanStockEventApi } from '@entities/bean-stock-event';
 import { type InventoryAlert, inventoryAlertApi } from '@entities/inventory-alert';
-import { planBatchApi } from '@entities/plan';
+import { batchStatus, planBatchApi } from '@entities/plan';
 import { roastSessionApi } from '@entities/roast';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { dashboardKeys } from '@shared/lib/query-keys';
@@ -79,9 +79,8 @@ const mapDbAlert = (row: InventoryAlert, beanMeta?: { capacity_grams: number; lo
 
 const isUpcomingBatch = (batch: PlanBatchWithProgress, today: string): boolean => {
     if (!batch.scheduled_date || batch.scheduled_date < today) return false;
-    if (batch.status === 'done' || batch.status === 'skipped') return false;
-    if (batch.completed_sessions >= batch.batch_count) return false;
-    return true;
+    const status = batchStatus(batch);
+    return status !== 'done' && status !== 'skipped';
 };
 
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
