@@ -1199,6 +1199,10 @@
             "noCurve": "No recorded curve",
             "empty": "No matching roasts",
             "apply": "Show as background"
+        },
+        "review": {
+            "title": "Review completed roast",
+            "return": "Return to charge wait"
         }
     },
     "schedule": {
