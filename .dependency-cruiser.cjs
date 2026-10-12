@@ -48,6 +48,17 @@ module.exports = {
             from: { path: '^src/(shared|entities|features|widgets|views)/', pathNot: testFile },
             to: { path: '^src/(App|main)\\.tsx$' },
         },
+        {
+            name: 'supabase-client-only-in-repositories',
+            severity: 'error',
+            comment:
+                'Table access stays in entities/*/api. Allowed callers: the client module, shared profile queryFn (profile + plan hooks share it without an entity import), R2 presign, auth session (store, ensureSession, features/auth), and the app shell.',
+            from: {
+                path: '^src/',
+                pathNot: `${testFile}|^src/shared/lib/(supabase|profile|r2|ensureSession)\\.ts$|^src/shared/store/auth\\.ts$|^src/entities/[^/]+/api(\\.ts|/)|^src/features/auth/|^src/(App|main)\\.tsx$`,
+            },
+            to: { path: '^src/shared/lib/supabase\\.ts$' },
+        },
     ],
     options: {
         doNotFollow: { path: 'node_modules' },

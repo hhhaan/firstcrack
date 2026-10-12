@@ -94,4 +94,36 @@ export const roastProfileApi = {
         const { error } = await supabase.from('roast_profiles').delete().eq('id', id);
         if (error) throw error;
     },
+
+    /** Profile detail log. History edits invalidate the roast_profiles root, not this read. */
+    sourceSessionEvents: async (sessionId: string): Promise<Json | null> => {
+        const { data, error } = await supabase.from('roast_sessions').select('events').eq('id', sessionId).single();
+        if (error) throw error;
+        return data?.events ?? null;
+    },
+
+    /** Sessions that name a bean, newest first. The hook groups them into counts. */
+    beanHistorySessions: async (profileId: string) => {
+        const { data, error } = await supabase
+            .from('roast_sessions')
+            .select('bean_id, roasted_at, beans(name)')
+            .eq('profile_id', profileId)
+            .not('bean_id', 'is', null)
+            .order('roasted_at', { ascending: false });
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    /** Newest completed batches for the consistency card. The limit is part of this read. */
+    consistencySessions: async (profileId: string) => {
+        const { data, error } = await supabase
+            .from('roast_sessions')
+            .select('drop_temp_celsius, duration_seconds, weight_grams, roasted_at')
+            .eq('profile_id', profileId)
+            .eq('status', 'completed')
+            .order('roasted_at', { ascending: false })
+            .limit(10);
+        if (error) throw error;
+        return data ?? [];
+    },
 };

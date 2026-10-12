@@ -1,7 +1,6 @@
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { roastProfileQueryRoots } from '@shared/lib/query-keys';
 import { curveQueryConfig } from '@shared/lib/roast-curve';
-import { supabase } from '@shared/lib/supabase';
 import type { Json, RoastProfile } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -95,9 +94,7 @@ export const useSourceSessionEvents = (sessionId: string | null) =>
         queryKey: roastProfileKeys.sourceEvents(sessionId ?? ''),
         queryFn: async (): Promise<Json | null> => {
             if (!sessionId) return null;
-            const { data, error } = await supabase.from('roast_sessions').select('events').eq('id', sessionId).single();
-            if (error) throw error;
-            return data?.events ?? null;
+            return roastProfileApi.sourceSessionEvents(sessionId);
         },
         enabled: !!sessionId,
         staleTime: Infinity,
@@ -147,16 +144,10 @@ export const useProfileBeanHistory = (profileId: string) =>
     useQuery({
         queryKey: roastProfileKeys.beanHistory(profileId),
         queryFn: async (): Promise<BeanHistoryItem[]> => {
-            const { data, error } = await supabase
-                .from('roast_sessions')
-                .select('bean_id, roasted_at, beans(name)')
-                .eq('profile_id', profileId)
-                .not('bean_id', 'is', null)
-                .order('roasted_at', { ascending: false });
-            if (error) throw error;
+            const data = await roastProfileApi.beanHistorySessions(profileId);
 
             const grouped: Record<string, { name: string; count: number; lastDate: string }> = {};
-            for (const s of data ?? []) {
+            for (const s of data) {
                 if (!s.bean_id) continue;
                 if (!grouped[s.bean_id]) {
                     grouped[s.bean_id] = {
@@ -181,22 +172,10 @@ export type ConsistencySessionRow = {
     roasted_at: string | null;
 };
 
-const CONSISTENCY_BATCH_LIMIT = 10;
-
-/** 최근 N개 완료 배치 메타 (newest first) — 일관성 통계용. */
+/** 최근 10개 완료 배치 메타 (newest first) — 일관성 통계용. 한도는 api 읽기에 있다. */
 export const useProfileConsistency = (profileId: string) =>
     useQuery({
         queryKey: roastProfileKeys.consistency(profileId),
-        queryFn: async (): Promise<ConsistencySessionRow[]> => {
-            const { data, error } = await supabase
-                .from('roast_sessions')
-                .select('drop_temp_celsius, duration_seconds, weight_grams, roasted_at')
-                .eq('profile_id', profileId)
-                .eq('status', 'completed')
-                .order('roasted_at', { ascending: false })
-                .limit(CONSISTENCY_BATCH_LIMIT);
-            if (error) throw error;
-            return data ?? [];
-        },
+        queryFn: async (): Promise<ConsistencySessionRow[]> => roastProfileApi.consistencySessions(profileId),
         enabled: !!profileId,
     });
