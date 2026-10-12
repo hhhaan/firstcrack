@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { roastSessionApi } from './api';
-import { roastSessionKeys, useRoastSessionsPaginated } from './queries';
+import { roastSessionKeys, useRoastSessionsInfinite, useRoastSessionsPaginated } from './queries';
 
 vi.mock('./api', () => ({
     roastSessionApi: { listPaginated: vi.fn() },
@@ -170,5 +170,75 @@ describe('useRoastSessionsPaginated N+1 prefetch', () => {
         });
         await waitUntil(() => calledPages().length >= before + 2);
         expect(calledPages().slice(before).sort()).toEqual([1, 2]);
+    });
+});
+
+describe('useRoastSessionsInfinite', () => {
+    let qc: QueryClient;
+    let root: ReturnType<typeof createRoot>;
+    let latest!: ReturnType<typeof useRoastSessionsInfinite>;
+
+    const flush = async () => {
+        await act(async () => {
+            await new Promise((r) => setTimeout(r, 10));
+        });
+    };
+
+    const waitUntil = async (pred: () => boolean) => {
+        for (let i = 0; i < 50; i++) {
+            if (pred()) return;
+            await flush();
+        }
+        throw new Error(`timeout; pages=${JSON.stringify(calledPages())}`);
+    };
+
+    function Probe() {
+        const query = useRoastSessionsInfinite(uid, 'completed');
+        latest = query;
+        return query.data?.pages.length ?? 0;
+    }
+
+    beforeEach(() => {
+        qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+        root = createRoot(document.createElement('div'));
+        vi.mocked(roastSessionApi.listPaginated).mockReset();
+        vi.mocked(roastSessionApi.listPaginated).mockImplementation(async (p) => ({
+            data: [{ id: `s${p.page}` }] as never,
+            total: 25,
+        }));
+    });
+
+    afterEach(() => {
+        act(() => root.unmount());
+        qc.clear();
+    });
+
+    it('fetches 10 at a time and stops after the last page', async () => {
+        await act(async () => {
+            root.render(
+                <QueryClientProvider client={qc}>
+                    <Probe />
+                </QueryClientProvider>,
+            );
+        });
+        await waitUntil(() => latest.isSuccess);
+        expect(vi.mocked(roastSessionApi.listPaginated).mock.calls[0]?.[0]).toMatchObject({
+            page: 1,
+            pageSize: 10,
+            sortKey: 'date',
+            sortAsc: false,
+        });
+        expect(calledPages()).toEqual([1]);
+
+        await act(async () => {
+            await latest.fetchNextPage();
+        });
+        await waitUntil(() => (latest.data?.pages.length ?? 0) >= 2);
+        await act(async () => {
+            await latest.fetchNextPage();
+        });
+        await waitUntil(() => latest.hasNextPage === false);
+        expect(calledPages()).toEqual([1, 2, 3]);
+        expect(latest.data?.pages.map((page) => page.data[0]?.id)).toEqual(['s1', 's2', 's3']);
     });
 });

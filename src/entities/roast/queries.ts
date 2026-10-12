@@ -2,7 +2,7 @@ import { dashboardKeys, inventoryQueryRoots, roastedStockKeys, roastProfileQuery
 import { isClientRefusal } from '@shared/lib/sentry';
 import { shouldPrefetchNextPage } from '@shared/lib/shouldPrefetchNextPage';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
-import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roastSessionApi } from './api';
 
 const roastSessionRoot = (userId: string) => ['roast_sessions', userId] as const;
@@ -12,12 +12,14 @@ export const roastSessionKeys = {
     byStatus: (userId: string, status: string) => [...roastSessionRoot(userId), status] as const,
     detail: (userId: string, id: string) => [...roastSessionRoot(userId), 'detail', id] as const,
     paginated: (userId: string, ...params: unknown[]) => [...roastSessionRoot(userId), 'paginated', ...params] as const,
+    infinite: (userId: string, ...params: unknown[]) => [...roastSessionRoot(userId), 'infinite', ...params] as const,
     completedCount: (userId: string) => [...roastSessionRoot(userId), 'completed_count'] as const,
     completedMonthCount: (userId: string) => [...roastSessionRoot(userId), 'completed_month_count'] as const,
     filterMeta: (userId: string) => [...roastSessionRoot(userId), 'filter_meta'] as const,
 };
 
 type PaginatedSessions = { data: RoastSessionWithRelations[]; total: number };
+type InfiniteSessions = { pages: PaginatedSessions[]; pageParams: unknown[] };
 
 /**
  * Shared after create/update/delete/setOutput and, through record edit, after a saved-record patch.
@@ -45,6 +47,9 @@ export const applyOptimisticRoastSessionDelete = (qc: QueryClient, userId: strin
     const prevPaginated = qc.getQueriesData<PaginatedSessions>({
         queryKey: roastSessionKeys.paginated(userId),
     });
+    const prevInfinite = qc.getQueriesData<InfiniteSessions>({
+        queryKey: roastSessionKeys.infinite(userId),
+    });
 
     if (prevAll) {
         qc.setQueryData(
@@ -60,8 +65,20 @@ export const applyOptimisticRoastSessionDelete = (qc: QueryClient, userId: strin
             total: Math.max(0, prev.total - 1),
         };
     });
+    qc.setQueriesData<InfiniteSessions>({ queryKey: roastSessionKeys.infinite(userId) }, (prev) => {
+        if (!prev) return prev;
+        const hit = prev.pages.some((page) => page.data.some((s) => s.id === id));
+        return {
+            ...prev,
+            pages: prev.pages.map((page) => ({
+                ...page,
+                data: page.data.filter((s) => s.id !== id),
+                total: hit ? Math.max(0, page.total - 1) : page.total,
+            })),
+        };
+    });
 
-    return { prevAll, prevPaginated };
+    return { prevAll, prevPaginated, prevInfinite };
 };
 
 export const restoreOptimisticRoastSessionDelete = (
@@ -73,10 +90,19 @@ export const restoreOptimisticRoastSessionDelete = (
     for (const [key, data] of ctx.prevPaginated) {
         qc.setQueryData(key, data);
     }
+    for (const [key, data] of ctx.prevInfinite) {
+        qc.setQueryData(key, data);
+    }
 };
 
 const isPaginatedSessions = (old: unknown): old is PaginatedSessions =>
     !!old && typeof old === 'object' && 'data' in old && Array.isArray((old as PaginatedSessions).data);
+
+const isInfiniteSessions = (old: unknown): old is InfiniteSessions =>
+    !!old &&
+    typeof old === 'object' &&
+    Array.isArray((old as InfiniteSessions).pages) &&
+    (old as InfiniteSessions).pages.every(isPaginatedSessions);
 
 const isSessionRow = (row: unknown): row is RoastSessionWithRelations =>
     !!row && typeof row === 'object' && 'id' in row && 'status' in row;
@@ -99,6 +125,9 @@ export const patchRoastSessionTsvPaths = (
             if (old.length === 0) return old;
             if (!isSessionRow(old[0])) return old;
             return old.map(patch);
+        }
+        if (isInfiniteSessions(old)) {
+            return { ...old, pages: old.pages.map((page) => ({ ...page, data: page.data.map(patch) })) };
         }
         if (isPaginatedSessions(old)) return { ...old, data: old.data.map(patch) };
         if (isSessionRow(old)) return patch(old);
@@ -227,6 +256,29 @@ export const useRoastSessionsPaginated = (params: {
     });
     return query;
 };
+
+const INFINITE_PAGE_SIZE = 10;
+
+/** Completed roasts, 10 per page. The background picker scrolls to the next page. */
+export const useRoastSessionsInfinite = (userId: string, status?: RoastSession['status'], enabled = true) =>
+    useInfiniteQuery({
+        queryKey: roastSessionKeys.infinite(userId, status ?? null, INFINITE_PAGE_SIZE),
+        queryFn: ({ pageParam }) =>
+            roastSessionApi.listPaginated({
+                userId,
+                status,
+                page: pageParam,
+                pageSize: INFINITE_PAGE_SIZE,
+                sortKey: 'date',
+                sortAsc: false,
+            }),
+        initialPageParam: 1,
+        getNextPageParam: (lastPage, _pages, pageParam) =>
+            pageParam * INFINITE_PAGE_SIZE >= lastPage.total ? undefined : pageParam + 1,
+        staleTime: Infinity,
+        refetchOnMount: true,
+        enabled: !!userId && enabled,
+    });
 
 export const useDeleteRoastSession = (userId: string) => {
     const qc = useQueryClient();

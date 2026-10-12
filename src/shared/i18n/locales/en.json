@@ -1191,6 +1191,14 @@
                 "collapsedWaiting": "Replay waiting for a real turning point",
                 "collapsedFallback": "Replay TP fallback — not a detected rise"
             }
+        },
+        "reference": {
+            "choose": "Choose a background roast",
+            "clear": "Use profile background",
+            "failed": "Could not load the roast curve.",
+            "noCurve": "No recorded curve",
+            "empty": "No matching roasts",
+            "apply": "Show as background"
         }
     },
     "schedule": {

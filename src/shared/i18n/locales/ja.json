@@ -1191,6 +1191,14 @@
                 "collapsedWaiting": "Replay 実測 TP 待ち",
                 "collapsedFallback": "Replay TP フォールバック — 実測の上昇ではない"
             }
+        },
+        "reference": {
+            "choose": "履歴から背景を選択",
+            "clear": "プロファイル背景に戻る",
+            "failed": "焙煎曲線を読み込めませんでした。",
+            "noCurve": "記録された曲線なし",
+            "empty": "該当する焙煎がありません",
+            "apply": "背景として表示"
         }
     },
     "schedule": {

@@ -7,6 +7,7 @@ import {
     profileHeaterEvents,
     resolveSourceSession,
     useResolvedProfileCurve,
+    useRoastProfileCurve,
     useRoastProfiles,
 } from '@entities/roast-profile';
 import {
@@ -53,6 +54,7 @@ import { useToastStore } from '@shared/store/toast';
 import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
+import { type HistoryReference, HistoryReferencePicker } from '@widgets/history-reference/ui/HistoryReferencePicker';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
@@ -180,6 +182,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── 유저 + DB 프로파일 ────────────────────────────────────────
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
+    const [historyReference, setHistoryReference] = useState<HistoryReference | null>(null);
+    const [referencePickerOpen, setReferencePickerOpen] = useState(false);
+    const reference = historyReference?.ownerId === workspaceOwnerId ? historyReference : null;
+    const historyCurve = useRoastProfileCurve(reference?.tsvPath);
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
     const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
@@ -263,13 +269,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [dbProfiles, targetProfileId, workspaceOwnerId],
     );
     const { points: targetCurvePoints, isLoading: curveLoading } = useResolvedProfileCurve(targetProfile);
+    const backgroundCurvePoints = reference ? (historyCurve.data ?? []) : targetCurvePoints;
     const replayPoints = replayPointsForProfile(targetProfileId, curveLoading, targetCurvePoints);
     const sourceSession = resolveSourceSession(targetProfile?.source_session);
     const waitingForCharge = isWaitingForCharge(bbpActive, charged);
     const bbpTarget = useBbpCurve(
         workspaceOwnerId,
-        targetProfile?.source_session_id ?? null,
-        sourceSession?.bbp_tsv_path,
+        reference?.id ?? targetProfile?.source_session_id ?? null,
+        reference ? reference.bbpPath : sourceSession?.bbp_tsv_path,
         waitingForCharge,
     );
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
@@ -339,11 +346,20 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 charged,
                 livePoints,
                 bbpPoints,
-                roastTarget: targetCurvePoints,
+                roastTarget: backgroundCurvePoints,
                 bbpTarget: bbpTarget.data ?? [],
                 bbpTargetError: bbpTarget.isError,
             }),
-        [bbpActive, bbpEnabled, bbpPoints, bbpTarget.data, bbpTarget.isError, charged, livePoints, targetCurvePoints],
+        [
+            bbpActive,
+            bbpEnabled,
+            bbpPoints,
+            bbpTarget.data,
+            bbpTarget.isError,
+            charged,
+            livePoints,
+            backgroundCurvePoints,
+        ],
     );
     const bbpNowSec = latestSampleTime(bbpPoints);
     const { tempMinC: bbpTempMinC, tempMaxC: bbpTempMaxC } = chargeWaitTempBand({
@@ -1020,9 +1036,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const targetDelta = useMemo(
         () =>
             roastSettings.showTargetCurve && charged && !roastEnded
-                ? calcTargetDelta(rawBT, targetCurvePoints, elapsed, unit)
+                ? calcTargetDelta(rawBT, backgroundCurvePoints, elapsed, unit)
                 : null,
-        [roastSettings.showTargetCurve, charged, roastEnded, rawBT, targetCurvePoints, elapsed, unit],
+        [roastSettings.showTargetCurve, charged, roastEnded, rawBT, backgroundCurvePoints, elapsed, unit],
     );
     const roastLogDisplayEntries = useMemo(
         () => buildRoastLogDisplayEntries(logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit),
@@ -1036,10 +1052,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         bbpRecording,
         awaitingNextCharge,
         showTargetCurve: roastSettings.showTargetCurve,
-        targetProfileId,
+        targetProfileId: reference?.id ?? targetProfileId,
         targetPointCount: chartView.targetPoints.length,
         showTargetDeltaLabel: roastSettings.showTargetDeltaLabel,
-        targetCurvePointCount: targetCurvePoints.length,
+        targetCurvePointCount: backgroundCurvePoints.length,
         showControlChart: roastSettings.showControlChart,
         showControlDrum: roastSettings.showControlDrum,
         showControlHeat: roastSettings.showControlHeat,
@@ -1086,10 +1102,26 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 targetProfileId={targetProfileId}
                 selectedBeanId={selectedBeanId}
                 fallbackBeanName={handoffBeanName}
-                onTargetProfileChange={setUserSelectedTarget}
+                onTargetProfileChange={(id) => {
+                    void setUserSelectedTarget(id).then((applied) => {
+                        if (applied) setHistoryReference(null);
+                    });
+                }}
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}
+                historyReferenceName={reference?.name ?? null}
+                historyReferenceFailed={Boolean(reference && historyCurve.isError)}
+                onChooseHistoryReference={() => setReferencePickerOpen(true)}
+                onClearHistoryReference={() => setHistoryReference(null)}
             />
+            {referencePickerOpen && (
+                <HistoryReferencePicker
+                    key={workspaceOwnerId}
+                    ownerId={workspaceOwnerId}
+                    onSelect={setHistoryReference}
+                    onClose={() => setReferencePickerOpen(false)}
+                />
+            )}
 
             <ActiveRoastSensorNotices
                 showUnsavedBanner={showPendingSummary(saveFlow.flow.summaryModal, saveFlow.flow.summaryData)}
@@ -1164,7 +1196,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         phaseSegments={chartFrame.phaseSegments}
                         showFcBand={chartFrame.showFcBand}
                         unit={unit}
-                        targetProfileName={targetProfile?.name}
+                        targetProfileName={reference?.name ?? targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}
                         onEventMarkerDrag={chartFrame.onEventMarkerDrag}
                         onEventMarkerEdit={chartFrame.onEventMarkerEdit}

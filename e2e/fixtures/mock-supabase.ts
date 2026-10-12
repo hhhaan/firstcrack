@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test';
 import { E2E_USER } from './constants';
 import type { MockDb } from './mock-db';
 
-function json(route: Route, body: unknown, status = 200) {
+function json(route: Route, body: unknown, status = 200, contentRange?: string) {
     return route.fulfill({
         status,
         contentType: 'application/json',
@@ -10,7 +10,8 @@ function json(route: Route, body: unknown, status = 200) {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': '*',
             'Access-Control-Allow-Methods': '*',
-            'Content-Range': Array.isArray(body) ? `0-${Math.max(0, body.length - 1)}/${body.length}` : '*/0',
+            'Content-Range':
+                contentRange ?? (Array.isArray(body) ? `0-${Math.max(0, body.length - 1)}/${body.length}` : '*/0'),
             Prefer: '',
         },
         body: JSON.stringify(body),
@@ -294,6 +295,17 @@ export async function installMockSupabase(page: Page, db: MockDb) {
                     route.request().headers()['prefer']?.includes('count=exact')
                 ) {
                     // still return body for simplicity
+                }
+                const range = route
+                    .request()
+                    .headers()
+                    .range?.match(/(\d+)-(\d+)/);
+                if (range) {
+                    const from = Number(range[1]);
+                    const slice = rows.slice(from, Number(range[2]) + 1);
+                    const contentRange =
+                        slice.length === 0 ? `*/${rows.length}` : `${from}-${from + slice.length - 1}/${rows.length}`;
+                    return json(route, slice, 200, contentRange);
                 }
                 return json(route, rows);
             }

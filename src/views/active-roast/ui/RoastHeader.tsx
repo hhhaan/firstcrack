@@ -12,19 +12,28 @@ import { useTranslation } from 'react-i18next';
 
 const joinDisplay = (parts: (string | null | undefined)[], sep = ' · ') => parts.filter(Boolean).join(sep);
 
+const HISTORY_PICK = '__fc_history_pick__';
+const HISTORY_ACTIVE = '__fc_history_active__';
+const HISTORY_CLEAR = '__fc_history_clear__';
+
 /** 화살표 아이콘이 있는 hidden select overlay. Target/profile 선택에 공통 사용 */
 const OverlaySelect = <T extends string>({
     value,
     onChange,
+    onIntercept,
     disabled,
     options,
     placeholder,
+    ariaLabel,
 }: {
     value: T | null;
     onChange: (val: T | null) => void;
+    /** true면 선택값을 바꾸지 않는다. 히스토리 배경처럼 같은 메뉴의 동작. */
+    onIntercept?: (val: T) => boolean;
     disabled: boolean;
     options: { value: T; label: string }[];
     placeholder: string;
+    ariaLabel?: string;
 }) => (
     <div className="relative inline-flex items-center">
         <div className="flex items-center gap-1">
@@ -34,9 +43,14 @@ const OverlaySelect = <T extends string>({
             {!disabled && <ChevronDown size={12} className="text-muted flex-shrink-0" />}
         </div>
         <select
+            aria-label={ariaLabel}
             value={value ?? ''}
             onChange={(e) => {
                 const v = e.target.value;
+                if (v && onIntercept?.(v as T)) {
+                    e.target.value = value ?? '';
+                    return;
+                }
                 onChange(v === '' ? null : (v as T));
             }}
             disabled={disabled}
@@ -71,6 +85,10 @@ export const RoastHeader = ({
     onTargetProfileChange,
     onBeanChange,
     onOpenRoastSettings,
+    historyReferenceName = null,
+    historyReferenceFailed = false,
+    onChooseHistoryReference,
+    onClearHistoryReference,
 }: {
     phase: string;
     targetProfileId: string | null;
@@ -79,6 +97,11 @@ export const RoastHeader = ({
     onTargetProfileChange: (id: string | null) => void;
     onBeanChange: (id: string | null) => void;
     onOpenRoastSettings?: () => void;
+    /** 히스토리 로스트를 배경으로 쓰는 동안 Target에 보이는 이름 */
+    historyReferenceName?: string | null;
+    historyReferenceFailed?: boolean;
+    onChooseHistoryReference?: () => void;
+    onClearHistoryReference?: () => void;
 }) => {
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
@@ -93,8 +116,23 @@ export const RoastHeader = ({
     const { data: userProfile } = useProfile(user?.id ?? '');
 
     const handleProfileChange = (id: string | null) => {
-        if (id === targetProfileId) return;
+        if (id === targetProfileId) {
+            if (historyReferenceName) onClearHistoryReference?.();
+            return;
+        }
         onTargetProfileChange(id);
+    };
+
+    const handleTargetAction = (id: string) => {
+        if (id === HISTORY_PICK) {
+            onChooseHistoryReference?.();
+            return true;
+        }
+        if (id === HISTORY_CLEAR || id === HISTORY_ACTIVE) {
+            if (id === HISTORY_CLEAR) onClearHistoryReference?.();
+            return true;
+        }
+        return false;
     };
 
     const handleBeanChange = (id: string | null) => {
@@ -119,7 +157,12 @@ export const RoastHeader = ({
         if (b.id === defaultProfileId) return 1;
         return 0;
     });
-    const profileOptions = sortedProfiles.map((p) => ({ value: p.id, label: p.name }));
+    const profileOptions = [
+        ...(historyReferenceName ? [{ value: HISTORY_ACTIVE, label: historyReferenceName }] : []),
+        ...sortedProfiles.map((p) => ({ value: p.id, label: p.name })),
+        ...(historyReferenceName ? [{ value: HISTORY_CLEAR, label: t('activeRoast.reference.clear') }] : []),
+        ...(onChooseHistoryReference ? [{ value: HISTORY_PICK, label: t('activeRoast.reference.choose') }] : []),
+    ];
 
     return (
         <div className="flex items-end justify-between">
@@ -170,12 +213,19 @@ export const RoastHeader = ({
 
                     <span className="text-[13px] text-muted tracking-[0.14px]">Target:</span>
                     <OverlaySelect
-                        value={targetProfileId}
+                        value={historyReferenceName ? HISTORY_ACTIVE : targetProfileId}
                         onChange={handleProfileChange}
+                        onIntercept={handleTargetAction}
                         disabled={false}
                         options={profileOptions}
                         placeholder="No Target"
+                        ariaLabel={t('activeRoast.header.target')}
                     />
+                    {historyReferenceFailed && (
+                        <span role="alert" className="text-[13px] text-red-400">
+                            {t('activeRoast.reference.failed')}
+                        </span>
+                    )}
                 </div>
             </div>
 

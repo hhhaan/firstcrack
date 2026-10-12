@@ -1191,6 +1191,14 @@
                 "collapsedWaiting": "Replay 等待实际转折点",
                 "collapsedFallback": "Replay TP 回退 — 不是实测上升"
             }
+        },
+        "reference": {
+            "choose": "从历史记录选择背景",
+            "clear": "恢复曲线配置背景",
+            "failed": "无法加载烘焙曲线。",
+            "noCurve": "无记录曲线",
+            "empty": "没有匹配的烘焙记录",
+            "apply": "显示为背景"
         }
     },
     "schedule": {
