@@ -5,6 +5,7 @@ import { useRoastProfiles } from '@entities/roast-profile';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
+import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -113,6 +114,11 @@ export const RoastHeader = ({
     const { workspaceOwnerId } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
+    const beanVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'beans');
+    const profileVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
+    const visibleBeans = beans.filter(
+        (bean) => bean.id === selectedBeanId || !beanVisibility.hiddenIds.includes(bean.id),
+    );
     const { data: userProfile } = useProfile(user?.id ?? '');
 
     const handleProfileChange = (id: string | null) => {
@@ -151,12 +157,14 @@ export const RoastHeader = ({
           (selectedBean.name !== beanTitle ? selectedBean.name : '')
         : '';
     const defaultProfileId = userProfile?.default_roast_profile_id;
-    const sortedProfiles = [...dbProfiles].sort((a, b) => {
-        if (!defaultProfileId) return 0;
-        if (a.id === defaultProfileId) return -1;
-        if (b.id === defaultProfileId) return 1;
-        return 0;
-    });
+    const sortedProfiles = dbProfiles
+        .filter((profile) => profile.id === targetProfileId || !profileVisibility.hiddenIds.includes(profile.id))
+        .sort((a, b) => {
+            if (!defaultProfileId) return 0;
+            if (a.id === defaultProfileId) return -1;
+            if (b.id === defaultProfileId) return 1;
+            return 0;
+        });
     const profileOptions = [
         ...(historyReferenceName ? [{ value: HISTORY_ACTIVE, label: historyReferenceName }] : []),
         ...sortedProfiles.map((p) => ({ value: p.id, label: p.name })),
@@ -188,7 +196,7 @@ export const RoastHeader = ({
                         className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
                     >
                         <option value="">No Bean Selected</option>
-                        {beans.map((b) => (
+                        {visibleBeans.map((b) => (
                             <option key={b.id} value={b.id}>
                                 {beanOptionDisplay(b)}
                             </option>

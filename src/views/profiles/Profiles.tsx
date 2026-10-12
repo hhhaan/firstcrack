@@ -15,9 +15,11 @@ import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
+import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastProfile } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
+import { CatalogVisibilityButton, CatalogVisibilityFilter } from '@shared/ui/CatalogVisibilityControls';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -110,6 +112,8 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [search, setSearch] = useState('');
+    const [showHidden, setShowHidden] = useState(false);
+    const { hiddenIds, setHidden } = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
@@ -136,15 +140,17 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                   return haystack.includes(q);
               })
             : profiles;
-        return [...filtered].sort((a, b) => {
-            if (!defaultId) return 0;
-            if (a.id === defaultId) return -1;
-            if (b.id === defaultId) return 1;
-            return 0;
-        });
-    }, [profiles, search, defaultId]);
+        return filtered
+            .filter((profile) => showHidden || !hiddenIds.includes(profile.id))
+            .sort((a, b) => {
+                if (!defaultId) return 0;
+                if (a.id === defaultId) return -1;
+                if (b.id === defaultId) return 1;
+                return 0;
+            });
+    }, [profiles, search, defaultId, hiddenIds, showHidden]);
 
-    const selected = profiles.find((p) => p.id === selectedId) ?? null;
+    const selected = sortedProfiles.find((p) => p.id === selectedId) ?? sortedProfiles[0] ?? null;
 
     const syntheticCurve = (p: RoastProfileWithSource) =>
         generateProfileCurve(p.drop_temp_celsius ?? 200, p.duration_sec ?? 720);
@@ -270,6 +276,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const profileList = (
         <div>
+            <CatalogVisibilityFilter checked={showHidden} onChange={setShowHidden} />
             <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
@@ -324,6 +331,13 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     </div>
                                 )}
 
+                                <div className="mb-1 flex justify-end">
+                                    <CatalogVisibilityButton
+                                        hidden={hiddenIds.includes(profile.id)}
+                                        name={profile.name}
+                                        onToggle={() => setHidden(profile.id, !hiddenIds.includes(profile.id))}
+                                    />
+                                </div>
                                 <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
 
                                 <div className="flex items-start justify-between mt-3">

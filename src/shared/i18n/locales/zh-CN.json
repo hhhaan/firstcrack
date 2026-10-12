@@ -2292,5 +2292,10 @@
         "trial_batch_cap": "试用烘焙次数已用完（{{used}}/{{max}}）。订阅后可继续烘焙。",
         "trial_expired": "试用期已结束。订阅后可继续烘焙。",
         "read_only_plan": "订阅已失效，当前为只读状态。订阅后即可继续保存烘焙。"
+    },
+    "catalog": {
+        "showHidden": "显示隐藏项目",
+        "hide": "隐藏{{name}}",
+        "restore": "恢复{{name}}"
     }
 }

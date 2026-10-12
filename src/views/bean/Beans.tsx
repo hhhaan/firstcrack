@@ -8,8 +8,11 @@ import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-
 import { useRoastingStore } from '@features/active-roast';
 import { BlendRoastedModal } from '@features/blend-roasted';
 import { FEATURE, useFeature } from '@shared/lib/features';
+import { useAuthStore } from '@shared/store/auth';
+import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
+import { CatalogVisibilityFilter } from '@shared/ui/CatalogVisibilityControls';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -41,6 +44,10 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const qc = useQueryClient();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [], isLoading } = useBeans(userId);
+    const authUserId = useAuthStore((state) => state.user?.id ?? '');
+    const { hiddenIds, setHidden } = useCatalogVisibility(authUserId, userId, 'beans');
+    const [showHidden, setShowHidden] = useState(false);
+    const visibleBeans = beans.filter((bean) => showHidden || !hiddenIds.includes(bean.id));
     const {
         summary: assetSummary,
         stockSummaries,
@@ -113,7 +120,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
         setProductAddOpen(true);
     };
 
-    const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
+    const selected = visibleBeans.find((b) => b.id === selectedId) ?? visibleBeans[0] ?? null;
 
     const affectedBlendNames = useMemo(
         () =>
@@ -144,8 +151,11 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
     const leftPanel = (
         <div className="flex flex-col gap-2">
+            <CatalogVisibilityFilter checked={showHidden} onChange={setShowHidden} />
             <BeanList
-                beans={beans}
+                beans={visibleBeans}
+                hiddenIds={hiddenIds}
+                onToggleHidden={(id) => setHidden(id, !hiddenIds.includes(id))}
                 isLoading={isLoading}
                 selectedId={selected?.id ?? null}
                 onSelect={setSelectedId}
