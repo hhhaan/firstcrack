@@ -165,6 +165,61 @@ describe('buildRoastChartOption', () => {
         }
     });
 
+    it('uses a RoR tick list and restores interval labels', () => {
+        const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
+        try {
+            const listed = buildRoastChartOption({
+                ...baseParams(),
+                temperatureUnit: 'F',
+                axisSettings: {
+                    tempGridInterval: 10,
+                    tempLabelEvery: 5,
+                    timeTickIntervalSec: 60,
+                    rorTicksC: [-5, 0, 10],
+                    rorGridInterval: 5,
+                },
+            });
+            chart.setOption(listed);
+            const ror = (
+                listed.yAxis as {
+                    gridIndex: number;
+                    position?: string;
+                    axisTick: { customValues?: number[] };
+                    axisLabel: { formatter: (value: number) => string };
+                }[]
+            ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
+            expect(ror?.axisTick.customValues).toEqual([-9, 0, 18]);
+            expect(ror?.axisLabel.formatter(18)).toBe('18');
+            const restored = buildRoastChartOption({
+                ...baseParams(),
+                axisSettings: {
+                    tempGridInterval: 10,
+                    tempLabelEvery: 5,
+                    timeTickIntervalSec: 60,
+                    rorTicksC: [],
+                    rorGridInterval: 4,
+                    rorLabelEvery: 2,
+                },
+            });
+            chart.setOption(restored);
+            const reset = (
+                chart.getOption().yAxis as {
+                    gridIndex: number;
+                    position?: string;
+                    interval?: number;
+                    axisTick: { customValues?: number[] };
+                    axisLabel: { formatter?: (value: number) => string };
+                }[]
+            ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
+            expect(reset?.interval).toBe(4);
+            expect(reset?.axisTick.customValues).toBeUndefined();
+            expect(reset?.axisLabel.formatter?.(0)).toBe('0');
+            expect(reset?.axisLabel.formatter?.(4)).toBe('');
+        } finally {
+            chart.dispose();
+        }
+    });
+
     it('applies display-unit grid and label intervals to both layouts and report charts', () => {
         for (const temperatureUnit of ['C', 'F'] as const) {
             for (const controls of [false, true]) {

@@ -71,6 +71,14 @@ type ChartAxisInput = Pick<
     | 'timeMinorTickIntervalSec'
     | 'tempLabelCustom'
     | 'timeTickCustom'
+    | 'rorGridInterval'
+    | 'rorGridPresetInterval'
+    | 'rorAxisMode'
+    | 'rorTickMode'
+    | 'rorTicksC'
+    | 'rorLabelEvery'
+    | 'rorLabelPresetEvery'
+    | 'rorLabelCustom'
 >;
 
 const usesCustomTickList = (settings: Pick<ChartAxisInput, 'tempAxisMode' | 'tempTickMode' | 'tempTicksC'>): boolean =>
@@ -82,6 +90,18 @@ const gridIntervalFor = (settings: ChartAxisInput): number => {
     return 10;
 };
 
+const rorIntervalFor = (settings: ChartAxisInput): number => {
+    if (settings.rorAxisMode === 'preset') return settings.rorGridPresetInterval;
+    if (settings.rorTickMode === 'interval') return settings.rorGridInterval;
+    return 5;
+};
+
+const rorLabelEveryFor = (settings: ChartAxisInput): number => {
+    if (settings.rorAxisMode === 'list' && settings.rorTickMode === 'list') return 1;
+    if (settings.rorLabelCustom) return settings.rorLabelEvery;
+    return settings.rorLabelPresetEvery;
+};
+
 const labelEveryFor = (settings: ChartAxisInput): number => {
     if (settings.tempAxisMode === 'list' && settings.tempTickMode === 'list') return 5;
     if (settings.tempLabelCustom) return settings.tempLabelEvery;
@@ -89,6 +109,9 @@ const labelEveryFor = (settings: ChartAxisInput): number => {
 };
 
 const chartAxisSettings = (settings: ChartAxisInput) => ({
+    rorGridInterval: rorIntervalFor(settings),
+    rorTicksC: settings.rorAxisMode === 'list' && settings.rorTickMode === 'list' ? settings.rorTicksC : [],
+    rorLabelEvery: rorLabelEveryFor(settings),
     tempGridInterval: gridIntervalFor(settings),
     tempTicksC: settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' ? settings.tempTicksC : [],
     tempLabelEvery: labelEveryFor(settings),

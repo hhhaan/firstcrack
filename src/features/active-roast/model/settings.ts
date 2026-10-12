@@ -17,7 +17,7 @@ import {
 } from '../lib/curve-style';
 import { DEFAULT_EVENT_BUTTONS, normalizeEventButtons, type RoastEventButtons } from '../lib/event-buttons';
 import { mapFirescopeGraphSettings } from '../lib/firescope-settings';
-import { normalizeTemperatureTicks } from '../lib/temperature';
+import { normalizeRorTicks, normalizeTemperatureTicks } from '../lib/temperature';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
@@ -117,6 +117,16 @@ export type RoastSettings = {
     timeRangePresetMin: number;
     timeRangeCustom: boolean;
     timeRangeMin: number;
+    /** Stored °C/min. Preset mode uses `rorGridPresetInterval` instead. */
+    rorGridInterval: number;
+    rorGridPresetInterval: number;
+    /** `list` is the custom block, same naming as the temperature axis. */
+    rorAxisMode: 'preset' | 'list';
+    rorTickMode: 'interval' | 'list';
+    rorTicksC: number[];
+    rorLabelEvery: number;
+    rorLabelPresetEvery: number;
+    rorLabelCustom: boolean;
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;
@@ -239,6 +249,14 @@ const DEFAULT_SETTINGS: RoastSettings = {
     timeRangePresetMin: TIME_RANGE_MIN_DEFAULT,
     timeRangeCustom: false,
     timeRangeMin: TIME_RANGE_MIN_DEFAULT,
+    rorGridInterval: 5,
+    rorGridPresetInterval: 5,
+    rorAxisMode: 'preset',
+    rorTickMode: 'interval',
+    rorTicksC: [],
+    rorLabelEvery: 1,
+    rorLabelPresetEvery: 1,
+    rorLabelCustom: false,
     rorYMin: -5,
     rorYMax: 20,
     yellowTempC: 150,
@@ -275,6 +293,12 @@ const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean
 
 const pickPreset = (value: number, allowed: readonly number[], fallback: number): number =>
     allowed.includes(value) ? value : fallback;
+
+const axisModeOf = (mode: unknown, previous: 'preset' | 'list' | undefined, custom: boolean): 'preset' | 'list' => {
+    if (mode === 'preset' || mode === 'list') return mode;
+    if (previous) return previous;
+    return custom ? 'list' : 'preset';
+};
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
@@ -338,6 +362,12 @@ export const normalizeRoastSettings = (
         controlYMin = Math.max(-50, controlYMax - 1);
     }
 
+    let rorYMin = clampNum(merged.rorYMin, -100, 300, previous?.rorYMin ?? DEFAULT_SETTINGS.rorYMin);
+    let rorYMax = clampNum(merged.rorYMax, -100, 300, previous?.rorYMax ?? DEFAULT_SETTINGS.rorYMax);
+    if (rorYMax <= rorYMin) {
+        rorYMin = previous?.rorYMin ?? DEFAULT_SETTINGS.rorYMin;
+        rorYMax = previous?.rorYMax ?? DEFAULT_SETTINGS.rorYMax;
+    }
     const yellowTempC = clampNum(merged.yellowTempC, 50, 300, DEFAULT_SETTINGS.yellowTempC);
     const autoYellowEnabled = asBool(merged.autoYellowEnabled, DEFAULT_SETTINGS.autoYellowEnabled);
     const fcDualMarkEnabled = asBool(merged.fcDualMarkEnabled, DEFAULT_SETTINGS.fcDualMarkEnabled);
@@ -429,6 +459,39 @@ export const normalizeRoastSettings = (
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,
+        rorYMin,
+        rorYMax,
+        rorGridInterval: clampNum(
+            merged.rorGridInterval,
+            0.1,
+            100,
+            previous?.rorGridInterval ?? DEFAULT_SETTINGS.rorGridInterval,
+        ),
+        rorGridPresetInterval: pickPreset(
+            merged.rorGridPresetInterval,
+            [1, 2, 5, 10],
+            previous?.rorGridPresetInterval ?? DEFAULT_SETTINGS.rorGridPresetInterval,
+        ),
+        rorAxisMode: axisModeOf(
+            rest.rorAxisMode,
+            previous?.rorAxisMode,
+            merged.rorGridInterval !== DEFAULT_SETTINGS.rorGridInterval,
+        ),
+        rorTickMode:
+            rest.rorTickMode === 'interval' || rest.rorTickMode === 'list'
+                ? rest.rorTickMode
+                : (previous?.rorTickMode ?? 'interval'),
+        rorTicksC: normalizeRorTicks(merged.rorTicksC) ?? previous?.rorTicksC ?? DEFAULT_SETTINGS.rorTicksC,
+        rorLabelCustom: asBool(rest.rorLabelCustom, previous?.rorLabelCustom ?? false),
+        rorLabelPresetEvery: pickPreset(
+            merged.rorLabelPresetEvery,
+            [1, 2, 5],
+            previous?.rorLabelPresetEvery ?? DEFAULT_SETTINGS.rorLabelPresetEvery,
+        ),
+        rorLabelEvery:
+            Number.isInteger(merged.rorLabelEvery) && merged.rorLabelEvery >= 1 && merged.rorLabelEvery <= 100
+                ? merged.rorLabelEvery
+                : (previous?.rorLabelEvery ?? DEFAULT_SETTINGS.rorLabelEvery),
         yellowTempC,
         autoChargeEnabled: asBool(merged.autoChargeEnabled, DEFAULT_SETTINGS.autoChargeEnabled),
         autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',
