@@ -17,7 +17,7 @@ interface BeanListProps {
     stockSummaries: Record<string, StockSummary>;
     assetByBeanId?: Record<string, BeanAssetLine>;
     assetsReady?: boolean;
-    hiddenIds?: string[];
+    hidden?: ReadonlySet<string>;
     onToggleHidden?: (id: string) => void;
 }
 
@@ -48,7 +48,7 @@ export const BeanList = ({
     stockSummaries,
     assetByBeanId = {},
     assetsReady = false,
-    hiddenIds = [],
+    hidden,
     onToggleHidden,
 }: BeanListProps) => {
     const { t, i18n } = useTranslation();
@@ -101,7 +101,7 @@ export const BeanList = ({
                                     </div>
                                     {onToggleHidden && (
                                         <CatalogVisibilityButton
-                                            hidden={hiddenIds.includes(bean.id)}
+                                            hidden={hidden?.has(bean.id) ?? false}
                                             name={bean.name}
                                             onToggle={() => onToggleHidden(bean.id)}
                                         />

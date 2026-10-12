@@ -1,4 +1,5 @@
 import { createDevicePreference } from '@shared/lib/device-preference';
+import { useMemo } from 'react';
 
 type Catalog = 'beans' | 'profiles';
 type HiddenCatalog = Record<string, { beans: string[]; profiles: string[] }>;
@@ -19,15 +20,16 @@ export const useCatalogVisibility = (userId: string, ownerId: string, catalog: C
     const data = preference.useValue();
     const scope = JSON.stringify([userId, ownerId]);
     const hiddenIds = data[scope]?.[catalog] ?? EMPTY_IDS;
-    const setHidden = (id: string, hidden: boolean) => {
+    const hidden = useMemo(() => new Set(hiddenIds), [hiddenIds]);
+    const setHidden = (id: string, next: boolean) => {
         if (!userId || !ownerId) return;
         const current = preference.get();
         const row = current[scope] ?? { beans: [], profiles: [] };
         const ids = row[catalog];
         preference.update({
             ...current,
-            [scope]: { ...row, [catalog]: hidden ? [...new Set([...ids, id])] : ids.filter((item) => item !== id) },
+            [scope]: { ...row, [catalog]: next ? [...new Set([...ids, id])] : ids.filter((item) => item !== id) },
         });
     };
-    return { hiddenIds, setHidden };
+    return { hidden, setHidden };
 };

@@ -113,7 +113,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [search, setSearch] = useState('');
     const [showHidden, setShowHidden] = useState(false);
-    const { hiddenIds, setHidden } = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
+    const { hidden, setHidden } = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
@@ -141,16 +141,17 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
               })
             : profiles;
         return filtered
-            .filter((profile) => showHidden || !hiddenIds.includes(profile.id))
+            .filter((profile) => showHidden || !hidden.has(profile.id))
             .sort((a, b) => {
                 if (!defaultId) return 0;
                 if (a.id === defaultId) return -1;
                 if (b.id === defaultId) return 1;
                 return 0;
             });
-    }, [profiles, search, defaultId, hiddenIds, showHidden]);
+    }, [profiles, search, defaultId, hidden, showHidden]);
 
     const selected = sortedProfiles.find((p) => p.id === selectedId) ?? sortedProfiles[0] ?? null;
+    const selectedVisibleId = selected?.id ?? null;
 
     const syntheticCurve = (p: RoastProfileWithSource) =>
         generateProfileCurve(p.drop_temp_celsius ?? 200, p.duration_sec ?? 720);
@@ -177,7 +178,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const enterCompareMode = () => {
         setCompareMode(true);
-        if (selectedId) setCompareIds([selectedId]);
+        if (selectedVisibleId) setCompareIds([selectedVisibleId]);
     };
 
     const exitCompareMode = () => {
@@ -196,9 +197,9 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             toggleCompareId(id);
             return;
         }
-        if (shiftKey && id !== selectedId) {
+        if (shiftKey && id !== selectedVisibleId) {
             setCompareMode(true);
-            setCompareIds([selectedId ?? id, id]);
+            setCompareIds([selectedVisibleId ?? id, id]);
             return;
         }
         setSelectedId(id);
@@ -231,17 +232,17 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             setDefaultId(null);
             updateProfile({ default_roast_profile_id: null });
         }
-        if (selectedId === id) setSelectedId(profiles.find((p) => p.id !== id)?.id ?? null);
+        if (selectedVisibleId === id) setSelectedId(sortedProfiles.find((p) => p.id !== id)?.id ?? null);
     };
 
-    const primaryId = compareMode ? (compareIds[0] ?? selectedId ?? '') : (selectedId ?? '');
+    const primaryId = compareMode ? (compareIds[0] ?? selectedVisibleId ?? '') : (selectedVisibleId ?? '');
     const compareProfiles = compareMode
         ? (compareIds.map((id) => profiles.find((p) => p.id === id)).filter(Boolean) as RoastProfileWithSource[])
         : [];
 
     const chartKey = compareMode
         ? `${compareIds.join(',')}|${compareProfiles.map((p) => resolveSourceSession(p.source_session)?.tsv_path ?? '').join(',')}`
-        : `${selectedId ?? ''}|${selectedRealCurve.length}`;
+        : `${selectedVisibleId ?? ''}|${selectedRealCurve.length}`;
 
     const renderDetail = (): ReactNode => {
         if (isLoading) return <ProfileDetailSkeleton />;
@@ -300,7 +301,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                         </p>
                     )}
                     {sortedProfiles.map((profile) => {
-                        const isSelected = !compareMode && selectedId === profile.id;
+                        const isSelected = !compareMode && selectedVisibleId === profile.id;
                         const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
                         const isCompareSelected = compareIdx !== -1;
                         const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
@@ -333,9 +334,9 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
                                 <div className="mb-1 flex justify-end">
                                     <CatalogVisibilityButton
-                                        hidden={hiddenIds.includes(profile.id)}
+                                        hidden={hidden.has(profile.id)}
                                         name={profile.name}
-                                        onToggle={() => setHidden(profile.id, !hiddenIds.includes(profile.id))}
+                                        onToggle={() => setHidden(profile.id, !hidden.has(profile.id))}
                                     />
                                 </div>
                                 <Sparkline data={syntheticCurve(profile)} color={sparkColor} />

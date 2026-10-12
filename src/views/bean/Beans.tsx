@@ -45,9 +45,9 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [], isLoading } = useBeans(userId);
     const authUserId = useAuthStore((state) => state.user?.id ?? '');
-    const { hiddenIds, setHidden } = useCatalogVisibility(authUserId, userId, 'beans');
+    const { hidden, setHidden } = useCatalogVisibility(authUserId, userId, 'beans');
     const [showHidden, setShowHidden] = useState(false);
-    const visibleBeans = beans.filter((bean) => showHidden || !hiddenIds.includes(bean.id));
+    const visibleBeans = beans.filter((bean) => showHidden || !hidden.has(bean.id));
     const {
         summary: assetSummary,
         stockSummaries,
@@ -154,8 +154,8 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
             <CatalogVisibilityFilter checked={showHidden} onChange={setShowHidden} />
             <BeanList
                 beans={visibleBeans}
-                hiddenIds={hiddenIds}
-                onToggleHidden={(id) => setHidden(id, !hiddenIds.includes(id))}
+                hidden={hidden}
+                onToggleHidden={(id) => setHidden(id, !hidden.has(id))}
                 isLoading={isLoading}
                 selectedId={selected?.id ?? null}
                 onSelect={setSelectedId}

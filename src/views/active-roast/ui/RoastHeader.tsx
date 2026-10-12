@@ -116,9 +116,7 @@ export const RoastHeader = ({
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const beanVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'beans');
     const profileVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
-    const visibleBeans = beans.filter(
-        (bean) => bean.id === selectedBeanId || !beanVisibility.hiddenIds.includes(bean.id),
-    );
+    const visibleBeans = beans.filter((bean) => bean.id === selectedBeanId || !beanVisibility.hidden.has(bean.id));
     const { data: userProfile } = useProfile(user?.id ?? '');
 
     const handleProfileChange = (id: string | null) => {
@@ -158,7 +156,7 @@ export const RoastHeader = ({
         : '';
     const defaultProfileId = userProfile?.default_roast_profile_id;
     const sortedProfiles = dbProfiles
-        .filter((profile) => profile.id === targetProfileId || !profileVisibility.hiddenIds.includes(profile.id))
+        .filter((profile) => profile.id === targetProfileId || !profileVisibility.hidden.has(profile.id))
         .sort((a, b) => {
             if (!defaultProfileId) return 0;
             if (a.id === defaultProfileId) return -1;
