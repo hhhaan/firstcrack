@@ -1,6 +1,6 @@
 import type { LiveRoastPoint } from '@shared/types/roast';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { selectDropCancelable, selectRoastSelection } from './batch';
+import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from './batch';
 import { useRoastingStore } from './status';
 
 const point = (time: number): LiveRoastPoint => ({
@@ -179,5 +179,65 @@ describe('central batch ownership and transitions', () => {
             awaitingNextCharge: true,
         });
         expect(selectDropCancelable(useRoastingStore.getState())).toBe(false);
+    });
+});
+
+describe('saved roast review keeps collection independent', () => {
+    beforeEach(() => {
+        useRoastingStore.getState().reset();
+    });
+    it('retains Drop and the curve after save; returning only dismisses the review', () => {
+        charge();
+        const result = drop();
+        const state = useRoastingStore.getState();
+        const id = result?.snapshot.sessionId ?? null;
+        expect(state.saveSucceeded('owner', id)).toBe(true);
+        expect(useRoastingStore.getState().reviewSessionId).toBe(id);
+        expect(selectReviewSnapshot(useRoastingStore.getState())?.livePoints).toHaveLength(2);
+        expect(useRoastingStore.getState().completed?.snapshot.logEntries.some((entry) => entry.event === 'Drop')).toBe(
+            true,
+        );
+        expect(useRoastingStore.getState().completed?.snapshot.livePoints).toHaveLength(2);
+        expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
+        expect(selectDropCancelable(useRoastingStore.getState())).toBe(false);
+        const entry = result?.snapshot.logEntries[0];
+        expect(entry).toBeDefined();
+        if (!entry) return;
+        state.replaceReviewLog([{ ...entry, note: 'moved' }]);
+        expect(selectReviewSnapshot(useRoastingStore.getState())?.logEntries[0]?.note).toBe('moved');
+        expect(useRoastingStore.getState().logState.entries).toEqual([]);
+        state.dismissCompletedReview();
+        expect(useRoastingStore.getState().reviewSessionId).toBeNull();
+        expect(selectReviewSnapshot(useRoastingStore.getState())).toBeNull();
+        expect(useRoastingStore.getState().completed?.submitted).toBe(true);
+        expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
+    });
+    it('a next Charge clears the review and late save completion cannot reopen it', () => {
+        charge();
+        const result = drop();
+        const state = useRoastingStore.getState();
+        state.saveSucceeded('owner', result?.snapshot.sessionId ?? null);
+        const nextId = state.startCharge(undefined, 'owner', { bt: 180, unit: 'C' });
+        expect(useRoastingStore.getState().reviewSessionId).toBeNull();
+        state.saveSucceeded('owner', result?.snapshot.sessionId ?? null);
+        expect(useRoastingStore.getState().reviewSessionId).toBeNull();
+        expect(useRoastingStore.getState().sessionId).toBe(nextId);
+    });
+    it('saving A after B starts preserves B', () => {
+        charge();
+        const result = drop();
+        const state = useRoastingStore.getState();
+        const nextId = state.startCharge(undefined, 'owner', { bt: 180, unit: 'C' });
+        state.saveSucceeded('owner', result?.snapshot.sessionId ?? null);
+        expect(useRoastingStore.getState().reviewSessionId).toBeNull();
+        expect(useRoastingStore.getState().sessionId).toBe(nextId);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+    });
+    it('workspace change dismisses a saved review', () => {
+        charge();
+        const result = drop();
+        useRoastingStore.getState().saveSucceeded('owner', result?.snapshot.sessionId ?? null);
+        useRoastingStore.getState().prepareWorkspace('another-owner');
+        expect(useRoastingStore.getState().reviewSessionId).toBeNull();
     });
 });
