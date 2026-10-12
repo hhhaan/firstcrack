@@ -93,6 +93,30 @@ describe('roast session mutation invalidation', () => {
         expect(qc.getQueryData(roastSessionKeys.all(uid))).toEqual([keep]);
     });
 
+    it('optimistic delete removes a row from infinite pages and decrements the shared total once', () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const infiniteKey = roastSessionKeys.infinite(uid, 'completed', 10);
+        const keep = { id: 'keep', status: 'completed' };
+        const gone = { id: 'gone', status: 'completed' };
+        qc.setQueryData(infiniteKey, {
+            pages: [
+                { data: [gone], total: 2 },
+                { data: [keep], total: 2 },
+            ],
+            pageParams: [1, 2],
+        });
+
+        applyOptimisticRoastSessionDelete(qc, uid, 'gone');
+
+        expect(qc.getQueryData(infiniteKey)).toEqual({
+            pages: [
+                { data: [], total: 1 },
+                { data: [keep], total: 1 },
+            ],
+            pageParams: [1, 2],
+        });
+    });
+
     it('delete invalidation of roastedStockKeys.byUser also drops nested events', async () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
         const eventsKey = roastedStockKeys.events(uid);

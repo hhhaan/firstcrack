@@ -15,15 +15,15 @@ test('a past roast can be shown behind the live chart and cleared back to the pr
         beans: { name: 'Reference roast', origin: null, region: null, variety: null, process: null, farm: null },
     });
     await goNav(page, 'roast');
-    await page.getByRole('button', { name: 'Choose a background roast', exact: true }).click();
+    const target = page.getByRole('combobox', { name: 'Target:' });
+    await target.selectOption({ label: 'Choose a background roast' });
     const picker = page.getByTestId('history-reference-picker');
     await picker.getByRole('textbox').fill('Reference roast');
     await picker.getByRole('button', { name: /Reference roast/ }).click();
     await expect(picker.getByRole('button', { name: 'Show as background' })).toBeEnabled();
     await picker.getByRole('button', { name: 'Show as background' }).click();
     await expect(picker).toBeHidden();
-    const clear = page.getByRole('button', { name: 'Use profile background' });
-    await expect(clear).toBeVisible();
-    await clear.click();
-    await expect(clear).toBeHidden();
+    await expect(target.locator('option:checked')).toContainText('Reference roast');
+    await target.selectOption({ label: 'Use profile background' });
+    await expect(target.locator('option', { hasText: 'Reference roast' })).toHaveCount(0);
 });

@@ -1,10 +1,10 @@
-import { useRoastSessions } from '@entities/roast';
+import { useRoastSessionsInfinite } from '@entities/roast';
 import { useRoastProfileCurve } from '@entities/roast-profile';
 import { formatDateShort } from '@shared/lib/format';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export type HistoryReference = { id: string; ownerId: string; name: string; tsvPath: string; bbpPath: string | null };
@@ -21,9 +21,29 @@ export const HistoryReferencePicker = ({
     onClose: () => void;
 }) => {
     const { t } = useTranslation();
-    const { data: sessions = [], isLoading, isError } = useRoastSessions(ownerId, 'completed');
+    const { data, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage } = useRoastSessionsInfinite(
+        ownerId,
+        'completed',
+    );
+    const sessions = data?.pages.flatMap((page) => page.data) ?? [];
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const loadMoreRef = useRef({ hasNextPage: false, isFetchingNextPage: false, fetchNextPage });
+    loadMoreRef.current = { hasNextPage: Boolean(hasNextPage), isFetchingNextPage, fetchNextPage };
+    const observerRef = useRef<IntersectionObserver | null>(null);
+    const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+        observerRef.current?.disconnect();
+        observerRef.current = null;
+        if (!node) return;
+        const observer = new IntersectionObserver((entries) => {
+            const load = loadMoreRef.current;
+            if (entries.some((entry) => entry.isIntersecting) && load.hasNextPage && !load.isFetchingNextPage) {
+                void load.fetchNextPage();
+            }
+        });
+        observer.observe(node);
+        observerRef.current = observer;
+    }, []);
     const selected = sessions.find((session) => session.id === selectedId && session.user_id === ownerId);
     const curve = useRoastProfileCurve(selected?.tsv_path);
     const rows = sessions.filter((session) => title(session).toLowerCase().includes(search.trim().toLowerCase()));
@@ -73,7 +93,10 @@ export const HistoryReferencePicker = ({
                         )}
                     </button>
                 ))}
-                {!isLoading && !isError && !rows.length && (
+                {/* key가 바뀌면 센티널이 다시 붙는다. 아직 보이면 다음 10개를 받는다. */}
+                {hasNextPage && <div key={data?.pages.length ?? 0} ref={sentinelRef} className="h-px" />}
+                {isFetchingNextPage && <p role="status">{t('common.loading')}</p>}
+                {!isLoading && !isFetchingNextPage && !isError && !rows.length && !hasNextPage && (
                     <p className="text-sm text-muted">{t('activeRoast.reference.empty')}</p>
                 )}
             </div>

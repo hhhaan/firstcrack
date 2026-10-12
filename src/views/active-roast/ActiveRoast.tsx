@@ -1102,25 +1102,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 targetProfileId={targetProfileId}
                 selectedBeanId={selectedBeanId}
                 fallbackBeanName={handoffBeanName}
-                onTargetProfileChange={setUserSelectedTarget}
+                onTargetProfileChange={(id) => {
+                    void setUserSelectedTarget(id).then((applied) => {
+                        if (applied) setHistoryReference(null);
+                    });
+                }}
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}
+                historyReferenceName={reference?.name ?? null}
+                historyReferenceFailed={Boolean(reference && historyCurve.isError)}
+                onChooseHistoryReference={() => setReferencePickerOpen(true)}
+                onClearHistoryReference={() => setHistoryReference(null)}
             />
-
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
-                <button type="button" onClick={() => setReferencePickerOpen(true)} className="text-secondary">
-                    {t('activeRoast.reference.choose')}
-                </button>
-                {reference && (
-                    <>
-                        <span>{reference.name}</span>
-                        <button type="button" onClick={() => setHistoryReference(null)}>
-                            {t('activeRoast.reference.clear')}
-                        </button>
-                    </>
-                )}
-                {reference && historyCurve.isError && <span role="alert">{t('activeRoast.reference.failed')}</span>}
-            </div>
             {referencePickerOpen && (
                 <HistoryReferencePicker
                     key={workspaceOwnerId}

@@ -42,11 +42,11 @@ export interface UseRoastProfileSelectionParams {
 
 export interface UseRoastProfileSelectionReturn {
     targetProfileId: string | null;
-    setTargetProfileId: (id: string | null) => void;
+    setTargetProfileId: (id: string | null) => Promise<boolean | undefined>;
     selectedBeanId: string | null;
     setSelectedBeanId: (id: string | null) => void;
     handoffBeanName: string | null;
-    setUserSelectedTarget: (id: string | null) => void;
+    setUserSelectedTarget: (id: string | null) => Promise<boolean | undefined>;
 }
 
 const DEFAULT_PROFILE_SAVE_MS = 300;
@@ -165,12 +165,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
             logger.capture(err, { scope: 'roastProfileSelection.clearDefaultBean' });
         }
     }, [charged, beansReady, beans, selection.beanId, selection.beanName]);
-    const setUserSelectedTarget = useCallback(
-        (id: string | null) => {
-            void applyTarget(id, 'user');
-        },
-        [applyTarget],
-    );
+    const setUserSelectedTarget = useCallback((id: string | null) => applyTarget(id, 'user'), [applyTarget]);
     const setSelectedBeanId = useCallback((id: string | null) => {
         const store = useRoastingStore.getState();
         store.prepareBean(id, id ? null : store.prepared.beanName);

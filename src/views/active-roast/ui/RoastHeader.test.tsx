@@ -106,6 +106,62 @@ it('locks bean change while roasting or ended and unlocks it in standby', () => 
     act(() => root.unmount());
 });
 
+it('opens a history background from the target select without changing the profile', () => {
+    const onTargetProfileChange = vi.fn();
+    const onChooseHistoryReference = vi.fn();
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() =>
+        root.render(
+            createElement(RoastHeader, {
+                ...props,
+                targetProfileId: 'prof-1',
+                onTargetProfileChange,
+                onChooseHistoryReference,
+            }),
+        ),
+    );
+    const profileSelect = host.querySelectorAll('select')[1] as HTMLSelectElement;
+    const choose = [...profileSelect.options].find((option) => option.textContent === 'activeRoast.reference.choose');
+    act(() => {
+        profileSelect.value = choose?.value ?? '';
+        profileSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(onChooseHistoryReference).toHaveBeenCalledOnce();
+    expect(onTargetProfileChange).not.toHaveBeenCalled();
+    expect(profileSelect.value).toBe('prof-1');
+    act(() => root.unmount());
+});
+
+it('shows a history roast as the target and returns to the profile from the same select', () => {
+    const onTargetProfileChange = vi.fn();
+    const onClearHistoryReference = vi.fn();
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() =>
+        root.render(
+            createElement(RoastHeader, {
+                ...props,
+                targetProfileId: 'prof-1',
+                historyReferenceName: 'Reference roast',
+                onTargetProfileChange,
+                onChooseHistoryReference: () => {},
+                onClearHistoryReference,
+            }),
+        ),
+    );
+    const profileSelect = host.querySelectorAll('select')[1] as HTMLSelectElement;
+    expect(profileSelect.selectedOptions[0]?.textContent).toBe('Reference roast');
+    const clear = [...profileSelect.options].find((option) => option.textContent === 'activeRoast.reference.clear');
+    act(() => {
+        profileSelect.value = clear?.value ?? '';
+        profileSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(onClearHistoryReference).toHaveBeenCalledOnce();
+    expect(onTargetProfileChange).not.toHaveBeenCalled();
+    act(() => root.unmount());
+});
+
 it('hides reconnecting status when store.reconnecting is false', () => {
     useRoastingStore.setState({ reconnecting: false });
     const host = document.createElement('div');
