@@ -6,7 +6,7 @@ import { emitExplicitMachineDisconnect } from '@shared/lib/explicitMachineDiscon
 import { useAccountPlan } from '@shared/lib/features/useAccountPlan';
 import { logger } from '@shared/lib/logger';
 import { sendOsNotification } from '@shared/lib/osNotification';
-import { sidecar } from '@shared/lib/sidecar';
+import { isSidecarHttpError, sidecar } from '@shared/lib/sidecar';
 import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -192,10 +192,11 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
                     level: 'error',
                     data: { roasterKey: machine.roasterKey, error: String(e) },
                 });
-                sendOsNotification(
-                    '연결 오류',
-                    `「${machine.name}」로스터 연결 중 문제가 발생했습니다. 사이드카 상태와 네트워크를 확인해 주세요.`,
-                );
+                const detail =
+                    isSidecarHttpError(e) && e.status === 400 && e.message
+                        ? e.message
+                        : '로스터 연결 중 문제가 발생했습니다. 사이드카 상태와 네트워크를 확인해 주세요.';
+                sendOsNotification('연결 오류', `「${machine.name}」${detail}`);
                 return null;
             } finally {
                 setConnecting(false);

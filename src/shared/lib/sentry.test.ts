@@ -11,6 +11,7 @@ import {
     captureRoastingImportFailure,
     captureSidecarRequestFailure,
     isActionableError,
+    isActionableSidecarHttpStatus,
     isClientRefusal,
     isExpectedRefusal,
     isSentryEnabled,
@@ -93,7 +94,7 @@ describe('isActionableError', () => {
         expect(isActionableError(new BatchLimitError(0, 0, 'read_only_plan'))).toBe(false);
     });
 
-    it('SidecarHttpError: skips client/self-report statuses; keeps base server signals + 401', () => {
+    it('SidecarHttpError: skips network, 502, and 4xx except 401/429', () => {
         const mk = (status: number | 'network' | 'timeout') =>
             Object.assign(new Error('sidecar'), { name: 'SidecarHttpError', status });
         expect(isActionableError(mk(401))).toBe(true);
@@ -104,10 +105,16 @@ describe('isActionableError', () => {
         expect(isActionableError(mk(400))).toBe(false);
         expect(isActionableError(mk(403))).toBe(false);
         expect(isActionableError(mk(404))).toBe(false);
+        expect(isActionableError(mk(405))).toBe(false);
         expect(isActionableError(mk(409))).toBe(false);
         expect(isActionableError(mk(422))).toBe(false);
         expect(isActionableError(mk(502))).toBe(false);
         expect(isActionableError(mk('network'))).toBe(false);
+    });
+
+    it('isActionableSidecarHttpStatus: 405 dropped, 429 reported (connect/startRoast rule)', () => {
+        expect(isActionableSidecarHttpStatus(405)).toBe(false);
+        expect(isActionableSidecarHttpStatus(429)).toBe(true);
     });
 
     it('drops transient transport failures (FC-16, FC-1H, FC-1J, FC-1K)', () => {

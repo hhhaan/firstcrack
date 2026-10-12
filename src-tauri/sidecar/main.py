@@ -358,7 +358,7 @@ async def handle_pid_on(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_start(_parse_sv(body))
     except Exception as exc:
-        return _pid_error_response(exc, manager)
+        return _pid_error_response(exc, manager, once=True)
     return web.json_response({"ok": True, "pid": state})
 
 
@@ -388,7 +388,7 @@ async def handle_pid_sv(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_set_sv(_parse_sv(body))
     except Exception as exc:
-        return _pid_error_response(exc, manager)
+        return _pid_error_response(exc, manager, once=True)
     return web.json_response({"ok": True, "pid": state})
 
 

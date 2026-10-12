@@ -107,16 +107,26 @@ const isExpectedNoise = (error: unknown): boolean => {
  * 클라이언트 4xx(인증/권한/검증 — 서버 로그로 다룬다), 일시적 전송 실패, 예상된 Tauri ACL
  * 거절은 제외한다. 429는 예외: 레이트 리밋은 우리가 손봐야 하는 운영 문제다.
  */
-const SIDECAR_NON_ACTIONABLE_STATUSES = new Set<number | string>(['network', 400, 403, 404, 409, 422, 502]);
+/** network, 502, and 4xx except 401/429 are not actionable (matches connect/startRoast reporting). */
+export const isActionableSidecarHttpStatus = (status: number | string | undefined): boolean => {
+    if (status === undefined) return true;
+    if (status === 'network' || status === 502) return false;
+    if (typeof status === 'number' && status >= 400 && status < 500 && status !== 401 && status !== 429) {
+        return false;
+    }
+    return true;
+};
+
+const sidecarHttpStatusOf = (error: unknown): number | string | undefined => {
+    if ((error as { name?: unknown } | null | undefined)?.name !== 'SidecarHttpError') return undefined;
+    const sidecar = error as { status?: number | string };
+    return sidecar.status ?? httpStatusOf(error);
+};
 
 export const isActionableError = (error: unknown): boolean => {
     if ((error as { name?: unknown } | null | undefined)?.name === 'AbortError') return false;
-    if ((error as { name?: unknown } | null | undefined)?.name === 'SidecarHttpError') {
-        const sidecar = error as { status?: number | string };
-        const status = sidecar.status ?? httpStatusOf(error);
-        if (status === undefined) return true;
-        return !SIDECAR_NON_ACTIONABLE_STATUSES.has(status);
-    }
+    const sidecarStatus = sidecarHttpStatusOf(error);
+    if (sidecarStatus !== undefined) return isActionableSidecarHttpStatus(sidecarStatus);
     if (isExpectedRefusal(error)) return httpStatusOf(error) === 429;
     if (isExpectedNoise(error)) return false;
     return true;

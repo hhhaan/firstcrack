@@ -31,18 +31,30 @@ def _hardware_sentry_fingerprint(event: str, extra_tags: dict[str, str]) -> list
     return ["hardware", event]
 
 
-def _scrub_hardware_exception(exc: Exception) -> Exception:
-    """Sentry 이벤트에 IP/호스트 문자열이 실리지 않게 메시지만 정리한다."""
-    msg = str(exc)
+def _scrub_exception_message(msg: str) -> str:
     clean = _REDACT_IPV4.sub("[redacted]", msg)
-    clean = _REDACT_HOST_PORT.sub("[redacted]", clean)
-    if clean == msg:
+    return _REDACT_HOST_PORT.sub("[redacted]", clean)
+
+
+def _scrub_hardware_exception(exc: BaseException) -> BaseException:
+    """Sentry 이벤트에 IP/호스트 문자열이 실리지 않게 메시지·체인을 정리한다."""
+    if not isinstance(exc, Exception):
         return exc
-    try:
-        scrubbed = type(exc)(clean)
-    except Exception:
-        scrubbed = Exception(clean)
-    return scrubbed.with_traceback(exc.__traceback__)
+    msg = str(exc)
+    clean = _scrub_exception_message(msg)
+    if clean != msg:
+        try:
+            scrubbed: BaseException = type(exc)(clean)
+        except Exception:
+            scrubbed = Exception(clean)
+        scrubbed = scrubbed.with_traceback(exc.__traceback__)
+    else:
+        scrubbed = exc
+    if exc.__cause__ is not None:
+        scrubbed.__cause__ = _scrub_hardware_exception(exc.__cause__)
+    if exc.__context__ is not None and exc.__context__ is not exc.__cause__:
+        scrubbed.__context__ = _scrub_hardware_exception(exc.__context__)
+    return scrubbed
 
 
 def _display_alpha_setting(value: Any) -> float | None:
@@ -1131,6 +1143,7 @@ class RoasterManager:
         if self._pid_task is None or self._pid_task.done():
             # 태스크 참조를 self에 보관해야 GC가 가져가지 않는다 (재연결 태스크와 동일 패턴)
             self._pid_task = asyncio.create_task(self._pid_loop())
+        self._hw_alerts_sent.discard("pid_request_failed")
         return self._pid.state()
 
     async def pid_stop(self, mode: str = STOP_HOLD) -> dict[str, Any]:
@@ -1153,6 +1166,7 @@ class RoasterManager:
             await self._pid.set_sv(sv)
         except RuntimeError as exc:
             raise ControlUnavailable(str(exc)) from exc
+        self._hw_alerts_sent.discard("pid_request_failed")
         return self._pid.state()
 
     async def _pid_loop(self) -> None:

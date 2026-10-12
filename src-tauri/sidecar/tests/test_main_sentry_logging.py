@@ -113,6 +113,23 @@ async def test_control_502_emits_one_tagged_sentry_event(http_client, sentry_tra
     _exception_value(event)
 
 
+async def test_pid_on_502_once_dedupes_across_retries(http_client, sentry_transport):
+    manager = http_client.server.app["manager"]
+    manager._connected = True
+    manager._roaster_key = "virtual"
+    manager._protocol = "virtual"
+
+    with patch.object(manager, "pid_start", side_effect=OSError("PLC unreachable")):
+        for _ in range(3):
+            response = await http_client.post("/pid/on", json={"sv": 200})
+            assert response.status == 502
+
+    assert len(sentry_transport.events) == 1
+    tags = sentry_transport.events[0].get("tags") or {}
+    assert tags.get("event") == "pid_request_failed"
+    _exception_value(sentry_transport.events[0])
+
+
 async def test_pid_502_once_dedupes_across_retries(http_client, sentry_transport):
     manager = http_client.server.app["manager"]
     manager._connected = True

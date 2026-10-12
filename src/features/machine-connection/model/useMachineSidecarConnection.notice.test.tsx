@@ -39,8 +39,10 @@ vi.mock('@shared/lib/sidecar', async (importOriginal) => {
     };
 });
 
+const osNotification = vi.hoisted(() => ({ send: vi.fn() }));
+
 vi.mock('@shared/lib/osNotification', () => ({
-    sendOsNotification: vi.fn(),
+    sendOsNotification: osNotification.send,
 }));
 
 const planMock = vi.hoisted(() => ({ plan: 'enterprise' }));
@@ -409,6 +411,21 @@ it('does not Sentry-capture opaque sidecar-down connect errors', async () => {
         expect(captureSpy).not.toHaveBeenCalled();
     } finally {
         captureSpy.mockRestore();
+        act(() => root.unmount());
+    }
+});
+
+it('shows sidecar validation text for connect 400 SidecarHttpError', async () => {
+    const { SidecarHttpError } = await import('@shared/lib/sidecar');
+    mocks.connect.mockRejectedValueOnce(new SidecarHttpError('/connect', 400, 'Serial port required', false));
+    const { root, api } = renderHook();
+    try {
+        await flush();
+        await act(async () => {
+            await api.current?.handleConnect(machine);
+        });
+        expect(osNotification.send).toHaveBeenCalledWith('연결 오류', '「Virtual」Serial port required');
+    } finally {
         act(() => root.unmount());
     }
 });

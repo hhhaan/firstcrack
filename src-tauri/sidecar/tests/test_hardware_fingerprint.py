@@ -28,6 +28,20 @@ def test_scrub_hardware_exception_redacts_host_port_and_keeps_traceback():
         assert scrubbed.__traceback__ is exc.__traceback__
 
 
+def test_scrub_hardware_exception_scrubs_chained_cause():
+    try:
+        try:
+            raise OSError("refused 192.168.0.10:102")
+        except OSError as cause:
+            raise ConnectionError("PLC write failed") from cause
+    except ConnectionError as exc:
+        scrubbed = _scrub_hardware_exception(exc)
+        assert str(scrubbed) == "PLC write failed"
+        assert scrubbed.__cause__ is not None
+        assert "192.168.0.10" not in str(scrubbed.__cause__)
+        assert ":102" not in str(scrubbed.__cause__)
+
+
 def test_distinct_door_fingerprints():
     ambiguous = _hardware_sentry_fingerprint("door_write_ambiguous", {"door": "discharge", "action": "open"})
     write_fail = _hardware_sentry_fingerprint("fill", {"door": "fill", "action": "close"})
