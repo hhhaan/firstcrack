@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import math
+import re
 import time
 import uuid
 from collections import deque
@@ -16,6 +17,20 @@ from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
+
+_REDACT_IPV4 = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}")
+
+
+def _scrub_hardware_exception(exc: Exception) -> Exception:
+    """Sentry 이벤트에 IP/호스트 문자열이 실리지 않게 메시지만 정리한다."""
+    msg = str(exc)
+    clean = _REDACT_IPV4.sub("[redacted]", msg)
+    if clean == msg:
+        return exc
+    try:
+        return type(exc)(clean)
+    except Exception:
+        return Exception(clean)
 
 
 def _display_alpha_setting(value: Any) -> float | None:
@@ -390,26 +405,28 @@ class RoasterManager:
                     },
                 )
                 return
-            sentry_sdk.set_tag("roaster", self._roaster_key)
-            sentry_sdk.set_tag("protocol", self._protocol)
-            sentry_sdk.set_tag("event", event)
-            for key, value in extra_tags.items():
-                sentry_sdk.set_tag(key, value)
-            sentry_sdk.set_context(
-                "sidecar",
-                {
-                    "protocol": self._protocol,
-                    "roaster": self._roaster_key,
-                    "event": event,
-                    "consecutive_errors": self._consecutive_errors,
-                    "reconnect_attempt": self._reconnect_attempt,
-                },
-            )
-            # host/comport는 남기지 않는다 — 연결 대상 자체가 식별정보이고, 어느
-            # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
-            if self._merged_params:
-                sentry_sdk.set_tag("mode", self._merged_params.get("mode"))
-            sentry_sdk.capture_exception(exc)
+            scrubbed = _scrub_hardware_exception(exc)
+            with sentry_sdk.new_scope() as scope:
+                scope.set_tag("roaster", self._roaster_key)
+                scope.set_tag("protocol", self._protocol)
+                scope.set_tag("event", event)
+                for key, value in extra_tags.items():
+                    scope.set_tag(key, value)
+                scope.set_context(
+                    "sidecar",
+                    {
+                        "protocol": self._protocol,
+                        "roaster": self._roaster_key,
+                        "event": event,
+                        "consecutive_errors": self._consecutive_errors,
+                        "reconnect_attempt": self._reconnect_attempt,
+                    },
+                )
+                # host/comport는 남기지 않는다 — 연결 대상 자체가 식별정보이고, 어느
+                # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
+                if self._merged_params:
+                    scope.set_tag("mode", self._merged_params.get("mode"))
+                scope.capture_exception(scrubbed)
             if once:
                 self._hw_alerts_sent.add(event)
             try:

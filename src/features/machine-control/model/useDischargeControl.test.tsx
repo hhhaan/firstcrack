@@ -86,7 +86,11 @@ describe('W60A discharge control', () => {
         await act(async () => expect(await model.send('open')).toBe(false));
         expect(sidecar.setDischarge).toHaveBeenCalledTimes(1);
         expect(mocks.captureNoResponse).toHaveBeenCalledOnce();
-        expect(mocks.captureNoResponse).toHaveBeenCalledWith({ door: 'discharge', action: 'open' });
+        expect(mocks.captureNoResponse).toHaveBeenCalledWith({
+            door: 'discharge',
+            action: 'open',
+            status: 'timeout',
+        });
         const blob = JSON.stringify(mocks.captureNoResponse.mock.calls[0]);
         expect(blob).not.toMatch(/\/discharge|10\./);
         expect(mocks.show).toHaveBeenCalledWith(expect.stringContaining('조작반'), 'error');

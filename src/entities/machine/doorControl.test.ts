@@ -67,6 +67,18 @@ describe('pushMachineDoors settings push', () => {
         expect(blob).not.toContain('10.0.0.2');
     });
 
+    it('does not capture expected 409 settings target races', async () => {
+        vi.mocked(sidecar.updateSettings).mockRejectedValue(
+            new SidecarHttpError('/settings', 409, 'wrong target', false),
+        );
+        pushMachineDoors(
+            { id: 'w60', roasterKey: 'giesen_w45a_w60a', dischargeDoor: true, fillDoor: false },
+            { machine_id: 'w60', connection_epoch: 1 },
+        );
+        await Promise.resolve();
+        expect(captureDoorSettingsPushFailure).not.toHaveBeenCalled();
+    });
+
     it('clearMachineDoors uses the same reporting path', async () => {
         vi.mocked(sidecar.updateSettings).mockRejectedValue(new SidecarHttpError('/settings', 'timeout', 't', false));
         clearMachineDoors({ machine_id: 'w60', connection_epoch: 2 });

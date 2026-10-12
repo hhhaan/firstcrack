@@ -24,6 +24,12 @@ describe('useMachineSidecarConnection', () => {
         expect(hookSrc).toMatch(/logger\.capture/);
     });
 
+    it('skips Sentry capture only for HTTP 400 connect validation (#771-7)', () => {
+        expect(hookSrc).toMatch(/isSidecarHttpError/);
+        expect(hookSrc).toMatch(/status\s*===\s*400/);
+        expect(hookSrc).not.toMatch(/isClientRefusal\(e\)/);
+    });
+
     it('waits for authenticated sidecar readiness', () => {
         expect(hookSrc).toContain("listen<null>('sidecar-ready'");
         expect(hookSrc).toContain('sidecar.waitUntilReady()');

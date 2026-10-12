@@ -30,7 +30,7 @@ export const useFillControl = (available: boolean, gate?: DoorGate, target?: Doo
                 return true;
             } catch (error) {
                 if (isSidecarHttpError(error) && (error.status === 'network' || error.status === 'timeout')) {
-                    captureDoorWriteNoResponse({ door: 'fill', action });
+                    captureDoorWriteNoResponse({ door: 'fill', action, status: error.status });
                 }
                 useToastStore
                     .getState()

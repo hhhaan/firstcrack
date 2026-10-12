@@ -31,7 +31,7 @@ export const useDischargeControl = (available: boolean, gate?: DoorGate, target?
                 return true;
             } catch (error) {
                 if (isSidecarHttpError(error) && (error.status === 'network' || error.status === 'timeout')) {
-                    captureDoorWriteNoResponse({ door: 'discharge', action });
+                    captureDoorWriteNoResponse({ door: 'discharge', action, status: error.status });
                 }
                 useToastStore
                     .getState()

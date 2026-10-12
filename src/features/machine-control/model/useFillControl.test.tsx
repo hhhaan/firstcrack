@@ -84,7 +84,11 @@ describe('W60A fill control', () => {
         await act(async () => expect(await model.send('open')).toBe(false));
         expect(sidecar.setFill).toHaveBeenCalledTimes(1);
         expect(mocks.captureNoResponse).toHaveBeenCalledOnce();
-        expect(mocks.captureNoResponse).toHaveBeenCalledWith({ door: 'fill', action: 'open' });
+        expect(mocks.captureNoResponse).toHaveBeenCalledWith({
+            door: 'fill',
+            action: 'open',
+            status: 'network',
+        });
         expect(mocks.show).toHaveBeenCalledWith(expect.stringContaining('조작반'), 'error');
         expect(model.sending).toBe(false);
     });

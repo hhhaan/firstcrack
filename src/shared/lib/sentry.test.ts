@@ -318,10 +318,10 @@ describe('door-control capture helpers', () => {
         });
     });
 
-    it('captureDoorWriteNoResponse uses no-response reason only', () => {
-        captureDoorWriteNoResponse({ door: 'fill', action: 'close' });
-        expect(Sentry.captureMessage).toHaveBeenCalledWith('door.write no-response', {
-            level: 'error',
+    it('captureDoorWriteNoResponse uses warning on timeout and error on network', () => {
+        captureDoorWriteNoResponse({ door: 'fill', action: 'close', status: 'timeout' });
+        expect(Sentry.captureMessage).toHaveBeenLastCalledWith('door.write no-response', {
+            level: 'warning',
             tags: {
                 feature: 'door-control',
                 door: 'fill',
@@ -329,6 +329,21 @@ describe('door-control capture helpers', () => {
                 reason: 'no-response',
             },
         });
+        captureDoorWriteNoResponse({ door: 'discharge', action: 'open', status: 'network' });
+        expect(Sentry.captureMessage).toHaveBeenLastCalledWith('door.write no-response', {
+            level: 'error',
+            tags: {
+                feature: 'door-control',
+                door: 'discharge',
+                action: 'open',
+                reason: 'no-response',
+            },
+        });
+    });
+
+    it('captureDoorSettingsPushFailure ignores expected 409 target races', () => {
+        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 409, message: 'target' });
+        expect(Sentry.captureMessage).not.toHaveBeenCalled();
     });
 });
 

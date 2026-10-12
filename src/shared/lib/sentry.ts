@@ -294,6 +294,7 @@ export const captureDoorSettingsPushFailure = (error: unknown) => {
         error && typeof error === 'object' && (error as { name?: unknown }).name === 'SidecarHttpError'
             ? (error as { status: number | 'network' | 'timeout' }).status
             : 'network';
+    if (status === 409) return;
     Sentry.captureMessage('door.settings-push failed', {
         level: 'error',
         tags: {
@@ -304,9 +305,13 @@ export const captureDoorSettingsPushFailure = (error: unknown) => {
     });
 };
 
-export const captureDoorWriteNoResponse = (input: { door: 'discharge' | 'fill'; action: 'open' | 'close' }) => {
+export const captureDoorWriteNoResponse = (input: {
+    door: 'discharge' | 'fill';
+    action: 'open' | 'close';
+    status: 'network' | 'timeout';
+}) => {
     Sentry.captureMessage('door.write no-response', {
-        level: 'error',
+        level: input.status === 'timeout' ? 'warning' : 'error',
         tags: {
             feature: 'door-control',
             door: input.door,

@@ -167,6 +167,21 @@ function formFieldKeys(arrayBlock, fullText) {
     return keys;
 }
 
+/** field key → required flag (inline objects + spread consts). */
+function formFieldRequired(arrayBlock, fullText) {
+    const required = new Map();
+    for (const m of arrayBlock.matchAll(/\{\s*key:\s*'([a-z0-9_]+)'[^}]*required:\s*(true|false)/g)) {
+        required.set(m[1], m[2] === 'true');
+    }
+    for (const m of arrayBlock.matchAll(/\.\.\.([A-Za-z_][A-Za-z0-9_]*)/g)) {
+        const spread = sliceBlock(fullText, new RegExp(`const ${m[1]}(?::[^=]+)?\\s*=\\s*\\[`), '[', ']');
+        for (const sm of spread.matchAll(/\{\s*key:\s*'([a-z0-9_]+)'[^}]*required:\s*(true|false)/g)) {
+            required.set(sm[1], sm[2] === 'true');
+        }
+    }
+    return required;
+}
+
 function loadTs() {
     const text = stripLineComments(readFileSync(TS_PATH, 'utf8'));
     const registryBlock = sliceBlock(text, /const REGISTRY(?::[^=]+)?\s*=\s*\{/);
@@ -183,10 +198,12 @@ function loadTs() {
     }
 
     const form = new Map();
+    const formRequired = new Map();
     for (const [key, body] of tsEntries(formBlock, '[', ']')) {
         form.set(key, formFieldKeys(body, text));
+        formRequired.set(key, formFieldRequired(body, text));
     }
-    return { registry, form };
+    return { registry, form, formRequired };
 }
 
 // ---------------------------------------------------------------------------
@@ -260,6 +277,14 @@ function main() {
         const tsFields = ts.form.get(proto);
         if (!eq(pyFields, tsFields)) {
             failures.push(`form[${proto}]: field keys py=[${pyFields.join(',')}] ts=[${tsFields.join(',')}]`);
+        }
+        const tsRequired = ts.formRequired.get(proto) ?? new Map();
+        for (const field of py.form[proto]) {
+            const pyReq = Boolean(field.required);
+            const tsReq = tsRequired.get(field.key);
+            if (tsReq !== pyReq) {
+                failures.push(`form[${proto}].${field.key}: required py=${pyReq} ts=${tsReq ?? 'missing'}`);
+            }
         }
     }
 
