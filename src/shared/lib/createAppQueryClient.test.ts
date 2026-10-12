@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import { SidecarHttpError } from '@shared/lib/sidecar';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAppQueryClient } from './createAppQueryClient';
 
@@ -8,7 +9,7 @@ vi.mock('./mutationErrorToast', () => ({
 
 vi.mock('@sentry/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@sentry/react')>();
-    return { ...actual, captureException: vi.fn(), init: vi.fn() };
+    return { ...actual, captureException: vi.fn(), captureMessage: vi.fn(), init: vi.fn() };
 });
 
 describe('createAppQueryClient (main.tsx wiring)', () => {
@@ -56,5 +57,20 @@ describe('createAppQueryClient (main.tsx wiring)', () => {
             feature: 'roast-session',
             rpc: 'update_roast_session',
         });
+    });
+
+    it('does not capture 502 SidecarHttpError from QueryCache onError (useSidecarStatus path)', async () => {
+        const client = createAppQueryClient();
+        const err = new SidecarHttpError('/status', 502, 'plc fail', false);
+        await expect(
+            client.fetchQuery({
+                queryKey: ['sidecar', 'status'],
+                queryFn: () => {
+                    throw err;
+                },
+            }),
+        ).rejects.toBe(err);
+
+        expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 });

@@ -38,7 +38,8 @@ export const isOpaqueNetworkError = (err: unknown): boolean => {
 export const isSidecarStartingError = (err: unknown): boolean => {
     if (err && typeof err === 'object' && (err as { name?: unknown }).name === 'SidecarHttpError') {
         const status = (err as { status?: unknown }).status;
-        if (status === 'network' || status === 'timeout') return true;
+        // Timeout is a real stall — unlike connection-refused during spawn, do not spin for 30s.
+        if (status === 'network') return true;
     }
     return isOpaqueNetworkError(err) || errorMessage(err).toLowerCase() === 'unauthorized';
 };

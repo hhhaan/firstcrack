@@ -17,6 +17,7 @@ import {
     normalizeSupabaseError,
     observeRoastingImportScan,
     reactRootOptions,
+    reportReactQueryError,
     reportTsvRestoreDroppedRows,
     resetDoorSkippedDedupeForTests,
     resetRoastingImportScanDedupeForTests,
@@ -315,7 +316,7 @@ describe('reportTsvRestoreDroppedRows', () => {
         expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
         expect(Sentry.captureMessage).toHaveBeenCalledWith('tsv restore dropped extra readings', {
             level: 'warning',
-            fingerprint: ['tsv-restore'],
+            fingerprint: ['tsv-restore', '2'],
             tags: { feature: 'tsv-restore' },
             extra: { dropped_rows: 2 },
         });
@@ -397,13 +398,36 @@ describe('door-control capture helpers', () => {
 });
 
 describe('captureSidecarRequestFailure', () => {
-    afterEach(() => resetSidecarFailureRateLimitForTests());
+    afterEach(() => {
+        resetSidecarFailureRateLimitForTests();
+        vi.useRealTimers();
+    });
 
-    it('rate-limits network/timeout reports per route and status', () => {
+    it('rate-limits all reported failures per route and status', () => {
         captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
         captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
         expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
         captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'timeout' });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+        captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
+        captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(3);
+    });
+
+    it('rate-limits alternating 5xx routes within 60s to one event per route:status', () => {
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 500 });
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it('resends the same route:status after the 60s window', () => {
+        vi.useFakeTimers();
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(60_000);
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
         expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
     });
 
@@ -460,6 +484,18 @@ describe('normalizeSupabaseError', () => {
     it('leaves real Error instances untouched', () => {
         const err = new Error('boom');
         expect(normalizeSupabaseError(err)).toBe(err);
+    });
+});
+
+describe('reportReactQueryError', () => {
+    it('skips 502 SidecarHttpError so React Query does not double-report', () => {
+        const err = Object.assign(new Error('plc write failed'), {
+            name: 'SidecarHttpError',
+            status: 502,
+            sentryReported: false,
+        });
+        reportReactQueryError(err);
+        expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 });
 

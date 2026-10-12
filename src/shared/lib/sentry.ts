@@ -306,14 +306,16 @@ export const captureActionable = (error: unknown, context?: CaptureActionableOpt
     Sentry.captureException(toCapture, Object.keys(hint).length > 0 ? hint : undefined);
 };
 
-export const reportReactQueryError = (error: Error, meta?: Record<string, unknown>) =>
+export const reportReactQueryError = (error: Error, meta?: Record<string, unknown>) => {
+    if (shouldSkipSidecarLoggerCapture(error)) return;
     captureActionable(error, { tags: tagsFromQueryMeta(meta) });
+};
 
-const sidecarNetworkReportAt = new Map<string, number>();
-const SIDECAR_NETWORK_REPORT_MS = 60_000;
+const sidecarFailureReportAt = new Map<string, number>();
+const SIDECAR_FAILURE_REPORT_MS = 60_000;
 
 /** @internal vitest */
-export const resetSidecarFailureRateLimitForTests = () => sidecarNetworkReportAt.clear();
+export const resetSidecarFailureRateLimitForTests = () => sidecarFailureReportAt.clear();
 
 export const captureSidecarRequestFailure = (input: {
     route: string;
@@ -321,12 +323,10 @@ export const captureSidecarRequestFailure = (input: {
     status: number | 'network' | 'timeout';
 }) => {
     const rateKey = `${input.route}:${input.status}`;
-    if (input.status === 'network' || input.status === 'timeout') {
-        const now = Date.now();
-        const last = sidecarNetworkReportAt.get(rateKey) ?? 0;
-        if (now - last < SIDECAR_NETWORK_REPORT_MS) return;
-        sidecarNetworkReportAt.set(rateKey, now);
-    }
+    const now = Date.now();
+    const last = sidecarFailureReportAt.get(rateKey) ?? 0;
+    if (now - last < SIDECAR_FAILURE_REPORT_MS) return;
+    sidecarFailureReportAt.set(rateKey, now);
     Sentry.captureMessage('sidecar request failed', {
         level: 'error',
         fingerprint: ['sidecar', input.route, String(input.status)],
@@ -478,7 +478,7 @@ export const reportTsvRestoreDroppedRows = (droppedRows: number) => {
     });
     Sentry.captureMessage('tsv restore dropped extra readings', {
         level: 'warning',
-        fingerprint: ['tsv-restore'],
+        fingerprint: ['tsv-restore', String(droppedRows)],
         tags: { feature: 'tsv-restore' },
         extra: { dropped_rows: droppedRows },
     });

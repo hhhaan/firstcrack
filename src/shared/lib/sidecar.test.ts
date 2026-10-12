@@ -111,4 +111,12 @@ describe('sidecar.waitUntilReady', () => {
         await result;
         expect(captureSidecar).not.toHaveBeenCalled();
     });
+
+    it('does not retry on request timeout (matches main — only opaque spawn failures retry)', async () => {
+        const fetchMock = vi.fn().mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(sidecar.waitUntilReady()).rejects.toMatchObject({ status: 'timeout', route: '/status' });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
 });
