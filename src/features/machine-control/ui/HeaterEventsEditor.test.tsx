@@ -622,9 +622,14 @@ describe('HeaterEventsEditor', () => {
         });
         expect(input.value).toBe('9:00');
         expect(capture).toHaveBeenCalledOnce();
+        await act(async () => {
+            setValue?.call(input, '9a');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(input.value).toBe('9:00');
         await act(async () => root.unmount());
     });
-    it('history mode edits values of fixed rows only and surfaces the mapped save error', async () => {
+    it('history mode edits, adds, and deletes steps and surfaces the mapped save error', async () => {
         host = document.createElement('div');
         document.body.appendChild(host);
         const root = createRoot(host);
@@ -652,9 +657,8 @@ describe('HeaterEventsEditor', () => {
             ),
         );
         const texts = [...document.querySelectorAll('button')].map((b) => b.textContent);
-        expect(texts).not.toContain('heaterEventsEditor.addStep');
-        expect(texts).not.toContain('heaterEventsEditor.ruleAdd');
-        expect(document.querySelector('[aria-label="heaterEventsEditor.deleteRow"]')).toBeNull();
+        expect(texts).toContain('heaterEventsEditor.ruleAdd');
+        expect(document.querySelector('[aria-label="heaterEventsEditor.deleteRow"]')).not.toBeNull();
         expect(document.body.textContent).toContain('heaterEventsEditor.subtitleHistory');
 
         const setHeat = async (value: string) => {

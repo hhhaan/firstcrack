@@ -1,6 +1,7 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useSetOutputWeight } from '@entities/roast';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
+import { isDecimalDraft } from '@features/machine-control/lib/heater-events';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { formErrorCls } from '@shared/ui/form-styles';
@@ -72,43 +73,44 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
     };
 
     return (
-        <div className="mb-2">
+        <div>
             <label
                 htmlFor={`history-output-weight-${session.id}`}
                 className="mb-2 block text-[11px] font-medium tracking-[0.3px] text-muted"
             >
                 {t('history.expanded.outputWeight')}
             </label>
-            <div className="flex flex-wrap items-center gap-2">
-                <input
-                    id={`history-output-weight-${session.id}`}
-                    type="number"
-                    inputMode="numeric"
-                    min={hasCharge ? 1 : undefined}
-                    max={hasCharge ? charge : undefined}
-                    value={draft}
-                    disabled={isPending}
-                    placeholder="—"
-                    aria-label={t('history.expanded.outputWeight')}
-                    onChange={(e) => {
-                        setDraft(e.target.value);
-                        setInvalid(false);
-                    }}
-                    onBlur={() => void commit()}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    className={`w-24 rounded-md border bg-main-bg px-2 py-1.5 font-mono text-[13px] font-medium tracking-[0.14px] text-primary outline-none ${
-                        invalid ? 'border-red-500' : 'border-border-subtle focus:border-border'
-                    }`}
-                />
-                <span className="text-[11px] font-semibold text-muted">g</span>
-                {hasCharge && (
-                    <span className="font-mono text-[12px] text-secondary">
-                        −{lossRate.toFixed(1)}%{!measured && ` (${t('history.expanded.estimated')})`}
-                    </span>
-                )}
-            </div>
+            <input
+                id={`history-output-weight-${session.id}`}
+                type="number"
+                inputMode="numeric"
+                min={hasCharge ? 1 : undefined}
+                max={hasCharge ? charge : undefined}
+                value={draft}
+                disabled={isPending}
+                placeholder="—"
+                aria-label={t('history.expanded.outputWeight')}
+                onChange={(e) => {
+                    if (!isDecimalDraft(e.target.value, 0)) {
+                        e.target.value = draft;
+                        return;
+                    }
+                    setDraft(e.target.value);
+                    setInvalid(false);
+                }}
+                onBlur={() => void commit()}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                }}
+                className={`w-full rounded-md border bg-main-bg px-2 py-1.5 font-mono text-[13px] font-medium tracking-[0.14px] text-primary outline-none ${
+                    invalid ? 'border-red-500' : 'border-border-subtle focus:border-border'
+                }`}
+            />
+            {hasCharge && (
+                <p className="mt-1 mb-0 font-mono text-[12px] text-secondary">
+                    −{lossRate.toFixed(1)}%{!measured && ` (${t('history.expanded.estimated')})`}
+                </p>
+            )}
             {invalid && (
                 <p className={formErrorCls}>
                     {hasCharge

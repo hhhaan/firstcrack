@@ -4,7 +4,7 @@ import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
-import { BookmarkPlus, ChevronLeft, FileText, Package } from 'lucide-react';
+import { ChevronLeft, FileText, Package } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChargeWeightEditor, QcMeasurementEditor } from './HistoryQcEditor';
@@ -12,6 +12,7 @@ import { HistorySessionChart } from './HistorySessionChart';
 import { OutputWeightEditor } from './OutputWeightEditor';
 import { RecordSections } from './RecordSections';
 import { RecordTextEditor } from './RecordTextEditor';
+import { RecordTitleEditor } from './RecordTitleEditor';
 import { RoastColorEditor } from './RoastColorEditor';
 import { SessionScorecard } from './SessionScorecard';
 import { SummaryMetaEditor } from './SummaryMetaEditor';
@@ -49,9 +50,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
             </button>
             <header className="mb-4 flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
                 <div className="min-w-0 flex-1">
-                    <h1 className="m-0 break-words font-(--font-display) text-[24px] leading-tight tracking-[-0.5px] text-primary">
-                        {session.bean_label?.trim() || beanName || formatDateShort(session.roasted_at)}
-                    </h1>
+                    <RecordTitleEditor key={session.id} session={session} />
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
                         {beanName && <span>{formatDateShort(session.roasted_at)}</span>}
                         {session.beans?.origin && (
@@ -65,9 +64,8 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                     <button
                         type="button"
                         onClick={() => onSaveAsProfile(session.id)}
-                        className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-border-subtle bg-main-bg px-4 py-2 text-[12px] font-medium text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary)"
+                        className="inline-flex shrink-0 cursor-pointer items-center rounded-full border border-border-subtle bg-main-bg px-4 py-2 text-[12px] font-medium text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary)"
                     >
-                        <BookmarkPlus size={14} strokeWidth={2} />
                         {t('history.saveAsProfile')}
                     </button>
                 </div>
@@ -101,8 +99,10 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                         </h2>
                         <SummaryMetaEditor key={session.id} session={session} />
                         <div className="mt-5 space-y-4 border-t border-border-subtle pt-5">
-                            <ChargeWeightEditor key={session.id} session={session} />
-                            <OutputWeightEditor session={session} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <ChargeWeightEditor key={session.id} session={session} />
+                                <OutputWeightEditor session={session} />
+                            </div>
                             <RoastColorEditor key={session.id} session={session} />
                             <QcMeasurementEditor key={session.id} session={session} />
                         </div>

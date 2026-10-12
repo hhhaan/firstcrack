@@ -26,6 +26,7 @@ describe('toEventDrafts', () => {
             ['FC Start', '8:00', '196'],
             ['Drop', '10:00', '210.2'],
             ['End', '10:40', ''],
+            ['Mystery', '11:40', ''],
         ]);
         expect(drafts('F')[0].temp).toBe('392.7');
     });
@@ -50,25 +51,30 @@ describe('applyEventDrafts', () => {
     });
 
     it('converts °F input back to °C at 0.1 precision', () => {
-        const res = applyEventDrafts(stored, set('F', { Drop: { temp: '410' } }), 'F');
+        const res = applyEventDrafts(stored, set('F', { Yellow: { temp: '410' } }), 'F');
         if (!res.ok) throw new Error('expected ok');
-        expect((res.events as typeof stored)[5].temp_c).toBe(210);
+        expect((res.events as typeof stored)[2].temp_c).toBe(210);
     });
 
-    it('keeps Charge on the 0:00 axis even if the time field is edited', () => {
-        const res = applyEventDrafts(stored, set('C', { Charge: { time: '0:30', temp: '205' } }), 'C');
+    it('leaves Charge and Drop unchanged', () => {
+        const res = applyEventDrafts(
+            stored,
+            set('C', { Charge: { time: '0:30', temp: '205' }, Drop: { time: '11:00', temp: '220' } }),
+            'C',
+        );
         if (!res.ok) throw new Error('expected ok');
-        expect((res.events as typeof stored)[0]).toEqual({ id: 'c', type: 'Charge', time_sec: 0, temp_c: 205 });
+        expect(res.changed).toBe(false);
+        expect((res.events as typeof stored)[0]).toBe(stored[0]);
+        expect((res.events as typeof stored)[5]).toBe(stored[5]);
     });
 
     it.each([
-        ['empty temp', { Drop: { temp: '' } }, 5, 'temp'],
-        ['non-number temp', { Drop: { temp: '21o' } }, 5, 'temp'],
-        ['out of range temp', { Drop: { temp: '999' } }, 5, 'temp'],
+        ['empty temp', { Yellow: { temp: '' } }, 2, 'temp'],
+        ['non-number temp', { Yellow: { temp: '21o' } }, 2, 'temp'],
+        ['out of range temp', { Yellow: { temp: '999' } }, 2, 'temp'],
         ['bad time', { Yellow: { time: '4:7' } }, 2, 'time'],
         ['empty time', { Yellow: { time: '' } }, 2, 'time'],
         ['order inversion', { 'FC Start': { time: '10:30' } }, 5, 'order'],
-        ['drop after end', { Drop: { time: '11:00' } }, 6, 'order'],
     ] as const)('rejects %s', (_label, patch, index, code) => {
         const res = applyEventDrafts(stored, set('C', patch), 'C');
         expect(res.ok).toBe(false);
@@ -88,10 +94,10 @@ describe('recordSummary', () => {
         if (!res.ok) throw new Error('expected ok');
         const s = recordSummary(session, res.events);
         expect(s.durationSeconds).toBe(641);
-        expect(s.dropTempCelsius).toBe(213);
+        expect(s.dropTempCelsius).toBe(210);
         expect(s.profileSummary).toEqual({
             charge_temp_celsius: 200,
-            drop_temp_celsius: 213,
+            drop_temp_celsius: 210,
             duration_sec: 600,
             dev_time_sec: 150,
             dev_pct: 25,
@@ -186,6 +192,76 @@ describe('applyEventDrafts additions', () => {
             'C',
         );
         expect(res.ok).toBe(true);
+    });
+
+    it('deletes a key mark that left the form and keeps Charge, notes, and unknown rows', () => {
+        const res = applyEventDrafts(
+            stored,
+            drafts().filter((row) => row.type !== 'Yellow'),
+            'C',
+        );
+        if (!res.ok) throw new Error('expected ok');
+        const events = res.events as Array<{ type: string }>;
+        expect(events.map((event) => event.type)).toEqual([
+            'Charge',
+            'Note',
+            'FC Start',
+            'Heater',
+            'Drop',
+            'End',
+            'Mystery',
+        ]);
+        expect(
+            applyEventDrafts(
+                stored,
+                drafts().filter((row) => row.type !== 'Charge' && row.type !== 'Drop'),
+                'C',
+            ),
+        ).toMatchObject({
+            ok: true,
+            changed: false,
+        });
+    });
+
+    it('shows a custom mark in time order and allows the same name twice', () => {
+        const withAroma = [
+            ...stored,
+            { id: 'a1', type: '아로마', time_sec: 90, temp_c: 150 },
+            { id: 'a2', type: '아로마', time_sec: 200, temp_c: 170 },
+        ];
+        expect(toEventDrafts(withAroma, 'C').map((row) => row.type)).toEqual([
+            'Charge',
+            '아로마',
+            '아로마',
+            'Yellow',
+            'FC Start',
+            'Drop',
+            'End',
+            'Mystery',
+        ]);
+        const res = applyEventDrafts(
+            stored,
+            [
+                ...drafts(),
+                { index: -1, type: '아로마', time: '1:30', temp: '150' },
+                { index: -2, type: '아로마', time: '3:20', temp: '170' },
+            ],
+            'C',
+        );
+        if (!res.ok) throw new Error('expected ok');
+        const events = res.events as Array<{ type: string; time_sec: number }>;
+        expect(events.filter((event) => event.type === '아로마').map((event) => event.time_sec)).toEqual([90, 200]);
+        const dropped = applyEventDrafts(
+            withAroma,
+            toEventDrafts(withAroma, 'C').filter(
+                (row) => row.index !== withAroma.findIndex((event) => event.id === 'a1'),
+            ),
+            'C',
+        );
+        if (!dropped.ok) throw new Error('expected ok');
+        expect((dropped.events as Array<{ id?: string }>).some((event) => event.id === 'a1')).toBe(false);
+        expect((dropped.events as Array<{ id?: string }>).some((event) => event.id === 'a2')).toBe(true);
+        expect((dropped.events as Array<{ type: string }>).some((event) => event.type === 'Note')).toBe(true);
     });
 
     it('does not rename an existing mark when the draft type changes', () => {

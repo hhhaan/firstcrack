@@ -2,6 +2,7 @@ import { useActiveWorkspace } from '@entities/organization';
 import { useSetChargeWeight, useUpdateRoastSession } from '@entities/roast';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { MAX_BATCH_WEIGHT_KG } from '@features/active-roast/lib/roastSummarySchema';
+import { isDecimalDraft } from '@features/machine-control/lib/heater-events';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { formErrorCls } from '@shared/ui/form-styles';
 import { useState } from 'react';
@@ -39,6 +40,7 @@ const MEASUREMENTS: {
     testId: string;
     min: number;
     max: number;
+    signed?: boolean;
 }[] = [
     {
         column: 'ambient_temp_celsius',
@@ -46,6 +48,7 @@ const MEASUREMENTS: {
         testId: 'history-ambient-temp',
         min: -40,
         max: 80,
+        signed: true,
     },
     {
         column: 'ambient_humidity_pct',
@@ -109,30 +112,31 @@ export const ChargeWeightEditor = ({ session }: { session: RoastSessionWithRelat
             <label htmlFor={`history-charge-weight-${session.id}`} className={labelCls}>
                 {t('history.expanded.chargeWeight')}
             </label>
-            <div className="flex items-center gap-2">
-                <input
-                    id={`history-charge-weight-${session.id}`}
-                    data-testid="history-charge-weight"
-                    type="number"
-                    inputMode="numeric"
-                    min={min}
-                    max={CHARGE_MAX_GRAMS}
-                    step={1}
-                    value={draft}
-                    disabled={isPending}
-                    aria-label={t('history.expanded.chargeWeight')}
-                    onChange={(e) => {
-                        setDraft(e.target.value);
-                        setInvalid(false);
-                    }}
-                    onBlur={() => void commit()}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    className={`${inputCls(invalid)} w-24`}
-                />
-                <span className="text-[11px] font-semibold text-muted">g</span>
-            </div>
+            <input
+                id={`history-charge-weight-${session.id}`}
+                data-testid="history-charge-weight"
+                type="number"
+                inputMode="numeric"
+                min={min}
+                max={CHARGE_MAX_GRAMS}
+                step={1}
+                value={draft}
+                disabled={isPending}
+                aria-label={t('history.expanded.chargeWeight')}
+                onChange={(e) => {
+                    if (!isDecimalDraft(e.target.value, 0)) {
+                        e.target.value = draft;
+                        return;
+                    }
+                    setDraft(e.target.value);
+                    setInvalid(false);
+                }}
+                onBlur={() => void commit()}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                }}
+                className={inputCls(invalid)}
+            />
             {invalid && (
                 <p className={formErrorCls}>
                     {t('history.expanded.chargeWeightInvalid', { min, max: CHARGE_MAX_GRAMS })}
@@ -149,6 +153,7 @@ const MeasurementField = ({
     testId,
     min,
     max,
+    signed = false,
 }: {
     session: RoastSessionWithRelations;
     column: MeasurementColumn;
@@ -156,6 +161,7 @@ const MeasurementField = ({
     testId: string;
     min: number;
     max: number;
+    signed?: boolean;
 }) => {
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
@@ -198,6 +204,10 @@ const MeasurementField = ({
                 placeholder="—"
                 aria-label={t(labelKey)}
                 onChange={(e) => {
+                    if (!isDecimalDraft(e.target.value, 1, signed)) {
+                        e.target.value = draft;
+                        return;
+                    }
                     setDraft(e.target.value);
                     setInvalid(false);
                 }}

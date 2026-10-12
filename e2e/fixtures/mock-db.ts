@@ -113,7 +113,21 @@ const asEventRecord = (e: unknown): Record<string, unknown> | null =>
 
 const eventId = (e: Record<string, unknown>): string | null => (typeof e.id === 'string' && e.id ? e.id : null);
 
-/** Mirrors update_roast_session_record: in-place time/temp, plus a missing TP/Yellow/FC mark. */
+const KEPT_RECORD_EVENTS = new Set([
+    'Charge',
+    'TP',
+    'Yellow',
+    'FC Start',
+    'FC Rolling',
+    'FC End',
+    'Drop',
+    'End',
+    'Heater',
+    'Now',
+    'Control',
+]);
+
+/** Mirrors update_roast_session_record: time/temp edits, notes, custom marks, and one missing TP/Yellow/FC. */
 const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
     if (!Array.isArray(nextRaw)) return false;
     const prev = (Array.isArray(prevRaw) ? prevRaw : []).map(asEventRecord);
@@ -126,13 +140,30 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
     if (prevIds.some((id) => id == null) || nextIds.some((id) => id == null)) return false;
     if (new Set(nextIds).size !== nextIds.length) return false;
     const prevById = new Map(prevRows.map((e) => [eventId(e), e]));
-    if (prevIds.some((id) => !nextIds.includes(id))) return false;
+    if (
+        prevRows.some((row) => {
+            const id = eventId(row);
+            if (!id || nextIds.includes(id)) return false;
+            return KEPT_RECORD_EVENTS.has(String(row.type));
+        })
+    ) {
+        return false;
+    }
 
     const strip = (e: Record<string, unknown>) => {
         const { time_sec: _t, temp_c: _c, ...rest } = e;
+        if (e.type === 'Note') {
+            const { note: _n, ...kept } = rest;
+            return kept;
+        }
         return rest;
     };
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    const timeOk = (time: unknown) => typeof time === 'number' && time >= 0 && time <= 5999;
+    const tempOk = (row: Record<string, unknown>) => {
+        if (!('temp_c' in row) || row.temp_c == null) return true;
+        return typeof row.temp_c === 'number' && row.temp_c >= 0 && row.temp_c <= 400;
+    };
     const touched = new Set<string>();
     const addedTypes: string[] = [];
 
@@ -145,19 +176,33 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
         if ('temp_c' in row && temp != null && typeof temp !== 'number') return false;
         const old = prevById.get(id);
         if (old) {
+            if (old.type === 'Note' && 'note' in row && row.note != null && typeof row.note !== 'string') return false;
             if (!same(strip(row), strip(old))) return false;
             if (old.type === 'Charge' && time !== old.time_sec && time !== 0) return false;
             if (time !== old.time_sec) touched.add(id);
             const tempMoved = 'temp_c' in row && temp !== old.temp_c;
             if (tempMoved && typeof temp === 'number' && (temp < 0 || temp > 400)) return false;
-        } else {
-            if (typeof row.type !== 'string' || !ADDABLE_RECORD_EVENTS.has(row.type)) return false;
+        } else if (row.type === 'Note') {
+            if (Object.keys(row).some((key) => !['id', 'type', 'time_sec', 'temp_c', 'note'].includes(key))) return false;
+            if (typeof row.note !== 'string' || !timeOk(time) || !tempOk(row)) return false;
+            touched.add(id);
+        } else if (typeof row.type === 'string' && ADDABLE_RECORD_EVENTS.has(row.type)) {
             if (Object.keys(row).some((key) => !['id', 'type', 'time_sec', 'temp_c'].includes(key))) return false;
-            if (time > 5999) return false;
-            if (temp != null && (typeof temp !== 'number' || temp < 0 || temp > 400)) return false;
+            if (!timeOk(time) || !tempOk(row)) return false;
             if (prevRows.some((existing) => existing.type === row.type)) return false;
             addedTypes.push(row.type);
             touched.add(id);
+        } else if (
+            typeof row.type === 'string' &&
+            row.type.length > 0 &&
+            row.type.length <= 16 &&
+            !KEPT_RECORD_EVENTS.has(row.type)
+        ) {
+            if (Object.keys(row).some((key) => !['id', 'type', 'time_sec', 'temp_c'].includes(key))) return false;
+            if (!timeOk(time) || !tempOk(row)) return false;
+            touched.add(id);
+        } else {
+            return false;
         }
     }
     if (new Set(addedTypes).size !== addedTypes.length) return false;

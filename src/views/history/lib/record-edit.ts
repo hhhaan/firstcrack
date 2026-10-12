@@ -1,5 +1,6 @@
 import { type SessionSummary, summarizeSessionEvents } from '@entities/roast-profile';
 import { fromDisplayTemp, type TemperatureUnit, toDisplayTemp } from '@features/active-roast';
+import { isCustomRoastEvent } from '@features/active-roast/lib/event-buttons';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatElapsed } from '@shared/lib/format';
 import type { Json } from '@shared/types/database.types';
@@ -9,6 +10,10 @@ export const KEY_EVENT_ORDER = ['Charge', 'TP', 'Yellow', 'FC Start', 'FC Rollin
 
 /** Missing marks the History editor may insert. Charge/Drop/End stay the roast boundaries. */
 export const ADDABLE_KEY_EVENTS = ['TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End'] as const;
+
+/** Recorded boundaries. Time, temperature, and the row itself stay as saved. */
+const FIXED_MARKS = new Set(['Charge', 'Drop']);
+const isFixedMark = (type: string) => FIXED_MARKS.has(type);
 
 /** FC Start first — that is the mark a saved roast is most often missing. */
 const ADD_PREFERENCE = ['FC Start', 'Yellow', 'FC Rolling', 'FC End', 'TP'] as const;
@@ -45,6 +50,14 @@ const asRawEvents = (raw: unknown): RawEvent[] =>
 
 const rank = (type: string) => KEY_EVENT_ORDER.indexOf(type);
 
+/** Key marks keep their phase order. A custom name has no phase, so it sorts after a mark at the same second. */
+const orderRank = (type: string) => {
+    const placed = rank(type);
+    return placed >= 0 ? placed : KEY_EVENT_ORDER.length;
+};
+
+const isListed = (type: string) => rank(type) >= 0 || isCustomRoastEvent(type);
+
 const isAddable = (type: string): type is (typeof ADDABLE_KEY_EVENTS)[number] =>
     (ADDABLE_KEY_EVENTS as readonly string[]).includes(type);
 
@@ -63,22 +76,35 @@ const insertByTime = (arr: unknown[], event: RawEvent) => {
 const displayTemp = (tempC: unknown, unit: TemperatureUnit): string =>
     typeof tempC === 'number' && Number.isFinite(tempC) ? String(Math.round(toDisplayTemp(tempC, unit) * 10) / 10) : '';
 
-/** Key marks of a saved record as form rows. Unknown/Note/Heater rows are left out (and preserved). */
+/** Key marks and custom names. Note/Heater rows stay out of the list and are preserved. */
 export const toEventDrafts = (raw: unknown, unit: TemperatureUnit): EventDraft[] =>
     asRawEvents(raw)
         .map((e, index) => ({ e, index }))
-        .filter(({ e }) => typeof e.type === 'string' && rank(e.type) >= 0 && typeof e.time_sec === 'number')
+        .filter(({ e }) => typeof e.type === 'string' && isListed(e.type) && typeof e.time_sec === 'number')
+        .sort(
+            (a, b) =>
+                (a.e.time_sec as number) - (b.e.time_sec as number) ||
+                orderRank(a.e.type as string) - orderRank(b.e.type as string) ||
+                a.index - b.index,
+        )
         .map(({ e, index }) => ({
             index,
             type: e.type as string,
             time: formatElapsed(e.time_sec as number),
             temp: displayTemp(e.temp_c, unit),
-        }))
-        .sort((a, b) => rank(a.type) - rank(b.type) || a.index - b.index);
+        }));
 
 const parseTime = (value: string): number | null => {
     const m = TIME_RE.exec(value.trim());
     return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+/** Time order, then phase order. Empty times stay put relative to each other. */
+export const compareEventDrafts = (a: EventDraft, b: EventDraft): number => {
+    const left = parseTime(a.time);
+    const right = parseTime(b.time);
+    if (left != null && right != null && left !== right) return left - right;
+    return orderRank(a.type) - orderRank(b.type) || a.index - b.index;
 };
 
 const parseTempC = (value: string, unit: TemperatureUnit): number | null => {
@@ -90,9 +116,10 @@ const parseTempC = (value: string, unit: TemperatureUnit): number | null => {
 };
 
 /**
- * Apply form rows onto the stored events array. Existing key marks only change time_sec/temp_c
- * and keep their id and unknown fields. Negative-index rows are inserted as new TP/Yellow/FC
- * marks. Charge time stays the 0:00 axis origin.
+ * Apply form rows onto the stored events array. Existing listed marks only change time_sec/temp_c
+ * and keep their id and unknown fields. A listed mark missing from the drafts is deleted,
+ * except Charge and Drop. Negative-index rows are new TP/Yellow/FC marks, or custom names.
+ * The same custom name may be added more than once. Charge and Drop stay as saved.
  */
 export const applyEventDrafts = (raw: unknown, drafts: EventDraft[], unit: TemperatureUnit): EventEditResult => {
     const src = asRawEvents(raw);
@@ -116,7 +143,7 @@ export const applyEventDrafts = (raw: unknown, drafts: EventDraft[], unit: Tempe
             let temp = orig.temp_c;
             let rowChanged = false;
             // Draft type is ignored — an existing mark cannot be renamed.
-            if (init.type !== 'Charge' && d.time.trim() !== init.time) {
+            if (!isFixedMark(init.type) && d.time.trim() !== init.time) {
                 const parsed = parseTime(d.time);
                 if (parsed == null) {
                     errors[d.index] = 'time';
@@ -125,7 +152,7 @@ export const applyEventDrafts = (raw: unknown, drafts: EventDraft[], unit: Tempe
                 time = parsed;
                 rowChanged = true;
             }
-            if (d.temp.trim() !== init.temp) {
+            if (!isFixedMark(init.type) && d.temp.trim() !== init.temp) {
                 const parsed = parseTempC(d.temp, unit);
                 if (parsed == null) {
                     errors[d.index] = 'temp';
@@ -142,10 +169,12 @@ export const applyEventDrafts = (raw: unknown, drafts: EventDraft[], unit: Tempe
             continue;
         }
 
-        // Positive indexes that are not a stored key mark are junk, not new rows.
+        // Positive indexes that are not a listed mark are junk, not new rows.
         if (d.index >= 0) continue;
+        const custom = isCustomRoastEvent(d.type);
         // Charge/Drop/End and a second copy of a singleton share one error: the editor never offers them.
-        if (!isAddable(d.type) || originalTypes.has(d.type) || typeCount(d.type) > 1) {
+        // A custom name may repeat.
+        if (!custom && (!isAddable(d.type) || originalTypes.has(d.type) || typeCount(d.type) > 1)) {
             errors[d.index] = 'duplicate';
             continue;
         }
@@ -168,25 +197,33 @@ export const applyEventDrafts = (raw: unknown, drafts: EventDraft[], unit: Tempe
     }
 
     const seen = new Set(times.map((row) => row.index));
+    const removed = new Set<number>();
     for (let index = 0; index < src.length; index += 1) {
         const e = src[index];
         if (seen.has(index)) continue;
-        if (typeof e.type !== 'string' || rank(e.type) < 0 || typeof e.time_sec !== 'number') continue;
-        times.push({ index, type: e.type, t: e.time_sec });
+        if (typeof e.type !== 'string' || !isListed(e.type) || typeof e.time_sec !== 'number') continue;
+        if (isFixedMark(e.type)) {
+            times.push({ index, type: e.type, t: e.time_sec });
+            continue;
+        }
+        removed.add(index);
+        changed = true;
     }
 
     for (const a of times) {
         for (const b of times) {
+            if (rank(a.type) < 0 || rank(b.type) < 0) continue;
             if (rank(a.type) < rank(b.type) && a.t > b.t) errors[b.index] ??= 'order';
         }
     }
     if (Object.keys(errors).length > 0) return { ok: false, errors };
 
+    const kept = next.filter((_, index) => !removed.has(index));
     for (const event of [...additions].sort((a, b) => (a.time_sec as number) - (b.time_sec as number))) {
-        insertByTime(next, event);
+        insertByTime(kept, event);
         changed = true;
     }
-    return { ok: true, events: next as Json, changed };
+    return { ok: true, events: kept as Json, changed };
 };
 
 type SessionForSummary = {

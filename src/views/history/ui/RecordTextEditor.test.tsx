@@ -5,28 +5,43 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RecordTextEditor } from './RecordTextEditor';
 
-const state = vi.hoisted(() => ({ update: vi.fn(), ready: true }));
+const state = vi.hoisted(() => ({ update: vi.fn(), saveEvents: vi.fn(), ready: true, canWrite: true }));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: state.ready }),
 }));
 vi.mock('@entities/roast', () => ({ useUpdateRoastSession: () => ({ mutateAsync: state.update, isPending: false }) }));
+vi.mock('../hooks/useRoastRecordSave', () => ({
+    useRoastRecordSave: () => ({
+        canWrite: state.canWrite,
+        isPending: false,
+        saveEvents: state.saveEvents,
+        saveHeater: vi.fn(),
+        errorText: () => 'failed',
+    }),
+}));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-describe('record text edits', () => {
+describe('record notes edits', () => {
     let host: HTMLDivElement;
     let root: Root;
     const session = {
         id: 'session',
         user_id: 'owner',
         bean_id: 'bean',
-        bean_label: null,
+        bean_label: 'Keep this title',
         notes: 'original',
+        events: [
+            { id: 'c', type: 'Charge', time_sec: 0 },
+            { id: 'n', type: 'Note', time_sec: 61, note: 'aroma' },
+        ],
         beans: { name: 'Lot A' },
-    } as RoastSessionWithRelations;
+    } as unknown as RoastSessionWithRelations;
     beforeEach(() => {
         state.ready = true;
+        state.canWrite = true;
         state.update.mockReset().mockResolvedValue({});
+        state.saveEvents.mockReset().mockResolvedValue({});
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
@@ -35,63 +50,128 @@ describe('record text edits', () => {
         act(() => root.unmount());
         host.remove();
     });
-    const click = async (selector: string) => {
-        await act(async () => {
-            (host.querySelector(selector) as HTMLButtonElement).click();
-        });
-    };
     const render = async (value = session) => {
         await act(async () => root.render(createElement(RecordTextEditor, { session: value })));
     };
-    const set = async (selector: string, value: string) => {
-        const element = host.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;
-        const proto =
-            element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const notes = () => host.querySelector('textarea') as HTMLTextAreaElement;
+    const set = async (value: string) => {
+        const element = notes();
         await act(async () => {
-            Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(element, value);
+            Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(element, value);
             element.dispatchEvent(new Event('input', { bubbles: true }));
         });
     };
-    it('writes title/notes only while preserving the inventory bean link', async () => {
+    const blur = async () => {
+        await act(async () => {
+            notes().focus();
+            notes().blur();
+        });
+    };
+    it('writes notes only and leaves the session title alone', async () => {
         await render();
-        await click('[data-testid="history-edit-text"]');
-        await set('input', '  Batch one  ');
-        await set('textarea', ' new notes ');
-        await click('[data-testid="history-text-save"]');
-        expect(state.update).toHaveBeenCalledWith({ id: 'session', bean_label: 'Batch one', notes: 'new notes' });
-        expect(state.update.mock.calls[0][0]).not.toHaveProperty('bean_id');
-        expect(host.querySelector('textarea')).toBeNull();
+        await set(' new notes ');
+        await blur();
+        expect(state.update).toHaveBeenCalledWith({ id: 'session', notes: 'new notes' });
+        expect(state.update.mock.calls[0][0]).not.toHaveProperty('bean_label');
+        expect(notes().value).toBe('new notes');
     });
-    it('clears an override and reports failure without losing edited text', async () => {
+    it('clears notes and keeps the draft when the write fails', async () => {
+        await render();
+        await set('  ');
+        await blur();
+        expect(state.update).toHaveBeenCalledWith({ id: 'session', notes: null });
+        expect(host.querySelector('[role="alert"]')).toBeNull();
         state.update.mockRejectedValueOnce(new Error('offline'));
-        await render();
-        await click('[data-testid="history-edit-text"]');
-        await set('input', '');
-        await set('textarea', 'keep this');
-        await click('[data-testid="history-text-save"]');
-        expect(state.update).toHaveBeenCalledWith({ id: 'session', bean_label: null, notes: 'keep this' });
+        await set('keep this');
+        await blur();
         expect(host.querySelector('[role="alert"]')).not.toBeNull();
-        expect((host.querySelector('textarea') as HTMLTextAreaElement).value).toBe('keep this');
-        await click('[data-testid="history-text-save"]');
-        expect(host.querySelector('textarea')).toBeNull();
+        expect(notes().value).toBe('keep this');
     });
-    it('does not allow writes for a different owner or an unready workspace', async () => {
+    it('does not write for a different owner or an unready workspace', async () => {
         await render({ ...session, user_id: 'other' });
-        await click('[data-testid="history-edit-text"]');
-        expect(host.querySelector('input')).toBeNull();
+        expect(notes().readOnly).toBe(true);
+        await set('nope');
+        await blur();
         state.ready = false;
         await render();
-        await click('[data-testid="history-edit-text"]');
+        await set('nope');
+        await blur();
         expect(state.update).not.toHaveBeenCalled();
     });
-    it('cancel drops the draft without a write', async () => {
+    it('escape drops the draft without a write', async () => {
         await render();
-        await click('[data-testid="history-edit-text"]');
-        await set('textarea', 'draft');
-        const cancel = [...host.querySelectorAll('button')].find((button) => button.textContent === 'common.cancel');
-        await act(async () => cancel?.click());
-        await click('[data-testid="history-edit-text"]');
-        expect((host.querySelector('textarea') as HTMLTextAreaElement).value).toBe('original');
+        await set('draft');
+        await act(async () => {
+            notes().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        });
+        expect(notes().value).toBe('original');
         expect(state.update).not.toHaveBeenCalled();
+    });
+    it('does not write when the note is unchanged', async () => {
+        await render();
+        await blur();
+        expect(state.update).not.toHaveBeenCalled();
+    });
+    it('shows roast-log notes and writes that event instead of the summary note', async () => {
+        await render({ ...session, notes: null });
+        expect(host.querySelector('textarea')).toBeNull();
+        const field = host.querySelector('[data-testid="history-recorded-note"]') as HTMLInputElement;
+        expect(field.value).toBe('aroma');
+        expect((host.querySelector('[data-testid="history-recorded-note-time"]') as HTMLInputElement).value).toBe(
+            '1:01',
+        );
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(field, '  sweeter ');
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await act(async () => {
+            field.focus();
+            field.blur();
+        });
+        expect(state.update).not.toHaveBeenCalled();
+        expect(state.saveEvents).toHaveBeenCalledWith([
+            { id: 'c', type: 'Charge', time_sec: 0 },
+            { id: 'n', type: 'Note', time_sec: 61, note: 'sweeter' },
+        ]);
+    });
+    it('rejects letters in a note time', async () => {
+        await render();
+        const time = host.querySelector('[data-testid="history-recorded-note-time"]') as HTMLInputElement;
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(time, '1a');
+            time.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(time.value).toBe('1:01');
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(time, '2:05');
+            time.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(time.value).toBe('2:05');
+    });
+    it('adds and deletes a roast-log note', async () => {
+        await render({ ...session, notes: null, events: [{ id: 'c', type: 'Charge', time_sec: 0 }] });
+        const time = host.querySelector('[data-testid="history-note-add-time"]') as HTMLInputElement;
+        const comment = host.querySelector('[data-testid="history-note-add"]') as HTMLInputElement;
+        const setInput = async (element: HTMLInputElement, value: string) => {
+            await act(async () => {
+                Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(element, value);
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        };
+        await setInput(time, '1:30');
+        await setInput(comment, 'later');
+        const add = [...host.querySelectorAll('button')].find(
+            (button) => button.getAttribute('aria-label') === 'history.recordText.add',
+        );
+        await act(async () => add?.click());
+        const added = state.saveEvents.mock.calls[0][0] as Array<Record<string, unknown>>;
+        expect(added[0]).toEqual({ id: 'c', type: 'Charge', time_sec: 0 });
+        expect(added[1]).toMatchObject({ type: 'Note', time_sec: 90, note: 'later' });
+
+        state.saveEvents.mockClear();
+        await render();
+        const remove = host.querySelector('[data-testid="history-note-delete"]') as HTMLButtonElement;
+        await act(async () => remove.click());
+        expect(state.saveEvents).toHaveBeenCalledWith([{ id: 'c', type: 'Charge', time_sec: 0 }]);
     });
 });

@@ -139,6 +139,31 @@ BEGIN
     RAISE EXCEPTION 'duplicate fc not rejected';
   EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
   END;
+
+  -- Notes may be rewritten, repeated, and removed. Charge/Drop still cannot be dropped.
+  saved := update_roast_session_record(session2, with_fc, NULL,
+    jsonb_set(jsonb_set(with_fc, '{1,note}', '"sweeter"'), '{1,time_sec}', '40'),
+    NULL, 212, 640, NULL);
+  ASSERT saved.events -> 1 ->> 'note' = 'sweeter', 'note text saved';
+  ASSERT (saved.events -> 1 ->> 'time_sec')::numeric = 40, 'note time saved';
+  saved := update_roast_session_record(session2, saved.events, NULL,
+    saved.events || '[{"id":"n2","type":"Note","time_sec":90,"temp_c":null,"note":"again"}]'::jsonb
+      || '[{"id":"a1","type":"아로마","time_sec":120,"temp_c":160}]'::jsonb
+      || '[{"id":"a2","type":"아로마","time_sec":180,"temp_c":170}]'::jsonb,
+    NULL, 212, 640, NULL);
+  ASSERT (SELECT count(*) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'type' = 'Note') = 2, 'second note';
+  ASSERT (SELECT count(*) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'type' = '아로마') = 2, 'custom repeats';
+  saved := update_roast_session_record(session2, saved.events, NULL,
+    (SELECT jsonb_agg(e) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'id' <> 'n2'),
+    NULL, 212, 640, NULL);
+  ASSERT (SELECT count(*) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'id' = 'n2') = 0, 'note removed';
+  BEGIN
+    PERFORM update_roast_session_record(session2, saved.events, NULL,
+      (SELECT jsonb_agg(e) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'type' <> 'Drop'),
+      NULL, 212, 640, NULL);
+    RAISE EXCEPTION 'drop delete not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
   BEGIN
     PERFORM update_roast_session_record(session2, bare, NULL, with_fc, NULL, 212, 640, NULL);
     RAISE EXCEPTION 'stale add not conflict';
