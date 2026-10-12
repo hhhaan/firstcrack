@@ -125,6 +125,10 @@
             "pricing": "Margin Calculator",
             "cupping": "Cupping",
             "orders": "Orders"
+        },
+        "groups": {
+            "roasting": "Roasting",
+            "operations": "Operations"
         }
     },
     "settings": {
@@ -273,7 +277,12 @@
                 "compactDataCards": "Use compact data cards",
                 "stockHorizon": "Stock alert horizon",
                 "stockHorizonDescription": "Days ahead to reserve planned roasts when checking bean shortages (default 28).",
-                "days": "days"
+                "days": "days",
+                "sidebar": "Sidebar",
+                "sidebarDescription": "Menu order within each group.",
+                "sidebarReset": "Reset sidebar",
+                "sidebarMoveUp": "Move {{name}} up",
+                "sidebarMoveDown": "Move {{name}} down"
             },
             "notifications": {
                 "label": "Notifications",

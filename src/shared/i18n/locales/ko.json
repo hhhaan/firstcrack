@@ -125,6 +125,10 @@
             "schedule": "로스팅 일정",
             "cupping": "커핑",
             "orders": "주문"
+        },
+        "groups": {
+            "roasting": "로스팅",
+            "operations": "운영"
         }
     },
     "settings": {
@@ -273,7 +277,12 @@
                 "compactDataCards": "촘촘한 데이터 카드 사용",
                 "stockHorizon": "재고 알림 기간",
                 "stockHorizonDescription": "생두 부족을 확인할 때 예정된 로스팅을 예약 재고로 반영할 기간입니다 (기본 28일).",
-                "days": "일"
+                "days": "일",
+                "sidebar": "사이드바",
+                "sidebarDescription": "그룹 안의 메뉴 순서입니다.",
+                "sidebarReset": "사이드바 초기화",
+                "sidebarMoveUp": "{{name}} 위로",
+                "sidebarMoveDown": "{{name}} 아래로"
             },
             "notifications": {
                 "label": "알림",

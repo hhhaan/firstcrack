@@ -19,6 +19,7 @@ import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { useAuthStore } from '@shared/store/auth';
 import { formatShortcut, useShortcutKeys } from '@shared/store/keyboard-shortcuts';
+import { SIDEBAR_GROUPS, useSidebarPreferences } from '@shared/store/sidebar-preferences';
 import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
@@ -39,7 +40,7 @@ interface SidebarProps {
 
 type SidebarIcon = ComponentType<{ size?: number; className?: string; style?: CSSProperties }>;
 
-const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
+const navItems: { id: (typeof SIDEBAR_GROUPS)[number]['ids'][number]; labelKey: string; icon: SidebarIcon }[] = [
     { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: Dashboard },
     { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: Calendar },
     { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
@@ -51,6 +52,8 @@ const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
     { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
     { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Chip },
 ];
+
+const navById = new Map(navItems.map((item) => [item.id, item]));
 
 /** Stable e2e selectors — view id is the product route key. */
 const navTestId = (id: View) => `nav-${id}`;
@@ -64,6 +67,7 @@ export const Sidebar = ({
     onOpenSettings,
 }: SidebarProps) => {
     const { t } = useTranslation();
+    const { order } = useSidebarPreferences();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
     const [wsOpen, setWsOpen] = useState(false);
     const settingsKeys = useShortcutKeys('openSettings');
@@ -248,65 +252,77 @@ export const Sidebar = ({
 
             {/* Nav */}
             <nav className={cn('flex-1 overflow-y-auto py-1', rail ? 'px-3' : edgePad)}>
-                <div className="mb-1">
-                    <div
-                        className={cn(
-                            'font-medium text-muted transition-all duration-220 overflow-hidden whitespace-nowrap',
-                            collapsed ? 'opacity-0 h-0 p-0' : 'opacity-100 mb-1.5 px-2.5 text-xs',
-                        )}
-                    >
-                        {t('sidebar.workspace')}
-                    </div>
-                    {navItems.map(({ id, labelKey, icon: Icon }) => {
-                        const isActive = activeView === id;
-                        const label = t(labelKey);
-                        const showBadge = id === 'beans' && alertCount > 0;
-                        const locked = (id === 'cupping' && !canCupping) || (id === 'orders' && !canOrders);
+                <div className={cn('flex flex-col', collapsed ? 'gap-1' : 'gap-3')}>
+                    {SIDEBAR_GROUPS.map((group) => {
+                        const ids = order.filter((id) => (group.ids as readonly string[]).includes(id));
                         return (
-                            <button
-                                type="button"
-                                key={id}
-                                data-testid={navTestId(id)}
-                                onClick={() => onNavigate(id)}
-                                aria-label={label}
-                                title={collapsed ? label : undefined}
-                                className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-primary/5 h-9 overflow-hidden"
-                            >
-                                <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
-                                    <Icon size={16} className={isActive ? 'text-primary' : 'text-muted'} />
-                                    {showBadge && collapsed && (
-                                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
-                                    )}
-                                    {locked && collapsed && (
-                                        <span className="absolute bottom-1 right-1 text-muted">
-                                            <Lock size={10} />
-                                        </span>
-                                    )}
-                                </div>
+                            <div key={group.labelKey}>
                                 <div
                                     className={cn(
-                                        'flex items-center gap-2 transition-all duration-220 overflow-hidden whitespace-nowrap',
-                                        collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
+                                        'font-medium text-muted transition-all duration-220 overflow-hidden whitespace-nowrap',
+                                        collapsed ? 'h-0 p-0 opacity-0' : 'mb-1.5 px-2.5 text-xs opacity-100',
                                     )}
                                 >
-                                    <span
-                                        className={cn(
-                                            'text-[13px]',
-                                            isActive ? 'font-medium text-primary' : 'font-normal text-secondary',
-                                        )}
-                                    >
-                                        {label}
-                                    </span>
-                                    {locked && !collapsed && (
-                                        <Lock size={12} className="shrink-0 text-muted" aria-hidden />
-                                    )}
-                                    {showBadge && !collapsed && (
-                                        <Badge size="sm" tone="amber" className="font-semibold">
-                                            {alertCount}
-                                        </Badge>
-                                    )}
+                                    {t(group.labelKey)}
                                 </div>
-                            </button>
+                                {ids.map((id) => {
+                                    const item = navById.get(id);
+                                    if (!item) return null;
+                                    const { labelKey, icon: Icon } = item;
+                                    const isActive = activeView === id;
+                                    const label = t(labelKey);
+                                    const showBadge = id === 'beans' && alertCount > 0;
+                                    const locked = (id === 'cupping' && !canCupping) || (id === 'orders' && !canOrders);
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={id}
+                                            data-testid={navTestId(id)}
+                                            onClick={() => onNavigate(id)}
+                                            aria-label={label}
+                                            title={collapsed ? label : undefined}
+                                            className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-primary/5 h-9 overflow-hidden"
+                                        >
+                                            <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
+                                                <Icon size={16} className={isActive ? 'text-primary' : 'text-muted'} />
+                                                {showBadge && collapsed && (
+                                                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
+                                                )}
+                                                {locked && collapsed && (
+                                                    <span className="absolute bottom-1 right-1 text-muted">
+                                                        <Lock size={10} />
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div
+                                                className={cn(
+                                                    'flex items-center gap-2 transition-all duration-220 overflow-hidden whitespace-nowrap',
+                                                    collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
+                                                )}
+                                            >
+                                                <span
+                                                    className={cn(
+                                                        'text-[13px]',
+                                                        isActive
+                                                            ? 'font-medium text-primary'
+                                                            : 'font-normal text-secondary',
+                                                    )}
+                                                >
+                                                    {label}
+                                                </span>
+                                                {locked && !collapsed && (
+                                                    <Lock size={12} className="shrink-0 text-muted" aria-hidden />
+                                                )}
+                                                {showBadge && !collapsed && (
+                                                    <Badge size="sm" tone="amber" className="font-semibold">
+                                                        {alertCount}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         );
                     })}
                 </div>

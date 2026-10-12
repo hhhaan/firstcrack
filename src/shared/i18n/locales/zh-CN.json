@@ -125,6 +125,10 @@
             "pricing": "利润计算器",
             "cupping": "杯测",
             "orders": "订单"
+        },
+        "groups": {
+            "roasting": "烘焙",
+            "operations": "运营"
         }
     },
     "settings": {
@@ -273,7 +277,12 @@
                 "compactDataCards": "使用紧凑数据卡片",
                 "stockHorizon": "库存提醒周期",
                 "stockHorizonDescription": "检查生豆短缺时，为计划烘焙预留库存的天数（默认28天）。",
-                "days": "天"
+                "days": "天",
+                "sidebar": "侧边栏",
+                "sidebarDescription": "各组内的菜单顺序。",
+                "sidebarReset": "重置侧边栏",
+                "sidebarMoveUp": "上移{{name}}",
+                "sidebarMoveDown": "下移{{name}}"
             },
             "notifications": {
                 "label": "通知",
