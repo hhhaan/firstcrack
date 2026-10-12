@@ -20,6 +20,7 @@ import {
     useShortcutKeys,
     useShortcutStore,
 } from './shared/store/keyboard-shortcuts';
+import { setSidebarCollapsed, useSidebarPreferences } from './shared/store/sidebar-preferences';
 import { useThemeStore } from './shared/store/theme';
 import type { View } from './shared/types/view';
 import { ErrorBoundary, ViewErrorBoundary } from './shared/ui/ErrorBoundary';
@@ -120,17 +121,12 @@ export const App = () => {
         if (!bridge) return;
         bridge.remountRoast = () => setRoastMount((n) => n + 1);
     }, []);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const { collapsed: sidebarCollapsed } = useSidebarPreferences();
     const [settingsTab, setSettingsTab] = useState<SettingsTabId>('general');
     const [settingsRoastGroup, setSettingsRoastGroup] = useState<RoastSettingsGroup | null>(null);
     const settingsReturnView = useRef<View>('dashboard');
     const startBatch = useRoastingStore((s) => s.startBatch);
     const completeBatch = useRoastingStore((s) => s.completeBatch);
-
-    // Active roast: collapse nav for chart real estate (also if user left it open elsewhere)
-    useEffect(() => {
-        if (view === 'roast') setSidebarCollapsed(true);
-    }, [view]);
 
     const openSettings = (tab: SettingsTabId = 'general', roastGroup: RoastSettingsGroup | null = null) => {
         if (view !== 'settings') settingsReturnView.current = view;
