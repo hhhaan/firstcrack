@@ -536,13 +536,7 @@ class RoasterManager:
             self._roaster_key = roaster_key
             self._protocol = protocol
             self._merged_params = merged
-            self._ror_window.clear()
-            self._et_ror_window.clear()
-            self._bt_ema = None
-            self._et_ema = None
-            self._bt_display_ema = None
-            self._bt_pid_ema = None
-            self._et_display_ema = None
+            self._reset_probe_filters()
             self._error = None
             self._ror_warmup = config.ROR_WARMUP_READS
             # 이전 머신의 값이 stale 응답으로 새 연결에 새어나오지 않게 한다
@@ -642,13 +636,7 @@ class RoasterManager:
         self._protocol = ""
         self._merged_params = {}
         self._hw_alerts_sent.clear()
-        self._ror_window.clear()
-        self._et_ror_window.clear()
-        self._bt_ema = None
-        self._et_ema = None
-        self._bt_display_ema = None
-        self._bt_pid_ema = None
-        self._et_display_ema = None
+        self._reset_probe_filters()
         self._consecutive_errors = 0
         self._last_good = None
 
@@ -684,13 +672,7 @@ class RoasterManager:
                         self._connected = True
                         self._consecutive_errors = 0
                         self._error = None
-                        self._ror_window.clear()
-                        self._et_ror_window.clear()
-                        self._bt_ema = None
-                        self._et_ema = None
-                        self._bt_display_ema = None
-                        self._bt_pid_ema = None
-                        self._et_display_ema = None
+                        self._reset_probe_filters()
                         self._ror_warmup = config.ROR_WARMUP_READS
                         self._hw_alerts_sent.discard("reconnect_failed")
                         _log.info("자동 재연결 성공: %s", self._roaster_key)
@@ -1203,13 +1185,7 @@ class RoasterManager:
     async def start_roast(self) -> None:
         """UI의 Charge 버튼과 연동. 어댑터가 지원하면 타이머를 리셋하고, RoR 윈도우를 초기화."""
         async with self._lock:
-            self._ror_window.clear()
-            self._et_ror_window.clear()
-            self._bt_ema = None
-            self._et_ema = None
-            self._bt_display_ema = None
-            self._bt_pid_ema = None
-            self._et_display_ema = None
+            self._reset_probe_filters()
             self._ror_warmup = config.ROR_WARMUP_READS
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
@@ -1217,13 +1193,7 @@ class RoasterManager:
     async def reset_roast(self) -> None:
         """배치 계산/PID 상태를 초기화한다. 재연결을 통한 예열 복귀는 가상 머신만 한다."""
         async with self._lock:
-            self._ror_window.clear()
-            self._et_ror_window.clear()
-            self._bt_ema = None
-            self._et_ema = None
-            self._bt_display_ema = None
-            self._bt_pid_ema = None
-            self._et_display_ema = None
+            self._reset_probe_filters()
             self._ror_warmup = config.ROR_WARMUP_READS
             if self._adapter is None:
                 return
@@ -1363,6 +1333,20 @@ class RoasterManager:
                 "elapsed_ms": round((time.monotonic() - t0) * 1000, 1),
                 "error": str(exc),
             }
+
+    def _reset_probe_filters(self) -> None:
+        """프로브 EMA와 RoR 창을 비운다.
+
+        연결, 끊김, 재연결, Charge, 리셋이 같은 필드를 지운다. RoR 웜업 횟수는
+        호출자가 정한다. 끊김은 웜업을 바꾸지 않는다.
+        """
+        self._ror_window.clear()
+        self._et_ror_window.clear()
+        self._bt_ema = None
+        self._et_ema = None
+        self._bt_display_ema = None
+        self._bt_pid_ema = None
+        self._et_display_ema = None
 
     def _add_to_ror_window(self, ts: float, bt: float) -> None:
         if self._bt_ema is None:
