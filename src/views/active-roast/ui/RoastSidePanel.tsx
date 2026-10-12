@@ -60,6 +60,9 @@ interface RoastSidePanelProps {
     logEditOptions?: RoastLogEditOptions;
     onEnterStandby: () => void;
     onManualCharge: () => void;
+    /** Charge and Roast Ready ignore repeats for a few seconds. */
+    readyLocked?: boolean;
+    chargeLocked?: boolean;
     /** Saved curve is on screen. The charge slot returns to the wait chart instead of charging. */
     reviewing?: boolean;
     onDismissReview?: () => void;
@@ -105,6 +108,8 @@ export const RoastSidePanel = ({
     logEditOptions,
     onEnterStandby,
     onManualCharge,
+    readyLocked = false,
+    chargeLocked = false,
     reviewing = false,
     onDismissReview,
     reviewSaveError,
@@ -300,7 +305,10 @@ export const RoastSidePanel = ({
                         <button
                             data-testid="roast-ready"
                             onClick={onEnterStandby}
-                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                            disabled={readyLocked}
+                            className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
+                                readyLocked ? 'cursor-default opacity-60' : 'cursor-pointer'
+                            }`}
                             style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
                             type="button"
                         >
@@ -322,7 +330,10 @@ export const RoastSidePanel = ({
                             <button
                                 data-testid="roast-charge"
                                 onClick={onManualCharge}
-                                className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                                disabled={chargeLocked}
+                                className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
+                                    chargeLocked ? 'cursor-default opacity-60' : 'cursor-pointer'
+                                }`}
                                 style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
                                 type="button"
                             >

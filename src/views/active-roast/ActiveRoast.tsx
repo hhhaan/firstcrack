@@ -93,6 +93,7 @@ import {
     calcTargetDelta,
 } from './lib/display-derivatives';
 import { applyExplicitDisconnectReset } from './lib/explicit-disconnect-reset';
+import { useLeadingLock } from './lib/leading-gate';
 import { resolveLiveChartView } from './lib/live-chart-view';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
 import { useChartKeyboard } from './model/useChartKeyboard';
@@ -516,11 +517,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         if (applyDrop()) openDischargeRef.current();
     }, [applyDrop]);
 
+    const readyLock = useLeadingLock(3000);
+    const chargeLock = useLeadingLock(3000);
     const markCharge = useCallback(() => {
-        void lifecycle.handleManualCharge().then((started) => {
-            if (started) openFillRef.current();
+        chargeLock.run(() => {
+            void lifecycle.handleManualCharge().then((started) => {
+                if (started) openFillRef.current();
+            });
         });
-    }, [lifecycle.handleManualCharge]);
+    }, [chargeLock.run, lifecycle.handleManualCharge]);
+    const guardedEnterStandby = useCallback(() => {
+        readyLock.run(() => lifecycle.handleEnterStandby());
+    }, [lifecycle.handleEnterStandby, readyLock.run]);
 
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
@@ -769,7 +777,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         awaitingNextCharge,
         onToggleFullscreen: toggleFullscreen,
         onExitFullscreen: exitFullscreen,
-        onEnterStandby: lifecycle.handleEnterStandby,
+        onEnterStandby: guardedEnterStandby,
         onManualCharge: markCharge,
         onMarkEvent: markEvent,
         onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
@@ -1329,8 +1337,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                   }
                                 : undefined
                         }
-                        onEnterStandby={lifecycle.handleEnterStandby}
+                        onEnterStandby={guardedEnterStandby}
                         onManualCharge={markCharge}
+                        readyLocked={readyLock.locked}
+                        chargeLocked={chargeLock.locked}
                         reviewing={reviewing}
                         onDismissReview={() => useRoastingStore.getState().dismissCompletedReview()}
                         reviewSaveError={reviewSaveError}
