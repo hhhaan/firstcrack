@@ -1342,7 +1342,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onRemoveLogEntry={removeCurveEntry}
                         logEditOptions={
                             chartFrame.onEventMarkerEdit
-                                ? { unit, livePoints, maxTimeSec: elapsed, onEditEntry: handleEventMarkerEdit }
+                                ? {
+                                      unit,
+                                      livePoints: curvePoints,
+                                      maxTimeSec: curveElapsed,
+                                      onEditEntry: handleEventMarkerEdit,
+                                  }
                                 : undefined
                         }
                         onEnterStandby={lifecycle.handleEnterStandby}

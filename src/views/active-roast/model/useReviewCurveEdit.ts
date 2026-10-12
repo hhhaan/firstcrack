@@ -22,6 +22,8 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
     const { mutateAsync } = useUpdateRoastRecord(workspaceOwnerId);
     const expected = useRef<ExpectedRecord | null>(null);
     const pending = useRef<LogEntry[] | null>(null);
+    const inflight = useRef(false);
+    const saveRef = useRef<(entries: LogEntry[]) => Promise<void>>(async () => {});
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -33,6 +35,11 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
 
     const save = useCallback(
         async (entries: LogEntry[]) => {
+            // One save at a time. A newer edit replaces anything still waiting.
+            if (inflight.current) {
+                pending.current = entries;
+                return;
+            }
             const row = session.data;
             const current = expected.current ?? (row ? { events: row.events, heater: row.heater_events } : null);
             if (!row || !current || !sessionId) {
@@ -44,6 +51,7 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
             const summary = recordSummary(row, events);
             const previous = current;
             expected.current = { events, heater: current.heater };
+            inflight.current = true;
             try {
                 const updated = await mutateAsync({
                     sessionId: row.id,
@@ -68,10 +76,19 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
                             : t('history.edit.saveFailed'),
                     );
                 }
+            } finally {
+                inflight.current = false;
+                const next = pending.current;
+                pending.current = null;
+                if (next) void saveRef.current(next);
             }
         },
         [mutateAsync, session.data, sessionId, t],
     );
+
+    useEffect(() => {
+        saveRef.current = save;
+    }, [save]);
 
     useEffect(() => {
         if (!session.data || !pending.current) return;
