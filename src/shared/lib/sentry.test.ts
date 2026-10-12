@@ -93,13 +93,18 @@ describe('isActionableError', () => {
         expect(isActionableError(new BatchLimitError(0, 0, 'read_only_plan'))).toBe(false);
     });
 
-    it('reports only SidecarHttpError 401 as actionable (other statuses stay sidecar-owned)', () => {
+    it('SidecarHttpError: skips client/self-report statuses; keeps base server signals + 401', () => {
         const mk = (status: number | 'network' | 'timeout') =>
             Object.assign(new Error('sidecar'), { name: 'SidecarHttpError', status });
         expect(isActionableError(mk(401))).toBe(true);
+        expect(isActionableError(mk(429))).toBe(true);
+        expect(isActionableError(mk(500))).toBe(true);
+        expect(isActionableError(mk(503))).toBe(true);
+        expect(isActionableError(mk('timeout'))).toBe(true);
         expect(isActionableError(mk(400))).toBe(false);
         expect(isActionableError(mk(403))).toBe(false);
         expect(isActionableError(mk(404))).toBe(false);
+        expect(isActionableError(mk(409))).toBe(false);
         expect(isActionableError(mk(422))).toBe(false);
         expect(isActionableError(mk(502))).toBe(false);
         expect(isActionableError(mk('network'))).toBe(false);

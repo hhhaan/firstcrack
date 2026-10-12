@@ -133,17 +133,33 @@ describe('sidecar.waitUntilReady', () => {
         expect(captureSidecar).not.toHaveBeenCalled();
     });
 
-    it('does not report sidecar failures for setDischarge (door hook owns observability)', async () => {
+    it('does not report sidecar failures for setDischarge on HTTP timeout (door hook owns observability)', async () => {
+        vi.useFakeTimers();
         vi.stubGlobal(
             'fetch',
-            vi.fn().mockResolvedValue(
-                new Response(JSON.stringify({ error: 'timeout' }), {
-                    status: 504,
-                    headers: { 'Content-Type': 'application/json' },
-                }),
-            ),
+            vi.fn(async (_url: string, init?: RequestInit) => {
+                expect(init?.signal).toBeInstanceOf(AbortSignal);
+                await vi.advanceTimersByTimeAsync(5000);
+                throw new DOMException('The operation timed out.', 'TimeoutError');
+            }),
         );
-        await expect(sidecar.setDischarge('open')).rejects.toMatchObject({ route: '/discharge' });
+        const pending = sidecar.setDischarge('open');
+        await expect(pending).rejects.toMatchObject({ status: 'timeout', route: '/discharge' });
+        expect(captureSidecar).not.toHaveBeenCalled();
+    });
+
+    it('does not report sidecar failures for setFill on HTTP timeout (door hook owns observability)', async () => {
+        vi.useFakeTimers();
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async (_url: string, init?: RequestInit) => {
+                expect(init?.signal).toBeInstanceOf(AbortSignal);
+                await vi.advanceTimersByTimeAsync(5000);
+                throw new DOMException('The operation timed out.', 'TimeoutError');
+            }),
+        );
+        const pending = sidecar.setFill('close');
+        await expect(pending).rejects.toMatchObject({ status: 'timeout', route: '/fill' });
         expect(captureSidecar).not.toHaveBeenCalled();
     });
 

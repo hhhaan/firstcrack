@@ -107,10 +107,15 @@ const isExpectedNoise = (error: unknown): boolean => {
  * 클라이언트 4xx(인증/권한/검증 — 서버 로그로 다룬다), 일시적 전송 실패, 예상된 Tauri ACL
  * 거절은 제외한다. 429는 예외: 레이트 리밋은 우리가 손봐야 하는 운영 문제다.
  */
+const SIDECAR_NON_ACTIONABLE_STATUSES = new Set<number | string>(['network', 400, 403, 404, 409, 422, 502]);
+
 export const isActionableError = (error: unknown): boolean => {
     if ((error as { name?: unknown } | null | undefined)?.name === 'AbortError') return false;
     if ((error as { name?: unknown } | null | undefined)?.name === 'SidecarHttpError') {
-        return httpStatusOf(error) === 401;
+        const sidecar = error as { status?: number | string };
+        const status = sidecar.status ?? httpStatusOf(error);
+        if (status === undefined) return true;
+        return !SIDECAR_NON_ACTIONABLE_STATUSES.has(status);
     }
     if (isExpectedRefusal(error)) return httpStatusOf(error) === 429;
     if (isExpectedNoise(error)) return false;

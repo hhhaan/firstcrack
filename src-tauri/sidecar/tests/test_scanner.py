@@ -42,14 +42,9 @@ async def test_scan_protocol_unknown():
         await scan_protocol("nope")
 
 
-async def _close_writer(_reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    writer.close()
-    await writer.wait_closed()
-
-
 async def test_scan_detects_open_local_listener():
     # Bind ephemeral port on 127.0.0.1
-    server = await asyncio.start_server(_close_writer, "127.0.0.1", 0)
+    server = await asyncio.start_server(lambda r, w: None, "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]
     try:
         found = await scan_port(port, hosts=["127.0.0.1"])
