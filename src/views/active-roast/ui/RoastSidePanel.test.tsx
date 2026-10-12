@@ -3,7 +3,7 @@
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { updateRoastSettings } from '@features/active-roast/model/settings';
 import type { LogEntry } from '@shared/types/roast';
-import { act, createElement } from 'react';
+import { act, type ComponentProps, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoastSidePanel } from './RoastSidePanel';
@@ -74,7 +74,7 @@ describe('RoastSidePanel live readings (#358)', () => {
         container.remove();
     });
 
-    const renderPanel = (override: Partial<typeof baseProps> = {}) => {
+    const renderPanel = (override: Partial<ComponentProps<typeof RoastSidePanel>> = {}) => {
         void act(() => root.render(createElement(RoastSidePanel, { ...baseProps, ...override })));
     };
 
@@ -162,8 +162,26 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(end).not.toBeNull();
         expect((end as HTMLButtonElement).disabled).toBe(true);
         expect(container.querySelector('[data-testid="roast-charge"]')).not.toBeNull();
+        expect(container.querySelector('[data-testid="return-to-charge-wait"]')).toBeNull();
         expect(container.querySelector('[data-testid="roast-time"]')).toBeNull();
         expect(container.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('1:05');
+    });
+
+    it('saved-curve review replaces Charge with return to the wait chart', () => {
+        const onDismissReview = vi.fn();
+        renderPanel({
+            phase: 'standby',
+            charged: false,
+            roastEnded: false,
+            bbpChargeWait: true,
+            reviewing: true,
+            onDismissReview,
+        });
+        const back = container.querySelector('[data-testid="return-to-charge-wait"]') as HTMLButtonElement;
+        expect(container.querySelector('[data-testid="roast-charge"]')).toBeNull();
+        expect(back.textContent).toContain('return');
+        act(() => back.click());
+        expect(onDismissReview).toHaveBeenCalledOnce();
     });
     it('opens a separate newest-first log and ignores Escape and restores focus on collapse without losing the note draft', () => {
         const onRemoveLogEntry = vi.fn();

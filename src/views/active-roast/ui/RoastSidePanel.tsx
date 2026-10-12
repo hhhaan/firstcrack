@@ -60,6 +60,10 @@ interface RoastSidePanelProps {
     logEditOptions?: RoastLogEditOptions;
     onEnterStandby: () => void;
     onManualCharge: () => void;
+    /** Saved curve is on screen. The charge slot returns to the wait chart instead of charging. */
+    reviewing?: boolean;
+    onDismissReview?: () => void;
+    reviewSaveError?: string | null;
     onEndRoast: () => void;
     /** Pro BBP cooldown — null when inactive or plan-gated */
     bbpTimer: string | null;
@@ -101,6 +105,9 @@ export const RoastSidePanel = ({
     logEditOptions,
     onEnterStandby,
     onManualCharge,
+    reviewing = false,
+    onDismissReview,
+    reviewSaveError,
     onEndRoast,
     bbpTimer,
     bbpChargeWait,
@@ -301,17 +308,32 @@ export const RoastSidePanel = ({
                             {roastReadyLabel()}
                         </button>
                     )}
-                    {(phase === 'standby' || chargeWait) && (
-                        <button
-                            data-testid="roast-charge"
-                            onClick={onManualCharge}
-                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
-                            style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
-                            type="button"
-                        >
-                            <Play size={12} />
-                            {roastEventLabel('Charge')}
-                        </button>
+                    {(phase === 'standby' || chargeWait) &&
+                        (reviewing ? (
+                            <button
+                                data-testid="return-to-charge-wait"
+                                onClick={onDismissReview}
+                                className="flex items-center justify-center gap-1 rounded-md border border-border bg-main-bg px-2 py-2 text-xs font-semibold text-primary cursor-pointer"
+                                type="button"
+                            >
+                                {t('activeRoast.review.return')}
+                            </button>
+                        ) : (
+                            <button
+                                data-testid="roast-charge"
+                                onClick={onManualCharge}
+                                className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                                style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
+                                type="button"
+                            >
+                                <Play size={12} />
+                                {roastEventLabel('Charge')}
+                            </button>
+                        ))}
+                    {reviewing && reviewSaveError && (
+                        <p role="alert" className="text-xs text-secondary">
+                            {reviewSaveError}
+                        </p>
                     )}
                     <button
                         data-testid="roast-end"

@@ -1212,29 +1212,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 data-bbp-elapsed={chartFrame.bbpElapsed}
                 data-bbp-span={chartFrame.bbpSpan}
             >
-                {reviewing && (
-                    <div
-                        data-testid="completed-roast-review"
-                        className={`absolute left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-main-bg px-2 py-1.5 shadow-sm ${
-                            roastSettings.showControlChart ? 'bottom-16' : 'bottom-24'
-                        }`}
-                    >
-                        <span className="pl-2 text-sm text-secondary">{t('activeRoast.review.title')}</span>
-                        <button
-                            type="button"
-                            data-testid="return-to-charge-wait"
-                            onClick={() => useRoastingStore.getState().dismissCompletedReview()}
-                            className="rounded-full border border-border bg-main-bg px-4 py-2 text-sm text-primary"
-                        >
-                            {t('activeRoast.review.return')}
-                        </button>
-                        {reviewSaveError && (
-                            <span role="alert" className="pr-2 text-xs text-secondary">
-                                {reviewSaveError}
-                            </span>
-                        )}
-                    </div>
-                )}
                 <div className="flex gap-0 flex-1 min-h-0 flex-row">
                     <RoastChartContainer
                         bbpRange={chartFrame.bbpRange}
@@ -1354,6 +1331,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         }
                         onEnterStandby={lifecycle.handleEnterStandby}
                         onManualCharge={markCharge}
+                        reviewing={reviewing}
+                        onDismissReview={() => useRoastingStore.getState().dismissCompletedReview()}
+                        reviewSaveError={reviewSaveError}
                         onEndRoast={handleEndRoastClick}
                         bbpTimer={bbpTimer}
                         bbpChargeWait={bbpChargeWait}
