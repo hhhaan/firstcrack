@@ -1,9 +1,9 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { isRoastRecordConflict, useUpdateRoastRecord } from '@entities/roast';
+import { recordSummary } from '@features/active-roast/lib/record-summary';
 import { useWriteAccess } from '@shared/lib/features';
 import type { Json, RoastSessionWithRelations } from '@shared/types/database.types';
 import { useTranslation } from 'react-i18next';
-import { recordSummary } from '../lib/record-edit';
 
 const READ_ONLY_CODES = ['read_only_plan', 'trial_expired', 'trial_batch_cap'];
 

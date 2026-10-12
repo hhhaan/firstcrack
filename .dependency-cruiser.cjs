@@ -28,6 +28,13 @@ module.exports = {
         upward('features', '^src/(widgets|views)/', 'features do not import widgets or views.'),
         upward('widgets', '^src/views/', 'widgets do not import views.'),
         {
+            name: 'no-cross-view',
+            severity: 'error',
+            comment: 'Views do not import each other. Share through a feature or an entity.',
+            from: { path: '^src/views/([^/]+)/', pathNot: testFile },
+            to: { path: '^src/views/([^/]+)/', pathNot: '^src/views/$1/' },
+        },
+        {
             name: 'no-cross-entity',
             severity: 'error',
             comment: 'Entity slices do not import each other. Share code through shared/.',
