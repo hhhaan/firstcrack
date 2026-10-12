@@ -316,14 +316,16 @@ export const captureSidecarRequestFailure = (input: {
     method: string;
     status: number | 'network' | 'timeout';
 }) => {
+    const rateKey = `${input.route}:${input.status}`;
     if (input.status === 'network' || input.status === 'timeout') {
         const now = Date.now();
-        const last = sidecarNetworkReportAt.get(input.route) ?? 0;
+        const last = sidecarNetworkReportAt.get(rateKey) ?? 0;
         if (now - last < SIDECAR_NETWORK_REPORT_MS) return;
-        sidecarNetworkReportAt.set(input.route, now);
+        sidecarNetworkReportAt.set(rateKey, now);
     }
     Sentry.captureMessage('sidecar request failed', {
         level: 'error',
+        fingerprint: ['sidecar', input.route, String(input.status)],
         tags: {
             feature: 'sidecar',
             'sidecar.route': input.route,
@@ -334,7 +336,7 @@ export const captureSidecarRequestFailure = (input: {
 };
 
 const classOnlyCaptureError = (error: unknown): Error => {
-    const name = error instanceof Error ? error.constructor.name : 'Error';
+    const name = error instanceof Error ? error.name : 'Error';
     const reported = new Error(name);
     reported.name = name;
     return reported;
@@ -350,6 +352,7 @@ export const captureRoastingImportFailure = (
 ) => {
     captureActionable(classOnlyCaptureError(error), {
         level: 'error',
+        fingerprint: ['roasting-import', input.product, input.stage],
         tags: { feature: 'roasting-import', product: input.product, stage: input.stage },
         extra: input.counts,
     });
@@ -399,6 +402,7 @@ export const observeRoastingImportScan = (snapshot: {
     const level = snapshot.status === 'unreadable' ? 'warning' : 'info';
     Sentry.captureMessage('roasting import scan', {
         level,
+        fingerprint: ['roasting-import-scan', snapshot.source.product, snapshot.status, reason],
         tags: {
             feature: 'roasting-import',
             product: snapshot.source.product,
@@ -418,6 +422,7 @@ export const reportTsvRestoreDroppedRows = (droppedRows: number) => {
     });
     Sentry.captureMessage('tsv restore dropped extra readings', {
         level: 'warning',
+        fingerprint: ['tsv-restore'],
         tags: { feature: 'tsv-restore' },
         extra: { dropped_rows: droppedRows },
     });

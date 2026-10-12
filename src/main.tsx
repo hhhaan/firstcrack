@@ -1,14 +1,10 @@
-import { logger } from '@shared/lib/logger';
 // Sentry 초기화는 이 모듈 import의 side effect다 — App보다 먼저 평가되어야 한다.
-import {
-    captureActionable,
-    reactRootOptions,
-    reportReactQueryError,
-    retryUnlessClientRefusal,
-} from '@shared/lib/sentry';
+import { createAppQueryClient } from '@shared/lib/createAppQueryClient';
+import { logger } from '@shared/lib/logger';
+import { captureActionable, reactRootOptions } from '@shared/lib/sentry';
 import { isSupabaseConfigured, MISSING_SUPABASE_ENV } from '@shared/lib/supabase';
 import { flushTsv } from '@shared/lib/tsv-writer';
-import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { listen } from '@tauri-apps/api/event';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { exit } from '@tauri-apps/plugin-process';
@@ -18,37 +14,11 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { useRoastingStore } from './features/active-roast/model/status';
 import { initI18n } from './shared/i18n';
-import { showMutationErrorToast } from './shared/lib/mutationErrorToast';
 import { bindAuthQueryClient } from './shared/store/auth';
 import { ToastViewport } from './shared/ui/ToastViewport';
 import 'uplot/dist/uPlot.min.css';
 
-// silentError(meta)는 토스트 표시 정책일 뿐이다 — Sentry 전송 여부와 연결하지 않는다.
-const onQueryError = reportReactQueryError;
-
-const queryClient = new QueryClient({
-    queryCache: new QueryCache({
-        onError: (error, query) => onQueryError(error, query.meta as Record<string, unknown>),
-    }),
-    mutationCache: new MutationCache({
-        onError: (error, _variables, _onMutateResult, mutation) => {
-            onQueryError(error, mutation.meta as Record<string, unknown>);
-            showMutationErrorToast(error, mutation.meta);
-        },
-    }),
-    defaultOptions: {
-        queries: {
-            // Desktop: mutation invalidation only — no background refetch churn.
-            staleTime: Infinity,
-            // Keep unused inventory/lists after tab switch (default 5m GC was too aggressive).
-            gcTime: Infinity,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            // 4xx·결정적 PostgREST(42703 등, status 없어도)는 재시도하지 않는다. 네트워크·5xx만 최대 2회.
-            retry: retryUnlessClientRefusal,
-        },
-    },
-});
+const queryClient = createAppQueryClient();
 bindAuthQueryClient(queryClient);
 
 const bootstrap = async () => {

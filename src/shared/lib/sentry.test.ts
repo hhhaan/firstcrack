@@ -283,6 +283,7 @@ describe('observeRoastingImportScan', () => {
         expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
         expect(Sentry.captureMessage).toHaveBeenCalledWith('roasting import scan', {
             level: 'warning',
+            fingerprint: ['roasting-import-scan', 'Artisan', 'unreadable', 'settings-unreadable'],
             tags: {
                 feature: 'roasting-import',
                 product: 'Artisan',
@@ -298,6 +299,7 @@ describe('observeRoastingImportScan', () => {
         });
         expect(Sentry.captureMessage).toHaveBeenLastCalledWith('roasting import scan', {
             level: 'info',
+            fingerprint: ['roasting-import-scan', 'Cropster', 'unsupported', 'other'],
             tags: expect.objectContaining({ reason: 'other', 'source.version': 'other' }),
         });
     });
@@ -309,6 +311,7 @@ describe('reportTsvRestoreDroppedRows', () => {
         expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
         expect(Sentry.captureMessage).toHaveBeenCalledWith('tsv restore dropped extra readings', {
             level: 'warning',
+            fingerprint: ['tsv-restore'],
             tags: { feature: 'tsv-restore' },
             extra: { dropped_rows: 2 },
         });
@@ -320,16 +323,19 @@ describe('reportTsvRestoreDroppedRows', () => {
 describe('captureSidecarRequestFailure', () => {
     afterEach(() => resetSidecarFailureRateLimitForTests());
 
-    it('rate-limits network/timeout reports per route', () => {
+    it('rate-limits network/timeout reports per route and status', () => {
         captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
-        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'timeout' });
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
         expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'timeout' });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
     });
 
-    it('uses a fixed message and route tags only', () => {
+    it('uses a fixed message, fingerprint, and route tags only', () => {
         captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
         expect(Sentry.captureMessage).toHaveBeenCalledWith('sidecar request failed', {
             level: 'error',
+            fingerprint: ['sidecar', '/control', '503'],
             tags: {
                 feature: 'sidecar',
                 'sidecar.route': '/control',

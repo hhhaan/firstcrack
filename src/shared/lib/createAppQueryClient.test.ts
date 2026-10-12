@@ -1,30 +1,24 @@
 import * as Sentry from '@sentry/react';
-import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { reportReactQueryError } from './sentry';
+import { createAppQueryClient } from './createAppQueryClient';
+
+vi.mock('./mutationErrorToast', () => ({
+    showMutationErrorToast: vi.fn(),
+}));
 
 vi.mock('@sentry/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@sentry/react')>();
     return { ...actual, captureException: vi.fn(), init: vi.fn() };
 });
 
-describe('reportReactQueryError', () => {
+describe('createAppQueryClient (main.tsx wiring)', () => {
     afterEach(() => vi.clearAllMocks());
 
-    it('maps React Query mutation meta to Sentry tags (main.tsx cache wiring)', async () => {
-        const client = new QueryClient({
-            queryCache: new QueryCache({
-                onError: (error, query) => reportReactQueryError(error, query.meta as Record<string, unknown>),
-            }),
-            mutationCache: new MutationCache({
-                onError: (error, _v, _c, mutation) =>
-                    reportReactQueryError(error, mutation.meta as Record<string, unknown>),
-            }),
-        });
-
+    it('maps QueryCache onError meta to Sentry tags', async () => {
+        const client = createAppQueryClient();
         await expect(
             client.fetchQuery({
-                queryKey: ['rq-sentry'],
+                queryKey: ['app-rq-sentry'],
                 queryFn: () => {
                     throw { code: '50000', message: 'fail', details: 'x', hint: 'y' };
                 },
