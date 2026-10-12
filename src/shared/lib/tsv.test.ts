@@ -1,5 +1,9 @@
 import type { TemperatureProcessing } from '@shared/types/sidecar';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const { reportTsvRestoreDroppedRows } = vi.hoisted(() => ({ reportTsvRestoreDroppedRows: vi.fn() }));
+vi.mock('@shared/lib/sentry', () => ({ reportTsvRestoreDroppedRows }));
+
 import { parseTsv } from './tsv';
 import { formatRoastTsvRow, formatTsvRows, TSV_HEADER } from './tsv-writer';
 
@@ -18,6 +22,17 @@ const none = {
 };
 
 describe('parseTsv', () => {
+    it('reports dropped extra-readings rows once per parse without file content', () => {
+        reportTsvRestoreDroppedRows.mockClear();
+        const row = ['0', '100', '', '', '', '', '', '', '', '', '', '', '', '{bad-json'].join('\t');
+        const badExtra = `${HEADER}\n${row}`;
+        parseTsv(badExtra);
+        expect(reportTsvRestoreDroppedRows).toHaveBeenCalledOnce();
+        expect(reportTsvRestoreDroppedRows).toHaveBeenCalledWith(1);
+        const blob = JSON.stringify(reportTsvRestoreDroppedRows.mock.calls[0]);
+        expect(blob).not.toMatch(/\.tsv|\/Users\//);
+    });
+
     it('round-trips separate BT/ET EMA settings and reads legacy shared settings', () => {
         const processing = {
             algorithm_version: 'ema-least-squares-v1',

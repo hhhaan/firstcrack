@@ -1,6 +1,6 @@
 import { logger } from '@shared/lib/logger';
 // Sentry 초기화는 이 모듈 import의 side effect다 — App보다 먼저 평가되어야 한다.
-import { captureActionable, reactRootOptions, retryUnlessClientRefusal } from '@shared/lib/sentry';
+import { captureActionable, reactRootOptions, retryUnlessClientRefusal, tagsFromQueryMeta } from '@shared/lib/sentry';
 import { isSupabaseConfigured, MISSING_SUPABASE_ENV } from '@shared/lib/supabase';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -19,13 +19,16 @@ import { ToastViewport } from './shared/ui/ToastViewport';
 import 'uplot/dist/uPlot.min.css';
 
 // silentError(meta)는 토스트 표시 정책일 뿐이다 — Sentry 전송 여부와 연결하지 않는다.
-const onQueryError = (error: Error) => captureActionable(error);
+const onQueryError = (error: Error, meta?: Record<string, unknown>) =>
+    captureActionable(error, { tags: tagsFromQueryMeta(meta) });
 
 const queryClient = new QueryClient({
-    queryCache: new QueryCache({ onError: onQueryError }),
+    queryCache: new QueryCache({
+        onError: (error, query) => onQueryError(error, query.meta as Record<string, unknown>),
+    }),
     mutationCache: new MutationCache({
         onError: (error, _variables, _onMutateResult, mutation) => {
-            onQueryError(error);
+            onQueryError(error, mutation.meta as Record<string, unknown>);
             showMutationErrorToast(error, mutation.meta);
         },
     }),

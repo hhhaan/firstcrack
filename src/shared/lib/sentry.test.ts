@@ -5,13 +5,21 @@ import { BatchLimitError } from './features/plan-matrix';
 import {
     buildSentryOptions,
     captureActionable,
+    captureSidecarRequestFailure,
     isActionableError,
     isClientRefusal,
+    isExpectedRefusal,
     isSentryEnabled,
+    normalizeSupabaseError,
+    observeRoastingImportScan,
     reactRootOptions,
+    reportTsvRestoreDroppedRows,
+    resetRoastingImportScanDedupeForTests,
     retryUnlessClientRefusal,
+    SupabaseError,
     scrubSensitive,
     setSentryIdentity,
+    tagsFromQueryMeta,
 } from './sentry';
 
 // 실 SDK 호출을 막고 위임만 관찰한다 (개발자 로컬 .env가 테스트에 새어도 전송되지 않는다).
@@ -21,6 +29,8 @@ vi.mock('@sentry/react', async (importOriginal) => {
         ...actual,
         init: vi.fn(),
         captureException: vi.fn(),
+        captureMessage: vi.fn(),
+        addBreadcrumb: vi.fn(),
         setUser: vi.fn(),
         setTag: vi.fn(),
         setContext: vi.fn(),
@@ -102,7 +112,8 @@ describe('isActionableError', () => {
             hint: null,
         };
         expect(isClientRefusal(missingColumn)).toBe(true);
-        expect(isActionableError(missingColumn)).toBe(false);
+        expect(isExpectedRefusal(missingColumn)).toBe(false);
+        expect(isActionableError(missingColumn)).toBe(true);
         expect(retryUnlessClientRefusal(0, missingColumn)).toBe(false);
         expect(retryUnlessClientRefusal(1, missingColumn)).toBe(false);
         expect(isClientRefusal({ code: '23505', message: 'duplicate key value' })).toBe(true);
@@ -173,6 +184,28 @@ describe('retryUnlessClientRefusal', () => {
 });
 
 describe('captureActionable', () => {
+    it('normalizes PostgREST plain objects before capture', () => {
+        const plain = {
+            code: '42703',
+            message: 'column x does not exist',
+            details: 'table=roast_sessions path=/secret',
+            hint: 'maybe you meant y',
+        };
+        captureActionable(plain, { tags: { feature: 'history-qc', table: 'roast_sessions' } });
+        expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+        const [captured, hint] = vi.mocked(Sentry.captureException).mock.calls[0];
+        expect(captured).toBeInstanceOf(SupabaseError);
+        expect((captured as SupabaseError).code).toBe('42703');
+        expect(hint).toMatchObject({
+            level: 'warning',
+            tags: { feature: 'history-qc', table: 'roast_sessions', 'db.code': '42703' },
+            fingerprint: ['supabase', '42703', 'roast_sessions'],
+        });
+        const blob = JSON.stringify(hint);
+        expect(blob).not.toContain('/secret');
+        expect(blob).not.toContain('details');
+    });
+
     it('delegates actionable errors to the SDK, with context as extra', () => {
         const error = new Error('boom');
         captureActionable(error, { roastId: 3 });
@@ -197,6 +230,94 @@ describe('captureActionable', () => {
         captureActionable(new Error('error sending request for url (https://cdn.example/releases/latest.json)'));
         captureActionable('Command plugin:dialog|confirm not allowed by ACL');
         expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+
+    it('skips duplicate sidecar failures already reported from request()', () => {
+        const err = Object.assign(new Error('sidecar'), { sentryReported: true });
+        captureActionable(err);
+        expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+});
+
+describe('observeRoastingImportScan', () => {
+    afterEach(() => resetRoastingImportScanDedupeForTests());
+
+    it('captures once per product+reason and scrubs unknown reasons', () => {
+        observeRoastingImportScan({
+            status: 'unreadable',
+            reason: 'settings-unreadable',
+            source: { product: 'Artisan', version: '2.10.0' },
+        });
+        observeRoastingImportScan({
+            status: 'unreadable',
+            reason: 'settings-unreadable',
+            source: { product: 'Artisan', version: '2.10.0' },
+        });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('roasting import scan', {
+            level: 'warning',
+            tags: {
+                feature: 'roasting-import',
+                product: 'Artisan',
+                status: 'unreadable',
+                reason: 'settings-unreadable',
+                'source.version': '2.10.0',
+            },
+        });
+        observeRoastingImportScan({
+            status: 'unsupported',
+            reason: 'not-in-rust-whitelist',
+            source: { product: 'Cropster', version: 'bad/version' },
+        });
+        expect(Sentry.captureMessage).toHaveBeenLastCalledWith('roasting import scan', {
+            level: 'info',
+            tags: expect.objectContaining({ reason: 'other', 'source.version': 'other' }),
+        });
+    });
+});
+
+describe('reportTsvRestoreDroppedRows', () => {
+    it('adds one breadcrumb and one warning per parse call', () => {
+        reportTsvRestoreDroppedRows(2);
+        expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('tsv restore dropped extra readings', {
+            level: 'warning',
+            tags: { feature: 'tsv-restore' },
+            extra: { dropped_rows: 2 },
+        });
+        const blob = JSON.stringify(vi.mocked(Sentry.captureMessage).mock.calls[0]);
+        expect(blob).not.toMatch(/\d{1,3}(?:\.\d{1,3}){3}/);
+    });
+});
+
+describe('captureSidecarRequestFailure', () => {
+    it('uses a fixed message and route tags only', () => {
+        captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('sidecar request failed', {
+            level: 'error',
+            tags: {
+                feature: 'sidecar',
+                'sidecar.route': '/control',
+                'http.status': '503',
+                method: 'POST',
+            },
+        });
+    });
+});
+
+describe('normalizeSupabaseError', () => {
+    it('leaves real Error instances untouched', () => {
+        const err = new Error('boom');
+        expect(normalizeSupabaseError(err)).toBe(err);
+    });
+});
+
+describe('tagsFromQueryMeta', () => {
+    it('maps feature, rpc, and table', () => {
+        expect(tagsFromQueryMeta({ feature: 'plan-batch', rpc: 'reorder_plan_batches' })).toEqual({
+            feature: 'plan-batch',
+            rpc: 'reorder_plan_batches',
+        });
     });
 });
 

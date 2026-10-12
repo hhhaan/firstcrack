@@ -502,6 +502,7 @@ export const useReorderCuppingSamples = (eventId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (orderedIds: string[]) => cuppingApi.reorderSamples(eventId, orderedIds),
+        meta: { feature: 'cupping', rpc: 'reorder_cupping_samples' },
         onMutate: async (orderedIds) => {
             await qc.cancelQueries({ queryKey: cuppingKeys.samples(eventId) });
             const prev = qc.getQueryData<CuppingSampleWithMeta[]>(cuppingKeys.samples(eventId));

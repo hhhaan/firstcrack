@@ -35,5 +35,10 @@ export const isOpaqueNetworkError = (err: unknown): boolean => {
 };
 
 /** Sidecar not listening yet, or 401 from a just-bound process racing the token header. */
-export const isSidecarStartingError = (err: unknown): boolean =>
-    isOpaqueNetworkError(err) || errorMessage(err).toLowerCase() === 'unauthorized';
+export const isSidecarStartingError = (err: unknown): boolean => {
+    if (err && typeof err === 'object' && (err as { name?: unknown }).name === 'SidecarHttpError') {
+        const status = (err as { status?: unknown }).status;
+        if (status === 'network' || status === 'timeout') return true;
+    }
+    return isOpaqueNetworkError(err) || errorMessage(err).toLowerCase() === 'unauthorized';
+};

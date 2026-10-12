@@ -4,17 +4,18 @@ vi.mock('@tauri-apps/api/core', () => ({
     invoke: vi.fn().mockResolvedValue('test-token'),
 }));
 
-vi.mock('./logger', () => ({
-    logger: { error: vi.fn() },
-}));
+const { captureSidecar } = vi.hoisted(() => ({ captureSidecar: vi.fn() }));
+vi.mock('./sentry', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('./sentry')>();
+    return { ...actual, captureSidecarRequestFailure: captureSidecar, isSentryEnabled: true };
+});
 
-import { logger } from './logger';
-import { sidecar, subscribeSidecarSettings } from './sidecar';
+import { SidecarHttpError, sidecar, subscribeSidecarSettings } from './sidecar';
 
 describe('sidecar.waitUntilReady', () => {
     beforeEach(() => {
         vi.useFakeTimers();
-        vi.mocked(logger.error).mockClear();
+        captureSidecar.mockClear();
     });
 
     afterEach(() => {
@@ -43,7 +44,7 @@ describe('sidecar.waitUntilReady', () => {
 
         await expect(pending).resolves.toMatchObject({ connected: false });
         expect(sidecarCalls).toBe(2);
-        expect(logger.error).not.toHaveBeenCalled();
+        expect(captureSidecar).not.toHaveBeenCalled();
     });
 
     it('carries selected identity and notifies status owners only after settings succeed', async () => {
@@ -63,21 +64,51 @@ describe('sidecar.waitUntilReady', () => {
             fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: 'wrong target' }), { status: 409 }));
             await expect(
                 sidecar.updateSettings({ machine_id: 'a', connection_epoch: 1, w60a_fill: true }),
-            ).rejects.toThrow('wrong target');
+            ).rejects.toMatchObject({ message: 'wrong target', status: 409 });
+            expect(captureSidecar).not.toHaveBeenCalled();
             expect(refreshed).toHaveBeenCalledOnce();
         } finally {
             unsubscribe();
         }
     });
 
-    it('reports once when the startup retry budget is exhausted', async () => {
-        const error = new TypeError('Load failed');
-        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
+    it('reports a fixed sidecar event for retryable 5xx responses', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi
+                .fn()
+                .mockResolvedValue(new Response(JSON.stringify({ error: 'host=10.0.0.2:502 down' }), { status: 503 })),
+        );
+        await expect(sidecar.getStatus()).rejects.toBeInstanceOf(SidecarHttpError);
+        expect(captureSidecar).toHaveBeenCalledWith({
+            route: '/status',
+            method: 'GET',
+            status: 503,
+        });
+        const blob = JSON.stringify(captureSidecar.mock.calls[0]);
+        expect(blob).not.toContain('10.0.0.2');
+    });
 
-        const result = expect(sidecar.waitUntilReady()).rejects.toBe(error);
+    it('does not report 502 or opaque network failures', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'plc fail' }), { status: 502 })),
+        );
+        await expect(sidecar.getStatus()).rejects.toMatchObject({ status: 502, sentryReported: false });
+        expect(captureSidecar).not.toHaveBeenCalled();
+
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+        await expect(sidecar.getStatus()).rejects.toMatchObject({ status: 'network', sentryReported: false });
+        expect(captureSidecar).not.toHaveBeenCalled();
+    });
+
+    it('reports once when the startup retry budget is exhausted without Sentry noise', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Load failed')));
+
+        const result = expect(sidecar.waitUntilReady()).rejects.toMatchObject({ status: 'network', route: '/status' });
         await vi.advanceTimersByTimeAsync(30_000);
 
         await result;
-        expect(logger.error).toHaveBeenCalledOnce();
+        expect(captureSidecar).not.toHaveBeenCalled();
     });
 });

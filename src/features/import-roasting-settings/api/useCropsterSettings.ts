@@ -1,3 +1,4 @@
+import { observeRoastingImportScan } from '@shared/lib/sentry';
 import { useQuery } from '@tanstack/react-query';
 import { invoke } from '@tauri-apps/api/core';
 import { z } from 'zod';
@@ -18,7 +19,15 @@ export const useCropsterSettings = (enabled = true) =>
     useQuery({
         queryKey: cropsterSettingsKey,
         enabled,
-        queryFn: async () => snapshot.parse(await invoke('read_cropster_settings')),
+        queryFn: async () => {
+            const data = snapshot.parse(await invoke('read_cropster_settings'));
+            observeRoastingImportScan({
+                status: data.status,
+                reason: data.reason,
+                source: { product: data.source.product, version: data.source.version },
+            });
+            return data;
+        },
         retry: false,
         throwOnError: false,
     });
