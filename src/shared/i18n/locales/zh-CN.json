@@ -1399,11 +1399,11 @@
             "notes": "备注",
             "chartLoading": "正在加载图表…",
             "chartUnavailable": "图表不可用",
-            "outputWeight": "出豆量",
+            "outputWeight": "出豆量 (g)",
             "estimated": "估算",
             "outputWeightInvalid": "请输入 1–{{max}}g（不能超过投入量）。",
             "outputNeedsCharge": "请先输入投入量。",
-            "chargeWeight": "投入量",
+            "chargeWeight": "投入量 (g)",
             "chargeWeightInvalid": "请输入 {{min}}–{{max}}g 的整数。",
             "ambientTemp": "气温 (°C)",
             "ambientHumidity": "湿度 (%)",
@@ -1522,13 +1522,13 @@
             "editEvents": "编辑事件",
             "editHeat": "编辑火力",
             "eventsTitle": "编辑关键事件",
-            "eventsHint": "修正已保存事件的时间和温度，或补上缺失的 Yellow / 一爆事件。Charge 固定为 0:00。",
+            "eventsHint": "修改已保存事件的时间和温度，或添加、删除事件。Charge 和 Drop 保持原样。",
             "noEvents": "没有记录的关键事件。",
-            "noHeat": "没有可编辑的火力设定记录。",
+            "noHeat": "还没有火力设定。",
             "event": "事件",
             "time": "时间",
             "temp": "温度",
-            "chargeFixed": "Charge 是时间轴起点(0:00)。",
+            "chargeFixed": "Charge 和 Drop 保持记录原样。",
             "invalidTime": "请按 m:ss 格式输入时间。",
             "invalidTemp": "请输入 0–400°C 之间的温度。",
             "invalidOrder": "早于前一个事件的时间。",
@@ -1540,6 +1540,11 @@
             "saveFailed": "保存失败。已保留你的输入，请重试。",
             "conflict": "此记录已在别处被修改。请关闭后重新打开以加载最新内容。",
             "readOnly": "当前方案或工作区无法编辑。"
+        },
+        "recordText": {
+            "title": "烘焙标题",
+            "add": "添加笔记",
+            "failed": "保存失败。输入已保留，请重试。"
         }
     },
     "beanList": {

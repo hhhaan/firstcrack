@@ -1399,11 +1399,11 @@
             "notes": "Notes",
             "chartLoading": "Loading chart…",
             "chartUnavailable": "Chart unavailable",
-            "outputWeight": "Output Weight",
+            "outputWeight": "Output weight (g)",
             "estimated": "est.",
             "outputWeightInvalid": "Enter 1–{{max}}g (cannot exceed green input).",
             "outputNeedsCharge": "Enter the charge weight first.",
-            "chargeWeight": "Charge weight",
+            "chargeWeight": "Charge weight (g)",
             "chargeWeightInvalid": "Enter an integer from {{min}}–{{max}}g.",
             "ambientTemp": "Room temp (°C)",
             "ambientHumidity": "Humidity (%)",
@@ -1522,13 +1522,13 @@
             "editEvents": "Edit events",
             "editHeat": "Edit heat",
             "eventsTitle": "Edit key events",
-            "eventsHint": "Correct a saved mark, or add a missing Yellow or first-crack event. Charge stays at 0:00.",
+            "eventsHint": "Correct a saved mark, add a missing one, or remove one. Charge and Drop stay as recorded.",
             "noEvents": "No key events recorded.",
-            "noHeat": "No recorded Heat set steps to edit.",
+            "noHeat": "No heat steps yet.",
             "event": "Event",
             "time": "Time",
             "temp": "Temp",
-            "chargeFixed": "Charge is the 0:00 time origin.",
+            "chargeFixed": "Charge and Drop stay as recorded.",
             "invalidTime": "Enter a time as m:ss.",
             "invalidTemp": "Enter a temperature between 0 and 400°C.",
             "invalidOrder": "Out of order with an earlier event.",
@@ -1540,6 +1540,11 @@
             "saveFailed": "Could not save. Your edits are kept — try again.",
             "conflict": "This record was changed elsewhere. Close and reopen to load the latest version.",
             "readOnly": "Editing is not available on the current plan or workspace."
+        },
+        "recordText": {
+            "title": "Roast title",
+            "add": "Add note",
+            "failed": "Could not save. Your changes are kept; please retry."
         }
     },
     "profiles": {

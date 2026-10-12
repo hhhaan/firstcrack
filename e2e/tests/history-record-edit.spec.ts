@@ -47,16 +47,17 @@ test.describe('history record edit (#623)', () => {
         expect((session.events as { time_sec: number }[])[2].time_sec).toBe(480);
 
         await editor.getByLabel('FC Start', { exact: false }).first().fill('7:30');
-        await editor.getByLabel('Drop', { exact: false }).nth(1).fill('215.4');
+        await editor.getByLabel('End', { exact: false }).nth(1).fill('208.4');
         await editor.getByRole('button', { name: /save/i }).click();
         await expect(editor).toBeHidden();
 
         const saved = db.sessions.find((s) => s.id === session.id)!;
         const events = saved.events as Record<string, unknown>[];
         expect(events[2]).toMatchObject({ type: 'FC Start', time_sec: 450, temp_c: 196 });
-        expect(events[3]).toMatchObject({ type: 'Drop', time_sec: 600, temp_c: 215.4 });
+        expect(events[3]).toMatchObject({ type: 'Drop', time_sec: 600, temp_c: 212 });
+        expect(events[4]).toMatchObject({ type: 'End', time_sec: 640, temp_c: 208.4 });
         expect(events[1]).toEqual({ id: 'n', type: 'Note', time_sec: 30, note: 'keep me', extra: 1 });
-        expect(saved.drop_temp_celsius).toBe(215);
+        expect(saved.drop_temp_celsius).toBe(212);
         expect(db.stockEvents.length).toBe(stockBefore);
 
         // reload → edit survives re-entry
@@ -99,7 +100,7 @@ test.describe('history record edit (#623)', () => {
         await page.getByTestId('history-edit-heat').click();
         const editor = page.getByTestId('heater-events-editor');
         await expect(editor).toBeVisible();
-        await expect(editor.getByRole('button', { name: /add/i })).toHaveCount(0);
+        await expect(editor.getByRole('button', { name: /^add$/i })).toBeVisible();
 
         const heat = editor.locator('tbody').getByLabel('Heat', { exact: true }).nth(1);
         await expect(heat).toHaveValue('50');

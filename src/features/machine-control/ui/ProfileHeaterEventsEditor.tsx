@@ -15,7 +15,7 @@ type Props = {
     btPoints: ReplayPoint[];
     source: ReplayPlanSource | null;
     unit: 'C' | 'F';
-    /** `history` = saved record edit (fixed rows). Never sends machine commands in either mode. */
+    /** `history` edits the saved record, including new and removed steps. Never sends machine commands. */
     mode?: 'profile' | 'history';
     saveErrorMessage?: (error: unknown) => string | null;
     onClose: () => void;

@@ -22,7 +22,7 @@ import { eventTrigger, MAX_EVENTS, type ReplayEvent, type ReplayPoint } from '..
 import { type DraftRow, HeaterEventsTable } from './HeaterEventsTable';
 import { HeatStepChart } from './HeatStepChart';
 
-/** `history` edits a saved record: rows are fixed (no add/delete/rule), values only. */
+/** Saved records, profiles, and batches share add, edit, and delete. History never sends a machine command. */
 export type HeaterEventsEditorMode = 'profile' | 'batch' | 'history';
 
 type Props = {
@@ -82,7 +82,6 @@ export const HeaterEventsEditor = ({
     onClose,
     onApply,
 }: Props) => {
-    const fixedRows = mode === 'history';
     const heaterBounds: HeaterBounds = useMemo(
         () => ({
             min: heaterMin ?? 0,
@@ -318,54 +317,51 @@ export const HeaterEventsEditor = ({
                                 {heaterUnit}
                             </div>
                         )}
-                        {!fixedRows && (
-                            <fieldset
-                                disabled={busy}
-                                aria-labelledby="heater-events-rule-title"
-                                className="m-0 mt-auto min-w-0 rounded-xl border border-border-subtle bg-surface-warm-solid p-4"
-                            >
-                                <h3 id="heater-events-rule-title" className="m-0 text-sm font-semibold text-primary">
-                                    {t('heaterEventsEditor.ruleTitle')}
-                                </h3>
-                                <p className="mt-1 mb-3 text-xs text-muted">{t('heaterEventsEditor.ruleHint')}</p>
-                                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
-                                    <label className="min-w-0 text-[11px] font-semibold text-muted">
-                                        {t('heaterEventsEditor.ruleWhen')} (°{unit})
-                                        <input
-                                            value={ruleBt}
-                                            onChange={(e) => {
-                                                if (isDecimalDraft(e.target.value, BT_DECIMALS))
-                                                    setRuleBt(e.target.value);
-                                            }}
-                                            className={`${inputCls} mt-1 py-2 text-xs`}
-                                            inputMode="decimal"
-                                            aria-label={t('heaterEventsEditor.bt')}
-                                        />
-                                    </label>
-                                    <label className="min-w-0 text-[11px] font-semibold text-muted">
-                                        {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
-                                        <input
-                                            value={ruleHeater}
-                                            onChange={(e) => {
-                                                if (isDecimalDraft(e.target.value, HEAT_DECIMALS, heaterBounds.min < 0))
-                                                    setRuleHeater(e.target.value);
-                                            }}
-                                            className={`${inputCls} mt-1 py-2 text-xs`}
-                                            inputMode="decimal"
-                                            aria-label={t('heaterEventsEditor.heat')}
-                                        />
-                                    </label>
-                                    <button
-                                        type="button"
-                                        disabled={rows.length >= MAX_EVENTS}
-                                        onClick={addBtRule}
-                                        className="cursor-pointer rounded-xl border-none bg-primary px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-black"
-                                    >
-                                        {t('heaterEventsEditor.ruleAdd')}
-                                    </button>
-                                </div>
-                            </fieldset>
-                        )}
+                        <fieldset
+                            disabled={busy}
+                            aria-labelledby="heater-events-rule-title"
+                            className="m-0 mt-auto min-w-0 rounded-xl border border-border-subtle bg-surface-warm-solid p-4"
+                        >
+                            <h3 id="heater-events-rule-title" className="m-0 text-sm font-semibold text-primary">
+                                {t('heaterEventsEditor.ruleTitle')}
+                            </h3>
+                            <p className="mt-1 mb-3 text-xs text-muted">{t('heaterEventsEditor.ruleHint')}</p>
+                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+                                <label className="min-w-0 text-[11px] font-semibold text-muted">
+                                    {t('heaterEventsEditor.ruleWhen')} (°{unit})
+                                    <input
+                                        value={ruleBt}
+                                        onChange={(e) => {
+                                            if (isDecimalDraft(e.target.value, BT_DECIMALS)) setRuleBt(e.target.value);
+                                        }}
+                                        className={`${inputCls} mt-1 py-2 text-xs`}
+                                        inputMode="decimal"
+                                        aria-label={t('heaterEventsEditor.bt')}
+                                    />
+                                </label>
+                                <label className="min-w-0 text-[11px] font-semibold text-muted">
+                                    {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
+                                    <input
+                                        value={ruleHeater}
+                                        onChange={(e) => {
+                                            if (isDecimalDraft(e.target.value, HEAT_DECIMALS, heaterBounds.min < 0))
+                                                setRuleHeater(e.target.value);
+                                        }}
+                                        className={`${inputCls} mt-1 py-2 text-xs`}
+                                        inputMode="decimal"
+                                        aria-label={t('heaterEventsEditor.heat')}
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    disabled={rows.length >= MAX_EVENTS}
+                                    onClick={addBtRule}
+                                    className="cursor-pointer rounded-xl border-none bg-primary px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-black"
+                                >
+                                    {t('heaterEventsEditor.ruleAdd')}
+                                </button>
+                            </div>
+                        </fieldset>
                     </section>
                     <HeaterEventsTable
                         unit={unit}
@@ -378,7 +374,7 @@ export const HeaterEventsEditor = ({
                         allowNegativeHeat={heaterBounds.min < 0}
                         onSelect={setSelected}
                         onUpdate={update}
-                        onDelete={fixedRows ? undefined : (key) => setRows((prev) => prev.filter((r) => r.key !== key))}
+                        onDelete={(key) => setRows((prev) => prev.filter((row) => row.key !== key))}
                     />
                 </div>
                 {error && (

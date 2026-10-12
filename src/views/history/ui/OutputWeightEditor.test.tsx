@@ -84,6 +84,14 @@ describe('OutputWeightEditor', () => {
         expect(host.textContent).not.toContain('1–0');
     });
 
+    it('rejects letters in the output weight', async () => {
+        await render(createElement(OutputWeightEditor, { session: { ...session, weight_grams: 850 } }));
+        await blur('85.5');
+        expect(input().value).toBe('');
+        await blur('850');
+        expect(input().value).toBe('850');
+    });
+
     it('still rejects output above a real charge', async () => {
         await render(createElement(OutputWeightEditor, { session: { ...session, weight_grams: 850 } }));
         await blur('900');

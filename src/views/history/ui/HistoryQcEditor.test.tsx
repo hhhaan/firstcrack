@@ -49,6 +49,8 @@ describe('History QC editors', () => {
     });
 
     const render = async (node: ReturnType<typeof createElement>) => {
+        act(() => root?.unmount());
+        host?.remove();
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
@@ -119,6 +121,28 @@ describe('History QC editors', () => {
         expect(update).toHaveBeenCalledWith({ id: 's1', moisture_pct: 11.2 });
         await blur(field('history-ambient-humidity'), '');
         expect(update).toHaveBeenCalledWith({ id: 's1', ambient_humidity_pct: null });
+    });
+
+    it('keeps extra decimals and signs out of numeric fields', async () => {
+        await render(createElement(ChargeWeightEditor, { session }));
+        await type(field('history-charge-weight'), '12.5');
+        expect(field('history-charge-weight').value).toBe('1000');
+        await type(field('history-charge-weight'), '-5');
+        expect(field('history-charge-weight').value).toBe('1000');
+
+        await render(createElement(QcMeasurementEditor, { session }));
+        await type(field('history-ambient-temp'), '21.55');
+        expect(field('history-ambient-temp').value).toBe('21.5');
+        await type(field('history-ambient-temp'), '-4.5');
+        expect(field('history-ambient-temp').value).toBe('-4.5');
+        await type(field('history-ambient-humidity'), '-1');
+        expect(field('history-ambient-humidity').value).toBe('');
+        await type(field('history-ambient-humidity'), '87.5');
+        expect(field('history-ambient-humidity').value).toBe('87.5');
+        await type(field('history-ambient-humidity'), '87.55');
+        expect(field('history-ambient-humidity').value).toBe('87.5');
+        await type(field('history-density'), '1.2');
+        expect(field('history-density').value).toBe('1.2');
     });
 
     it('rejects humidity above 100', async () => {

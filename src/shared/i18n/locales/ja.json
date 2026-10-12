@@ -1399,11 +1399,11 @@
             "notes": "ノート",
             "chartLoading": "チャート読み込み中...",
             "chartUnavailable": "チャート利用不可",
-            "outputWeight": "排出量",
+            "outputWeight": "排出量 (g)",
             "estimated": "推定",
             "outputWeightInvalid": "1–{{max}}gの範囲で入力してください（投入量超過不可）。",
             "outputNeedsCharge": "投入量を先に入力してください。",
-            "chargeWeight": "投入量",
+            "chargeWeight": "投入量 (g)",
             "chargeWeightInvalid": "{{min}}–{{max}}gの整数で入力してください。",
             "ambientTemp": "気温 (°C)",
             "ambientHumidity": "湿度 (%)",
@@ -1522,13 +1522,13 @@
             "editEvents": "イベントを編集",
             "editHeat": "火力を編集",
             "eventsTitle": "主要イベントの編集",
-            "eventsHint": "保存されたイベントの時間と温度を修正するか、欠けている Yellow・1ハゼのイベントを追加します。Chargeは0:00に固定されます。",
+            "eventsHint": "保存されたイベントの時間と温度を修正するか、イベントを追加・削除します。ChargeとDropはそのままです。",
             "noEvents": "記録された主要イベントがありません。",
-            "noHeat": "編集できる火力設定の記録がありません。",
+            "noHeat": "火力設定の記録がありません。",
             "event": "イベント",
             "time": "時間",
             "temp": "温度",
-            "chargeFixed": "Chargeは時間軸の基準(0:00)です。",
+            "chargeFixed": "ChargeとDropは記録のままです。",
             "invalidTime": "時間をm:ss形式で入力してください。",
             "invalidTemp": "0–400°Cの温度を入力してください。",
             "invalidOrder": "前のイベントより早い時間です。",
@@ -1540,6 +1540,11 @@
             "saveFailed": "保存できませんでした。入力は保持されます。もう一度お試しください。",
             "conflict": "この記録は別の場所で変更されました。閉じて開き直し、最新の内容を読み込んでください。",
             "readOnly": "現在のプランまたはワークスペースでは編集できません。"
+        },
+        "recordText": {
+            "title": "焙煎タイトル",
+            "add": "ノートを追加",
+            "failed": "保存できませんでした。入力は保持されています。再試行してください。"
         }
     },
     "profiles": {

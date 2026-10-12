@@ -59,7 +59,7 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         key: 'bean',
         label: 'Bean',
         sortable: true,
-        render: (s) => sessionBeanName(s) ?? '—',
+        render: (s) => s.bean_label?.trim() || sessionBeanName(s) || '—',
     },
     {
         key: 'profile',

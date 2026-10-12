@@ -54,11 +54,18 @@ afterEach(async () => {
 });
 
 describe('RecordEventsEditor', () => {
-    it('keeps Charge time read-only', async () => {
+    it('leaves Charge and Drop read-only', async () => {
         await mount({});
-        expect(
-            (document.querySelector('input[aria-label="Charge history.edit.time"]') as HTMLInputElement).readOnly,
-        ).toBe(true);
+        for (const mark of ['Charge', 'Drop']) {
+            expect(
+                (document.querySelector(`input[aria-label="${mark} history.edit.time"]`) as HTMLInputElement).readOnly,
+            ).toBe(true);
+            expect(
+                (document.querySelector(`input[aria-label="${mark} history.edit.temp"]`) as HTMLInputElement).readOnly,
+            ).toBe(true);
+            expect(document.querySelector(`button[aria-label="${mark} common.delete"]`)).toBeNull();
+        }
+        expect(document.querySelector('button[aria-label="FC Start common.delete"]')).not.toBeNull();
     });
 
     it('blocks an order inversion without saving', async () => {
@@ -73,7 +80,7 @@ describe('RecordEventsEditor', () => {
     it('cancel closes without saving', async () => {
         const onSave = vi.fn();
         const onClose = await mount({ onSave });
-        await type('Drop history.edit.temp', '215');
+        await type('FC Start history.edit.temp', '215');
         await act(async () => button('common.cancel')?.click());
         expect(onSave).not.toHaveBeenCalled();
         expect(onClose).toHaveBeenCalled();
@@ -88,7 +95,7 @@ describe('RecordEventsEditor', () => {
                 }),
         );
         const onClose = await mount({ onSave, errorText: () => 'conflict' });
-        await type('Drop history.edit.temp', '215');
+        await type('FC Start history.edit.temp', '215');
         const form = document.querySelector('form') as HTMLFormElement;
         await act(async () => {
             form.requestSubmit();
@@ -100,9 +107,9 @@ describe('RecordEventsEditor', () => {
 
         await act(async () => reject({ code: 'PT409' }));
         expect(document.querySelector('[role="alert"]')?.textContent).toBe('conflict');
-        expect((document.querySelector('input[aria-label="Drop history.edit.temp"]') as HTMLInputElement).value).toBe(
-            '215',
-        );
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.temp"]') as HTMLInputElement).value,
+        ).toBe('215');
         expect(document.querySelector('fieldset')?.disabled).toBe(false);
         expect(onClose).not.toHaveBeenCalled();
     });
@@ -129,7 +136,7 @@ describe('RecordEventsEditor', () => {
                 }),
         );
         const onClose = await mount({ onSave, errorText: () => 'conflict' });
-        await type('Drop history.edit.temp', '215');
+        await type('FC Start history.edit.temp', '215');
         const form = document.querySelector('form') as HTMLFormElement;
         const pressEscape = () =>
             window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
@@ -159,10 +166,10 @@ describe('RecordEventsEditor', () => {
         ['FC Start history.edit.time', '8:0a', '8:00'],
         ['FC Start history.edit.time', '8:61', '8:00'],
         ['FC Start history.edit.time', '7:5', '7:5'],
-        ['Drop history.edit.temp', '21a', '210'],
-        ['Drop history.edit.temp', '-5', '210'],
-        ['Drop history.edit.temp', '210.55', '210'],
-        ['Drop history.edit.temp', '210.5', '210.5'],
+        ['FC Start history.edit.temp', '19a', '196'],
+        ['FC Start history.edit.temp', '-5', '196'],
+        ['FC Start history.edit.temp', '196.55', '196'],
+        ['FC Start history.edit.temp', '196.5', '196.5'],
     ])('limits %s input: %s → %s', async (label, typed, expected) => {
         await mount({});
         await type(label, typed);
@@ -219,6 +226,23 @@ describe('RecordEventsEditor', () => {
             expect(values).not.toContain('End');
         }
         expect(addButton()).not.toBeNull();
+    });
+
+    it('offers a custom name again after one is already on the record', async () => {
+        await mount({
+            events: [
+                { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
+                { id: 'a', type: '아로마', time_sec: 30, temp_c: 150 },
+                { id: 'd', type: 'Drop', time_sec: 600, temp_c: 210 },
+            ],
+        });
+        await act(async () => addButton().click());
+        const select = document.querySelector('select') as HTMLSelectElement;
+        await pickType(select.value, '아로마');
+        expect(select.value).toBe('아로마');
+        const options = [...select.options].map((option) => option.value);
+        expect(options.filter((value) => value === '아로마')).toHaveLength(1);
+        expect(options).toContain('아로마');
     });
 
     it('hides add when every singleton mark is already present', async () => {

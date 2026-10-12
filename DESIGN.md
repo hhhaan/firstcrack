@@ -13,6 +13,7 @@
 - **분위기:** 조용하고 정확한, 장인적인
 - **키워드:** 미니멀, 저대비, 따뜻한 중성톤, 정밀함
 - **No emoji** — 모든 아이콘은 Lucide (`lucide-react`) 사용
+- **Affordance** — 조작 가능함은 아이콘을 더하지 않고 시그니파이어로 보여 준다. 밑줄, 커서, 테두리처럼 이미 있는 형태가 단서가 된다. 호버에만 숨기지 않는다.
 - **No gradients** — 단색 + 미세한 그림자 레이어로 깊이감 표현
 - **tw utility > style prop** — 예외는 동적 계산값만
 - **테마 색 hex 하드코딩 금지** — `text-primary`, `bg-surface`, `border-border` 등 시맨틱 클래스 우선

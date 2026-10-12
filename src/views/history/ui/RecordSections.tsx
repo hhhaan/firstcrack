@@ -4,7 +4,6 @@ import { tempUnitLabel, useRoastSettings } from '@features/active-roast';
 import { formatEditTime, profileHeaterBounds } from '@features/machine-control/lib/heater-events';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { Flame, Pencil } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoastRecordSave } from '../hooks/useRoastRecordSave';
@@ -46,8 +45,6 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
 
     const marks = toEventDrafts(session.events, unit);
     const heat = sessionHeatPlan(session, curve.points);
-    // An unreadable stored edit still opens so it can be reverted to the recorded steps.
-    const hasHeat = heat.source === 'session' || heat.events.length > 0;
     const readOnlyTitle = record.canWrite ? undefined : t('history.edit.readOnly');
 
     const close = () => {
@@ -71,7 +68,6 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                         title={readOnlyTitle}
                         onClick={() => setOpen('events')}
                     >
-                        <Pencil size={13} strokeWidth={2} />
                         {t('history.edit.editEvents')}
                     </button>
                 }
@@ -113,11 +109,10 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                             type="button"
                             data-testid="history-edit-heat"
                             className={editCls}
-                            disabled={!record.canWrite || record.isPending || curve.isLoading || !hasHeat}
+                            disabled={!record.canWrite || record.isPending || curve.isLoading}
                             title={readOnlyTitle}
                             onClick={() => setOpen('heat')}
                         >
-                            <Flame size={13} strokeWidth={2} />
                             {t('history.edit.editHeat')}
                         </button>
                     </div>

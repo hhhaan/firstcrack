@@ -1,17 +1,10 @@
 import { logger } from '@shared/lib/logger';
+import { useTimeEditRoot } from '@shared/lib/useTimeEditRoot';
 import { inputCls } from '@shared/ui/form-styles';
 import { Trash2 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-    applyTimeEdit,
-    BT_DECIMALS,
-    commitEditTime,
-    HEAT_DECIMALS,
-    type HeaterDraftInput,
-    isDecimalDraft,
-    type TimeEditKind,
-} from '../lib/heater-events';
+import { BT_DECIMALS, HEAT_DECIMALS, type HeaterDraftInput, isDecimalDraft, isPartialTime } from '../lib/heater-events';
 
 export type DraftRow = HeaterDraftInput & {
     key: string;
@@ -43,110 +36,11 @@ export const HeaterEventsTable = ({
     onDelete?: (key: string) => void;
 }) => {
     const { t } = useTranslation();
-    const timeEdit = useRef(
-        new WeakMap<HTMLInputElement, { suppress: boolean; secondsOpen: boolean; digits: string }>(),
-    );
-    const pasteClaimed = useRef(new WeakMap<HTMLInputElement, boolean>());
     const unhandledTimeInputs = useRef(new WeakSet<HTMLInputElement>());
-    const caretFix = useRef<{ el: HTMLInputElement; caret: number } | null>(null);
-    const rootRef = useRef<HTMLFieldSetElement>(null);
-    useLayoutEffect(() => {
-        const fix = caretFix.current;
-        if (!fix) return;
-        caretFix.current = null;
-        const place = () => {
-            if (fix.el.isConnected && document.activeElement === fix.el) {
-                fix.el.setSelectionRange(fix.caret, fix.caret);
-            }
-        };
-        place();
-        requestAnimationFrame(place);
-    });
-    useEffect(() => {
-        const root = rootRef.current;
-        if (!root) return;
-        const editTime = (input: HTMLInputElement, kind: TimeEditKind, text: string) => {
-            const key = input.dataset.timeKey;
-            if (!key) return;
-            const start = input.selectionStart ?? 0;
-            const end = input.selectionEnd ?? start;
-            const prior = timeEdit.current.get(input);
-            const res = applyTimeEdit(
-                input.value,
-                start,
-                end,
-                text,
-                kind,
-                prior?.suppress ?? false,
-                prior?.secondsOpen ?? false,
-                prior?.digits ?? '',
-            );
-            timeEdit.current.set(input, {
-                suppress: res.suppress,
-                secondsOpen: res.secondsOpen,
-                digits: res.digits,
-            });
-            caretFix.current = { el: input, caret: res.caret };
-            input.setSelectionRange(res.caret, res.caret);
-            onUpdate(key, { t: res.value });
-        };
-        const claimPaste = (input: HTMLInputElement, text: string) => {
-            if (pasteClaimed.current.get(input)) return;
-            pasteClaimed.current.set(input, true);
-            queueMicrotask(() => pasteClaimed.current.set(input, false));
-            editTime(input, 'insert', text);
-        };
-        const isTimeInput = (target: EventTarget | null): target is HTMLInputElement =>
-            target instanceof HTMLInputElement && target.dataset.timeKey != null && !target.readOnly;
-        const onBefore = (event: Event) => {
-            if (!(event instanceof InputEvent) || !isTimeInput(event.target)) return;
-            const type = event.inputType;
-            if (type === 'insertFromPaste') {
-                event.preventDefault();
-                claimPaste(event.target, event.data ?? '');
-                return;
-            }
-            if (type === 'insertText' || type === 'insertReplacementText') {
-                event.preventDefault();
-                editTime(event.target, 'insert', event.data ?? '');
-                return;
-            }
-            if (type === 'deleteContentBackward') {
-                event.preventDefault();
-                editTime(event.target, 'backspace', '');
-                return;
-            }
-            if (type === 'deleteContentForward' || type === 'deleteByCut') {
-                event.preventDefault();
-                editTime(event.target, 'delete', '');
-            }
-        };
-        const onPaste = (event: Event) => {
-            if (!(event instanceof ClipboardEvent) || !isTimeInput(event.target)) return;
-            event.preventDefault();
-            claimPaste(event.target, event.clipboardData?.getData('text') ?? '');
-        };
-        const onBlur = (event: Event) => {
-            if (!isTimeInput(event.target)) return;
-            const committed = commitEditTime(event.target.value);
-            if (committed === event.target.value) return;
-            const key = event.target.dataset.timeKey;
-            if (!key) return;
-            timeEdit.current.set(event.target, { suppress: false, secondsOpen: false, digits: '' });
-            onUpdate(key, { t: committed });
-        };
-        root.addEventListener('beforeinput', onBefore);
-        root.addEventListener('paste', onPaste);
-        root.addEventListener('focusout', onBlur);
-        return () => {
-            root.removeEventListener('beforeinput', onBefore);
-            root.removeEventListener('paste', onPaste);
-            root.removeEventListener('focusout', onBlur);
-        };
-    }, [onUpdate]);
+    const setTimeRoot = useTimeEditRoot((key, value) => onUpdate(key, { t: value }));
     return (
         <fieldset
-            ref={rootRef}
+            ref={setTimeRoot}
             disabled={busy}
             aria-labelledby="heater-events-steps-title"
             className="m-0 flex min-h-[350px] min-w-0 flex-1 flex-col border-0 px-6 py-5 lg:min-h-0"
@@ -209,6 +103,10 @@ export const HeaterEventsTable = ({
                                                 value={row.t}
                                                 onChange={(event) => {
                                                     if (event.target.value === row.t) return;
+                                                    if (!isPartialTime(event.target.value)) {
+                                                        event.target.value = row.t;
+                                                        return;
+                                                    }
                                                     if (!unhandledTimeInputs.current.has(event.target)) {
                                                         unhandledTimeInputs.current.add(event.target);
                                                         logger.capture(
@@ -230,8 +128,11 @@ export const HeaterEventsTable = ({
                                             <input
                                                 value={row.bt}
                                                 onChange={(e) => {
-                                                    if (isDecimalDraft(e.target.value, BT_DECIMALS))
-                                                        onUpdate(row.key, { bt: e.target.value });
+                                                    if (!isDecimalDraft(e.target.value, BT_DECIMALS)) {
+                                                        e.target.value = row.bt;
+                                                        return;
+                                                    }
+                                                    onUpdate(row.key, { bt: e.target.value });
                                                 }}
                                                 className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('bt') ? ' border-red-500' : ''}`}
                                                 aria-invalid={cellInvalid('bt') || undefined}
@@ -245,8 +146,11 @@ export const HeaterEventsTable = ({
                                         <input
                                             value={row.heater}
                                             onChange={(e) => {
-                                                if (isDecimalDraft(e.target.value, HEAT_DECIMALS, allowNegativeHeat))
-                                                    onUpdate(row.key, { heater: e.target.value });
+                                                if (!isDecimalDraft(e.target.value, HEAT_DECIMALS, allowNegativeHeat)) {
+                                                    e.target.value = row.heater;
+                                                    return;
+                                                }
+                                                onUpdate(row.key, { heater: e.target.value });
                                             }}
                                             className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('heat') ? ' border-red-500' : ''}`}
                                             aria-invalid={cellInvalid('heat') || undefined}
