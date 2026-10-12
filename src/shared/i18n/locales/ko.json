@@ -279,10 +279,12 @@
                 "stockHorizonDescription": "생두 부족을 확인할 때 예정된 로스팅을 예약 재고로 반영할 기간입니다 (기본 28일).",
                 "days": "일",
                 "sidebar": "사이드바",
-                "sidebarDescription": "그룹 안의 메뉴 순서입니다.",
+                "sidebarDescription": "그룹 안의 메뉴 순서와 표시입니다.",
                 "sidebarReset": "사이드바 초기화",
                 "sidebarMoveUp": "{{name}} 위로",
-                "sidebarMoveDown": "{{name}} 아래로"
+                "sidebarMoveDown": "{{name}} 아래로",
+                "sidebarHide": "{{name}} 숨기기",
+                "sidebarShow": "{{name}} 표시"
             },
             "notifications": {
                 "label": "알림",

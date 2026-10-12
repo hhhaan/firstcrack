@@ -279,10 +279,12 @@
                 "stockHorizonDescription": "Days ahead to reserve planned roasts when checking bean shortages (default 28).",
                 "days": "days",
                 "sidebar": "Sidebar",
-                "sidebarDescription": "Menu order within each group.",
+                "sidebarDescription": "Menu order and visibility within each group.",
                 "sidebarReset": "Reset sidebar",
                 "sidebarMoveUp": "Move {{name}} up",
-                "sidebarMoveDown": "Move {{name}} down"
+                "sidebarMoveDown": "Move {{name}} down",
+                "sidebarHide": "Hide {{name}}",
+                "sidebarShow": "Show {{name}}"
             },
             "notifications": {
                 "label": "Notifications",

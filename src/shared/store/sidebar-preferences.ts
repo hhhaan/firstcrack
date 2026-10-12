@@ -13,22 +13,29 @@ const GROUP_INDEX = new Map<string, number>(
 
 const DEFAULT_ORDER: SidebarNavId[] = SIDEBAR_GROUPS.flatMap((group) => [...group.ids]);
 
-type SidebarPreferences = { collapsed: boolean; order: SidebarNavId[] };
+type SidebarPreferences = { collapsed: boolean; order: SidebarNavId[]; hidden: SidebarNavId[] };
 
 const isNavId = (id: string): id is SidebarNavId => GROUP_INDEX.has(id);
 
+const readIds = (value: unknown): SidebarNavId[] => {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<SidebarNavId>();
+    const ids: SidebarNavId[] = [];
+    for (const id of value) {
+        if (typeof id !== 'string' || !isNavId(id) || seen.has(id)) continue;
+        seen.add(id);
+        ids.push(id);
+    }
+    return ids;
+};
+
 /** Drop unknown ids and duplicates. Missing defaults are appended in each group's default order. */
 export const normalizeSidebarPreferences = (raw: unknown): SidebarPreferences => {
-    const data = raw !== null && typeof raw === 'object' ? (raw as { collapsed?: unknown; order?: unknown }) : {};
-    const seen = new Set<SidebarNavId>();
-    const kept: SidebarNavId[] = [];
-    if (Array.isArray(data.order)) {
-        for (const id of data.order) {
-            if (typeof id !== 'string' || !isNavId(id) || seen.has(id)) continue;
-            seen.add(id);
-            kept.push(id);
-        }
-    }
+    const data =
+        raw !== null && typeof raw === 'object'
+            ? (raw as { collapsed?: unknown; order?: unknown; hidden?: unknown })
+            : {};
+    const kept = readIds(data.order);
     const byGroup = SIDEBAR_GROUPS.map(() => [] as SidebarNavId[]);
     for (const id of kept) {
         const index = GROUP_INDEX.get(id);
@@ -38,12 +45,13 @@ export const normalizeSidebarPreferences = (raw: unknown): SidebarPreferences =>
         ...(byGroup[index] ?? []),
         ...group.ids.filter((id) => !byGroup[index]?.includes(id)),
     ]);
-    return { collapsed: data.collapsed === true, order };
+    const hidden = new Set(readIds(data.hidden));
+    return { collapsed: data.collapsed === true, order, hidden: order.filter((id) => hidden.has(id)) };
 };
 
 const preference = createDevicePreference(
     'sidebar.settings',
-    { collapsed: false, order: DEFAULT_ORDER },
+    { collapsed: false, order: DEFAULT_ORDER, hidden: [] },
     normalizeSidebarPreferences,
 );
 
@@ -73,7 +81,16 @@ export const moveSidebarItem = (id: SidebarNavId, delta: -1 | 1) => {
     preference.update({ ...current, order });
 };
 
+export const setSidebarItemHidden = (id: SidebarNavId, hidden: boolean) => {
+    const current = preference.get();
+    const next = new Set(current.hidden);
+    if (hidden) next.add(id);
+    else next.delete(id);
+    preference.update({ ...current, hidden: current.order.filter((item) => next.has(item)) });
+};
+
+/** Restores menu order and visibility. Collapse stays as the user left it. */
 export const resetSidebarOrder = () => {
     const current = preference.get();
-    preference.update({ ...current, order: [...DEFAULT_ORDER] });
+    preference.update({ ...current, order: [...DEFAULT_ORDER], hidden: [] });
 };

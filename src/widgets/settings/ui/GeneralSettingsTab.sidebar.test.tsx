@@ -97,4 +97,33 @@ describe('GeneralSettingsTab sidebar order', () => {
             'pricing',
         ]);
     });
+
+    it('hides an item and shows it again on reset', () => {
+        const cupping = container.querySelector('[data-sidebar-item="cupping"]');
+        expect(cupping?.getAttribute('data-sidebar-hidden')).toBe('false');
+
+        act(() => {
+            container
+                .querySelector<HTMLButtonElement>(
+                    '[aria-label="settings.tabs.general.sidebarHide:sidebar.nav.cupping"]',
+                )
+                ?.click();
+        });
+
+        expect(container.querySelector('[data-sidebar-item="cupping"]')?.getAttribute('data-sidebar-hidden')).toBe(
+            'true',
+        );
+        expect(groupItems('sidebar.groups.roasting')).toContain('cupping');
+
+        act(() => {
+            const reset = [...container.querySelectorAll('button')].find(
+                (button) => button.textContent === 'settings.tabs.general.sidebarReset',
+            );
+            reset?.click();
+        });
+
+        expect(container.querySelector('[data-sidebar-item="cupping"]')?.getAttribute('data-sidebar-hidden')).toBe(
+            'false',
+        );
+    });
 });

@@ -90,4 +90,38 @@ test('sidebar order is edited in general settings and roast does not collapse it
         'nav-orders',
         'nav-pricing',
     ]);
+
+    await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
+    await settings.getByRole('button', { name: 'Hide Cupping', exact: true }).click();
+    for (const name of ['Dashboard', 'Roast Schedule', 'Bean Inventory', 'Orders', 'Margin Calculator']) {
+        await settings.getByRole('button', { name: `Hide ${name}`, exact: true }).click();
+    }
+    await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+
+    await expect(page.getByTestId('nav-cupping')).toHaveCount(0);
+    await expect(sidebar.getByText('Operations', { exact: true })).toHaveCount(0);
+    await expect(sidebar.getByText('Roasting', { exact: true })).toBeVisible();
+    expect(await navOrder(page)).toEqual(['nav-history', 'nav-roast', 'nav-profiles', 'nav-machines']);
+
+    await page.reload();
+    await expect(page.getByTestId('nav-cupping')).toHaveCount(0);
+    await expect(sidebar.getByText('Operations', { exact: true })).toHaveCount(0);
+    await expect(sidebar).toHaveClass(/w-\[170px\]/);
+
+    await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
+    await settings.getByRole('button', { name: 'Reset sidebar', exact: true }).click();
+    await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+    expect(await navOrder(page)).toEqual([
+        'nav-roast',
+        'nav-history',
+        'nav-profiles',
+        'nav-machines',
+        'nav-cupping',
+        'nav-dashboard',
+        'nav-schedule',
+        'nav-beans',
+        'nav-orders',
+        'nav-pricing',
+    ]);
+    await expect(sidebar.getByText('Operations', { exact: true })).toBeVisible();
 });

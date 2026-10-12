@@ -6,6 +6,7 @@ import {
     moveSidebarItem,
     resetSidebarOrder,
     SIDEBAR_GROUPS,
+    setSidebarItemHidden,
     useSidebarPreferences,
 } from '@shared/store/sidebar-preferences';
 // VOC: restore dark/system picker
@@ -13,7 +14,7 @@ import {
 import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls } from '@shared/ui/form-styles';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsOptionRow, settingsOptionLabelCls } from './SettingsOptionRow';
@@ -101,7 +102,8 @@ const moveButtonCls =
 
 function SidebarOrderSection() {
     const { t } = useTranslation();
-    const { order } = useSidebarPreferences();
+    const { order, hidden } = useSidebarPreferences();
+    const hiddenIds = new Set(hidden);
 
     return (
         <SettingsSection>
@@ -117,12 +119,37 @@ function SidebarOrderSection() {
                             <h3 className="m-0 mb-1 text-xs font-medium text-muted">{t(group.labelKey)}</h3>
                             {ids.map((id, index) => {
                                 const name = t(`sidebar.nav.${id}`);
+                                const isHidden = hiddenIds.has(id);
                                 return (
                                     <SettingsOptionRow key={id} justify="between">
-                                        <span className={settingsOptionLabelCls} data-sidebar-item={id}>
+                                        <span
+                                            className={
+                                                isHidden ? 'text-[13px] font-medium text-muted' : settingsOptionLabelCls
+                                            }
+                                            data-sidebar-item={id}
+                                            data-sidebar-hidden={isHidden ? 'true' : 'false'}
+                                        >
                                             {name}
                                         </span>
                                         <span className="flex shrink-0 items-center gap-1">
+                                            <button
+                                                type="button"
+                                                aria-pressed={isHidden}
+                                                aria-label={t(
+                                                    isHidden
+                                                        ? 'settings.tabs.general.sidebarShow'
+                                                        : 'settings.tabs.general.sidebarHide',
+                                                    { name },
+                                                )}
+                                                onClick={() => setSidebarItemHidden(id, !isHidden)}
+                                                className={moveButtonCls}
+                                            >
+                                                {isHidden ? (
+                                                    <EyeOff size={14} aria-hidden />
+                                                ) : (
+                                                    <Eye size={14} aria-hidden />
+                                                )}
+                                            </button>
                                             <button
                                                 type="button"
                                                 aria-label={t('settings.tabs.general.sidebarMoveUp', { name })}

@@ -13,6 +13,7 @@ import {
     resetSidebarOrder,
     SIDEBAR_GROUPS,
     setSidebarCollapsed,
+    setSidebarItemHidden,
 } from './sidebar-preferences';
 
 const roasting = ['roast', 'history', 'profiles', 'machines', 'cupping'] as const;
@@ -29,6 +30,7 @@ describe('normalizeSidebarPreferences', () => {
             }),
         ).toEqual({
             collapsed: false,
+            hidden: [],
             order: [
                 'roast',
                 'history',
@@ -64,18 +66,28 @@ describe('normalizeSidebarPreferences', () => {
     });
 
     it('uses the expanded default when the saved value is unusable', () => {
-        expect(normalizeSidebarPreferences(null)).toEqual({ collapsed: false, order: defaults });
+        expect(normalizeSidebarPreferences(null)).toEqual({ collapsed: false, hidden: [], order: defaults });
         expect(normalizeSidebarPreferences({ collapsed: 'true', order: { roast: 1 } })).toEqual({
             collapsed: false,
+            hidden: [],
             order: defaults,
         });
         expect(normalizeSidebarPreferences({ collapsed: true }).collapsed).toBe(true);
     });
 
+    it('drops unknown and duplicate hidden ids and keeps them in menu order', () => {
+        expect(
+            normalizeSidebarPreferences({
+                hidden: ['orders', 'ghost', 'orders', 'cupping', 'settings'],
+                order: ['history', 'roast'],
+            }).hidden,
+        ).toEqual(['cupping', 'orders']);
+    });
+
     it('does not carry fontSize', () => {
         const normalized = normalizeSidebarPreferences({ fontSize: 15, collapsed: false, order: defaults });
-        expect(normalized).toEqual({ collapsed: false, order: defaults });
-        expect(Object.keys(normalized)).toEqual(['collapsed', 'order']);
+        expect(normalized).toEqual({ collapsed: false, hidden: [], order: defaults });
+        expect(Object.keys(normalized)).toEqual(['collapsed', 'order', 'hidden']);
     });
 });
 
@@ -97,8 +109,13 @@ describe('sidebar order edits', () => {
         moveSidebarItem('cupping', 1);
         expect(getSidebarPreferences().order[4]).toBe('cupping');
 
+        setSidebarItemHidden('cupping', true);
+        setSidebarItemHidden('orders', true);
+        expect(getSidebarPreferences().hidden).toEqual(['cupping', 'orders']);
+        setSidebarItemHidden('cupping', false);
+
         resetSidebarOrder();
-        expect(getSidebarPreferences()).toEqual({ collapsed: true, order: defaults });
+        expect(getSidebarPreferences()).toEqual({ collapsed: true, hidden: [], order: defaults });
         expect(SIDEBAR_GROUPS.map((group) => group.labelKey)).toEqual([
             'sidebar.groups.roasting',
             'sidebar.groups.operations',

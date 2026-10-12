@@ -279,10 +279,12 @@
                 "stockHorizonDescription": "生豆の不足を確認する際に、予定された焙煎の在庫を確保する期間です（初期値28日）。",
                 "days": "日",
                 "sidebar": "サイドバー",
-                "sidebarDescription": "グループ内のメニュー順です。",
+                "sidebarDescription": "グループ内のメニュー順と表示です。",
                 "sidebarReset": "サイドバーを初期化",
                 "sidebarMoveUp": "{{name}}を上へ",
-                "sidebarMoveDown": "{{name}}を下へ"
+                "sidebarMoveDown": "{{name}}を下へ",
+                "sidebarHide": "{{name}}を隠す",
+                "sidebarShow": "{{name}}を表示"
             },
             "notifications": {
                 "label": "通知",

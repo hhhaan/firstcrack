@@ -67,7 +67,7 @@ export const Sidebar = ({
     onOpenSettings,
 }: SidebarProps) => {
     const { t } = useTranslation();
-    const { order } = useSidebarPreferences();
+    const { order, hidden } = useSidebarPreferences();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
     const [wsOpen, setWsOpen] = useState(false);
     const settingsKeys = useShortcutKeys('openSettings');
@@ -254,7 +254,10 @@ export const Sidebar = ({
             <nav className={cn('flex-1 overflow-y-auto py-1', rail ? 'px-3' : edgePad)}>
                 <div className={cn('flex flex-col', collapsed ? 'gap-1' : 'gap-3')}>
                     {SIDEBAR_GROUPS.map((group) => {
-                        const ids = order.filter((id) => (group.ids as readonly string[]).includes(id));
+                        const ids = order.filter(
+                            (id) => (group.ids as readonly string[]).includes(id) && !hidden.includes(id),
+                        );
+                        if (ids.length === 0) return null;
                         return (
                             <div key={group.labelKey}>
                                 <div
