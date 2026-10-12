@@ -3,7 +3,7 @@ import asyncio
 import json
 import time
 from collections import deque
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -141,6 +141,7 @@ class TestStatus:
 
     async def test_reset_clears_last_applied_setpoint(self, manager):
         fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        fake.reset_roast = AsyncMock()
         with patch("manager.make_adapter", return_value=fake):
             await manager.connect("virtual", {})
         await manager.control(heater=70)

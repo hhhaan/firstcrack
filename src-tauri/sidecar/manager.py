@@ -1125,7 +1125,7 @@ class RoasterManager:
                 await self._adapter.start_roast()
 
     async def reset_roast(self) -> None:
-        """배치 계산/PID 상태를 초기화한다. 재연결을 통한 예열 복귀는 가상 머신만 한다."""
+        """배치 계산/PID 상태를 초기화하고 장비 연결은 유지한다."""
         async with self._lock:
             self._ror_window.clear()
             self._et_ror_window.clear()
@@ -1150,37 +1150,13 @@ class RoasterManager:
             self._pid_task = None
             self._pid = None
 
-            # 실제 장비 연결은 배치 경계와 무관하게 유지한다.
-            if self._protocol != "virtual":
-                return
-
-            self._connection_epoch += 1
-            self._last_applied = {}
-            self._resetting = True
-            self._connected = False
-            try:
+            if self._protocol == "virtual":
+                self._last_applied = {}
+                self._resetting = True
                 try:
-                    await self._adapter.disconnect()
-                except Exception:
-                    pass
-                await self._adapter.connect()
-                self._connected = True
-                self._error = None
-                self._consecutive_errors = 0
-            except Exception as exc:
-                self._connected = False
-                self._error = _format_connection_error(
-                    exc, self._protocol, self._merged_params
-                )
-                _log.error("reset 재연결 실패: %s", exc, exc_info=True)
-                self._capture_hardware_error(exc, "reset_failed")
-                # _refresh_reading은 _connected=False면 재연결을 안 띄운다.
-                # 루프는 sleep 후 lock을 잡으므로 여기서 spawn해도 데드락 없음.
-                if self._reconnect_task is None or self._reconnect_task.done():
-                    self._reconnect_task = asyncio.create_task(self._reconnect_loop())
-                raise
-            finally:
-                self._resetting = False
+                    await self._adapter.reset_roast()
+                finally:
+                    self._resetting = False
 
     def update_settings(self, settings: dict[str, Any]) -> None:
         """프론트엔드 설정 변경을 런타임에 반영."""
