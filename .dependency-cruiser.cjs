@@ -17,9 +17,9 @@ module.exports = {
     forbidden: [
         {
             name: 'no-circular',
-            severity: 'warn',
+            severity: 'error',
             comment:
-                'Existing barrel cycles. New cycles should not be added; promote to error once this list is empty.',
+                'No cycles. Slice internals import the defining module, not their own barrel.',
             from: { path: '^src/', pathNot: testFile },
             to: { circular: true },
         },

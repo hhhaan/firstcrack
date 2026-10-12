@@ -1,6 +1,6 @@
 import { beanKeys } from '@entities/bean/queries';
 import { stockEventKeys } from '@entities/bean-stock-event';
-import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT, type MachineSnapshot } from '@entities/machine';
+import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { invalidateScheduledBatchQueries, planBatchApi } from '@entities/plan';
 import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
@@ -28,17 +28,10 @@ import type { LogEntry } from '@shared/types/roast';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { resumePendingRoastSave } from '../lib/resumePendingRoastSave';
-import type { FinalizedBbp } from './bbp';
 import type { PendingRoastSave } from './pendingRoastSave';
+import type { SaveRoastFormData, SaveRoastParams, SaveRoastResult, SyncRoastCurve } from './save-roast-types';
 
-/** Injected from upload feature (composed in views) — avoids feature→feature import. */
-export type SyncRoastCurve = (input: {
-    sessionId: string;
-    roastSessionId: string;
-    ownerId: string;
-    profileRequired: boolean;
-    bbpRequired: boolean;
-}) => Promise<unknown>;
+export type { SaveRoastFormData, SaveRoastParams, SaveRoastResult, SyncRoastCurve };
 
 /** Prefer Drop event temp, then End, then live BT (#173). */
 export function resolveDropTempCelsius(logEntries: LogEntry[], rawBT: number | null | undefined): number | null {
@@ -48,54 +41,6 @@ export function resolveDropTempCelsius(logEntries: LogEntry[], rawBT: number | n
     if (drop?.tempC != null) return Math.round(drop.tempC);
     if (rawBT != null) return Math.round(rawBT);
     return null;
-}
-
-/** Form fields required to persist a completed roast (matches summary modal). */
-export type SaveRoastFormData = {
-    notes: string;
-    /** Green input, in kg — prefilled from batch size, drives stock deduction. */
-    weightGrams: number;
-    /** Measured roasted output, in kg. 0/undefined = not weighed. */
-    outputWeightKg?: number;
-    roastLevel: string | null;
-    beanId: string | null;
-    /**
-     * Free-text bean name for sample / no-inventory roasts.
-     * Stored on session.bean_label; never creates beans rows or stock events.
-     */
-    beanLabel?: string | null;
-    /** resolved handoff for ad-hoc schedule link (from day batches) */
-    linkedBatch?: PlanBatchHandoff | null;
-    linkedBatchId?: string | null;
-    /** When true, server deducts green in the same TX as session save (C1). */
-    deductStock?: boolean;
-};
-
-export interface SaveRoastParams {
-    formData: SaveRoastFormData;
-    handoffBeanName: string | null;
-    sessionId: string | null;
-    userId: string;
-    elapsed: number;
-    /** Charge origin in ms. Same field persisted on pending saves. 0 → roasted_at null. */
-    roastStartTime: number;
-    rawBT: number | null;
-    ambientTemperature?: number | null;
-    ambientHumidity?: number | null;
-    selectedBeanId: string | null;
-    targetProfileId: string | null;
-    planBatchHandoff: PlanBatchHandoff | null;
-    logEntries: LogEntry[];
-    machineSnapshot?: MachineSnapshot | null;
-    bbpSummary?: FinalizedBbp | null;
-}
-
-export interface SaveRoastResult {
-    savedSession: RoastSession;
-    shouldOpenContinue: boolean;
-    /** Session saved but plan_batch status=done update failed — user should complete it in Schedule. */
-    batchStatusUpdateFailed?: boolean;
-    syncPending?: boolean;
 }
 
 export type SaveRoastDeps = {

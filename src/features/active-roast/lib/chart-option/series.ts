@@ -1,4 +1,3 @@
-import type { PhaseSegment, TemperatureUnit } from '@features/active-roast';
 import {
     MARKER_LABEL_CANVAS_GUTTER_PX,
     MARKER_LABEL_MAX_WIDTH_PX,
@@ -18,6 +17,8 @@ import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
+import type { TemperatureUnit } from '../../model/settings';
+import type { PhaseSegment } from '../phases';
 import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 

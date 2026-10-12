@@ -1,4 +1,3 @@
-import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
     getResolvedChartColors,
     ROR_Y_MAX,
@@ -25,9 +24,16 @@ import {
 import { isRemovableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
+import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
-import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
+import type { TurningPoint } from '@features/active-roast/lib/turningPoints';
+import {
+    type EventMarkerStyle,
+    type RoastSettings,
+    type TemperatureUnit,
+    useRoastSettings,
+} from '@features/active-roast/model/settings';
 import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { feedbackLabel, feedbackUnit } from '@shared/lib/feedback';

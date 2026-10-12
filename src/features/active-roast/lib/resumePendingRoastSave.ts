@@ -6,7 +6,7 @@ import { bbpTsvPath } from '@shared/lib/tsv-writer';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import { BaseDirectory, exists } from '@tauri-apps/plugin-fs';
 import { clearPendingRoastSave, type PendingRoastSave, writePendingRoastSave } from '../model/pendingRoastSave';
-import type { SaveRoastParams, SaveRoastResult, SyncRoastCurve } from '../model/useSaveRoast';
+import type { SaveRoastParams, SaveRoastResult, SyncRoastCurve } from '../model/save-roast-types';
 import { isFixablePlanBatchIdError, isPermanentSaveError } from './saveErrorClassification';
 import type { ResolveForRoastFn } from './startNextFromContinue';
 import { toPlanBatchHandoff } from './toPlanBatchHandoff';

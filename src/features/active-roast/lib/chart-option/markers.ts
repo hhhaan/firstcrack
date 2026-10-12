@@ -1,4 +1,3 @@
-import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
     EVENT_MARK_LINE_WIDTH,
     isControlEvent,
@@ -16,6 +15,8 @@ import {
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
+import type { EventMarkerStyle, TemperatureUnit } from '../../model/settings';
+import type { TurningPoint } from '../turningPoints';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
 

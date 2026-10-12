@@ -1,7 +1,7 @@
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
-import type { RoastSettings, TemperatureUnit } from '../model/settings';
+import type { RoastSettings } from '../model/roast-settings';
 import { type CurveChannel, isCurveColor } from './curve-style';
-import { fromDisplayTemp } from './temperature';
+import { fromDisplayTemp, type TemperatureUnit } from './temperature';
 
 export interface ArtisanGraphField {
     field: string;

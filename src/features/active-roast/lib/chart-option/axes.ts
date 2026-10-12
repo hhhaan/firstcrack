@@ -1,4 +1,3 @@
-import type { TemperatureUnit } from '@features/active-roast';
 import {
     AXIS_LABEL_FONT,
     AXIS_MINOR_SPLIT_NUMBER,
@@ -17,6 +16,7 @@ import {
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
+import type { TemperatureUnit } from '../../model/settings';
 import type { ChartOptionParams, ResolvedChartColors } from './types';
 
 export const fmtSec = (v: number) => `${v < 0 ? '-' : ''}${formatElapsed(Math.abs(v))}`;
