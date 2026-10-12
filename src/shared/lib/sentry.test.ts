@@ -328,6 +328,7 @@ describe('door-control capture helpers', () => {
         captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 503, message: '/dev/ttyUSB0' });
         expect(Sentry.captureMessage).toHaveBeenCalledWith('door.settings-push failed', {
             level: 'error',
+            fingerprint: ['door', 'settings-push', 'settings', '503'],
             tags: { feature: 'door-control', op: 'settings-push', 'http.status': '503' },
         });
         const blob = JSON.stringify(vi.mocked(Sentry.captureMessage).mock.calls[0]);
@@ -365,6 +366,7 @@ describe('door-control capture helpers', () => {
         captureDoorWriteNoResponse({ door: 'fill', action: 'close', status: 'timeout' });
         expect(Sentry.captureMessage).toHaveBeenLastCalledWith('door.write no-response', {
             level: 'warning',
+            fingerprint: ['door', 'no-response', 'fill', 'close'],
             tags: {
                 feature: 'door-control',
                 door: 'fill',
@@ -375,6 +377,7 @@ describe('door-control capture helpers', () => {
         captureDoorWriteNoResponse({ door: 'discharge', action: 'open', status: 'network' });
         expect(Sentry.captureMessage).toHaveBeenLastCalledWith('door.write no-response', {
             level: 'error',
+            fingerprint: ['door', 'no-response', 'discharge', 'open'],
             tags: {
                 feature: 'door-control',
                 door: 'discharge',
