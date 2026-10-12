@@ -312,7 +312,7 @@ describe('reportTsvRestoreDroppedRows', () => {
         expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
         expect(Sentry.captureMessage).toHaveBeenCalledWith('tsv restore dropped extra readings', {
             level: 'warning',
-            fingerprint: ['tsv-restore', '2'],
+            fingerprint: ['tsv-restore'],
             tags: { feature: 'tsv-restore' },
             extra: { dropped_rows: 2 },
         });
