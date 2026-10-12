@@ -478,7 +478,7 @@ export const reportTsvRestoreDroppedRows = (droppedRows: number) => {
     });
     Sentry.captureMessage('tsv restore dropped extra readings', {
         level: 'warning',
-        fingerprint: ['tsv-restore', String(droppedRows)],
+        fingerprint: ['tsv-restore'],
         tags: { feature: 'tsv-restore' },
         extra: { dropped_rows: droppedRows },
     });

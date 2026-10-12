@@ -119,4 +119,30 @@ describe('sidecar.waitUntilReady', () => {
         await expect(sidecar.waitUntilReady()).rejects.toMatchObject({ status: 'timeout', route: '/status' });
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+
+    it('does not retry or report 2xx with malformed JSON (waitUntilReady)', async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValue(
+                new Response('not-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+            );
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(sidecar.waitUntilReady()).rejects.toBeInstanceOf(SyntaxError);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(captureSidecar).not.toHaveBeenCalled();
+    });
+
+    it('does not retry or report 2xx with malformed JSON (connect)', async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValue(
+                new Response('not-json', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+            );
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(sidecar.connect('virtual', {})).rejects.toBeInstanceOf(SyntaxError);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(captureSidecar).not.toHaveBeenCalled();
+    });
 });

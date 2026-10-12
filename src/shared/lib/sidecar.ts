@@ -131,11 +131,16 @@ async function request<T>(
         return await (res.json() as Promise<T>);
     } catch (err) {
         if (err instanceof SidecarHttpError) throw err;
+        if (isOpaqueNetworkError(err)) {
+            throw new SidecarHttpError(route, 'network', 'network error', false);
+        }
         const status = networkStatus(err);
-        const opaque = isOpaqueNetworkError(err);
-        const reported = reportErrors && !opaque ? reportSidecarFailure(route, method, status) : false;
-        if (reportErrors && !opaque) devSidecarLog(`[sidecar] ${path} 네트워크 오류:`, err);
-        throw new SidecarHttpError(route, status, opaque ? 'network error' : errorMessageFrom(err), reported);
+        if (status === 'timeout') {
+            const reported = reportErrors ? reportSidecarFailure(route, method, status) : false;
+            if (reportErrors) devSidecarLog(`[sidecar] ${path} 네트워크 오류:`, err);
+            throw new SidecarHttpError(route, status, errorMessageFrom(err), reported);
+        }
+        throw err;
     }
 }
 
