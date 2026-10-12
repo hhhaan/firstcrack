@@ -529,6 +529,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const guardedEnterStandby = useCallback(() => {
         readyLock.run(() => lifecycle.handleEnterStandby());
     }, [lifecycle.handleEnterStandby, readyLock.run]);
+    // Returning from the saved curve swaps this slot to Charge. The same lock stops the rest of the mash from charging.
+    const dismissReview = useCallback(() => {
+        chargeLock.run(() => useRoastingStore.getState().dismissCompletedReview());
+    }, [chargeLock.run]);
 
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
@@ -1342,7 +1346,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         readyLocked={readyLock.locked}
                         chargeLocked={chargeLock.locked}
                         reviewing={reviewing}
-                        onDismissReview={() => useRoastingStore.getState().dismissCompletedReview()}
+                        onDismissReview={dismissReview}
                         reviewSaveError={reviewSaveError}
                         onEndRoast={handleEndRoastClick}
                         bbpTimer={bbpTimer}
