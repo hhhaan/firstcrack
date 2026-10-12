@@ -24,6 +24,7 @@ import {
     type TemperatureUnit,
 } from '@features/active-roast';
 import { canAddMachine } from '@shared/lib/features';
+import { captureRoastingImportFailure } from '@shared/lib/sentry';
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
 import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
@@ -259,19 +260,32 @@ export const saveRoastingImport = async (input: {
     plan: string;
 }): Promise<Exclude<ImportResult, 'planLimit'>> => {
     let graphApplied = false;
+    let stage: 'graph' | 'machines' = 'graph';
+    let pendingCount = 0;
+    let updatesCount = 0;
     try {
         if (input.includeGraph && input.hasGraph) {
             await importSelectedGraph(input);
             graphApplied = true;
         }
+        stage = 'machines';
         const latest = useMachines.getState();
         const { pending, updates } = pendingMachineWrites(input.product, input.selected, latest.machines);
+        pendingCount = pending.length;
+        updatesCount = updates.length;
         if (pending.length > 0 || updates.length > 0) {
             if (!allowsAdditions(input.plan, latest.machines, pending.length)) throw new Error('machine limit');
             latest.importMachines(pending, updates);
         }
         return 'saved';
-    } catch {
+    } catch (error) {
+        if (!(error instanceof Error && error.message === 'machine limit')) {
+            captureRoastingImportFailure(error, {
+                product: input.product,
+                stage,
+                counts: { selected: input.selected.length, pending: pendingCount, updates: updatesCount },
+            });
+        }
         return graphApplied ? 'graphSavedMachinesFailed' : 'failed';
     }
 };

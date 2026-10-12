@@ -1,6 +1,6 @@
 """W60A fill writes latch DB2.30 to 1/2 and stay opt-in."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
@@ -81,6 +81,28 @@ async def test_fill_open_does_not_send_discharge_code(manager):
     await manager.fill("open", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
     manager._adapter.fill.assert_awaited_once_with("open")
     manager._adapter.discharge.assert_not_awaited()
+
+
+async def test_manager_rejects_late_acknowledgement_fill(manager):
+    enable_fill(manager)
+
+    async def changed(_):
+        manager._connection_epoch += 1
+
+    manager._adapter.fill.side_effect = changed
+    scope = MagicMock()
+    with (
+        pytest.raises(ControlUnavailable),
+        patch("manager.sentry_sdk.new_scope") as new_scope,
+    ):
+        new_scope.return_value.__enter__.return_value = scope
+        await manager.fill("close", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
+    scope.capture_exception.assert_called_once()
+    assert scope.fingerprint == ["door_write_ambiguous", "fill", "close"]
+    tag_args = [call.args for call in scope.set_tag.call_args_list]
+    assert ("door", "fill") in tag_args
+    assert ("action", "close") in tag_args
+    assert ("event", "door_write_ambiguous") in tag_args
 
 
 @pytest.fixture

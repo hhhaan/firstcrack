@@ -48,7 +48,7 @@ export const useRoastActions = ({
             const sessionId = storeStartCharge(origin, workspaceOwnerId, { bt: btVal, unit });
             if (!sessionId) return;
             sidecar.startRoast().catch((error) => {
-                logger.capture(new Error('Roast start command failed'), { reason: String(error) });
+                logger.capture(error, { context: 'roast start' });
             });
         },
         [unit, rawBT, storeStartCharge, workspaceOwnerId],

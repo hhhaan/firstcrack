@@ -266,9 +266,10 @@ async def handle_control(request: web.Request) -> web.Response:
     except control_guard.ControlUnavailable as exc:
         return web.json_response({"error": str(exc)}, status=409)
     except Exception as exc:
-        _log.error("control 실패: %s", exc, exc_info=True)
-        # 400/409는 클라이언트 문제 — PLC 쓰기 실패(502)만 관측한다 (#269)
+        # exc_info=True 먼저 쓰면 LoggingIntegration이 태그 없는 이벤트를 만들고 dedupe가
+        # 아래 tagged capture를 삭제한다 (#771).
         manager._capture_hardware_error(exc, "control_write_failed")
+        _log.warning("control 실패 (%s)", type(exc).__name__, exc_info=True)
         return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
     return web.json_response({"ok": True, "applied": applied})
 
@@ -288,9 +289,11 @@ async def handle_discharge(request: web.Request) -> web.Response:
     except control_guard.ControlUnavailable as exc:
         return web.json_response({"error": str(exc)}, status=409)
     except Exception as exc:
-        _log.error("discharge 실패: %s", exc, exc_info=True)
-        manager._capture_hardware_error(exc, "discharge")
-        return web.json_response({"error": str(exc)}, status=502)
+        manager._capture_hardware_error(
+            exc, "discharge", door="discharge", action=body["action"]
+        )
+        _log.warning("discharge 실패 (%s)", type(exc).__name__, exc_info=True)
+        return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
     return web.json_response({"ok": True})
 
 
@@ -309,23 +312,28 @@ async def handle_fill(request: web.Request) -> web.Response:
     except control_guard.ControlUnavailable as exc:
         return web.json_response({"error": str(exc)}, status=409)
     except Exception as exc:
-        _log.error("fill 실패: %s", exc, exc_info=True)
-        manager._capture_hardware_error(exc, "fill")
-        return web.json_response({"error": str(exc)}, status=502)
+        manager._capture_hardware_error(exc, "fill", door="fill", action=body["action"])
+        _log.warning("fill 실패 (%s)", type(exc).__name__, exc_info=True)
+        return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
     return web.json_response({"ok": True})
 
 
 def _pid_error_response(
-    exc: Exception, manager: RoasterManager, *, once: bool = False
+    exc: Exception,
+    manager: RoasterManager,
+    *,
+    event: str,
+    route: str,
+    once: bool = False,
 ) -> web.Response:
     if isinstance(exc, control_guard.ControlRangeError):
         return web.json_response({"error": str(exc)}, status=400)
     if isinstance(exc, control_guard.ControlUnavailable):
         return web.json_response({"error": str(exc)}, status=409)
-    _log.error("PID 요청 실패: %s", exc, exc_info=True)
     # safe-off 쓰기 실패 포함 — 배출 후 버너가 안 꺼진 경로가 여기로 온다 (#269)
-    # /pid/off 재시도는 once=True — 같은 사고를 5초마다 Slack/Sentry에 안 쌓는다
-    manager._capture_hardware_error(exc, "pid_request_failed", once=once)
+    # once=True — 같은 사고를 5초마다 Slack/Sentry에 안 쌓는다 (키는 op별로 분리)
+    manager._capture_hardware_error(exc, event, once=once, route=route)
+    _log.warning("PID 요청 실패 (%s)", type(exc).__name__, exc_info=True)
     return web.json_response({"error": "PID 명령을 처리하지 못했습니다."}, status=502)
 
 
@@ -355,7 +363,7 @@ async def handle_pid_on(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_start(_parse_sv(body))
     except Exception as exc:
-        return _pid_error_response(exc, manager)
+        return _pid_error_response(exc, manager, event="pid_on_failed", route="/pid/on", once=True)
     return web.json_response({"ok": True, "pid": state})
 
 
@@ -372,7 +380,7 @@ async def handle_pid_off(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_stop(mode or pid_runner.STOP_HOLD)
     except Exception as exc:
-        return _pid_error_response(exc, manager, once=True)
+        return _pid_error_response(exc, manager, event="pid_request_failed", route="/pid/off", once=True)
     return web.json_response({"ok": True, "pid": state})
 
 
@@ -385,7 +393,7 @@ async def handle_pid_sv(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_set_sv(_parse_sv(body))
     except Exception as exc:
-        return _pid_error_response(exc, manager)
+        return _pid_error_response(exc, manager, event="pid_sv_failed", route="/pid/sv", once=True)
     return web.json_response({"ok": True, "pid": state})
 
 

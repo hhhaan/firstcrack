@@ -1,14 +1,20 @@
 // @vitest-environment jsdom
 
-import { sidecar } from '@shared/lib/sidecar';
+import { SidecarHttpError, sidecar } from '@shared/lib/sidecar';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useFillControl } from './useFillControl';
 
-const mocks = vi.hoisted(() => ({ show: vi.fn() }));
-vi.mock('@shared/lib/sidecar', () => ({ sidecar: { setFill: vi.fn() } }));
-vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
+const mocks = vi.hoisted(() => ({ show: vi.fn(), captureNoResponse: vi.fn() }));
+vi.mock('@shared/lib/sidecar', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/sidecar')>();
+    return { ...actual, sidecar: { setFill: vi.fn() } };
+});
+vi.mock('@shared/lib/sentry', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/sentry')>();
+    return { ...actual, captureDoorWriteNoResponse: mocks.captureNoResponse, isSentryEnabled: true };
+});
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: mocks.show }) } }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -73,11 +79,24 @@ describe('W60A fill control', () => {
     });
 
     it('reports an uncertain failure without retrying', async () => {
-        vi.mocked(sidecar.setFill).mockRejectedValue(new Error('timeout'));
+        vi.mocked(sidecar.setFill).mockRejectedValue(new SidecarHttpError('/fill', 'network', 'network', false));
         render(true);
         await act(async () => expect(await model.send('open')).toBe(false));
         expect(sidecar.setFill).toHaveBeenCalledTimes(1);
+        expect(mocks.captureNoResponse).toHaveBeenCalledOnce();
+        expect(mocks.captureNoResponse).toHaveBeenCalledWith({
+            door: 'fill',
+            action: 'open',
+            status: 'network',
+        });
         expect(mocks.show).toHaveBeenCalledWith(expect.stringContaining('조작반'), 'error');
         expect(model.sending).toBe(false);
+    });
+
+    it('does not capture sidecar 502 responses (sidecar owns that event)', async () => {
+        vi.mocked(sidecar.setFill).mockRejectedValue(new SidecarHttpError('/fill', 502, 'plc fail', false));
+        render(true);
+        await act(async () => expect(await model.send('close')).toBe(false));
+        expect(mocks.captureNoResponse).not.toHaveBeenCalled();
     });
 });

@@ -1,3 +1,4 @@
+import { reportTsvRestoreDroppedRows } from '@shared/lib/sentry';
 import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 import { z } from 'zod';
 
@@ -70,6 +71,9 @@ const extraReadingsCol = (raw: string | undefined): ExtraSensorReading[] | undef
     }
 };
 
+const extraReadingsParseFailed = (raw: string | undefined): boolean =>
+    Boolean(raw) && extraReadingsCol(raw) === undefined;
+
 // TSV 형식 (useSidecarPolling.ts:21):
 // time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\textra_readings
 // 8열 이후는 선택. '# processing\tJSON' 행은 이후 표본의 계산 설정이다.
@@ -78,6 +82,7 @@ export const parseTsv = (text: string): TsvPoint[] => {
     const lines = text.split('\n');
     const points: TsvPoint[] = [];
     let processing: TemperatureProcessing | undefined;
+    let droppedExtraReadings = 0;
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].replace(/\r$/, '');
         if (!line) continue;
@@ -96,7 +101,9 @@ export const parseTsv = (text: string): TsvPoint[] => {
         const t = parseFloat(cols[0]);
         const bt = parseFloat(cols[1]);
         if (!Number.isFinite(t) || !Number.isFinite(bt)) continue;
-        const extraReadings = extraReadingsCol(cols[13]);
+        const rawExtraReadings = cols[13];
+        if (extraReadingsParseFailed(rawExtraReadings)) droppedExtraReadings += 1;
+        const extraReadings = extraReadingsCol(rawExtraReadings);
         points.push({
             t,
             bt,
@@ -115,5 +122,6 @@ export const parseTsv = (text: string): TsvPoint[] => {
             ...(processing ? { processing } : {}),
         });
     }
+    reportTsvRestoreDroppedRows(droppedExtraReadings);
     return points;
 };

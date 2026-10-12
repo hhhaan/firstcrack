@@ -194,6 +194,7 @@ export const useUpdateRoastSession = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: roastSessionApi.update,
+        meta: { feature: 'history-qc', table: 'roast_sessions' },
         onSuccess: (updated) => {
             qc.setQueryData<RoastSessionWithRelations>(roastSessionKeys.detail(userId, updated.id), (prev) =>
                 prev ? { ...prev, ...updated } : undefined,
@@ -315,7 +316,7 @@ export const useUpdateRoastRecord = (userId: string) => {
     return useMutation({
         mutationFn: roastSessionApi.updateRecord,
         // Editors keep the draft open and show the failure inline.
-        meta: { silentError: true },
+        meta: { silentError: true, feature: 'history-record', rpc: 'update_roast_session_record' },
         onSuccess: (updated) => {
             qc.setQueryData<RoastSessionWithRelations>(roastSessionKeys.detail(userId, updated.id), (prev) =>
                 prev ? { ...prev, ...updated } : undefined,
@@ -352,6 +353,7 @@ export const useSetChargeWeight = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: roastSessionApi.setChargeWeight,
+        meta: { feature: 'history-qc', rpc: 'set_session_charge_weight' },
         onSuccess: () => {
             void invalidateRoastSessionQueries(qc, userId);
             void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockEvents });

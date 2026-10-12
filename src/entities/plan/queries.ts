@@ -481,6 +481,7 @@ export const useReorderPlanBatches = ({ userId, date, planId }: { userId: string
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (orderedIds: string[]) => planBatchApi.reorder(planId, orderedIds),
+        meta: { feature: 'plan-batch', rpc: 'reorder_plan_batches' },
         onMutate: async (orderedIds) => {
             await qc.cancelQueries({ queryKey: planKeys.batches(planId) });
             await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, date) });

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import math
+import re
 import time
 import uuid
 from collections import deque
@@ -16,6 +17,51 @@ from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
+
+_REDACT_IPV4 = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}")
+_REDACT_HOST_PORT = re.compile(r"\[redacted\]:\d+")
+# snap7/modbus often stringify host+port tuples — scrub the whole tuple, not a half-redacted pair.
+_REDACT_ADDRESS_TUPLE = re.compile(
+    r"\(\s*['\"]?\[redacted\]['\"]?\s*,\s*\d+\s*\)"
+    r"|"
+    r"\(\s*['\"]?\d{1,3}(?:\.\d{1,3}){3}['\"]?\s*,\s*\d+\s*\)"
+)
+
+
+def _hardware_sentry_fingerprint(event: str, extra_tags: dict[str, str]) -> list[str]:
+    if event == "door_write_ambiguous":
+        return ["door_write_ambiguous", extra_tags.get("door", ""), extra_tags.get("action", "")]
+    door = extra_tags.get("door")
+    if door:
+        return ["hardware", event, door]
+    return ["hardware", event]
+
+
+def _scrub_exception_message(msg: str) -> str:
+    clean = _REDACT_IPV4.sub("[redacted]", msg)
+    clean = _REDACT_ADDRESS_TUPLE.sub("[redacted]", clean)
+    return _REDACT_HOST_PORT.sub("[redacted]", clean)
+
+
+def _scrub_hardware_exception(exc: BaseException) -> BaseException:
+    """Sentry 이벤트에 IP/호스트 문자열이 실리지 않게 메시지·체인을 정리한다."""
+    if not isinstance(exc, Exception):
+        return exc
+    msg = str(exc)
+    clean = _scrub_exception_message(msg)
+    if clean != msg:
+        try:
+            scrubbed: BaseException = type(exc)(clean)
+        except Exception:
+            scrubbed = Exception(clean)
+        scrubbed = scrubbed.with_traceback(exc.__traceback__)
+    else:
+        scrubbed = exc
+    if exc.__cause__ is not None:
+        scrubbed.__cause__ = _scrub_hardware_exception(exc.__cause__)
+    if exc.__context__ is not None and exc.__context__ is not exc.__cause__:
+        scrubbed.__context__ = _scrub_hardware_exception(exc.__context__)
+    return scrubbed
 
 
 def _display_alpha_setting(value: Any) -> float | None:
@@ -177,6 +223,23 @@ def _format_connection_error(
 
     # ── fallback: 원본 메시지 ────────────────────────────────────────────
     return msg
+
+
+_EMPTY_MODBUS_SERIAL_MSG = (
+    "Modbus 시리얼 연결에는 Serial Port가 필요합니다. 기기 설정에서 포트를 입력하세요."
+)
+
+
+def _validate_connect_params(protocol: str, params: dict[str, Any]) -> None:
+    """어댑터 생성 전에 Modbus RTU/ASCII 시리얼 포트를 검증한다 (#771-7)."""
+    if protocol != "modbus":
+        return
+    mode = str(params.get("mode", "tcp")).lower()
+    if mode not in ("rtu", "ascii"):
+        return
+    comport = params.get("comport")
+    if not isinstance(comport, str) or not comport.strip():
+        raise ValueError(_EMPTY_MODBUS_SERIAL_MSG)
 
 
 _MAP_KEYS = ("write_map", "channels")
@@ -347,7 +410,12 @@ class RoasterManager:
         self._hw_alerts_sent: set[str] = set()
 
     def _capture_hardware_error(
-        self, exc: Exception, event: str = "hardware_error", *, once: bool = False
+        self,
+        exc: Exception,
+        event: str = "hardware_error",
+        *,
+        once: bool = False,
+        **extra_tags: str,
     ) -> None:
         """하드웨어 에러를 Sentry/Slack에 캡처 — 프로토콜/로스터 정보 포함.
 
@@ -368,24 +436,29 @@ class RoasterManager:
                     },
                 )
                 return
-            sentry_sdk.set_tag("roaster", self._roaster_key)
-            sentry_sdk.set_tag("protocol", self._protocol)
-            sentry_sdk.set_tag("event", event)
-            sentry_sdk.set_context(
-                "sidecar",
-                {
-                    "protocol": self._protocol,
-                    "roaster": self._roaster_key,
-                    "event": event,
-                    "consecutive_errors": self._consecutive_errors,
-                    "reconnect_attempt": self._reconnect_attempt,
-                },
-            )
-            # host/comport는 남기지 않는다 — 연결 대상 자체가 식별정보이고, 어느
-            # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
-            if self._merged_params:
-                sentry_sdk.set_tag("mode", self._merged_params.get("mode"))
-            sentry_sdk.capture_exception(exc)
+            scrubbed = _scrub_hardware_exception(exc)
+            with sentry_sdk.new_scope() as scope:
+                scope.set_tag("roaster", self._roaster_key)
+                scope.set_tag("protocol", self._protocol)
+                scope.set_tag("event", event)
+                for key, value in extra_tags.items():
+                    scope.set_tag(key, value)
+                scope.set_context(
+                    "sidecar",
+                    {
+                        "protocol": self._protocol,
+                        "roaster": self._roaster_key,
+                        "event": event,
+                        "consecutive_errors": self._consecutive_errors,
+                        "reconnect_attempt": self._reconnect_attempt,
+                    },
+                )
+                # host/comport는 남기지 않는다 — 연결 대상 자체가 식별정보이고, 어느
+                # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
+                if self._merged_params:
+                    scope.set_tag("mode", self._merged_params.get("mode"))
+                scope.fingerprint = _hardware_sentry_fingerprint(event, extra_tags)
+                scope.capture_exception(scrubbed)
             if once:
                 self._hw_alerts_sent.add(event)
             try:
@@ -456,6 +529,7 @@ class RoasterManager:
 
             protocol = reg["protocol"]
             merged = _merge_connect_params(reg["default_params"], params)
+            _validate_connect_params(protocol, merged)
 
             self._adapter = make_adapter(protocol, merged)
             self._apply_door_flags()
@@ -911,7 +985,14 @@ class RoasterManager:
             raise ControlUnavailable("연결된 W60A의 배출구 제어를 로스팅 설정에서 켜세요.")
         await adapter.discharge(action)
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
-            raise ControlUnavailable("배출문 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+            exc = ControlUnavailable("배출문 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+            self._capture_hardware_error(
+                exc,
+                "door_write_ambiguous",
+                door="discharge",
+                action=action,
+            )
+            raise exc
 
     def fill_enabled(self) -> bool:
         return (
@@ -929,7 +1010,14 @@ class RoasterManager:
             raise ControlUnavailable("연결된 W60A의 투입구 제어를 로스팅 설정에서 켜세요.")
         await adapter.fill(action)
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
-            raise ControlUnavailable("투입구 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+            exc = ControlUnavailable("투입구 명령 중 연결이 변경되었습니다. 조작반에서 확인하세요.")
+            self._capture_hardware_error(
+                exc,
+                "door_write_ambiguous",
+                door="fill",
+                action=action,
+            )
+            raise exc
 
     async def control(
         self,
@@ -1062,6 +1150,7 @@ class RoasterManager:
         if self._pid_task is None or self._pid_task.done():
             # 태스크 참조를 self에 보관해야 GC가 가져가지 않는다 (재연결 태스크와 동일 패턴)
             self._pid_task = asyncio.create_task(self._pid_loop())
+        self._hw_alerts_sent.discard("pid_on_failed")
         return self._pid.state()
 
     async def pid_stop(self, mode: str = STOP_HOLD) -> dict[str, Any]:
@@ -1084,6 +1173,7 @@ class RoasterManager:
             await self._pid.set_sv(sv)
         except RuntimeError as exc:
             raise ControlUnavailable(str(exc)) from exc
+        self._hw_alerts_sent.discard("pid_sv_failed")
         return self._pid.state()
 
     async def _pid_loop(self) -> None:

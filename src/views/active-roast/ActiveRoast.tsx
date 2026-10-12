@@ -46,6 +46,7 @@ import { subscribeExplicitMachineDisconnect } from '@shared/lib/explicitMachineD
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
+import { captureDoorSkipped } from '@shared/lib/sentry';
 import { sidecar } from '@shared/lib/sidecar';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
@@ -1064,7 +1065,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 supported: which === 'discharge' ? machineControl.discharge.available : machineControl.fill.available,
             });
             if (reason) {
-                useToastStore.getState().show(reason, 'error');
+                useToastStore.getState().show(reason.message, 'error');
+                if (matched && switchOn) captureDoorSkipped(which, reason.code);
                 return;
             }
             if (!matched || !switchOn) return;

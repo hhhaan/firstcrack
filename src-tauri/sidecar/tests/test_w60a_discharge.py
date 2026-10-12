@@ -1,6 +1,6 @@
 """W60A discharge writes are fixed, opt-in and bound to one connection."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
@@ -97,8 +97,20 @@ async def test_manager_rejects_late_acknowledgement(manager):
         manager._connection_epoch += 1
 
     manager._adapter.discharge.side_effect = changed
-    with pytest.raises(ControlUnavailable):
+    scope = MagicMock()
+    with (
+        pytest.raises(ControlUnavailable),
+        patch("manager.sentry_sdk.new_scope") as new_scope,
+    ):
+        new_scope.return_value.__enter__.return_value = scope
         await manager.discharge("open", {"machine_id": manager._machine_id, "connection_epoch": manager._connection_epoch})
+    scope.capture_exception.assert_called_once()
+    assert scope.fingerprint == ["door_write_ambiguous", "discharge", "open"]
+    assert "10.0.0.2" not in str(scope.capture_exception.call_args)
+    tag_args = [call.args for call in scope.set_tag.call_args_list]
+    assert ("door", "discharge") in tag_args
+    assert ("action", "open") in tag_args
+    assert ("event", "door_write_ambiguous") in tag_args
 
 
 async def test_batch_reset_preserves_s7_connection_without_moving_door(manager):
@@ -142,9 +154,19 @@ async def test_endpoint_unavailable_success_and_write_failure(discharge_client):
     assert response.status == 200
     assert await response.json() == {"ok": True}
     manager._adapter.discharge.assert_awaited_once_with("close")
-    manager._adapter.discharge.side_effect = ConnectionError("PLC write failed")
-    response = await discharge_client.post("/discharge", json={"action": "open", "machine_id": "door-test", "connection_epoch": 0})
+    manager._adapter.discharge.side_effect = ConnectionError("PLC 10.0.0.2 write failed")
+    scope = MagicMock()
+    with patch("manager.sentry_sdk.new_scope") as new_scope:
+        new_scope.return_value.__enter__.return_value = scope
+        response = await discharge_client.post("/discharge", json={"action": "open", "machine_id": "door-test", "connection_epoch": 0})
     assert response.status == 502
+    scope.capture_exception.assert_called_once()
+    assert scope.fingerprint == ["hardware", "discharge", "discharge"]
+    tag_args = [call.args for call in scope.set_tag.call_args_list]
+    assert ("event", "discharge") in tag_args
+    assert ("door", "discharge") in tag_args
+    assert ("action", "open") in tag_args
+    assert "10.0.0.2" not in str(scope.capture_exception.call_args)
 
 
 def test_discharge_is_not_a_connection_setting():

@@ -146,6 +146,12 @@ class ModbusAdapter:
                 "modbus_registers가 비어 있음. roaster_registry 확인 필요."
             )
 
+        if self._mode in ("rtu", "ascii"):
+            if not isinstance(self._comport, str) or not self._comport.strip():
+                raise ValueError(
+                    "Modbus 시리얼 연결에는 Serial Port가 필요합니다. 기기 설정에서 포트를 입력하세요."
+                )
+
         if self._mode == "tcp":
             self._client = AsyncModbusTcpClient(
                 host=self._host, port=self._port, timeout=config.MODBUS_TCP_TIMEOUT

@@ -1,7 +1,7 @@
 import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
-import { isSidecarStartingError } from './errorMessage';
-import { logger } from './logger';
+import { isOpaqueNetworkError, isSidecarStartingError } from './errorMessage';
+import { captureSidecarRequestFailure, isSentryEnabled } from './sentry';
 
 const settingsListeners = new Set<() => void>();
 export const subscribeSidecarSettings = (listener: () => void) => {
@@ -21,6 +21,47 @@ const CONNECT_TIMEOUT_MS = 20_000;
 const SCAN_NETWORK_TIMEOUT_MS = 10_000;
 
 const TOKEN_HEADER = 'X-Sidecar-Token';
+
+export class SidecarHttpError extends Error {
+    readonly route: string;
+    readonly status: number | 'network' | 'timeout';
+    readonly sentryReported: boolean;
+
+    constructor(route: string, status: number | 'network' | 'timeout', message: string, sentryReported = false) {
+        super(message);
+        this.name = 'SidecarHttpError';
+        this.route = route;
+        this.status = status;
+        this.sentryReported = sentryReported;
+    }
+}
+
+export const isSidecarHttpError = (error: unknown): error is SidecarHttpError => error instanceof SidecarHttpError;
+
+export { shouldSkipSidecarLoggerCapture } from './sentry';
+
+const routeWithoutQuery = (path: string) => path.split('?')[0] || path;
+
+const shouldReportSidecarFailure = (status: number | 'network' | 'timeout'): boolean => {
+    if (status === 502) return false;
+    if (typeof status === 'number' && status >= 400 && status < 500 && status !== 429) return false;
+    return true;
+};
+
+const networkStatus = (err: unknown): 'network' | 'timeout' => {
+    if (err instanceof DOMException && err.name === 'TimeoutError') return 'timeout';
+    return 'network';
+};
+
+const reportSidecarFailure = (route: string, method: string, status: number | 'network' | 'timeout'): boolean => {
+    if (!isSentryEnabled || !shouldReportSidecarFailure(status)) return false;
+    captureSidecarRequestFailure({ route, method, status });
+    return true;
+};
+
+const devSidecarLog = (...args: unknown[]) => {
+    if (import.meta.env.DEV) console.error(...args);
+};
 
 /**
  * 사이드카 HTTP 토큰. Tauri가 spawn 시 env로 주입한 값을 Rust 커맨드로 받아온다.
@@ -50,7 +91,7 @@ async function retryWhileSidecarStarts<T>(operation: () => Promise<T>, budgetMs:
         } catch (error) {
             if (!isSidecarStartingError(error)) throw error;
             if (Date.now() >= deadline) {
-                logger.error('[sidecar] startup retry exhausted:', error);
+                devSidecarLog('[sidecar] startup retry exhausted:', error);
                 throw error;
             }
             await wait(STARTUP_RETRY_GAP_MS);
@@ -64,6 +105,8 @@ async function request<T>(
     timeoutMs = DEFAULT_TIMEOUT_MS,
     reportErrors = true,
 ): Promise<T> {
+    const route = routeWithoutQuery(path);
+    const method = init?.method ?? 'GET';
     try {
         const token = await getSidecarToken();
         const res = await fetch(`${SIDECAR_BASE}${path}`, {
@@ -81,17 +124,30 @@ async function request<T>(
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             const msg = (body as { error?: string }).error ?? `HTTP ${res.status}`;
-            if (reportErrors) logger.error(`[sidecar] ${init?.method ?? 'GET'} ${path} 실패:`, msg);
-            throw new Error(msg);
+            const reported = reportErrors ? reportSidecarFailure(route, method, res.status) : false;
+            if (reportErrors) devSidecarLog(`[sidecar] ${method} ${path} 실패:`, msg);
+            throw new SidecarHttpError(route, res.status, msg, reported);
         }
         return await (res.json() as Promise<T>);
     } catch (err) {
-        if (reportErrors && !(err instanceof Error && err.message.startsWith('HTTP'))) {
-            logger.error(`[sidecar] ${path} 네트워크 오류:`, err);
+        if (err instanceof SidecarHttpError) throw err;
+        if (isOpaqueNetworkError(err)) {
+            throw new SidecarHttpError(route, 'network', 'network error', false);
+        }
+        const status = networkStatus(err);
+        if (status === 'timeout') {
+            const reported = reportErrors ? reportSidecarFailure(route, method, status) : false;
+            if (reportErrors) devSidecarLog(`[sidecar] ${path} 네트워크 오류:`, err);
+            throw new SidecarHttpError(route, status, errorMessageFrom(err), reported);
         }
         throw err;
     }
 }
+
+const errorMessageFrom = (err: unknown): string => {
+    if (err instanceof Error) return err.message;
+    return 'network error';
+};
 
 export const sidecar = {
     getStatus: () => request<SidecarStatus>('/status'),
@@ -124,8 +180,13 @@ export const sidecar = {
 
     getTemperatures: () => request<TemperatureReading>('/temperatures'),
 
-    updateSettings: (settings: Record<string, unknown>) =>
-        request<{ ok: boolean }>('/settings', { method: 'POST', body: JSON.stringify(settings) }).then((result) => {
+    updateSettings: (settings: Record<string, unknown>, options?: { reportErrors?: boolean }) =>
+        request<{ ok: boolean }>(
+            '/settings',
+            { method: 'POST', body: JSON.stringify(settings) },
+            DEFAULT_TIMEOUT_MS,
+            options?.reportErrors ?? true,
+        ).then((result) => {
             for (const listener of settingsListeners) listener();
             return result;
         }),
@@ -150,16 +211,26 @@ export const sidecar = {
         }),
 
     setDischarge: (action: 'open' | 'close', target?: Pick<SidecarStatus, 'machine_id' | 'connection_epoch'>) =>
-        request<{ ok: boolean }>('/discharge', {
-            method: 'POST',
-            body: JSON.stringify({ action, ...target }),
-        }),
+        request<{ ok: boolean }>(
+            '/discharge',
+            {
+                method: 'POST',
+                body: JSON.stringify({ action, ...target }),
+            },
+            DEFAULT_TIMEOUT_MS,
+            false,
+        ),
 
     setFill: (action: 'open' | 'close', target?: Pick<SidecarStatus, 'machine_id' | 'connection_epoch'>) =>
-        request<{ ok: boolean }>('/fill', {
-            method: 'POST',
-            body: JSON.stringify({ action, ...target }),
-        }),
+        request<{ ok: boolean }>(
+            '/fill',
+            {
+                method: 'POST',
+                body: JSON.stringify({ action, ...target }),
+            },
+            DEFAULT_TIMEOUT_MS,
+            false,
+        ),
 
     /** PID 제어 시작. sv = 목표 BT(°C). 409 = 미연결/미지원, 400 = 범위 밖 */
     pidOn: (sv: number) =>

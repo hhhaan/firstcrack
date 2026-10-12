@@ -17,6 +17,12 @@ import { ActiveRoastRuntime } from './ActiveRoastRuntime';
 
 vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
 
+const doorSkipped = vi.hoisted(() => vi.fn());
+vi.mock('@shared/lib/sentry', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/sentry')>();
+    return { ...actual, captureDoorSkipped: doorSkipped, resetDoorSkippedDedupeForTests: vi.fn() };
+});
+
 const RUNNING_CLOSE = '로스팅이 진행 중입니다. 정말 종료하시겠습니까?';
 const UNSAVED_CLOSE = '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?';
 
@@ -100,31 +106,36 @@ vi.mock('@shared/lib/settings-store', () => ({
     SETTINGS_SAVE_DEBOUNCE_MS: 200,
 }));
 
-vi.mock('@shared/lib/sidecar', () => ({
-    subscribeSidecarSettings: vi.fn(() => () => {}),
-    sidecar: {
-        waitUntilReady: () => new Promise(() => undefined),
-        getStatus: vi.fn().mockResolvedValue({ connected: true, control: { writable: false, limits: {} } }),
-        getTemperatures: vi.fn().mockResolvedValue({
-            bt: null,
-            et: null,
-            ror: 0,
-            ror_et: 0,
-            heater: null,
-            fan: 0,
-            drum: 0,
-        }),
-        updateSettings: vi.fn().mockResolvedValue(undefined),
-        startRoast: vi.fn().mockResolvedValue(undefined),
-        resetRoast: vi.fn().mockResolvedValue({ ok: true }),
-        enterStandby: vi.fn().mockResolvedValue(undefined),
-        setControl: vi.fn().mockResolvedValue({ applied: {} }),
-        setDischarge: vi.fn().mockResolvedValue({ ok: true }),
-        setFill: vi.fn().mockResolvedValue({ ok: true }),
-        pidOff: vi.fn().mockResolvedValue({ ok: true }),
-        pidOn: vi.fn().mockResolvedValue({ ok: true }),
-    },
-}));
+vi.mock('@shared/lib/sidecar', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/sidecar')>();
+    return {
+        ...actual,
+        subscribeSidecarSettings: vi.fn(() => () => {}),
+        sidecar: {
+            ...actual.sidecar,
+            waitUntilReady: () => new Promise(() => undefined),
+            getStatus: vi.fn().mockResolvedValue({ connected: true, control: { writable: false, limits: {} } }),
+            getTemperatures: vi.fn().mockResolvedValue({
+                bt: null,
+                et: null,
+                ror: 0,
+                ror_et: 0,
+                heater: null,
+                fan: 0,
+                drum: 0,
+            }),
+            updateSettings: vi.fn().mockResolvedValue(undefined),
+            startRoast: vi.fn().mockResolvedValue(undefined),
+            resetRoast: vi.fn().mockResolvedValue({ ok: true }),
+            enterStandby: vi.fn().mockResolvedValue(undefined),
+            setControl: vi.fn().mockResolvedValue({ applied: {} }),
+            setDischarge: vi.fn().mockResolvedValue({ ok: true }),
+            setFill: vi.fn().mockResolvedValue({ ok: true }),
+            pidOff: vi.fn().mockResolvedValue({ ok: true }),
+            pidOn: vi.fn().mockResolvedValue({ ok: true }),
+        },
+    };
+});
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -354,9 +365,18 @@ describe('ActiveRoast running clock (#627)', () => {
         const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
         const restoreMachines = installDoorMachine({ dischargeDoor: true, fillDoor: false });
         const show = vi.spyOn(useToastStore.getState(), 'show');
+        doorSkipped.mockClear();
         vi.mocked(sidecar.setDischarge).mockClear();
+        vi.mocked(sidecar.getStatus).mockResolvedValue({
+            connected: true,
+            roaster: 'giesen_w45a_w60a',
+            machine_id: DOOR_MACHINE_ID,
+            connection_epoch: 1,
+            control: { writable: true, limits: {}, discharge: true },
+        } as Awaited<ReturnType<typeof sidecar.getStatus>>);
         seed({
-            sidecarConnected: false,
+            sidecarConnected: true,
+            reconnecting: true,
             machineSnapshot: doorSnapshot,
             liveData: { bt: 155, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 },
         });
@@ -373,6 +393,8 @@ describe('ActiveRoast running clock (#627)', () => {
             expect(useRoastingStore.getState().completed?.snapshot.sessionId).toBe('sess-remount');
             expect(sidecar.setDischarge).not.toHaveBeenCalled();
             expect(show).toHaveBeenCalledWith(expect.stringContaining('문을 움직이지 않았습니다'), 'error');
+            expect(doorSkipped).toHaveBeenCalledOnce();
+            expect(doorSkipped).toHaveBeenCalledWith('discharge', 'link-unsettled');
         } finally {
             unmount();
             restoreMachines();

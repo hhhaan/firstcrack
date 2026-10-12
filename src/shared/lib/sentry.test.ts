@@ -5,14 +5,32 @@ import { BatchLimitError } from './features/plan-matrix';
 import {
     buildSentryOptions,
     captureActionable,
+    captureDoorSettingsPushFailure,
+    captureDoorSkipped,
+    captureDoorWriteNoResponse,
+    captureRoastingImportFailure,
+    captureSidecarRequestFailure,
     isActionableError,
+    isActionableSidecarHttpStatus,
     isClientRefusal,
+    isExpectedRefusal,
     isSentryEnabled,
+    normalizeSupabaseError,
+    observeRoastingImportScan,
     reactRootOptions,
+    reportReactQueryError,
+    reportTsvRestoreDroppedRows,
+    resetDoorSkippedDedupeForTests,
+    resetRoastingImportScanDedupeForTests,
+    resetSidecarFailureRateLimitForTests,
     retryUnlessClientRefusal,
+    SupabaseError,
     scrubSensitive,
+    scrubText,
     setSentryIdentity,
+    tagsFromQueryMeta,
 } from './sentry';
+import { SidecarHttpError } from './sidecar';
 
 // 실 SDK 호출을 막고 위임만 관찰한다 (개발자 로컬 .env가 테스트에 새어도 전송되지 않는다).
 vi.mock('@sentry/react', async (importOriginal) => {
@@ -21,6 +39,8 @@ vi.mock('@sentry/react', async (importOriginal) => {
         ...actual,
         init: vi.fn(),
         captureException: vi.fn(),
+        captureMessage: vi.fn(),
+        addBreadcrumb: vi.fn(),
         setUser: vi.fn(),
         setTag: vi.fn(),
         setContext: vi.fn(),
@@ -74,6 +94,29 @@ describe('isActionableError', () => {
         expect(isActionableError(new BatchLimitError(0, 0, 'read_only_plan'))).toBe(false);
     });
 
+    it('SidecarHttpError: skips network, 502, and 4xx except 401/429', () => {
+        const mk = (status: number | 'network' | 'timeout') =>
+            Object.assign(new Error('sidecar'), { name: 'SidecarHttpError', status });
+        expect(isActionableError(mk(401))).toBe(true);
+        expect(isActionableError(mk(429))).toBe(true);
+        expect(isActionableError(mk(500))).toBe(true);
+        expect(isActionableError(mk(503))).toBe(true);
+        expect(isActionableError(mk('timeout'))).toBe(true);
+        expect(isActionableError(mk(400))).toBe(false);
+        expect(isActionableError(mk(403))).toBe(false);
+        expect(isActionableError(mk(404))).toBe(false);
+        expect(isActionableError(mk(405))).toBe(false);
+        expect(isActionableError(mk(409))).toBe(false);
+        expect(isActionableError(mk(422))).toBe(false);
+        expect(isActionableError(mk(502))).toBe(false);
+        expect(isActionableError(mk('network'))).toBe(false);
+    });
+
+    it('isActionableSidecarHttpStatus: 405 dropped, 429 reported (connect/startRoast rule)', () => {
+        expect(isActionableSidecarHttpStatus(405)).toBe(false);
+        expect(isActionableSidecarHttpStatus(429)).toBe(true);
+    });
+
     it('drops transient transport failures (FC-16, FC-1H, FC-1J, FC-1K)', () => {
         expect(isActionableError(new TypeError('Load failed'))).toBe(false);
         expect(isActionableError(new TypeError('Failed to fetch'))).toBe(false);
@@ -102,7 +145,8 @@ describe('isActionableError', () => {
             hint: null,
         };
         expect(isClientRefusal(missingColumn)).toBe(true);
-        expect(isActionableError(missingColumn)).toBe(false);
+        expect(isExpectedRefusal(missingColumn)).toBe(false);
+        expect(isActionableError(missingColumn)).toBe(true);
         expect(retryUnlessClientRefusal(0, missingColumn)).toBe(false);
         expect(retryUnlessClientRefusal(1, missingColumn)).toBe(false);
         expect(isClientRefusal({ code: '23505', message: 'duplicate key value' })).toBe(true);
@@ -173,6 +217,42 @@ describe('retryUnlessClientRefusal', () => {
 });
 
 describe('captureActionable', () => {
+    it('sanitizes user-input SQLSTATE titles (22xxx)', () => {
+        captureActionable(
+            { code: '22P02', message: 'invalid input syntax for type uuid: "user-typed"', details: 'x', hint: 'y' },
+            { tags: { feature: 'history-qc', rpc: 'set_session_charge_weight' } },
+        );
+        const [captured] = vi.mocked(Sentry.captureException).mock.calls[0];
+        expect(captured).toMatchObject({
+            name: 'SupabaseError',
+            message: 'SupabaseError 22P02 set_session_charge_weight',
+            code: '22P02',
+        });
+        expect(String(captured)).not.toContain('user-typed');
+    });
+
+    it('normalizes PostgREST plain objects before capture', () => {
+        const plain = {
+            code: '42703',
+            message: 'column x does not exist',
+            details: 'table=roast_sessions path=/secret',
+            hint: 'maybe you meant y',
+        };
+        captureActionable(plain, { tags: { feature: 'history-qc', table: 'roast_sessions' } });
+        expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+        const [captured, hint] = vi.mocked(Sentry.captureException).mock.calls[0];
+        expect(captured).toBeInstanceOf(SupabaseError);
+        expect((captured as SupabaseError).code).toBe('42703');
+        expect(hint).toMatchObject({
+            level: 'warning',
+            tags: { feature: 'history-qc', table: 'roast_sessions', 'db.code': '42703' },
+            fingerprint: ['supabase', '42703', 'roast_sessions'],
+        });
+        const blob = JSON.stringify(hint);
+        expect(blob).not.toContain('/secret');
+        expect(blob).not.toContain('details');
+    });
+
     it('delegates actionable errors to the SDK, with context as extra', () => {
         const error = new Error('boom');
         captureActionable(error, { roastId: 3 });
@@ -197,6 +277,258 @@ describe('captureActionable', () => {
         captureActionable(new Error('error sending request for url (https://cdn.example/releases/latest.json)'));
         captureActionable('Command plugin:dialog|confirm not allowed by ACL');
         expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+
+    it('skips duplicate sidecar failures already reported from request()', () => {
+        const err = Object.assign(new Error('sidecar'), { sentryReported: true });
+        captureActionable(err);
+        expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+});
+
+describe('observeRoastingImportScan', () => {
+    afterEach(() => resetRoastingImportScanDedupeForTests());
+
+    it('ignores unsupported platform scans', () => {
+        observeRoastingImportScan({
+            status: 'unsupported',
+            reason: 'platform',
+            source: { product: 'Firescope', version: null },
+        });
+        expect(Sentry.captureMessage).not.toHaveBeenCalled();
+    });
+
+    it('captures once per product+reason and scrubs unknown reasons', () => {
+        observeRoastingImportScan({
+            status: 'unreadable',
+            reason: 'settings-unreadable',
+            source: { product: 'Artisan', version: '2.10.0' },
+        });
+        observeRoastingImportScan({
+            status: 'unreadable',
+            reason: 'settings-unreadable',
+            source: { product: 'Artisan', version: '2.10.0' },
+        });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('roasting import scan', {
+            level: 'warning',
+            fingerprint: ['roasting-import-scan', 'Artisan', 'unreadable', 'settings-unreadable'],
+            tags: {
+                feature: 'roasting-import',
+                product: 'Artisan',
+                status: 'unreadable',
+                reason: 'settings-unreadable',
+                'source.version': '2.10.0',
+            },
+        });
+        observeRoastingImportScan({
+            status: 'unsupported',
+            reason: 'not-in-rust-whitelist',
+            source: { product: 'Cropster', version: 'bad/version' },
+        });
+        expect(Sentry.captureMessage).toHaveBeenLastCalledWith('roasting import scan', {
+            level: 'info',
+            fingerprint: ['roasting-import-scan', 'Cropster', 'unsupported', 'other'],
+            tags: expect.objectContaining({ reason: 'other', 'source.version': 'other' }),
+        });
+    });
+});
+
+describe('reportTsvRestoreDroppedRows', () => {
+    it('adds one breadcrumb and one warning per parse call', () => {
+        reportTsvRestoreDroppedRows(2);
+        expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('tsv restore dropped extra readings', {
+            level: 'warning',
+            fingerprint: ['tsv-restore'],
+            tags: { feature: 'tsv-restore' },
+            extra: { dropped_rows: 2 },
+        });
+        const blob = JSON.stringify(vi.mocked(Sentry.captureMessage).mock.calls[0]);
+        expect(blob).not.toMatch(/\d{1,3}(?:\.\d{1,3}){3}/);
+    });
+});
+
+describe('door-control capture helpers', () => {
+    afterEach(() => resetDoorSkippedDedupeForTests());
+
+    it('captureDoorSettingsPushFailure tags settings push without paths', () => {
+        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 503, message: '/dev/ttyUSB0' });
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('door.settings-push failed', {
+            level: 'error',
+            fingerprint: ['door', 'settings-push', 'settings', '503'],
+            tags: { feature: 'door-control', op: 'settings-push', 'http.status': '503' },
+        });
+        const blob = JSON.stringify(vi.mocked(Sentry.captureMessage).mock.calls[0]);
+        expect(blob).not.toContain('/dev/');
+    });
+
+    it('captureDoorSkipped dedupes per door per session', () => {
+        captureDoorSkipped('discharge', 'link-unsettled');
+        captureDoorSkipped('discharge', 'not-entitled');
+        captureDoorSkipped('fill', 'door-not-armed');
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('door.skipped', {
+            level: 'warning',
+            fingerprint: ['door', 'skipped', 'discharge', 'link-unsettled'],
+            tags: { feature: 'door-control', door: 'discharge', reason: 'link-unsettled' },
+        });
+    });
+
+    it('uses distinct fingerprints so Sentry dedupe does not merge different door events', () => {
+        captureDoorSkipped('discharge', 'link-unsettled');
+        captureDoorWriteNoResponse({ door: 'fill', action: 'open', status: 'network' });
+        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 503, message: 'x' });
+        const fingerprints = vi
+            .mocked(Sentry.captureMessage)
+            .mock.calls.map((call) => (call[1] as { fingerprint?: string[] }).fingerprint);
+        expect(fingerprints).toEqual([
+            ['door', 'skipped', 'discharge', 'link-unsettled'],
+            ['door', 'no-response', 'fill', 'open'],
+            ['door', 'settings-push', 'settings', '503'],
+        ]);
+        expect(new Set(fingerprints.map((fp) => JSON.stringify(fp)))).toHaveProperty('size', 3);
+    });
+
+    it('captureDoorWriteNoResponse uses warning on timeout and error on network', () => {
+        captureDoorWriteNoResponse({ door: 'fill', action: 'close', status: 'timeout' });
+        expect(Sentry.captureMessage).toHaveBeenLastCalledWith('door.write no-response', {
+            level: 'warning',
+            fingerprint: ['door', 'no-response', 'fill', 'close'],
+            tags: {
+                feature: 'door-control',
+                door: 'fill',
+                action: 'close',
+                reason: 'no-response',
+            },
+        });
+        captureDoorWriteNoResponse({ door: 'discharge', action: 'open', status: 'network' });
+        expect(Sentry.captureMessage).toHaveBeenLastCalledWith('door.write no-response', {
+            level: 'error',
+            fingerprint: ['door', 'no-response', 'discharge', 'open'],
+            tags: {
+                feature: 'door-control',
+                door: 'discharge',
+                action: 'open',
+                reason: 'no-response',
+            },
+        });
+    });
+
+    it('captureDoorSettingsPushFailure ignores expected 409 target races', () => {
+        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 409, message: 'target' });
+        expect(Sentry.captureMessage).not.toHaveBeenCalled();
+    });
+});
+
+describe('captureSidecarRequestFailure', () => {
+    afterEach(() => {
+        resetSidecarFailureRateLimitForTests();
+        vi.useRealTimers();
+    });
+
+    it('rate-limits all reported failures per route and status', () => {
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'timeout' });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+        captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
+        captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(3);
+    });
+
+    it('rate-limits alternating 5xx routes within 60s to one event per route:status', () => {
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 500 });
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it('resends the same route:status after the 60s window', () => {
+        vi.useFakeTimers();
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(60_000);
+        captureSidecarRequestFailure({ route: '/status', method: 'GET', status: 500 });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses a fixed message, fingerprint, and route tags only', () => {
+        captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('sidecar request failed', {
+            level: 'error',
+            fingerprint: ['sidecar', '/control', '503'],
+            tags: {
+                feature: 'sidecar',
+                'sidecar.route': '/control',
+                'http.status': '503',
+                method: 'POST',
+            },
+        });
+    });
+});
+
+describe('captureRoastingImportFailure', () => {
+    it('captures only the error class name', () => {
+        captureRoastingImportFailure(new Error('failed /Users/secret'), {
+            product: 'Artisan',
+            stage: 'graph',
+            counts: { selected: 0, pending: 0, updates: 0 },
+        });
+        const [captured] = vi.mocked(Sentry.captureException).mock.calls[0];
+        expect(captured).toMatchObject({ name: 'Error', message: 'Error' });
+    });
+
+    it('uses error.name for non-Error failures', () => {
+        captureRoastingImportFailure(new TypeError('not a roast file'), {
+            product: 'Cropster',
+            stage: 'machines',
+            counts: { selected: 1, pending: 0, updates: 2 },
+        });
+        const calls = vi.mocked(Sentry.captureException).mock.calls;
+        const [captured] = calls[calls.length - 1];
+        expect(captured).toMatchObject({ name: 'TypeError', message: 'TypeError' });
+    });
+
+    it('sets a stable roasting-import fingerprint', () => {
+        captureRoastingImportFailure(new Error('x'), {
+            product: 'Artisan',
+            stage: 'graph',
+            counts: { selected: 0, pending: 0, updates: 0 },
+        });
+        const calls = vi.mocked(Sentry.captureException).mock.calls;
+        const [, hint] = calls[calls.length - 1] as [unknown, { fingerprint?: string[] }];
+        expect(hint.fingerprint).toEqual(['roasting-import', 'Artisan', 'graph']);
+    });
+});
+
+describe('normalizeSupabaseError', () => {
+    it('leaves real Error instances untouched', () => {
+        const err = new Error('boom');
+        expect(normalizeSupabaseError(err)).toBe(err);
+    });
+});
+
+describe('reportReactQueryError', () => {
+    it('skips 502 SidecarHttpError so React Query does not double-report', () => {
+        const err = Object.assign(new Error('plc write failed'), {
+            name: 'SidecarHttpError',
+            status: 502,
+            sentryReported: false,
+        });
+        reportReactQueryError(err);
+        expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+});
+
+describe('tagsFromQueryMeta', () => {
+    it('maps feature, rpc, and table', () => {
+        expect(tagsFromQueryMeta({ feature: 'plan-batch', rpc: 'reorder_plan_batches' })).toEqual({
+            feature: 'plan-batch',
+            rpc: 'reorder_plan_batches',
+        });
     });
 });
 
@@ -244,6 +576,23 @@ describe('reactRootOptions', () => {
         options.onUncaughtError(new Error('uncaught'), info);
 
         expect(handled).toEqual(['Error: caught', 'Error: recoverable']);
+    });
+});
+
+describe('scrubText', () => {
+    it('redacts home paths and IPv4 hosts', () => {
+        expect(scrubText('failed /Users/alice/roast/settings on 192.168.0.5:502')).toBe(
+            'failed [redacted] on [redacted]',
+        );
+        expect(scrubText('C:\\Users\\bob\\AppData\\settings')).toBe('[redacted]');
+    });
+});
+
+describe('isClientRefusal sidecar retry parity', () => {
+    it('does not treat SidecarHttpError 4xx as non-retryable client refusal', () => {
+        const err = new SidecarHttpError('/control', 409, 'conflict');
+        expect(isClientRefusal(err)).toBe(false);
+        expect(retryUnlessClientRefusal(0, err)).toBe(true);
     });
 });
 

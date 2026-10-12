@@ -7,9 +7,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRoastingStore } from './status';
 import { useRoastActions } from './useRoastActions';
 
-vi.mock('@shared/lib/sidecar', () => ({
-    sidecar: { startRoast: vi.fn().mockResolvedValue(undefined) },
-}));
+vi.mock('@shared/lib/sidecar', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/sidecar')>();
+    return { ...actual, sidecar: { ...actual.sidecar, startRoast: vi.fn().mockResolvedValue(undefined) } };
+});
 
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner-A' }),
@@ -96,15 +97,29 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         }
     });
 
-    it('Charge 명령 실패를 Sentry 경로에 보고한다', async () => {
-        const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
-        vi.mocked(sidecar.startRoast).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    it('startRoast passes SidecarHttpError through so skip rules apply', async () => {
+        const { SidecarHttpError } = await import('@shared/lib/sidecar');
+        const sentry = await import('@shared/lib/sentry');
+        const captureActionable = vi.spyOn(sentry, 'captureActionable').mockImplementation(() => undefined);
+        vi.mocked(sidecar.startRoast).mockRejectedValueOnce(new SidecarHttpError('/start', 502, 'plc fail', false));
         const h = renderActions();
         await act(async () => h.result.triggerCharge(200));
-        expect(capture).toHaveBeenCalledWith(expect.objectContaining({ message: 'Roast start command failed' }), {
-            reason: 'TypeError: Failed to fetch',
+        expect(captureActionable).not.toHaveBeenCalled();
+        captureActionable.mockRestore();
+    });
+
+    it('startRoast forwards SidecarHttpError to logger.capture (skip rules apply to the same error)', async () => {
+        const { SidecarHttpError } = await import('@shared/lib/sidecar');
+        const captureSpy = vi.spyOn(logger, 'capture').mockImplementation(() => undefined);
+        const err = new SidecarHttpError('/start', 502, 'plc fail', false);
+        vi.mocked(sidecar.startRoast).mockRejectedValueOnce(err);
+        const h = renderActions();
+        await act(async () => {
+            h.result.triggerCharge(200);
+            await Promise.resolve();
         });
-        capture.mockRestore();
+        expect(captureSpy).toHaveBeenCalledWith(err, { context: 'roast start' });
+        captureSpy.mockRestore();
     });
 });
 

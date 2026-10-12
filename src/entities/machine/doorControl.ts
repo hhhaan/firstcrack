@@ -1,3 +1,4 @@
+import { captureDoorSettingsPushFailure } from '@shared/lib/sentry';
 import { sidecar } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
 import type { SidecarStatus } from '@shared/types/sidecar';
@@ -36,7 +37,8 @@ export const clearMachineDoors = (status: Pick<SidecarStatus, 'machine_id' | 'co
 };
 
 const pushDoorSettings = (settings: Record<string, unknown>) => {
-    void sidecar.updateSettings(settings).catch(() => {
+    void sidecar.updateSettings(settings, { reportErrors: false }).catch((error) => {
+        captureDoorSettingsPushFailure(error);
         useToastStore.getState().show('문 설정을 기기에 반영하지 못했습니다.', 'error');
     });
 };
