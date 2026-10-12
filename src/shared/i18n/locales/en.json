@@ -437,6 +437,14 @@
                 "timeRangeMinutes": "{{count}} min",
                 "axisRangeMinutes": "min",
                 "axisRoR": "RoR",
+                "rorAxisMin": "RoR minimum",
+                "rorAxisMax": "RoR maximum",
+                "rorGridInterval": "RoR tick interval",
+                "rorTickList": "Specific RoR values",
+                "customRorTicks": "RoR tick list",
+                "customRorTicksDescription": "Separate values with commas, e.g. -5, 0, 5, 10. Only values within the axis range appear. Leave empty to use default ticks.",
+                "customRorTicksError": "Enter up to 100 valid numbers within −100–300°C/min.",
+                "rorLabelEvery": "RoR label frequency",
                 "controlChart": "Control Chart",
                 "controlChartDescription": "Control chart series and axis range. Chart visibility is set under Data Visibility.",
                 "controlDrum": "Drum",
@@ -1172,13 +1180,6 @@
                 "collapsedWaiting": "Replay waiting for a real turning point",
                 "collapsedFallback": "Replay TP fallback — not a detected rise"
             }
-        },
-        "rorAxis": {
-            "edit": "Edit RoR axis",
-            "min": "Minimum",
-            "max": "Maximum",
-            "interval": "Tick interval",
-            "invalid": "Enter a valid range and a positive tick interval."
         }
     },
     "schedule": {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
     formatTemp,
+    fromDisplayRoR,
     fromDisplayTemp,
+    parseRorTicks,
     parseTemperatureTicks,
     rorUnitLabel,
     tempUnitLabel,
@@ -53,6 +55,12 @@ describe('toDisplayTemp / toDisplayRoR', () => {
         expect(toDisplayTemp(205, 'F')).toBe(401);
         expect(toDisplayRoR(10, 'C')).toBe(10);
         expect(toDisplayRoR(10, 'F')).toBe(18);
+        expect(fromDisplayRoR(18, 'F')).toBe(10);
+        expect(fromDisplayRoR(-9, 'F')).toBe(-5);
+        expect(parseRorTicks('10, -5, 0, 0', 'C')).toEqual([-5, 0, 10]);
+        expect(parseRorTicks('-9, 18', 'F')).toEqual([-5, 10]);
+        expect(parseRorTicks('301', 'C')).toBeNull();
+        expect(parseRorTicks('', 'C')).toEqual([]);
         expect(fromDisplayTemp(401, 'F')).toBeCloseTo(205);
     });
 });

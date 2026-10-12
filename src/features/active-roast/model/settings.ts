@@ -17,7 +17,7 @@ import {
 } from '../lib/curve-style';
 import { DEFAULT_EVENT_BUTTONS, normalizeEventButtons, type RoastEventButtons } from '../lib/event-buttons';
 import { mapFirescopeGraphSettings } from '../lib/firescope-settings';
-import { normalizeTemperatureTicks } from '../lib/temperature';
+import { normalizeRorTicks, normalizeTemperatureTicks } from '../lib/temperature';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
@@ -117,7 +117,16 @@ export type RoastSettings = {
     timeRangePresetMin: number;
     timeRangeCustom: boolean;
     timeRangeMin: number;
+    /** Stored °C/min. Preset mode uses `rorGridPresetInterval` instead. */
     rorGridInterval: number;
+    rorGridPresetInterval: number;
+    /** `list` is the custom block, same naming as the temperature axis. */
+    rorAxisMode: 'preset' | 'list';
+    rorTickMode: 'interval' | 'list';
+    rorTicksC: number[];
+    rorLabelEvery: number;
+    rorLabelPresetEvery: number;
+    rorLabelCustom: boolean;
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;
@@ -241,6 +250,13 @@ const DEFAULT_SETTINGS: RoastSettings = {
     timeRangeCustom: false,
     timeRangeMin: TIME_RANGE_MIN_DEFAULT,
     rorGridInterval: 5,
+    rorGridPresetInterval: 5,
+    rorAxisMode: 'preset',
+    rorTickMode: 'interval',
+    rorTicksC: [],
+    rorLabelEvery: 1,
+    rorLabelPresetEvery: 1,
+    rorLabelCustom: false,
     rorYMin: -5,
     rorYMax: 20,
     yellowTempC: 150,
@@ -445,6 +461,31 @@ export const normalizeRoastSettings = (
             100,
             previous?.rorGridInterval ?? DEFAULT_SETTINGS.rorGridInterval,
         ),
+        rorGridPresetInterval: pickPreset(
+            merged.rorGridPresetInterval,
+            [1, 2, 5, 10],
+            previous?.rorGridPresetInterval ?? DEFAULT_SETTINGS.rorGridPresetInterval,
+        ),
+        rorAxisMode:
+            rest.rorAxisMode === 'preset' || rest.rorAxisMode === 'list'
+                ? rest.rorAxisMode
+                : (previous?.rorAxisMode ??
+                  (merged.rorGridInterval !== DEFAULT_SETTINGS.rorGridInterval ? 'list' : 'preset')),
+        rorTickMode:
+            rest.rorTickMode === 'interval' || rest.rorTickMode === 'list'
+                ? rest.rorTickMode
+                : (previous?.rorTickMode ?? 'interval'),
+        rorTicksC: normalizeRorTicks(merged.rorTicksC) ?? previous?.rorTicksC ?? DEFAULT_SETTINGS.rorTicksC,
+        rorLabelCustom: asBool(rest.rorLabelCustom, previous?.rorLabelCustom ?? false),
+        rorLabelPresetEvery: pickPreset(
+            merged.rorLabelPresetEvery,
+            [1, 2, 5],
+            previous?.rorLabelPresetEvery ?? DEFAULT_SETTINGS.rorLabelPresetEvery,
+        ),
+        rorLabelEvery:
+            Number.isInteger(merged.rorLabelEvery) && merged.rorLabelEvery >= 1 && merged.rorLabelEvery <= 100
+                ? merged.rorLabelEvery
+                : (previous?.rorLabelEvery ?? DEFAULT_SETTINGS.rorLabelEvery),
         yellowTempC,
         autoChargeEnabled: asBool(merged.autoChargeEnabled, DEFAULT_SETTINGS.autoChargeEnabled),
         autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',

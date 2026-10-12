@@ -4,7 +4,6 @@ import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
-import { RorAxisEditor } from '@features/active-roast/ui/RorAxisEditor';
 import type { RoastNoteControls } from '@shared/types/roast';
 import { type RefObject, useRef, useState } from 'react';
 import { ChartLegend } from './ChartLegend';
@@ -247,7 +246,6 @@ export const RoastChartContainer = ({
                 showRoRET={showRoRET}
             />
 
-            {showRoR && <RorAxisEditor />}
             <RoastTempChart
                 ref={chartRef}
                 xs={xs}

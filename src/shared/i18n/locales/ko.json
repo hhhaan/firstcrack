@@ -437,6 +437,14 @@
                 "timeRangeMinutes": "{{count}}분",
                 "axisRangeMinutes": "분",
                 "axisRoR": "RoR",
+                "rorAxisMin": "RoR 최소",
+                "rorAxisMax": "RoR 최대",
+                "rorGridInterval": "RoR 눈금 간격",
+                "rorTickList": "특정 RoR 지정",
+                "customRorTicks": "RoR 눈금 목록",
+                "customRorTicksDescription": "쉼표로 구분한 RoR 목록(예: -5, 0, 5, 10). 축 범위 안의 값만 표시하며, 비우면 기본 눈금 사용",
+                "customRorTicksError": "유효한 숫자를 최대 100개 입력하세요. RoR은 -100~300°C/min 범위여야 합니다.",
+                "rorLabelEvery": "RoR 숫자 표시 주기",
                 "controlChart": "컨트롤 차트",
                 "controlChartDescription": "컨트롤 차트의 표시 항목과 축 범위. 차트 표시 여부는 데이터 표시에서 설정",
                 "controlDrum": "드럼",
@@ -1513,13 +1521,6 @@
                 "collapsedWaiting": "Replay 실제 TP 대기",
                 "collapsedFallback": "Replay TP 폴백 — 실제 상승 아님"
             }
-        },
-        "rorAxis": {
-            "edit": "RoR 축 조절",
-            "min": "최소값",
-            "max": "최대값",
-            "interval": "눈금 간격",
-            "invalid": "올바른 범위와 양수 눈금 간격을 입력해 주세요."
         }
     },
     "profiles": {
