@@ -294,6 +294,12 @@ const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean
 const pickPreset = (value: number, allowed: readonly number[], fallback: number): number =>
     allowed.includes(value) ? value : fallback;
 
+const axisModeOf = (mode: unknown, previous: 'preset' | 'list' | undefined, custom: boolean): 'preset' | 'list' => {
+    if (mode === 'preset' || mode === 'list') return mode;
+    if (previous) return previous;
+    return custom ? 'list' : 'preset';
+};
+
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
 /** Positive finite minutes only. 0 / negative / NaN / Infinity / non-numeric restore `previous` (or 7). */
@@ -466,11 +472,11 @@ export const normalizeRoastSettings = (
             [1, 2, 5, 10],
             previous?.rorGridPresetInterval ?? DEFAULT_SETTINGS.rorGridPresetInterval,
         ),
-        rorAxisMode:
-            rest.rorAxisMode === 'preset' || rest.rorAxisMode === 'list'
-                ? rest.rorAxisMode
-                : (previous?.rorAxisMode ??
-                  (merged.rorGridInterval !== DEFAULT_SETTINGS.rorGridInterval ? 'list' : 'preset')),
+        rorAxisMode: axisModeOf(
+            rest.rorAxisMode,
+            previous?.rorAxisMode,
+            merged.rorGridInterval !== DEFAULT_SETTINGS.rorGridInterval,
+        ),
         rorTickMode:
             rest.rorTickMode === 'interval' || rest.rorTickMode === 'list'
                 ? rest.rorTickMode
