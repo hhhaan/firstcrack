@@ -5,11 +5,21 @@ import { SidecarHttpError } from './sidecar';
 
 vi.mock('@sentry/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@sentry/react')>();
-    return { ...actual, captureException: vi.fn(), init: vi.fn() };
+    return { ...actual, captureException: vi.fn(), captureMessage: vi.fn(), init: vi.fn() };
 });
 
 describe('logger sidecar duplicate guard', () => {
     afterEach(() => vi.clearAllMocks());
+
+    it('does not capture unreported 502 SidecarHttpError via logger.error or logger.capture', async () => {
+        const err = new SidecarHttpError('/control', 502, 'plc write failed', false);
+        expect(shouldSkipSidecarLoggerCapture(err)).toBe(true);
+        const { logger } = await import('./logger');
+        logger.error(err);
+        logger.capture(err, { feature: 'machine-control', action: 'setControl' });
+        expect(Sentry.captureException).not.toHaveBeenCalled();
+        expect(Sentry.captureMessage).not.toHaveBeenCalled();
+    });
 
     it('does not capture when sidecar already reported the failure', async () => {
         const err = new SidecarHttpError('/temperatures', 'network', 'network error', true);

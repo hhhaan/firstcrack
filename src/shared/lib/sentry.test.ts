@@ -287,6 +287,7 @@ describe('observeRoastingImportScan', () => {
         expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
         expect(Sentry.captureMessage).toHaveBeenCalledWith('roasting import scan', {
             level: 'warning',
+            fingerprint: ['roasting-import-scan', 'Artisan', 'unreadable', 'settings-unreadable'],
             tags: {
                 feature: 'roasting-import',
                 product: 'Artisan',
@@ -302,6 +303,7 @@ describe('observeRoastingImportScan', () => {
         });
         expect(Sentry.captureMessage).toHaveBeenLastCalledWith('roasting import scan', {
             level: 'info',
+            fingerprint: ['roasting-import-scan', 'Cropster', 'unsupported', 'other'],
             tags: expect.objectContaining({ reason: 'other', 'source.version': 'other' }),
         });
     });
@@ -313,6 +315,7 @@ describe('reportTsvRestoreDroppedRows', () => {
         expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
         expect(Sentry.captureMessage).toHaveBeenCalledWith('tsv restore dropped extra readings', {
             level: 'warning',
+            fingerprint: ['tsv-restore'],
             tags: { feature: 'tsv-restore' },
             extra: { dropped_rows: 2 },
         });
@@ -396,13 +399,15 @@ describe('door-control capture helpers', () => {
 describe('captureSidecarRequestFailure', () => {
     afterEach(() => resetSidecarFailureRateLimitForTests());
 
-    it('rate-limits network/timeout reports per route', () => {
+    it('rate-limits network/timeout reports per route and status', () => {
         captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
-        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'timeout' });
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'network' });
         expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+        captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 'timeout' });
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
     });
 
-    it('uses a fixed message and route tags only', () => {
+    it('uses a fixed message, fingerprint, and route tags only', () => {
         captureSidecarRequestFailure({ route: '/control', method: 'POST', status: 503 });
         expect(Sentry.captureMessage).toHaveBeenCalledWith('sidecar request failed', {
             level: 'error',
@@ -426,6 +431,28 @@ describe('captureRoastingImportFailure', () => {
         });
         const [captured] = vi.mocked(Sentry.captureException).mock.calls[0];
         expect(captured).toMatchObject({ name: 'Error', message: 'Error' });
+    });
+
+    it('uses error.name for non-Error failures', () => {
+        captureRoastingImportFailure(new TypeError('not a roast file'), {
+            product: 'Cropster',
+            stage: 'machines',
+            counts: { selected: 1, pending: 0, updates: 2 },
+        });
+        const calls = vi.mocked(Sentry.captureException).mock.calls;
+        const [captured] = calls[calls.length - 1];
+        expect(captured).toMatchObject({ name: 'TypeError', message: 'TypeError' });
+    });
+
+    it('sets a stable roasting-import fingerprint', () => {
+        captureRoastingImportFailure(new Error('x'), {
+            product: 'Artisan',
+            stage: 'graph',
+            counts: { selected: 0, pending: 0, updates: 0 },
+        });
+        const calls = vi.mocked(Sentry.captureException).mock.calls;
+        const [, hint] = calls[calls.length - 1] as [unknown, { fingerprint?: string[] }];
+        expect(hint.fingerprint).toEqual(['roasting-import', 'Artisan', 'graph']);
     });
 });
 
