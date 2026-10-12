@@ -3,7 +3,7 @@ import asyncio
 import json
 import time
 from collections import deque
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -874,12 +874,14 @@ class TestBtValidation:
         ]
         adapter = FakeAdapter(readings=readings)
         await self._connect_with(manager, adapter)
-        with patch("manager.sentry_sdk.capture_exception") as capture:
+        scope = MagicMock()
+        with patch("manager.sentry_sdk.new_scope") as new_scope:
+            new_scope.return_value.__enter__.return_value = scope
             await manager.read_temperatures()
             for _ in range(config.STALE_TOLERANCE_READS):
                 await manager.read_temperatures()
             await manager.read_temperatures()
-        assert capture.call_count == 1
+        assert scope.capture_exception.call_count == 1
         assert manager._connected is False
         if manager._reconnect_task is not None:
             manager._reconnect_task.cancel()
@@ -1236,22 +1238,26 @@ class TestEnterStandby:
 class TestHardwareAlertDedupe:
     async def test_once_emits_first_then_breadcrumbs(self, manager):
         exc = OSError("PLC unreachable")
+        scope = MagicMock()
         with (
-            patch("manager.sentry_sdk.capture_exception") as capture,
+            patch("manager.sentry_sdk.new_scope") as new_scope,
             patch("manager.sentry_sdk.add_breadcrumb") as breadcrumb,
         ):
+            new_scope.return_value.__enter__.return_value = scope
             manager._capture_hardware_error(exc, "pid_request_failed", once=True)
             manager._capture_hardware_error(exc, "pid_request_failed", once=True)
-        assert capture.call_count == 1
+        assert scope.capture_exception.call_count == 1
         assert breadcrumb.call_count == 1
         assert "duplicate suppressed" in breadcrumb.call_args.kwargs["message"]
 
     async def test_once_false_always_emits(self, manager):
         exc = OSError("PLC unreachable")
-        with patch("manager.sentry_sdk.capture_exception") as capture:
+        scope = MagicMock()
+        with patch("manager.sentry_sdk.new_scope") as new_scope:
+            new_scope.return_value.__enter__.return_value = scope
             manager._capture_hardware_error(exc, "connect_failed")
             manager._capture_hardware_error(exc, "connect_failed")
-        assert capture.call_count == 2
+        assert scope.capture_exception.call_count == 2
 
     async def test_pid_stop_success_allows_next_incident(self, manager):
         class _Pid:
@@ -1283,12 +1289,14 @@ class TestHardwareAlertDedupe:
         manager._protocol = "virtual"
         manager._merged_params = {}
 
-        with patch("manager.sentry_sdk.capture_exception") as capture:
+        scope = MagicMock()
+        with patch("manager.sentry_sdk.new_scope") as new_scope:
+            new_scope.return_value.__enter__.return_value = scope
             manager._reconnect_task = asyncio.create_task(manager._reconnect_loop())
             await asyncio.wait_for(manager._reconnect_task, timeout=2.0)
 
         assert adapter.connect_call_count == 6
-        assert capture.call_count == 1
+        assert scope.capture_exception.call_count == 1
         # 재연결에 성공했으니 다음 사고는 다시 알릴 수 있어야 한다
         assert "reconnect_failed" not in manager._hw_alerts_sent
 
@@ -1296,12 +1304,11 @@ class TestHardwareAlertDedupe:
         manager._roaster_key = "test"
         manager._protocol = "modbus_tcp"
         manager._merged_params = {"mode": "tcp", "host": "10.0.0.2", "comport": "COM3"}
-        with (
-            patch("manager.sentry_sdk.capture_exception"),
-            patch("manager.sentry_sdk.set_context") as set_context,
-        ):
+        scope = MagicMock()
+        with patch("manager.sentry_sdk.new_scope") as new_scope:
+            new_scope.return_value.__enter__.return_value = scope
             manager._capture_hardware_error(OSError("PLC unreachable"), "connect_failed")
-        dumped = repr(set_context.call_args_list)
+        dumped = repr(scope.set_context.call_args_list)
         assert "10.0.0.2" not in dumped
         assert "COM3" not in dumped
 
