@@ -94,10 +94,9 @@ async def _probe(host: str, port: int, sem: asyncio.Semaphore) -> str | None:
             )
             writer.close()
             try:
-                await writer.wait_closed()
+                await asyncio.wait_for(writer.wait_closed(), timeout=CONNECT_TIMEOUT_S)
             except Exception:
-                _log.exception("scanner: writer.wait_closed() failed for %s:%d", host, port)
-                pass
+                _log.warning("scanner: writer.wait_closed() timed out for %s:%d", host, port)
             return host
         except Exception:
             # Normal path: most hosts in a /24 sweep refuse or time out on this

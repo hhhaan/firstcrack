@@ -25,15 +25,19 @@ vi.mock('@shared/lib/explicitMachineDisconnect', () => ({
     emitExplicitMachineDisconnect: mocks.emitExplicitMachineDisconnect,
 }));
 
-vi.mock('@shared/lib/sidecar', () => ({
-    sidecar: {
-        getTemperatures: mocks.getTemperatures,
-        getStatus: mocks.getStatus,
-        waitUntilReady: mocks.waitUntilReady,
-        connect: mocks.connect,
-        disconnect: mocks.disconnect,
-    },
-}));
+vi.mock('@shared/lib/sidecar', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/sidecar')>();
+    return {
+        ...actual,
+        sidecar: {
+            getTemperatures: mocks.getTemperatures,
+            getStatus: mocks.getStatus,
+            waitUntilReady: mocks.waitUntilReady,
+            connect: mocks.connect,
+            disconnect: mocks.disconnect,
+        },
+    };
+});
 
 vi.mock('@shared/lib/osNotification', () => ({
     sendOsNotification: vi.fn(),
@@ -377,6 +381,58 @@ it.each([999, 390, 0])('does not re-arm an open roast fault from a machines-page
         for (let i = 0; i < 3; i++) observeRoastLink({ connected: true, observation: 'poll_error' });
         expect(useToastStore.getState().toasts).toHaveLength(1);
     } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('marks sidecar ready after waitUntilReady resolves', async () => {
+    mocks.waitUntilReady.mockResolvedValue(status({ connected: false }));
+    const { root, api } = renderHook();
+    try {
+        await flush();
+        expect(api.current?.sidecarReady).toBe(true);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('does not Sentry-capture opaque sidecar-down connect errors', async () => {
+    const sentry = await import('@shared/lib/sentry');
+    const captureSpy = vi.spyOn(sentry, 'captureActionable').mockImplementation(() => undefined);
+    mocks.connect.mockRejectedValue(new TypeError('Load failed'));
+    const { root, api } = renderHook();
+    try {
+        await flush();
+        await act(async () => {
+            await api.current?.handleConnect(machine);
+        });
+        expect(captureSpy).not.toHaveBeenCalled();
+    } finally {
+        captureSpy.mockRestore();
+        act(() => root.unmount());
+    }
+});
+
+it('Sentry-captures connect 401 but not validation 400', async () => {
+    const { SidecarHttpError } = await import('@shared/lib/sidecar');
+    const sentry = await import('@shared/lib/sentry');
+    const captureSpy = vi.spyOn(sentry, 'captureActionable').mockImplementation(() => undefined);
+    mocks.connect.mockRejectedValueOnce(new SidecarHttpError('/connect', 401, 'unauthorized', false));
+    const { root, api } = renderHook();
+    try {
+        await flush();
+        await act(async () => {
+            await api.current?.handleConnect(machine);
+        });
+        expect(captureSpy).toHaveBeenCalledTimes(1);
+        captureSpy.mockClear();
+        mocks.connect.mockRejectedValueOnce(new SidecarHttpError('/connect', 400, 'Serial Port required', false));
+        await act(async () => {
+            await api.current?.handleConnect(machine);
+        });
+        expect(captureSpy).not.toHaveBeenCalled();
+    } finally {
+        captureSpy.mockRestore();
         act(() => root.unmount());
     }
 });

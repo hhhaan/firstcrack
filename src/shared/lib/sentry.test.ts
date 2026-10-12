@@ -93,6 +93,18 @@ describe('isActionableError', () => {
         expect(isActionableError(new BatchLimitError(0, 0, 'read_only_plan'))).toBe(false);
     });
 
+    it('reports only SidecarHttpError 401 as actionable (other statuses stay sidecar-owned)', () => {
+        const mk = (status: number | 'network' | 'timeout') =>
+            Object.assign(new Error('sidecar'), { name: 'SidecarHttpError', status });
+        expect(isActionableError(mk(401))).toBe(true);
+        expect(isActionableError(mk(400))).toBe(false);
+        expect(isActionableError(mk(403))).toBe(false);
+        expect(isActionableError(mk(404))).toBe(false);
+        expect(isActionableError(mk(422))).toBe(false);
+        expect(isActionableError(mk(502))).toBe(false);
+        expect(isActionableError(mk('network'))).toBe(false);
+    });
+
     it('drops transient transport failures (FC-16, FC-1H, FC-1J, FC-1K)', () => {
         expect(isActionableError(new TypeError('Load failed'))).toBe(false);
         expect(isActionableError(new TypeError('Failed to fetch'))).toBe(false);

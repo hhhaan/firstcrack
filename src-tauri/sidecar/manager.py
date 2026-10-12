@@ -19,6 +19,7 @@ from roaster_registry import ROASTER_REGISTRY
 _log = logging.getLogger(__name__)
 
 _REDACT_IPV4 = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}")
+_REDACT_HOST_PORT = re.compile(r"\[redacted\]:\d+")
 
 
 def _hardware_sentry_fingerprint(event: str, extra_tags: dict[str, str]) -> list[str]:
@@ -34,12 +35,14 @@ def _scrub_hardware_exception(exc: Exception) -> Exception:
     """Sentry 이벤트에 IP/호스트 문자열이 실리지 않게 메시지만 정리한다."""
     msg = str(exc)
     clean = _REDACT_IPV4.sub("[redacted]", msg)
+    clean = _REDACT_HOST_PORT.sub("[redacted]", clean)
     if clean == msg:
         return exc
     try:
-        return type(exc)(clean)
+        scrubbed = type(exc)(clean)
     except Exception:
-        return Exception(clean)
+        scrubbed = Exception(clean)
+    return scrubbed.with_traceback(exc.__traceback__)
 
 
 def _display_alpha_setting(value: Any) -> float | None:

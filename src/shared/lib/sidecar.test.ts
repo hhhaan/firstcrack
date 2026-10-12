@@ -133,6 +133,20 @@ describe('sidecar.waitUntilReady', () => {
         expect(captureSidecar).not.toHaveBeenCalled();
     });
 
+    it('does not report sidecar failures for setDischarge (door hook owns observability)', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue(
+                new Response(JSON.stringify({ error: 'timeout' }), {
+                    status: 504,
+                    headers: { 'Content-Type': 'application/json' },
+                }),
+            ),
+        );
+        await expect(sidecar.setDischarge('open')).rejects.toMatchObject({ route: '/discharge' });
+        expect(captureSidecar).not.toHaveBeenCalled();
+    });
+
     it('does not retry or report 2xx with malformed JSON (connect)', async () => {
         const fetchMock = vi
             .fn()

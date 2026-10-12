@@ -110,8 +110,7 @@ const isExpectedNoise = (error: unknown): boolean => {
 export const isActionableError = (error: unknown): boolean => {
     if ((error as { name?: unknown } | null | undefined)?.name === 'AbortError') return false;
     if ((error as { name?: unknown } | null | undefined)?.name === 'SidecarHttpError') {
-        const status = httpStatusOf(error);
-        return status !== 400 && status !== 409;
+        return httpStatusOf(error) === 401;
     }
     if (isExpectedRefusal(error)) return httpStatusOf(error) === 429;
     if (isExpectedNoise(error)) return false;

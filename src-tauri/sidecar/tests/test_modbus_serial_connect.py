@@ -1,6 +1,6 @@
 """Modbus RTU/ASCII connect rejects empty serial port before adapter I/O (#771-7)."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
@@ -35,7 +35,9 @@ async def test_modbus_adapter_rejects_empty_comport_before_client():
 
 
 async def test_connect_empty_comport_is_400_without_sentry(connect_client):
-    with patch("manager.sentry_sdk.capture_exception") as capture:
+    scope = MagicMock()
+    with patch("manager.sentry_sdk.new_scope") as new_scope:
+        new_scope.return_value.__enter__.return_value = scope
         response = await connect_client.post(
             "/connect",
             json={"roaster": "easyster", "mode": "rtu", "comport": ""},
@@ -45,4 +47,4 @@ async def test_connect_empty_comport_is_400_without_sentry(connect_client):
     assert "Serial Port" in body["error"]
     blob = repr(body)
     assert "/dev/" not in blob and "COM" not in blob
-    assert capture.call_count == 0
+    scope.capture_exception.assert_not_called()
