@@ -14,7 +14,7 @@ import {
     TIME_X_INTERVAL_SEC,
     Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
-import { toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
 import type { ChartOptionParams, ResolvedChartColors } from './types';
@@ -119,6 +119,25 @@ export const applyChartAxisSettings = (
     temperatureUnit: TemperatureUnit,
 ) => {
     if (!settings) return;
+    const rorAxis = (Array.isArray(axes.yAxis) ? axes.yAxis : []).find(
+        (axis) => axis.gridIndex === 0 && axis.position === 'right',
+    );
+    if (rorAxis?.type === 'value') {
+        const ticks = settings.rorTicksC?.map((value) => Number(toDisplayRoR(value, temperatureUnit).toFixed(6)));
+        const customValues = ticks?.length ? ticks : undefined;
+        rorAxis.axisTick = { ...rorAxis.axisTick, customValues };
+        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true };
+        if (customValues) {
+            rorAxis.axisLabel.formatter = formatTick;
+        } else if (settings.rorGridInterval && settings.rorGridInterval > 0) {
+            rorAxis.interval = toDisplayRoR(settings.rorGridInterval, temperatureUnit);
+            const step = Number(rorAxis.interval) * (settings.rorLabelEvery || 1);
+            rorAxis.axisLabel = {
+                ...rorAxis.axisLabel,
+                formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
+            };
+        }
+    }
     for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
         if (axis.type === 'value' && settings.timeTickIntervalSec > 0) axis.interval = settings.timeTickIntervalSec;
         const minor = settings.timeMinorTickIntervalSec;

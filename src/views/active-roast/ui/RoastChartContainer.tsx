@@ -155,7 +155,12 @@ export const RoastChartContainer = ({
     };
 
     const pointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-        if ((event.target as Element).closest('[data-chart-note-form],[data-chart-marker-edit]')) return;
+        if (
+            (event.target as Element).closest(
+                'button,input,select,textarea,[data-chart-note-form],[data-chart-marker-edit]',
+            )
+        )
+            return;
         if (chartRef.current?.beginMarkerDrag(event)) {
             markerPointerId.current = event.pointerId;
             markerDragStart.current = { x: event.clientX, y: event.clientY };

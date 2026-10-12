@@ -23,6 +23,7 @@ export type { ObservationQuality, SensorObservation } from './lib/sensorObservat
 // lib
 export {
     formatTemp,
+    fromDisplayRoR,
     fromDisplayTemp,
     rorUnitLabel,
     tempUnitLabel,

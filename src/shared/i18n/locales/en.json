@@ -125,6 +125,10 @@
             "pricing": "Margin Calculator",
             "cupping": "Cupping",
             "orders": "Orders"
+        },
+        "groups": {
+            "roasting": "Roasting",
+            "operations": "Operations"
         }
     },
     "settings": {
@@ -273,7 +277,14 @@
                 "compactDataCards": "Use compact data cards",
                 "stockHorizon": "Stock alert horizon",
                 "stockHorizonDescription": "Days ahead to reserve planned roasts when checking bean shortages (default 28).",
-                "days": "days"
+                "days": "days",
+                "sidebar": "Sidebar",
+                "sidebarDescription": "Menu order and visibility within each group.",
+                "sidebarReset": "Reset sidebar",
+                "sidebarMoveUp": "Move {{name}} up",
+                "sidebarMoveDown": "Move {{name}} down",
+                "sidebarHide": "Hide {{name}}",
+                "sidebarShow": "Show {{name}}"
             },
             "notifications": {
                 "label": "Notifications",
@@ -437,6 +448,14 @@
                 "timeRangeMinutes": "{{count}} min",
                 "axisRangeMinutes": "min",
                 "axisRoR": "RoR",
+                "rorAxisMin": "RoR minimum",
+                "rorAxisMax": "RoR maximum",
+                "rorGridInterval": "RoR tick interval",
+                "rorTickList": "Specific RoR values",
+                "customRorTicks": "RoR tick list",
+                "customRorTicksDescription": "Separate values with commas, e.g. -5, 0, 5, 10. Only values within the axis range appear. Leave empty to use default ticks.",
+                "customRorTicksError": "Enter up to 100 valid numbers within −100–300°C/min.",
+                "rorLabelEvery": "RoR label frequency",
                 "controlChart": "Control Chart",
                 "controlChartDescription": "Control chart series and axis range. Chart visibility is set under Data Visibility.",
                 "controlDrum": "Drum",

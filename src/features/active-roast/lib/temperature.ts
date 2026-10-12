@@ -30,5 +30,23 @@ export const formatTemp = (celsius: number | null, unit: TemperatureUnit): strin
 export const toDisplayRoR = (cPerMin: number, unit: TemperatureUnit): number =>
     unit === 'F' ? (cPerMin * 9) / 5 : cPerMin;
 
+/** toDisplayRoR의 역변환. °F도 델타라 +32는 없다. */
+export const fromDisplayRoR = (display: number, unit: TemperatureUnit): number =>
+    unit === 'F' ? (display * 5) / 9 : display;
+
+/** Stored °C/min. Negatives are allowed; the axis range is −100…300. */
+export const normalizeRorTicks = (values: unknown): number[] | null =>
+    Array.isArray(values) &&
+    values.length <= 100 &&
+    values.every((value) => typeof value === 'number' && Number.isFinite(value) && value >= -100 && value <= 300)
+        ? [...new Set<number>(values)].sort((a, b) => a - b)
+        : null;
+
+export const parseRorTicks = (input: string, unit: TemperatureUnit): number[] | null => {
+    if (!input.trim()) return [];
+    const values = input.split(',').map((value) => (value.trim() === '' ? Number.NaN : Number(value)));
+    return normalizeRorTicks(values.map((value) => fromDisplayRoR(value, unit)));
+};
+
 /** Drop-temp Δ / SD — same °C→°F scale as RoR (not absolute toDisplayTemp). */
 export const toDisplayTempDelta = toDisplayRoR;

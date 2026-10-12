@@ -1,32 +1,16 @@
-import {
-    Activity,
-    Book,
-    Calculator,
-    Calendar,
-    ChevronDown,
-    Chip,
-    CropGrowth,
-    Dashboard,
-    Fire,
-    RecentlyViewed,
-    ShoppingCart,
-    SidePanelClose,
-    SidePanelOpen,
-} from '@carbon/icons-react';
-import { useInventoryAlerts } from '@entities/inventory-alert';
+import { ChevronDown, SidePanelClose, SidePanelOpen } from '@carbon/icons-react';
 import { useActiveWorkspace } from '@entities/organization';
 import { cn } from '@shared/lib/cn';
-import { FEATURE, useFeature } from '@shared/lib/features';
 import { useAuthStore } from '@shared/store/auth';
 import { formatShortcut, useShortcutKeys } from '@shared/store/keyboard-shortcuts';
 import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
-import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
-import { Check, Lock, Settings } from 'lucide-react';
-import { type ComponentType, type CSSProperties, useMemo, useState } from 'react';
+import { Check, Settings } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
+import { SidebarNav } from './SidebarNav';
 
 interface SidebarProps {
     activeView: View;
@@ -36,24 +20,6 @@ interface SidebarProps {
     onToggleCollapse: () => void;
     onOpenSettings: (tab?: string) => void;
 }
-
-type SidebarIcon = ComponentType<{ size?: number; className?: string; style?: CSSProperties }>;
-
-const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
-    { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: Dashboard },
-    { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: Calendar },
-    { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
-    { id: 'history', labelKey: 'sidebar.nav.history', icon: RecentlyViewed },
-    { id: 'cupping', labelKey: 'sidebar.nav.cupping', icon: Activity },
-    { id: 'orders', labelKey: 'sidebar.nav.orders', icon: ShoppingCart },
-    { id: 'beans', labelKey: 'sidebar.nav.beans', icon: CropGrowth },
-    { id: 'pricing', labelKey: 'sidebar.nav.pricing', icon: Calculator },
-    { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
-    { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Chip },
-];
-
-/** Stable e2e selectors — view id is the product route key. */
-const navTestId = (id: View) => `nav-${id}`;
 
 export const Sidebar = ({
     activeView,
@@ -72,10 +38,6 @@ export const Sidebar = ({
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const logoSrc = resolvedTheme === 'dark' ? '/logo_dark.png' : '/logo.png';
     const { data: profile } = useProfile(user?.id ?? '');
-    const { data: inventoryAlerts = [] } = useInventoryAlerts(workspaceOwnerId);
-    const alertCount = inventoryAlerts.length;
-    const canCupping = useFeature(FEATURE.cupping);
-    const canOrders = useFeature(FEATURE.orderIntegration);
 
     const myName = profile?.business_name || t('sidebar.myWorkspace');
     const activeMembership = useMemo(
@@ -246,71 +208,13 @@ export const Sidebar = ({
                 </Popover>
             </div>
 
-            {/* Nav */}
-            <nav className={cn('flex-1 overflow-y-auto py-1', rail ? 'px-3' : edgePad)}>
-                <div className="mb-1">
-                    <div
-                        className={cn(
-                            'font-medium text-muted transition-all duration-220 overflow-hidden whitespace-nowrap',
-                            collapsed ? 'opacity-0 h-0 p-0' : 'opacity-100 mb-1.5 px-2.5 text-xs',
-                        )}
-                    >
-                        {t('sidebar.workspace')}
-                    </div>
-                    {navItems.map(({ id, labelKey, icon: Icon }) => {
-                        const isActive = activeView === id;
-                        const label = t(labelKey);
-                        const showBadge = id === 'beans' && alertCount > 0;
-                        const locked = (id === 'cupping' && !canCupping) || (id === 'orders' && !canOrders);
-                        return (
-                            <button
-                                type="button"
-                                key={id}
-                                data-testid={navTestId(id)}
-                                onClick={() => onNavigate(id)}
-                                aria-label={label}
-                                title={collapsed ? label : undefined}
-                                className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-primary/5 h-9 overflow-hidden"
-                            >
-                                <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
-                                    <Icon size={16} className={isActive ? 'text-primary' : 'text-muted'} />
-                                    {showBadge && collapsed && (
-                                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
-                                    )}
-                                    {locked && collapsed && (
-                                        <span className="absolute bottom-1 right-1 text-muted">
-                                            <Lock size={10} />
-                                        </span>
-                                    )}
-                                </div>
-                                <div
-                                    className={cn(
-                                        'flex items-center gap-2 transition-all duration-220 overflow-hidden whitespace-nowrap',
-                                        collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
-                                    )}
-                                >
-                                    <span
-                                        className={cn(
-                                            'text-[13px]',
-                                            isActive ? 'font-medium text-primary' : 'font-normal text-secondary',
-                                        )}
-                                    >
-                                        {label}
-                                    </span>
-                                    {locked && !collapsed && (
-                                        <Lock size={12} className="shrink-0 text-muted" aria-hidden />
-                                    )}
-                                    {showBadge && !collapsed && (
-                                        <Badge size="sm" tone="amber" className="font-semibold">
-                                            {alertCount}
-                                        </Badge>
-                                    )}
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-            </nav>
+            <SidebarNav
+                activeView={activeView}
+                onNavigate={onNavigate}
+                collapsed={collapsed}
+                rail={rail}
+                edgePad={edgePad}
+            />
 
             {/* Footer */}
             <div className={cn('py-2.5 border-t border-border-subtle dark:border-[#585d61]', rail ? 'px-3' : edgePad)}>

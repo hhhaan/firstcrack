@@ -203,6 +203,14 @@ it('uses fixed axis defaults, validates intervals, and restores persisted choice
         timeRangeMin: 13,
         timeRangeCustom: false,
     });
+    expect(normalizeRoastSettings({}).rorAxisMode).toBe('preset');
+    expect(normalizeRoastSettings({ rorGridInterval: 4 })).toMatchObject({
+        rorAxisMode: 'list',
+        rorTickMode: 'interval',
+        rorGridInterval: 4,
+    });
+    expect(normalizeRoastSettings({ rorTicksC: [10, -5, 0, 0] }).rorTicksC).toEqual([-5, 0, 10]);
+    expect(normalizeRoastSettings({ rorTicksC: [301] }).rorTicksC).toEqual([]);
     expect(normalizeRoastSettings({ tempGridInterval: 15 }).tempAxisMode).toBe('preset');
     expect(normalizeRoastSettings({ tempTicksC: [100, 180, 200] }).tempAxisMode).toBe('list');
     expect(normalizeRoastSettings({ ...choices, tempAxisMode: 'preset' })).toMatchObject({
