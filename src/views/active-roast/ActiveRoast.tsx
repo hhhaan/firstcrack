@@ -517,7 +517,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         if (applyDrop()) openDischargeRef.current();
     }, [applyDrop]);
 
-    const chargeLock = useLeadingLock(3000);
+    const chargeLock = useLeadingLock(2000);
     const markCharge = useCallback(() => {
         chargeLock.run(() => {
             void lifecycle.handleManualCharge().then((started) => {
