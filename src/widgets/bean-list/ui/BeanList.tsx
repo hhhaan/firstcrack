@@ -2,6 +2,7 @@ import { getStatus, statusConfig, stockBarClass, stockLevelPct } from '@entities
 import type { BeanAssetLine, StockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
+import { CatalogVisibilityButton } from '@shared/ui/CatalogVisibilityControls';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +17,8 @@ interface BeanListProps {
     stockSummaries: Record<string, StockSummary>;
     assetByBeanId?: Record<string, BeanAssetLine>;
     assetsReady?: boolean;
+    hidden?: ReadonlySet<string>;
+    onToggleHidden?: (id: string) => void;
 }
 
 const Skeleton = () => (
@@ -45,6 +48,8 @@ export const BeanList = ({
     stockSummaries,
     assetByBeanId = {},
     assetsReady = false,
+    hidden,
+    onToggleHidden,
 }: BeanListProps) => {
     const { t, i18n } = useTranslation();
     const searchLower = search.toLowerCase();
@@ -94,6 +99,13 @@ export const BeanList = ({
                                             {bean.origin ?? '—'} · {bean.process ?? '—'}
                                         </div>
                                     </div>
+                                    {onToggleHidden && (
+                                        <CatalogVisibilityButton
+                                            hidden={hidden?.has(bean.id) ?? false}
+                                            name={bean.name}
+                                            onToggle={() => onToggleHidden(bean.id)}
+                                        />
+                                    )}
                                     <Badge color={cfg.color} bg={cfg.bg} className="ml-2 px-[7px]">
                                         {cfg.label}
                                     </Badge>

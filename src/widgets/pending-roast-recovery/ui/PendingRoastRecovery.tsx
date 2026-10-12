@@ -12,6 +12,8 @@ import {
 } from '@features/active-roast/model/pendingRoastSave';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
+import { useAuthStore } from '@shared/store/auth';
+import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { inputCls } from '@shared/ui/form-styles';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -189,6 +191,8 @@ const RecoveryItem = ({
     const running = useRef(false);
     const [error, setError] = useState('');
     const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+    const authUserId = useAuthStore((state) => state.user?.id ?? '');
+    const { hidden } = useCatalogVisibility(authUserId, pending.params.userId, 'beans');
     const { data: beans = [] } = useBeans(pending.params.userId);
     const { data: batches = [] } = useDayBatches(pending.params.userId, date);
     const form = draft.params.formData;
@@ -260,11 +264,13 @@ const RecoveryItem = ({
                             onChange={(e) => updateForm({ beanId: e.target.value || null })}
                         >
                             <option value="">{t('activeRoast.recovery.noBean')}</option>
-                            {beans.map((bean) => (
-                                <option key={bean.id} value={bean.id}>
-                                    {bean.name}
-                                </option>
-                            ))}
+                            {beans
+                                .filter((bean) => bean.id === form.beanId || !hidden.has(bean.id))
+                                .map((bean) => (
+                                    <option key={bean.id} value={bean.id}>
+                                        {bean.name}
+                                    </option>
+                                ))}
                         </select>
                     </label>
                     <label className="block text-sm">

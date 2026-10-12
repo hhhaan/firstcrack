@@ -15,9 +15,11 @@ import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
+import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastProfile } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
+import { CatalogVisibilityButton, CatalogVisibilityFilter } from '@shared/ui/CatalogVisibilityControls';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -110,6 +112,8 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [search, setSearch] = useState('');
+    const [showHidden, setShowHidden] = useState(false);
+    const { hidden, setHidden } = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
@@ -136,15 +140,18 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                   return haystack.includes(q);
               })
             : profiles;
-        return [...filtered].sort((a, b) => {
-            if (!defaultId) return 0;
-            if (a.id === defaultId) return -1;
-            if (b.id === defaultId) return 1;
-            return 0;
-        });
-    }, [profiles, search, defaultId]);
+        return filtered
+            .filter((profile) => showHidden || !hidden.has(profile.id))
+            .sort((a, b) => {
+                if (!defaultId) return 0;
+                if (a.id === defaultId) return -1;
+                if (b.id === defaultId) return 1;
+                return 0;
+            });
+    }, [profiles, search, defaultId, hidden, showHidden]);
 
-    const selected = profiles.find((p) => p.id === selectedId) ?? null;
+    const selected = sortedProfiles.find((p) => p.id === selectedId) ?? sortedProfiles[0] ?? null;
+    const selectedVisibleId = selected?.id ?? null;
 
     const syntheticCurve = (p: RoastProfileWithSource) =>
         generateProfileCurve(p.drop_temp_celsius ?? 200, p.duration_sec ?? 720);
@@ -171,7 +178,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const enterCompareMode = () => {
         setCompareMode(true);
-        if (selectedId) setCompareIds([selectedId]);
+        if (selectedVisibleId) setCompareIds([selectedVisibleId]);
     };
 
     const exitCompareMode = () => {
@@ -190,9 +197,9 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             toggleCompareId(id);
             return;
         }
-        if (shiftKey && id !== selectedId) {
+        if (shiftKey && id !== selectedVisibleId) {
             setCompareMode(true);
-            setCompareIds([selectedId ?? id, id]);
+            setCompareIds([selectedVisibleId ?? id, id]);
             return;
         }
         setSelectedId(id);
@@ -225,17 +232,17 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             setDefaultId(null);
             updateProfile({ default_roast_profile_id: null });
         }
-        if (selectedId === id) setSelectedId(profiles.find((p) => p.id !== id)?.id ?? null);
+        if (selectedVisibleId === id) setSelectedId(sortedProfiles.find((p) => p.id !== id)?.id ?? null);
     };
 
-    const primaryId = compareMode ? (compareIds[0] ?? selectedId ?? '') : (selectedId ?? '');
+    const primaryId = compareMode ? (compareIds[0] ?? selectedVisibleId ?? '') : (selectedVisibleId ?? '');
     const compareProfiles = compareMode
         ? (compareIds.map((id) => profiles.find((p) => p.id === id)).filter(Boolean) as RoastProfileWithSource[])
         : [];
 
     const chartKey = compareMode
         ? `${compareIds.join(',')}|${compareProfiles.map((p) => resolveSourceSession(p.source_session)?.tsv_path ?? '').join(',')}`
-        : `${selectedId ?? ''}|${selectedRealCurve.length}`;
+        : `${selectedVisibleId ?? ''}|${selectedRealCurve.length}`;
 
     const renderDetail = (): ReactNode => {
         if (isLoading) return <ProfileDetailSkeleton />;
@@ -270,6 +277,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const profileList = (
         <div>
+            <CatalogVisibilityFilter checked={showHidden} onChange={setShowHidden} />
             <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
@@ -293,7 +301,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                         </p>
                     )}
                     {sortedProfiles.map((profile) => {
-                        const isSelected = !compareMode && selectedId === profile.id;
+                        const isSelected = !compareMode && selectedVisibleId === profile.id;
                         const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
                         const isCompareSelected = compareIdx !== -1;
                         const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
@@ -324,6 +332,13 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     </div>
                                 )}
 
+                                <div className="mb-1 flex justify-end">
+                                    <CatalogVisibilityButton
+                                        hidden={hidden.has(profile.id)}
+                                        name={profile.name}
+                                        onToggle={() => setHidden(profile.id, !hidden.has(profile.id))}
+                                    />
+                                </div>
                                 <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
 
                                 <div className="flex items-start justify-between mt-3">
