@@ -11,6 +11,7 @@ import { ChargeWeightEditor, QcMeasurementEditor } from './HistoryQcEditor';
 import { HistorySessionChart } from './HistorySessionChart';
 import { OutputWeightEditor } from './OutputWeightEditor';
 import { RecordSections } from './RecordSections';
+import { RecordTextEditor } from './RecordTextEditor';
 import { RoastColorEditor } from './RoastColorEditor';
 import { SessionScorecard } from './SessionScorecard';
 import { SummaryMetaEditor } from './SummaryMetaEditor';
@@ -49,7 +50,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
             <header className="mb-4 flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
                 <div className="min-w-0 flex-1">
                     <h1 className="m-0 break-words font-(--font-display) text-[24px] leading-tight tracking-[-0.5px] text-primary">
-                        {beanName || formatDateShort(session.roasted_at)}
+                        {session.bean_label?.trim() || beanName || formatDateShort(session.roasted_at)}
                     </h1>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
                         {beanName && <span>{formatDateShort(session.roasted_at)}</span>}
@@ -111,9 +112,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                             <FileText size={15} strokeWidth={1.5} className="text-muted" />
                             {t('history.expanded.notes')}
                         </h2>
-                        <div className="min-h-24 whitespace-pre-wrap break-words text-[13px] leading-7 text-secondary">
-                            {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
-                        </div>
+                        <RecordTextEditor key={session.id} session={session} />
                     </section>
                 </aside>
             </div>

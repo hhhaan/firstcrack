@@ -17,6 +17,7 @@ const qMatch = (s: RoastSessionWithRelations, q: string): boolean => {
     const needle = q.toLowerCase();
     return (
         (sessionBeanName(s) ?? '').toLowerCase().includes(needle) ||
+        (s.bean_label ?? '').toLowerCase().includes(needle) ||
         (s.roast_profiles?.name ?? '').toLowerCase().includes(needle) ||
         (s.beans?.origin ?? '').toLowerCase().includes(needle)
     );

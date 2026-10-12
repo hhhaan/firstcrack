@@ -1513,6 +1513,11 @@
             "saveFailed": "Could not save. Your edits are kept — try again.",
             "conflict": "This record was changed elsewhere. Close and reopen to load the latest version.",
             "readOnly": "Editing is not available on the current plan or workspace."
+        },
+        "recordText": {
+            "edit": "Edit title and notes",
+            "title": "Roast title",
+            "failed": "Could not save. Your changes are kept; please retry."
         }
     },
     "profiles": {
