@@ -415,7 +415,27 @@ it('does not Sentry-capture opaque sidecar-down connect errors', async () => {
     }
 });
 
-it('shows sidecar validation text for connect 400 SidecarHttpError', async () => {
+it('shows sidecar validation in-app for connect 400 without OS notification permission', async () => {
+    const { SidecarHttpError } = await import('@shared/lib/sidecar');
+    osNotification.send.mockImplementation(() => {
+        throw new Error('notification permission denied');
+    });
+    mocks.connect.mockRejectedValueOnce(new SidecarHttpError('/connect', 400, 'Serial port required', false));
+    const { root, api } = renderHook();
+    try {
+        await flush();
+        await act(async () => {
+            await api.current?.handleConnect(machine);
+        });
+        expect(api.current?.sidecarStatus?.error).toBe('Serial port required');
+        expect(useToastStore.getState().toasts.some((t) => t.message === 'Serial port required')).toBe(true);
+    } finally {
+        osNotification.send.mockReset();
+        act(() => root.unmount());
+    }
+});
+
+it('shows sidecar validation text in OS notification when permitted', async () => {
     const { SidecarHttpError } = await import('@shared/lib/sidecar');
     mocks.connect.mockRejectedValueOnce(new SidecarHttpError('/connect', 400, 'Serial port required', false));
     const { root, api } = renderHook();
@@ -424,7 +444,7 @@ it('shows sidecar validation text for connect 400 SidecarHttpError', async () =>
         await act(async () => {
             await api.current?.handleConnect(machine);
         });
-        expect(osNotification.send).toHaveBeenCalledWith('연결 오류', '「Virtual」Serial port required');
+        expect(osNotification.send).toHaveBeenCalledWith('연결 오류', '「Virtual」 Serial port required');
     } finally {
         act(() => root.unmount());
     }

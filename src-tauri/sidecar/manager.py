@@ -20,6 +20,12 @@ _log = logging.getLogger(__name__)
 
 _REDACT_IPV4 = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}")
 _REDACT_HOST_PORT = re.compile(r"\[redacted\]:\d+")
+# snap7/modbus often stringify host+port tuples — scrub the whole tuple, not a half-redacted pair.
+_REDACT_ADDRESS_TUPLE = re.compile(
+    r"\(\s*['\"]?\[redacted\]['\"]?\s*,\s*\d+\s*\)"
+    r"|"
+    r"\(\s*['\"]?\d{1,3}(?:\.\d{1,3}){3}['\"]?\s*,\s*\d+\s*\)"
+)
 
 
 def _hardware_sentry_fingerprint(event: str, extra_tags: dict[str, str]) -> list[str]:
@@ -33,6 +39,7 @@ def _hardware_sentry_fingerprint(event: str, extra_tags: dict[str, str]) -> list
 
 def _scrub_exception_message(msg: str) -> str:
     clean = _REDACT_IPV4.sub("[redacted]", msg)
+    clean = _REDACT_ADDRESS_TUPLE.sub("[redacted]", clean)
     return _REDACT_HOST_PORT.sub("[redacted]", clean)
 
 
@@ -1143,7 +1150,7 @@ class RoasterManager:
         if self._pid_task is None or self._pid_task.done():
             # 태스크 참조를 self에 보관해야 GC가 가져가지 않는다 (재연결 태스크와 동일 패턴)
             self._pid_task = asyncio.create_task(self._pid_loop())
-        self._hw_alerts_sent.discard("pid_request_failed")
+        self._hw_alerts_sent.discard("pid_on_failed")
         return self._pid.state()
 
     async def pid_stop(self, mode: str = STOP_HOLD) -> dict[str, Any]:
@@ -1166,7 +1173,7 @@ class RoasterManager:
             await self._pid.set_sv(sv)
         except RuntimeError as exc:
             raise ControlUnavailable(str(exc)) from exc
-        self._hw_alerts_sent.discard("pid_request_failed")
+        self._hw_alerts_sent.discard("pid_sv_failed")
         return self._pid.state()
 
     async def _pid_loop(self) -> None:

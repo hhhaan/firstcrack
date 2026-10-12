@@ -28,6 +28,26 @@ def test_scrub_hardware_exception_redacts_host_port_and_keeps_traceback():
         assert scrubbed.__traceback__ is exc.__traceback__
 
 
+def test_scrub_hardware_exception_scrubs_address_tuple():
+    exc = ConnectionError("connect failed: ('[redacted]', 102)")
+    scrubbed = _scrub_hardware_exception(exc)
+    assert "102" not in str(scrubbed)
+    assert "('[redacted]'" not in str(scrubbed)
+
+
+def test_scrub_hardware_exception_scrubs_implicit_context_chain():
+    try:
+        try:
+            raise OSError("refused 192.168.0.10:102")
+        except OSError:
+            raise ConnectionError("PLC write failed")
+    except ConnectionError as exc:
+        scrubbed = _scrub_hardware_exception(exc)
+        assert scrubbed.__context__ is not None
+        assert "192.168.0.10" not in str(scrubbed.__context__)
+        assert ":102" not in str(scrubbed.__context__)
+
+
 def test_scrub_hardware_exception_scrubs_chained_cause():
     try:
         try:

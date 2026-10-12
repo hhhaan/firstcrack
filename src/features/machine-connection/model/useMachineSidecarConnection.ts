@@ -7,6 +7,7 @@ import { useAccountPlan } from '@shared/lib/features/useAccountPlan';
 import { logger } from '@shared/lib/logger';
 import { sendOsNotification } from '@shared/lib/osNotification';
 import { isSidecarHttpError, sidecar } from '@shared/lib/sidecar';
+import { useToastStore } from '@shared/store/toast';
 import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -192,11 +193,28 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
                     level: 'error',
                     data: { roasterKey: machine.roasterKey, error: String(e) },
                 });
+                const validationMessage = isSidecarHttpError(e) && e.status === 400 && e.message ? e.message : null;
                 const detail =
-                    isSidecarHttpError(e) && e.status === 400 && e.message
-                        ? e.message
-                        : '로스터 연결 중 문제가 발생했습니다. 사이드카 상태와 네트워크를 확인해 주세요.';
-                sendOsNotification('연결 오류', `「${machine.name}」${detail}`);
+                    validationMessage ??
+                    '로스터 연결 중 문제가 발생했습니다. 사이드카 상태와 네트워크를 확인해 주세요.';
+                if (validationMessage) {
+                    setSidecarStatus({
+                        connected: false,
+                        roaster: machine.roasterKey,
+                        display_name: machine.displayName,
+                        brand: machine.brand,
+                        capabilities: [],
+                        uptime: 0,
+                        error: validationMessage,
+                        machine_id: machine.id,
+                    });
+                    useToastStore.getState().show(validationMessage, 'error');
+                }
+                try {
+                    sendOsNotification('연결 오류', `「${machine.name}」 ${detail}`);
+                } catch {
+                    // OS notification is best-effort when permission is denied.
+                }
                 return null;
             } finally {
                 setConnecting(false);

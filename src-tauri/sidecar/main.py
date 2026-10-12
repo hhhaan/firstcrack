@@ -319,15 +319,20 @@ async def handle_fill(request: web.Request) -> web.Response:
 
 
 def _pid_error_response(
-    exc: Exception, manager: RoasterManager, *, once: bool = False
+    exc: Exception,
+    manager: RoasterManager,
+    *,
+    event: str,
+    route: str,
+    once: bool = False,
 ) -> web.Response:
     if isinstance(exc, control_guard.ControlRangeError):
         return web.json_response({"error": str(exc)}, status=400)
     if isinstance(exc, control_guard.ControlUnavailable):
         return web.json_response({"error": str(exc)}, status=409)
     # safe-off 쓰기 실패 포함 — 배출 후 버너가 안 꺼진 경로가 여기로 온다 (#269)
-    # /pid/off 재시도는 once=True — 같은 사고를 5초마다 Slack/Sentry에 안 쌓는다
-    manager._capture_hardware_error(exc, "pid_request_failed", once=once)
+    # once=True — 같은 사고를 5초마다 Slack/Sentry에 안 쌓는다 (키는 op별로 분리)
+    manager._capture_hardware_error(exc, event, once=once, route=route)
     _log.warning("PID 요청 실패 (%s)", type(exc).__name__, exc_info=True)
     return web.json_response({"error": "PID 명령을 처리하지 못했습니다."}, status=502)
 
@@ -358,7 +363,7 @@ async def handle_pid_on(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_start(_parse_sv(body))
     except Exception as exc:
-        return _pid_error_response(exc, manager, once=True)
+        return _pid_error_response(exc, manager, event="pid_on_failed", route="/pid/on", once=True)
     return web.json_response({"ok": True, "pid": state})
 
 
@@ -375,7 +380,7 @@ async def handle_pid_off(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_stop(mode or pid_runner.STOP_HOLD)
     except Exception as exc:
-        return _pid_error_response(exc, manager, once=True)
+        return _pid_error_response(exc, manager, event="pid_request_failed", route="/pid/off", once=True)
     return web.json_response({"ok": True, "pid": state})
 
 
@@ -388,7 +393,7 @@ async def handle_pid_sv(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_set_sv(_parse_sv(body))
     except Exception as exc:
-        return _pid_error_response(exc, manager, once=True)
+        return _pid_error_response(exc, manager, event="pid_sv_failed", route="/pid/sv", once=True)
     return web.json_response({"ok": True, "pid": state})
 
 

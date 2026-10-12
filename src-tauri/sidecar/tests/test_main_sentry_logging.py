@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import sentry_sdk
@@ -126,11 +126,108 @@ async def test_pid_on_502_once_dedupes_across_retries(http_client, sentry_transp
 
     assert len(sentry_transport.events) == 1
     tags = sentry_transport.events[0].get("tags") or {}
-    assert tags.get("event") == "pid_request_failed"
+    assert tags.get("event") == "pid_on_failed"
+    assert tags.get("route") == "/pid/on"
     _exception_value(sentry_transport.events[0])
 
 
-async def test_pid_502_once_dedupes_across_retries(http_client, sentry_transport):
+async def test_pid_on_failure_then_pid_off_failure_emits_two_events(http_client, sentry_transport):
+    manager = http_client.server.app["manager"]
+    manager._connected = True
+    manager._roaster_key = "virtual"
+    manager._protocol = "virtual"
+
+    with patch.object(manager, "pid_start", side_effect=OSError("on fail")):
+        assert (await http_client.post("/pid/on", json={"sv": 200})).status == 502
+
+    class _Pid:
+        async def off(self, reason: str = "user", *, mode: str = "hold") -> None:
+            raise OSError("off fail")
+
+        def state(self):
+            return {"state": "off", "error": None}
+
+    manager._pid = _Pid()
+    assert (await http_client.post("/pid/off", json={"mode": "zero"})).status == 502
+
+    assert len(sentry_transport.events) == 2
+    events = {(e.get("tags") or {}).get("event"): (e.get("tags") or {}).get("route") for e in sentry_transport.events}
+    assert events["pid_on_failed"] == "/pid/on"
+    assert events["pid_request_failed"] == "/pid/off"
+
+
+async def test_pid_sv_502_once_dedupes_across_retries(http_client, sentry_transport):
+    manager = http_client.server.app["manager"]
+    manager._connected = True
+    manager._roaster_key = "virtual"
+    manager._protocol = "virtual"
+    manager._pid = MagicMock()
+    manager._pid.state.return_value = {"state": "on", "error": None}
+
+    with patch.object(manager, "pid_set_sv", side_effect=OSError("sv fail")):
+        for _ in range(3):
+            assert (await http_client.post("/pid/sv", json={"sv": 210})).status == 502
+
+    assert len(sentry_transport.events) == 1
+    tags = sentry_transport.events[0].get("tags") or {}
+    assert tags.get("event") == "pid_sv_failed"
+    assert tags.get("route") == "/pid/sv"
+
+
+async def test_pid_on_success_clears_once_then_failure_reports_again(http_client, sentry_transport):
+    manager = http_client.server.app["manager"]
+    manager._connected = True
+    manager._roaster_key = "virtual"
+    manager._protocol = "virtual"
+    calls = 0
+
+    async def pid_start_side_effect(_sv: float):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OSError("first fail")
+        if calls == 2:
+            manager._hw_alerts_sent.discard("pid_on_failed")
+            return {"state": "on", "error": None}
+        raise OSError("second fail")
+
+    with patch.object(manager, "pid_start", side_effect=pid_start_side_effect):
+        assert (await http_client.post("/pid/on", json={"sv": 200})).status == 502
+        assert (await http_client.post("/pid/on", json={"sv": 200})).status == 200
+        assert (await http_client.post("/pid/on", json={"sv": 200})).status == 502
+
+    assert len(sentry_transport.events) == 2
+    assert all((e.get("tags") or {}).get("event") == "pid_on_failed" for e in sentry_transport.events)
+
+
+async def test_pid_sv_success_clears_once_then_failure_reports_again(http_client, sentry_transport):
+    manager = http_client.server.app["manager"]
+    manager._connected = True
+    manager._roaster_key = "virtual"
+    manager._protocol = "virtual"
+    manager._pid = MagicMock()
+    calls = 0
+
+    async def pid_set_sv_side_effect(_sv: float):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OSError("first fail")
+        if calls == 2:
+            manager._hw_alerts_sent.discard("pid_sv_failed")
+            return {"state": "on", "error": None}
+        raise OSError("second fail")
+
+    with patch.object(manager, "pid_set_sv", side_effect=pid_set_sv_side_effect):
+        assert (await http_client.post("/pid/sv", json={"sv": 210})).status == 502
+        assert (await http_client.post("/pid/sv", json={"sv": 215})).status == 200
+        assert (await http_client.post("/pid/sv", json={"sv": 220})).status == 502
+
+    assert len(sentry_transport.events) == 2
+    assert all((e.get("tags") or {}).get("event") == "pid_sv_failed" for e in sentry_transport.events)
+
+
+async def test_pid_off_502_once_dedupes_across_retries(http_client, sentry_transport):
     manager = http_client.server.app["manager"]
     manager._connected = True
     manager._roaster_key = "test"
@@ -152,4 +249,5 @@ async def test_pid_502_once_dedupes_across_retries(http_client, sentry_transport
     assert len(sentry_transport.events) == 1
     tags = sentry_transport.events[0].get("tags") or {}
     assert tags.get("event") == "pid_request_failed"
+    assert tags.get("route") == "/pid/off"
     _exception_value(sentry_transport.events[0])
