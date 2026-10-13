@@ -1,0 +1,33 @@
+scripts:
+  setup: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "${ORCA_WORKTREE_PATH:?Orca worktree path is required}"
+    ROOT="${ORCA_ROOT_PATH:?Orca root path is required}"
+    
+    for file in .env .env.development .env.production; do
+      if [[ ! -e "$file" && ! -L "$file" && -f "$ROOT/$file" ]]; then
+        cp "$ROOT/$file" "$file"
+      fi
+    done
+    
+    pnpm install --frozen-lockfile
+    
+    SIDECAR="src-tauri/sidecar"
+    if [[ ! -x "$SIDECAR/.venv/bin/python" ]]; then
+      python3 -m venv "$SIDECAR/.venv"
+    fi
+    "$SIDECAR/.venv/bin/python" -m pip install -r "$SIDECAR/requirements-dev.txt"
+    
+    TARGET="$(rustc -vV | sed -n 's/^host: //p')"
+    [[ -n "$TARGET" ]] || { echo "Could not determine Rust host target" >&2; exit 1; }
+    BINARY="src-tauri/binaries/sidecar-$TARGET"
+    if [[ ! -f "$BINARY" ]]; then
+      if [[ -f "$ROOT/$BINARY" ]]; then
+        mkdir -p src-tauri/binaries
+        cp "$ROOT/$BINARY" "$BINARY"
+      else
+        echo "Sidecar binary missing; run pnpm build:sidecar before pnpm tauri dev" >&2
+      fi
+    fi
+    echo "Orca workspace ready"
