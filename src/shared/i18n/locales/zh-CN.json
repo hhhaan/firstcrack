@@ -1534,6 +1534,7 @@
             "addEvent": "添加事件",
             "eventType": "事件类型",
             "duplicate": "该事件已记录。",
+            "protected": "无法删除投入、排出、结束以及已记录的关键标记。",
             "save": "保存",
             "saving": "保存中…",
             "saveFailed": "保存失败。已保留你的输入，请重试。",
