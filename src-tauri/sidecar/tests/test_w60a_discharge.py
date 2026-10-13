@@ -9,7 +9,9 @@ from snap7.util.getters import get_int
 from adapters.s7 import S7Adapter
 from control_guard import ControlUnavailable
 from main import create_app
+from protocol_trace import TRACE
 from roaster_registry import ROASTER_REGISTRY
+from tests.conftest import make_reading
 
 
 @pytest.mark.parametrize("action,raw", [("open", 5), ("close", 6)])
@@ -22,6 +24,86 @@ async def test_writes_only_discharge_command_word(action, raw):
     db, offset, payload = adapter._plc.db_write.call_args.args
     assert (db, offset, get_int(payload, 0)) == (2, 30, raw)
     assert len(payload) == 2  # No pulse-to-zero or cooling tray RELEASE.
+
+
+@pytest.mark.parametrize("door,action,raw", [
+    ("fill", "open", 1), ("fill", "close", 2),
+    ("discharge", "open", 5), ("discharge", "close", 6),
+])
+async def test_door_trace_distinguishes_acknowledgement_from_transmission(door, action, raw):
+    adapter = S7Adapter(w60a_discharge="on", w60a_fill="on")
+    adapter._plc = MagicMock()
+    adapter._min_interval = 0
+    TRACE.enabled = True
+    await getattr(adapter, door)(action)
+    entries = TRACE.dump()
+    assert entries[-1]["dir"] == "rx"
+    assert entries[-1]["detail"] == f"db_write acknowledged db=2 offset=30 role={door}"
+    assert entries[-1]["data"] == raw
+    adapter._plc.db_write.assert_called_once()
+    adapter._plc.db_read.assert_not_called()
+
+
+@pytest.mark.parametrize("raw", [0, 1, 2, 5, 6, 42])
+async def test_door_command_read_preserves_raw_value_without_writing(raw):
+    adapter = S7Adapter()
+    adapter._plc = MagicMock()
+    adapter._plc.db_read.return_value = bytearray(raw.to_bytes(2, "big", signed=True))
+    adapter._min_interval = 0
+    assert await adapter.read_door_command() == raw
+    adapter._plc.db_read.assert_called_once_with(2, 30, 2)
+    adapter._plc.db_write.assert_not_called()
+
+
+@pytest.mark.parametrize("changed", ["client", "session"])
+async def test_door_command_read_rejects_connection_changed_while_waiting_for_lock(changed):
+    adapter = S7Adapter()
+    old_plc = MagicMock()
+    adapter._plc = old_plc
+
+    def acquire(**_):
+        if changed == "client":
+            adapter._plc = MagicMock()
+        else:
+            adapter._session += 1
+        return True
+
+    adapter._io_lock = MagicMock()
+    adapter._io_lock.acquire.side_effect = acquire
+    with pytest.raises(ConnectionError):
+        await adapter.read_door_command()
+    old_plc.db_read.assert_not_called()
+    old_plc.db_write.assert_not_called()
+    adapter._io_lock.release.assert_called_once()
+
+
+async def test_door_command_read_discards_result_after_session_changes():
+    adapter = S7Adapter()
+    plc = MagicMock()
+    adapter._plc = plc
+    adapter._min_interval = 0
+
+    def read(*_):
+        adapter._session += 1
+        return bytearray(b"\x00\x05")
+
+    plc.db_read.side_effect = read
+    with pytest.raises(ConnectionError):
+        await adapter.read_door_command()
+    plc.db_write.assert_not_called()
+    assert adapter._io_lock.locked() is False
+
+
+async def test_failed_door_write_does_not_record_an_acknowledgement():
+    adapter = S7Adapter(w60a_discharge="on")
+    adapter._plc = MagicMock()
+    adapter._plc.db_write.side_effect = ConnectionError("PLC write failed")
+    adapter._min_interval = 0
+    TRACE.enabled = True
+    with pytest.raises(ConnectionError):
+        await adapter.discharge("open")
+    assert [entry["dir"] for entry in TRACE.dump()] == ["tx"]
+    adapter._plc.db_write.assert_called_once()
 
 
 @pytest.mark.parametrize("enabled,action", [("off", "open"), ("on", "release")])
@@ -128,6 +210,47 @@ async def discharge_client(monkeypatch):
     monkeypatch.delenv("SIDECAR_TOKEN", raising=False)
     async with TestClient(TestServer(create_app())) as client:
         yield client
+
+
+async def test_w60a_probe_exposes_command_word_without_moving_doors(discharge_client):
+    manager = discharge_client.server.app["manager"]
+    enable_discharge(manager)
+    adapter = S7Adapter()
+    adapter._plc = MagicMock()
+    adapter._plc.db_read.return_value = bytearray(b"\x00\x05")
+    adapter._min_interval = 0
+    manager._adapter = adapter
+    body = await (await discharge_client.get("/debug/probe")).json()
+    assert body["ok"] is True
+    assert body["door_command"] == {"db": 2, "offset": 30, "raw": 5}
+    adapter._plc.db_read.assert_called_once_with(2, 30, 2)
+    adapter._plc.db_write.assert_not_called()
+    assert any(entry["detail"] == "db_read db=2 offset=30 role=door_command" for entry in body["trace"])
+
+
+async def test_door_probe_failure_preserves_temperature_result_and_reports_once(discharge_client):
+    manager = discharge_client.server.app["manager"]
+    enable_discharge(manager)
+    manager._adapter.read.return_value = make_reading()
+    error = ConnectionError("PLC command word read failed")
+    manager._adapter.read_door_command.side_effect = error
+    manager._capture_hardware_error = MagicMock()
+    body = await (await discharge_client.get("/debug/probe")).json()
+    assert body["ok"] is True
+    assert body["door_command"] == {"db": 2, "offset": 30, "error": "read_failed"}
+    manager._capture_hardware_error.assert_called_once_with(error, "door_command_probe_failed", once=True)
+    manager._adapter.discharge.assert_not_awaited()
+    manager._adapter.fill.assert_not_awaited()
+
+
+async def test_other_roaster_probe_does_not_read_w60a_command_word(discharge_client):
+    manager = discharge_client.server.app["manager"]
+    enable_discharge(manager)
+    manager._adapter.read.return_value = make_reading()
+    manager._roaster_key = "giesen_standard"
+    body = await (await discharge_client.get("/debug/probe")).json()
+    assert "door_command" not in body
+    manager._adapter.read_door_command.assert_not_awaited()
 
 
 async def test_machine_catalog_does_not_put_discharge_on_the_connection_form(discharge_client):

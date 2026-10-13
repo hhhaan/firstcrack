@@ -534,6 +534,31 @@ class S7Adapter:
         """쓰기 가능한 role → spec. 빈 dict면 이 머신은 쓰기 미지원."""
         return self._write_map
 
+    async def read_door_command(self) -> int:
+        """Diagnostic read of DB2.30; this is a command value, not a door position."""
+        plc, session = self._plc, self._session
+        if plc is None:
+            raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
+        deadline = time.monotonic() + config.S7_READ_BUDGET_S
+
+        def _read() -> int:
+            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+                raise TimeoutError("S7 I/O 락 대기 시간 초과")
+            try:
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed before door command probe")
+                value = self._read_channel_sync(
+                    {"role": "door_command", "db": 2, "offset": 30, "type": 0, "div": 0},
+                    plc, deadline,
+                )
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed during door command probe")
+                return int(value)
+            finally:
+                self._io_lock.release()
+
+        return await asyncio.get_running_loop().run_in_executor(None, _read)
+
     async def _write_db2_command(self, role: str, value: int) -> None:
         """Latch one INT16 on the shared W60A command word. The PLC keeps it until the next command."""
         plc, session = self._plc, self._session
@@ -549,6 +574,7 @@ class S7Adapter:
                 self._write_channel_sync(
                     role, {"db": 2, "offset": 30, "type": 0, "div": 0}, value, plc,
                 )
+                TRACE.record("rx", "s7", f"db_write acknowledged db=2 offset=30 role={role}", value)
             finally:
                 self._io_lock.release()
 

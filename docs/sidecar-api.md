@@ -729,6 +729,11 @@ Behavior:
 
 - probe 동안 트레이스를 일시 활성화하고, 완료 후 이전 활성화 상태로 복원한다 (best-effort — 동시 `POST /debug/trace`가 있으면 그 값이 우선).
 - Response는 `manager.probe()` 결과에 `trace` 배열(probe 구간 트레이스)을 덧붙인 형태다.
+- W60A S7 연결에서는 `door_command: { db: 2, offset: 30, raw: number }`도 반환한다.
+  `raw`는 DB2.30의 명령 워드이며 문 위치나 동작 완료를 뜻하지 않는다. 추가 쓰기는 없다.
+  이 읽기만 실패하면 온도 결과는 유지하고 `door_command.error: "read_failed"`를 반환한다.
+- 문 명령 전후 probe를 비교하고, 트레이스의 `db_write acknowledged`로 PLC 쓰기 완료를 구분한다.
+  명령 값이 남거나 `0`으로 바뀌어도 물리 동작·명령 소비를 단정하지 않는다.
 
 ### POST /shutdown
 

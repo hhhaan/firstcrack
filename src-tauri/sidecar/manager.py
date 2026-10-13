@@ -1346,9 +1346,8 @@ class RoasterManager:
         t0 = time.monotonic()
         try:
             r = await adapter.read()
-            return {
+            result = {
                 "ok": True,
-                "elapsed_ms": round((time.monotonic() - t0) * 1000, 1),
                 "raw": {
                     "bt": r.bt,
                     "et": r.et,
@@ -1357,6 +1356,14 @@ class RoasterManager:
                     "drum": r.drum,
                 },
             }
+            if self._roaster_key == "giesen_w45a_w60a" and self._protocol == "s7":
+                try:
+                    result["door_command"] = {"db": 2, "offset": 30, "raw": await adapter.read_door_command()}
+                except Exception as exc:
+                    self._capture_hardware_error(exc, "door_command_probe_failed", once=True)
+                    result["door_command"] = {"db": 2, "offset": 30, "error": "read_failed"}
+            result["elapsed_ms"] = round((time.monotonic() - t0) * 1000, 1)
+            return result
         except Exception as exc:
             return {
                 "ok": False,
