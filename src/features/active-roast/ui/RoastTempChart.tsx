@@ -25,6 +25,7 @@ import {
 import { isRemovableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
+import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { type RoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
@@ -137,6 +138,8 @@ interface Props {
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
     onEventMarkerEdit?: (logId: string, patch: EventMarkerPatch) => void;
     onEventMarkerDelete?: (logId: string) => void;
+    /** Saved-curve review can delete notes and custom marks only. */
+    savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
     onAddEvent?: (event: string, timeSec: number) => void;
     showET?: boolean;
@@ -316,6 +319,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onEventMarkerDrag,
         onEventMarkerEdit,
         onEventMarkerDelete,
+        savedReview = false,
         onAddNote,
         onAddEvent,
         hideChargeLabel = false,
@@ -1106,11 +1110,16 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     };
 
     const deleteEdit = useCallback(() => {
-        if (!editForm || !onEventMarkerDelete || !isRemovableLogEvent(editForm.event)) return;
+        if (
+            !editForm ||
+            !onEventMarkerDelete ||
+            !(savedReview ? isReviewDeletableEvent : isRemovableLogEvent)(editForm.event)
+        )
+            return;
         onEventMarkerDelete(editForm.logId);
         setEditForm(null);
         chartRef.current?.focus();
-    }, [editForm, onEventMarkerDelete]);
+    }, [editForm, onEventMarkerDelete, savedReview]);
 
     return (
         <div
@@ -1291,16 +1300,17 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         />
                     )}
                     <div className="flex items-center justify-end gap-1">
-                        {onEventMarkerDelete && isRemovableLogEvent(editForm.event) && (
-                            <button
-                                type="button"
-                                data-chart-marker-delete
-                                onClick={deleteEdit}
-                                className="rounded px-2 text-xs text-muted"
-                            >
-                                {t('common.delete')}
-                            </button>
-                        )}
+                        {onEventMarkerDelete &&
+                            (savedReview ? isReviewDeletableEvent : isRemovableLogEvent)(editForm.event) && (
+                                <button
+                                    type="button"
+                                    data-chart-marker-delete
+                                    onClick={deleteEdit}
+                                    className="rounded px-2 text-xs text-muted"
+                                >
+                                    {t('common.delete')}
+                                </button>
+                            )}
                         <button type="submit" className="rounded px-2 text-xs text-(--color-text-primary)">
                             {t('common.save')}
                         </button>

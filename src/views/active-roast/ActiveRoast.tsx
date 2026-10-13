@@ -845,6 +845,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [applyReviewLog],
     );
 
+    const handleReviewMark = useCallback(
+        (event: string, note: string) => {
+            const frozen = selectReviewSnapshot(useRoastingStore.getState());
+            if (!frozen) return;
+            const timeSec = Math.max(0, frozen.elapsed);
+            const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
+            const tempC =
+                nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : (frozen.rawBT ?? null);
+            frozenLogEdit(appendReviewEntry(frozen.logEntries, event, note, timeSec, tempC, unit));
+        },
+        [frozenLogEdit, unit],
+    );
+
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
@@ -1102,10 +1115,20 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const [noteInput, setNoteInput] = useState('');
     const handleNoteSubmit = useCallback(() => {
-        if (!noteInput.trim()) return;
-        markEvent('Note', noteInput.trim());
+        const body = noteInput.trim();
+        if (!body) return;
+        const frozen = selectReviewSnapshot(useRoastingStore.getState());
+        if (frozen) {
+            const timeSec = Math.max(0, frozen.elapsed);
+            const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
+            const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
+            frozenLogEdit(appendReviewEntry(frozen.logEntries, 'Note', body, timeSec, tempC, unit));
+            setNoteInput('');
+            return;
+        }
+        markEvent('Note', body);
         setNoteInput('');
-    }, [noteInput, markEvent]);
+    }, [frozenLogEdit, markEvent, noteInput, unit]);
 
     // ── 표시용 파생값 ─────────────────────────────────────────────
     const { deltaBT, deltaET } = useMemo(() => calcDelta(livePoints, unit), [livePoints, unit]);
@@ -1278,6 +1301,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onEventMarkerDrag={chartFrame.onEventMarkerDrag}
                         onEventMarkerEdit={chartFrame.onEventMarkerEdit}
                         onEventMarkerDelete={chartFrame.onEventMarkerDelete}
+                        savedReview={reviewing}
                         onAddNote={chartFrame.onAddNote}
                         onAddEvent={chartFrame.onAddEvent}
                     />
@@ -1325,7 +1349,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         noteInput={noteInput}
                         onNoteChange={setNoteInput}
                         onNoteSubmit={handleNoteSubmit}
-                        onMarkEvent={markEvent}
+                        onMarkEvent={reviewing ? handleReviewMark : markEvent}
                         onCycleFc={cycleFc}
                         onHandleDrop={markDrop}
                         onRemoveLogEntry={removeCurveEntry}

@@ -11,11 +11,14 @@ export const RoastSidePanelLayout = ({
     roastLogDisplayEntries,
     onRemoveLogEntry,
     logEditOptions,
+    deletableEvent,
 }: {
     children: ReactNode;
     roastLogDisplayEntries: LogEntry[];
     onRemoveLogEntry: (id: string) => void;
     logEditOptions?: RoastLogEditOptions;
+    /** Review keeps key marks. Live roast keeps the default removable set. */
+    deletableEvent?: (event: string) => boolean;
 }) => {
     const { t } = useTranslation();
     const { logExpanded } = useRoastSettings();
@@ -60,6 +63,7 @@ export const RoastSidePanelLayout = ({
                             entries={roastLogDisplayEntries}
                             onRemoveEntry={onRemoveLogEntry}
                             editOptions={logEditOptions}
+                            deletableEvent={deletableEvent}
                         />
                     </>
                 )}
@@ -89,6 +93,7 @@ export const RoastSidePanelLayout = ({
                             entries={[...roastLogDisplayEntries].reverse()}
                             onRemoveEntry={onRemoveLogEntry}
                             editOptions={logEditOptions}
+                            deletableEvent={deletableEvent}
                         />
                     </div>
                 </section>

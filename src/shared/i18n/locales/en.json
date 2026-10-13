@@ -1539,6 +1539,7 @@
             "addEvent": "Add event",
             "eventType": "Event type",
             "duplicate": "This event is already recorded.",
+            "protected": "Charge, Drop, End, and recorded key marks can't be removed.",
             "save": "Save",
             "saving": "Saving…",
             "saveFailed": "Could not save. Your edits are kept — try again.",
