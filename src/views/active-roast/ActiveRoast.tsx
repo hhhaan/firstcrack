@@ -1,5 +1,4 @@
 import { useBeans } from '@entities/bean/queries';
-import { clearMachineDoors, matchedDoorMachine, pushMachineDoors, useMachines } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useBbpCurve } from '@entities/roast';
@@ -38,7 +37,6 @@ import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
-import { doorOpenSkipReason } from '@features/machine-control/lib/doorOpenSkip';
 import { profileHeatTarget } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
@@ -46,12 +44,10 @@ import { subscribeExplicitMachineDisconnect } from '@shared/lib/explicitMachineD
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
-import { captureDoorSkipped } from '@shared/lib/sentry';
 import { sidecar } from '@shared/lib/sidecar';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
-import { useToastStore } from '@shared/store/toast';
 import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
@@ -130,7 +126,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
     const bbpEnabled = bbpFeatureEnabled(useFeature(FEATURE.bbp), roastSettings.bbpEnabled);
-    const machineControlEntitled = useFeature(FEATURE.machineControl);
     const bbpElapsed = useBbpTimer();
     const bbpTimer = bbpElapsedWhenEnabled(bbpEnabled, bbpElapsed);
     const bbpActive = useBbpStore((s) => s.active);
@@ -444,8 +439,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const dropCancelable = useRoastingStore(selectDropCancelable);
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
-    const openDischargeRef = useRef<() => void>(() => {});
-    const openFillRef = useRef<() => void>(() => {});
 
     const {
         triggerCharge: startChargeAction,
@@ -461,11 +454,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const triggerCharge = useCallback(
         (bt?: number | null, chargeTimeMs?: number) => {
-            const before = useRoastingStore.getState().phase;
             startChargeAction(bt, chargeTimeMs);
-            if (!isChargedPhase(before) && isChargedPhase(useRoastingStore.getState().phase)) {
-                useRoastingStore.setState({ doorDischargeAttemptedSessionId: null });
-            }
             // Rearm auto Drop for this batch only. Drop's reset would re-arm too early (#484).
             resetAutoDetectionRef.current?.();
         },
@@ -515,15 +504,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [applyDrop]);
 
     const markDrop = useCallback(() => {
-        if (applyDrop()) openDischargeRef.current();
+        applyDrop();
     }, [applyDrop]);
 
     const chargeLock = useLeadingLock(2000);
     const markCharge = useCallback(() => {
         chargeLock.run(() => {
-            void lifecycle.handleManualCharge().then((started) => {
-                if (started) openFillRef.current();
-            });
+            void lifecycle.handleManualCharge();
         });
     }, [chargeLock.run, lifecycle.handleManualCharge]);
     // This slot is return, then Charge. One lock covers the mash across that swap.
@@ -649,8 +636,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         roastSettings.rorSmoothing,
         roastSettings.etRorSmoothing,
     ]);
-
-    const machines = useMachines((state) => state.machines);
 
     // ── Effect: 링크가 끊기면 예열·대기만 초기화 ──────────────────
     // 로스팅 중 장애는 세션을 보존한다. 재연결되면 끊긴 구간만 비고 커브가 이어진다.
@@ -988,7 +973,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const machineControl = useMachineControlComposition({
         sidecarConnected,
-        doorControlEntitled: machineControlEntitled,
         reconnecting,
         liveData,
         pidRuntime,
@@ -1014,92 +998,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onHeaterCommitted: handleHeaterCommitted,
         onApplied: handleControlApplied,
     });
-    const doorMachine = machineControl.doorMachine;
-    const doorSwitches = {
-        present: doorMachine != null,
-        dischargeOn: doorMachine?.dischargeDoor === true,
-        fillOn: doorMachine?.fillDoor === true,
-    };
-    const liveDoorStatus = machineControl.machine.connectionStatus;
-    useEffect(() => {
-        if (
-            !sidecarConnected ||
-            !liveDoorStatus?.connected ||
-            !liveDoorStatus.machine_id ||
-            liveDoorStatus.connection_epoch == null
-        )
-            return;
-        const target = { machine_id: liveDoorStatus.machine_id, connection_epoch: liveDoorStatus.connection_epoch };
-        const machine =
-            liveDoorStatus.roaster === 'giesen_w45a_w60a'
-                ? matchedDoorMachine(machines, liveDoorStatus.machine_id)
-                : undefined;
-        if (machine) pushMachineDoors(machine, target);
-        else clearMachineDoors(target);
-    }, [
-        sidecarConnected,
-        liveDoorStatus?.connected,
-        liveDoorStatus?.roaster,
-        liveDoorStatus?.machine_id,
-        liveDoorStatus?.connection_epoch,
-        machines,
-    ]);
-
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
-        const tryDoorOpen = (which: 'discharge' | 'fill') => {
-            if (which === 'discharge') {
-                const state = useRoastingStore.getState();
-                const droppedSessionId = state.completed?.snapshot.sessionId ?? state.sessionId;
-                if (!droppedSessionId || state.doorDischargeAttemptedSessionId === droppedSessionId) return;
-                useRoastingStore.setState({ doorDischargeAttemptedSessionId: droppedSessionId });
-            }
-            const liveStatus = machineControl.machine.connectionStatus;
-            const list = useMachines.getState().machines;
-            const matched =
-                liveStatus?.roaster === 'giesen_w45a_w60a'
-                    ? matchedDoorMachine(list, liveStatus.machine_id)
-                    : undefined;
-            const switchOn = which === 'discharge' ? matched?.dischargeDoor === true : matched?.fillDoor === true;
-            const noticeSnapshot = useRoastingStore.getState().machineSnapshot;
-            const noticeKey = liveStatus?.roaster ?? noticeSnapshot?.machine_roaster_key;
-            const reason = doorOpenSkipReason({
-                matched: matched != null,
-                switchOn,
-                anySameKeySwitchOn: list.some(
-                    (item) =>
-                        item.roasterKey === noticeKey &&
-                        (which === 'discharge' ? item.dischargeDoor === true : item.fillDoor === true),
-                ),
-                entitled: machineControlEntitled,
-                connected: sidecarConnected,
-                reconnecting,
-                supported: which === 'discharge' ? machineControl.discharge.available : machineControl.fill.available,
-            });
-            if (reason) {
-                useToastStore.getState().show(reason.message, 'error');
-                if (matched && switchOn) captureDoorSkipped(which, reason.code);
-                return;
-            }
-            if (!matched || !switchOn) return;
-            if (which === 'discharge') void machineControl.discharge.send('open');
-            else void machineControl.fill.send('open');
-        };
-        openDischargeRef.current = () => tryDoorOpen('discharge');
-        openFillRef.current = () => tryDoorOpen('fill');
-    }, [
-        machineControl.replay.active,
-        machineControl.replay.stop,
-        machineControl.discharge.send,
-        machineControl.discharge.available,
-        machineControl.fill.send,
-        machineControl.fill.available,
-        machineControl.machine.connectionStatus,
-        machineControlEntitled,
-        sidecarConnected,
-        reconnecting,
-    ]);
+    }, [machineControl.replay.active, machineControl.replay.stop]);
 
     const handleCancelDrop = useCallback(() => {
         const sessionId = saveFlow.flow.summaryData?.sessionId;
@@ -1313,7 +1215,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         replayPoints={replayPoints}
                         temperatureUnit={unit}
-                        doorSwitches={doorSwitches}
                         hotkeysEnabled={isRoastShortcutBaseEnabled({
                             isActive,
                             showEndRoastModal: saveFlow.flow.endRoastModal,

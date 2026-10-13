@@ -1,18 +1,14 @@
-import { matchedDoorMachine, type PidRuntime, useMachines } from '@entities/machine';
+import type { PidRuntime } from '@entities/machine';
 import { useCallback, useEffect, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
-import { sharedDoorGate } from '../lib/doorGate';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
-import { useDischargeControl } from './useDischargeControl';
-import { useFillControl } from './useFillControl';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { usePidControl } from './usePidControl';
 import { type ObservationQuality, type ReplayStopReason, useReplayControl } from './useReplayControl';
 
 export interface MachineControlCompositionInput {
     sidecarConnected: boolean;
-    doorControlEntitled?: boolean;
     /** 사이드카 재연결 대기 — 실측 동결 중이라 이탈 카운트를 멈춘다 (#307) */
     reconnecting: boolean;
     liveData: MachineFeedback;
@@ -48,7 +44,7 @@ export interface MachineControlCompositionInput {
 }
 
 /**
- * Manual setpoint, discharge, fill, PID, and Replay share one lifetime.
+ * Manual setpoint, PID, and Replay share one lifetime.
  * Display (collapse, entitlement, empty panel) must not mount or unmount this hook.
  * Replay stop cancels unsent Replay heater writes and does not restart.
  */
@@ -71,7 +67,6 @@ export const useMachineControlComposition = ({
     observationQuality,
     lastValidReceivedAtMs,
     nowMs,
-    doorControlEntitled = false,
     onHeaterCommitted,
     onCommitted,
     onApplied,
@@ -85,27 +80,6 @@ export const useMachineControlComposition = ({
         [onCommitted, onHeaterCommitted],
     );
     const machine = useMachineControl(sidecarConnected, liveData, handleCommitted, onApplied);
-    const doorGate = sharedDoorGate;
-    const machines = useMachines((state) => state.machines);
-    const status = machine.connectionStatus;
-    const doorMachine =
-        status?.roaster === 'giesen_w45a_w60a' ? matchedDoorMachine(machines, status.machine_id) : undefined;
-    const target = { machine_id: status?.machine_id, connection_epoch: status?.connection_epoch };
-    const doorReady = Boolean(
-        sidecarConnected &&
-            status?.connected &&
-            !status.reconnecting &&
-            !reconnecting &&
-            doorControlEntitled &&
-            doorMachine &&
-            status.connection_epoch != null,
-    );
-    const discharge = useDischargeControl(
-        doorReady && doorMachine?.dischargeDoor === true && machine.dischargeSupported,
-        doorGate,
-        target,
-    );
-    const fill = useFillControl(doorReady && doorMachine?.fillDoor === true && machine.fillSupported, doorGate, target);
     useEffect(() => {
         heaterUnitRef.current = machine.limits.heater?.unit ?? '%';
     }, [machine.limits.heater?.unit]);
@@ -171,7 +145,7 @@ export const useMachineControlComposition = ({
         [replay.stop, machine.setValue],
     );
 
-    return { machine, discharge, fill, doorMachine, pid, replay, pidActive, changeManual, commitManual };
+    return { machine, pid, replay, pidActive, changeManual, commitManual };
 };
 
 export type MachineControlComposition = ReturnType<typeof useMachineControlComposition>;

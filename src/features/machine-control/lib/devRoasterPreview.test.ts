@@ -10,8 +10,6 @@ describe('devRoasterControl', () => {
         vi.stubEnv('VITE_DEV_ROASTER', 'giesen_w45a_w60a');
         expect(devRoasterControl()).toEqual({
             writable: true,
-            discharge: true,
-            fill: true,
             limits: {
                 heater: { min: 0, max: 100, unit: '%' },
                 fan: { min: 0, max: 100, unit: '%' },
@@ -27,7 +25,6 @@ describe('devRoasterControl', () => {
         expect(control?.limits.heater).toEqual({ min: 0, max: 100, unit: '%' });
         expect(control?.limits.drum).toEqual({ min: 0, max: 100, unit: '%' });
         expect(control?.limits.fan).toBeUndefined();
-        expect(control?.discharge).toBe(false);
     });
 
     it('ignores a read-only protocol and an unknown key', () => {

@@ -19,35 +19,6 @@ import { MachineControlChannels } from './MachineControlChannels';
 import { PidControlPanel } from './PidControlPanel';
 import { ReplayControlPanel } from './ReplayControlPanel';
 
-const doorBtnCls =
-    'shrink-0 rounded-md border border-border-subtle px-2 py-0.5 text-[11px] text-primary hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40';
-
-function DoorRow({
-    label,
-    enabled,
-    onOpen,
-    onClose,
-}: {
-    label: string;
-    enabled: boolean;
-    onOpen: () => void;
-    onClose: () => void;
-}) {
-    return (
-        <div className="flex items-center justify-between gap-1">
-            <span className="min-w-0 truncate text-[11px] font-semibold leading-tight text-secondary">{label}</span>
-            <span className="flex shrink-0 gap-1">
-                <button type="button" disabled={!enabled} onClick={onOpen} className={doorBtnCls}>
-                    열기
-                </button>
-                <button type="button" disabled={!enabled} onClick={onClose} className={doorBtnCls}>
-                    닫기
-                </button>
-            </span>
-        </div>
-    );
-}
-
 interface Props {
     /** Control lifetime lives in the parent. Hiding this panel must not unmount it. */
     model: MachineControlComposition;
@@ -58,8 +29,6 @@ interface Props {
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
     hotkeysEnabled?: boolean;
-    /** Machine-list door switches. Off keeps the open and close buttons disabled. */
-    doorSwitches?: { present: boolean; dischargeOn: boolean; fillOn: boolean };
 }
 
 /**
@@ -76,10 +45,9 @@ export const MachineControlPanel = ({
     pidDropBehavior,
     temperatureUnit,
     hotkeysEnabled = false,
-    doorSwitches = { present: false, dischargeOn: false, fillOn: false },
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
-    const { machine, discharge, fill, pid, replay, pidActive, changeManual, commitManual } = model;
+    const { machine, pid, replay, pidActive, changeManual, commitManual } = model;
     const { writable, limits, desired, unacknowledged, sending } = machine;
     const [collapsed, setCollapsed] = useState(false);
     const [heatEditorOpen, setHeatEditorOpen] = useState(false);
@@ -157,31 +125,6 @@ export const MachineControlPanel = ({
                     onChange={changeManual}
                     onCommit={commitManual}
                 />
-                {(discharge.available || fill.available || doorSwitches.present) && (
-                    <div className="flex flex-col gap-1.5">
-                        {(discharge.available || doorSwitches.present) && (
-                            <DoorRow
-                                label="배출문"
-                                enabled={
-                                    doorSwitches.dischargeOn &&
-                                    discharge.available &&
-                                    !discharge.sending &&
-                                    !fill.sending
-                                }
-                                onOpen={() => void discharge.send('open')}
-                                onClose={() => void discharge.send('close')}
-                            />
-                        )}
-                        {(fill.available || doorSwitches.present) && (
-                            <DoorRow
-                                label="투입구"
-                                enabled={doorSwitches.fillOn && fill.available && !discharge.sending && !fill.sending}
-                                onOpen={() => void fill.send('open')}
-                                onClose={() => void fill.send('close')}
-                            />
-                        )}
-                    </div>
-                )}
                 {/* fader 열은 좁아 문장이 안 들어간다 — 경고는 패널 폭 전체를 쓴다 */}
                 {anyUnacknowledged && (
                     <p className="text-[11px] leading-snug text-red-500">

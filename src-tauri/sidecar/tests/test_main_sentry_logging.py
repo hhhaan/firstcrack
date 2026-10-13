@@ -12,8 +12,6 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 
 from main import create_app
 from tests.conftest import FakeAdapter, make_reading
-from tests.test_w60a_discharge import enable_discharge
-from tests.test_w60a_fill import enable_fill
 
 
 class _CapturingTransport(sentry_sdk.Transport):
@@ -54,44 +52,6 @@ async def http_client(monkeypatch):
     monkeypatch.delenv("SIDECAR_TOKEN", raising=False)
     async with TestClient(TestServer(create_app())) as client:
         yield client
-
-
-async def test_discharge_502_emits_one_tagged_sentry_event(http_client, sentry_transport):
-    manager = http_client.server.app["manager"]
-    enable_discharge(manager)
-    manager._adapter.discharge.side_effect = ConnectionError("PLC 10.0.0.2:1112 write failed")
-
-    response = await http_client.post(
-        "/discharge",
-        json={"action": "open", "machine_id": "door-test", "connection_epoch": 0},
-    )
-    assert response.status == 502
-    assert len(sentry_transport.events) == 1
-    event = sentry_transport.events[0]
-    tags = event.get("tags") or {}
-    assert tags.get("door") == "discharge"
-    assert tags.get("event") == "discharge"
-    value = _exception_value(event)
-    assert "10.0.0.2" not in value
-    assert ":1112" not in value
-
-
-async def test_fill_502_emits_one_tagged_sentry_event(http_client, sentry_transport):
-    manager = http_client.server.app["manager"]
-    enable_fill(manager)
-    manager._adapter.fill.side_effect = ConnectionError("PLC 10.0.0.2:1112 write failed")
-
-    response = await http_client.post(
-        "/fill",
-        json={"action": "close", "machine_id": "door-test", "connection_epoch": 0},
-    )
-    assert response.status == 502
-    assert len(sentry_transport.events) == 1
-    event = sentry_transport.events[0]
-    tags = event.get("tags") or {}
-    assert tags.get("door") == "fill"
-    assert tags.get("event") == "fill"
-    _exception_value(event)
 
 
 async def test_control_502_emits_one_tagged_sentry_event(http_client, sentry_transport):

@@ -1,4 +1,4 @@
-import { type ControlCapability, machineDoorControl, ROASTER_REGISTRY } from '@entities/machine';
+import { type ControlCapability, ROASTER_REGISTRY } from '@entities/machine';
 
 const CHANNELS = ['heater', 'fan', 'drum'] as const;
 /** Same set as the sidecar. Read capabilities do not make a protocol writable. */
@@ -18,13 +18,10 @@ export function devRoasterControl(): ControlCapability | null {
     for (const role of CHANNELS) {
         if (def.capabilities.includes(role)) limits[role] = { min: 0, max: 100, unit: '%' };
     }
-    const doors = machineDoorControl({ roasterKey: key });
-    if (Object.keys(limits).length === 0 && !doors) return null;
+    if (Object.keys(limits).length === 0) return null;
 
     return {
-        writable: Object.keys(limits).length > 0,
-        discharge: doors,
-        fill: doors,
+        writable: true,
         limits,
         ...(def.pid && limits.heater ? { pid: { supported: true, sv_min: 50, sv_max: 250 } } : {}),
     };

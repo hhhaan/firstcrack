@@ -1,5 +1,5 @@
 import type { Machine } from '@entities/machine';
-import { machineDoorControl, pushMachineDoors, useMachines, VIRTUAL_ID } from '@entities/machine';
+import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useMachineSidecarConnection } from '@features/machine-connection';
 import type { View } from '@shared/types/view';
@@ -16,7 +16,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { disconnectMachineWithRoastGuard } from './lib/roastDisconnectConfirm';
 import { MachineConnectionDetails } from './ui/MachineConnectionDetails';
-import { MachineDoorControl } from './ui/MachineDoorControl';
 
 export const Machines = ({
     isActive = false,
@@ -26,7 +25,7 @@ export const Machines = ({
     onNavigate?: (view: View) => void;
 }) => {
     const { t } = useTranslation();
-    const { machines, removeMachine, updateMachine } = useMachines();
+    const { machines, removeMachine } = useMachines();
     const [selectedId, setSelectedId] = useState<string | null>(null);
     /** Bridges page-state modalOpen into sidecar poll gate (hook order). */
     const [modalOpenForPoll, setModalOpenForPoll] = useState(false);
@@ -72,7 +71,6 @@ export const Machines = ({
     const handleConnect = async (machine: Machine) => {
         const status = await connectMachine(machine);
         if (status?.connected) {
-            pushMachineDoors(machine, status);
             const { phase, enterPreheating, setConnected } = useRoastingStore.getState();
             if (phase === 'idle' || phase === 'ended') {
                 enterPreheating(status.capabilities);
@@ -273,28 +271,6 @@ export const Machines = ({
                                         </div>
                                     ))}
                                 </div>
-
-                                {machineDoorControl(selected) && (
-                                    <MachineDoorControl
-                                        title={t('machines.doors')}
-                                        discharge={selected.dischargeDoor === true}
-                                        fill={selected.fillDoor === true}
-                                        dischargeLabel={t('machines.dischargeDoor')}
-                                        dischargeHint={t('machines.dischargeDoorHint')}
-                                        fillLabel={t('machines.fillDoor')}
-                                        fillHint={t('machines.fillDoorHint')}
-                                        onDischarge={(dischargeDoor) => {
-                                            updateMachine(selected.id, { dischargeDoor });
-                                            if (isSelectedConnected && sidecarStatus)
-                                                pushMachineDoors({ ...selected, dischargeDoor }, sidecarStatus);
-                                        }}
-                                        onFill={(fillDoor) => {
-                                            updateMachine(selected.id, { fillDoor });
-                                            if (isSelectedConnected && sidecarStatus)
-                                                pushMachineDoors({ ...selected, fillDoor }, sidecarStatus);
-                                        }}
-                                    />
-                                )}
 
                                 {/* Connection params */}
                                 {Object.keys(selected.connectionParams).length > 0 && (

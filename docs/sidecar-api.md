@@ -546,48 +546,6 @@ Notes:
 - Kaleido/Modbus/Phidget/Probat adapter의 `control()`은 아직 no-op이다. Virtual은
   명령값을 저장해 이후 판독에 반영한다(실기 없이 제어 UI를 확인하는 용도).
 
-### POST /discharge
-
-W60A 문 제어 연결 대상: `POST /connect`는 선택한 로스터의 저장 ID를 `machine_id`로 받으며 `GET /status`는 이를 `connection_epoch`와 함께 반환한다. 명시적 새 연결은 두 문 스위치를 OFF로 시작한다. 같은 연결의 자동 재연결과 배치 reset은 기기 ID를 유지하고, 의도적 disconnect는 ID를 지운다. `POST /settings`의 문 스위치와 `POST /fill`, `POST /discharge`는 현재 상태의 `machine_id`와 `connection_epoch`를 함께 보내야 한다. 이전 연결의 요청은 409로 거절하며 재전송하지 않는다. 앱은 같은 프리셋을 쓰는 다른 저장 기기로 대체하지 않는다.
-
-Giesen **W60A 배출문** 열기·닫기. 머신 상세의 배출구 스위치가 켜져 있어야 한다.
-기본값은 꺼짐이며, W60A가 아닌 연결에서는 적용되지 않는다.
-활성화 여부는 `GET /status.control.discharge`로 확인한다. 앱은 `POST /settings`의 `w60a_discharge`로 바꾼다.
-
-```json
-{ "action": "open", "machine_id": "saved-machine-id", "connection_epoch": 1 }
-```
-
-- `open` → S7 INT16 `DB2.30 = 5`, `close` → `DB2.30 = 6`.
-- 응답 `200 { "ok": true }`는 PLC 쓰기 확인이며 실제 문 위치를 보장하지 않는다.
-- 잘못된 요청 `400`, 미연결·미활성화·연결 변경 `409`, PLC 쓰기 실패 `502`.
-- 명령 후 `0`을 쓰거나 자동 재전송하지 않는다. 냉각 트레이의 RELEASE는 포함하지 않는다.
-
-앱 제어 패널에서 수동 열기·닫기를 제공한다. 사용자가 **Drop 버튼 또는 단축키**로 배출을 확정하면
-열기 명령을 한 번 보낸다. 자동 Drop 감지, 이벤트 편집, 연결·재연결, 배출 취소, Charge는 문을 조작하지 않는다.
-문 명령에 실패해도 완료한 로스트와 저장 흐름은 유지하며 조작반 확인 안내를 표시한다.
-
-명령 출처: [Artisan W60A 설정](https://github.com/artisan-roaster-scope/artisan/blob/master/src/includes/Machines/Giesen/W60A.aset).
-실제 액추에이터의 동작과 펌웨어별 호환성은 실기 검증이 필요하다.
-
-### POST /fill
-
-Giesen **W60A 투입구**(호퍼 → 드럼) 열기·닫기. 머신 상세의 투입구 스위치가 켜져 있어야 한다.
-기본값은 꺼짐이다. 활성화 여부는 `GET /status.control.fill`로 확인한다. 앱은 `POST /settings`의 `w60a_fill`로 바꾼다.
-
-```json
-{ "action": "open", "machine_id": "saved-machine-id", "connection_epoch": 1 }
-```
-
-- `open` → S7 INT16 `DB2.30 = 1`, `close` → `DB2.30 = 2`.
-- 배출문과 **같은 명령 워드**다. 나중에 쓴 값이 이전 래치를 대체한다. `0`으로 지우지 않는다.
-- 응답 `200 { "ok": true }`는 PLC 쓰기 확인이며 슬라이드 위치를 보장하지 않는다.
-- 잘못된 요청 `400`, 미연결·미활성화·연결 변경 `409`, PLC 쓰기 실패 `502`.
-
-앱 제어 패널에서 수동 열기·닫기를 제공한다. 사용자가 **Charge 버튼 또는 단축키**로 투입을 확정하면
-열기 명령을 한 번 보낸다. 자동 Charge 감지, Drop, 이벤트 편집, 연결·재연결은 투입구를 조작하지 않는다.
-명령에 실패해도 투입 기록은 유지하며 조작반 확인 안내를 표시한다.
-
 ### POST /pid/on · /pid/off · /pid/sv
 
 소프트웨어 PID. BT를 목표 온도(SV)로 추종하도록 heater duty를 계산해 쓴다.
@@ -729,11 +687,6 @@ Behavior:
 
 - probe 동안 트레이스를 일시 활성화하고, 완료 후 이전 활성화 상태로 복원한다 (best-effort — 동시 `POST /debug/trace`가 있으면 그 값이 우선).
 - Response는 `manager.probe()` 결과에 `trace` 배열(probe 구간 트레이스)을 덧붙인 형태다.
-- W60A S7 연결에서는 `door_command: { db: 2, offset: 30, raw: number }`도 반환한다.
-  `raw`는 DB2.30의 명령 워드이며 문 위치나 동작 완료를 뜻하지 않는다. 추가 쓰기는 없다.
-  이 읽기만 실패하면 온도 결과는 유지하고 `door_command.error: "read_failed"`를 반환한다.
-- 문 명령 전후 probe를 비교하고, 트레이스의 `db_write acknowledged`로 PLC 쓰기 완료를 구분한다.
-  명령 값이 남거나 `0`으로 바뀌어도 물리 동작·명령 소비를 단정하지 않는다.
 
 ### POST /shutdown
 

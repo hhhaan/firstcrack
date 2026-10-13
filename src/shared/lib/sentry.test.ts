@@ -5,9 +5,6 @@ import { BatchLimitError } from './features/plan-matrix';
 import {
     buildSentryOptions,
     captureActionable,
-    captureDoorSettingsPushFailure,
-    captureDoorSkipped,
-    captureDoorWriteNoResponse,
     captureRoastingImportFailure,
     captureSidecarRequestFailure,
     isActionableError,
@@ -20,7 +17,6 @@ import {
     reactRootOptions,
     reportReactQueryError,
     reportTsvRestoreDroppedRows,
-    resetDoorSkippedDedupeForTests,
     resetRoastingImportScanDedupeForTests,
     resetSidecarFailureRateLimitForTests,
     retryUnlessClientRefusal,
@@ -346,78 +342,6 @@ describe('reportTsvRestoreDroppedRows', () => {
         });
         const blob = JSON.stringify(vi.mocked(Sentry.captureMessage).mock.calls[0]);
         expect(blob).not.toMatch(/\d{1,3}(?:\.\d{1,3}){3}/);
-    });
-});
-
-describe('door-control capture helpers', () => {
-    afterEach(() => resetDoorSkippedDedupeForTests());
-
-    it('captureDoorSettingsPushFailure tags settings push without paths', () => {
-        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 503, message: '/dev/ttyUSB0' });
-        expect(Sentry.captureMessage).toHaveBeenCalledWith('door.settings-push failed', {
-            level: 'error',
-            fingerprint: ['door', 'settings-push', 'settings', '503'],
-            tags: { feature: 'door-control', op: 'settings-push', 'http.status': '503' },
-        });
-        const blob = JSON.stringify(vi.mocked(Sentry.captureMessage).mock.calls[0]);
-        expect(blob).not.toContain('/dev/');
-    });
-
-    it('captureDoorSkipped dedupes per door per session', () => {
-        captureDoorSkipped('discharge', 'link-unsettled');
-        captureDoorSkipped('discharge', 'not-entitled');
-        captureDoorSkipped('fill', 'door-not-armed');
-        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
-        expect(Sentry.captureMessage).toHaveBeenCalledWith('door.skipped', {
-            level: 'warning',
-            fingerprint: ['door', 'skipped', 'discharge', 'link-unsettled'],
-            tags: { feature: 'door-control', door: 'discharge', reason: 'link-unsettled' },
-        });
-    });
-
-    it('uses distinct fingerprints so Sentry dedupe does not merge different door events', () => {
-        captureDoorSkipped('discharge', 'link-unsettled');
-        captureDoorWriteNoResponse({ door: 'fill', action: 'open', status: 'network' });
-        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 503, message: 'x' });
-        const fingerprints = vi
-            .mocked(Sentry.captureMessage)
-            .mock.calls.map((call) => (call[1] as { fingerprint?: string[] }).fingerprint);
-        expect(fingerprints).toEqual([
-            ['door', 'skipped', 'discharge', 'link-unsettled'],
-            ['door', 'no-response', 'fill', 'open'],
-            ['door', 'settings-push', 'settings', '503'],
-        ]);
-        expect(new Set(fingerprints.map((fp) => JSON.stringify(fp)))).toHaveProperty('size', 3);
-    });
-
-    it('captureDoorWriteNoResponse uses warning on timeout and error on network', () => {
-        captureDoorWriteNoResponse({ door: 'fill', action: 'close', status: 'timeout' });
-        expect(Sentry.captureMessage).toHaveBeenLastCalledWith('door.write no-response', {
-            level: 'warning',
-            fingerprint: ['door', 'no-response', 'fill', 'close'],
-            tags: {
-                feature: 'door-control',
-                door: 'fill',
-                action: 'close',
-                reason: 'no-response',
-            },
-        });
-        captureDoorWriteNoResponse({ door: 'discharge', action: 'open', status: 'network' });
-        expect(Sentry.captureMessage).toHaveBeenLastCalledWith('door.write no-response', {
-            level: 'error',
-            fingerprint: ['door', 'no-response', 'discharge', 'open'],
-            tags: {
-                feature: 'door-control',
-                door: 'discharge',
-                action: 'open',
-                reason: 'no-response',
-            },
-        });
-    });
-
-    it('captureDoorSettingsPushFailure ignores expected 409 target races', () => {
-        captureDoorSettingsPushFailure({ name: 'SidecarHttpError', status: 409, message: 'target' });
-        expect(Sentry.captureMessage).not.toHaveBeenCalled();
     });
 });
 

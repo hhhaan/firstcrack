@@ -59,11 +59,11 @@ describe('sidecar.waitUntilReady', () => {
                 machine_id: 'b',
             });
             fetchMock.mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
-            await sidecar.updateSettings({ machine_id: 'b', connection_epoch: 2, w60a_fill: true });
+            await sidecar.updateSettings({ machine_id: 'b', connection_epoch: 2, ror_window_sec: 30 });
             expect(refreshed).toHaveBeenCalledOnce();
             fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: 'wrong target' }), { status: 409 }));
             await expect(
-                sidecar.updateSettings({ machine_id: 'a', connection_epoch: 1, w60a_fill: true }),
+                sidecar.updateSettings({ machine_id: 'a', connection_epoch: 1, ror_window_sec: 30 }),
             ).rejects.toMatchObject({ message: 'wrong target', status: 409 });
             expect(captureSidecar).not.toHaveBeenCalled();
             expect(refreshed).toHaveBeenCalledOnce();
@@ -130,36 +130,6 @@ describe('sidecar.waitUntilReady', () => {
 
         await expect(sidecar.waitUntilReady()).rejects.toBeInstanceOf(SyntaxError);
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(captureSidecar).not.toHaveBeenCalled();
-    });
-
-    it('does not report sidecar failures for setDischarge on HTTP timeout (door hook owns observability)', async () => {
-        vi.useFakeTimers();
-        vi.stubGlobal(
-            'fetch',
-            vi.fn(async (_url: string, init?: RequestInit) => {
-                expect(init?.signal).toBeInstanceOf(AbortSignal);
-                await vi.advanceTimersByTimeAsync(5000);
-                throw new DOMException('The operation timed out.', 'TimeoutError');
-            }),
-        );
-        const pending = sidecar.setDischarge('open');
-        await expect(pending).rejects.toMatchObject({ status: 'timeout', route: '/discharge' });
-        expect(captureSidecar).not.toHaveBeenCalled();
-    });
-
-    it('does not report sidecar failures for setFill on HTTP timeout (door hook owns observability)', async () => {
-        vi.useFakeTimers();
-        vi.stubGlobal(
-            'fetch',
-            vi.fn(async (_url: string, init?: RequestInit) => {
-                expect(init?.signal).toBeInstanceOf(AbortSignal);
-                await vi.advanceTimersByTimeAsync(5000);
-                throw new DOMException('The operation timed out.', 'TimeoutError');
-            }),
-        );
-        const pending = sidecar.setFill('close');
-        await expect(pending).rejects.toMatchObject({ status: 'timeout', route: '/fill' });
         expect(captureSidecar).not.toHaveBeenCalled();
     });
 

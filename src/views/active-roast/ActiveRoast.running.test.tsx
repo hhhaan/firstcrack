@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
-import { type Machine, useMachines } from '@entities/machine';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
-import * as featureAccess from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
-import { useToastStore } from '@shared/store/toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -16,12 +13,6 @@ import { ActiveRoast } from './ActiveRoast';
 import { ActiveRoastRuntime } from './ActiveRoastRuntime';
 
 vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
-
-const doorSkipped = vi.hoisted(() => vi.fn());
-vi.mock('@shared/lib/sentry', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@shared/lib/sentry')>();
-    return { ...actual, captureDoorSkipped: doorSkipped, resetDoorSkippedDedupeForTests: vi.fn() };
-});
 
 const RUNNING_CLOSE = '로스팅이 진행 중입니다. 정말 종료하시겠습니까?';
 const UNSAVED_CLOSE = '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?';
@@ -129,8 +120,6 @@ vi.mock('@shared/lib/sidecar', async (importOriginal) => {
             resetRoast: vi.fn().mockResolvedValue({ ok: true }),
             enterStandby: vi.fn().mockResolvedValue(undefined),
             setControl: vi.fn().mockResolvedValue({ applied: {} }),
-            setDischarge: vi.fn().mockResolvedValue({ ok: true }),
-            setFill: vi.fn().mockResolvedValue({ ok: true }),
             pidOff: vi.fn().mockResolvedValue({ ok: true }),
             pidOn: vi.fn().mockResolvedValue({ ok: true }),
         },
@@ -143,40 +132,6 @@ const originalTick = useRoastingStore.getState().tick;
 let tickCalls = 0;
 
 const clockText = (host: HTMLElement) => host.querySelector('[data-testid="roast-time"]')?.textContent ?? '';
-
-const DOOR_MACHINE_ID = 'w60-door-test';
-
-const doorSnapshot = {
-    machine_id: DOOR_MACHINE_ID,
-    machine_name: 'W60',
-    machine_roaster_key: 'giesen_w45a_w60a',
-    machine_brand: 'Giesen',
-    machine_protocol: 's7',
-};
-
-const installDoorMachine = (doors: Pick<Machine, 'dischargeDoor' | 'fillDoor'>) => {
-    const previous = useMachines.getState().machines;
-    const machine: Machine = {
-        id: DOOR_MACHINE_ID,
-        name: 'W60',
-        roasterKey: 'giesen_w45a_w60a',
-        displayName: 'Giesen W45A / W60A',
-        brand: 'Giesen',
-        models: ['W60A'],
-        protocol: 's7',
-        connectionParams: {},
-        capabilities: [],
-        pid: null,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        ...doors,
-    };
-    useMachines.setState({
-        machines: [...previous.filter((item) => item.id !== DOOR_MACHINE_ID), machine],
-    });
-    return () => {
-        useMachines.setState({ machines: previous });
-    };
-};
 
 const seed = (patch: Partial<ReturnType<typeof useRoastingStore.getState>>) => {
     tickCalls = 0;
@@ -298,86 +253,8 @@ describe('ActiveRoast running clock (#627)', () => {
         Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
     });
 
-    it('opens the enabled W60A door once on manual Drop and preserves the completed batch on failure', async () => {
-        const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
-        const restoreMachines = installDoorMachine({ dischargeDoor: true, fillDoor: false });
-        const status = vi.mocked(sidecar.getStatus);
-        const originalStatus = status.getMockImplementation();
-        status.mockResolvedValue({
-            connected: true,
-            roaster: 'giesen_w45a_w60a',
-            machine_id: DOOR_MACHINE_ID,
-            connection_epoch: 1,
-            control: {
-                writable: true,
-                limits: { heater: { min: 0, max: 100, unit: '%' } },
-                discharge: true,
-            },
-        } as Awaited<ReturnType<typeof sidecar.getStatus>>);
-        vi.mocked(sidecar.setDischarge).mockClear().mockRejectedValueOnce(new Error('PLC write failed'));
+    it('manual Drop completes the batch', async () => {
         seed({
-            liveData: { bt: 155, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 },
-            machineSnapshot: doorSnapshot,
-        });
-        let unmount = mount();
-        try {
-            await flushMicrotasks();
-            expect(sidecar.setDischarge).not.toHaveBeenCalled();
-            const drop = [...host.querySelectorAll('button')].find((button) =>
-                button.textContent?.includes(markDropLabel()),
-            );
-            expect(drop).toBeDefined();
-            await act(async () => {
-                drop?.click();
-                drop?.click();
-            });
-            await flushMicrotasks();
-            expect(sidecar.setDischarge).toHaveBeenCalledExactlyOnceWith('open', {
-                machine_id: DOOR_MACHINE_ID,
-                connection_epoch: 1,
-            });
-            expect(useRoastingStore.getState().completed?.snapshot.sessionId).toBe('sess-remount');
-            expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
-            expect(sidecar.setFill).not.toHaveBeenCalled();
-            await act(async () => {
-                useRoastingStore.getState().cancelDrop('sess-remount');
-            });
-            unmount();
-            unmount = mount();
-            await flushMicrotasks();
-            const secondDrop = [...host.querySelectorAll('button')].find((button) =>
-                button.textContent?.includes(markDropLabel()),
-            );
-            await act(async () => {
-                secondDrop?.click();
-            });
-            await flushMicrotasks();
-            expect(sidecar.setDischarge).toHaveBeenCalledTimes(1);
-        } finally {
-            unmount();
-            restoreMachines();
-            access.mockRestore();
-            if (originalStatus) status.mockImplementation(originalStatus);
-        }
-    });
-
-    it('explains a skipped opted-in door after disconnect while preserving manual Drop', async () => {
-        const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
-        const restoreMachines = installDoorMachine({ dischargeDoor: true, fillDoor: false });
-        const show = vi.spyOn(useToastStore.getState(), 'show');
-        doorSkipped.mockClear();
-        vi.mocked(sidecar.setDischarge).mockClear();
-        vi.mocked(sidecar.getStatus).mockResolvedValue({
-            connected: true,
-            roaster: 'giesen_w45a_w60a',
-            machine_id: DOOR_MACHINE_ID,
-            connection_epoch: 1,
-            control: { writable: true, limits: {}, discharge: true },
-        } as Awaited<ReturnType<typeof sidecar.getStatus>>);
-        seed({
-            sidecarConnected: true,
-            reconnecting: true,
-            machineSnapshot: doorSnapshot,
             liveData: { bt: 155, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 },
         });
         const unmount = mount();
@@ -386,47 +263,23 @@ describe('ActiveRoast running clock (#627)', () => {
             const drop = [...host.querySelectorAll('button')].find((button) =>
                 button.textContent?.includes(markDropLabel()),
             );
+            expect(drop).toBeDefined();
             await act(async () => {
                 drop?.click();
             });
             await flushMicrotasks();
             expect(useRoastingStore.getState().completed?.snapshot.sessionId).toBe('sess-remount');
-            expect(sidecar.setDischarge).not.toHaveBeenCalled();
-            expect(show).toHaveBeenCalledWith(expect.stringContaining('문을 움직이지 않았습니다'), 'error');
-            expect(doorSkipped).toHaveBeenCalledOnce();
-            expect(doorSkipped).toHaveBeenCalledWith('discharge', 'link-unsettled');
+            expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
         } finally {
             unmount();
-            restoreMachines();
-            access.mockRestore();
-            show.mockRestore();
         }
     });
 
-    it('opens the enabled W60A hopper once on manual Charge and not on Drop', async () => {
-        const access = vi.spyOn(featureAccess, 'useFeature').mockReturnValue(true);
-        const restoreMachines = installDoorMachine({ dischargeDoor: false, fillDoor: true });
-        const status = vi.mocked(sidecar.getStatus);
-        const originalStatus = status.getMockImplementation();
-        status.mockResolvedValue({
-            connected: true,
-            roaster: 'giesen_w45a_w60a',
-            machine_id: DOOR_MACHINE_ID,
-            connection_epoch: 1,
-            control: {
-                writable: true,
-                limits: { heater: { min: 0, max: 100, unit: '%' } },
-                fill: true,
-                discharge: true,
-            },
-        } as Awaited<ReturnType<typeof sidecar.getStatus>>);
-        vi.mocked(sidecar.setFill).mockClear().mockResolvedValue({ ok: true });
-        vi.mocked(sidecar.setDischarge).mockClear();
+    it('manual Charge starts roasting', async () => {
         seed({
             phase: 'standby',
             roastStartMs: 0,
             elapsed: 0,
-            machineSnapshot: doorSnapshot,
             liveData: { bt: 180, et: 200, ror: 0, ror_et: 0, heater: 20, fan: 0, drum: 0 },
         });
         const unmount = mount();
@@ -441,16 +294,9 @@ describe('ActiveRoast running clock (#627)', () => {
                 await Promise.resolve();
             });
             await flushMicrotasks();
-            expect(sidecar.setFill).toHaveBeenCalledExactlyOnceWith('open', {
-                machine_id: DOOR_MACHINE_ID,
-                connection_epoch: 1,
-            });
-            expect(sidecar.setDischarge).not.toHaveBeenCalled();
+            expect(useRoastingStore.getState().phase).toBe('roasting');
         } finally {
             unmount();
-            restoreMachines();
-            access.mockRestore();
-            if (originalStatus) status.mockImplementation(originalStatus);
         }
     });
 
