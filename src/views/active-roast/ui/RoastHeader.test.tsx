@@ -41,7 +41,19 @@ vi.mock('react-i18next', () => ({
 
 afterEach(() => {
     useRoastingStore.getState().reset();
+    document.body.replaceChildren();
 });
+
+const click = (element: Element | null | undefined) => {
+    act(() => {
+        element?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+};
+
+const targetButton = () => document.querySelector('button[aria-label="activeRoast.header.target"]');
+
+const buttonNamed = (text: string) =>
+    [...document.querySelectorAll('button')].find((button) => button.textContent?.includes(text));
 
 const props = {
     phase: 'roasting',
@@ -68,6 +80,7 @@ it('delegates a profile change and does not save the account default', () => {
     profileMutate.mockClear();
     const onTargetProfileChange = vi.fn();
     const host = document.createElement('div');
+    document.body.append(host);
     const root = createRoot(host);
     act(() =>
         root.render(
@@ -78,11 +91,8 @@ it('delegates a profile change and does not save the account default', () => {
             }),
         ),
     );
-    const profileSelect = host.querySelectorAll('select')[1] as HTMLSelectElement;
-    act(() => {
-        profileSelect.value = 'prof-2';
-        profileSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    click(targetButton());
+    click(buttonNamed('Two'));
     act(() => {
         vi.advanceTimersByTime(300);
     });
@@ -106,57 +116,33 @@ it('locks bean change while roasting or ended and unlocks it in standby', () => 
     act(() => root.unmount());
 });
 
-it('opens a history background from the target select without changing the profile', () => {
-    const onTargetProfileChange = vi.fn();
-    const onChooseHistoryReference = vi.fn();
-    const host = document.createElement('div');
-    const root = createRoot(host);
-    act(() =>
-        root.render(
-            createElement(RoastHeader, {
-                ...props,
-                targetProfileId: 'prof-1',
-                onTargetProfileChange,
-                onChooseHistoryReference,
-            }),
-        ),
-    );
-    const profileSelect = host.querySelectorAll('select')[1] as HTMLSelectElement;
-    const choose = [...profileSelect.options].find((option) => option.textContent === 'activeRoast.reference.choose');
-    act(() => {
-        profileSelect.value = choose?.value ?? '';
-        profileSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    expect(onChooseHistoryReference).toHaveBeenCalledOnce();
-    expect(onTargetProfileChange).not.toHaveBeenCalled();
-    expect(profileSelect.value).toBe('prof-1');
-    act(() => root.unmount());
-});
-
-it('shows a history roast as the target and returns to the profile from the same select', () => {
+it('keeps the target list on the profile while a history background is active', () => {
     const onTargetProfileChange = vi.fn();
     const onClearHistoryReference = vi.fn();
     const host = document.createElement('div');
+    document.body.append(host);
     const root = createRoot(host);
     act(() =>
         root.render(
             createElement(RoastHeader, {
                 ...props,
                 targetProfileId: 'prof-1',
-                historyReferenceName: 'Reference roast',
+                historyReferenceName: 'Reference roast · 26-10-12',
                 onTargetProfileChange,
                 onChooseHistoryReference: () => {},
                 onClearHistoryReference,
             }),
         ),
     );
-    const profileSelect = host.querySelectorAll('select')[1] as HTMLSelectElement;
-    expect(profileSelect.selectedOptions[0]?.textContent).toBe('Reference roast');
-    const clear = [...profileSelect.options].find((option) => option.textContent === 'activeRoast.reference.clear');
-    act(() => {
-        profileSelect.value = clear?.value ?? '';
-        profileSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    const trigger = targetButton();
+    expect(trigger?.textContent).toContain('Reference roast · 26-10-12');
+    expect(trigger?.textContent).not.toContain('One');
+    click(trigger);
+    expect(buttonNamed('activeRoast.reference.choose')).toBeDefined();
+    const profileItem = [...document.querySelectorAll('button')].find(
+        (button) => button !== trigger && button.textContent?.includes('One'),
+    );
+    click(profileItem);
     expect(onClearHistoryReference).toHaveBeenCalledOnce();
     expect(onTargetProfileChange).not.toHaveBeenCalled();
     act(() => root.unmount());

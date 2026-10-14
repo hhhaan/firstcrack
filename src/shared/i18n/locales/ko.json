@@ -1303,8 +1303,8 @@
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
             "noBeanSelected": "생두 미선택",
-            "target": "목표:",
-            "noTarget": "목표 없음",
+            "target": "Target:",
+            "noTarget": "Target 없음",
             "disconnected": "연결 안 됨",
             "machineConnected": "머신 연결됨 · 로스팅 준비 완료",
             "liveRoastInProgress": "실시간 — 로스팅 진행 중",
@@ -1535,7 +1535,7 @@
             }
         },
         "reference": {
-            "choose": "히스토리 배경 선택",
+            "choose": "히스토리에서 선택",
             "clear": "프로파일 배경으로 복귀",
             "failed": "로스팅 곡선을 불러오지 못했습니다.",
             "noCurve": "기록된 곡선 없음",

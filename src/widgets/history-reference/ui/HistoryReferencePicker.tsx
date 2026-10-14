@@ -1,15 +1,11 @@
 import { useRoastSessionsInfinite } from '@entities/roast';
 import { useRoastProfileCurve } from '@entities/roast-profile';
-import { formatDateShort } from '@shared/lib/format';
-import { sessionBeanName } from '@shared/lib/sessionBeanName';
-import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { historyReferenceTitle, toHistoryReference, type HistoryReference } from '../model/reference';
 
-export type HistoryReference = { id: string; ownerId: string; name: string; tsvPath: string; bbpPath: string | null };
-const title = (session: RoastSessionWithRelations) =>
-    `${session.bean_label?.trim() || sessionBeanName(session) || '—'} · ${formatDateShort(session.roasted_at)}`;
+export type { HistoryReference };
 
 export const HistoryReferencePicker = ({
     ownerId,
@@ -44,16 +40,13 @@ export const HistoryReferencePicker = ({
     );
     const selected = sessions.find((session) => session.id === selectedId && session.user_id === ownerId);
     const curve = useRoastProfileCurve(selected?.tsv_path);
-    const rows = sessions.filter((session) => title(session).toLowerCase().includes(search.trim().toLowerCase()));
+    const rows = sessions.filter((session) =>
+        historyReferenceTitle(session).toLowerCase().includes(search.trim().toLowerCase()),
+    );
     const apply = () => {
-        if (!selected?.tsv_path || !curve.data?.length || curve.isError) return;
-        onSelect({
-            id: selected.id,
-            ownerId,
-            name: title(selected),
-            tsvPath: selected.tsv_path,
-            bbpPath: selected.bbp_tsv_path,
-        });
+        const reference = selected ? toHistoryReference(selected, ownerId) : null;
+        if (!reference || !curve.data?.length || curve.isError) return;
+        onSelect(reference);
         onClose();
     };
     return (
@@ -85,7 +78,7 @@ export const HistoryReferencePicker = ({
                         onClick={() => setSelectedId(session.id)}
                         className={`block w-full rounded border p-3 text-left text-sm text-primary disabled:opacity-40 ${selectedId === session.id ? 'border-primary' : 'border-border'}`}
                     >
-                        {title(session)}
+                        {historyReferenceTitle(session)}
                         {!session.tsv_path && (
                             <span className="ml-2 text-xs text-muted">{t('activeRoast.reference.noCurve')}</span>
                         )}

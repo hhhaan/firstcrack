@@ -273,8 +273,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [dbProfiles, targetProfileId, workspaceOwnerId],
     );
     const { points: targetCurvePoints, isLoading: curveLoading } = useResolvedProfileCurve(targetProfile);
-    const backgroundCurvePoints = reference ? (historyCurve.data ?? []) : targetCurvePoints;
-    const replayPoints = replayPointsForProfile(targetProfileId, curveLoading, targetCurvePoints);
+    const historyPoints = historyCurve.data ?? [];
+    const backgroundCurvePoints = reference ? historyPoints : targetCurvePoints;
+    const replayPoints = replayPointsForProfile(
+        reference?.id ?? targetProfileId,
+        reference ? historyCurve.isLoading : curveLoading,
+        backgroundCurvePoints,
+    );
     const sourceSession = resolveSourceSession(targetProfile?.source_session);
     const waitingForCharge = isWaitingForCharge(bbpActive, charged);
     const bbpTarget = useBbpCurve(
@@ -285,36 +290,39 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
     // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
+    // 히스토리 기록은 그 자체로 프로파일 역할이다. 곡선, 화력, Drop/TP는 그 기록에서 온다.
     const sourceEvents = useMemo(
-        () => parseStoredRoastEvents(resolveSourceSession(targetProfile?.source_session)?.events),
-        [targetProfile],
+        () =>
+            parseStoredRoastEvents(
+                reference ? reference.events : resolveSourceSession(targetProfile?.source_session)?.events,
+            ),
+        [reference, targetProfile],
     );
     const replayDropTime = useMemo(
-        () => sourceEvents.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null,
-        [sourceEvents, targetProfile?.duration_sec],
+        () =>
+            sourceEvents.find((e) => e.type === 'Drop')?.time_sec ??
+            (reference ? reference.durationSec : targetProfile?.duration_sec) ??
+            null,
+        [sourceEvents, reference, targetProfile?.duration_sec],
     );
     const referenceTpTime = useMemo(() => sourceEvents.find((e) => e.type === 'TP')?.time_sec ?? null, [sourceEvents]);
+    const heatEvents = reference ? reference.heaterEvents : profileHeaterEvents(targetProfile);
     const heatTarget = useMemo(() => {
-        if (!targetProfile) return undefined;
-        return profileHeatTarget(
-            targetCurvePoints,
-            replayDropTime,
-            profileHeaterEvents(targetProfile),
-            referenceTpTime,
-        );
-    }, [targetProfile, targetCurvePoints, replayDropTime, referenceTpTime]);
+        if (!reference && !targetProfile) return undefined;
+        return profileHeatTarget(backgroundCurvePoints, replayDropTime, heatEvents, referenceTpTime);
+    }, [reference, targetProfile, backgroundCurvePoints, replayDropTime, heatEvents, referenceTpTime]);
     const referenceFcStartSec = useMemo(
         () => sourceEvents.find((e) => e.type === 'FC Start')?.time_sec ?? null,
         [sourceEvents],
     );
 
     // 기존 Standard 기록은 같은 머신 ID의 W60 키 마이그레이션 뒤에도 재생한다.
-    const referenceKey = targetProfile?.machine_roaster_key ?? null;
+    const referenceKey = (reference ? reference.machineKey : targetProfile?.machine_roaster_key) ?? null;
     const currentKey = machineSnapshot?.machine_roaster_key ?? null;
     const replayMachineMismatch = isReplayMachineMismatch(
         referenceKey,
         currentKey,
-        targetProfile?.machine_id,
+        reference ? reference.machineId : targetProfile?.machine_id,
         machineSnapshot?.machine_id,
     );
     // biome-ignore lint/correctness/useExhaustiveDependencies: identity for in-flight Replay profile confirm
@@ -430,11 +438,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { data: weatherData } = useWeather();
 
     // ── 모달/저장 플로우 ──────────────────────────────────────────
+    const historyTargetRef = useRef(reference);
+    historyTargetRef.current = reference;
     const saveFlow = useRoastSaveFlow({
         rawBT,
         ambientTemperature: weatherData?.temperature,
         ambientHumidity: weatherData?.humidity,
         onResetActiveRoast: lifecycle.resetActiveRoast,
+        savedProfileId: () => (historyTargetRef.current ? null : undefined),
     });
     const dropCancelable = useRoastingStore(selectDropCancelable);
 

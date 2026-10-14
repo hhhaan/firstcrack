@@ -8,64 +8,11 @@ import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { TargetMenu } from './TargetMenu';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
 const joinDisplay = (parts: (string | null | undefined)[], sep = ' · ') => parts.filter(Boolean).join(sep);
-
-const HISTORY_PICK = '__fc_history_pick__';
-const HISTORY_ACTIVE = '__fc_history_active__';
-const HISTORY_CLEAR = '__fc_history_clear__';
-
-/** 화살표 아이콘이 있는 hidden select overlay. Target/profile 선택에 공통 사용 */
-const OverlaySelect = <T extends string>({
-    value,
-    onChange,
-    onIntercept,
-    disabled,
-    options,
-    placeholder,
-    ariaLabel,
-}: {
-    value: T | null;
-    onChange: (val: T | null) => void;
-    /** true면 선택값을 바꾸지 않는다. 히스토리 배경처럼 같은 메뉴의 동작. */
-    onIntercept?: (val: T) => boolean;
-    disabled: boolean;
-    options: { value: T; label: string }[];
-    placeholder: string;
-    ariaLabel?: string;
-}) => (
-    <div className="relative inline-flex items-center">
-        <div className="flex items-center gap-1">
-            <span className="text-[13px] font-medium tracking-[0.14px] pointer-events-none">
-                {options.find((o) => o.value === value)?.label ?? placeholder}
-            </span>
-            {!disabled && <ChevronDown size={12} className="text-muted flex-shrink-0" />}
-        </div>
-        <select
-            aria-label={ariaLabel}
-            value={value ?? ''}
-            onChange={(e) => {
-                const v = e.target.value;
-                if (v && onIntercept?.(v as T)) {
-                    e.target.value = value ?? '';
-                    return;
-                }
-                onChange(v === '' ? null : (v as T));
-            }}
-            disabled={disabled}
-            className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-        >
-            <option value="">{placeholder}</option>
-            {options.map((o) => (
-                <option key={o.value} value={o.value}>
-                    {o.label}
-                </option>
-            ))}
-        </select>
-    </div>
-);
 
 type BeanOptionDisplay = (bean: {
     origin: string | null;
@@ -98,7 +45,6 @@ export const RoastHeader = ({
     onTargetProfileChange: (id: string | null) => void;
     onBeanChange: (id: string | null) => void;
     onOpenRoastSettings?: () => void;
-    /** 히스토리 로스트를 배경으로 쓰는 동안 Target에 보이는 이름 */
     historyReferenceName?: string | null;
     historyReferenceFailed?: boolean;
     onChooseHistoryReference?: () => void;
@@ -127,18 +73,6 @@ export const RoastHeader = ({
         onTargetProfileChange(id);
     };
 
-    const handleTargetAction = (id: string) => {
-        if (id === HISTORY_PICK) {
-            onChooseHistoryReference?.();
-            return true;
-        }
-        if (id === HISTORY_CLEAR || id === HISTORY_ACTIVE) {
-            if (id === HISTORY_CLEAR) onClearHistoryReference?.();
-            return true;
-        }
-        return false;
-    };
-
     const handleBeanChange = (id: string | null) => {
         onBeanChange(id);
         // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
@@ -163,13 +97,6 @@ export const RoastHeader = ({
             if (b.id === defaultProfileId) return 1;
             return 0;
         });
-    const profileOptions = [
-        ...(historyReferenceName ? [{ value: HISTORY_ACTIVE, label: historyReferenceName }] : []),
-        ...sortedProfiles.map((p) => ({ value: p.id, label: p.name })),
-        ...(historyReferenceName ? [{ value: HISTORY_CLEAR, label: t('activeRoast.reference.clear') }] : []),
-        ...(onChooseHistoryReference ? [{ value: HISTORY_PICK, label: t('activeRoast.reference.choose') }] : []),
-    ];
-
     return (
         <div className="flex items-end justify-between">
             <div>
@@ -217,15 +144,13 @@ export const RoastHeader = ({
                         <p className="text-[13px] text-muted tracking-[-0.1px] mb-0.5">{beanSecondary} / </p>
                     )}
 
-                    <span className="text-[13px] text-muted tracking-[0.14px]">Target:</span>
-                    <OverlaySelect
-                        value={historyReferenceName ? HISTORY_ACTIVE : targetProfileId}
-                        onChange={handleProfileChange}
-                        onIntercept={handleTargetAction}
-                        disabled={false}
-                        options={profileOptions}
-                        placeholder="No Target"
-                        ariaLabel={t('activeRoast.header.target')}
+                    <span className="text-[13px] text-muted tracking-[0.14px]">{t('activeRoast.header.target')}</span>
+                    <TargetMenu
+                        profiles={sortedProfiles.map((profile) => ({ id: profile.id, name: profile.name }))}
+                        targetProfileId={targetProfileId}
+                        historyReferenceName={historyReferenceName}
+                        onProfileChange={handleProfileChange}
+                        onChooseHistory={onChooseHistoryReference}
                     />
                     {historyReferenceFailed && (
                         <span role="alert" className="text-[13px] text-red-400">

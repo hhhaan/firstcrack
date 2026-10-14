@@ -33,6 +33,12 @@ export interface UseRoastSaveFlowParams {
     ambientTemperature?: number | null;
     ambientHumidity?: number | null;
     onResetActiveRoast: () => void;
+    /**
+     * `null` forces an empty saved profile. `undefined` keeps the batch selection.
+     * A history target is not a registered profile, so the summary profile stays blank.
+     * Saving the last history-or-profile choice as the used profile is deferred.
+     */
+    savedProfileId?: () => string | null | undefined;
 }
 
 /** After save, load fresh day batches and keep remaining as rows (materialize on select). */
@@ -53,7 +59,9 @@ export const isLiveDetachedFromPending = (
     Boolean(live.awaitingNextCharge && !isChargedPhase(live.phase));
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
-    const { rawBT, ambientTemperature, ambientHumidity, onResetActiveRoast } = params;
+    const { rawBT, ambientTemperature, ambientHumidity, onResetActiveRoast, savedProfileId } = params;
+    const savedProfileIdRef = useRef(savedProfileId);
+    savedProfileIdRef.current = savedProfileId;
     const planBatchHandoff = useRoastingStore((state) => selectRoastSelection(state).planBatchHandoff);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -78,6 +86,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const selection = selectRoastSelection(state);
             const savedSessionId = snapshot?.sessionId ?? state.sessionId;
             const bbp = useBbpStore.getState().finalized;
+            const forcedProfileId = savedProfileIdRef.current?.();
             return {
                 formData,
                 userId: snapshot?.sessionOwnerId ?? useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
@@ -87,7 +96,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 ambientTemperature,
                 ambientHumidity,
                 selectedBeanId: snapshot ? snapshot.selection.beanId : selection.beanId,
-                targetProfileId: snapshot ? snapshot.selection.profileId : selection.profileId,
+                targetProfileId:
+                    forcedProfileId !== undefined
+                        ? forcedProfileId
+                        : snapshot
+                          ? snapshot.selection.profileId
+                          : selection.profileId,
                 planBatchHandoff: snapshot ? snapshot.selection.planBatchHandoff : selection.planBatchHandoff,
                 sessionId: savedSessionId,
                 handoffBeanName: snapshot ? snapshot.selection.beanName : selection.beanName,
@@ -153,6 +167,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     deductStock: formData.deductStock,
                     linkedBatchId: !frozenHandoff && formData.linkMode === 'schedule' ? formData.planBatchId : null,
                 };
+                const forcedProfileId = savedProfileIdRef.current?.();
                 const pending = existing
                     ? {
                           ...existing,
@@ -161,6 +176,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                               ...existing.params,
                               formData: { ...existing.params.formData, ...formPatch },
                               logEntries: frozen?.logEntries ?? existing.params.logEntries,
+                              ...(forcedProfileId !== undefined && { targetProfileId: forcedProfileId }),
                           },
                       }
                     : createPendingRoastSave(
