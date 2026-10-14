@@ -15,32 +15,35 @@ name = "roastery_agent_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["devtools"] }
+tauri = { version = "2.12", features = ["devtools"] }
 tauri-plugin-shell = "2"
-tauri-plugin-opener = "2"
-tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2.7"
+# 2.8.2 depends on tauri-plugin-fs ^2.7, a minor ahead of @tauri-apps/plugin-fs.
+tauri-plugin-dialog = "=2.8.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 plist = "1.9"
 sha2 = "0.10"
 tempfile = "3"
 libc = "0.2"
-tauri-plugin-os = "2.3.2"
-tauri-plugin-store = "2.4.3"
-tauri-plugin-deep-link = "2"
-tauri-plugin-fs = "2"
-tauri-plugin-notification = "2"
+tauri-plugin-os = "2.4"
+tauri-plugin-store = "2.5"
+tauri-plugin-deep-link = "2.6"
+# Tilde: the next minor is already published and would desync from the npm package.
+tauri-plugin-fs = "~2.6.0"
+tauri-plugin-notification = "~2.5.1"
 sentry = "0.42"
 tauri-plugin-sentry = "0.5.0"
 
 # 데스크톱 전용 — 모바일은 스토어 배포(업데이터 불가)·단일 인스턴스 개념 없음, 사이드카 스폰 불가
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
+tauri-plugin-single-instance = { version = "2.5", features = ["deep-link"] }
+# Tilde: 2.11+ is a minor ahead of @tauri-apps/plugin-updater.
+tauri-plugin-updater = "~2.10.1"
+tauri-plugin-process = "2.4"
 tokio = { version = "1", features = ["time", "sync"] }
 
 # App Nap 억제 (#308). beginActivity 토큰을 프로세스 수명 동안 보유.

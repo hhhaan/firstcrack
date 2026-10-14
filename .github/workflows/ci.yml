@@ -111,6 +111,9 @@ jobs:
       - name: Roaster registry
         run: pnpm check:registry
 
+      - name: Tauri package versions
+        run: pnpm check:tauri-versions
+
       - name: Plan caps
         run: pnpm check:plan-caps
 
