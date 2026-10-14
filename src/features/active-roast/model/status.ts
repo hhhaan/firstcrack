@@ -35,7 +35,6 @@ interface RoastLogState {
 }
 
 export interface RoastingState extends BatchState, BatchActions {
-    doorDischargeAttemptedSessionId: string | null;
     setLivePoints: (action: LiveRoastPoint[] | ((prev: LiveRoastPoint[]) => LiveRoastPoint[])) => void;
     setLogState: (action: RoastLogState | ((prev: RoastLogState) => RoastLogState)) => void;
     sidecarError: string | null;
@@ -66,7 +65,6 @@ export interface RoastingState extends BatchState, BatchActions {
 }
 
 const initialState = {
-    doorDischargeAttemptedSessionId: null as string | null,
     livePoints: [] as LiveRoastPoint[],
     logState: { entries: [] as LogEntry[], unwind: false },
     phase: 'idle' as RoastPhase,
@@ -97,7 +95,6 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         const state = get();
         set({
             ...initialState,
-            doorDischargeAttemptedSessionId: state.doorDischargeAttemptedSessionId,
             sidecarConnected: state.sidecarConnected,
             machineCapabilities: state.machineCapabilities,
             // Drop and end reset the batch. The connected machine id stays.

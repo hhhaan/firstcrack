@@ -156,8 +156,6 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
         vi.stubEnv('VITE_DEV_ROASTER', 'giesen_w45a_w60a');
         const hook = await renderHook(false);
         expect(hook.get().writable).toBe(true);
-        expect(hook.get().dischargeSupported).toBe(true);
-        expect(hook.get().fillSupported).toBe(true);
         expect(getStatus).not.toHaveBeenCalled();
 
         getStatus.mockResolvedValue({ control: CONTROL } as Awaited<ReturnType<typeof sidecar.getStatus>>);
@@ -165,7 +163,6 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
         await act(async () => {
             await Promise.resolve();
         });
-        expect(connected.get().dischargeSupported).toBe(false);
         expect(connected.get().limits).toEqual(CONTROL.limits);
         hook.unmount();
         connected.unmount();

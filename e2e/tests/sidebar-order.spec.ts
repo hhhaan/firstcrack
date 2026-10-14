@@ -4,7 +4,7 @@ import { expect, test } from '../fixtures/app';
 const navOrder = async (page: Page) =>
     page.locator('[data-testid^="nav-"]').evaluateAll((els) => els.map((el) => el.getAttribute('data-testid')));
 
-test('sidebar order is edited in general settings and roast does not collapse it', async ({ authedPage: page }) => {
+test('sidebar order is edited in general settings and roast collapses it', async ({ authedPage: page }) => {
     const sidebar = page.getByTestId('app-sidebar');
     await expect(sidebar).toBeVisible();
     await expect(sidebar).toHaveClass(/w-\[170px\]/);
@@ -60,8 +60,12 @@ test('sidebar order is edited in general settings and roast does not collapse it
     ]);
 
     await page.getByTestId('nav-roast').click();
+    await expect(sidebar).toHaveClass(/w-\[68px\]/);
+    await expect(sidebar).not.toHaveClass(/w-\[170px\]/);
+
+    await sidebar.locator('img[alt="First Crack"]').hover();
+    await sidebar.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
     await expect(sidebar).toHaveClass(/w-\[170px\]/);
-    await expect(sidebar).not.toHaveClass(/w-\[68px\]/);
 
     await sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
     await expect(sidebar).toHaveClass(/w-\[68px\]/);

@@ -53,14 +53,10 @@ const panelModel = (
         changeManual?: (role: 'heater' | 'fan' | 'drum', value: number) => void;
         commitManual?: () => void;
         stop?: () => void;
-        discharge?: MachineControlComposition['discharge'];
-        fill?: MachineControlComposition['fill'];
     } = {},
 ): MachineControlComposition => {
     const stop = over.stop ?? vi.fn();
     return {
-        discharge: over.discharge ?? { available: false, sending: false, send: vi.fn() },
-        fill: over.fill ?? { available: false, sending: false, send: vi.fn() },
         machine: {
             writable: over.writable ?? true,
             limits: {
@@ -113,11 +109,7 @@ const panelModel = (
     } as unknown as MachineControlComposition;
 };
 
-const renderPanel = (
-    model: MachineControlComposition,
-    hotkeysEnabled = false,
-    doorSwitches?: { present: boolean; dischargeOn: boolean; fillOn: boolean },
-) => {
+const renderPanel = (model: MachineControlComposition, hotkeysEnabled = false) => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -130,7 +122,6 @@ const renderPanel = (
                 pidDropBehavior: 'hold',
                 temperatureUnit: 'C',
                 hotkeysEnabled,
-                doorSwitches,
             }),
         );
     });
@@ -190,51 +181,6 @@ describe('MachineControlPanel display', () => {
         pressT();
         expect(enabled.host.querySelector('[aria-hidden="false"]')).not.toBeNull();
         enabled.unmount();
-    });
-
-    it('enables a door close button again when that switch is on', () => {
-        const closeDischarge = vi.fn();
-        const { host, unmount } = renderPanel(
-            panelModel({
-                discharge: { available: false, sending: false, send: closeDischarge },
-                fill: { available: false, sending: false, send: vi.fn() },
-            }),
-            false,
-            { present: true, dischargeOn: true, fillOn: false },
-        );
-        const closeButtons = [...host.querySelectorAll('button')].filter((button) => button.textContent === '닫기');
-        const openButtons = [...host.querySelectorAll('button')].filter((button) => button.textContent === '열기');
-        expect(closeButtons.map((button) => button.disabled)).toEqual([true, true]);
-        expect(openButtons.map((button) => button.disabled)).toEqual([true, true]);
-        act(() => closeButtons[0].click());
-        act(() => openButtons[0].click());
-        expect(closeDischarge).not.toHaveBeenCalled();
-        unmount();
-    });
-
-    it('disables a door close button while that machine switch is off', () => {
-        const closeDischarge = vi.fn();
-        const closeFill = vi.fn();
-        const { host, unmount } = renderPanel(
-            panelModel({
-                discharge: { available: true, sending: false, send: closeDischarge },
-                fill: { available: true, sending: false, send: closeFill },
-            }),
-            false,
-            { present: true, dischargeOn: false, fillOn: true },
-        );
-        const closeButtons = [...host.querySelectorAll('button')].filter((button) => button.textContent === '닫기');
-        const openButtons = [...host.querySelectorAll('button')].filter((button) => button.textContent === '열기');
-        expect(closeButtons.map((button) => button.disabled)).toEqual([true, false]);
-        expect(openButtons.map((button) => button.disabled)).toEqual([true, false]);
-        act(() => closeButtons[0].click());
-        act(() => openButtons[0].click());
-        expect(closeDischarge).not.toHaveBeenCalled();
-        act(() => closeButtons[1].click());
-        act(() => openButtons[1].click());
-        expect(closeFill).toHaveBeenCalledWith('close');
-        expect(closeFill).toHaveBeenCalledWith('open');
-        unmount();
     });
 
     it('hides the panel when the operator cannot write and PID is off', () => {

@@ -183,6 +183,48 @@ describe('RoastSidePanel live readings (#358)', () => {
         act(() => back.click());
         expect(onDismissReview).toHaveBeenCalledOnce();
     });
+
+    it('saved-curve review adds Yellow and does not drop', () => {
+        const onMarkEvent = vi.fn();
+        const onHandleDrop = vi.fn();
+        renderPanel({
+            phase: 'standby',
+            charged: false,
+            roastEnded: false,
+            bbpChargeWait: true,
+            reviewing: true,
+            onMarkEvent,
+            onHandleDrop,
+        });
+        const button = (label: string) =>
+            [...container.querySelectorAll('button')].find((item) =>
+                (item.textContent ?? '').includes(label),
+            ) as HTMLButtonElement;
+        const yellow = button('Yellow');
+        expect(yellow.disabled).toBe(false);
+        act(() => yellow.click());
+        expect(onMarkEvent).toHaveBeenCalledWith('Yellow', '', 'Mark Yellow');
+        const drop = button('Mark Drop');
+        expect(drop.disabled).toBe(true);
+        act(() => drop.click());
+        expect(onHandleDrop).not.toHaveBeenCalled();
+    });
+
+    it('saved-curve review deletes notes and custom marks only', () => {
+        renderPanel({
+            reviewing: true,
+            phase: 'standby',
+            roastLogDisplayEntries: [
+                { id: 'y', time: '1:00', event: 'Yellow', temp: '', note: '' },
+                { id: 'n', time: '2:00', event: 'Note', temp: '', note: 'hi' },
+                { id: 's', time: '3:00', event: '시바', temp: '', note: '' },
+            ],
+        });
+        const side = container.querySelector('[data-testid="roast-side-panel"]') as HTMLElement;
+        expect(side.querySelector('[aria-label="Delete yellow"]')).toBeNull();
+        expect(side.querySelector('[aria-label="Delete note"]')).not.toBeNull();
+        expect(side.querySelector('[aria-label="Delete 시바"]')).not.toBeNull();
+    });
     it('opens a separate newest-first log and ignores Escape and restores focus on collapse without losing the note draft', () => {
         const onRemoveLogEntry = vi.fn();
         const entries: LogEntry[] = [

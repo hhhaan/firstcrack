@@ -131,7 +131,7 @@ describe('App sidebar collapse', () => {
         container.remove();
     });
 
-    it('does not collapse the sidebar when the roast view opens', async () => {
+    it('collapses the sidebar when the roast view opens and keeps a manual expand', async () => {
         await act(async () => {
             root.render(createElement(App));
         });
@@ -141,6 +141,12 @@ describe('App sidebar collapse', () => {
 
         await act(async () => {
             (container.querySelector('[data-testid="nav-roast"]') as HTMLButtonElement).click();
+        });
+
+        expect(sidebar().dataset.collapsed).toBe('true');
+
+        await act(async () => {
+            setSidebarCollapsed(false);
         });
 
         expect(sidebar().dataset.collapsed).toBe('false');

@@ -122,6 +122,10 @@ export const App = () => {
         bridge.remountRoast = () => setRoastMount((n) => n + 1);
     }, []);
     const { collapsed: sidebarCollapsed } = useSidebarPreferences();
+    // 로스팅 탭에 들어올 때만 접는다. 탭 안에서 다시 펼치면 그대로 둔다.
+    useEffect(() => {
+        if (view === 'roast') setSidebarCollapsed(true);
+    }, [view]);
     const [settingsTab, setSettingsTab] = useState<SettingsTabId>('general');
     const [settingsRoastGroup, setSettingsRoastGroup] = useState<RoastSettingsGroup | null>(null);
     const settingsReturnView = useRef<View>('dashboard');

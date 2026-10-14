@@ -1,22 +1,10 @@
-"""Sentry fingerprint helpers — distinct door events must not dedupe together."""
+"""Sentry fingerprint helpers."""
 
 from manager import _hardware_sentry_fingerprint, _scrub_hardware_exception
 
 
-def test_door_write_ambiguous_fingerprint():
-    assert _hardware_sentry_fingerprint("door_write_ambiguous", {"door": "fill", "action": "open"}) == [
-        "door_write_ambiguous",
-        "fill",
-        "open",
-    ]
-
-
-def test_hardware_door_502_fingerprint():
-    assert _hardware_sentry_fingerprint("discharge", {"door": "discharge", "action": "close"}) == [
-        "hardware",
-        "discharge",
-        "discharge",
-    ]
+def test_hardware_fingerprint_is_the_event():
+    assert _hardware_sentry_fingerprint("control_write_failed", {}) == ["hardware", "control_write_failed"]
 
 
 def test_scrub_hardware_exception_redacts_host_port_and_keeps_traceback():
@@ -62,7 +50,7 @@ def test_scrub_hardware_exception_scrubs_chained_cause():
         assert ":102" not in str(scrubbed.__cause__)
 
 
-def test_distinct_door_fingerprints():
-    ambiguous = _hardware_sentry_fingerprint("door_write_ambiguous", {"door": "discharge", "action": "open"})
-    write_fail = _hardware_sentry_fingerprint("fill", {"door": "fill", "action": "close"})
-    assert ambiguous != write_fail
+def test_distinct_hardware_fingerprints():
+    control = _hardware_sentry_fingerprint("control_write_failed", {})
+    pid = _hardware_sentry_fingerprint("pid_on_failed", {})
+    assert control != pid

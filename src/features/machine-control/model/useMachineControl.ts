@@ -126,8 +126,6 @@ export const useMachineControl = (
                                           ...previous.control,
                                           writable: previous.control?.writable ?? false,
                                           limits: previous.control?.limits ?? EMPTY_LIMITS,
-                                          discharge: false,
-                                          fill: false,
                                       },
                                   }
                                 : null,
@@ -217,8 +215,6 @@ export const useMachineControl = (
     const preview = sidecarConnected ? null : devRoasterControl();
     return {
         writable: (Boolean(capability?.writable) && sidecarConnected) || Boolean(preview?.writable),
-        dischargeSupported: (Boolean(capability?.discharge) && sidecarConnected) || Boolean(preview?.discharge),
-        fillSupported: (Boolean(capability?.fill) && sidecarConnected) || Boolean(preview?.fill),
         connectionStatus: sidecarConnected ? connectionStatus : null,
         limits: sidecarConnected ? (capability?.limits ?? EMPTY_LIMITS) : (preview?.limits ?? EMPTY_LIMITS),
         /** PID 지원 여부 — 같은 /status 응답에서 오므로 따로 조회하지 않는다 */

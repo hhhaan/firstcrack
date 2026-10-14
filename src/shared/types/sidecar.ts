@@ -49,10 +49,6 @@ export interface ControlLimit {
  */
 export interface ControlCapability {
     writable: boolean;
-    /** Explicitly enabled W60A discharge actuator; absent on older sidecars. */
-    discharge?: boolean;
-    /** Explicitly enabled W60A hopper fill actuator; absent on older sidecars. */
-    fill?: boolean;
     limits: Partial<Record<'heater' | 'fan' | 'drum', ControlLimit>>;
     pid?: PidCapability;
 }
