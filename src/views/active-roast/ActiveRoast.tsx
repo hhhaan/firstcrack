@@ -439,7 +439,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 모달/저장 플로우 ──────────────────────────────────────────
     const historyTargetRef = useRef(reference);
-    historyTargetRef.current = reference;
+    useEffect(() => {
+        historyTargetRef.current = reference;
+    }, [reference]);
     const saveFlow = useRoastSaveFlow({
         rawBT,
         ambientTemperature: weatherData?.temperature,

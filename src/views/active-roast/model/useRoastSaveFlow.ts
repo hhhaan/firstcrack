@@ -61,7 +61,9 @@ export const isLiveDetachedFromPending = (
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const { rawBT, ambientTemperature, ambientHumidity, onResetActiveRoast, savedProfileId } = params;
     const savedProfileIdRef = useRef(savedProfileId);
-    savedProfileIdRef.current = savedProfileId;
+    useEffect(() => {
+        savedProfileIdRef.current = savedProfileId;
+    }, [savedProfileId]);
     const planBatchHandoff = useRoastingStore((state) => selectRoastSelection(state).planBatchHandoff);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const today = format(new Date(), 'yyyy-MM-dd');
