@@ -1,11 +1,15 @@
 import { dashboardKeys, roastedStockKeys, roastProfileQueryRoots } from '@shared/lib/query-keys';
+import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import {
     applyOptimisticRoastSessionDelete,
+    applyOptimisticSessionBeanOrigin,
     invalidateAfterRoastRecordEdit,
     invalidateRoastSessionQueries,
+    restoreRoastSessionCaches,
     roastSessionKeys,
+    snapshotRoastSessionCaches,
 } from './queries';
 
 const uid = 'user-1';
@@ -174,5 +178,58 @@ describe('roast session mutation invalidation', () => {
         expect(fetches).toBe(2);
         await qc.fetchQuery({ queryKey: liveKey, queryFn, staleTime: Infinity });
         expect(fetches).toBe(2);
+    });
+});
+
+const sessionRow = (id: string, beanId = 'bean-1', origin = 'Ethiopia') =>
+    ({
+        id,
+        status: 'completed',
+        bean_id: beanId,
+        notes: 'old',
+        beans: { name: 'Aricha', origin, region: null, variety: null, process: null, farm: null },
+        roast_profiles: null,
+    }) as RoastSessionWithRelations;
+
+describe('optimistic history edits', () => {
+    it('patches every list shape for the bean and leaves counts, filter meta, and other users', () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const pageKey = roastSessionKeys.paginated(uid, 'completed', 1, 10, 'date', false, null, null, null);
+        const infiniteKey = roastSessionKeys.infinite(uid, 'completed', 10);
+        const detailKey = roastSessionKeys.detail(uid, 's1');
+        const otherKey = roastSessionKeys.all('other');
+        const metaKey = roastSessionKeys.filterMeta(uid);
+        const countKey = roastSessionKeys.completedCount(uid);
+        const match = sessionRow('s1');
+        const otherBean = sessionRow('s2', 'bean-2', 'Kenya');
+        const page = { data: [match, otherBean], total: 2 };
+        const meta = [{ roasted_at: '2026-01-01', beans: { origin: 'Ethiopia' } }];
+
+        qc.setQueryData(roastSessionKeys.all(uid), [match, otherBean]);
+        qc.setQueryData(pageKey, page);
+        qc.setQueryData(infiniteKey, { pages: [page, { data: [sessionRow('s3')], total: 2 }], pageParams: [1, 2] });
+        qc.setQueryData(detailKey, match);
+        qc.setQueryData(otherKey, [match]);
+        qc.setQueryData(metaKey, meta);
+        qc.setQueryData(countKey, 4);
+
+        const snapshot = snapshotRoastSessionCaches(qc, uid);
+        applyOptimisticSessionBeanOrigin(qc, uid, 'bean-1', 'Colombia');
+
+        const originOf = (row: { beans: { origin: string | null } | null }) => row.beans?.origin;
+        expect(originOf((qc.getQueryData(pageKey) as typeof page).data[0])).toBe('Colombia');
+        expect(originOf((qc.getQueryData(pageKey) as typeof page).data[1])).toBe('Kenya');
+        expect(originOf((qc.getQueryData(roastSessionKeys.all(uid)) as (typeof match)[])[0])).toBe('Colombia');
+        const infinite = qc.getQueryData(infiniteKey) as { pages: Array<{ data: (typeof match)[] }> };
+        expect(originOf(infinite.pages[0].data[0])).toBe('Colombia');
+        expect(originOf(infinite.pages[1].data[0])).toBe('Colombia');
+        expect(originOf(qc.getQueryData(detailKey) as typeof match)).toBe('Colombia');
+        expect(qc.getQueryData(otherKey)).toEqual([match]);
+        expect(qc.getQueryData(metaKey)).toEqual(meta);
+        expect(qc.getQueryData(countKey)).toBe(4);
+
+        restoreRoastSessionCaches(qc, snapshot);
+        expect(originOf((qc.getQueryData(pageKey) as typeof page).data[0])).toBe('Ethiopia');
+        expect(originOf(qc.getQueryData(detailKey) as typeof match)).toBe('Ethiopia');
     });
 });

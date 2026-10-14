@@ -107,6 +107,106 @@ const isInfiniteSessions = (old: unknown): old is InfiniteSessions =>
 const isSessionRow = (row: unknown): row is RoastSessionWithRelations =>
     !!row && typeof row === 'object' && 'id' in row && 'status' in row;
 
+/**
+ * History reads list and page caches, not the detail key. Counts and filter meta sit under the same
+ * prefix but are not session rows — leave them for the settled refetch.
+ */
+const mapSessionRows = (
+    rows: RoastSessionWithRelations[],
+    map: (row: RoastSessionWithRelations) => RoastSessionWithRelations,
+) => {
+    let changed = false;
+    const next = rows.map((row) => {
+        const mapped = map(row);
+        if (mapped !== row) changed = true;
+        return mapped;
+    });
+    return changed ? next : rows;
+};
+
+const mapSessionCaches = (
+    old: unknown,
+    map: (row: RoastSessionWithRelations) => RoastSessionWithRelations,
+): unknown => {
+    if (Array.isArray(old)) {
+        if (old.length === 0 || !isSessionRow(old[0])) return old;
+        return mapSessionRows(old, map);
+    }
+    if (isInfiniteSessions(old)) {
+        let changed = false;
+        const pages = old.pages.map((page) => {
+            const data = mapSessionRows(page.data, map);
+            if (data === page.data) return page;
+            changed = true;
+            return { ...page, data };
+        });
+        return changed ? { ...old, pages } : old;
+    }
+    if (isPaginatedSessions(old)) {
+        const data = mapSessionRows(old.data, map);
+        return data === old.data ? old : { ...old, data };
+    }
+    if (isSessionRow(old)) {
+        const mapped = map(old);
+        return mapped === old ? old : mapped;
+    }
+    return old;
+};
+
+const patchRoastSessionRows = (
+    qc: QueryClient,
+    userId: string,
+    map: (row: RoastSessionWithRelations) => RoastSessionWithRelations,
+) => {
+    qc.setQueriesData({ queryKey: roastSessionKeys.all(userId) }, (old: unknown) => mapSessionCaches(old, map));
+};
+
+export const snapshotRoastSessionCaches = (qc: QueryClient, userId: string) =>
+    qc.getQueriesData({ queryKey: roastSessionKeys.all(userId) });
+
+export const restoreRoastSessionCaches = (qc: QueryClient, snapshot: ReturnType<typeof snapshotRoastSessionCaches>) => {
+    for (const [key, data] of snapshot) qc.setQueryData(key, data);
+};
+
+const beginRoastSessionEdit = async (qc: QueryClient, userId: string) => {
+    await qc.cancelQueries({ queryKey: roastSessionKeys.all(userId) });
+    return snapshotRoastSessionCaches(qc, userId);
+};
+
+const rollbackRoastSessionEdit = (
+    qc: QueryClient,
+    snapshot: ReturnType<typeof snapshotRoastSessionCaches> | undefined,
+) => {
+    if (snapshot) restoreRoastSessionCaches(qc, snapshot);
+};
+
+/** Origin lives on the bean. Every session row that joins that bean shows the new value immediately. */
+export const applyOptimisticSessionBeanOrigin = (
+    qc: QueryClient,
+    userId: string,
+    beanId: string,
+    origin: string | null,
+) => {
+    patchRoastSessionRows(qc, userId, (row) =>
+        row.bean_id === beanId && row.beans ? { ...row, beans: { ...row.beans, origin } } : row,
+    );
+};
+
+const profileRelation = (
+    qc: QueryClient,
+    userId: string,
+    profileId: string | null,
+): RoastSessionWithRelations['roast_profiles'] => {
+    if (!profileId) return null;
+    const list = qc.getQueryData<Array<{ id: string; name: string; target_level?: string | null }>>([
+        ...roastProfileQueryRoots.profiles,
+        userId,
+    ]);
+    const found = list?.find((profile) => profile.id === profileId);
+    if (!found || typeof found.target_level !== 'string') return null;
+    return { name: found.name, target_level: found.target_level };
+};
+
 /** Patch tsv paths into session caches under `all(userId)` — never the raw `['roast_sessions']` prefix. */
 export const patchRoastSessionTsvPaths = (
     qc: QueryClient,
@@ -195,6 +295,20 @@ export const useUpdateRoastSession = (userId: string) => {
     return useMutation({
         mutationFn: roastSessionApi.update,
         meta: { feature: 'history-qc', table: 'roast_sessions' },
+        onMutate: async ({ id, ...patch }) => {
+            const snapshot = await beginRoastSessionEdit(qc, userId);
+            if (Object.keys(patch).length === 0) return snapshot;
+            patchRoastSessionRows(qc, userId, (row) => {
+                if (row.id !== id) return row;
+                const next: RoastSessionWithRelations = { ...row, ...patch };
+                if (!('profile_id' in patch)) return next;
+                return { ...next, roast_profiles: profileRelation(qc, userId, patch.profile_id ?? null) };
+            });
+            return snapshot;
+        },
+        onError: (_err, _vars, snapshot) => {
+            rollbackRoastSessionEdit(qc, snapshot);
+        },
         onSuccess: (updated) => {
             qc.setQueryData<RoastSessionWithRelations>(roastSessionKeys.detail(userId, updated.id), (prev) =>
                 prev ? { ...prev, ...updated } : undefined,
@@ -317,6 +431,24 @@ export const useUpdateRoastRecord = (userId: string) => {
         mutationFn: roastSessionApi.updateRecord,
         // Editors keep the draft open and show the failure inline.
         meta: { silentError: true, feature: 'history-record', rpc: 'update_roast_session_record' },
+        onMutate: async (payload) => {
+            const snapshot = await beginRoastSessionEdit(qc, userId);
+            patchRoastSessionRows(qc, userId, (row) =>
+                row.id === payload.sessionId
+                    ? {
+                          ...row,
+                          events: payload.events,
+                          heater_events: payload.heaterEvents,
+                          drop_temp_celsius: payload.dropTempCelsius,
+                          duration_seconds: payload.durationSeconds,
+                      }
+                    : row,
+            );
+            return snapshot;
+        },
+        onError: (_err, _vars, snapshot) => {
+            rollbackRoastSessionEdit(qc, snapshot);
+        },
         onSuccess: (updated) => {
             qc.setQueryData<RoastSessionWithRelations>(roastSessionKeys.detail(userId, updated.id), (prev) =>
                 prev ? { ...prev, ...updated } : undefined,
@@ -341,6 +473,16 @@ export const useSetOutputWeight = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: roastSessionApi.setOutputWeight,
+        onMutate: async ({ sessionId, outputGrams }) => {
+            const snapshot = await beginRoastSessionEdit(qc, userId);
+            patchRoastSessionRows(qc, userId, (row) =>
+                row.id === sessionId ? { ...row, output_weight_grams: outputGrams } : row,
+            );
+            return snapshot;
+        },
+        onError: (_err, _vars, snapshot) => {
+            rollbackRoastSessionEdit(qc, snapshot);
+        },
         onSuccess: () => {
             void invalidateRoastSessionQueries(qc, userId);
             void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });
@@ -354,6 +496,16 @@ export const useSetChargeWeight = (userId: string) => {
     return useMutation({
         mutationFn: roastSessionApi.setChargeWeight,
         meta: { feature: 'history-qc', rpc: 'set_session_charge_weight' },
+        onMutate: async ({ sessionId, weightGrams }) => {
+            const snapshot = await beginRoastSessionEdit(qc, userId);
+            patchRoastSessionRows(qc, userId, (row) =>
+                row.id === sessionId ? { ...row, weight_grams: weightGrams } : row,
+            );
+            return snapshot;
+        },
+        onError: (_err, _vars, snapshot) => {
+            rollbackRoastSessionEdit(qc, snapshot);
+        },
         onSuccess: () => {
             void invalidateRoastSessionQueries(qc, userId);
             void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockEvents });

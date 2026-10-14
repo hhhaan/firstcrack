@@ -8,15 +8,20 @@ import { SummaryMetaEditor } from './SummaryMetaEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { updateBean, updateSession, setOutputWeight, invalidate } = vi.hoisted(() => ({
-    updateBean: vi.fn(async () => ({ id: 'bean-1' })),
-    updateSession: vi.fn(async () => ({ id: 's1' })),
-    setOutputWeight: vi.fn(async () => undefined),
-    invalidate: vi.fn(async () => undefined),
-}));
+const { updateBean, updateSession, setOutputWeight, invalidate, queryClient, patchOrigin, restoreCaches } = vi.hoisted(
+    () => ({
+        updateBean: vi.fn(async () => ({ id: 'bean-1' })),
+        updateSession: vi.fn(async () => ({ id: 's1' })),
+        setOutputWeight: vi.fn(async () => undefined),
+        invalidate: vi.fn(async () => undefined),
+        queryClient: { cancelQueries: vi.fn(async () => undefined) },
+        patchOrigin: vi.fn(),
+        restoreCaches: vi.fn(),
+    }),
+);
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }));
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => queryClient }));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: true }),
 }));
@@ -26,6 +31,10 @@ vi.mock('@entities/roast-profile', () => ({
 }));
 vi.mock('@entities/roast', () => ({
     invalidateRoastSessionQueries: invalidate,
+    roastSessionKeys: { all: (userId: string) => ['roast_sessions', userId] },
+    snapshotRoastSessionCaches: () => [],
+    restoreRoastSessionCaches: restoreCaches,
+    applyOptimisticSessionBeanOrigin: patchOrigin,
     useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
     useSetOutputWeight: () => ({ mutateAsync: setOutputWeight, isPending: false }),
 }));
@@ -52,6 +61,8 @@ describe('SummaryMetaEditor', () => {
         updateSession.mockClear();
         setOutputWeight.mockClear();
         invalidate.mockClear();
+        patchOrigin.mockClear();
+        restoreCaches.mockClear();
     });
 
     const render = async (value: RoastSessionWithRelations = session) => {
@@ -84,8 +95,26 @@ describe('SummaryMetaEditor', () => {
         await act(async () => {
             input.blur();
         });
+        expect(patchOrigin).toHaveBeenCalledWith(queryClient, 'owner', 'bean-1', 'Kenya');
         expect(updateBean).toHaveBeenCalledWith({ id: 'bean-1', origin: 'Kenya' });
+        expect(patchOrigin.mock.invocationCallOrder[0]).toBeLessThan(updateBean.mock.invocationCallOrder[0]);
         expect(invalidate).toHaveBeenCalledWith(expect.anything(), 'owner');
+        expect(restoreCaches).not.toHaveBeenCalled();
+    });
+
+    it('restores the session caches when the origin save fails', async () => {
+        updateBean.mockRejectedValueOnce(new Error('nope'));
+        await render();
+        const input = host.querySelector('[data-testid="history-origin"]') as HTMLInputElement;
+        await act(async () => {
+            input.focus();
+        });
+        await setControl('history-origin', 'Kenya');
+        await act(async () => {
+            input.blur();
+        });
+        expect(restoreCaches).toHaveBeenCalledWith(queryClient, []);
+        expect(input.value).toBe('Ethiopia');
     });
 
     it('links a profile on the session', async () => {

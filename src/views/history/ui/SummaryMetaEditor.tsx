@@ -1,6 +1,14 @@
 import { useUpdateBean } from '@entities/bean';
 import { useActiveWorkspace } from '@entities/organization';
-import { invalidateRoastSessionQueries, useSetOutputWeight, useUpdateRoastSession } from '@entities/roast';
+import {
+    applyOptimisticSessionBeanOrigin,
+    invalidateRoastSessionQueries,
+    restoreRoastSessionCaches,
+    roastSessionKeys,
+    snapshotRoastSessionCaches,
+    useSetOutputWeight,
+    useUpdateRoastSession,
+} from '@entities/roast';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -52,10 +60,14 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     const commitOrigin = async () => {
         const next = origin.trim();
         if (next === storedOrigin.trim() || !session.bean_id || !canWrite) return;
+        await qc.cancelQueries({ queryKey: roastSessionKeys.all(workspaceOwnerId) });
+        const snapshot = snapshotRoastSessionCaches(qc, workspaceOwnerId);
+        applyOptimisticSessionBeanOrigin(qc, workspaceOwnerId, session.bean_id, next === '' ? null : next);
         try {
             await updateBean({ id: session.bean_id, origin: next === '' ? null : next });
             await invalidateRoastSessionQueries(qc, workspaceOwnerId);
         } catch {
+            restoreRoastSessionCaches(qc, snapshot);
             setOrigin(storedOrigin);
         }
     };
