@@ -20,6 +20,13 @@ export const productApi = {
         return data ?? [];
     },
 
+    /** Row read for a cache miss. Same columns as `list` — RLS, not a narrower projection. */
+    get: async (id: string): Promise<Product> => {
+        const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+        if (error) throw error;
+        return data;
+    },
+
     create: async (product: ProductInsert): Promise<Product> => {
         const { data, error } = await supabase.from('products').insert(product).select().single();
         if (error) throw error;

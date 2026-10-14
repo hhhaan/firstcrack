@@ -1,4 +1,4 @@
-import type { SaveRoastParams } from './useSaveRoast';
+import type { SaveRoastParams } from './save-roast-types';
 
 export type PendingRoastParams = SaveRoastParams;
 export type SyncState = 'pending' | 'synced' | 'not_required';

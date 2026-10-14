@@ -1,5 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { isRoastRecordConflict, useRoastSession, useUpdateRoastRecord } from '@entities/roast';
+import { recordSummary } from '@features/active-roast/lib/record-summary';
 import { type ReviewEventReject, reviewEventsFromLog } from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp } from '@features/active-roast/lib/temperature';
@@ -10,7 +11,6 @@ import type { Json } from '@shared/types/database.types';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { recordSummary } from '../../history/lib/record-edit';
 
 const READ_ONLY_CODES = ['read_only_plan', 'trial_expired', 'trial_batch_cap'];
 

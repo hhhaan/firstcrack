@@ -1,11 +1,12 @@
 import { beanApi } from '@entities/bean';
 import { beanStockEventApi } from '@entities/bean-stock-event';
 import { type InventoryAlert, inventoryAlertApi } from '@entities/inventory-alert';
-import { planBatchApi } from '@entities/plan';
+import { batchStatus, planBatchApi } from '@entities/plan';
 import { roastSessionApi } from '@entities/roast';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { dashboardKeys } from '@shared/lib/query-keys';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
+import { formatDateLocal } from '@shared/lib/rrule';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
@@ -79,14 +80,13 @@ const mapDbAlert = (row: InventoryAlert, beanMeta?: { capacity_grams: number; lo
 
 const isUpcomingBatch = (batch: PlanBatchWithProgress, today: string): boolean => {
     if (!batch.scheduled_date || batch.scheduled_date < today) return false;
-    if (batch.status === 'done' || batch.status === 'skipped') return false;
-    if (batch.completed_sessions >= batch.batch_count) return false;
-    return true;
+    const status = batchStatus(batch);
+    return status !== 'done' && status !== 'skipped';
 };
 
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = formatDateLocal(now);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 

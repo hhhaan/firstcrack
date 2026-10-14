@@ -33,6 +33,8 @@ describe('formatDuration', () => {
         expect(formatDuration(65.4)).toBe('1:05');
         expect(formatDuration(65.6)).toBe('1:06');
         expect(formatDuration(90.6)).toBe('1:31');
+        expect(formatDuration(59.6)).toBe('1:00');
+        expect(formatDuration(119.6)).toBe('2:00');
     });
 });
 

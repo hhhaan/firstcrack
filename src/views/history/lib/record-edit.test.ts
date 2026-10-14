@@ -1,7 +1,8 @@
 import { isChartEventMarker } from '@features/active-roast/lib/chart-config';
+import { recordSummary } from '@features/active-roast/lib/record-summary';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { describe, expect, it } from 'vitest';
-import { ADDABLE_KEY_EVENTS, applyEventDrafts, nextAddableEvent, recordSummary, toEventDrafts } from './record-edit';
+import { ADDABLE_KEY_EVENTS, applyEventDrafts, nextAddableEvent, toEventDrafts } from './record-edit';
 
 const stored = [
     { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200.37 },

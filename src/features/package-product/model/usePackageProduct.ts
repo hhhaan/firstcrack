@@ -1,10 +1,9 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { type Product, productKeys } from '@entities/product';
+import { type Product, productApi, productKeys } from '@entities/product';
 import { productStockEventApi, productStockKeys } from '@entities/product-stock-event';
 import { ensureRoastedStock, type RoastedStockSummary, roastedStockKeys } from '@entities/roasted-stock-event';
 import { createActionOpIdSession } from '@shared/lib/action-op-id';
 import { orderKeys } from '@shared/lib/query-keys';
-import { supabase } from '@shared/lib/supabase';
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { buildPackagingEvents } from '../lib/buildPackagingEvents';
@@ -27,13 +26,13 @@ async function resolveProduct(qc: QueryClient, userId: string, productId: string
             net_weight_grams: cached.net_weight_grams,
         } satisfies ProductSource;
     }
-    const { data, error } = await supabase
-        .from('products')
-        .select('id, bean_id, blend_id, net_weight_grams')
-        .eq('id', productId)
-        .single();
-    if (error) throw error;
-    return data as ProductSource;
+    const row = await productApi.get(productId);
+    return {
+        id: row.id,
+        bean_id: row.bean_id,
+        blend_id: row.blend_id,
+        net_weight_grams: row.net_weight_grams,
+    };
 }
 
 /** 포장 입고: 완제품 +units, 벌크 원두 −units×net_weight. 부족해도 막지 않고 shortage만 보고. */

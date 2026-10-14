@@ -3,6 +3,7 @@
  * Public (Cafe24 browser redirect). Exchanges code, stores connection + secrets.
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { cafe24Adapter } from '../_shared/channels/cafe24.ts';
 import {
     assertCafe24Scopes,
     cafe24RedirectUri,
@@ -11,31 +12,30 @@ import {
     tokenExpiresAtMs,
     verifyCafe24OAuthState,
 } from '../_shared/channels/cafe24-oauth.ts';
-import { cafe24Adapter } from '../_shared/channels/cafe24.ts';
+import { escapeHtml } from '../_shared/html.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
 /** A tampered/expired state is a rejected caller, not a bug — same class as a 401. */
 const STATE_REJECT_RE = /invalid state|state expired|state secret/i;
 
 function serviceClient() {
-    return createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
+    return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 }
 
 function htmlPage(title: string, body: string, ok: boolean): Response {
     const color = ok ? '#1a7f37' : '#c0392b';
+    const safeTitle = escapeHtml(title);
+    const safeBody = escapeHtml(body);
     const doc = `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${title}</title>
+<title>${safeTitle}</title>
 <style>
   body{font-family:system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;background:#faf8f5;color:#2c1810}
   .card{max-width:28rem;padding:2rem;border-radius:1rem;background:#fff;box-shadow:0 8px 32px rgba(78,50,23,.06);text-align:center}
   h1{font-size:1.15rem;font-weight:600;color:${color};margin:0 0 .75rem}
   p{font-size:.9rem;line-height:1.5;color:#5c4a3a;margin:0}
 </style></head>
-<body><div class="card"><h1>${title}</h1><p>${body}</p></div></body></html>`;
+<body><div class="card"><h1>${safeTitle}</h1><p>${safeBody}</p></div></body></html>`;
     return new Response(doc, {
         status: ok ? 200 : 400,
         headers: { 'Content-Type': 'text/html; charset=utf-8' },

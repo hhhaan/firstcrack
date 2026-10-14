@@ -16,6 +16,7 @@ describe('useSidecarDeadListener source contract', () => {
     it('listens for sidecar-dead and only latches isDead true (no auto-clear)', () => {
         expect(src).toContain("listen<null>('sidecar-dead'");
         expect(src).toContain('setIsDead(true)');
+        expect(src).toContain('if (cancelled) fn()');
         // Recovery would need setIsDead(false) on status healthy — currently absent.
         expect(src.includes('setIsDead(false)')).toBe(false);
     });

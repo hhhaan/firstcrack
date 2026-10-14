@@ -1,3 +1,4 @@
+import { formatDateLocal } from '@shared/lib/rrule';
 import type { View } from '@shared/types/view';
 import type { UpcomingBatch } from '@widgets/dashboard-summary/api/useDashboard';
 import { Calendar, ChevronRight } from 'lucide-react';
@@ -50,8 +51,8 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                                 </span>
                             </div>
                             <div className="text-xs text-muted tracking-[0.14px]">
-                                {item.date === new Date().toISOString().slice(0, 10) ? t('dashboard.today') : item.date}{' '}
-                                · {item.status}
+                                {item.date === formatDateLocal(new Date()) ? t('dashboard.today') : item.date} ·{' '}
+                                {item.status}
                                 {item.stockShort && (
                                     <span className="ml-1.5 text-amber-600 font-medium">
                                         · {t('dashboard.upcomingStockShort')}

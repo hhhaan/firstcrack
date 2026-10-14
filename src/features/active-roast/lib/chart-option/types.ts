@@ -1,9 +1,10 @@
-import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import type { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
 import type { CurveStyles } from '@features/active-roast/lib/curve-style';
 import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import type { ReadUnits } from '@shared/types/sidecar';
-import type { RoastSettings } from '../../model/settings';
+import type { EventMarkerStyle, RoastSettings, TemperatureUnit } from '../../model/settings';
+import type { PhaseSegment } from '../phases';
+import type { TurningPoint } from '../turningPoints';
 
 export type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
 

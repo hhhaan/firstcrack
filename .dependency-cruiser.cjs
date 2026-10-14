@@ -17,9 +17,9 @@ module.exports = {
     forbidden: [
         {
             name: 'no-circular',
-            severity: 'warn',
+            severity: 'error',
             comment:
-                'Existing barrel cycles. New cycles should not be added; promote to error once this list is empty.',
+                'No cycles. Slice internals import the defining module, not their own barrel.',
             from: { path: '^src/', pathNot: testFile },
             to: { circular: true },
         },
@@ -27,6 +27,13 @@ module.exports = {
         upward('entities', '^src/(features|widgets|views)/', 'entities do not import features, widgets, or views.'),
         upward('features', '^src/(widgets|views)/', 'features do not import widgets or views.'),
         upward('widgets', '^src/views/', 'widgets do not import views.'),
+        {
+            name: 'no-cross-view',
+            severity: 'error',
+            comment: 'Views do not import each other. Share through a feature or an entity.',
+            from: { path: '^src/views/([^/]+)/', pathNot: testFile },
+            to: { path: '^src/views/([^/]+)/', pathNot: '^src/views/$1/' },
+        },
         {
             name: 'no-cross-entity',
             severity: 'error',
@@ -47,6 +54,17 @@ module.exports = {
             comment: 'Only the app shell imports src/App.tsx and src/main.tsx.',
             from: { path: '^src/(shared|entities|features|widgets|views)/', pathNot: testFile },
             to: { path: '^src/(App|main)\\.tsx$' },
+        },
+        {
+            name: 'supabase-client-only-in-repositories',
+            severity: 'error',
+            comment:
+                'Table access stays in entities/*/api. Allowed callers: the client module, shared profile queryFn (profile + plan hooks share it without an entity import), R2 presign, auth session (store, ensureSession, features/auth), and the app shell.',
+            from: {
+                path: '^src/',
+                pathNot: `${testFile}|^src/shared/lib/(supabase|profile|r2|ensureSession)\\.ts$|^src/shared/store/auth\\.ts$|^src/entities/[^/]+/api(\\.ts|/)|^src/features/auth/|^src/(App|main)\\.tsx$`,
+            },
+            to: { path: '^src/shared/lib/supabase\\.ts$' },
         },
     ],
     options: {

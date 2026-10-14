@@ -1,6 +1,6 @@
 import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
-import type { RoastSettings, TemperatureUnit } from '../model/settings';
-import { fromDisplayTemp } from './temperature';
+import type { RoastSettings } from '../model/roast-settings';
+import { fromDisplayTemp, type TemperatureUnit } from './temperature';
 
 export interface CropsterGraphField {
     field: string;

@@ -1,5 +1,11 @@
-import { CONTROL_CURVE_WIDTH, REFERENCE_CURVE_OPACITY, TEMP_CURVE_WIDTH } from './chart-config';
-import type { ResolvedChartColors } from './chart-option/types';
+import {
+    CONTROL_CURVE_WIDTH,
+    type getResolvedChartColors,
+    REFERENCE_CURVE_OPACITY,
+    TEMP_CURVE_WIDTH,
+} from './chart-config';
+
+type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
 
 export const CURVE_CHANNELS = ['bt', 'et', 'ror', 'etRor', 'heat', 'fan', 'drum'] as const;
 export type CurveChannel = (typeof CURVE_CHANNELS)[number];

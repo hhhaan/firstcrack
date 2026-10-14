@@ -1,5 +1,3 @@
-import type { TurningPoint } from '@features/active-roast';
-import { detectTurningPoints } from '@features/active-roast';
 import { i18n } from '@shared/i18n';
 import { createBtFilter } from '@shared/lib/btFilter';
 import { useToastStore } from '@shared/store/toast';
@@ -11,6 +9,7 @@ import {
     createAutoChargeDetector,
     createAutoDropDetector,
 } from '../lib/autoCharge';
+import { detectTurningPoints, type TurningPoint } from '../lib/turningPoints';
 import type { PollIntervalMs, TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
