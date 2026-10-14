@@ -1,5 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
-import type { Database } from '@shared/types/database.types';
+import type { Database, Json } from '@shared/types/database.types';
+import { BLEND_DUPLICATE_BEAN_MESSAGE, BLEND_RATIO_SUM_MESSAGE } from './lib';
 
 export type Blend = Database['public']['Tables']['blends']['Row'];
 export type BlendComponent = Database['public']['Tables']['blend_components']['Row'];
@@ -12,6 +13,44 @@ type BlendInsert = Database['public']['Tables']['blends']['Insert'];
 type BlendComponentInsert = Database['public']['Tables']['blend_components']['Insert'];
 
 const SELECT_WITH_COMPONENTS = '*, blend_components(*, beans(name))';
+
+const errorText = (error: unknown): string => {
+    if (typeof error === 'string') return error;
+    if (error instanceof Error) return error.message;
+    if (!error || typeof error !== 'object') return '';
+    const { message, details } = error as { message?: unknown; details?: unknown };
+    return `${typeof message === 'string' ? message : ''} ${typeof details === 'string' ? details : ''}`;
+};
+
+/** Maps save_blend / constraint failures to the same copy the form shows. Idempotent. */
+export const blendWriteErrorMessage = (error: unknown): string | null => {
+    const text = errorText(error);
+    if (!text.trim()) return null;
+    if (
+        text.includes('blend_duplicate_bean') ||
+        text.includes('unique_bean_per_blend') ||
+        text.includes(BLEND_DUPLICATE_BEAN_MESSAGE)
+    ) {
+        return BLEND_DUPLICATE_BEAN_MESSAGE;
+    }
+    if (
+        text.includes('blend_ratio_sum') ||
+        text.includes('ratio_pct must sum to 100') ||
+        text.includes(BLEND_RATIO_SUM_MESSAGE)
+    ) {
+        return BLEND_RATIO_SUM_MESSAGE;
+    }
+    return null;
+};
+
+const throwBlendWriteError = (error: unknown): never => {
+    const message = blendWriteErrorMessage(error);
+    if (message) throw new Error(message);
+    throw error;
+};
+
+const componentPayload = (components: Omit<BlendComponentInsert, 'blend_id'>[]): Json =>
+    components.map((c) => ({ bean_id: c.bean_id, ratio_pct: c.ratio_pct }));
 
 export const blendApi = {
     list: async (userId: string): Promise<BlendWithComponents[]> => {
@@ -30,42 +69,35 @@ export const blendApi = {
         return data;
     },
 
+    /** Header + components commit together via save_blend. */
     create: async (
         blend: BlendInsert,
         components: Omit<BlendComponentInsert, 'blend_id'>[],
     ): Promise<BlendWithComponents> => {
-        const { data: newBlend, error: blendErr } = await supabase.from('blends').insert(blend).select().single();
-        if (blendErr) throw blendErr;
-
-        const { error: compErr } = await supabase
-            .from('blend_components')
-            .insert(components.map((c) => ({ ...c, blend_id: newBlend.id })));
-        if (compErr) throw compErr;
-
-        return blendApi.get(newBlend.id);
+        const { data: id, error } = await supabase.rpc('save_blend', {
+            p_user_id: blend.user_id,
+            p_name: blend.name,
+            p_description: blend.description ?? null,
+            p_components: componentPayload(components),
+        });
+        if (error) throwBlendWriteError(error);
+        if (!id) throw new Error('blend save returned no id');
+        return blendApi.get(id);
     },
 
+    /** Header + components commit together via save_blend. Blank description clears. */
     update: async (
         id: string,
         patch: Partial<BlendInsert>,
         components: Omit<BlendComponentInsert, 'blend_id'>[],
     ): Promise<BlendWithComponents> => {
-        const { error: blendErr } = await supabase
-            .from('blends')
-            .update({ ...patch, updated_at: new Date().toISOString() })
-            .eq('id', id);
-        if (blendErr) throw blendErr;
-
-        // Single TX replace — deferred ratio trigger sees final sum only (C4)
-        const { error: compErr } = await supabase.rpc('replace_blend_components', {
-            p_blend_id: id,
-            p_components: components.map((c) => ({
-                bean_id: c.bean_id,
-                ratio_pct: c.ratio_pct,
-            })),
+        const { error } = await supabase.rpc('save_blend', {
+            p_id: id,
+            p_name: patch.name ?? '',
+            p_description: patch.description ?? null,
+            p_components: componentPayload(components),
         });
-        if (compErr) throw compErr;
-
+        if (error) throwBlendWriteError(error);
         return blendApi.get(id);
     },
 

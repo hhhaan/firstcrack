@@ -28,6 +28,7 @@ export const useBlend = (id: string) =>
 export const useCreateBlend = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
+        meta: { silentError: true },
         mutationFn: ({
             blend,
             components,
@@ -44,6 +45,7 @@ export const useCreateBlend = (userId: string) => {
 export const useUpdateBlend = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
+        meta: { silentError: true },
         mutationFn: ({
             id,
             patch,
