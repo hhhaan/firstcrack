@@ -3,7 +3,7 @@ import { useRoastProfileCurve } from '@entities/roast-profile';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { historyReferenceTitle, toHistoryReference, type HistoryReference } from '../model/reference';
+import { type HistoryReference, historyReferenceTitle, toHistoryReference } from '../model/reference';
 
 export type { HistoryReference };
 
