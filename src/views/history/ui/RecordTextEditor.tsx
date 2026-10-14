@@ -4,10 +4,24 @@ import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { commitEditTime, isPartialTime, parseEditTime } from '@shared/lib/time-edit';
 import { useTimeEditRoot } from '@shared/lib/useTimeEditRoot';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+    type CompositionEvent,
+    type FocusEvent,
+    type KeyboardEvent,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoastRecordSave } from '../hooks/useRoastRecordSave';
 import { insertRecordedNote, recordedNotes, removeRecordedNote, updateRecordedNote } from '../lib/recorded-notes';
+
+const isImeKey = (event: KeyboardEvent) =>
+    event.nativeEvent.isComposing || event.key === 'Process' || event.nativeEvent.keyCode === 229;
+
+const inputIsComposing = (event: { nativeEvent: Event }) =>
+    'isComposing' in event.nativeEvent && Boolean(event.nativeEvent.isComposing);
 
 /** Session summary note, plus the notes recorded on the roast log. */
 export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelations }) => {
@@ -17,12 +31,16 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
     const record = useRoastRecordSave(session);
     const stored = session.notes ?? '';
     const logged = useMemo(() => recordedNotes(session.events), [session.events]);
-    const [notes, setNotes] = useState(stored);
-    const [drafts, setDrafts] = useState<Record<number, { time: string; comment: string }>>({});
+    const [drafts, setDrafts] = useState<Record<number, string>>({});
     const [addTime, setAddTime] = useState('');
-    const [addComment, setAddComment] = useState('');
+    const [addReady, setAddReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [timeError, setTimeError] = useState<number | 'new' | null>(null);
+    const [seenNotes, setSeenNotes] = useState(stored);
+    if (seenNotes !== stored) {
+        setSeenNotes(stored);
+        setError(null);
+    }
     const setTimeRoot = useTimeEditRoot((key, value) => {
         setTimeError((current) => (current === (key === 'new' ? 'new' : Number(key)) ? null : current));
         if (key === 'new') {
@@ -30,14 +48,16 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
             return;
         }
         const index = Number(key);
-        setDrafts((prev) => ({
-            ...prev,
-            [index]: { time: value, comment: prev[index]?.comment ?? '' },
-        }));
+        setDrafts((prev) => ({ ...prev, [index]: value }));
     });
     const skipSave = useRef(false);
     const skipLogged = useRef<number | null>(null);
     const saving = useRef(false);
+    const addCommentRef = useRef<HTMLInputElement>(null);
+    const commentRefs = useRef(new Map<number, HTMLInputElement>());
+    const composingInputs = useRef(new WeakSet<HTMLElement>());
+    const blurWait = useRef(new WeakMap<HTMLElement, () => void>());
+    const addAfterIme = useRef(false);
     const canWriteSummary = isWorkspaceReady && !!workspaceOwnerId && session.user_id === workspaceOwnerId;
     const showSummary = stored.trim() !== '' || logged.length === 0;
     const writeLine = record.canWrite
@@ -45,23 +65,36 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         : 'read-only:cursor-default';
 
     useEffect(() => {
-        setNotes(stored);
-        setError(null);
-    }, [stored]);
-
-    useEffect(() => {
-        setDrafts(Object.fromEntries(logged.map((note) => [note.index, { time: note.time, comment: note.comment }])));
+        setDrafts(Object.fromEntries(logged.map((note) => [note.index, note.time])));
     }, [logged]);
 
-    const saveSummary = async () => {
+    const onCompStart = (event: CompositionEvent<HTMLElement>) => {
+        composingInputs.current.add(event.currentTarget);
+    };
+    const finishIme = (event: CompositionEvent<HTMLElement>) => {
+        composingInputs.current.delete(event.currentTarget);
+        const pending = blurWait.current.get(event.currentTarget);
+        if (!pending) return;
+        blurWait.current.delete(event.currentTarget);
+        pending();
+    };
+    const blurWhenImeDone = (event: FocusEvent<HTMLElement>, commit: () => void) => {
+        if (composingInputs.current.has(event.currentTarget)) {
+            blurWait.current.set(event.currentTarget, commit);
+            return;
+        }
+        commit();
+    };
+
+    const saveSummary = async (el: HTMLTextAreaElement) => {
         if (skipSave.current) {
             skipSave.current = false;
             return;
         }
         if (!canWriteSummary || summaryPending || saving.current) return;
-        const next = notes.trim() || null;
+        const next = el.value.trim() || null;
         if (next === (stored.trim() || null)) {
-            setNotes(stored);
+            el.value = stored;
             setError(null);
             return;
         }
@@ -69,7 +102,7 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         saving.current = true;
         try {
             await mutateAsync({ id: session.id, notes: next });
-            setNotes(next ?? '');
+            if (el.isConnected) el.value = next ?? '';
         } catch (err) {
             setError(record.errorText(err));
         } finally {
@@ -77,21 +110,20 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         }
     };
 
-    const saveLogged = async (index: number) => {
+    const saveLogged = async (index: number, commentRaw: string) => {
         if (skipLogged.current === index) {
             skipLogged.current = null;
             return;
         }
         const note = logged.find((item) => item.index === index);
-        const draft = drafts[index];
-        if (!note || !draft || !record.canWrite || record.isPending || saving.current) return;
-        const committed = commitEditTime(draft.time);
+        if (!note || !record.canWrite || record.isPending || saving.current) return;
+        const committed = commitEditTime(drafts[index] ?? note.time);
         const timeSec = parseEditTime(committed);
         if (timeSec == null) {
             setTimeError(index);
             return;
         }
-        const comment = draft.comment.trim();
+        const comment = commentRaw.trim();
         if (timeSec === note.timeSec && comment === note.comment) {
             setTimeError((current) => (current === index ? null : current));
             return;
@@ -125,10 +157,11 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         }
     };
 
-    const addLogged = async () => {
+    const addLogged = async (rawComment: string) => {
         if (!record.canWrite || record.isPending || saving.current) return;
-        const comment = addComment.trim();
-        const timeSec = parseEditTime(commitEditTime(addTime));
+        const comment = rawComment.trim();
+        // The empty field shows 00:00. Treat that placeholder as the time.
+        const timeSec = parseEditTime(commitEditTime(addTime.trim() === '' ? '0:00' : addTime));
         if (!comment) return;
         if (timeSec == null) {
             setTimeError('new');
@@ -140,7 +173,8 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         try {
             await record.saveEvents(insertRecordedNote(session.events, timeSec, comment));
             setAddTime('');
-            setAddComment('');
+            setAddReady(false);
+            if (addCommentRef.current) addCommentRef.current.value = '';
         } catch (err) {
             setError(record.errorText(err));
         } finally {
@@ -148,58 +182,84 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         }
     };
 
+    const commitAdd = () => {
+        const el = addCommentRef.current;
+        if (!el) return;
+        if (composingInputs.current.has(el)) {
+            addAfterIme.current = true;
+            el.blur();
+            if (!addAfterIme.current) return;
+            addAfterIme.current = false;
+        }
+        void addLogged(el.value);
+    };
+
     return (
         <div className="space-y-3">
             {(logged.length > 0 || record.canWrite) && (
                 <ul ref={setTimeRoot} className="m-0 list-none space-y-2 p-0">
                     {logged.map((note) => {
-                        const draft = drafts[note.index] ?? { time: note.time, comment: note.comment };
+                        const time = drafts[note.index] ?? note.time;
                         const controls = formatRoastNote({ gas: note.gas, airflow: note.airflow, drum: note.drum });
+                        const commentNow = () => commentRefs.current.get(note.index)?.value ?? note.comment;
                         return (
                             <li key={note.index} className="flex items-start gap-2">
                                 <input
                                     data-testid="history-recorded-note-time"
                                     data-time-key={note.index}
                                     aria-label={`${note.time} ${t('history.edit.time')}`}
-                                    value={draft.time}
+                                    value={time}
                                     inputMode="numeric"
                                     autoComplete="off"
                                     spellCheck={false}
                                     readOnly={!record.canWrite}
                                     disabled={record.isPending}
                                     onChange={(event) => {
+                                        if (inputIsComposing(event)) return;
                                         if (!isPartialTime(event.target.value)) {
-                                            event.target.value = draft.time;
+                                            event.target.value = time;
                                             return;
                                         }
-                                        setDrafts((prev) => ({
-                                            ...prev,
-                                            [note.index]: { ...draft, time: event.target.value },
-                                        }));
+                                        setDrafts((prev) => ({ ...prev, [note.index]: event.target.value }));
                                         setTimeError((current) => (current === note.index ? null : current));
                                     }}
-                                    onBlur={() => void saveLogged(note.index)}
+                                    onCompositionEnd={(event) => {
+                                        const next = event.currentTarget.value;
+                                        if (!isPartialTime(next)) {
+                                            event.currentTarget.value = time;
+                                            return;
+                                        }
+                                        setDrafts((prev) => ({ ...prev, [note.index]: next }));
+                                    }}
+                                    onBlur={() => void saveLogged(note.index, commentNow())}
                                     onKeyDown={(event) => {
+                                        if (isImeKey(event)) return;
                                         if (event.key === 'Enter') event.currentTarget.blur();
                                     }}
                                     className={`w-16 shrink-0 border-0 bg-transparent p-0 font-mono text-[13px] leading-6 text-muted outline-none ${writeLine}`}
                                 />
                                 <span className="min-w-0 flex-1">
                                     <input
+                                        key={`${note.index}:${note.comment}`}
+                                        ref={(node) => {
+                                            if (node) commentRefs.current.set(note.index, node);
+                                            else commentRefs.current.delete(note.index);
+                                        }}
                                         data-testid="history-recorded-note"
                                         aria-label={note.time}
-                                        value={draft.comment}
+                                        defaultValue={note.comment}
                                         readOnly={!record.canWrite}
                                         disabled={record.isPending}
-                                        onChange={(event) => {
-                                            setDrafts((prev) => ({
-                                                ...prev,
-                                                [note.index]: { ...draft, comment: event.target.value },
-                                            }));
-                                            setError(null);
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                        onCompositionStart={onCompStart}
+                                        onCompositionEnd={finishIme}
+                                        onBlur={(event) => {
+                                            const el = event.currentTarget;
+                                            blurWhenImeDone(event, () => void saveLogged(note.index, el.value));
                                         }}
-                                        onBlur={() => void saveLogged(note.index)}
                                         onKeyDown={(event) => {
+                                            if (isImeKey(event)) return;
                                             if (event.key === 'Enter') {
                                                 event.preventDefault();
                                                 event.currentTarget.blur();
@@ -207,10 +267,7 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                             if (event.key !== 'Escape') return;
                                             event.preventDefault();
                                             skipLogged.current = note.index;
-                                            setDrafts((prev) => ({
-                                                ...prev,
-                                                [note.index]: { time: note.time, comment: note.comment },
-                                            }));
+                                            event.currentTarget.value = note.comment;
                                             setTimeError((current) => (current === note.index ? null : current));
                                             event.currentTarget.blur();
                                         }}
@@ -251,6 +308,7 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                 spellCheck={false}
                                 disabled={record.isPending}
                                 onChange={(event) => {
+                                    if (inputIsComposing(event)) return;
                                     if (!isPartialTime(event.target.value)) {
                                         event.target.value = addTime;
                                         return;
@@ -258,28 +316,49 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                     setAddTime(event.target.value);
                                     setTimeError((current) => (current === 'new' ? null : current));
                                 }}
+                                onCompositionEnd={(event) => {
+                                    const next = event.currentTarget.value;
+                                    if (!isPartialTime(next)) {
+                                        event.currentTarget.value = addTime;
+                                        return;
+                                    }
+                                    setAddTime(next);
+                                }}
                                 className={`w-16 shrink-0 border-0 bg-transparent p-0 font-mono text-[13px] leading-6 text-muted outline-none placeholder:text-muted ${writeLine}`}
                             />
                             <input
+                                ref={addCommentRef}
                                 data-testid="history-note-add"
                                 aria-label={t('history.recordText.add')}
-                                value={addComment}
+                                defaultValue=""
                                 placeholder={t('history.recordText.add')}
                                 disabled={record.isPending}
-                                onChange={(event) => setAddComment(event.target.value)}
+                                autoComplete="off"
+                                spellCheck={false}
+                                onInput={(event) => setAddReady(event.currentTarget.value.trim() !== '')}
+                                onCompositionStart={onCompStart}
+                                onCompositionEnd={(event) => {
+                                    finishIme(event);
+                                    setAddReady(event.currentTarget.value.trim() !== '');
+                                    if (!addAfterIme.current) return;
+                                    addAfterIme.current = false;
+                                    void addLogged(event.currentTarget.value);
+                                }}
                                 onKeyDown={(event) => {
+                                    if (isImeKey(event)) return;
                                     if (event.key !== 'Enter') return;
                                     event.preventDefault();
-                                    void addLogged();
+                                    void addLogged(event.currentTarget.value);
                                 }}
                                 className={`min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-6 text-secondary outline-none placeholder:text-muted ${writeLine}`}
                             />
                             <button
                                 type="button"
                                 aria-label={t('history.recordText.add')}
-                                disabled={record.isPending || !addComment.trim()}
-                                onClick={() => void addLogged()}
-                                className="shrink-0 cursor-pointer rounded-md border border-border-subtle bg-transparent px-2 py-0.5 text-[11px] text-muted hover:text-primary disabled:opacity-40"
+                                disabled={record.isPending}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={commitAdd}
+                                className={`shrink-0 cursor-pointer rounded-md border border-border-subtle bg-transparent px-2 py-0.5 text-[11px] text-muted hover:text-primary disabled:opacity-40 ${addReady ? '' : 'opacity-40'}`}
                             >
                                 {t('history.recordText.add')}
                             </button>
@@ -294,22 +373,27 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
             )}
             {showSummary && (
                 <textarea
+                    key={stored}
                     data-testid="history-record-notes"
                     aria-label={t('history.expanded.notes')}
-                    value={notes}
+                    defaultValue={stored}
                     placeholder={logged.length > 0 ? '' : t('history.noNotes')}
                     readOnly={!canWriteSummary}
                     disabled={summaryPending}
                     rows={logged.length > 0 ? 3 : 4}
-                    onChange={(event) => {
-                        setNotes(event.target.value);
-                        setError(null);
+                    autoComplete="off"
+                    spellCheck={false}
+                    onCompositionStart={onCompStart}
+                    onCompositionEnd={finishIme}
+                    onBlur={(event) => {
+                        const el = event.currentTarget;
+                        blurWhenImeDone(event, () => void saveSummary(el));
                     }}
-                    onBlur={() => void saveSummary()}
                     onKeyDown={(event) => {
+                        if (isImeKey(event)) return;
                         if (event.key !== 'Escape') return;
                         event.preventDefault();
-                        setNotes(stored);
+                        event.currentTarget.value = stored;
                         setError(null);
                         if (document.activeElement === event.currentTarget) {
                             skipSave.current = true;

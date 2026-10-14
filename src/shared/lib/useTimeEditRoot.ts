@@ -67,6 +67,9 @@ export const useTimeEditRoot = (onValue: (key: string, value: string) => void) =
             target instanceof HTMLInputElement && target.dataset.timeKey != null && !target.readOnly;
         const onBefore = (event: Event) => {
             if (!(event instanceof InputEvent) || !isTimeInput(event.target)) return;
+            // Korean IME sends insertText while a syllable is still composing. Cancelling it
+            // commits bare jamo and breaks the following text field.
+            if (event.isComposing) return;
             const type = event.inputType;
             if (type === 'insertFromPaste') {
                 event.preventDefault();

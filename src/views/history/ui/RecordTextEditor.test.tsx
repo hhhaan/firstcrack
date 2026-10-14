@@ -174,4 +174,36 @@ describe('record notes edits', () => {
         await act(async () => remove.click());
         expect(state.saveEvents).toHaveBeenCalledWith([{ id: 'c', type: 'Charge', time_sec: 0 }]);
     });
+    it('adds at 00:00 when the time field is left on its placeholder', async () => {
+        await render({ ...session, notes: null, events: [{ id: 'c', type: 'Charge', time_sec: 0 }] });
+        const comment = host.querySelector('[data-testid="history-note-add"]') as HTMLInputElement;
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(comment, 'later');
+        });
+        const add = [...host.querySelectorAll('button')].find(
+            (button) => button.getAttribute('aria-label') === 'history.recordText.add',
+        );
+        await act(async () => add?.click());
+        const added = state.saveEvents.mock.calls[0][0] as Array<Record<string, unknown>>;
+        expect(added[1]).toMatchObject({ type: 'Note', time_sec: 0, note: 'later' });
+    });
+    it('does not save a note while Korean input is still composing', async () => {
+        await render();
+        const field = host.querySelector('[data-testid="history-recorded-note"]') as HTMLInputElement;
+        const add = host.querySelector('[data-testid="history-note-add"]') as HTMLInputElement;
+        const enter = () => {
+            const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+            Object.defineProperty(event, 'isComposing', { value: true });
+            return event;
+        };
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(field, '향');
+            field.dispatchEvent(enter());
+        });
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(add, '향');
+            add.dispatchEvent(enter());
+        });
+        expect(state.saveEvents).not.toHaveBeenCalled();
+    });
 });
