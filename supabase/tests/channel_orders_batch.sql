@@ -13,6 +13,8 @@ DECLARE
   event_count integer;
   stranger_id uuid;
   hold_count integer;
+  v_hold_b_order_id uuid;
+  v_manual_hold_order_id uuid;
 BEGIN
   INSERT INTO sales_channel_connections(id, user_id, platform, shop_identifier, status, auto_fulfill_on_shipped)
   VALUES (connection_id, owner_id, 'shopify', 'batch-fixture', 'active', true);
@@ -253,6 +255,7 @@ BEGIN
     JOIN orders o ON o.id=ol.order_id
     WHERE o.platform_order_id='hold-b' AND pse.event_type='order_fulfillment'
   ), 'short order has no fulfillment events';
+  SELECT id INTO v_hold_b_order_id FROM orders WHERE platform_order_id='hold-b';
 
   -- Two orders compete for limited stock: earlier ordered_at wins.
   DELETE FROM product_stock_events WHERE user_id=owner_id;
@@ -280,6 +283,13 @@ BEGIN
     SELECT 1 FROM order_fulfillment_holds h JOIN orders o ON o.id=h.order_id
     WHERE o.platform_order_id='race-late' AND h.resolved_at IS NULL
   ), 'later order has open hold';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    JOIN orders o ON o.id=h.order_id
+    CROSS JOIN LATERAL jsonb_array_elements(h.shortages) s
+    WHERE o.platform_order_id='race-late' AND h.resolved_at IS NULL
+      AND (s->>'required_units')::integer = 2 AND (s->>'available_units')::integer = 1
+  ), 'competing-order hold shortages use post-batch balance';
 
   -- Resync same payloads is idempotent (no duplicate events or holds).
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
@@ -312,7 +322,7 @@ BEGIN
   BEGIN
     PERFORM retry_order_fulfillment((SELECT id FROM orders WHERE platform_order_id='race-late'));
     RAISE EXCEPTION 'retry after success accepted';
-  EXCEPTION WHEN SQLSTATE 'P0002' OR SQLSTATE 'check_violation' THEN NULL;
+  EXCEPTION WHEN SQLSTATE 'P0002' OR check_violation THEN NULL;
   END;
 
   -- Cancel after hold resolves the hold without cancel compensation.
@@ -372,6 +382,37 @@ BEGIN
   END;
   ASSERT NOT EXISTS (SELECT 1 FROM orders WHERE platform_order_id='zero-1'), 'zero quantity wrote no order/event';
 
+  -- fulfill_order as authenticated resolves an open hold (hold row is not user-updatable).
+  DELETE FROM product_stock_events WHERE user_id=owner_id AND product_id=product_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, product_id, 1, 'roast_inbound');
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'manual-hold', 'status', 'shipped', 'orderedAt', '2026-10-13T00:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'manual-hold-line', 'productId', product_id, 'title', 'Manual', 'quantity', 2, 'unitPrice', 1, 'status', 'active'
+    ))
+  )));
+  SELECT id INTO v_manual_hold_order_id FROM orders WHERE platform_order_id='manual-hold';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h WHERE h.order_id=v_manual_hold_order_id AND h.resolved_at IS NULL
+  ), 'manual-hold has open hold';
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, product_id, 10, 'adjustment');
+  PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM fulfill_order(v_manual_hold_order_id);
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE id=v_manual_hold_order_id), 'authenticated fulfill succeeded';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h WHERE h.order_id=v_manual_hold_order_id AND h.resolved_at IS NULL
+  ), 'authenticated fulfill resolved hold';
+  RESET ROLE;
+  SET LOCAL ROLE service_role;
+
+  stranger_id := gen_random_uuid();
+  INSERT INTO auth.users (id) VALUES (stranger_id) ON CONFLICT DO NOTHING;
+
   RESET ROLE;
   SET LOCAL ROLE authenticated;
   BEGIN
@@ -379,16 +420,14 @@ BEGIN
     RAISE EXCEPTION 'authenticated execute unexpectedly allowed';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
-  stranger_id := gen_random_uuid();
-  INSERT INTO auth.users (id) VALUES (stranger_id) ON CONFLICT DO NOTHING;
   PERFORM set_config('request.jwt.claim.sub', stranger_id::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', stranger_id, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO hold_count FROM order_fulfillment_holds;
   ASSERT hold_count = 0, 'stranger cannot read holds';
   BEGIN
-    PERFORM retry_order_fulfillment((SELECT id FROM orders WHERE platform_order_id='hold-b' LIMIT 1));
+    PERFORM retry_order_fulfillment(v_hold_b_order_id);
     RAISE EXCEPTION 'stranger retry allowed';
-  EXCEPTION WHEN SQLSTATE 'P0002' OR SQLSTATE 'check_violation' THEN NULL;
+  EXCEPTION WHEN SQLSTATE 'P0002' OR check_violation THEN NULL;
   END;
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);

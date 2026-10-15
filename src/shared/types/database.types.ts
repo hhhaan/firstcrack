@@ -2228,6 +2228,7 @@ export type Database = {
                 Returns: string[];
             };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
+            resolve_order_fulfillment_hold: { Args: { p_order_id: string }; Returns: undefined };
             retry_order_fulfillment: { Args: { p_order_id: string }; Returns: undefined };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };

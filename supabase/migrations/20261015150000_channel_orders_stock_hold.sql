@@ -26,6 +26,33 @@ CREATE POLICY "workspace read order_fulfillment_holds" ON public.order_fulfillme
   FOR SELECT USING (public.has_workspace_access(user_id));
 
 GRANT SELECT ON public.order_fulfillment_holds TO authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.order_fulfillment_holds FROM anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Resolve open holds (authenticated cannot UPDATE the table directly).
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.resolve_order_fulfillment_hold(p_order_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $function$
+DECLARE
+  v_user_id uuid;
+BEGIN
+  SELECT o.user_id INTO v_user_id FROM orders o WHERE o.id = p_order_id;
+  IF NOT FOUND OR NOT public.has_workspace_access(v_user_id) THEN
+    RAISE EXCEPTION 'order_not_found'
+      USING ERRCODE = 'no_data_found',
+            DETAIL = format('order_id=%s', p_order_id);
+  END IF;
+  UPDATE order_fulfillment_holds
+  SET resolved_at = now(), updated_at = now()
+  WHERE order_id = p_order_id AND resolved_at IS NULL;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.resolve_order_fulfillment_hold(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.resolve_order_fulfillment_hold(uuid) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- sync_channel_orders_batch: pre-filter fulfillment on stock / open holds
@@ -252,7 +279,23 @@ BEGIN
       DROP TABLE _fulfill_plan,_sim_balance,_wave_held;
     END IF;
 
-    -- Open holds in this wave: refresh shortages only (no auto-retry on sync).
+    IF jsonb_array_length(v_events)>0 THEN
+      SELECT insert_product_stock_events_batch(v_events) INTO v_stock_result;
+      v_wave_skips:=COALESCE(v_stock_result->'skipped','[]'::jsonb); v_skips:=v_skips||v_wave_skips;
+      SELECT v_cancelled+count(*) FILTER(WHERE e->>'event_type'='order_cancel'),
+        v_fulfilled+count(*) FILTER(WHERE e->>'event_type'='order_fulfillment' AND NOT EXISTS(
+          SELECT 1 FROM jsonb_array_elements(v_wave_skips) s WHERE s->>'reference_id'=e->>'reference_id'))
+      INTO v_cancelled,v_fulfilled FROM jsonb_array_elements(v_events) e;
+      UPDATE orders o SET fulfilled_at=now(),updated_at=now() WHERE o.fulfilled_at IS NULL AND EXISTS(
+        SELECT 1 FROM jsonb_array_elements(v_events) e JOIN order_lines ol ON ol.id=(e->>'reference_id')::uuid
+        WHERE e->>'event_type'='order_fulfillment' AND ol.order_id=o.id AND NOT EXISTS(
+          SELECT 1 FROM jsonb_array_elements(v_wave_skips) s WHERE s->>'reference_id'=e->>'reference_id'))
+        AND NOT EXISTS (
+          SELECT 1 FROM order_fulfillment_holds h WHERE h.order_id=o.id AND h.resolved_at IS NULL
+        );
+    END IF;
+
+    -- Open holds in this wave: refresh shortages after this wave's stock effects (no auto-retry).
     FOR v_order_rec IN
       SELECT w.order_id,o.ordered_at,o.platform_order_id
       FROM _channel_wave_orders w
@@ -283,21 +326,6 @@ BEGIN
       WHERE h.order_id=v_order_rec.order_id AND h.resolved_at IS NULL;
     END LOOP;
 
-    IF jsonb_array_length(v_events)>0 THEN
-      SELECT insert_product_stock_events_batch(v_events) INTO v_stock_result;
-      v_wave_skips:=COALESCE(v_stock_result->'skipped','[]'::jsonb); v_skips:=v_skips||v_wave_skips;
-      SELECT v_cancelled+count(*) FILTER(WHERE e->>'event_type'='order_cancel'),
-        v_fulfilled+count(*) FILTER(WHERE e->>'event_type'='order_fulfillment' AND NOT EXISTS(
-          SELECT 1 FROM jsonb_array_elements(v_wave_skips) s WHERE s->>'reference_id'=e->>'reference_id'))
-      INTO v_cancelled,v_fulfilled FROM jsonb_array_elements(v_events) e;
-      UPDATE orders o SET fulfilled_at=now(),updated_at=now() WHERE o.fulfilled_at IS NULL AND EXISTS(
-        SELECT 1 FROM jsonb_array_elements(v_events) e JOIN order_lines ol ON ol.id=(e->>'reference_id')::uuid
-        WHERE e->>'event_type'='order_fulfillment' AND ol.order_id=o.id AND NOT EXISTS(
-          SELECT 1 FROM jsonb_array_elements(v_wave_skips) s WHERE s->>'reference_id'=e->>'reference_id'))
-        AND NOT EXISTS (
-          SELECT 1 FROM order_fulfillment_holds h WHERE h.order_id=o.id AND h.resolved_at IS NULL
-        );
-    END IF;
     UPDATE order_dispatches d SET status='confirmed',confirmed_at=now(),updated_at=now()
     FROM _channel_wave_orders w WHERE d.order_id=w.order_id AND d.status='sent' AND w.next_status IN ('shipped','delivered');
     v_upserted:=v_upserted+(SELECT count(*) FROM _channel_wave_orders);
@@ -376,8 +404,6 @@ BEGIN
   END LOOP;
 
   IF jsonb_array_length(v_shortages) > 0 THEN
-    UPDATE order_fulfillment_holds SET shortages = v_shortages, updated_at = now()
-    WHERE order_id = p_order_id AND resolved_at IS NULL;
     RAISE EXCEPTION 'insufficient_product_stock'
       USING ERRCODE = 'check_violation',
             DETAIL = format('order_id=%s shortages=%s', p_order_id, v_shortages::text);
@@ -415,8 +441,7 @@ BEGIN
   UPDATE orders SET fulfilled_at = now(), updated_at = now()
   WHERE id = p_order_id AND fulfilled_at IS NULL;
 
-  UPDATE order_fulfillment_holds SET resolved_at = now(), updated_at = now()
-  WHERE order_id = p_order_id AND resolved_at IS NULL;
+  PERFORM public.resolve_order_fulfillment_hold(p_order_id);
 END;
 $function$;
 
@@ -481,7 +506,6 @@ BEGIN
   UPDATE orders SET fulfilled_at = now(), updated_at = now()
   WHERE id = p_order_id AND fulfilled_at IS NULL;
 
-  UPDATE order_fulfillment_holds SET resolved_at = now(), updated_at = now()
-  WHERE order_id = p_order_id AND resolved_at IS NULL;
+  PERFORM public.resolve_order_fulfillment_hold(p_order_id);
 END;
 $function$;
