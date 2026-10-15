@@ -107,7 +107,8 @@ describe('sidebar order edits', () => {
         expect(getSidebarPreferences().order.slice(5, 7)).toEqual(['history', 'roast']);
 
         moveSidebarItem('cupping', 1);
-        expect(getSidebarPreferences().order.at(-1)).toBe('cupping');
+        const order = getSidebarPreferences().order;
+        expect(order[order.length - 1]).toBe('cupping');
 
         setSidebarItemHidden('cupping', true);
         setSidebarItemHidden('orders', true);
