@@ -213,6 +213,7 @@ export const buildChartFrame = <TTurningPoint>(input: {
     onEventMarkerDelete: (logId: string) => void;
     onAddNote: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
     onAddEvent: (event: string, timeSec: number) => void;
+    onMoveEvent: (event: string, timeSec: number) => void;
     reviewing?: boolean;
 }) => {
     const canEdit = Boolean(input.reviewing) || canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
@@ -247,5 +248,6 @@ export const buildChartFrame = <TTurningPoint>(input: {
         onEventMarkerDelete: canEdit ? input.onEventMarkerDelete : undefined,
         onAddNote: canEdit ? input.onAddNote : undefined,
         onAddEvent: canEdit ? input.onAddEvent : undefined,
+        onMoveEvent: input.reviewing && canEdit ? input.onMoveEvent : undefined,
     };
 };

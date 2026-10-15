@@ -113,19 +113,10 @@ const asEventRecord = (e: unknown): Record<string, unknown> | null =>
 
 const eventId = (e: Record<string, unknown>): string | null => (typeof e.id === 'string' && e.id ? e.id : null);
 
-const KEPT_RECORD_EVENTS = new Set([
-    'Charge',
-    'TP',
-    'Yellow',
-    'FC Start',
-    'FC Rolling',
-    'FC End',
-    'Drop',
-    'End',
-    'Heater',
-    'Now',
-    'Control',
-]);
+/** Existing rows of these types cannot be removed. */
+const UNDELETABLE_RECORD_EVENTS = new Set(['Charge', 'Drop', 'Now', 'Control']);
+/** New rows of these types are rejected. End may be removed, not inserted. */
+const CLOSED_RECORD_EVENTS = new Set(['Charge', 'Drop', 'End', 'Heater', 'Now', 'Control']);
 
 /** Mirrors update_roast_session_record: time/temp edits, notes, custom marks, and one missing TP/Yellow/FC. */
 const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
@@ -144,7 +135,7 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
         prevRows.some((row) => {
             const id = eventId(row);
             if (!id || nextIds.includes(id)) return false;
-            return KEPT_RECORD_EVENTS.has(String(row.type));
+            return UNDELETABLE_RECORD_EVENTS.has(String(row.type));
         })
     ) {
         return false;
@@ -154,6 +145,10 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
         const { time_sec: _t, temp_c: _c, ...rest } = e;
         if (e.type === 'Note') {
             const { note: _n, gas: _g, airflow: _a, drum: _d, ...kept } = rest;
+            return kept;
+        }
+        if (e.type === 'Heater') {
+            const { note: _n, ...kept } = rest;
             return kept;
         }
         return rest;
@@ -180,6 +175,8 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
                 if ('note' in row && row.note != null && typeof row.note !== 'string') return false;
                 if (['gas', 'airflow', 'drum'].some((key) => key in row && typeof row[key] !== 'string')) return false;
             }
+            if (old.type === 'Heater' && 'note' in row && (typeof row.note !== 'string' || row.note.length === 0))
+                return false;
             if (!same(strip(row), strip(old))) return false;
             if (old.type === 'Charge' && time !== old.time_sec && time !== 0) return false;
             if (time !== old.time_sec) touched.add(id);
@@ -208,7 +205,7 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
             typeof row.type === 'string' &&
             row.type.length > 0 &&
             row.type.length <= 16 &&
-            !KEPT_RECORD_EVENTS.has(row.type)
+            !CLOSED_RECORD_EVENTS.has(row.type)
         ) {
             if (Object.keys(row).some((key) => !['id', 'type', 'time_sec', 'temp_c'].includes(key))) return false;
             if (!timeOk(time) || !tempOk(row)) return false;

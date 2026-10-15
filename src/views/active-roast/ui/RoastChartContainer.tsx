@@ -74,6 +74,7 @@ interface RoastChartContainerProps {
     savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
     onAddEvent?: (event: string, timeSec: number) => void;
+    onMoveEvent?: (event: string, timeSec: number) => void;
 }
 
 export const RoastChartContainer = ({
@@ -134,6 +135,7 @@ export const RoastChartContainer = ({
     savedReview = false,
     onAddNote,
     onAddEvent,
+    onMoveEvent,
 }: RoastChartContainerProps) => {
     const chartRef = useRef<RoastTempChartHandle>(null);
     const markerPointerId = useRef<number | null>(null);
@@ -274,6 +276,7 @@ export const RoastChartContainer = ({
                 savedReview={savedReview}
                 onAddNote={onAddNote}
                 onAddEvent={onAddEvent}
+                onMoveEvent={onMoveEvent}
                 showET={showET}
                 showTargetCurve={showTargetCurve}
                 showProfileBt={showProfileBt}

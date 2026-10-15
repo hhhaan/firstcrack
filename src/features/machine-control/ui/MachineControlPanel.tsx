@@ -29,6 +29,8 @@ interface Props {
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
     hotkeysEnabled?: boolean;
+    /** Saved curve is on screen. Sliders, Replay, and the heat editor stay off. */
+    commandsLocked?: boolean;
 }
 
 /**
@@ -45,6 +47,7 @@ export const MachineControlPanel = ({
     pidDropBehavior,
     temperatureUnit,
     hotkeysEnabled = false,
+    commandsLocked = false,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
     const { machine, pid, replay, pidActive, changeManual, commitManual } = model;
@@ -118,7 +121,7 @@ export const MachineControlPanel = ({
                     desired={desired}
                     liveData={liveData}
                     unacknowledged={unacknowledged}
-                    writable={writable}
+                    writable={writable && !commandsLocked}
                     sending={sending}
                     pidHoldsHeater={pidHoldsHeater}
                     replayActive={replay.active}
@@ -135,9 +138,10 @@ export const MachineControlPanel = ({
                     replay={replay}
                     unit={temperatureUnit}
                     heaterUnit={limits.heater?.unit ?? '%'}
-                    onEditHeat={() => setHeatEditorOpen(true)}
+                    commandsLocked={commandsLocked}
+                    onEditHeat={commandsLocked ? undefined : () => setHeatEditorOpen(true)}
                 />
-                {heatEditorOpen && (
+                {heatEditorOpen && !commandsLocked && (
                     <HeaterEventsEditor
                         mode="batch"
                         events={replay.plan?.events ?? []}

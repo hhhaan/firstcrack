@@ -1,6 +1,11 @@
 import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it } from 'vitest';
-import { applyEventMarkerDrag, applyEventMarkerEdit, nearestLivePointAt } from './event-marker-drag';
+import {
+    applyEventMarkerDrag,
+    applyEventMarkerEdit,
+    nearestLivePointAt,
+    upsertReviewTurningPoint,
+} from './event-marker-drag';
 
 const entry = (id: string, event: string, timeSec: number, tempC: number, note = ''): LogEntry => ({
     id,
@@ -113,6 +118,26 @@ describe('applyEventMarkerDrag', () => {
 
         expect(c).toMatchObject({ tempC: 160, temp: '160.0°C' });
         expect(f).toMatchObject({ tempC: 160, temp: '320.0°F' });
+    });
+});
+
+describe('upsertReviewTurningPoint', () => {
+    const livePoints = [
+        { time: 0, bt: 200 },
+        { time: 60, bt: 140 },
+        { time: 90, bt: 160 },
+    ];
+
+    it('inserts a turning point from the nearest sample', () => {
+        const next = upsertReviewTurningPoint([], 60, livePoints, 'C', 120);
+        expect(next).toHaveLength(1);
+        expect(next[0]).toMatchObject({ event: 'TP', timeSec: 60, tempC: 140 });
+    });
+
+    it('moves an existing turning point', () => {
+        const next = upsertReviewTurningPoint([entry('tp', 'TP', 60, 140)], 90, livePoints, 'C', 120);
+        expect(next).toHaveLength(1);
+        expect(next[0]).toMatchObject({ id: 'tp', event: 'TP', timeSec: 90, tempC: 160 });
     });
 });
 

@@ -1,7 +1,7 @@
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
-import { isReviewDeletableEvent, reviewMarkToAdd } from '@features/active-roast/lib/review-record-events';
+import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import { type TemperatureUnit, useRoastSettings } from '@features/active-roast/model/settings';
@@ -122,11 +122,7 @@ export const RoastSidePanel = ({
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
     const canMark = isRoastEventMarkEnabled(phase);
-    const marksEnabled = canMark || reviewing;
-    const addReviewMark = (event: string, pressKey: string) => {
-        const next = reviewMarkToAdd(logEntries, event, fcDualMarkEnabled);
-        if (next) onMarkEvent(next, '', pressKey);
-    };
+    const marksEnabled = canMark && !reviewing;
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
     const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
     const endDisabled = !charged && !roastEnded;
@@ -142,6 +138,7 @@ export const RoastSidePanel = ({
             onRemoveLogEntry={onRemoveLogEntry}
             logEditOptions={logEditOptions}
             deletableEvent={reviewing ? isReviewDeletableEvent : undefined}
+            editableEvent={reviewing ? (event) => event !== 'Charge' && event !== 'Drop' : undefined}
         >
             <RoastAlertBanner alerts={activeAlerts} />
             {/* ET */}
@@ -384,10 +381,6 @@ export const RoastSidePanel = ({
                                       shortcutId: 'yellow' as const,
                                       pressKey: 'Mark Yellow',
                                       onClick: () => {
-                                          if (reviewing) {
-                                              addReviewMark('Yellow', 'Mark Yellow');
-                                              return;
-                                          }
                                           if (!canMark) return;
                                           onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
                                       },
@@ -406,10 +399,6 @@ export const RoastSidePanel = ({
                                       shortcutId: 'fcStart' as const,
                                       pressKey: 'Mark FC Start',
                                       onClick: () => {
-                                          if (reviewing) {
-                                              addReviewMark('FC Start', 'Mark FC Start');
-                                              return;
-                                          }
                                           if (!canMark) return;
                                           if (fcDualMarkEnabled) onCycleFc();
                                           else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
@@ -426,10 +415,6 @@ export const RoastSidePanel = ({
                                       shortcutId: 'fcEnd' as const,
                                       pressKey: 'Mark FC End',
                                       onClick: () => {
-                                          if (reviewing) {
-                                              addReviewMark('FC End', 'Mark FC End');
-                                              return;
-                                          }
                                           if (!canMark) return;
                                           onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
                                       },
@@ -446,10 +431,6 @@ export const RoastSidePanel = ({
                                     pressKey: item.id,
                                     ...(shortcut ? { shortcutKeys: [shortcut] } : {}),
                                     onClick: () => {
-                                        if (reviewing) {
-                                            addReviewMark(item.name, item.id);
-                                            return;
-                                        }
                                         if (!canMark) return;
                                         onMarkEvent(item.name, '', item.id);
                                     },

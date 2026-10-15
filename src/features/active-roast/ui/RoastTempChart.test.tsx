@@ -353,6 +353,53 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDrag).toHaveBeenCalledWith('tp', 8);
     });
 
+    it('does not drag Drop on a saved curve', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDrag = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    savedReview: true,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        { logId: 'drop-1', event: 'Drop', timeSec: 5, timeStr: '0:05', temp: '210°C', color: '#888' },
+                    ],
+                    onEventMarkerDrag,
+                    onEventMarkerEdit: vi.fn(),
+                }),
+            );
+        });
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 20, pointerId: 9 })).toBe(false);
+        expect(onEventMarkerDrag).not.toHaveBeenCalled();
+    });
+
+    it('does not move a marker while dragging a saved curve', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDrag = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    savedReview: true,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        { logId: 'note-1', event: 'Note', timeSec: 5, timeStr: '0:05', temp: '180°C', color: '#888' },
+                    ],
+                    onEventMarkerDrag,
+                    onEventMarkerEdit: vi.fn(),
+                }),
+            );
+        });
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 20, pointerId: 8 })).toBe(true);
+        expect(ref.current?.moveMarkerDrag({ clientX: 80, clientY: 20, pointerId: 8 })).toBe(true);
+        expect(onEventMarkerDrag).not.toHaveBeenCalled();
+    });
+
     it('selects finite cursor samples and supports point-symbol hits only inside a plot', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onCursorIdx = vi.fn();
@@ -660,6 +707,56 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerEdit.mock.calls[0][1].note).toBeUndefined();
     });
 
+    it('saved review edits and deletes a heater mark', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerEdit = vi.fn();
+        const onEventMarkerDelete = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    savedReview: true,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'heater-1',
+                            event: 'Heater',
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '180°C',
+                            color: '#c00',
+                            note: '80%',
+                        },
+                    ],
+                    onEventMarkerDrag: vi.fn(),
+                    onEventMarkerEdit,
+                    onEventMarkerDelete,
+                }),
+            );
+        });
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+        });
+        const heat = container.querySelector('#chart-marker-heat') as HTMLInputElement;
+        expect(heat.disabled).toBe(false);
+        expect(heat.readOnly).toBe(false);
+        expect(container.querySelector('[data-chart-marker-delete]')).not.toBeNull();
+        act(() => {
+            const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+            setter?.call(heat, '70');
+            heat.dispatchEvent(new Event('input', { bubbles: true }));
+            heat.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        act(() =>
+            container
+                .querySelector('[data-chart-marker-edit]')
+                ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+        );
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', expect.objectContaining({ note: '70%' }));
+    });
+
     it('keeps marker time to digits and seconds 0–60', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();
@@ -914,6 +1011,72 @@ describe('RoastTempChart interactions', () => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
         expect(container.querySelector('[data-chart-marker-edit]')).not.toBeNull();
+        expect(container.querySelector('[data-chart-marker-delete]')).toBeNull();
+    });
+
+    it.each(['FC Start', 'End'])('saved review deletes a %s marker', (event) => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDelete = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    savedReview: true,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'mark-1',
+                            event,
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '180°C',
+                            color: '#888',
+                        },
+                    ],
+                    onEventMarkerDrag: vi.fn(),
+                    onEventMarkerEdit: vi.fn(),
+                    onEventMarkerDelete,
+                }),
+            );
+        });
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+        });
+        act(() => {
+            (container.querySelector('[data-chart-marker-delete]') as HTMLButtonElement).click();
+        });
+        expect(onEventMarkerDelete).toHaveBeenCalledWith('mark-1');
+    });
+
+    it('saved review does not open Drop for drag or edit', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    savedReview: true,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'drop-1',
+                            event: 'Drop',
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '180°C',
+                            color: '#888',
+                        },
+                    ],
+                    onEventMarkerDrag: vi.fn(),
+                    onEventMarkerEdit: vi.fn(),
+                    onEventMarkerDelete: vi.fn(),
+                }),
+            );
+        });
+        expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(false);
         expect(container.querySelector('[data-chart-marker-delete]')).toBeNull();
     });
 

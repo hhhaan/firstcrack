@@ -11,6 +11,8 @@ interface Props {
     /** 기기 native 화력 단위. 없으면 % */
     heaterUnit?: string;
     onEditHeat?: () => void;
+    /** Saved-curve review edits the record. Replay must not command the machine. */
+    commandsLocked?: boolean;
 }
 
 export const REPLAY_OBSERVATION_HOLD_TEXT = '온도 데이터 확인 대기';
@@ -57,7 +59,7 @@ const replayDisabledHint = (
     return undefined;
 };
 
-export const ReplayControlPanel = ({ replay, unit, heaterUnit, onEditHeat }: Props) => {
+export const ReplayControlPanel = ({ replay, unit, heaterUnit, onEditHeat, commandsLocked = false }: Props) => {
     const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
     const tpWait = resolveReplayTpWait({
@@ -91,8 +93,10 @@ export const ReplayControlPanel = ({ replay, unit, heaterUnit, onEditHeat }: Pro
                 <input
                     type="checkbox"
                     checked={replay.active}
-                    onChange={replay.toggle}
-                    disabled={!replay.available || (!replay.active && replay.blocked)}
+                    onChange={() => {
+                        if (!commandsLocked) replay.toggle();
+                    }}
+                    disabled={commandsLocked || !replay.available || (!replay.active && replay.blocked)}
                     className="h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
                 />
                 <span className="text-[12px] text-secondary">{t('activeRoast.replay.label')}</span>

@@ -201,29 +201,52 @@ describe('RoastSidePanel live readings (#358)', () => {
                 (item.textContent ?? '').includes(label),
             ) as HTMLButtonElement;
         const yellow = button('Yellow');
-        expect(yellow.disabled).toBe(false);
+        expect(yellow.disabled).toBe(true);
         act(() => yellow.click());
-        expect(onMarkEvent).toHaveBeenCalledWith('Yellow', '', 'Mark Yellow');
+        expect(onMarkEvent).not.toHaveBeenCalled();
         const drop = button('Mark Drop');
         expect(drop.disabled).toBe(true);
         act(() => drop.click());
         expect(onHandleDrop).not.toHaveBeenCalled();
     });
 
-    it('saved-curve review deletes notes and custom marks only', () => {
+    it('saved-curve review deletes phase marks, end, notes, and custom marks', () => {
         renderPanel({
             reviewing: true,
             phase: 'standby',
             roastLogDisplayEntries: [
+                { id: 'c', time: '0:00', event: 'Charge', temp: '', note: '' },
                 { id: 'y', time: '1:00', event: 'Yellow', temp: '', note: '' },
                 { id: 'n', time: '2:00', event: 'Note', temp: '', note: 'hi' },
                 { id: 's', time: '3:00', event: '시바', temp: '', note: '' },
+                { id: 'e', time: '4:00', event: 'End', temp: '', note: '' },
+                { id: 'd', time: '5:00', event: 'Drop', temp: '', note: '' },
             ],
         });
         const side = container.querySelector('[data-testid="roast-side-panel"]') as HTMLElement;
-        expect(side.querySelector('[aria-label="Delete yellow"]')).toBeNull();
+        expect(side.querySelector('[aria-label="Delete yellow"]')).not.toBeNull();
         expect(side.querySelector('[aria-label="Delete note"]')).not.toBeNull();
         expect(side.querySelector('[aria-label="Delete 시바"]')).not.toBeNull();
+        expect(side.querySelector('[aria-label="Delete end"]')).not.toBeNull();
+        expect(side.querySelector('[aria-label="Delete charge"]')).toBeNull();
+        expect(side.querySelector('[aria-label="Delete drop"]')).toBeNull();
+    });
+
+    it('saved-curve review leaves the yellow button disabled', () => {
+        const onMarkEvent = vi.fn();
+        renderPanel({
+            reviewing: true,
+            phase: 'standby',
+            bbpChargeWait: true,
+            logEntries: [{ id: 'y', time: '1:00', event: 'Yellow', temp: '', note: '' }],
+            onMarkEvent,
+        });
+        const yellow = [...container.querySelectorAll('button')].find((item) =>
+            (item.textContent ?? '').includes('Yellow'),
+        ) as HTMLButtonElement;
+        expect(yellow.disabled).toBe(true);
+        act(() => yellow.click());
+        expect(onMarkEvent).not.toHaveBeenCalled();
     });
     it('opens a separate newest-first log and ignores Escape and restores focus on collapse without losing the note draft', () => {
         const onRemoveLogEntry = vi.fn();

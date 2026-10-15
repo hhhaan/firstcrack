@@ -77,6 +77,32 @@ export function applyEventMarkerDrag(
     return applyEventMarkerEdit(entries, logId, { timeSec: newTimeSec }, livePoints, unit, maxTimeSec);
 }
 
+/** Move the saved turning point, or insert one, from a chart drag. Record only. */
+export function upsertReviewTurningPoint(
+    entries: LogEntry[],
+    timeSec: number,
+    livePoints: ReadonlyArray<MarkerDragLivePoint>,
+    unit: TemperatureUnit,
+    maxTimeSec: number,
+): LogEntry[] {
+    const existing = entries.find((entry) => entry.event === 'TP' && entry.id);
+    if (existing?.id) return applyEventMarkerDrag(entries, existing.id, timeSec, livePoints, unit, maxTimeSec);
+    if (!Number.isFinite(timeSec) || !Number.isFinite(maxTimeSec) || maxTimeSec < 0) return entries;
+    const bounded = Math.min(Math.max(Math.round(timeSec), 0), Math.floor(maxTimeSec));
+    const nearest = nearestLivePointAt(livePoints, bounded);
+    if (!nearest || Math.abs(nearest.time - bounded) > NEAREST_BT_MAX_SEC) return entries;
+    const next: LogEntry = {
+        id: crypto.randomUUID(),
+        time: formatElapsed(bounded),
+        timeSec: bounded,
+        event: 'TP',
+        temp: formatTemp(nearest.bt, unit),
+        tempC: nearest.bt,
+        note: '',
+    };
+    return [...entries, next].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+}
+
 /**
  * Patch an event from the chart or log editor. Charge stays immutable.
  * Time changes snap BT to a sample; temperature changes resolve the closest curve crossing.

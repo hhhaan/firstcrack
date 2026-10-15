@@ -15,6 +15,7 @@ export const RoastLog = ({
     onRemoveEntry,
     editOptions,
     deletableEvent = isRemovableLogEvent,
+    editableEvent = (event: string) => event !== 'Charge',
     showHeading = true,
 }: {
     entries: LogEntry[];
@@ -22,6 +23,7 @@ export const RoastLog = ({
     onRemoveEntry?: (id: string) => void;
     editOptions?: RoastLogEditOptions;
     deletableEvent?: (event: string) => boolean;
+    editableEvent?: (event: string) => boolean;
     showHeading?: boolean;
 }) => {
     const isSidebar = variant === 'sidebar';
@@ -48,7 +50,7 @@ export const RoastLog = ({
                 const key = entry.current ? 'current' : (entry.id ?? `${entry.time}-${entry.event}`);
                 const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
                 const canRemove = deletableEvent(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
-                const canEdit = !!editOptions && !!entry.id && !entry.current && entry.event !== 'Charge';
+                const canEdit = !!editOptions && !!entry.id && !entry.current && editableEvent(entry.event);
                 const deleteLabel = `Delete ${roastEventLabel(entry.event).toLowerCase()}`;
                 const editor =
                     canEdit && editingId === entry.id ? (

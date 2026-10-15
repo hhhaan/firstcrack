@@ -51,6 +51,7 @@ const chartInput = {
     onEventMarkerDelete: () => {},
     onAddNote: () => {},
     onAddEvent: () => {},
+    onMoveEvent: () => {},
 };
 
 describe('buildChartFrame', () => {
@@ -75,6 +76,7 @@ describe('buildChartFrame', () => {
         expect(frame.onEventMarkerEdit).toBe(chartInput.onEventMarkerEdit);
         expect(frame.onAddNote).toBe(chartInput.onAddNote);
         expect(frame.onEventMarkerDelete).toBe(chartInput.onEventMarkerDelete);
+        expect(frame.onMoveEvent).toBe(chartInput.onMoveEvent);
     });
 
     it('hides roast markers and labels a recording wait as BBP', () => {

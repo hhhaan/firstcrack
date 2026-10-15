@@ -31,6 +31,8 @@ interface UseRoastKeyboardShortcutsParams {
     /** When set, mod+2 uses dual-mark cycle instead of toggle FC Start. */
     onCycleFc?: () => void;
     onMarkDrop: () => void;
+    /** Saved-curve review keeps Yellow / FC / custom hotkeys. Drop stays live-only. */
+    markWhileReviewing?: boolean;
 }
 
 /** Base gate shared by all roast hotkeys (modals close the keyboard surface). */
@@ -112,6 +114,7 @@ export const useRoastKeyboardShortcuts = ({
     onMarkEvent,
     onCycleFc,
     onMarkDrop,
+    markWhileReviewing = false,
 }: UseRoastKeyboardShortcutsParams) => {
     const recording = useShortcutStore((state) => state.recording);
     const dialogOpen = useShortcutStore((state) => state.dialogOpen);
@@ -140,15 +143,16 @@ export const useRoastKeyboardShortcuts = ({
             showContinueModal,
             phase,
         });
-    const canMark =
+    const shortcutBase =
         shortcutsEnabled &&
-        isRoastMarkShortcutEnabled({
+        isRoastShortcutBaseEnabled({
             isActive,
             showEndRoastModal,
             showSummaryModal,
             showContinueModal,
-            phase,
         });
+    const canMark = shortcutBase && isRoastEventMarkEnabled(phase);
+    const canMarkEvents = canMark || (markWhileReviewing && shortcutBase);
     const dropArmRef = useRef<number | null>(null);
 
     useEffect(() => {
@@ -223,8 +227,8 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
         },
-        { enabled: canMark && yellowKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMark, onMarkEvent],
+        { enabled: canMarkEvents && yellowKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        [canMarkEvents, onMarkEvent],
     );
 
     // Ctrl/Meta + 2 → Mark FC Start (or dual-mark cycle when onCycleFc provided)
@@ -235,8 +239,8 @@ export const useRoastKeyboardShortcuts = ({
             if (onCycleFc) onCycleFc();
             else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
         },
-        { enabled: canMark && fcStartKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMark, onMarkEvent, onCycleFc],
+        { enabled: canMarkEvents && fcStartKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        [canMarkEvents, onMarkEvent, onCycleFc],
     );
 
     // Ctrl/Meta + 3 → Mark FC End
@@ -246,8 +250,8 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
         },
-        { enabled: canMark && fcEndKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMark, onMarkEvent],
+        { enabled: canMarkEvents && fcEndKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        [canMarkEvents, onMarkEvent],
     );
 
     // Ctrl/Meta + D, D → Mark Drop. One tap arms; the second tap inside the window fires.
@@ -280,7 +284,7 @@ export const useRoastKeyboardShortcuts = ({
             if (!item) return;
             onMarkEvent(item.name, '', item.id);
         },
-        { enabled: canMark && customHotkeyPlan.hotkeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMark, customEvents, customHotkeyPlan, onMarkEvent],
+        { enabled: canMarkEvents && customHotkeyPlan.hotkeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        [canMarkEvents, customEvents, customHotkeyPlan, onMarkEvent],
     );
 };

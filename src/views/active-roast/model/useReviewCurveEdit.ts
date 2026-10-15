@@ -97,7 +97,7 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
                 inflight.current = false;
                 const next = pending.current;
                 pending.current = null;
-                if (next) void saveRef.current(next.entries, next.previous);
+                if (next) await saveRef.current(next.entries, next.previous);
             }
         },
         [mutateAsync, rejectText, session.data, sessionId, t],

@@ -13,11 +13,14 @@ DECLARE
   new_events jsonb := '[{"id":"c","type":"Charge","time_sec":0,"temp_c":201},{"id":"u","type":"Mystery","time_sec":30,"extra":1},{"id":"f","type":"FC Start","time_sec":470,"temp_c":195},{"id":"d","type":"Drop","time_sec":610,"temp_c":212}]';
   heater jsonb := '[{"t":0,"bt":200,"heater":70},{"t":120,"bt":150,"heater":55}]';
   saved roast_sessions;
+  heat_saved roast_sessions;
   stock_before bigint;
   stock_after bigint;
   prof roast_profiles;
   session2 uuid := gen_random_uuid();
   open_id uuid := gen_random_uuid();
+  session_heat uuid := gen_random_uuid();
+  heat_events jsonb := '[{"id":"c","type":"Charge","time_sec":0,"temp_c":200},{"id":"h","type":"Heater","time_sec":7,"temp_c":180,"note":"80%"},{"id":"d","type":"Drop","time_sec":600,"temp_c":210}]';
   profile2 uuid;
   boundary text;
   bare jsonb := '[{"id":"c","type":"Charge","time_sec":0,"temp_c":200},{"id":"n","type":"Note","time_sec":30,"note":"keep","extra":1},{"id":"d","type":"Drop","time_sec":600,"temp_c":210},{"id":"e","type":"End","time_sec":640}]';
@@ -34,6 +37,8 @@ BEGIN
     VALUES(owner_id, 'p673', 'Medium', session2, 210, 600) RETURNING id INTO profile2;
   INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, events)
     VALUES(open_id, owner_id, 1000, 'in_progress', now(), 640, bare);
+  INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, drop_temp_celsius, events)
+    VALUES(session_heat, owner_id, 1000, 'completed', now(), 600, 210, heat_events);
   SELECT (SELECT count(*) FROM bean_stock_events) + (SELECT count(*) FROM roasted_stock_events) INTO stock_before;
 
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
@@ -83,8 +88,8 @@ BEGIN
   EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
   END;
   BEGIN
-    PERFORM update_roast_session_record(session2, bare, NULL, bare - 1, NULL, 210, 640, NULL);
-    RAISE EXCEPTION 'delete not rejected';
+    PERFORM update_roast_session_record(session2, bare, NULL, bare - 0, NULL, 210, 640, NULL);
+    RAISE EXCEPTION 'charge delete not rejected';
   EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
   END;
   BEGIN
@@ -210,6 +215,25 @@ BEGIN
     RAISE EXCEPTION 'empty note not rejected';
   EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
   END;
+
+  saved := update_roast_session_record(session2, saved.events, NULL,
+    (
+      SELECT jsonb_agg(e)
+      FROM jsonb_array_elements(saved.events) e
+      WHERE coalesce(e ->> 'type', '') NOT IN ('Yellow', 'FC Start', 'End')
+    ),
+    NULL, 212, 640, NULL);
+  ASSERT (
+    SELECT count(*) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'type' IN ('Yellow', 'FC Start', 'End')
+  ) = 0, 'phase marks and end removed';
+
+  heat_saved := update_roast_session_record(session_heat, heat_events, NULL,
+    jsonb_set(heat_events, '{1,note}', '"70%"'), NULL, 210, 600, NULL);
+  ASSERT (SELECT e ->> 'note' FROM jsonb_array_elements(heat_saved.events) e WHERE e ->> 'id' = 'h') = '70%', 'heater note saved';
+  heat_saved := update_roast_session_record(session_heat, heat_saved.events, NULL,
+    (SELECT jsonb_agg(e) FROM jsonb_array_elements(heat_saved.events) e WHERE e ->> 'type' <> 'Heater'),
+    NULL, 210, 600, NULL);
+  ASSERT (SELECT count(*) FROM jsonb_array_elements(heat_saved.events) e WHERE e ->> 'type' = 'Heater') = 0, 'heater removed';
 
   BEGIN
     PERFORM update_roast_session_record(session2, saved.events, NULL,

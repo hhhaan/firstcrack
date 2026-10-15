@@ -12,6 +12,7 @@ export const RoastSidePanelLayout = ({
     onRemoveLogEntry,
     logEditOptions,
     deletableEvent,
+    editableEvent,
 }: {
     children: ReactNode;
     roastLogDisplayEntries: LogEntry[];
@@ -19,6 +20,8 @@ export const RoastSidePanelLayout = ({
     logEditOptions?: RoastLogEditOptions;
     /** Review keeps key marks. Live roast keeps the default removable set. */
     deletableEvent?: (event: string) => boolean;
+    /** Saved-curve review also freezes Drop. Live roast freezes Charge only. */
+    editableEvent?: (event: string) => boolean;
 }) => {
     const { t } = useTranslation();
     const { logExpanded } = useRoastSettings();
@@ -64,6 +67,7 @@ export const RoastSidePanelLayout = ({
                             onRemoveEntry={onRemoveLogEntry}
                             editOptions={logEditOptions}
                             deletableEvent={deletableEvent}
+                            editableEvent={editableEvent}
                         />
                     </>
                 )}
@@ -94,6 +98,7 @@ export const RoastSidePanelLayout = ({
                             onRemoveEntry={onRemoveLogEntry}
                             editOptions={logEditOptions}
                             deletableEvent={deletableEvent}
+                            editableEvent={editableEvent}
                         />
                     </div>
                 </section>

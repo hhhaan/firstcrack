@@ -23,13 +23,17 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
-import { TP_MARKER_ID } from '@features/active-roast/lib/constants';
+import { isToggleableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import {
     applyEventMarkerEdit,
     type EventMarkerPatch,
     nearestLivePointAt,
+    upsertReviewTurningPoint,
 } from '@features/active-roast/lib/event-marker-drag';
-import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
+import { isReviewDeletableEvent, reviewMarkAction } from '@features/active-roast/lib/review-record-events';
+import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -262,7 +266,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const livePoints = useRoastingStore((state) => state.livePoints);
     const reviewSnapshot = useRoastingStore(selectReviewSnapshot);
     const reviewing = reviewSnapshot != null;
-    const { applyReviewLog, reviewSaveError } = useReviewCurveEdit(reviewSnapshot?.sessionId ?? null);
+    const [reviewFcUnwind, setReviewFcUnwind] = useState(false);
+    const [unwindSessionId, setUnwindSessionId] = useState<string | null>(null);
+    const reviewSessionId = reviewSnapshot?.sessionId ?? null;
+    if (unwindSessionId !== reviewSessionId) {
+        setUnwindSessionId(reviewSessionId);
+        setReviewFcUnwind(false);
+    }
+    const reviewMarkRef = useRef<(event: string, note: string) => void>(() => {});
+    const { applyReviewLog, reviewSaveError } = useReviewCurveEdit(reviewSessionId);
     const curvePoints = reviewSnapshot?.livePoints ?? livePoints;
     const curveEntries = reviewSnapshot?.logEntries ?? logEntries;
     const curveElapsed = reviewSnapshot?.elapsed ?? elapsed;
@@ -766,6 +778,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const displayRoR = formatDisplayRoR(liveData?.ror, unit);
 
     // ── 키보드 단축키 ─────────────────────────────────────────────
+    const markFromShortcut = useCallback(
+        (event: string, note: string, pressKey: string) => {
+            if (selectReviewSnapshot(useRoastingStore.getState())) reviewMarkRef.current(event, note);
+            else markEvent(event, note, pressKey);
+        },
+        [markEvent],
+    );
+    const cycleFromShortcut = useCallback(() => {
+        if (selectReviewSnapshot(useRoastingStore.getState())) reviewMarkRef.current('FC Start', '');
+        else cycleFc();
+    }, [cycleFc]);
     useRoastKeyboardShortcuts({
         isActive,
         isFullscreen,
@@ -778,8 +801,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onExitFullscreen: exitFullscreen,
         onEnterStandby: lifecycle.handleEnterStandby,
         onManualCharge: markCharge,
-        onMarkEvent: markEvent,
-        onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
+        onMarkEvent: markFromShortcut,
+        onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFromShortcut),
         onMarkDrop: markDrop,
     });
 
@@ -847,20 +870,42 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         (event: string, note: string) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
             if (!frozen) return;
+            const action = reviewMarkAction(frozen.logEntries, event, fcDualMarkEnabled, reviewFcUnwind);
+            if (!action) return;
+            if (action.kind === 'remove') {
+                setReviewFcUnwind(fcDualMarkEnabled && event === 'FC Start' && action.event === 'FC Rolling');
+                frozenLogEdit(withoutLogEvent(frozen.logEntries, action.event));
+                return;
+            }
+            setReviewFcUnwind(false);
             const timeSec = Math.max(0, frozen.elapsed);
             const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
             const tempC =
                 nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : (frozen.rawBT ?? null);
-            frozenLogEdit(appendReviewEntry(frozen.logEntries, event, note, timeSec, tempC, unit));
+            frozenLogEdit(appendReviewEntry(frozen.logEntries, action.event, note, timeSec, tempC, unit));
         },
-        [frozenLogEdit, unit],
+        [fcDualMarkEnabled, frozenLogEdit, reviewFcUnwind, unit],
     );
+    reviewMarkRef.current = handleReviewMark;
 
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
             if (frozen) {
-                if (logId === TP_MARKER_ID) return;
+                if (logId === TP_MARKER_ID) {
+                    frozenLogEdit(
+                        upsertReviewTurningPoint(
+                            frozen.logEntries,
+                            newTimeSec,
+                            frozen.livePoints,
+                            unit,
+                            frozen.elapsed,
+                        ),
+                    );
+                    return;
+                }
+                const target = frozen.logEntries.find((entry) => entry.id === logId);
+                if (!target || target.event === 'Charge' || target.event === 'Drop') return;
                 frozenLogEdit(
                     applyEventMarkerEdit(
                         frozen.logEntries,
@@ -888,7 +933,22 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         (logId: string, patch: EventMarkerPatch) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
             if (frozen) {
-                if (logId === TP_MARKER_ID) return;
+                if (logId === TP_MARKER_ID) {
+                    if (patch.timeSec != null) {
+                        frozenLogEdit(
+                            upsertReviewTurningPoint(
+                                frozen.logEntries,
+                                patch.timeSec,
+                                frozen.livePoints,
+                                unit,
+                                frozen.elapsed,
+                            ),
+                        );
+                    }
+                    return;
+                }
+                const target = frozen.logEntries.find((entry) => entry.id === logId);
+                if (!target || target.event === 'Charge' || target.event === 'Drop') return;
                 frozenLogEdit(
                     applyEventMarkerEdit(frozen.logEntries, logId, patch, frozen.livePoints, unit, frozen.elapsed),
                 );
@@ -926,6 +986,26 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [bbpActive, charged, markEvent, roastEnded],
     );
 
+    const handleReviewMoveEvent = useCallback(
+        (event: string, timeSec: number) => {
+            const frozen = selectReviewSnapshot(useRoastingStore.getState());
+            if (!frozen || event === 'Charge' || event === 'Drop') return;
+            const target = frozen.logEntries.find((entry) => entry.event === event && entry.id);
+            if (!target?.id) return;
+            frozenLogEdit(
+                applyEventMarkerEdit(
+                    frozen.logEntries,
+                    target.id,
+                    { timeSec },
+                    frozen.livePoints,
+                    unit,
+                    frozen.elapsed,
+                ),
+            );
+        },
+        [frozenLogEdit, unit],
+    );
+
     const handleChartEvent = useCallback(
         (event: string, timeSec: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
@@ -947,7 +1027,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         (id: string) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
             if (frozen) {
-                frozenLogEdit(frozen.logEntries.filter((entry) => entry.id !== id));
+                const target = frozen.logEntries.find((entry) => entry.id === id);
+                if (!target || !isReviewDeletableEvent(target.event)) return;
+                frozenLogEdit(
+                    isToggleableLogEvent(target.event)
+                        ? withoutLogEvent(frozen.logEntries, target.event)
+                        : frozen.logEntries.filter((entry) => entry.id !== id),
+                );
                 return;
             }
             removeLogEntry(id);
@@ -1011,6 +1097,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onHeaterCommitted: handleHeaterCommitted,
         onApplied: handleControlApplied,
     });
+    useEffect(() => {
+        if (reviewing) machineControl.replay.stop();
+    }, [reviewing, machineControl.replay.stop]);
     useLayoutEffect(() => {
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
@@ -1058,6 +1147,23 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => buildRoastLogDisplayEntries(curveEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit),
         [curveEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit],
     );
+    const reviewChartTurningPoints = useMemo(() => {
+        if (!reviewSnapshot) return [];
+        const logged = reviewSnapshot.logEntries.find((entry) => entry.event === 'TP' && entry.tempC != null);
+        if (logged?.tempC != null) return [{ timeSec: logEntryTimeSec(logged), temp: logged.tempC }];
+        const drop = reviewSnapshot.logEntries.find((entry) => entry.event === 'Drop');
+        const limit = drop ? logEntryTimeSec(drop) : reviewSnapshot.elapsed;
+        const xs: number[] = [];
+        const bt: number[] = [];
+        for (const point of reviewSnapshot.livePoints) {
+            if (point.time < 0 || point.time > limit || !Number.isFinite(point.bt)) continue;
+            xs.push(point.time);
+            bt.push(point.bt);
+        }
+        return detectTurningPoints(xs, bt)
+            .slice(0, 1)
+            .map(({ timeSec, temp }) => ({ timeSec, temp }));
+    }, [reviewSnapshot]);
     const chartFrame = buildChartFrame({
         isFullscreen,
         bbpActive: reviewing ? false : bbpActive,
@@ -1098,7 +1204,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         charged,
         roastEnded,
         eventMarkers,
-        turningPoints,
+        turningPoints: reviewing ? reviewChartTurningPoints : turningPoints,
         phaseSegments,
         showFcBand: roastSettings.showFcBand,
         onEventMarkerDrag: handleEventMarkerDrag,
@@ -1106,6 +1212,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onEventMarkerDelete: removeCurveEntry,
         onAddNote: handleChartNote,
         onAddEvent: handleChartEvent,
+        onMoveEvent: handleReviewMoveEvent,
         reviewing,
     });
 
@@ -1219,6 +1326,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         savedReview={reviewing}
                         onAddNote={chartFrame.onAddNote}
                         onAddEvent={chartFrame.onAddEvent}
+                        onMoveEvent={chartFrame.onMoveEvent}
                     />
 
                     {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}
@@ -1228,6 +1336,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         replayPoints={replayPoints}
                         temperatureUnit={unit}
+                        commandsLocked={reviewing}
                         hotkeysEnabled={isRoastShortcutBaseEnabled({
                             isActive,
                             showEndRoastModal: saveFlow.flow.endRoastModal,
@@ -1256,7 +1365,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         rollingDtrPct={rollingDtrPct}
                         rollingDevTimeStr={rollingDevTimeOnly}
                         fcDualMarkEnabled={fcDualMarkEnabled}
-                        fcDualUnwind={fcDualUnwind}
+                        fcDualUnwind={reviewing ? reviewFcUnwind : fcDualUnwind}
                         logEntries={curveEntries}
                         pressedButtons={pressedButtons}
                         roastLogDisplayEntries={roastLogDisplayEntries}
