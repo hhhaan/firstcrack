@@ -1,15 +1,3 @@
-import {
-    Activity,
-    Book,
-    Calculator,
-    Calendar,
-    Chip,
-    CropGrowth,
-    Dashboard,
-    Fire,
-    RecentlyViewed,
-    ShoppingCart,
-} from '@carbon/icons-react';
 import { useInventoryAlerts } from '@entities/inventory-alert';
 import { useActiveWorkspace } from '@entities/organization';
 import { cn } from '@shared/lib/cn';
@@ -17,23 +5,33 @@ import { FEATURE, useFeature } from '@shared/lib/features';
 import { SIDEBAR_GROUPS, type SidebarNavId, useSidebarPreferences } from '@shared/store/sidebar-preferences';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
-import { Lock } from 'lucide-react';
-import type { ComponentType, CSSProperties } from 'react';
+import {
+    Activity,
+    Book,
+    Calculator,
+    Calendar,
+    Cpu,
+    Flame,
+    History,
+    LayoutDashboard,
+    Lock,
+    type LucideIcon,
+    ShoppingCart,
+    Sprout,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-type SidebarIcon = ComponentType<{ size?: number; className?: string; style?: CSSProperties }>;
-
-const navItems: { id: SidebarNavId; labelKey: string; icon: SidebarIcon }[] = [
-    { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: Dashboard },
+const navItems: { id: SidebarNavId; labelKey: string; icon: LucideIcon }[] = [
+    { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: LayoutDashboard },
     { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: Calendar },
-    { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
-    { id: 'history', labelKey: 'sidebar.nav.history', icon: RecentlyViewed },
+    { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Flame },
+    { id: 'history', labelKey: 'sidebar.nav.history', icon: History },
     { id: 'cupping', labelKey: 'sidebar.nav.cupping', icon: Activity },
     { id: 'orders', labelKey: 'sidebar.nav.orders', icon: ShoppingCart },
-    { id: 'beans', labelKey: 'sidebar.nav.beans', icon: CropGrowth },
+    { id: 'beans', labelKey: 'sidebar.nav.beans', icon: Sprout },
     { id: 'pricing', labelKey: 'sidebar.nav.pricing', icon: Calculator },
     { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
-    { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Chip },
+    { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Cpu },
 ];
 
 const navById = new Map(navItems.map((item) => [item.id, item]));
@@ -95,7 +93,11 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-primary/5 h-9 overflow-hidden"
                                     >
                                         <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
-                                            <Icon size={16} className={isActive ? 'text-primary' : 'text-muted'} />
+                                            <Icon
+                                                size={16}
+                                                strokeWidth={1.5}
+                                                className={isActive ? 'text-primary' : 'text-muted'}
+                                            />
                                             {showBadge && collapsed && (
                                                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
                                             )}
