@@ -41,7 +41,10 @@ DECLARE
   v_user_id uuid;
 BEGIN
   SELECT o.user_id INTO v_user_id FROM orders o WHERE o.id = p_order_id;
-  IF NOT FOUND OR NOT public.has_workspace_access(v_user_id) THEN
+  IF NOT FOUND OR (
+    auth.role() IS DISTINCT FROM 'service_role'
+    AND NOT coalesce(public.has_workspace_access(v_user_id), false)
+  ) THEN
     RAISE EXCEPTION 'order_not_found'
       USING ERRCODE = 'no_data_found',
             DETAIL = format('order_id=%s', p_order_id);
@@ -51,8 +54,8 @@ BEGIN
   WHERE order_id = p_order_id AND resolved_at IS NULL;
 END;
 $function$;
-REVOKE ALL ON FUNCTION public.resolve_order_fulfillment_hold(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.resolve_order_fulfillment_hold(uuid) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.resolve_order_fulfillment_hold(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_order_fulfillment_hold(uuid) TO service_role;
 
 -- ---------------------------------------------------------------------------
 -- sync_channel_orders_batch: pre-filter fulfillment on stock / open holds
@@ -363,7 +366,10 @@ DECLARE
 BEGIN
   SELECT o.user_id, o.status, o.fulfilled_at INTO v_user_id, v_status, v_fulfilled_at
   FROM orders o WHERE o.id = p_order_id FOR UPDATE;
-  IF NOT FOUND OR NOT public.has_workspace_access(v_user_id) THEN
+  IF NOT FOUND OR (
+    auth.role() IS DISTINCT FROM 'service_role'
+    AND NOT coalesce(public.has_workspace_access(v_user_id), false)
+  ) THEN
     RAISE EXCEPTION 'order_not_found' USING ERRCODE = 'no_data_found', DETAIL = format('order_id=%s', p_order_id);
   END IF;
   IF NOT EXISTS (
@@ -371,14 +377,17 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'order_fulfillment_hold_not_found' USING ERRCODE = 'no_data_found';
   END IF;
+  IF v_fulfilled_at IS NOT NULL THEN
+    UPDATE order_fulfillment_holds
+    SET resolved_at = now(), updated_at = now()
+    WHERE order_id = p_order_id AND resolved_at IS NULL;
+    RETURN;
+  END IF;
   IF v_status IN ('cancelled', 'refunded') THEN
     RAISE EXCEPTION 'order_terminal_not_fulfillable' USING ERRCODE = 'check_violation';
   END IF;
   IF v_status NOT IN ('shipped', 'delivered') THEN
     RAISE EXCEPTION 'order_not_shipped' USING ERRCODE = 'check_violation';
-  END IF;
-  IF v_fulfilled_at IS NOT NULL THEN
-    RAISE EXCEPTION 'order_already_fulfilled' USING ERRCODE = 'check_violation';
   END IF;
 
   FOR v_line_rec IN
@@ -441,14 +450,16 @@ BEGIN
   UPDATE orders SET fulfilled_at = now(), updated_at = now()
   WHERE id = p_order_id AND fulfilled_at IS NULL;
 
-  PERFORM public.resolve_order_fulfillment_hold(p_order_id);
+  UPDATE order_fulfillment_holds
+  SET resolved_at = now(), updated_at = now()
+  WHERE order_id = p_order_id AND resolved_at IS NULL;
 END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.retry_order_fulfillment(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.retry_order_fulfillment(uuid) TO authenticated, service_role;
 
--- Manual fulfill_order clears an open hold once stock is deducted.
+-- Manual fulfill_order clears an open hold via retry_order_fulfillment (hold-only path).
 CREATE OR REPLACE FUNCTION public.fulfill_order(p_order_id uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -506,6 +517,11 @@ BEGIN
   UPDATE orders SET fulfilled_at = now(), updated_at = now()
   WHERE id = p_order_id AND fulfilled_at IS NULL;
 
-  PERFORM public.resolve_order_fulfillment_hold(p_order_id);
+  IF EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    WHERE h.order_id = p_order_id AND h.resolved_at IS NULL
+  ) THEN
+    PERFORM public.retry_order_fulfillment(p_order_id);
+  END IF;
 END;
 $function$;
