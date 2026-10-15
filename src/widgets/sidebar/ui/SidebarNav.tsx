@@ -90,7 +90,10 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         onClick={() => onNavigate(id)}
                                         aria-label={label}
                                         title={collapsed ? label : undefined}
-                                        className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-primary/5 h-9 overflow-hidden"
+                                        className={cn(
+                                            'flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-lg border-none bg-transparent mb-0.5 transition-[padding,background-color] duration-220 hover:bg-primary/5',
+                                            collapsed || rail ? 'pl-0' : 'pl-2',
+                                        )}
                                     >
                                         <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
                                             <Icon
