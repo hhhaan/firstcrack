@@ -1319,12 +1319,14 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     )}
                     <div className="flex items-center justify-end gap-1">
                         {onEventMarkerDelete &&
-                            (savedReview ? isReviewDeletableEvent : isRemovableLogEvent)(editForm.event) && (
+                            ((savedReview ? isReviewDeletableEvent : isRemovableLogEvent)(editForm.event) ||
+                                (savedReview && editForm.event === 'TP')) && (
                                 <button
                                     type="button"
                                     data-chart-marker-delete
+                                    disabled={savedReview && editForm.event === 'TP'}
                                     onClick={deleteEdit}
-                                    className="rounded px-2 text-xs text-muted"
+                                    className="rounded px-2 text-xs text-muted disabled:cursor-default disabled:opacity-40"
                                 >
                                     {t('common.delete')}
                                 </button>

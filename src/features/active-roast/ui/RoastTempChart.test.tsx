@@ -1014,6 +1014,42 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('[data-chart-marker-delete]')).toBeNull();
     });
 
+    it('saved review disables Delete on a turning point', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDelete = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    savedReview: true,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'tp-1',
+                            event: 'TP',
+                            timeSec: 5,
+                            timeStr: '0:05',
+                            temp: '140°C',
+                            color: '#888',
+                        },
+                    ],
+                    onEventMarkerDrag: vi.fn(),
+                    onEventMarkerEdit: vi.fn(),
+                    onEventMarkerDelete,
+                }),
+            );
+        });
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
+        });
+        const button = container.querySelector('[data-chart-marker-delete]') as HTMLButtonElement;
+        expect(button.disabled).toBe(true);
+        act(() => button.click());
+        expect(onEventMarkerDelete).not.toHaveBeenCalled();
+    });
+
     it.each(['FC Start', 'End'])('saved review deletes a %s marker', (event) => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerDelete = vi.fn();
