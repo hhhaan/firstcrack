@@ -43,4 +43,12 @@ describe('buildNewBatchPayload', () => {
         expect(payload.blendId).toBe('blend-1');
         expect(payload.beanName).toBe('House Blend');
     });
+
+    it('rejects a single origin without a bean even when a stale blend is selected', () => {
+        expect(() => buildNewBatchPayload({ ...base, batchType: 'Single Origin', beanId: null })).toThrow();
+    });
+
+    it.each(['Pre-roast Blend', 'Post-roast Blend'] as const)('rejects %s without a blend', (batchType) => {
+        expect(() => buildNewBatchPayload({ ...base, batchType, blendId: null })).toThrow();
+    });
 });

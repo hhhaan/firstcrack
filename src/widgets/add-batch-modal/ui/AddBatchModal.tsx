@@ -147,7 +147,8 @@ export const AddBatchModal = ({
     const newDateKey = date ? format(date, 'yyyy-MM-dd') : '';
     const originalDateKey = editingBatch?.scheduled_date ?? currentDateKey;
     const dateChanged = isEdit && !!originalDateKey && newDateKey !== originalDateKey;
-    const canSubmit = date !== undefined && !!machineId && targetNum > 0 && batchSizeNum > 0 && !saving;
+    const hasSource = batchType === 'Single Origin' ? Boolean(selectedBean) : Boolean(selectedBlend);
+    const canSubmit = date !== undefined && !!machineId && hasSource && targetNum > 0 && batchSizeNum > 0 && !saving;
 
     const handleSubmit = async () => {
         if (!canSubmit || !date || !onSave) return;
@@ -255,6 +256,11 @@ export const AddBatchModal = ({
                     onBeanSelect={setBeanId}
                     onBlendSelect={setBlendId}
                 />
+                {!hasSource && (
+                    <p role="alert" className="text-xs text-red-500">
+                        {t('schedule.error.sourceRequired')}
+                    </p>
+                )}
 
                 <BatchQuantityFields
                     targetRoasted={targetRoasted}

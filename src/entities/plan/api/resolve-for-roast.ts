@@ -1,3 +1,4 @@
+import { i18n } from '@shared/i18n';
 import { expandRRuleInRange, formatDateLocal } from '@shared/lib/rrule';
 import { supabase } from '@shared/lib/supabase';
 import type { PlanBatch, PlanBatchHandoff, PlanBatchWithProgress, RecurrenceRule } from '@shared/types/database.types';
@@ -199,6 +200,9 @@ export async function startForRoast(
     source: PlanBatchWithProgress | PlanBatchHandoff,
 ): Promise<PlanBatchWithProgress> {
     const batch = await resolveForRoast(ownerId, source);
+    if (!batch.bean_id && !batch.blend_id) {
+        throw new UnresolvablePlanBatchIdError(i18n.t('schedule.error.sourceRequired'));
+    }
     if (batch.status === 'done' || batch.completed_sessions >= batch.batch_count) {
         throw new UnresolvablePlanBatchIdError('plan batch already completed');
     }

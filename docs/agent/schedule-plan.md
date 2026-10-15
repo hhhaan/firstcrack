@@ -42,6 +42,8 @@ See `planBatchApi.updateSingle` and `materializePlanBatch` in `src/entities/plan
 
 ### Create / edit one-off batch
 
+Creating or editing any batch requires a green bean for Single Origin, or a blend for either blend type. `startForRoast` also checks the latest batch row and rejects legacy plans with neither source before changing status or handing off to Active Roast.
+
 1. Ensure day plan for date (`dayPlanApi.getOrCreate`)
 2. `planBatchApi.create` or `updateSingle` without recurrence meta → direct UPDATE
 

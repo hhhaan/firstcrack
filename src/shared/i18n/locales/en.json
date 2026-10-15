@@ -1274,6 +1274,7 @@
             "createBatch": "Failed to add batch:",
             "completeBatch": "Failed to complete batch:",
             "startBatch": "Failed to start batch:",
+            "sourceRequired": "Select a green bean or blend.",
             "roastInProgress": "A roast is already in progress. Finish it before starting another batch."
         },
         "recurringEditScope": {

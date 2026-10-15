@@ -1274,6 +1274,7 @@
             "createBatch": "バッチの追加に失敗しました:",
             "completeBatch": "バッチの完了処理に失敗しました:",
             "startBatch": "バッチの開始に失敗しました:",
+            "sourceRequired": "生豆またはブレンドを選択してください。",
             "roastInProgress": "すでに焙煎が進行中です。完了後に開始してください。"
         },
         "recurringEditScope": {
