@@ -2017,7 +2017,11 @@
             "empty": "No unfulfilled orders — nothing to roast.",
             "bean": "Bean",
             "green": "Green needed",
-            "available": "Available"
+            "available": "Available",
+            "expandBreakdown": "Show per-profile amounts for {{bean}}",
+            "collapseBreakdown": "Hide per-profile amounts for {{bean}}",
+            "profileAmount": "{{name}} · {{amount}} kg",
+            "profileUnassigned": "No profile"
         },
         "order": {
             "newTitle": "New order",

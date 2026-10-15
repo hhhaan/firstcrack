@@ -2017,7 +2017,11 @@
             "empty": "没有未完成的订单 — 无需烘焙。",
             "bean": "咖啡豆",
             "green": "所需生豆",
-            "available": "可用库存"
+            "available": "可用库存",
+            "expandBreakdown": "显示 {{bean}} 的各曲线需求量",
+            "collapseBreakdown": "隐藏 {{bean}} 的各曲线需求量",
+            "profileAmount": "{{name}} · {{amount}} kg",
+            "profileUnassigned": "未指定曲线"
         },
         "order": {
             "newTitle": "新建订单",

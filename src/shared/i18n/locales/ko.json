@@ -2017,7 +2017,11 @@
             "empty": "미출고 주문이 없어 로스팅할 물량이 없습니다.",
             "bean": "원두",
             "green": "필요 생두",
-            "available": "보유"
+            "available": "보유",
+            "expandBreakdown": "{{bean}} 프로파일별 필요량 보기",
+            "collapseBreakdown": "{{bean}} 프로파일별 필요량 숨기기",
+            "profileAmount": "{{name}} · {{amount}} kg",
+            "profileUnassigned": "프로파일 없음"
         },
         "order": {
             "newTitle": "새 주문",

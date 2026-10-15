@@ -7,6 +7,10 @@ import { RoastingRequirementsCard } from './RoastingRequirementsCard';
 
 const state = vi.hoisted(() => ({
     beans: [{ id: 'bean-1', name: 'Ethiopia' }],
+    profiles: [
+        { id: 'p1', name: 'Light' },
+        { id: 'p2', name: 'Dark' },
+    ],
     requirements: {
         products: [],
         beans: [
@@ -37,15 +41,26 @@ vi.mock('@entities/order', () => ({
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner' }),
 }));
+vi.mock('@entities/roast-profile', () => ({
+    useRoastProfiles: () => ({ data: state.profiles }),
+}));
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({
-        t: (key: string) =>
-            ({
-                'orders.requirements.title': 'Roasting',
-                'orders.requirements.bean': 'Bean',
-                'orders.requirements.green': 'Green',
-                'orders.requirements.available': 'Available',
-            })[key] ?? key,
+        t: (key: string, opts?: { name?: string; amount?: string; bean?: string }) => {
+            if (key === 'orders.requirements.profileAmount') {
+                return `${opts?.name} · ${opts?.amount} kg`;
+            }
+            if (key === 'orders.requirements.expandBreakdown') return `Expand ${opts?.bean}`;
+            if (key === 'orders.requirements.collapseBreakdown') return `Collapse ${opts?.bean}`;
+            return (
+                {
+                    'orders.requirements.title': 'Roasting',
+                    'orders.requirements.bean': 'Bean',
+                    'orders.requirements.green': 'Green',
+                    'orders.requirements.available': 'Available',
+                }[key] ?? key
+            );
+        },
     }),
 }));
 
@@ -107,6 +122,21 @@ describe('RoastingRequirementsCard', () => {
         expect(availableCell?.className).toContain('text-red-500');
     });
 
+    it('shows per-profile breakdown after expanding the bean row', async () => {
+        await render();
+        const toggle = container.querySelector('button[aria-expanded="false"]') as HTMLButtonElement;
+        expect(toggle).toBeTruthy();
+        expect(container.textContent).not.toContain('Light · 4.00 kg');
+
+        await act(async () => {
+            toggle.click();
+        });
+
+        expect(container.querySelector('button[aria-expanded="true"]')).toBeTruthy();
+        expect(container.textContent).toContain('Light · 4.00 kg');
+        expect(container.textContent).toContain('Dark · 4.00 kg');
+    });
+
     it('does not highlight available when aggregated need is below stock', async () => {
         state.requirements = {
             products: [],
@@ -124,5 +154,6 @@ describe('RoastingRequirementsCard', () => {
         const availableCell = container.querySelector('tbody tr td:last-child');
         expect(availableCell?.className).not.toContain('text-red-500');
         expect(container.textContent).toContain('4.00 kg');
+        expect(container.textContent).toContain('Light · 4.00 kg');
     });
 });

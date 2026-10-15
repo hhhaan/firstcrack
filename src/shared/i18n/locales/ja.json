@@ -2017,7 +2017,11 @@
             "empty": "未処理の注文はありません — 焙煎の必要はありません。",
             "bean": "豆",
             "green": "必要な生豆",
-            "available": "利用可能"
+            "available": "利用可能",
+            "expandBreakdown": "{{bean}} のプロファイル別必要量を表示",
+            "collapseBreakdown": "{{bean}} のプロファイル別必要量を非表示",
+            "profileAmount": "{{name}} · {{amount}} kg",
+            "profileUnassigned": "プロファイルなし"
         },
         "order": {
             "newTitle": "新規注文",
