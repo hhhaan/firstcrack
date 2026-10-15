@@ -42,11 +42,11 @@ BEGIN
     (p_order->>'total_amount')::numeric
   )
   ON CONFLICT ON CONSTRAINT unique_platform_order DO NOTHING
-  RETURNING id, user_id INTO v_order_id, v_user_id;
+  RETURNING id INTO v_order_id;
 
   IF v_order_id IS NULL THEN
-    SELECT o.id, o.user_id
-    INTO v_order_id, v_user_id
+    SELECT o.id
+    INTO v_order_id
     FROM public.orders o
     WHERE o.user_id = v_user_id
       AND o.platform = v_platform
@@ -55,6 +55,9 @@ BEGIN
     IF v_order_id IS NOT NULL THEN
       RETURN v_order_id;
     END IF;
+
+    RAISE EXCEPTION 'manual_order_conflict_not_visible'
+      USING ERRCODE = 'check_violation';
   END IF;
 
   INSERT INTO public.order_lines (
