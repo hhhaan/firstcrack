@@ -2028,6 +2028,7 @@
             "addLine": "+ Add item",
             "quantity": "Quantity",
             "quantityMin": "Quantity must be at least 1",
+            "createFailed": "Could not save the order. Please try again.",
             "fulfill": "Fulfill",
             "fulfilled": "Fulfilled",
             "col": {

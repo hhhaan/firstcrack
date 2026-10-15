@@ -2028,6 +2028,7 @@
             "addLine": "+ 商品を追加",
             "quantity": "数量",
             "quantityMin": "数量は1以上にしてください",
+            "createFailed": "注文を保存できませんでした。もう一度お試しください。",
             "fulfill": "出荷処理",
             "fulfilled": "出荷済み",
             "col": {

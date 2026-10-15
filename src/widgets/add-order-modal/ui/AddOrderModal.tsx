@@ -11,7 +11,7 @@ import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { canSubmitOrderLines, type OrderLineDraft, parseOrderLineQuantity } from '../lib/schema';
 
@@ -21,6 +21,12 @@ type LineDraft = OrderLineDraft & { key: string };
 
 const emptyLine = (): LineDraft => ({ key: crypto.randomUUID(), productId: '', quantity: '1' });
 
+const formFingerprint = (buyer: string, lines: LineDraft[]) =>
+    JSON.stringify({
+        buyer,
+        lines: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+    });
+
 export const AddOrderModal = ({ open, onClose }: Props) => {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
@@ -29,21 +35,46 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
 
     const [buyer, setBuyer] = useState('');
     const [lines, setLines] = useState<LineDraft[]>(() => [emptyLine()]);
+    const [submitting, setSubmitting] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+
+    const submittingRef = useRef(false);
+    const idempotencyKeyRef = useRef('');
+    const fingerprintAtFailureRef = useRef<string | null>(null);
 
     useFormEscape(open, onClose);
 
     useEffect(() => {
         if (!open) return;
+        idempotencyKeyRef.current = `manual-${crypto.randomUUID()}`;
+        fingerprintAtFailureRef.current = null;
+        submittingRef.current = false;
+        setSubmitting(false);
+        setFormError(null);
         setBuyer('');
         setLines([emptyLine()]);
     }, [open]);
+
+    const fingerprint = formFingerprint(buyer, lines);
+
+    useEffect(() => {
+        if (!open || fingerprintAtFailureRef.current === null) return;
+        if (fingerprint !== fingerprintAtFailureRef.current) {
+            idempotencyKeyRef.current = `manual-${crypto.randomUUID()}`;
+            fingerprintAtFailureRef.current = null;
+        }
+    }, [fingerprint, open]);
 
     if (!open) return null;
 
     const valid = canSubmitOrderLines(lines);
 
     const onSubmit = async () => {
-        if (!valid) return;
+        if (!valid || submittingRef.current) return;
+        submittingRef.current = true;
+        setSubmitting(true);
+        setFormError(null);
+
         const now = new Date().toISOString();
         const parsedLines = lines.flatMap((l, i) => {
             const quantity = parseOrderLineQuantity(l.quantity);
@@ -58,18 +89,27 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                 },
             ];
         });
-        await createOrder.mutateAsync({
-            order: {
-                user_id: userId,
-                platform: 'manual',
-                platform_order_id: `manual-${Date.now()}`,
-                status: 'paid',
-                ordered_at: now,
-                buyer_name: buyer.trim() || null,
-            },
-            lines: parsedLines,
-        });
-        onClose();
+
+        try {
+            await createOrder.mutateAsync({
+                order: {
+                    user_id: userId,
+                    platform: 'manual',
+                    platform_order_id: idempotencyKeyRef.current,
+                    status: 'paid',
+                    ordered_at: now,
+                    buyer_name: buyer.trim() || null,
+                },
+                lines: parsedLines,
+            });
+            onClose();
+        } catch {
+            fingerprintAtFailureRef.current = fingerprint;
+            setFormError(t('orders.order.createFailed'));
+        } finally {
+            submittingRef.current = false;
+            setSubmitting(false);
+        }
     };
 
     const setLine = (idx: number, patch: Partial<OrderLineDraft>) =>
@@ -165,12 +205,19 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                 </div>
             </ModalScrollBody>
 
+            {formError && (
+                <p className={cn(formErrorCls, 'px-8 pb-2')} role="alert">
+                    {formError}
+                </p>
+            )}
+
             <ModalFooter
                 onCancel={onClose}
                 cancelLabel={t('common.cancel')}
                 onPrimary={onSubmit}
-                primaryDisabled={!valid}
+                primaryDisabled={!valid || createOrder.isPending || submitting}
                 primaryLabel={t('common.add')}
+                primaryTestId="add-order-submit"
             />
         </ModalShell>
     );

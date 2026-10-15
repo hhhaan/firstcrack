@@ -5,6 +5,7 @@ import { Skeleton } from '@shared/ui/Skeleton';
 import { Flame } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { aggregateBeanRequirements } from '../lib/aggregateBeanRequirements';
 
 /** Display-only aggregation: what to roast to cover unfulfilled paid orders. */
 export const RoastingRequirementsCard = () => {
@@ -18,7 +19,7 @@ export const RoastingRequirementsCard = () => {
         return (id: string) => map.get(id) ?? id.slice(0, 8);
     }, [beans]);
 
-    const beanRows = (req?.beans ?? []).filter((b) => b.green_grams_needed > 0);
+    const beanRows = useMemo(() => aggregateBeanRequirements(req?.beans ?? []), [req?.beans]);
 
     return (
         <div className="rounded-xl border border-border-subtle bg-main-bg p-5 dark:border-[#585d61]">
@@ -59,7 +60,7 @@ export const RoastingRequirementsCard = () => {
                             const short = b.green_grams_needed > b.green_available;
                             return (
                                 <tr
-                                    key={`${b.bean_id}-${b.roast_profile_id ?? 'none'}`}
+                                    key={b.bean_id}
                                     className="border-b border-border-subtle last:border-0 dark:border-[#585d61]"
                                 >
                                     <td className="py-2.5 text-[13px] font-medium text-primary">

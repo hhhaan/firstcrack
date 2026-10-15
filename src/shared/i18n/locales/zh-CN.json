@@ -2028,6 +2028,7 @@
             "addLine": "+ 添加商品",
             "quantity": "数量",
             "quantityMin": "数量必须至少为 1",
+            "createFailed": "无法保存订单，请重试。",
             "fulfill": "完成",
             "fulfilled": "已完成",
             "col": {
