@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import { assertGreenBeanSelectedForSave } from '@features/active-roast/lib/roastSaveBeanIdentity';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import {
     clearPendingRoastSave,
@@ -166,6 +168,22 @@ afterEach(() => {
 });
 
 describe('roast save identity and Continue lifecycle', () => {
+    it('keeps the frozen header separate from a form-only selection after a failed save', async () => {
+        const h = renderFlow({ sessionId: 's-a' });
+        mocks.resumeSave.mockRejectedValueOnce(new Error('network'));
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        await act(async () => h.api.handleSave({ ...form, beanId: 'form-picked' }));
+        const pending = listPendingRoastSaves().find((p) => p.params.sessionId === 's-a');
+        expect(pending?.params.formData.beanId).toBe('form-picked');
+        expect(pending?.params.selectedBeanId).toBeNull();
+        if (!pending) throw new Error('Missing pending roast');
+        expect(() =>
+            assertGreenBeanSelectedForSave({
+                ...pending.params,
+                formData: { ...pending.params.formData, beanId: null, beanLabel: '' },
+            }),
+        ).toThrow();
+    });
     it('treats next Charge and Charge-wait as detached from the saved batch', () => {
         expect(
             isLiveDetachedFromPending({ sessionId: 's-b', phase: 'roasting', awaitingNextCharge: false }, 's-a'),

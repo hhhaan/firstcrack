@@ -6,6 +6,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddBatchModal } from './AddBatchModal';
+import type { BatchFormHeader } from './BatchFormHeader';
 import type { BatchQuantityFields } from './BatchQuantityFields';
 import type { BatchSourceFields } from './BatchSourceFields';
 import type { BatchStockPanel } from './BatchStockPanel';
@@ -18,6 +19,7 @@ const state = vi.hoisted(() => ({
     panel: undefined as Parameters<typeof BatchStockPanel>[0] | undefined,
     tabs: undefined as Parameters<typeof BatchTypeTabs>[0] | undefined,
     quantity: undefined as Parameters<typeof BatchQuantityFields>[0] | undefined,
+    header: undefined as Parameters<typeof BatchFormHeader>[0] | undefined,
 }));
 
 vi.mock('@entities/bean-stock-event/api', () => ({
@@ -70,6 +72,12 @@ vi.mock('./BatchQuantityFields', () => ({
         return null;
     },
 }));
+vi.mock('./BatchFormHeader', () => ({
+    BatchFormHeader: (props: Parameters<typeof BatchFormHeader>[0]) => {
+        state.header = props;
+        return null;
+    },
+}));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -111,6 +119,29 @@ describe('AddBatchModal shared stock query', () => {
     afterEach(() => {
         act(() => root.unmount());
         qc.clear();
+    });
+
+    it('requires the selected batch type source before enabling submit', async () => {
+        await render();
+        act(() => {
+            state.header?.onDateChange(new Date(2026, 9, 15));
+            state.header?.onMachineSelect('machine-1');
+            state.quantity?.onTargetRoastedChange('1');
+        });
+        const submit = [...document.querySelectorAll('button')].find(
+            (button) => button.textContent === 'addBatchModal.addBatch',
+        );
+        expect(submit?.disabled).toBe(true);
+        act(() => state.source?.onBeanSelect('bean-0'));
+        expect(submit?.disabled).toBe(false);
+        act(() => state.tabs?.onBatchTypeChange('Pre-roast Blend'));
+        expect(submit?.disabled).toBe(true);
+        act(() => state.source?.onBlendSelect('blend'));
+        expect(submit?.disabled).toBe(false);
+        act(() => state.tabs?.onBatchTypeChange('Post-roast Blend'));
+        expect(submit?.disabled).toBe(false);
+        act(() => state.source?.onBlendSelect(null));
+        expect(submit?.disabled).toBe(true);
     });
 
     it.each([1, 3, 10])(

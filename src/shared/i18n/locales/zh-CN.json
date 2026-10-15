@@ -1274,6 +1274,7 @@
             "createBatch": "添加批次失败：",
             "completeBatch": "完成批次失败：",
             "startBatch": "启动批次失败：",
+            "sourceRequired": "请选择生豆或拼配。",
             "roastInProgress": "烘焙正在进行中，请完成后再开始新批次。"
         },
         "recurringEditScope": {

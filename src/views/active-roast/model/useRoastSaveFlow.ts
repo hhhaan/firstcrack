@@ -176,7 +176,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     ...baseParams,
                     userId: ownerId,
                     formData: { ...baseParams.formData, ...formPatch },
-                    selectedBeanId: formData.beanId ?? baseParams.selectedBeanId,
                     logEntries: frozen?.logEntries ?? baseParams.logEntries,
                     ...(forcedProfileId !== undefined && { targetProfileId: forcedProfileId }),
                 };
