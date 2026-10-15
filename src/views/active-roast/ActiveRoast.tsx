@@ -31,6 +31,7 @@ import {
     upsertReviewTurningPoint,
 } from '@features/active-roast/lib/event-marker-drag';
 import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
+import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
@@ -941,6 +942,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const handleHeaterCommitted = useCallback(
         (value: number, heaterUnit: string) => {
             if (!Number.isFinite(value) || !charged || roastEnded || bbpActive) return;
+            const entries = useRoastingStore.getState().logState.entries;
+            if (isRepeatHeaterCommit(entries, value)) return;
             markEvent('Heater', `${value}${heaterUnit}`);
         },
         [bbpActive, charged, markEvent, roastEnded],
@@ -1005,27 +1008,31 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         (applied: AppliedRoastControl) => {
             const state = useRoastingStore.getState();
             if (state.sessionId !== sessionId || state.phase !== 'roasting' || bbpActive) return;
-            const values: AppliedRoastControl = {};
+            const commanded: AppliedRoastControl = {};
             for (const role of ['heater', 'fan', 'drum'] as const) {
                 const value = applied[role];
-                if (value !== undefined && Number.isFinite(value)) values[role] = value;
+                if (value !== undefined && Number.isFinite(value)) commanded[role] = value;
             }
-            if (Object.keys(values).length === 0) return;
+            if (Object.keys(commanded).length === 0) return;
             const timeSec =
                 state.roastStartMs > 0 ? Math.max(0, (Date.now() - state.roastStartMs) / 1000) : state.elapsed;
-            setLogEntries((entries) => [
-                ...entries,
-                {
-                    id: crypto.randomUUID(),
-                    event: 'Control',
-                    time: formatElapsed(timeSec),
-                    timeSec,
-                    temp: '',
-                    tempC: null,
-                    note: '',
-                    appliedControl: values,
-                },
-            ]);
+            setLogEntries((entries) => {
+                const values = controlValuesWithoutRepeatHeater(entries, commanded);
+                if (Object.keys(values).length === 0) return entries;
+                return [
+                    ...entries,
+                    {
+                        id: crypto.randomUUID(),
+                        event: 'Control',
+                        time: formatElapsed(timeSec),
+                        timeSec,
+                        temp: '',
+                        tempC: null,
+                        note: '',
+                        appliedControl: values,
+                    },
+                ];
+            });
         },
         [bbpActive, sessionId, setLogEntries],
     );

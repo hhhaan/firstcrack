@@ -1,4 +1,5 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
+import { omitRepeatHeaterMarks } from '@features/active-roast/lib/repeat-heater';
 import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { parseTimeSec } from '@features/active-roast/lib/time';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
@@ -113,18 +114,20 @@ export const storedEventsToControlChanges = (events: StoredRoastEvent[]) =>
 
 /** Stored events → chart markers. Live TP is a `turningPoints` overlay, not an eventMarker — include it here so history can draw it. */
 export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: TemperatureUnit = 'C'): HistoryEventMarker[] =>
-    events
-        .filter((e) => isChartEventMarker(e.type) || e.type === 'TP')
-        .map((e) => ({
-            logId: e.id,
-            timeSec: Math.max(0, e.time_sec),
-            event: e.type,
-            color: getResolvedEventColor(e.type),
-            timeStr: formatElapsed(e.time_sec),
-            temp: e.temp_c != null ? `${Math.round(toDisplayTemp(e.temp_c, unit))}` : '',
-            tempC: e.temp_c ?? null,
-            note: e.note ?? '',
-            ...(e.gas ? { gas: e.gas } : {}),
-            ...(e.airflow ? { airflow: e.airflow } : {}),
-            ...(e.drum ? { drum: e.drum } : {}),
-        }));
+    omitRepeatHeaterMarks(
+        events
+            .filter((e) => isChartEventMarker(e.type) || e.type === 'TP')
+            .map((e) => ({
+                logId: e.id,
+                timeSec: Math.max(0, e.time_sec),
+                event: e.type,
+                color: getResolvedEventColor(e.type),
+                timeStr: formatElapsed(e.time_sec),
+                temp: e.temp_c != null ? `${Math.round(toDisplayTemp(e.temp_c, unit))}` : '',
+                tempC: e.temp_c ?? null,
+                note: e.note ?? '',
+                ...(e.gas ? { gas: e.gas } : {}),
+                ...(e.airflow ? { airflow: e.airflow } : {}),
+                ...(e.drum ? { drum: e.drum } : {}),
+            })),
+    );

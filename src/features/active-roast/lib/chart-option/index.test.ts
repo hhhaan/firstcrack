@@ -1024,6 +1024,32 @@ describe('buildRoastChartOption', () => {
         expect(byName['Heat set']).not.toHaveProperty('markPoint');
     });
 
+    it('does not label a heater write that repeats the previous setpoint', () => {
+        const byName = seriesByName({
+            ...baseParams(),
+            controlData: {
+                xs: [0, 30, 60],
+                drumTemp: [40, 41, 42],
+                heatPower: [15, 15, 15],
+                fanSpeed: [30, 30, 30],
+                changes: [
+                    { timeSec: 4, values: { heater: 15 } },
+                    { timeSec: 8, values: { heater: 15 } },
+                    { timeSec: 20, values: { heater: 20 } },
+                    { timeSec: 30, values: { heater: 15 } },
+                ],
+            },
+        });
+        const marks = (byName.Heat as { markPoint?: { data: { coord: number[]; label: { formatter: string } }[] } })
+            .markPoint?.data;
+        expect(marks?.map((mark) => [mark.coord[0], mark.label.formatter])).toEqual([
+            [4, '15'],
+            [20, '20'],
+            [30, '15'],
+            [60, '15'],
+        ]);
+    });
+
     it('never turns PLC noise into change labels without app writes', () => {
         const byName = seriesByName({
             ...baseParams(),
