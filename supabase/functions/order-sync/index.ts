@@ -49,6 +49,7 @@ async function syncOne(
     error?: string;
     /** #109 EF-path guard: stock events the batch RPC refused (terminal orders) — never silent. */
     stockEventSkips?: Array<{ referenceId: string; orderId: string; orderStatus: string; reason: string }>;
+    fulfillmentHolds?: Array<{ orderId: string; platformOrderId: string }>;
 }> {
     // The insert is the lock: a partial unique index allows one 'running' row per connection for
     // cron/manual/dispatch triggers. Webhook runs are outside it — see the migration for why.
@@ -85,7 +86,7 @@ async function syncOne(
 
         const cursor = (conn.poll_cursor ?? {}) as PollCursor;
         const { orders, nextCursor } = await adapter.fetchOrdersSince(session.current(), cursor, session.rotate);
-        const { upserted, stockEventSkips } = await upsertCanonicalOrders(
+        const { upserted, stockEventSkips, fulfillmentHolds } = await upsertCanonicalOrders(
             admin,
             {
                 userId: conn.user_id,
@@ -109,20 +110,30 @@ async function syncOne(
             })
             .eq('id', conn.id);
 
+        const runNotes: string[] = [];
+        if (stockEventSkips.length) {
+            runNotes.push(`stock events skipped: ${JSON.stringify(stockEventSkips)}`);
+        }
+        if (fulfillmentHolds.length) {
+            runNotes.push(`fulfillment holds: ${JSON.stringify(fulfillmentHolds)}`);
+        }
+
         await admin
             .from('order_sync_runs')
             .update({
                 status: 'success',
                 finished_at: now,
                 orders_upserted: upserted,
-                // Success run with refused deductions: keep the evidence on the run row.
-                ...(stockEventSkips.length
-                    ? { error_message: `stock events skipped: ${JSON.stringify(stockEventSkips).slice(0, 900)}` }
-                    : {}),
+                ...(runNotes.length ? { error_message: runNotes.join(' | ').slice(0, 1000) } : {}),
             })
             .eq('id', run.id);
 
-        return { ok: true, upserted, ...(stockEventSkips.length ? { stockEventSkips } : {}) };
+        return {
+            ok: true,
+            upserted,
+            ...(stockEventSkips.length ? { stockEventSkips } : {}),
+            ...(fulfillmentHolds.length ? { fulfillmentHolds } : {}),
+        };
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('[order-sync] connection', conn.id, msg);

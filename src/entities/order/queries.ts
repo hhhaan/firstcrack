@@ -66,6 +66,13 @@ export const useSetOrderLineProduct = (userId: string) => {
     });
 };
 
+export const useOpenFulfillmentHolds = (userId: string) =>
+    useQuery({
+        queryKey: orderKeys.fulfillmentHolds(userId),
+        queryFn: () => orderApi.listOpenFulfillmentHolds(userId),
+        enabled: !!userId,
+    });
+
 export const useCreateOrder = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({

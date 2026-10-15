@@ -2030,6 +2030,10 @@
             "quantityMin": "数量必须至少为 1",
             "fulfill": "完成",
             "fulfilled": "已完成",
+            "retryFulfillment": "重新发货",
+            "stockHoldBadge": "库存不足，发货暂缓",
+            "stockHoldLine": "{{product}} — 需要 {{required}} / 可用 {{available}}",
+            "stockHoldUnknownProduct": "商品",
             "col": {
                 "date": "日期",
                 "buyer": "买家",

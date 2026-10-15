@@ -52,6 +52,8 @@ describe('sync_channel_orders_batch boundary', () => {
                         cancelledCompensations: 0,
                         autoFulfillments: 0,
                         stockEventSkips: [],
+                        held: [],
+                        heldFulfillments: 0,
                     },
                     error: null,
                 });
@@ -96,6 +98,8 @@ describe('sync_channel_orders_batch boundary', () => {
                         cancelledCompensations: 0,
                         autoFulfillments: 0,
                         stockEventSkips: [],
+                        held: [],
+                        heldFulfillments: 0,
                     },
                     error: null,
                 });
@@ -112,6 +116,84 @@ describe('sync_channel_orders_batch boundary', () => {
         const sent = payloads[0] as Array<CanonicalOrder & { lines: Array<{ productId: string | null }> }>;
         expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-1']);
         expect(sent[0]?.lines[0]?.productId).toBe('prod-1');
+    });
+});
+
+describe('parseBatchResult held payloads', () => {
+    const heldOrder = (): CanonicalOrder => ({
+        platformOrderId: 'O-held',
+        status: 'paid',
+        orderedAt: '2026-10-10T00:00:00.000Z',
+        buyerName: null,
+        currency: 'KRW',
+        totalAmount: 1000,
+        raw: {},
+        lines: [
+            {
+                platformLineId: 'L-held',
+                platformProductId: 'P-held',
+                platformVariantId: null,
+                title: 'Coffee',
+                quantity: 1,
+                unitPrice: 1000,
+                status: 'active',
+            },
+        ],
+    });
+
+    it('maps held fulfillments from RPC snake_case', async () => {
+        const supabase = {
+            from: () => ({
+                select: () => ({
+                    eq: () => ({
+                        eq: () => Promise.resolve({ data: [] }),
+                        not: () => Promise.resolve({ data: [] }),
+                    }),
+                }),
+            }),
+            rpc: () =>
+                Promise.resolve({
+                    data: {
+                        upserted: 1,
+                        cancelledCompensations: 0,
+                        autoFulfillments: 0,
+                        stockEventSkips: [],
+                        heldFulfillments: 1,
+                        held: [
+                            {
+                                order_id: 'ord-1',
+                                platform_order_id: 'ext-1',
+                                shortages: [
+                                    {
+                                        product_id: 'prod-1',
+                                        order_line_id: 'line-1',
+                                        required_units: 5,
+                                        available_units: 1,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    error: null,
+                }),
+        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+
+        await expect(
+            upsertCanonicalOrders(
+                supabase,
+                { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+                [heldOrder()],
+            ),
+        ).resolves.toMatchObject({
+            heldFulfillments: 1,
+            fulfillmentHolds: [
+                {
+                    orderId: 'ord-1',
+                    platformOrderId: 'ext-1',
+                    shortages: [{ productId: 'prod-1', requiredUnits: 5, availableUnits: 1 }],
+                },
+            ],
+        });
     });
 });
 

@@ -1,2 +1,2 @@
 export { orderActionFlags } from './lib/orderActionFlags';
-export { useCancelOrder, useFulfillOrder } from './model/useOrderStatusMutation';
+export { useCancelOrder, useFulfillOrder, useRetryOrderFulfillment } from './model/useOrderStatusMutation';
