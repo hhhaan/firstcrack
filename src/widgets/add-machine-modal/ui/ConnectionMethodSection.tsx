@@ -3,7 +3,7 @@ import { cn } from '@shared/lib/cn';
 import { useAccountPlan } from '@shared/lib/features/useAccountPlan';
 import { Badge } from '@shared/ui/Badge';
 import { FormSelect } from '@shared/ui/FormSelect';
-import { inputCls, labelCls, selectCls, tabCls } from '@shared/ui/form-styles';
+import { inputCls, labelCls, selectCls } from '@shared/ui/form-styles';
 import { ChevronDown, Lock } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -209,8 +209,6 @@ type Props = {
 export const ConnectionMethodSection = ({
     isEdit,
     isCustom,
-    tab,
-    switchTab,
     selectedKey,
     selectRoaster,
     customName,
@@ -224,7 +222,7 @@ export const ConnectionMethodSection = ({
 
     return (
         <>
-            {/* Connection method: supported vs custom tabs */}
+            {/* 기타 / 직접 입력 탭 임시 숨김
             {!isEdit && (
                 <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
                     <button
@@ -239,6 +237,7 @@ export const ConnectionMethodSection = ({
                     </button>
                 </div>
             )}
+            */}
 
             {/* Connection method: known roaster model */}
             {!isCustom && (
