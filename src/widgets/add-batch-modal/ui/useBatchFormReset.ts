@@ -32,6 +32,7 @@ type Params = {
     setBatchSize: (v: string) => void;
     setYieldPct: (v: string) => void;
     setNotes: (v: string) => void;
+    setSourceAttempted: (v: boolean) => void;
 };
 
 export const useBatchFormReset = ({
@@ -50,9 +51,11 @@ export const useBatchFormReset = ({
     setBatchSize,
     setYieldPct,
     setNotes,
+    setSourceAttempted,
 }: Params) => {
     useEffect(() => {
         if (!open) return;
+        setSourceAttempted(false);
 
         if (editingBatch) {
             setDate(resolveInitialBatchDate(editingBatch, currentDateKey));
@@ -95,5 +98,6 @@ export const useBatchFormReset = ({
         setBatchSize,
         setYieldPct,
         setNotes,
+        setSourceAttempted,
     ]);
 };

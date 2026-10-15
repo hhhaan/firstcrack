@@ -124,8 +124,16 @@ describe('AddBatchModal shared stock query', () => {
         qc.clear();
     });
 
-    it('requires the selected batch type source before enabling submit', async () => {
-        await render();
+    it('shows the missing source only after save is clicked', async () => {
+        const onSave = vi.fn();
+        await act(async () =>
+            root.render(
+                <QueryClientProvider client={qc}>
+                    <AddBatchModal open onClose={() => {}} onSave={onSave} />
+                </QueryClientProvider>,
+            ),
+        );
+        await flush();
         act(() => {
             state.header?.onDateChange(new Date(2026, 9, 15));
             state.header?.onMachineSelect('machine-1');
@@ -134,17 +142,25 @@ describe('AddBatchModal shared stock query', () => {
         const submit = [...document.querySelectorAll('button')].find(
             (button) => button.textContent === 'addBatchModal.addBatch',
         );
-        expect(submit?.disabled).toBe(true);
+        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(false);
+
+        act(() => submit?.click());
+        expect(state.source?.sourceInvalid).toBe(true);
+        expect(onSave).not.toHaveBeenCalled();
+
         act(() => state.source?.onBeanSelect('bean-0'));
-        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(false);
         act(() => state.tabs?.onBatchTypeChange('Pre-roast Blend'));
-        expect(submit?.disabled).toBe(true);
+        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(true);
         act(() => state.source?.onBlendSelect('blend'));
-        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(false);
         act(() => state.tabs?.onBatchTypeChange('Post-roast Blend'));
-        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(false);
         act(() => state.source?.onBlendSelect(null));
-        expect(submit?.disabled).toBe(true);
+        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(true);
     });
 
     it.each([1, 3, 10])(

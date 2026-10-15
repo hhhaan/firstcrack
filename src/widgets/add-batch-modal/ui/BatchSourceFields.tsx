@@ -1,7 +1,7 @@
 import type { StockSummary } from '@entities/bean-stock-event';
 import type { BlendWithComponents } from '@entities/blend';
 import type { Bean, RoastProfile } from '@shared/types/database.types';
-import { labelCls } from '@shared/ui/form-styles';
+import { formErrorCls, labelCls } from '@shared/ui/form-styles';
 import { AlertTriangle, Package } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { BatchType } from '../lib/types';
@@ -23,6 +23,7 @@ type Props = {
     onProfileSelect: (id: string) => void;
     onBeanSelect: (id: string) => void;
     onBlendSelect: (id: string | null) => void;
+    sourceInvalid: boolean;
 };
 
 export const BatchSourceFields = ({
@@ -40,15 +41,22 @@ export const BatchSourceFields = ({
     onProfileSelect,
     onBeanSelect,
     onBlendSelect,
+    sourceInvalid,
 }: Props) => {
     const { t } = useTranslation();
     const { isShortage, blendShortages } = stockChecks;
+    const sourceError = sourceInvalid ? (
+        <p role="alert" className={formErrorCls}>
+            {t('schedule.error.sourceRequired')}
+        </p>
+    ) : null;
 
     return (
         <div className="grid grid-cols-2 gap-4">
             <div>
                 <label className={labelCls}>{t('addBatchModal.roastProfile')}</label>
                 <SearchableSelect
+                    menuId="profile"
                     placeholder={t('addBatchModal.profilePlaceholder')}
                     items={profileItems}
                     selectedId={profileId}
@@ -72,6 +80,8 @@ export const BatchSourceFields = ({
                             <Package size={12} /> Green Coffee Lot
                         </label>
                         <SearchableSelect
+                            menuId="source"
+                            invalid={sourceInvalid}
                             placeholder={t('addBatchModal.lotPlaceholder')}
                             items={beanItems}
                             selectedId={beanId}
@@ -94,6 +104,7 @@ export const BatchSourceFields = ({
                                 );
                             }}
                         />
+                        {sourceError}
                         {isShortage && stockSummaryEffectiveGrams != null && (
                             <p className="text-xs text-red-500 mt-1">
                                 {t('addBatchModal.shortage', {
@@ -109,6 +120,8 @@ export const BatchSourceFields = ({
                             <Package size={12} /> {t('addBatchModal.blend')}
                         </label>
                         <SearchableSelect
+                            menuId="source"
+                            invalid={sourceInvalid}
                             placeholder={t('addBatchModal.blendPlaceholder')}
                             items={blends}
                             selectedId={blendId ?? ''}
@@ -127,6 +140,7 @@ export const BatchSourceFields = ({
                                 );
                             }}
                         />
+                        {sourceError}
                         {blendShortages.length > 0 && blendShortages.some((s) => s.isShort) && (
                             <div className="mt-2 space-y-1">
                                 {blendShortages

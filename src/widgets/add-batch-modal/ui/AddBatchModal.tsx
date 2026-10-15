@@ -29,6 +29,7 @@ import { BatchRecurrenceFields } from './BatchRecurrenceFields';
 import { BatchSourceFields } from './BatchSourceFields';
 import { BatchStockPanel } from './BatchStockPanel';
 import { BatchTypeTabs } from './BatchTypeTabs';
+import { SelectMenuGroup } from './SearchableSelect';
 import { useBatchFormReset } from './useBatchFormReset';
 import { useBatchStockChecks } from './useBatchStockChecks';
 
@@ -71,8 +72,8 @@ export const AddBatchModal = ({
     const isRruleVisible = !isEdit || editScope === 'from_this' || editScope === 'all';
 
     const [saving, setSaving] = useState(false);
+    const [sourceAttempted, setSourceAttempted] = useState(false);
     const [date, setDate] = useState<Date | undefined>();
-    const [calendarOpen, setCalendarOpen] = useState(false);
     const [recurringInterval, setRecurringInterval] = useState<RecurrenceInterval | null>(null);
     const [machineId, setMachineId] = useState('');
     const [batchType, setBatchType] = useState<BatchType>('Single Origin');
@@ -102,6 +103,7 @@ export const AddBatchModal = ({
         setBatchSize,
         setYieldPct,
         setNotes,
+        setSourceAttempted,
     });
 
     const targetNum = parseFloat(targetRoasted) || 0;
@@ -148,9 +150,13 @@ export const AddBatchModal = ({
     const originalDateKey = editingBatch?.scheduled_date ?? currentDateKey;
     const dateChanged = isEdit && !!originalDateKey && newDateKey !== originalDateKey;
     const hasSource = batchType === 'Single Origin' ? Boolean(selectedBean) : Boolean(selectedBlend);
-    const canSubmit = date !== undefined && !!machineId && hasSource && targetNum > 0 && batchSizeNum > 0 && !saving;
+    const canSubmit = date !== undefined && !!machineId && targetNum > 0 && batchSizeNum > 0 && !saving;
 
     const handleSubmit = async () => {
+        if (!hasSource) {
+            setSourceAttempted(true);
+            return;
+        }
         if (!canSubmit || !date || !onSave) return;
 
         const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
@@ -209,132 +215,128 @@ export const AddBatchModal = ({
 
     return (
         <ModalShell onClose={onClose} labelledBy="add-batch-modal-title" contentClassName={modalPanel.formMd}>
-            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61]">
-                <ModalHeader
-                    titleId="add-batch-modal-title"
-                    title={isEdit ? t('addBatchModal.editBatch') : t('addBatchModal.addBatch')}
-                    onClose={onClose}
-                    closeLabel={t('common.close')}
-                    className="px-8 pt-6 pb-5"
-                    titleClassName="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
-                    subtitle={
-                        isEdit && editingBatch ? (
-                            <p className="text-[12px] text-muted mt-0.5 m-0">{editingBatch.bean_name}</p>
-                        ) : undefined
-                    }
-                />
-            </div>
-
-            <ModalScrollBody contentClassName="p-8 space-y-6">
-                <BatchFormHeader
-                    date={date}
-                    calendarOpen={calendarOpen}
-                    isDateDisabled={isDateDisabled}
-                    dateChanged={dateChanged}
-                    machineId={machineId}
-                    machines={machines}
-                    onDateChange={setDate}
-                    onCalendarOpenChange={setCalendarOpen}
-                    onMachineSelect={setMachineId}
-                />
-
-                <BatchTypeTabs batchType={batchType} onBatchTypeChange={setBatchType} />
-
-                <BatchSourceFields
-                    batchType={batchType}
-                    profileId={profileId}
-                    beanId={beanId}
-                    blendId={blendId}
-                    profileItems={profileItems}
-                    beanItems={beanItems}
-                    blends={blends}
-                    stockSummaries={stockSummaries}
-                    plannedGrams={plannedGrams}
-                    stockSummaryEffectiveGrams={stockSummary?.effectiveGrams}
-                    stockChecks={stockChecks}
-                    onProfileSelect={handleProfileSelect}
-                    onBeanSelect={setBeanId}
-                    onBlendSelect={setBlendId}
-                />
-                {!hasSource && (
-                    <p role="alert" className="text-xs text-red-500">
-                        {t('schedule.error.sourceRequired')}
-                    </p>
-                )}
-
-                <BatchQuantityFields
-                    targetRoasted={targetRoasted}
-                    batchSize={batchSize}
-                    yieldPct={yieldPct}
-                    targetNum={targetNum}
-                    batchCount={batchCount}
-                    greenNeeded={greenNeededKg}
-                    yieldNum={yieldNum}
-                    onTargetRoastedChange={setTargetRoasted}
-                    onBatchSizeChange={setBatchSize}
-                    onYieldPctChange={setYieldPct}
-                />
-
-                <BatchStockPanel
-                    selectedBean={stockSummary ? selectedBean : undefined}
-                    effectiveStockKg={stockChecks.effectiveStockKg}
-                    greenNeeded={stockChecks.greenNeeded}
-                    stockSufficient={stockChecks.stockSufficient}
-                    stockPct={stockChecks.stockPct}
-                />
-
-                {isRruleVisible && (
-                    <BatchRecurrenceFields
-                        recurringInterval={recurringInterval}
-                        recurringHorizonShort={stockChecks.recurringHorizonShort}
-                        onRecurringIntervalChange={setRecurringInterval}
-                    />
-                )}
-
-                <div>
-                    <label className={labelCls}>{t('addBatchModal.notes')}</label>
-                    <textarea
-                        className={`${inputCls} resize-none`}
-                        rows={3}
-                        placeholder={t('addBatchModal.notesPlaceholder')}
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
+            <SelectMenuGroup>
+                <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61]">
+                    <ModalHeader
+                        titleId="add-batch-modal-title"
+                        title={isEdit ? t('addBatchModal.editBatch') : t('addBatchModal.addBatch')}
+                        onClose={onClose}
+                        closeLabel={t('common.close')}
+                        className="px-8 pt-6 pb-5"
+                        titleClassName="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
+                        subtitle={
+                            isEdit && editingBatch ? (
+                                <p className="text-[12px] text-muted mt-0.5 m-0">{editingBatch.bean_name}</p>
+                            ) : undefined
+                        }
                     />
                 </div>
-            </ModalScrollBody>
 
-            <div className="shrink-0 border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23] px-8 py-4 flex items-center justify-between gap-3">
-                {dateChanged && newDateKey && (
-                    <p className="text-[12px] text-amber-600 font-medium">
-                        {t('addBatchModal.dateChanged', {
-                            date: format(new Date(`${newDateKey}T00:00:00`), t('addBatchModal.dateFormatShort'), {
-                                locale: getDateFnsLocale(),
-                            }),
-                        })}
-                    </p>
-                )}
-                <div className="flex items-center gap-3 ml-auto">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-5 py-2.5 rounded-xl border border-border dark:border-0 bg-surface dark:bg-surface-elevated text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
-                    >
-                        {t('addBatchModal.cancel')}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={!canSubmit}
-                        className="px-5 py-2.5 rounded-xl border border-transparent bg-primary dark:bg-black text-white dark:text-[#e5e5e5] text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                        {saving
-                            ? t('addBatchModal.saving')
-                            : isEdit
-                              ? t('addBatchModal.save')
-                              : t('addBatchModal.addBatch')}
-                    </button>
+                <ModalScrollBody contentClassName="p-8 space-y-6">
+                    <BatchFormHeader
+                        date={date}
+                        isDateDisabled={isDateDisabled}
+                        dateChanged={dateChanged}
+                        machineId={machineId}
+                        machines={machines}
+                        onDateChange={setDate}
+                        onMachineSelect={setMachineId}
+                    />
+
+                    <BatchTypeTabs batchType={batchType} onBatchTypeChange={setBatchType} />
+
+                    <BatchSourceFields
+                        batchType={batchType}
+                        profileId={profileId}
+                        beanId={beanId}
+                        blendId={blendId}
+                        profileItems={profileItems}
+                        beanItems={beanItems}
+                        blends={blends}
+                        stockSummaries={stockSummaries}
+                        plannedGrams={plannedGrams}
+                        stockSummaryEffectiveGrams={stockSummary?.effectiveGrams}
+                        stockChecks={stockChecks}
+                        onProfileSelect={handleProfileSelect}
+                        onBeanSelect={setBeanId}
+                        onBlendSelect={setBlendId}
+                        sourceInvalid={sourceAttempted && !hasSource}
+                    />
+
+                    <BatchQuantityFields
+                        targetRoasted={targetRoasted}
+                        batchSize={batchSize}
+                        yieldPct={yieldPct}
+                        targetNum={targetNum}
+                        batchCount={batchCount}
+                        greenNeeded={greenNeededKg}
+                        yieldNum={yieldNum}
+                        onTargetRoastedChange={setTargetRoasted}
+                        onBatchSizeChange={setBatchSize}
+                        onYieldPctChange={setYieldPct}
+                    />
+
+                    <BatchStockPanel
+                        selectedBean={stockSummary ? selectedBean : undefined}
+                        effectiveStockKg={stockChecks.effectiveStockKg}
+                        greenNeeded={stockChecks.greenNeeded}
+                        stockSufficient={stockChecks.stockSufficient}
+                        stockPct={stockChecks.stockPct}
+                    />
+
+                    {isRruleVisible && (
+                        <BatchRecurrenceFields
+                            recurringInterval={recurringInterval}
+                            recurringHorizonShort={stockChecks.recurringHorizonShort}
+                            onRecurringIntervalChange={setRecurringInterval}
+                        />
+                    )}
+
+                    <div>
+                        <label className={labelCls}>{t('addBatchModal.notes')}</label>
+                        <textarea
+                            className={`${inputCls} resize-none`}
+                            rows={3}
+                            placeholder={t('addBatchModal.notesPlaceholder')}
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                        />
+                    </div>
+                </ModalScrollBody>
+
+                <div className="shrink-0 border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23] px-8 py-4 flex items-center justify-between gap-3">
+                    {dateChanged && newDateKey && (
+                        <p className="text-[12px] text-amber-600 font-medium">
+                            {t('addBatchModal.dateChanged', {
+                                date: format(new Date(`${newDateKey}T00:00:00`), t('addBatchModal.dateFormatShort'), {
+                                    locale: getDateFnsLocale(),
+                                }),
+                            })}
+                        </p>
+                    )}
+                    <div className="flex items-center gap-3 ml-auto">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-5 py-2.5 rounded-xl border border-border dark:border-0 bg-surface dark:bg-surface-elevated text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
+                        >
+                            {t('addBatchModal.cancel')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={!canSubmit}
+                            className="px-5 py-2.5 rounded-xl border border-transparent bg-primary dark:bg-black text-white dark:text-[#e5e5e5] text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            {saving
+                                ? t('addBatchModal.saving')
+                                : isEdit
+                                  ? t('addBatchModal.save')
+                                  : t('addBatchModal.addBatch')}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </SelectMenuGroup>
         </ModalShell>
     );
 };
