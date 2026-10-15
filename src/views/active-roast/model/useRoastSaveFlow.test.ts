@@ -6,7 +6,7 @@ import {
     type PendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
 import { useRoastingStore } from '@features/active-roast/model/status';
-
+import { logger } from '@shared/lib/logger';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -176,6 +176,22 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(isLiveDetachedFromPending({ sessionId: 's-a', phase: 'ended', awaitingNextCharge: false }, 's-a')).toBe(
             false,
         );
+    });
+
+    it('blocks save without a green bean before resumeSave and does not capture Sentry', async () => {
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        await act(async () =>
+            h.api.handleSave({
+                ...form,
+                beanId: null,
+                beanLabel: '',
+                weightGrams: 5,
+            }),
+        );
+        expect(mocks.resumeSave).not.toHaveBeenCalled();
+        expect(logger.capture).not.toHaveBeenCalled();
+        expect(mocks.message).toHaveBeenCalled();
     });
 
     it('reuses the summary UUID for submission, then generates a distinct UUID for the next unrecorded roast', async () => {

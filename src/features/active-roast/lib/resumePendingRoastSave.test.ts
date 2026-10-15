@@ -60,6 +60,27 @@ beforeEach(() => {
     vi.restoreAllMocks();
 });
 describe('shared durable save coordinator', () => {
+    it('passes form-selected bean through saveRoast on resume', async () => {
+        const d = deps({
+            pending: createPendingRoastSave(
+                {
+                    ...params,
+                    formData: { ...params.formData, beanId: 'form-picked', weightGrams: 5 },
+                    selectedBeanId: 'stale-header',
+                    planBatchHandoff: null,
+                },
+                true,
+            ),
+        });
+        await resumePendingRoastSave(d);
+        expect(d.saveRoast).toHaveBeenCalledWith(
+            expect.objectContaining({
+                formData: expect.objectContaining({ beanId: 'form-picked' }),
+                selectedBeanId: 'stale-header',
+            }),
+        );
+    });
+
     it('persists before auth and resolves before F3/RPC with the same UUID', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-28T08:00:00.000Z'));
