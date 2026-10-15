@@ -14,6 +14,11 @@ import { mapCafe24Order } from '../_shared/channels/cafe24.ts';
 import { cafe24WebhookEventKey, isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
 import { gidToId, lineQuantity, lineStatusOf, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
+import {
+    claimWebhookEventRun,
+    completeWebhookEventRun,
+    releaseWebhookEventClaim,
+} from '../_shared/channels/webhook-event-run.ts';
 import { shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
@@ -320,22 +325,16 @@ serveWithSentry('order-webhook', async (req) => {
         if (!order) return jsonResponse({ ok: true, skipped: 'unparseable' });
 
         const externalEventId = await cafe24WebhookEventKey(payload, rawBody);
-        const { data: run, error: runErr } = await admin
-            .from('order_sync_runs')
-            .insert({
-                connection_id: conn.id,
-                user_id: conn.user_id,
-                trigger: 'webhook',
-                status: 'running',
-                external_event_id: externalEventId,
-            })
-            .select('id')
-            .single();
-        if (runErr || !run) {
-            if (runErr?.code === '23505') {
+        const claim = await claimWebhookEventRun(admin, {
+            connectionId: conn.id,
+            userId: conn.user_id,
+            externalEventId,
+        });
+        if (!claim.ok) {
+            if (claim.duplicate) {
                 return jsonResponse({ ok: true, skipped: 'duplicate delivery' });
             }
-            throw new Error(runErr?.message ?? 'run insert failed');
+            throw new Error(claim.error);
         }
 
         try {
@@ -351,26 +350,11 @@ serveWithSentry('order-webhook', async (req) => {
             );
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
-            await admin
-                .from('order_sync_runs')
-                .update({
-                    status: 'error',
-                    finished_at: new Date().toISOString(),
-                    external_event_id: null,
-                    error_message: msg.slice(0, 1000),
-                })
-                .eq('id', run.id);
+            await releaseWebhookEventClaim(admin, claim.runId, msg);
             throw e;
         }
 
-        await admin
-            .from('order_sync_runs')
-            .update({
-                status: 'success',
-                finished_at: new Date().toISOString(),
-                orders_upserted: 1,
-            })
-            .eq('id', run.id);
+        await completeWebhookEventRun(admin, claim.runId, 1);
 
         return jsonResponse({ ok: true, upserted: 1 });
     } catch (e) {
