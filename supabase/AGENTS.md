@@ -62,6 +62,7 @@ Presign expiry: **300s** (`_shared/r2.ts`). Profile keys: `profiles/{uuid}/{uuid
 | R2 objects | Client PUT/GET only via presigned URLs from get-*-url EFs |
 | `sales_channel_secrets` | Edge service role only (RLS on, no authenticated grant) |
 | `subscriptions`, billing columns on `profiles` | `polar-webhook` (client write locked by migrations) |
+| `profiles.simulator_enabled` | service role only (client write frozen with billing columns) |
 | Multi-ledger stock | RPCs: `save_roast_op`, `insert_stock_events_batch`, `upsert_roasted_inbound`, `insert_packaging_op`, `insert_roasted_stock_events_batch`, `fulfill_order`, `cancel_order` |
 | Channel orders upsert | `order-sync` / `order-webhook` adapters |
 | Cupping public | Invite/results tokens via cupping EFs — do not open anon table RLS |

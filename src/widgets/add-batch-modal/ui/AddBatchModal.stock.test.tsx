@@ -42,7 +42,10 @@ vi.mock('@entities/blend', () => ({
     }),
 }));
 vi.mock('@entities/organization', () => ({ useActiveWorkspace: () => ({ workspaceOwnerId: state.ownerId }) }));
-vi.mock('@entities/machine', () => ({ useMachines: () => ({ machines: [] }) }));
+vi.mock('@entities/machine', () => ({
+    useMachines: () => ({ machines: [] }),
+    useVisibleMachines: () => [],
+}));
 vi.mock('@entities/profile', () => ({ useProfile: () => ({}) }));
 vi.mock('@entities/roast-profile/queries', () => ({ useRoastProfiles: () => ({ data: [] }) }));
 vi.mock('@shared/lib/useFormEscape', () => ({ useFormEscape: vi.fn() }));

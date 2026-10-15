@@ -1,5 +1,5 @@
 import type { Machine } from '@entities/machine';
-import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import { useMachines, useVisibleMachines, VIRTUAL_ID } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useMachineSidecarConnection } from '@features/machine-connection';
 import type { View } from '@shared/types/view';
@@ -25,7 +25,8 @@ export const Machines = ({
     onNavigate?: (view: View) => void;
 }) => {
     const { t } = useTranslation();
-    const { machines, removeMachine } = useMachines();
+    const removeMachine = useMachines((state) => state.removeMachine);
+    const machines = useVisibleMachines();
     const [selectedId, setSelectedId] = useState<string | null>(null);
     /** Bridges page-state modalOpen into sidecar poll gate (hook order). */
     const [modalOpenForPoll, setModalOpenForPoll] = useState(false);

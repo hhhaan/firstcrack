@@ -1,7 +1,7 @@
 import { useBeans } from '@entities/bean/queries';
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { useBlends } from '@entities/blend';
-import { useMachines } from '@entities/machine';
+import { useVisibleMachines } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile/queries';
@@ -61,7 +61,7 @@ export const AddBatchModal = ({
 
     const { data: beans = [] } = useBeans(userId);
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
-    const { machines } = useMachines();
+    const machines = useVisibleMachines();
     const { data: profiles = [] } = useRoastProfiles(userId);
     const { data: userProfile } = useProfile(userId);
     const { data: blends = [] } = useBlends(userId);

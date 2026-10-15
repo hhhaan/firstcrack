@@ -34,6 +34,8 @@ const FEATURE_PREDICATE = {
     [FEATURE.roastedInventory]: (plan: string) => PRO_PLUS_PLANS.has(plan),
     [FEATURE.productStock]: (plan: string) => PRO_PLUS_PLANS.has(plan),
     [FEATURE.machineControl]: (plan: string) => PRO_PLUS_PLANS.has(plan),
+    /** Never a plan entitlement. Turn on with profiles.simulator_enabled. */
+    [FEATURE.simulator]: () => false,
 } satisfies Record<FeatureKey, (plan: string) => boolean>;
 
 /** Plan → feature. Only place that encodes “who gets what”. Exhaustive on FeatureKey. */

@@ -7,6 +7,12 @@ const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7
 
 export const VIRTUAL_ID = '__virtual__';
 
+/** Machine list shown to the user. The store always keeps the virtual row. */
+export function machinesForPicker(machines: Machine[], simulatorEnabled: boolean): Machine[] {
+    if (simulatorEnabled) return machines;
+    return machines.filter((machine) => machine.id !== VIRTUAL_ID);
+}
+
 const VIRTUAL_MACHINE: Machine = {
     id: VIRTUAL_ID,
     name: 'Virtual Machine',
