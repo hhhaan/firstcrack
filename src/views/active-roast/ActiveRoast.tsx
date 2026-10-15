@@ -31,7 +31,7 @@ import {
     upsertReviewTurningPoint,
 } from '@features/active-roast/lib/event-marker-drag';
 import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
-import { isReviewDeletableEvent, reviewMarkAction } from '@features/active-roast/lib/review-record-events';
+import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot } from '@features/active-roast/model/batch';
@@ -266,14 +266,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const livePoints = useRoastingStore((state) => state.livePoints);
     const reviewSnapshot = useRoastingStore(selectReviewSnapshot);
     const reviewing = reviewSnapshot != null;
-    const [reviewFcUnwind, setReviewFcUnwind] = useState(false);
-    const [unwindSessionId, setUnwindSessionId] = useState<string | null>(null);
     const reviewSessionId = reviewSnapshot?.sessionId ?? null;
-    if (unwindSessionId !== reviewSessionId) {
-        setUnwindSessionId(reviewSessionId);
-        setReviewFcUnwind(false);
-    }
-    const reviewMarkRef = useRef<(event: string, note: string) => void>(() => {});
     const { applyReviewLog, reviewSaveError } = useReviewCurveEdit(reviewSessionId);
     const curvePoints = reviewSnapshot?.livePoints ?? livePoints;
     const curveEntries = reviewSnapshot?.logEntries ?? logEntries;
@@ -778,17 +771,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const displayRoR = formatDisplayRoR(liveData?.ror, unit);
 
     // ── 키보드 단축키 ─────────────────────────────────────────────
-    const markFromShortcut = useCallback(
-        (event: string, note: string, pressKey: string) => {
-            if (selectReviewSnapshot(useRoastingStore.getState())) reviewMarkRef.current(event, note);
-            else markEvent(event, note, pressKey);
-        },
-        [markEvent],
-    );
-    const cycleFromShortcut = useCallback(() => {
-        if (selectReviewSnapshot(useRoastingStore.getState())) reviewMarkRef.current('FC Start', '');
-        else cycleFc();
-    }, [cycleFc]);
     useRoastKeyboardShortcuts({
         isActive,
         isFullscreen,
@@ -801,8 +783,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onExitFullscreen: exitFullscreen,
         onEnterStandby: lifecycle.handleEnterStandby,
         onManualCharge: markCharge,
-        onMarkEvent: markFromShortcut,
-        onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFromShortcut),
+        onMarkEvent: markEvent,
+        onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
         onMarkDrop: markDrop,
     });
 
@@ -865,28 +847,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         },
         [applyReviewLog],
     );
-
-    const handleReviewMark = useCallback(
-        (event: string, note: string) => {
-            const frozen = selectReviewSnapshot(useRoastingStore.getState());
-            if (!frozen) return;
-            const action = reviewMarkAction(frozen.logEntries, event, fcDualMarkEnabled, reviewFcUnwind);
-            if (!action) return;
-            if (action.kind === 'remove') {
-                setReviewFcUnwind(fcDualMarkEnabled && event === 'FC Start' && action.event === 'FC Rolling');
-                frozenLogEdit(withoutLogEvent(frozen.logEntries, action.event));
-                return;
-            }
-            setReviewFcUnwind(false);
-            const timeSec = Math.max(0, frozen.elapsed);
-            const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
-            const tempC =
-                nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : (frozen.rawBT ?? null);
-            frozenLogEdit(appendReviewEntry(frozen.logEntries, action.event, note, timeSec, tempC, unit));
-        },
-        [fcDualMarkEnabled, frozenLogEdit, reviewFcUnwind, unit],
-    );
-    reviewMarkRef.current = handleReviewMark;
 
     const handleEventMarkerDrag = useCallback(
         (logId: string, newTimeSec: number) => {
@@ -1365,14 +1325,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         rollingDtrPct={rollingDtrPct}
                         rollingDevTimeStr={rollingDevTimeOnly}
                         fcDualMarkEnabled={fcDualMarkEnabled}
-                        fcDualUnwind={reviewing ? reviewFcUnwind : fcDualUnwind}
+                        fcDualUnwind={fcDualUnwind}
                         logEntries={curveEntries}
                         pressedButtons={pressedButtons}
                         roastLogDisplayEntries={roastLogDisplayEntries}
                         noteInput={noteInput}
                         onNoteChange={setNoteInput}
                         onNoteSubmit={handleNoteSubmit}
-                        onMarkEvent={reviewing ? handleReviewMark : markEvent}
+                        onMarkEvent={markEvent}
                         onCycleFc={cycleFc}
                         onHandleDrop={markDrop}
                         onRemoveLogEntry={removeCurveEntry}
