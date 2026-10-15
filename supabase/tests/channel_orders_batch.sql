@@ -24,6 +24,7 @@ BEGIN
   VALUES (owner_id, v_product_id, 100, 'roast_inbound');
 
   SET LOCAL ROLE service_role;
+  PERFORM set_config('request.jwt.claims', json_build_object('role','service_role')::text, true);
 
   -- Repeated order ids are applied sequentially: paid → shipped, and the earliest timestamp wins.
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
