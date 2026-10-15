@@ -7,9 +7,9 @@ import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import {
     Activity,
-    Book,
     Calculator,
     Calendar,
+    ChartSpline,
     Cpu,
     Flame,
     History,
@@ -30,7 +30,7 @@ const navItems: { id: SidebarNavId; labelKey: string; icon: LucideIcon }[] = [
     { id: 'orders', labelKey: 'sidebar.nav.orders', icon: ShoppingCart },
     { id: 'beans', labelKey: 'sidebar.nav.beans', icon: Sprout },
     { id: 'pricing', labelKey: 'sidebar.nav.pricing', icon: Calculator },
-    { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
+    { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: ChartSpline },
     { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Cpu },
 ];
 
