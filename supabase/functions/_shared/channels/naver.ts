@@ -22,18 +22,13 @@
  *   https://apicenter.commerce.naver.com/docs/commerce-api/current/schemas/상품-주문-정보-구조체
  */
 
-import { captureEdgeException } from '../sentry.ts';
-
 // bcryptjs 2.x is CommonJS: it has no named ESM exports, so `import { hash }` throws
 // SyntaxError while the module is evaluated — which the edge runtime reports as BOOT_ERROR
 // for every function importing this file. Type-checking does not catch it (the .d.ts
 // declares the named export); only running it does. Default import is the working form.
 import bcrypt from 'npm:bcryptjs@2.4.3';
-import {
-    buildNaverDispatchPayload,
-    type NaverDispatchResponse,
-    readNaverDispatchResult,
-} from './dispatch.ts';
+import { captureEdgeException } from '../sentry.ts';
+import { buildNaverDispatchPayload, type NaverDispatchResponse, readNaverDispatchResult } from './dispatch.ts';
 import { planNaverScan } from './naver-windows.ts';
 import { lineQuantity, lineStatusOf } from './normalize.ts';
 import { nextPollCursor } from './poll-cursor.ts';
@@ -98,14 +93,21 @@ function requireNaver(secrets: ChannelSecrets): NaverSecrets {
 }
 
 /** Official Node sample: bcrypt.hashSync(password, clientSecret) then Buffer utf-8 → base64 */
-export async function buildNaverSignature(clientId: string, clientSecret: string, timestampMs: number): Promise<string> {
+export async function buildNaverSignature(
+    clientId: string,
+    clientSecret: string,
+    timestampMs: number,
+): Promise<string> {
     const password = `${clientId}_${timestampMs}`;
     const hashed = await bcrypt.hash(password, clientSecret);
     // hashed is ASCII bcrypt string; standard base64 of UTF-8 bytes (matches official Node/Python samples)
     return btoa(hashed);
 }
 
-export async function exchangeNaverToken(clientId: string, clientSecret: string): Promise<{
+export async function exchangeNaverToken(
+    clientId: string,
+    clientSecret: string,
+): Promise<{
     access_token: string;
     expires_in: number;
 }> {
@@ -260,13 +262,14 @@ function mapDetail(entry: Record<string, unknown>): CanonicalOrder | null {
     const line: CanonicalOrderLine = {
         platformLineId: productOrderId || `${orderId}-line`,
         platformProductId: po.productId != null ? String(po.productId) : null,
-        platformVariantId: po.optionCode != null
-            ? String(po.optionCode)
-            : po.optionManageCode != null
-              ? String(po.optionManageCode)
-              : po.itemNo != null
-                ? String(po.itemNo)
-                : null,
+        platformVariantId:
+            po.optionCode != null
+                ? String(po.optionCode)
+                : po.optionManageCode != null
+                  ? String(po.optionManageCode)
+                  : po.itemNo != null
+                    ? String(po.itemNo)
+                    : null,
         title: String(po.productName ?? 'Naver item'),
         quantity: qty,
         unitPrice: unitPrice ?? (totalPay != null && qty ? totalPay / qty : null),
@@ -306,6 +309,7 @@ function mergeByOrderId(parts: CanonicalOrder[]): CanonicalOrder[] {
             };
             if ((rank[o.status] ?? 0) > (rank[cur.status] ?? 0)) cur.status = o.status;
         }
+        // Partial polls may set a line-only sum here; DB trigger order_lines_recompute_naver_total is the final total.
         const sum = cur.lines.reduce((n, l) => n + (l.unitPrice ?? 0) * l.quantity, 0);
         if (sum) cur.totalAmount = sum;
     }
@@ -337,19 +341,14 @@ export const naverAdapter: ChannelAdapter = {
 
         const end = Date.now();
         // Official: omit lastChangedTo → 24h from lastChangedFrom. Walk day windows.
-        const requestedStart = cursor.since
-            ? new Date(cursor.since).getTime()
-            : end - 24 * 60 * 60 * 1000;
+        const requestedStart = cursor.since ? new Date(cursor.since).getTime() : end - 24 * 60 * 60 * 1000;
         // Bounded by a window budget, not by a lookback clamp — see naver-windows.ts for why the
         // clamp lost orders and why the budget cannot.
         const plan = planNaverScan(requestedStart, end);
 
         const productOrderIds: string[] = [];
         // Lightweight status from last-changed when detail fails
-        const statusHint = new Map<
-            string,
-            { status: string; claim?: string; orderId?: string; orderedAt?: string }
-        >();
+        const statusHint = new Map<string, { status: string; claim?: string; orderId?: string; orderedAt?: string }>();
         /** ms of the first window this run does not fully read; null = whole range scanned. */
         let truncatedAt: number | null = plan.unscannedFrom;
 
@@ -484,8 +483,7 @@ export const naverAdapter: ChannelAdapter = {
         if (!okStatus(res)) {
             const msg = (json.message ?? text).slice(0, 500);
             const already =
-                /already|already.?dispatched|ALREADY|DISPATCHED/i.test(msg) ||
-                json.code === 'ALREADY_DISPATCHED';
+                /already|already.?dispatched|ALREADY|DISPATCHED/i.test(msg) || json.code === 'ALREADY_DISPATCHED';
             if (already) {
                 return { ok: true, alreadyShipped: true, error: msg };
             }
