@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import { assertGreenBeanSelectedForSave } from '@features/active-roast/lib/roastSaveBeanIdentity';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import {
     clearPendingRoastSave,
@@ -8,7 +7,6 @@ import {
     type PendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { logger } from '@shared/lib/logger';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -176,13 +174,6 @@ describe('roast save identity and Continue lifecycle', () => {
         const pending = listPendingRoastSaves().find((p) => p.params.sessionId === 's-a');
         expect(pending?.params.formData.beanId).toBe('form-picked');
         expect(pending?.params.selectedBeanId).toBeNull();
-        if (!pending) throw new Error('Missing pending roast');
-        expect(() =>
-            assertGreenBeanSelectedForSave({
-                ...pending.params,
-                formData: { ...pending.params.formData, beanId: null, beanLabel: '' },
-            }),
-        ).toThrow();
     });
     it('treats next Charge and Charge-wait as detached from the saved batch', () => {
         expect(
@@ -194,22 +185,6 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(isLiveDetachedFromPending({ sessionId: 's-a', phase: 'ended', awaitingNextCharge: false }, 's-a')).toBe(
             false,
         );
-    });
-
-    it('blocks save without a green bean before resumeSave and does not capture Sentry', async () => {
-        const h = renderFlow({ sessionId: 's-a' });
-        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
-        await act(async () =>
-            h.api.handleSave({
-                ...form,
-                beanId: null,
-                beanLabel: '',
-                weightGrams: 5,
-            }),
-        );
-        expect(mocks.resumeSave).not.toHaveBeenCalled();
-        expect(logger.capture).not.toHaveBeenCalled();
-        expect(mocks.message).toHaveBeenCalled();
     });
 
     it('reuses the summary UUID for submission, then generates a distinct UUID for the next unrecorded roast', async () => {

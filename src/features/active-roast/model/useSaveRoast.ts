@@ -7,10 +7,6 @@ import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi
 import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
-import {
-    assertGreenBeanSelectedForSave,
-    resolveRoastSaveBeanFields,
-} from '@features/active-roast/lib/roastSaveBeanIdentity';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { i18n } from '@shared/i18n';
 import { ensureSession } from '@shared/lib/ensureSession';
@@ -56,7 +52,11 @@ export type SaveRoastDeps = {
     flushCurve: (sessionId: string) => Promise<void>;
 };
 
-export { resolveEffectiveBatch } from '@features/active-roast/lib/roastSaveBeanIdentity';
+/** Handoff wins; otherwise ad-hoc linked batch from the save form. */
+export const resolveEffectiveBatch = (
+    planBatchHandoff: PlanBatchHandoff | null,
+    linkedBatch?: PlanBatchHandoff | null,
+): PlanBatchHandoff | null => planBatchHandoff ?? linkedBatch ?? null;
 
 /** Core save path — testable without React hooks. */
 export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams): Promise<SaveRoastResult> {
@@ -102,12 +102,25 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     }
 
     const { formData, handoffBeanName, planBatchHandoff: paramsHandoff, ...payloadParams } = params;
-    assertGreenBeanSelectedForSave(params);
-    const { effectiveBatch, weightGrams, blendId, resolvedBeanId, beanLabel } = resolveRoastSaveBeanFields(params);
+    const effectiveBatch = resolveEffectiveBatch(paramsHandoff, formData.linkedBatch);
 
+    const weightGrams = Math.round(formData.weightGrams * 1000);
     const outputKg = formData.outputWeightKg;
     const outputWeightGrams =
         outputKg != null && Number.isFinite(outputKg) && outputKg > 0 ? Math.round(outputKg * 1000) : null;
+    // Linked / handoff batch supplies bean/blend; else form selection.
+    // Free-text label (form beanLabel) wins over header selectedBeanId — typing a
+    // custom name must not be overwritten by a pre-charge inventory pick.
+    const blendId = effectiveBatch?.blendId ?? null;
+    const beanLabelRaw = formData.beanLabel?.trim() || null;
+    const inventoryBeanId =
+        effectiveBatch?.beanId ?? formData.beanId ?? (beanLabelRaw ? null : payloadParams.selectedBeanId);
+    const resolvedBeanId = inventoryBeanId ?? null;
+    const beanLabel = resolvedBeanId || blendId ? null : beanLabelRaw;
+
+    if (weightGrams > 0 && !resolvedBeanId && !blendId && !beanLabel) {
+        throw new Error('Select a green bean before saving.');
+    }
 
     const roastedAt = payloadParams.roastStartTime > 0 ? new Date(payloadParams.roastStartTime).toISOString() : null;
 

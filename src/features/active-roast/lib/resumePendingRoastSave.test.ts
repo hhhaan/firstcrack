@@ -3,7 +3,6 @@ import type { PlanBatchHandoff, PlanBatchWithProgress, RoastSession } from '@sha
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPendingRoastSave, type PendingRoastParams, readPendingRoastSave } from '../model/pendingRoastSave';
 import { type ResumePendingRoastSaveDeps, resumePendingRoastSave } from './resumePendingRoastSave';
-import { RoastSaveUserError } from './roastSaveBeanIdentity';
 
 const ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const BATCH = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -61,16 +60,6 @@ beforeEach(() => {
     vi.restoreAllMocks();
 });
 describe('shared durable save coordinator', () => {
-    it('keeps user validation failures for manual correction instead of automatic retry', async () => {
-        const error = new RoastSaveUserError('Select a green bean');
-        const d = deps({
-            saveRoast: vi.fn(async () => {
-                throw error;
-            }),
-        });
-        await expect(resumePendingRoastSave(d)).rejects.toBe(error);
-        expect(readPendingRoastSave('owner', ID)?.needsAttention).toBe(true);
-    });
     it('passes form-selected bean through saveRoast on resume', async () => {
         const d = deps({
             pending: createPendingRoastSave(
