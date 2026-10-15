@@ -143,7 +143,7 @@ const ReplayPanelMessages = ({
     const { t } = useTranslation();
     return (
         <>
-            <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.syncOnStart')}</p>
+            {/* <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.syncOnStart')}</p> */}
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
             {!replay.active && !stopText && replay.missingHeatSet && (
