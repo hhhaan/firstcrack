@@ -18,7 +18,7 @@ import {
 
 const roasting = ['roast', 'history', 'profiles', 'machines', 'cupping'] as const;
 const operations = ['dashboard', 'schedule', 'beans', 'orders', 'pricing'] as const;
-const defaults = [...roasting, ...operations];
+const defaults = [...operations, ...roasting];
 
 describe('normalizeSidebarPreferences', () => {
     it('drops duplicates and unknown ids, then appends missing items in group order', () => {
@@ -32,16 +32,16 @@ describe('normalizeSidebarPreferences', () => {
             collapsed: false,
             hidden: [],
             order: [
-                'roast',
-                'history',
-                'profiles',
-                'machines',
-                'cupping',
                 'orders',
                 'beans',
                 'dashboard',
                 'schedule',
                 'pricing',
+                'roast',
+                'history',
+                'profiles',
+                'machines',
+                'cupping',
             ],
         });
     });
@@ -52,16 +52,16 @@ describe('normalizeSidebarPreferences', () => {
                 order: ['pricing', 'cupping', 'dashboard', 'roast', 'cupping'],
             }).order,
         ).toEqual([
-            'cupping',
-            'roast',
-            'history',
-            'profiles',
-            'machines',
             'pricing',
             'dashboard',
             'schedule',
             'beans',
             'orders',
+            'cupping',
+            'roast',
+            'history',
+            'profiles',
+            'machines',
         ]);
     });
 
@@ -81,7 +81,7 @@ describe('normalizeSidebarPreferences', () => {
                 hidden: ['orders', 'ghost', 'orders', 'cupping', 'settings'],
                 order: ['history', 'roast'],
             }).hidden,
-        ).toEqual(['cupping', 'orders']);
+        ).toEqual(['orders', 'cupping']);
     });
 
     it('does not carry fontSize', () => {
@@ -103,22 +103,22 @@ describe('sidebar order edits', () => {
         expect(getSidebarPreferences().order).toEqual(defaults);
 
         moveSidebarItem('history', -1);
-        expect(getSidebarPreferences().order.slice(0, 2)).toEqual(['history', 'roast']);
-        expect(getSidebarPreferences().order.slice(5)).toEqual([...operations]);
+        expect(getSidebarPreferences().order.slice(0, 5)).toEqual([...operations]);
+        expect(getSidebarPreferences().order.slice(5, 7)).toEqual(['history', 'roast']);
 
         moveSidebarItem('cupping', 1);
-        expect(getSidebarPreferences().order[4]).toBe('cupping');
+        expect(getSidebarPreferences().order.at(-1)).toBe('cupping');
 
         setSidebarItemHidden('cupping', true);
         setSidebarItemHidden('orders', true);
-        expect(getSidebarPreferences().hidden).toEqual(['cupping', 'orders']);
+        expect(getSidebarPreferences().hidden).toEqual(['orders', 'cupping']);
         setSidebarItemHidden('cupping', false);
 
         resetSidebarOrder();
         expect(getSidebarPreferences()).toEqual({ collapsed: true, hidden: [], order: defaults });
         expect(SIDEBAR_GROUPS.map((group) => group.labelKey)).toEqual([
-            'sidebar.groups.roasting',
             'sidebar.groups.operations',
+            'sidebar.groups.roasting',
         ]);
     });
 
@@ -130,6 +130,7 @@ describe('sidebar order edits', () => {
         const { getSidebarPreferences: read } = await import('./sidebar-preferences');
         await Promise.resolve();
         expect(read().collapsed).toBe(true);
-        expect(read().order[0]).toBe('history');
+        const order = read().order;
+        expect(order.indexOf('history')).toBeLessThan(order.indexOf('roast'));
     });
 });

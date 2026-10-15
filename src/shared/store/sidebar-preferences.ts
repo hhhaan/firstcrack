@@ -1,8 +1,8 @@
 import { createDevicePreference } from '@shared/lib/device-preference';
 
 export const SIDEBAR_GROUPS = [
-    { labelKey: 'sidebar.groups.roasting', ids: ['roast', 'history', 'profiles', 'machines', 'cupping'] },
     { labelKey: 'sidebar.groups.operations', ids: ['dashboard', 'schedule', 'beans', 'orders', 'pricing'] },
+    { labelKey: 'sidebar.groups.roasting', ids: ['roast', 'history', 'profiles', 'machines', 'cupping'] },
 ] as const;
 
 export type SidebarNavId = (typeof SIDEBAR_GROUPS)[number]['ids'][number];

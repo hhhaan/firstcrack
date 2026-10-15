@@ -11,16 +11,16 @@ test('sidebar order is edited in general settings and roast collapses it', async
     await expect(sidebar.getByText('Roasting', { exact: true })).toBeVisible();
     await expect(sidebar.getByText('Operations', { exact: true })).toBeVisible();
     expect(await navOrder(page)).toEqual([
-        'nav-roast',
-        'nav-history',
-        'nav-profiles',
-        'nav-machines',
-        'nav-cupping',
         'nav-dashboard',
         'nav-schedule',
         'nav-beans',
         'nav-orders',
         'nav-pricing',
+        'nav-roast',
+        'nav-history',
+        'nav-profiles',
+        'nav-machines',
+        'nav-cupping',
     ]);
 
     await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -31,32 +31,32 @@ test('sidebar order is edited in general settings and roast collapses it', async
 
     await expect(sidebar).toBeVisible();
     expect(await navOrder(page)).toEqual([
-        'nav-history',
-        'nav-roast',
-        'nav-profiles',
-        'nav-machines',
-        'nav-cupping',
         'nav-dashboard',
         'nav-schedule',
         'nav-beans',
         'nav-orders',
         'nav-pricing',
+        'nav-history',
+        'nav-roast',
+        'nav-profiles',
+        'nav-machines',
+        'nav-cupping',
     ]);
 
     await page.reload();
     await expect(sidebar).toBeVisible();
     await expect(sidebar).toHaveClass(/w-\[170px\]/);
     expect(await navOrder(page)).toEqual([
-        'nav-history',
-        'nav-roast',
-        'nav-profiles',
-        'nav-machines',
-        'nav-cupping',
         'nav-dashboard',
         'nav-schedule',
         'nav-beans',
         'nav-orders',
         'nav-pricing',
+        'nav-history',
+        'nav-roast',
+        'nav-profiles',
+        'nav-machines',
+        'nav-cupping',
     ]);
 
     await page.getByTestId('nav-roast').click();
@@ -83,16 +83,16 @@ test('sidebar order is edited in general settings and roast collapses it', async
     await page.reload();
     await expect(sidebar).toHaveClass(/w-\[170px\]/);
     expect(await navOrder(page)).toEqual([
-        'nav-history',
-        'nav-roast',
-        'nav-profiles',
-        'nav-machines',
-        'nav-cupping',
         'nav-dashboard',
         'nav-schedule',
         'nav-beans',
         'nav-orders',
         'nav-pricing',
+        'nav-history',
+        'nav-roast',
+        'nav-profiles',
+        'nav-machines',
+        'nav-cupping',
     ]);
 
     await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -116,16 +116,16 @@ test('sidebar order is edited in general settings and roast collapses it', async
     await settings.getByRole('button', { name: 'Reset sidebar', exact: true }).click();
     await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
     expect(await navOrder(page)).toEqual([
-        'nav-roast',
-        'nav-history',
-        'nav-profiles',
-        'nav-machines',
-        'nav-cupping',
         'nav-dashboard',
         'nav-schedule',
         'nav-beans',
         'nav-orders',
         'nav-pricing',
+        'nav-roast',
+        'nav-history',
+        'nav-profiles',
+        'nav-machines',
+        'nav-cupping',
     ]);
     await expect(sidebar.getByText('Operations', { exact: true })).toBeVisible();
 });
