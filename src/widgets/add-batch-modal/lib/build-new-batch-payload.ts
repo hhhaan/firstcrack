@@ -1,3 +1,4 @@
+import { i18n } from '@shared/i18n';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import type { BatchType, NewBatchData } from './types';
 
@@ -27,6 +28,9 @@ export type BuildNewBatchPayloadInput = {
  */
 export const buildNewBatchPayload = (input: BuildNewBatchPayloadInput): NewBatchData => {
     const isBlendType = input.batchType === 'Pre-roast Blend' || input.batchType === 'Post-roast Blend';
+    if (!(isBlendType ? input.blendId : input.beanId)?.trim()) {
+        throw new Error(i18n.t('schedule.error.sourceRequired'));
+    }
     return {
         date: input.date,
         machineId: input.machineId,

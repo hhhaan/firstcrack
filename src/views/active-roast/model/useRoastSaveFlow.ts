@@ -1,8 +1,9 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { invalidateScheduledBatchQueries, planBatchApi, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
+import { assertGreenBeanSelectedForSave } from '@features/active-roast/lib/roastSaveBeanIdentity';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
-import { formatRoastSaveError } from '@features/active-roast/lib/saveErrorClassification';
+import { formatRoastSaveError, isRoastSaveUserFacingError } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { type CompletedRoastSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { useBbpStore } from '@features/active-roast/model/bbp';
@@ -170,21 +171,18 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     linkedBatchId: !frozenHandoff && formData.linkMode === 'schedule' ? formData.planBatchId : null,
                 };
                 const forcedProfileId = savedProfileIdRef.current?.();
+                const baseParams = existing?.params ?? snapshotParams(formPatch, snapshot.logEntries, snapshot);
+                const mergedParams: PendingRoastParams = {
+                    ...baseParams,
+                    userId: ownerId,
+                    formData: { ...baseParams.formData, ...formPatch },
+                    logEntries: frozen?.logEntries ?? baseParams.logEntries,
+                    ...(forcedProfileId !== undefined && { targetProfileId: forcedProfileId }),
+                };
+                assertGreenBeanSelectedForSave(mergedParams);
                 const pending = existing
-                    ? {
-                          ...existing,
-                          submitted: true,
-                          params: {
-                              ...existing.params,
-                              formData: { ...existing.params.formData, ...formPatch },
-                              logEntries: frozen?.logEntries ?? existing.params.logEntries,
-                              ...(forcedProfileId !== undefined && { targetProfileId: forcedProfileId }),
-                          },
-                      }
-                    : createPendingRoastSave(
-                          { ...snapshotParams(formPatch, snapshot.logEntries, snapshot), userId: ownerId },
-                          true,
-                      );
+                    ? { ...existing, submitted: true, params: mergedParams }
+                    : createPendingRoastSave(mergedParams, true);
                 if (!snapshot.curveRecorded) pending.profile = 'not_required';
                 writePendingRoastSave(pending);
 
@@ -258,7 +256,9 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 }
                 onResetActiveRoast();
             } catch (err) {
-                logger.capture(err, { context: 'roastSummary save' });
+                if (!isRoastSaveUserFacingError(err)) {
+                    logger.capture(err, { context: 'roastSummary save' });
+                }
                 const detail = formatRoastSaveError(err);
                 await message(i18n.t('activeRoast.dialogs.saveFailedMsg', { error: detail }), {
                     title: i18n.t('activeRoast.dialogs.saveFailedTitle'),

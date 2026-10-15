@@ -13,6 +13,8 @@ const batch = {
     recurrence_rule_id: null,
     exception_type: null,
     batch_count: 2,
+    bean_id: 'bean-1',
+    blend_id: null,
     updated_at: 'revision',
 };
 const source = {
@@ -60,6 +62,25 @@ it('start rejects exhausted batches without a status write', async () => {
         .mockReturnValueOnce(query(null, null, 2));
     await expect(startForRoast('owner', source)).rejects.toThrow(/completed/);
     expect(from).toHaveBeenCalledTimes(3);
+});
+it('rejects a legacy batch without a bean or blend before changing its status', async () => {
+    from.mockReturnValueOnce(query({ ...batch, bean_id: null }))
+        .mockReturnValueOnce(query({ user_id: 'owner' }))
+        .mockReturnValueOnce(query(null, null, 0));
+    await expect(startForRoast('owner', { ...source, beanId: 'stale-bean' })).rejects.toMatchObject({
+        code: 'unresolvable_plan_batch_id',
+    });
+    expect(from).toHaveBeenCalledTimes(3);
+});
+it('allows a valid blend with no single bean', async () => {
+    const blendBatch = { ...batch, bean_id: null, blend_id: 'blend-1' };
+    const update = query({ ...blendBatch, status: 'in-progress' });
+    from.mockReturnValueOnce(query(blendBatch))
+        .mockReturnValueOnce(query({ user_id: 'owner' }))
+        .mockReturnValueOnce(query(null, null, 0))
+        .mockReturnValueOnce(update);
+    await startForRoast('owner', source);
+    expect(update.update).toHaveBeenCalledWith({ status: 'in-progress' });
 });
 it('recovery sync uses absolute count and never increments retries', async () => {
     for (let i = 0; i < 2; i++) {

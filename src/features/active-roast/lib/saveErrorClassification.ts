@@ -1,3 +1,4 @@
+import { isRoastSaveUserError } from '@features/active-roast/lib/roastSaveBeanIdentity';
 import { i18n } from '@shared/i18n';
 import { errorMessage } from '@shared/lib/errorMessage';
 import { BatchLimitError } from '@shared/lib/features';
@@ -31,8 +32,12 @@ export const isFixablePlanBatchIdError = (err: unknown): boolean => {
 
 /** Human-readable save failure — PostgREST errors are plain objects, not Error. */
 export const formatRoastSaveError = (err: unknown): string => {
+    if (isRoastSaveUserError(err)) return err.message;
     if (err instanceof BatchLimitError) {
         return i18n.t(`planGate.${err.code}`, { used: err.used, max: err.max });
     }
     return errorMessage(err);
 };
+
+/** Validation the user can fix in the summary form — never send to Sentry. */
+export const isRoastSaveUserFacingError = (err: unknown): boolean => isRoastSaveUserError(err);
