@@ -14,14 +14,14 @@ const latestMatching = (
     readValue: (entry: Pick<LogEntry, 'event' | 'note' | 'appliedControl'>) => number | null,
 ): number | null => {
     let latest: { value: number; time: number; index: number } | null = null;
-    entries.forEach((entry, index) => {
+    for (const [index, entry] of entries.entries()) {
         const value = readValue(entry);
-        if (value == null || !Number.isFinite(value)) return;
+        if (value == null || !Number.isFinite(value)) continue;
         const time = entry.timeSec ?? 0;
         if (!latest || time > latest.time || (time === latest.time && index > latest.index)) {
             latest = { value, time, index };
         }
-    });
+    }
     return latest?.value ?? null;
 };
 
