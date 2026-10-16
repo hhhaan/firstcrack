@@ -539,11 +539,16 @@ Notes:
   저장된 화력 전용 맵이 현재 또는 구형 기본 맵과 정확히 같으면 드럼을 추가하고, 커스텀 맵은 보존한다.
   다른 Giesen 키의 쓰기 맵은 heater만 유지한다. fan/압력 쓰기와 드럼 Replay는 지원하지 않는다.
   DB2.10은 Artisan에서 온도 SP로 지정돼 있으므로 팬 명령을 보내지 않는다.
+- Probat `probat_gug_control_s7`는 heater(DB200.80, 0–100%), fan(DB200.64, 25–100%),
+  drum(DB200.72, 25–60 RPM)을 지원한다. `probat_gug_s7`는 읽기 전용이다.
+  `probat_ws`는 `burner`/`exhaustFan`/`drum` 노드를 0–100%로 쓰고, `probat_sample_ws`는
+  `burner`만 지원한다. WebSocket 쓰기 맵은 유효한 `node`가 있어야 하며 범위만 있으면 쓰기 미지원이다.
+  `setControlParams` 성공은 소켓 전송 완료를 뜻하며, 기기의 수락 응답이나 실제 동작을 확인하지 않는다.
 - 어댑터 쓰기 순서: `min`/`max` 클램프 → `div` 역스케일(읽기의 ÷10/÷100 반대) → `value_offset` 추가 →
   INT16 반올림·범위 검사 → `db_write`. 유한하지 않은 값(NaN/Inf)과 INT16 초과는
   `ValueError`로 거부한다.
 - S7은 읽기와 쓰기가 같은 snap7 클라이언트를 쓰므로 어댑터 내부 스레드 락으로 직렬화한다.
-- Kaleido/Modbus/Phidget/Probat adapter의 `control()`은 아직 no-op이다. Virtual은
+- Kaleido/Modbus/Phidget adapter는 제어 쓰기를 지원하지 않는다. Virtual은
   명령값을 저장해 이후 판독에 반영한다(실기 없이 제어 UI를 확인하는 용도).
 
 ### POST /pid/on · /pid/off · /pid/sv

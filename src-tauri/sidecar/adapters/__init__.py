@@ -18,7 +18,7 @@ _PROTOCOL_ADAPTER: dict[str, type] = {
 
 # control()이 실제로 하드웨어에 쓰는 프로토콜. hasattr(adapter, "control")는
 # 스텁에도 항상 True라 쓰기 가능 여부로 쓸 수 없다 (#270).
-WRITABLE_PROTOCOLS = frozenset({"s7", "virtual"})
+WRITABLE_PROTOCOLS = frozenset({"s7", "virtual", "probat_ws"})
 
 
 def make_adapter(protocol: str, params: dict[str, Any]) -> Any:

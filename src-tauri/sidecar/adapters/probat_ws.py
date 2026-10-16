@@ -36,11 +36,13 @@ class ProbatWSAdapter:
         host: str = "127.0.0.1",
         port: int = 80,
         channel_nodes: dict[str, str] | None = None,
+        write_map: dict[str, dict[str, Any]] | None = None,
         **_: Any,
     ) -> None:
         self._host = host
         self._port = port
         self._channel_nodes: dict[str, str] = channel_nodes or {}
+        self._write_map: dict[str, dict[str, Any]] = write_map or {}
         self._ws: Any = None
         self._connected: bool = False
 
@@ -157,8 +159,43 @@ class ProbatWSAdapter:
         TRACE.record("err", "probat_ws", f"getData 응답 타임아웃 id={msg_id}")
         raise TimeoutError(f"Probat WS getData 응답 타임아웃 (id={msg_id})")
 
+    async def _send(self, payload: dict[str, Any]) -> None:
+        if self._ws is None:
+            raise ConnectionError("WebSocket이 연결되지 않음")
+        raw = json.dumps(payload, separators=(",", ":"))
+        try:
+            TRACE.record("tx", "probat_ws", payload.get("command", ""), raw)
+            await self._ws.send(raw)
+        except Exception as exc:
+            raise await self._on_ws_error(exc) from exc
+
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
+        """Artisan slidercommands: setControlParams 한 역할씩.
+
+        node가 없는 write_map은 주소가 아니므로 쓰지 않는다.
+        shortcut: socket send only; add response validation after device replies are verified.
+        """
+        requested = {"heater": heater, "fan": fan, "drum": drum}
+        targets: list[tuple[str, float]] = []
+        for role, value in requested.items():
+            if value is None:
+                continue
+            node = (self._write_map.get(role) or {}).get("node")
+            if not isinstance(node, str) or not node:
+                raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
+            targets.append((node, float(value)))
+        if not targets:
+            raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
+        for node, value in targets:
+            sent = int(value) if value.is_integer() else value
+            await self._send(
+                {
+                    "command": "setControlParams",
+                    "id": random.randint(1, 99999),
+                    "roasterID": 0,
+                    "params": {node: sent},
+                }
+            )
 
     @property
     def connected(self) -> bool:

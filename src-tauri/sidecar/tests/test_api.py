@@ -213,10 +213,10 @@ class TestControlEndpoint:
         assert fake.control_calls == []
 
     async def test_control_unsupported_role_returns_409(self, client):
-        """probat_ws는 write_map이 없다 — 쓰기 미지원 머신."""
+        """기본 custom_probat_ws는 write_map이 없다 — 쓰기 미지원."""
         fake = FakeAdapter(readings=[make_reading(bt=150.0)])
         with patch("manager.make_adapter", return_value=fake):
-            await client.post("/connect", json={"roaster": "probat_ws"})
+            await client.post("/connect", json={"roaster": "custom_probat_ws"})
             resp = await client.post("/control", json={"heater": 50})
         assert resp.status == 409
         assert fake.control_calls == []
@@ -305,7 +305,7 @@ class TestPidEndpoints:
         assert (await client.post("/pid/on", json={"sv": "hot"})).status == 400
 
     async def test_pid_on_unsupported_machine_returns_409(self, client):
-        """probat_ws는 pid 게인도 write_map도 없다."""
+        """probat_ws는 수동 쓰기를 지원해도 PID 게인은 없다."""
         fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
         with patch("manager.make_adapter", return_value=fake):
             await client.post("/connect", json={"roaster": "probat_ws"})
