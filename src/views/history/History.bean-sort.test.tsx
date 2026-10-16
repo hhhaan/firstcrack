@@ -121,13 +121,13 @@ describe('History bean sort', () => {
     it('sorts the filtered list, not the current date page', async () => {
         await render();
 
-        expect(paginatedCalls.at(-1)?.enabled).toBe(true);
-        expect(listCalls.at(-1)?.enabled).toBe(false);
+        expect(paginatedCalls[paginatedCalls.length - 1]?.enabled).toBe(true);
+        expect(listCalls[listCalls.length - 1]?.enabled).toBe(false);
 
         click('sort-bean');
 
-        expect(paginatedCalls.at(-1)).toMatchObject({ enabled: false, sortKey: 'bean' });
-        expect(listCalls.at(-1)?.enabled).toBe(true);
+        expect(paginatedCalls[paginatedCalls.length - 1]).toMatchObject({ enabled: false, sortKey: 'bean' });
+        expect(listCalls[listCalls.length - 1]?.enabled).toBe(true);
         // Oldest roast (Fig) is outside the first date page. Global name order still includes it.
         expect(beanNamesOnPage(host)).toEqual([
             'Zebra',
