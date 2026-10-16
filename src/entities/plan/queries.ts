@@ -169,15 +169,21 @@ export const usePlanBatches = (planId: string) =>
         staleTime: 15_000,
     });
 
-export const useDayBatches = (userId: string, date: string, lookbackDays?: number) => {
+/** Same read as `useDayBatches`. Callers fetch this instead of defining `listForDateRange`. */
+export const dayBatchesQuery = (userId: string, date: string, lookbackDays?: number) => {
     const range = lookbackDays && lookbackDays > 0;
     const start = range ? format(subDays(new Date(`${date}T00:00:00`), lookbackDays), 'yyyy-MM-dd') : date;
-    return useQuery({
+    return {
         queryKey: planKeys.dayBatches(userId, date, lookbackDays),
         queryFn: () => planBatchApi.listForDateRange(userId, start, date),
+    };
+};
+
+export const useDayBatches = (userId: string, date: string, lookbackDays?: number) =>
+    useQuery({
+        ...dayBatchesQuery(userId, date, lookbackDays),
         enabled: !!userId && !!date && !Number.isNaN(Date.parse(date)),
     });
-};
 
 export const useRangeBatches = (userId: string, start: string, end: string) =>
     useQuery({

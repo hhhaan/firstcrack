@@ -1,8 +1,8 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { useDashboard } from '@features/dashboard-summary';
 import { useCoffeeFutures } from '@shared/api/coffee-futures';
 import type { View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
-import { useDashboard } from '@widgets/dashboard-summary/api/useDashboard';
 import { DashboardHeader } from './components/DashboardHeader';
 import { InventoryAlerts } from './components/InventoryAlerts';
 import { KpiSection } from './components/KpiSection';

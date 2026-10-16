@@ -1,4 +1,4 @@
-import type { DashboardInventoryAlert } from '@widgets/dashboard-summary/api/useDashboard';
+import type { DashboardInventoryAlert } from '@features/dashboard-summary';
 
 /** 로스팅 레벨 → 전경색 */
 export const levelColor: Record<string, string> = {

@@ -1,6 +1,6 @@
+import type { UpcomingBatch } from '@features/dashboard-summary';
 import { formatDateLocal } from '@shared/lib/rrule';
 import type { View } from '@shared/types/view';
-import type { UpcomingBatch } from '@widgets/dashboard-summary/api/useDashboard';
 import { Calendar, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

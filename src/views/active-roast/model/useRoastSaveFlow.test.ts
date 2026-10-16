@@ -47,7 +47,11 @@ vi.mock('@entities/organization', () => ({
 vi.mock('@entities/plan', () => ({
     useDayBatches: () => ({ data: [] }),
     planKeys: { dayBatches: (...parts: string[]) => parts },
-    planBatchApi: { startForRoast: mocks.startForRoast, listForDateRange: vi.fn() },
+    planBatchApi: { startForRoast: mocks.startForRoast },
+    dayBatchesQuery: (userId: string, date: string) => ({
+        queryKey: [userId, date],
+        queryFn: async () => [],
+    }),
     invalidateScheduledBatchQueries: mocks.invalidateScheduledBatchQueries,
 }));
 vi.mock('@features/active-roast/model/useSaveRoast', () => ({

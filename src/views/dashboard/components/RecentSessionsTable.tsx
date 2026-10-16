@@ -1,9 +1,9 @@
 import { formatTemp, useRoastSettings } from '@features/active-roast';
+import type { DashboardRecentSession } from '@features/dashboard-summary';
 import { formatDuration } from '@shared/lib/format';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
-import type { DashboardRecentSession } from '@widgets/dashboard-summary/api/useDashboard';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { levelBg, levelColor } from '../lib/constants';

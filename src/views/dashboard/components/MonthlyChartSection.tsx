@@ -1,5 +1,5 @@
+import type { MonthlyBatch } from '@features/dashboard-summary';
 import { MonthlyBatchesChart } from '@shared/ui/MonthlyBatchesChart';
-import type { MonthlyBatch } from '@widgets/dashboard-summary/api/useDashboard';
 import { Calendar } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';

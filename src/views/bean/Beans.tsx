@@ -3,8 +3,8 @@ import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import type { Product } from '@entities/product';
-import { productStockEventApi, productStockKeys } from '@entities/product-stock-event';
-import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
+import { prefetchProductStock } from '@entities/product-stock-event';
+import { prefetchRoastedStock } from '@entities/roasted-stock-event';
 import { useRoastingStore } from '@features/active-roast';
 import { BlendRoastedModal } from '@features/blend-roasted';
 import { FEATURE, useFeature } from '@shared/lib/features';
@@ -62,18 +62,8 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     // Warm inventory caches so tab switches are cache hits.
     useEffect(() => {
         if (!userId) return;
-        if (canRoasted) {
-            void qc.prefetchQuery({
-                queryKey: roastedStockKeys.byUser(userId),
-                queryFn: () => roastedStockEventApi.getUserRoastedStock(userId),
-            });
-        }
-        if (canProducts) {
-            void qc.prefetchQuery({
-                queryKey: productStockKeys.byUser(userId),
-                queryFn: () => productStockEventApi.getStockByUser(userId),
-            });
-        }
+        if (canRoasted) void prefetchRoastedStock(qc, userId);
+        if (canProducts) void prefetchProductStock(qc, userId);
     }, [userId, canRoasted, canProducts, qc]);
 
     const [activeTab, setActiveTab] = useState<InventoryTab>('green');

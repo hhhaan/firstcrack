@@ -3,6 +3,7 @@ export { dayPlanApi, dayPlanRangeApi, planBatchApi, recurrenceRuleApi, Unresolva
 export { type BatchStatus, batchStatus } from './lib/batch-status';
 export { isUuid, parseVirtualPlanBatchId } from './lib/virtual-plan-batch-id';
 export {
+    dayBatchesQuery,
     invalidatePlanScope,
     invalidateScheduledBatchQueries,
     planKeys,

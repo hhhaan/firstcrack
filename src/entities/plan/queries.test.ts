@@ -1,7 +1,8 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { QueryClient } from '@tanstack/react-query';
-import { describe, expect, it } from 'vitest';
-import { patchDayBatchesCache, planKeys, reorderByIds, restoreDayBatchesCache } from './queries';
+import { describe, expect, it, vi } from 'vitest';
+import { planBatchApi } from './api';
+import { dayBatchesQuery, patchDayBatchesCache, planKeys, reorderByIds, restoreDayBatchesCache } from './queries';
 
 const row = (over: Partial<PlanBatchWithProgress>): PlanBatchWithProgress =>
     ({ bean_name: 'x', order_index: 0, recurrence_rule_id: null, ...over }) as PlanBatchWithProgress;
@@ -42,5 +43,16 @@ describe('patchDayBatchesCache (낙관적 업데이트 키 매칭)', () => {
 
         restoreDayBatchesCache(qc, snapshot);
         expect(qc.getQueryData<PlanBatchWithProgress[]>(key14)).toEqual(original);
+    });
+});
+
+describe('dayBatchesQuery', () => {
+    it('reads that calendar day, or the lookback window, through listForDateRange', async () => {
+        const list = vi.spyOn(planBatchApi, 'listForDateRange').mockResolvedValue([]);
+        await dayBatchesQuery('u1', '2026-08-03').queryFn();
+        await dayBatchesQuery('u1', '2026-08-03', 14).queryFn();
+        expect(list).toHaveBeenNthCalledWith(1, 'u1', '2026-08-03', '2026-08-03');
+        expect(list).toHaveBeenNthCalledWith(2, 'u1', '2026-07-20', '2026-08-03');
+        list.mockRestore();
     });
 });

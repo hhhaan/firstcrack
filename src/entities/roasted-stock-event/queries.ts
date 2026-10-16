@@ -4,17 +4,22 @@ import { roastedStockEventApi } from './api';
 
 export { roastedStockKeys };
 
+const roastedStockByUserQuery = (userId: string) => ({
+    queryKey: roastedStockKeys.byUser(userId),
+    queryFn: () => roastedStockEventApi.getUserRoastedStock(userId),
+});
+
 /** Cache-first roasted bulk stock; fetches once if missing. */
 export const ensureRoastedStock = (qc: QueryClient, userId: string) =>
-    qc.ensureQueryData({
-        queryKey: roastedStockKeys.byUser(userId),
-        queryFn: () => roastedStockEventApi.getUserRoastedStock(userId),
-    });
+    qc.ensureQueryData(roastedStockByUserQuery(userId));
+
+/** Warm the roasted-stock cache without subscribing. Same key as `useRoastedStock`. */
+export const prefetchRoastedStock = (qc: QueryClient, userId: string) =>
+    qc.prefetchQuery(roastedStockByUserQuery(userId));
 
 export const useRoastedStock = (userId: string, enabled = true) =>
     useQuery({
-        queryKey: roastedStockKeys.byUser(userId),
-        queryFn: () => roastedStockEventApi.getUserRoastedStock(userId),
+        ...roastedStockByUserQuery(userId),
         enabled: !!userId && enabled,
     });
 
