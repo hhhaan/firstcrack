@@ -145,7 +145,7 @@ never left (`sync_channel_orders_batch` gates mapping and restores on `fulfilled
 | **Cancel** | Cancel order; restore stock if already fulfilled | RPC `cancel_order` | product restore via cancel path |
 
 **Do not** equate `fulfilled_at` with platform "shipped".  
-**Do not** flip `orders.status` with ad-hoc updates — inbound status merge is owned by `sync_channel_orders_batch` (cancelled/refunded are terminal); outbound dispatch still uses `_shared/channels/status-map.ts`.
+**Do not** flip `orders.status` with ad-hoc updates — inbound status merge is owned by `sync_channel_orders_batch`. The header becomes `cancelled` or `refunded` only when every line is. One Naver product-order cancel updates that line and leaves the order open, so the remaining lines can still be fulfilled, dispatched, and counted in roasting demand. A local `cancel_order` stays cancelled: it does not mark lines terminal, and a later snapshot reopens the header only when stored lines are mixed. `orders.total_amount` is the original gross and never shrinks. Net sales subtract `unit_price * quantity` of `cancelled` and `refunded` lines; those line amounts are kept when the line cancels. Outbound dispatch still uses `_shared/channels/status-map.ts`.
 
 Inbound persistence is service-role-only RPC `sync_channel_orders_batch`. It verifies the connection owner/platform, reads the latest `auto_fulfill_on_shipped`, serializes concurrent writes for the same external order, and preserves input order when an adapter repeats an external order ID. The RPC owns inbound status merge, earliest `ordered_at`, line diffs, stock idempotency, and dispatch confirmation; `normalize.ts` owns adapter payload validation and product candidate mapping.
 
