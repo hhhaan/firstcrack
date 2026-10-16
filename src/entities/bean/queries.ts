@@ -1,7 +1,29 @@
+import { isOptimisticId } from '@shared/lib/optimistic-id';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import type { Bean } from '@shared/types/database.types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { beanApi } from './api';
+
+/** Swap the optimistic row for the server row, keeping its place in the list. */
+export const replaceOptimisticBean = (list: Bean[], real: Bean, tempId?: string): Bean[] => {
+    const drop = (bean: Bean) =>
+        bean.id === tempId ||
+        (!tempId && isOptimisticId(bean.id) && bean.name === real.name && bean.user_id === real.user_id);
+    const out: Bean[] = [];
+    let placed = false;
+    for (const bean of list) {
+        if (bean.id === real.id) continue;
+        if (drop(bean)) {
+            if (!placed) {
+                out.push(real);
+                placed = true;
+            }
+            continue;
+        }
+        out.push(bean);
+    }
+    return placed ? out : [real, ...out];
+};
 
 export const beanKeys = {
     all: (userId: string) => ['beans', userId] as const,
@@ -19,7 +41,7 @@ export const useBean = (id: string) =>
     useQuery({
         queryKey: beanKeys.detail(id),
         queryFn: () => beanApi.get(id),
-        enabled: !!id,
+        enabled: !!id && !isOptimisticId(id),
     });
 
 export const useCreateBean = (userId: string) => {
@@ -43,9 +65,10 @@ export const useCreateBean = (userId: string) => {
             if (ctx?.prev) qc.setQueryData(beanKeys.all(userId), ctx.prev);
         },
         onSuccess: (realBean, _vars, ctx) => {
-            qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) =>
-                old.map((b) => (b.id === ctx?.tempId ? realBean : b)),
-            );
+            const tempId = ctx?.tempId;
+            qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) => replaceOptimisticBean(old, realBean, tempId));
+            qc.setQueryData(beanKeys.detail(realBean.id), realBean);
+            if (tempId) qc.removeQueries({ queryKey: beanKeys.detail(tempId) });
         },
     });
 };

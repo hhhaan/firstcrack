@@ -12,6 +12,7 @@ import {
     isClientRefusal,
     isExpectedRefusal,
     isSentryEnabled,
+    mergeQueryErrorTags,
     normalizeSupabaseError,
     observeRoastingImportScan,
     reactRootOptions,
@@ -24,6 +25,7 @@ import {
     scrubSensitive,
     scrubText,
     setSentryIdentity,
+    tagsFromQueryKey,
     tagsFromQueryMeta,
 } from './sentry';
 import { SidecarHttpError } from './sidecar';
@@ -452,6 +454,26 @@ describe('tagsFromQueryMeta', () => {
         expect(tagsFromQueryMeta({ feature: 'plan-batch', rpc: 'reorder_plan_batches' })).toEqual({
             feature: 'plan-batch',
             rpc: 'reorder_plan_batches',
+        });
+    });
+});
+
+describe('tagsFromQueryKey', () => {
+    it('infers rpc/table from inventory query roots', () => {
+        expect(tagsFromQueryKey(['bean-stock-summary', 'bean-id'])).toEqual({
+            rpc: 'get_bean_stock_summary',
+        });
+        expect(tagsFromQueryKey(['bean-stock-events', 'bean-id'])).toEqual({
+            table: 'bean_stock_events',
+        });
+    });
+
+    it('merges meta over inferred query-key tags', () => {
+        expect(
+            mergeQueryErrorTags({ feature: 'inventory', rpc: 'get_bean_stock_summary' }, ['bean-stock-summary', 'b1']),
+        ).toEqual({
+            rpc: 'get_bean_stock_summary',
+            feature: 'inventory',
         });
     });
 });

@@ -197,6 +197,29 @@ export const tagsFromQueryMeta = (meta: Record<string, unknown> | undefined): Re
     return tags;
 };
 
+const QUERY_KEY_ROOT_TAGS: Record<string, { rpc?: string; table?: string }> = {
+    'bean-stock-events': { table: 'bean_stock_events' },
+    'bean-stock-summary': { rpc: 'get_bean_stock_summary' },
+    'bean-stock-summaries': { rpc: 'get_user_stock_summaries' },
+    'bean-purchase-costs': { table: 'bean_stock_events' },
+};
+
+/** Fallback when a query has no meta — infer rpc/table from the first queryKey segment. */
+export const tagsFromQueryKey = (queryKey: readonly unknown[]): Record<string, string> => {
+    const root = typeof queryKey[0] === 'string' ? queryKey[0] : undefined;
+    const mapping = root ? QUERY_KEY_ROOT_TAGS[root] : undefined;
+    if (!mapping) return {};
+    const tags: Record<string, string> = {};
+    if (mapping.rpc) tags.rpc = mapping.rpc;
+    if (mapping.table) tags.table = mapping.table;
+    return tags;
+};
+
+export const mergeQueryErrorTags = (
+    meta: Record<string, unknown> | undefined,
+    queryKey: readonly unknown[],
+): Record<string, string> => ({ ...tagsFromQueryKey(queryKey), ...tagsFromQueryMeta(meta) });
+
 const supabaseFingerprint = (code: string, tags: Record<string, string>): string[] => [
     'supabase',
     code,
@@ -320,9 +343,10 @@ export const captureActionable = (error: unknown, context?: CaptureActionableOpt
     Sentry.captureException(toCapture, Object.keys(hint).length > 0 ? hint : undefined);
 };
 
-export const reportReactQueryError = (error: Error, meta?: Record<string, unknown>) => {
+export const reportReactQueryError = (error: Error, meta?: Record<string, unknown>, queryKey?: readonly unknown[]) => {
     if (shouldSkipSidecarLoggerCapture(error)) return;
-    captureActionable(error, { tags: tagsFromQueryMeta(meta) });
+    const tags = queryKey ? mergeQueryErrorTags(meta, queryKey) : tagsFromQueryMeta(meta);
+    captureActionable(error, { tags });
 };
 
 const sidecarFailureReportAt = new Map<string, number>();
