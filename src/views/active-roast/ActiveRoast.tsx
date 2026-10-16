@@ -413,7 +413,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [bbpActive, charged, reviewing, setZoomRange, setHoveredChartIndex]);
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
-    const liveDev = useMemo(() => calcDevTime(logEntries, elapsed), [logEntries, elapsed]);
+    // Drop clears the live clock to 0. 0 is a real duration, so the ended screen must keep its own log.
+    const devEntries = reviewing ? curveEntries : logEntries;
+    const devElapsed = reviewing ? curveElapsed : elapsed;
+    const liveDev = useMemo(() => calcDevTime(devEntries, devElapsed), [devEntries, devElapsed]);
     const { devTimeOnly, dtrPct, rollingDevTimeOnly, rollingDtrPct, roastDurationSec } = liveDev;
 
     // 라이프사이클과 하위 훅 사이 순환 의존성을 refs로 분리
