@@ -1,5 +1,4 @@
 import { dashboardKeys, inventoryQueryRoots, roastedStockKeys, roastProfileQueryRoots } from '@shared/lib/query-keys';
-import { isClientRefusal } from '@shared/lib/sentry';
 import { shouldPrefetchNextPage } from '@shared/lib/shouldPrefetchNextPage';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -278,17 +277,6 @@ export const useRoastSession = (userId: string, id: string) =>
         queryFn: () => roastSessionApi.get(id),
         enabled: !!userId && !!id,
     });
-
-export const useCreateRoastSession = (userId: string) => {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: roastSessionApi.create,
-        retry: (failureCount, error) => !isClientRefusal(error) && failureCount < 3,
-        onSuccess: () => {
-            void invalidateRoastSessionQueries(qc, userId);
-        },
-    });
-};
 
 export const useUpdateRoastSession = (userId: string) => {
     const qc = useQueryClient();

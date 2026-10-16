@@ -29,7 +29,7 @@ Key roots: `planQueryRoots` in `src/shared/lib/query-keys.ts`.
 
 ## Data model (mental)
 
-- **day_plan**: one row per owner per calendar date (get-or-create pattern).
+- **day_plan**: one row per owner per calendar date. Opening a day only reads. The row is created when a write calls `dayPlanApi.getOrCreate` (add batch, move, materialize).
 - **roast_plan_batches**: concrete (or exception) rows under a plan; progress = count of linked `roast_sessions`.
 - **recurrence_rules**: RRULE masters; virtual occurrences expand client-side for ranges.
 - Editing a **single occurrence** of a recurring series does **not** update the master in place — it **materializes an exception row** (`exception_type: 'modified'`).

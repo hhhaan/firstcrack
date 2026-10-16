@@ -2,6 +2,7 @@ import { calcPlanBatchCount } from '@shared/lib/stock-calc';
 import { supabase } from '@shared/lib/supabase';
 import type { PlanBatch, PlanBatchWithProgress } from '@shared/types/database.types';
 import { recurrenceRuleApi } from './recurrence-rule';
+import { countSessionsByBatch } from './session-counts';
 
 /**
  * List batches for a date range, merging recurrence rules with exception rows.
@@ -49,21 +50,9 @@ export async function listForDateRange(
         oneOffBatches = oneOffResult.data ?? [];
     }
 
-    // Sessions for progress — scoped to concrete batch ids only (no full-table scan)
+    // Sessions for progress — scoped to concrete batch ids only (no full-table scan).
     const batchIds = [...(exceptions ?? []), ...(oneOffBatches ?? [])].map((b) => b.id);
-    const sessionCountMap = new Map<string, number>();
-    if (batchIds.length > 0) {
-        const { data: sessions, error: sessionsError } = await supabase
-            .from('roast_sessions')
-            .select('plan_batch_id')
-            .in('plan_batch_id', batchIds);
-        if (sessionsError) throw sessionsError;
-        for (const s of sessions ?? []) {
-            if (s.plan_batch_id) {
-                sessionCountMap.set(s.plan_batch_id, (sessionCountMap.get(s.plan_batch_id) ?? 0) + 1);
-            }
-        }
-    }
+    const sessionCountMap = await countSessionsByBatch(batchIds);
 
     // Build result from one-off batches.
     // One-off rows never store scheduled_date (recurrence-exception column) —

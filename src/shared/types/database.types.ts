@@ -2140,6 +2140,10 @@ export type Database = {
                     roast_count: number;
                 }[];
             };
+            allocate_blend_grams: {
+                Args: { p_blend_id: string; p_charge_grams: number };
+                Returns: { bean_id: string; grams: number }[];
+            };
             calc_plan_batch_count: {
                 Args: {
                     p_batch_count?: number;
@@ -2339,6 +2343,30 @@ export type Database = {
                     p_session_id: string;
                 };
                 Returns: undefined;
+            };
+            split_recurrence_rule: {
+                Args: { p_from_date: string; p_rule: Json; p_rule_id: string };
+                Returns: {
+                    batch_size_kg: number;
+                    batch_type: string;
+                    bean_id: string | null;
+                    bean_name: string;
+                    blend_id: string | null;
+                    created_at: string;
+                    dtstart: string;
+                    green_lot: string;
+                    id: string;
+                    machine_id: string | null;
+                    notes: string;
+                    roast_profile_id: string | null;
+                    rrule: string;
+                    status: string;
+                    target_roasted_kg: number;
+                    until: string | null;
+                    updated_at: string;
+                    user_id: string;
+                    yield_pct: number;
+                };
             };
             sync_channel_orders_batch: {
                 Args: { p_connection_id: string; p_orders: Json; p_user_id: string };

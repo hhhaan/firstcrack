@@ -28,4 +28,11 @@ describe('buildBlendDeductions', () => {
         expect(result[1].grams).toBe(500);
         expect(result[0].grams + result[1].grams).toBe(1001);
     });
+
+    it('orders by bean_id before giving the remainder to the last id', () => {
+        const result = buildBlendDeductions(1001, [comp('y', 50), comp('x', 50)]);
+        expect(result.map((row) => row.beanId)).toEqual(['x', 'y']);
+        expect(result[0].grams).toBe(501);
+        expect(result[1].grams).toBe(500);
+    });
 });

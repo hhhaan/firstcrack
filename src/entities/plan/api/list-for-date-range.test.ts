@@ -22,7 +22,7 @@ type Result = { data: unknown; error: unknown };
 /** Supabase builder: chainable filter methods, awaitable (thenable) result. */
 function thenable(result: Result | Promise<Result>) {
     const q: Record<string, unknown> = {};
-    for (const m of ['select', 'eq', 'gte', 'lte', 'not', 'is', 'in']) {
+    for (const m of ['select', 'eq', 'gte', 'lte', 'not', 'is', 'in', 'order', 'range']) {
         q[m] = vi.fn(() => q);
     }
     // biome-ignore lint/suspicious/noThenProperty: supabase builder is a thenable by design — mock mirrors it

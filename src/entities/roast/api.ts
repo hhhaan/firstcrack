@@ -98,12 +98,6 @@ export const roastSessionApi = {
         return data;
     },
 
-    create: async (session: RoastSessionInsert): Promise<RoastSession> => {
-        const { data, error } = await supabase.from('roast_sessions').insert(session).select().single();
-        if (error) throw error;
-        return data;
-    },
-
     /**
      * Atomic save: session + optional bean deduct + optional roasted inbound (C1).
      * Server skips deduct when batch-level deduction already exists (C2).
