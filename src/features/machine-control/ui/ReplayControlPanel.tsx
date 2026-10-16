@@ -52,7 +52,7 @@ const replayDisabledHint = (
     if (replay.missingHeatSet) return t('activeRoast.replay.missingHeatSet');
     if (!replay.available) return t('activeRoast.replay.invalidPlan');
     if (!replay.active && replay.blocked) {
-        return '지금은 켤 수 없습니다 — 배출 여부와 PID·기기 연결·히터 제어 상태를 확인하세요';
+        return '지금은 켤 수 없습니다 — 배출 여부와 기기 연결·히터 제어 상태를 확인하세요';
     }
     return undefined;
 };
