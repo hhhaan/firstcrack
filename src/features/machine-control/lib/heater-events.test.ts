@@ -150,6 +150,35 @@ describe('applyTimeEdit', () => {
         );
     });
 
+    it('Delete는 커서 다음 칸을 지우고 일부 선택은 그 칸만 지운다', () => {
+        const deleted = applyTimeEdit('05:30', 3, 3, '', 'delete', false);
+        expect(deleted).toMatchObject({ value: '05:00', digits: '050', caret: 3 });
+
+        const typed = typeInto('0530');
+        expect(applyTimeEdit(typed.value, 3, 3, '', 'delete', typed.suppress, false, typed.digits)).toMatchObject({
+            value: '05:00',
+            digits: '050',
+            caret: 3,
+        });
+
+        expect(applyTimeEdit('05:30', 3, 5, '', 'backspace', false)).toMatchObject({
+            value: '05:00',
+            digits: '05',
+            caret: 3,
+        });
+        expect(applyTimeEdit('05:30', 3, 5, '', 'delete', false)).toMatchObject({
+            value: '05:00',
+            digits: '05',
+            caret: 3,
+        });
+        expect(applyTimeEdit('12:34', 3, 3, '', 'delete', false)).toMatchObject({
+            value: '12:40',
+            digits: '124',
+            caret: 3,
+        });
+        expect(applyTimeEdit('05:30', 5, 5, '', 'delete', false).value).toBe('05:30');
+    });
+
     it('전체를 1234로 바꾸고 칸 하나를 덮어쓴다', () => {
         expect(applyTimeEdit('0:16', 0, 4, '1234', 'insert', false)).toMatchObject({ value: '12:34', caret: 5 });
         expect(applyTimeEdit('12:34', 5, 5, '0', 'insert', false).value).toBe('12:34');

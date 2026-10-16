@@ -62,6 +62,40 @@ const secondsFit = (slots: string): boolean => {
     return slots.length === 4 && Number(slots.slice(2)) <= 60;
 };
 
+/** `mm:ss`에서 숫자 칸의 화면 위치. 콜론(2)은 칸이 아니다. */
+const SLOT_AT = [0, 1, 3, 4] as const;
+
+const slotsInRange = (from: number, to: number): number[] =>
+    SLOT_AT.flatMap((at, slot) => (at >= from && at < to ? [slot] : []));
+
+/** 커서가 가리키는 다음 칸. 끝이면 없다. */
+const slotAfterCaret = (caret: number): number | null => {
+    if (caret <= 0) return 0;
+    if (caret === 1) return 1;
+    if (caret <= 3) return 2;
+    if (caret === 4) return 3;
+    return null;
+};
+
+const withoutSlots = (slots: string, remove: readonly number[]): string | null => {
+    const drop = new Set(remove.filter((slot) => slot >= 0 && slot < slots.length));
+    if (drop.size === 0) return null;
+    let next = '';
+    for (let i = 0; i < slots.length; i++) if (!drop.has(i)) next += slots[i];
+    let fit = '';
+    for (const ch of next) {
+        const withCh = fit + ch;
+        if (!secondsFit(withCh)) break;
+        fit = withCh;
+    }
+    return fit;
+};
+
+const showKept = (slots: string, at: number): TimeEdit => {
+    const shown = showSlots(slots);
+    return { ...shown, caret: caretFor(Math.min(at, slots.length)) };
+};
+
 const filledSlots = (value: string, digits: string, owned: boolean): string => {
     if (owned) return digits;
     if (value.trim() === '') return '';
@@ -82,7 +116,8 @@ export const applyTimeEdit = (
     const from = clampIndex(prev, start);
     const to = clampIndex(prev, Math.max(from, end));
     const replacing = from !== to;
-    let slots = replacing ? '' : filledSlots(prev, digits, suppress);
+    const base = filledSlots(prev, digits, suppress);
+    let slots = replacing ? '' : base;
     const keep = (): TimeEdit => ({
         value: prev,
         caret: from,
@@ -93,9 +128,22 @@ export const applyTimeEdit = (
 
     if (kind !== 'insert') {
         if (replacing && from === 0 && to >= prev.length) return showSlots('');
-        if (!replacing && kind === 'backspace') {
-            const next = slotsAfterBackspace(from, slots);
+        if (replacing) {
+            const remove = slotsInRange(from, to);
+            const next = withoutSlots(base, remove);
+            if (next == null) return keep();
+            return showKept(next, remove[0] ?? next.length);
+        }
+        if (kind === 'backspace') {
+            const next = slotsAfterBackspace(from, base);
             if (next != null) return showSlots(next);
+        }
+        if (kind === 'delete') {
+            const slot = slotAfterCaret(from);
+            if (slot == null) return keep();
+            const next = withoutSlots(base, [slot]);
+            if (next == null) return keep();
+            return showKept(next, slot);
         }
         return keep();
     }
