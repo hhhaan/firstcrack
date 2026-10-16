@@ -12,6 +12,7 @@ import * as Sentry from '@sentry/react';
 import { isOpaqueNetworkMessage } from './errorMessage';
 import { mapServerBatchGateError } from './features/plan-matrix';
 import { httpStatusOf, isClientSqlStateWarning, isDeterministicClientError, isExpectedRefusal } from './httpStatus';
+import { OPTIMISTIC_ID_REFUSED_CODE } from './optimistic-id';
 
 // DSN은 클라이언트 공개값 (Rust/사이드카도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
 const SENTRY_DSN = 'https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944';
@@ -123,7 +124,17 @@ const sidecarHttpStatusOf = (error: unknown): number | string | undefined => {
     return sidecar.status ?? httpStatusOf(error);
 };
 
+const isOptimisticIdRefusal = (error: unknown): boolean => {
+    if (error instanceof Error && error.name === 'OptimisticIdRefusedError') return true;
+    if (error && typeof error === 'object') {
+        const code = (error as { code?: unknown }).code;
+        return code === OPTIMISTIC_ID_REFUSED_CODE;
+    }
+    return false;
+};
+
 export const isActionableError = (error: unknown): boolean => {
+    if (isOptimisticIdRefusal(error)) return false;
     if ((error as { name?: unknown } | null | undefined)?.name === 'AbortError') return false;
     const sidecarStatus = sidecarHttpStatusOf(error);
     if (sidecarStatus !== undefined) return isActionableSidecarHttpStatus(sidecarStatus);
@@ -196,6 +207,29 @@ export const tagsFromQueryMeta = (meta: Record<string, unknown> | undefined): Re
     if (typeof meta?.table === 'string') tags.table = meta.table;
     return tags;
 };
+
+const QUERY_KEY_ROOT_TAGS: Record<string, { rpc?: string; table?: string }> = {
+    'bean-stock-events': { table: 'bean_stock_events' },
+    'bean-stock-summary': { rpc: 'get_bean_stock_summary' },
+    'bean-stock-summaries': { rpc: 'get_user_stock_summaries' },
+    'bean-purchase-costs': { table: 'bean_stock_events' },
+};
+
+/** Fallback when a query has no meta — infer rpc/table from the first queryKey segment. */
+export const tagsFromQueryKey = (queryKey: readonly unknown[]): Record<string, string> => {
+    const root = typeof queryKey[0] === 'string' ? queryKey[0] : undefined;
+    const mapping = root ? QUERY_KEY_ROOT_TAGS[root] : undefined;
+    if (!mapping) return {};
+    const tags: Record<string, string> = {};
+    if (mapping.rpc) tags.rpc = mapping.rpc;
+    if (mapping.table) tags.table = mapping.table;
+    return tags;
+};
+
+export const mergeQueryErrorTags = (
+    meta: Record<string, unknown> | undefined,
+    queryKey: readonly unknown[],
+): Record<string, string> => ({ ...tagsFromQueryKey(queryKey), ...tagsFromQueryMeta(meta) });
 
 const supabaseFingerprint = (code: string, tags: Record<string, string>): string[] => [
     'supabase',
@@ -320,9 +354,10 @@ export const captureActionable = (error: unknown, context?: CaptureActionableOpt
     Sentry.captureException(toCapture, Object.keys(hint).length > 0 ? hint : undefined);
 };
 
-export const reportReactQueryError = (error: Error, meta?: Record<string, unknown>) => {
+export const reportReactQueryError = (error: Error, meta?: Record<string, unknown>, queryKey?: readonly unknown[]) => {
     if (shouldSkipSidecarLoggerCapture(error)) return;
-    captureActionable(error, { tags: tagsFromQueryMeta(meta) });
+    const tags = queryKey ? mergeQueryErrorTags(meta, queryKey) : tagsFromQueryMeta(meta);
+    captureActionable(error, { tags });
 };
 
 const sidecarFailureReportAt = new Map<string, number>();

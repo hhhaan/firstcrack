@@ -52,7 +52,7 @@ const replayDisabledHint = (
     if (replay.missingHeatSet) return t('activeRoast.replay.missingHeatSet');
     if (!replay.available) return t('activeRoast.replay.invalidPlan');
     if (!replay.active && replay.blocked) {
-        return '지금은 켤 수 없습니다 — 배출됐거나 화력 명령이 아직 반영되지 않았습니다';
+        return '지금은 켤 수 없습니다 — 배출 여부와 기기 연결·히터 제어 상태를 확인하세요';
     }
     return undefined;
 };
@@ -190,8 +190,8 @@ const ReplayPanelMessages = ({
                         role="tooltip"
                         className="pointer-events-none absolute bottom-full left-0 right-0 z-10 mb-1 hidden rounded-md border border-border-subtle bg-surface-elevated p-2 leading-snug text-secondary group-hover:block"
                     >
-                        재생 중에는 자리를 비우지 마세요 — 화력이 재생 지시에서 계속 벗어나면 자동 중지됩니다. 수동
-                        조절은 체크 해제 후 하세요. 기센은 본체 Auto를 Manual로 두어야 합니다.
+                        재생 중에는 자리를 비우지 마세요. 수동 조절은 체크 해제 후 하세요. 기기 조작반에서 바꾼 화력은
+                        다음 재생 명령으로 덮일 수 있습니다. 기센은 본체 Auto를 Manual로 두어야 합니다.
                     </span>
                 </div>
             )}

@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BatchLimitError } from './features/plan-matrix';
+import { OPTIMISTIC_ID_REFUSED_CODE, OptimisticIdRefusedError } from './optimistic-id';
 import {
     buildSentryOptions,
     captureActionable,
@@ -12,6 +13,7 @@ import {
     isClientRefusal,
     isExpectedRefusal,
     isSentryEnabled,
+    mergeQueryErrorTags,
     normalizeSupabaseError,
     observeRoastingImportScan,
     reactRootOptions,
@@ -24,6 +26,7 @@ import {
     scrubSensitive,
     scrubText,
     setSentryIdentity,
+    tagsFromQueryKey,
     tagsFromQueryMeta,
 } from './sentry';
 import { SidecarHttpError } from './sidecar';
@@ -63,6 +66,11 @@ describe('isActionableError', () => {
         expect(isActionableError(new Error('boom'))).toBe(true);
         expect(isActionableError('boom')).toBe(true);
         expect(isActionableError(undefined)).toBe(true);
+    });
+
+    it('drops optimistic id guard refusals (expected client guard)', () => {
+        expect(isActionableError(new OptimisticIdRefusedError())).toBe(false);
+        expect(isActionableError({ code: OPTIMISTIC_ID_REFUSED_CODE, message: 'Refusing request' })).toBe(false);
     });
 
     it('drops aborts (user navigated away / request cancelled)', () => {
@@ -452,6 +460,26 @@ describe('tagsFromQueryMeta', () => {
         expect(tagsFromQueryMeta({ feature: 'plan-batch', rpc: 'reorder_plan_batches' })).toEqual({
             feature: 'plan-batch',
             rpc: 'reorder_plan_batches',
+        });
+    });
+});
+
+describe('tagsFromQueryKey', () => {
+    it('infers rpc/table from inventory query roots', () => {
+        expect(tagsFromQueryKey(['bean-stock-summary', 'bean-id'])).toEqual({
+            rpc: 'get_bean_stock_summary',
+        });
+        expect(tagsFromQueryKey(['bean-stock-events', 'bean-id'])).toEqual({
+            table: 'bean_stock_events',
+        });
+    });
+
+    it('merges meta over inferred query-key tags', () => {
+        expect(
+            mergeQueryErrorTags({ feature: 'inventory', rpc: 'get_bean_stock_summary' }, ['bean-stock-summary', 'b1']),
+        ).toEqual({
+            rpc: 'get_bean_stock_summary',
+            feature: 'inventory',
         });
     });
 });
