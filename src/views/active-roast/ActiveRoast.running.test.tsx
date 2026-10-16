@@ -562,7 +562,7 @@ describe('ActiveRoast running clock (#627)', () => {
             });
             expect(useRoastingStore.getState().logState.entries).toEqual([]);
             expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('10%');
-            expect(phaseNames().at(-1)).toBe(60);
+            expect(phaseNames().slice(-1)[0]).toBe(60);
         } finally {
             unmount();
         }

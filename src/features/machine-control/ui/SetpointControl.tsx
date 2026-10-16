@@ -14,8 +14,6 @@ interface Props {
     value: number | undefined;
     /** 머신이 실제로 보고하는 현재값 (폴링 결과) */
     feedback: number | null;
-    /** 지시 후 오래 지나도 머신이 안 따라옴 — 명령이 먹지 않았을 가능성 */
-    unacknowledged: boolean;
     disabled: boolean;
     /** 왜 잠겼는지 (예: PID가 잡고 있음, 머신 미지원). 없으면 표시하지 않는다. */
     lockedNote?: string;
@@ -39,7 +37,6 @@ export const SetpointControl = ({
     limit,
     value,
     feedback,
-    unacknowledged,
     disabled,
     lockedNote,
     unsupported = false,
@@ -68,9 +65,7 @@ export const SetpointControl = ({
                 </span>
                 {/* 지시 중에는 머신 실측을 함께 보여준다 — 따라오고 있는지 눈으로 확인 */}
                 {pending && feedback != null && (
-                    <span className={`font-mono text-[10px] ${unacknowledged ? 'text-red-500' : 'text-muted'}`}>
-                        기기 {Math.round(feedback)}
-                    </span>
+                    <span className="font-mono text-[10px] text-muted">기기 {Math.round(feedback)}</span>
                 )}
             </div>
             <div className="relative flex min-h-0 w-full flex-1 justify-center">
@@ -97,9 +92,7 @@ export const SetpointControl = ({
                 {ghostPct != null && (
                     <div className="pointer-events-none absolute inset-y-2.5 left-1/2 w-3.5 -translate-x-1/2">
                         <span
-                            className={`absolute left-0 h-0.5 w-full rounded-full transition-[bottom] duration-500 ease-out ${
-                                unacknowledged ? 'bg-red-500' : 'bg-muted'
-                            }`}
+                            className="absolute left-0 h-0.5 w-full rounded-full bg-muted transition-[bottom] duration-500 ease-out"
                             style={{ bottom: `${ghostPct}%` }}
                         />
                     </div>

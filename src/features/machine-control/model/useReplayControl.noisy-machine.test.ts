@@ -4,10 +4,10 @@
  * 다른 레지스터인 기계에서, 실측이 세트포인트를 충실히 추종하지 못할 때 어떤 일이
  * 생기는지 useMachineControl + useReplayControl을 실제로 물려서 검증한다.
  *
- * 핵심 불변식(안전 바닥): 어떤 프로파일에서도 실패는 "재생 중지·write 중단" 방향이다.
- * 엉뚱한 화력이 추가로 나가는 경로는 없다 — setControl 호출 수로 박제한다.
+ * 명령 전송과 실측 표시를 분리한다. 지연·양자화·변조로 재생을 중단하지 않고,
+ * 실제 전송 실패와 명시적 중단은 미전송 명령까지 취소한다.
  */
-import { act, createElement } from 'react';
+import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -43,7 +43,7 @@ const POINTS: ReplayPoint[] = [
 ];
 
 interface Sample {
-    heater: number;
+    heater: number | null;
     liveBt?: number;
     confirmedTurningPoint?: { fallback?: boolean } | null;
 }
@@ -58,7 +58,9 @@ const COARSE_POINTS: ReplayPoint[] = [
 const runningPid = { state: 'running', sv: null, duty: null, pv: null, p: 0, i: 0, d: 0, error: null } as PidRuntime;
 
 /** Production composition — the same hook ActiveRoast mounts above the panel. */
-const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[]; dropBehavior?: 'hold' | 'zero' } = {}) => {
+const renderRig = async (
+    opts: { heaterMax?: number; points?: ReplayPoint[]; dropBehavior?: 'hold' | 'zero'; strict?: boolean } = {},
+) => {
     const heaterMax = opts.heaterMax ?? 100;
     const points = opts.points ?? POINTS;
     getStatus.mockReset();
@@ -118,7 +120,13 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[]; dro
     const render = (inputs: Inputs) => {
         current = inputs;
         elapsed = inputs.elapsed;
-        return act(async () => root.render(createElement(Probe, { inputs })));
+        return act(async () =>
+            root.render(
+                opts.strict
+                    ? createElement(StrictMode, null, createElement(Probe, { inputs }))
+                    : createElement(Probe, { inputs }),
+            ),
+        );
     };
     // 초기 렌더 + capability 로드 대기 (실측은 아직 idle 값)
     await render(current);
@@ -143,101 +151,103 @@ const renderRig = async (opts: { heaterMax?: number; points?: ReplayPoint[]; dro
 
 const heaterWrites = () => setControl.mock.calls.map(([cmd]) => cmd.heater);
 
-describe('read≠write 기계 프로파일 특성화', () => {
-    it('양자화 기계(5% 스텝, 60→55 보고): 미반영 경로가 10폴에 멈춘다 — 추가 write 없음', async () => {
-        const rig = await renderRig();
-        await rig.toggle(); // t=0 이벤트 → 60 전송
-        expect(heaterWrites()).toEqual([60]);
-
-        for (let i = 0; i < 10; i++) await rig.poll({ heater: 55 });
-
-        expect(rig.get().replay.active).toBe(false);
-        expect(rig.get().replay.stopReason).toBe('unacknowledged');
-        // 수렴 실패 동안 heaterPending이 참이라 controlDiverged는 열리지도 않는다 —
-        // 두 경로가 겹치지 않고, 어느 쪽이든 결과는 "중지"다.
-        expect(heaterWrites()).toEqual([60]); // 안전 바닥: 이후 write 없음
-        rig.unmount();
+describe('read≠write feedback does not acknowledge commands (#882)', () => {
+    it.each([false, true])('keeps a slow 60→40 decrease running beyond 10 polls (StrictMode=%s)', async (strict) => {
+        const rig = await renderRig({ strict });
+        try {
+            await rig.toggle();
+            await rig.poll({ heater: 60 });
+            await rig.poll({ heater: 60, liveBt: 111, confirmedTurningPoint: { fallback: false } });
+            expect(heaterWrites()).toEqual([60, 40]);
+            for (let heater = 59; heater >= 40; heater--) await rig.poll({ heater });
+            expect(rig.get().replay.active).toBe(true);
+            expect(rig.get().replay.stopReason).toBeNull();
+            expect(rig.get().mc.desired.heater).toBeUndefined();
+            expect(heaterWrites()).toEqual([60, 40]);
+        } finally {
+            rig.unmount();
+        }
     });
 
-    it('느린 슬루 기계(1%/폴, 30→60 추종 중): 도달 전에 미반영으로 멈춘다 — 특성 문서화', async () => {
-        // 특성: 점프 폭이 크고 슬루가 ~3%/폴보다 느리면 명령이 사실 먹혔어도
-        // 10폴 안에 ±1로 못 들어와 false unack이 난다. 이런 기계가 실기에서
-        // 확인되면 그 기계 한정으로 CONVERGE_TOLERANCE(및 유도된 이탈 허용치)를 넓힌다.
+    it.each([
+        { name: 'stalled feedback', values: Array<number>(20).fill(30) },
+        { name: 'missing feedback', values: Array<number | null>(20).fill(null) },
+        { name: 'quantized feedback', values: Array<number>(20).fill(55) },
+        { name: 'slow increase', values: Array.from({ length: 20 }, (_, i) => 31 + i) },
+        { name: 'modulation after convergence', values: [60, 63, 57, 63, 57, 63] },
+    ])('continues to the next event with $name', async ({ values }) => {
         const rig = await renderRig();
-        await rig.toggle();
-
-        for (let i = 1; i <= 10; i++) await rig.poll({ heater: 30 + i }); // 31..40
-
-        expect(rig.get().replay.active).toBe(false);
-        expect(rig.get().replay.stopReason).toBe('unacknowledged');
-        expect(heaterWrites()).toEqual([60]);
-        rig.unmount();
+        try {
+            await rig.toggle();
+            for (const heater of values) await rig.poll({ heater });
+            expect(rig.get().replay.active).toBe(true);
+            expect(rig.get().replay.stopReason).toBeNull();
+            await rig.poll({
+                heater: values[values.length - 1],
+                liveBt: 111,
+                confirmedTurningPoint: { fallback: false },
+            });
+            expect(heaterWrites()).toEqual([60, 40]);
+            expect(rig.get().replay.active).toBe(true);
+        } finally {
+            rig.unmount();
+        }
     });
 
-    it('지속 변조 기계(수렴 후 ±3 사이클링): controlDiverged 오탐 — 단 중지·무write로만 실패', async () => {
-        const rig = await renderRig();
-        await rig.toggle();
-
-        await rig.poll({ heater: 60 }); // 수렴 — desired 폐기, 판정 개방
-        await rig.poll({ heater: 63 }); // |63-60|=3 > 2 → 1틱
-        await rig.poll({ heater: 57 }); // 2틱
-        await rig.poll({ heater: 63 }); // 3틱 → 확정
-
-        expect(rig.get().replay.active).toBe(false);
-        expect(rig.get().replay.stopReason).toBe('controlDiverged');
-        expect(heaterWrites()).toEqual([60]); // 안전 바닥: 오탐이어도 write는 없다
-        // 잠금 없음 — 사람이 토글하면 즉시 재개 가능 (오탐 비용 = 클릭 한 번)
-        expect(rig.get().replay.blocked).toBe(false);
-        rig.unmount();
-    });
-
-    it('정상 기계(±1 노이즈): 어떤 검사도 걸리지 않고 다음 이벤트까지 재생된다', async () => {
-        const rig = await renderRig();
-        await rig.toggle();
-
-        await rig.poll({ heater: 60 }); // 수렴
-        await rig.poll({ heater: 59 });
-        await rig.poll({ heater: 61 });
-        await rig.poll({ heater: 59 }); // 전부 허용 오차(2) 이내 — 이탈 카운트 0
-        expect(rig.get().replay.active).toBe(true);
-
-        // TP 확정 + BT 도달 → 다음 이벤트(40) 정상 발화
-        await rig.poll({ heater: 60, liveBt: 111, confirmedTurningPoint: { fallback: false } });
-        expect(heaterWrites()).toEqual([60, 40]);
-        expect(rig.committed.mock.calls.map(([cmd]) => cmd.heater)).toEqual([60, 40]);
-        expect(rig.get().replay.active).toBe(true);
-        rig.unmount();
-    });
-
-    it('max=10: 수렴 잔차 1스텝(6→5)은 추종 — controlDiverged로 멈추지 않는다', async () => {
+    it('keeps coarse-scale feedback changes from stopping Replay', async () => {
         const rig = await renderRig({ heaterMax: 10, points: COARSE_POINTS });
-        await rig.toggle();
-        expect(heaterWrites()).toEqual([6]);
-
-        await rig.poll({ heater: 5 }); // |5-6|=1 → 수렴, pending 해제
-        await rig.poll({ heater: 5 });
-        await rig.poll({ heater: 5 });
-        await rig.poll({ heater: 5 });
-
-        expect(rig.get().replay.active).toBe(true);
-        expect(rig.get().replay.stopReason).toBeNull();
-        expect(heaterWrites()).toEqual([6]);
-        rig.unmount();
+        try {
+            await rig.toggle();
+            for (const heater of [6, 5, 8, 8, 8]) await rig.poll({ heater });
+            expect(rig.get().replay.active).toBe(true);
+            expect(rig.get().replay.stopReason).toBeNull();
+            expect(heaterWrites()).toEqual([6]);
+        } finally {
+            rig.unmount();
+        }
     });
 
-    it('max=10: 수렴 후 2스텝 손 조작은 controlDiverged (#428)', async () => {
-        const rig = await renderRig({ heaterMax: 10, points: COARSE_POINTS });
-        await rig.toggle();
-        await rig.poll({ heater: 6 });
-        await rig.poll({ heater: 8 });
-        await rig.poll({ heater: 8 });
-        expect(rig.get().replay.active).toBe(true);
-        await rig.poll({ heater: 8 });
-        expect(rig.get().replay.active).toBe(false);
-        expect(rig.get().replay.stopReason).toBe('controlDiverged');
-        expect(heaterWrites()).toEqual([6]);
-        rig.unmount();
+    it('retries the applied Drop-zero value when the machine clamps zero', async () => {
+        const rig = await renderRig({ dropBehavior: 'zero' });
+        try {
+            setControl.mockImplementation(async (cmd) => ({
+                ok: true,
+                applied: { ...cmd, heater: cmd.heater === 0 ? 5 : cmd.heater },
+            }));
+            await rig.toggle();
+            await rig.poll({ heater: 60 });
+            await rig.update({ roastFinished: true });
+            expect(rig.get().mc.desired.heater).toBe(5);
+            for (let i = 0; i < 10; i++) await rig.poll({ heater: 30 });
+            expect(heaterWrites()).toEqual([60, 0, 0]);
+            for (let i = 0; i < 12; i++) await rig.poll({ heater: 5 });
+            expect(heaterWrites()).toEqual([60, 0, 0]);
+        } finally {
+            rig.unmount();
+        }
     });
+
+    it.each([false, true])(
+        'retries Drop zero after 10 samples with the clock stopped (StrictMode=%s)',
+        async (strict) => {
+            const rig = await renderRig({ dropBehavior: 'zero', strict });
+            try {
+                await rig.toggle();
+                await rig.poll({ heater: 60 });
+                await rig.update({ roastFinished: true });
+                expect(heaterWrites()).toEqual([60, 0]);
+                await rig.update({ roasting: false, elapsed: 0 });
+                for (let i = 0; i < 9; i++) await rig.update({ feedback: { heater: 30, fan: 0, drum: 0 } });
+                expect(heaterWrites()).toEqual([60, 0]);
+                await rig.update({ feedback: { heater: 30, fan: 0, drum: 0 } });
+                expect(heaterWrites()).toEqual([60, 0, 0]);
+                for (let i = 0; i < 12; i++) await rig.update({ feedback: { heater: 0, fan: 0, drum: 0 } });
+                expect(heaterWrites()).toEqual([60, 0, 0]);
+            } finally {
+                rig.unmount();
+            }
+        },
+    );
 });
 
 describe('겹친 commit 실제 전송 결과 (#368 R01)', () => {
