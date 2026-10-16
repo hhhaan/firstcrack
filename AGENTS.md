@@ -69,10 +69,34 @@ Read before changing write paths:
 - Data fetching: `docs/agent/data-fetching.md`
 - Edge + migrations: `supabase/AGENTS.md` — migration edits: local `supabase db reset --local` (Docker) passes before commit
 - Gap inventory: `docs/agent/gap-inventory.md`
+- Sentry capture: `## Sentry` below — read before adding a failure report
 
 ## Agent Rules
 - When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
 - Commit: `git add` then `git commit` with a conventional message the agent writes (`feat|fix|refactor|docs|style|test|chore`, first line ≤72). Never run `scripts/ai-commit.sh` or gen-cmt, and do not ask.
+
+## Sentry
+One project. Split only by tag `runtime`: `webview` | `tauri` | `sidecar` | `edge`. Release `first-crack@<app version>`. Do not add a DSN, `Sentry.init`, or a second client.
+
+Init (do not duplicate):
+- web: `src/shared/lib/sentry.ts` — on when `import.meta.env.PROD` or `VITE_SENTRY_SMOKE`
+- rust: `src-tauri/src/sentry_config.rs` (`runtime=tauri`)
+- sidecar: `src-tauri/sidecar/sentry_config.py` — packaged/Tauri spawn, or `SIDECAR_SENTRY_SMOKE`; `SIDECAR_DISABLE_SENTRY` wins
+- edge: `supabase/functions/_shared/sentry.ts` — optional `SENTRY_DSN`; missing DSN is a no-op
+
+A new failure path calls the existing helper once:
+- web, outside React Query: `logger.capture(error, { feature })` from `@shared/lib/logger`. QueryCache/MutationCache already call `reportReactQueryError`. React 19 root uses `reactRootOptions`. Do not capture from an ErrorBoundary. Features do not import `@sentry/react` to capture.
+- sidecar retry: `RoasterManager._capture_hardware_error(..., once=True)`
+- rust: `sentry::capture_message` only when recovery is exhausted (first spawn fail, `sidecar-dead`). A retry is a breadcrumb (`src-tauri/src/lib.rs`).
+- edge: `serveWithSentry(name, handler)`. A non-throwing 500 uses `respondServerError` or `captureEdgeException`, not both. Status under 500 is dropped.
+
+Do not double-capture a path already reported by React Query, the React root handler, or sidecar `sentryReported` (including SidecarHttpError 502 and 400).
+
+Context tags: `feature`, `rpc`, `table`. Edge also `function`. Do not put host, port, serial, path, token, email, or user text in tags or extra. Scrubbing stays in `beforeSend` / `before_send` only.
+
+Dropped: AbortError, user cancel, opaque network, HTTP 4xx except 429 (edge: anything under 500). Do not blanket-capture polling (`useSidecarPolling` temperature fetch, per-tick BBP writes, `persistLive`).
+
+A new function on `sentry.ts` or `sentry_config.py` only for a non-exception fingerprint or session dedupe, with the matching test.
 
 ## Sidecar
 - src-tauri/sidecar/: main.py(aiohttp :9999) + manager.py + adapters/ (modbus,phidget,kaleido,probat_ws,s7,virtual)
