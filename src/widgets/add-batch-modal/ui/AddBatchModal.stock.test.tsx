@@ -15,6 +15,7 @@ import type { BatchTypeTabs } from './BatchTypeTabs';
 const state = vi.hoisted(() => ({
     ownerId: 'owner',
     componentCount: 1,
+    beans: [{ id: 'bean-0', name: 'Bean' }] as { id: string; name: string }[],
     source: undefined as Parameters<typeof BatchSourceFields>[0] | undefined,
     panel: undefined as Parameters<typeof BatchStockPanel>[0] | undefined,
     tabs: undefined as Parameters<typeof BatchTypeTabs>[0] | undefined,
@@ -25,7 +26,7 @@ const state = vi.hoisted(() => ({
 vi.mock('@entities/bean-stock-event/api', () => ({
     beanStockEventApi: { getStockSummariesByUser: vi.fn(), getStockSummary: vi.fn() },
 }));
-vi.mock('@entities/bean/queries', () => ({ useBeans: () => ({ data: [{ id: 'bean-0', name: 'Bean' }] }) }));
+vi.mock('@entities/bean/queries', () => ({ useBeans: () => ({ data: state.beans }) }));
 vi.mock('@entities/blend', () => ({
     useBlends: () => ({
         data: [
@@ -110,6 +111,7 @@ describe('AddBatchModal shared stock query', () => {
     };
     beforeEach(() => {
         state.ownerId = 'owner';
+        state.beans = [{ id: 'bean-0', name: 'Bean' }];
         state.source = undefined;
         state.panel = undefined;
         qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
@@ -122,6 +124,20 @@ describe('AddBatchModal shared stock query', () => {
     afterEach(() => {
         act(() => root.unmount());
         qc.clear();
+    });
+
+    it('omits optimistic beans from the lot picker and ignores opt_ selection', async () => {
+        const OPT = 'opt_11111111-1111-4111-8111-111111111111';
+        state.beans = [
+            { id: OPT, name: 'Pending lot' },
+            { id: 'bean-0', name: 'Bean' },
+        ];
+        await render();
+        expect(state.source?.beanItems.map((b) => b.id)).toEqual(['bean-0']);
+        act(() => state.source?.onBeanSelect('bean-0'));
+        expect(state.source?.beanId).toBe('bean-0');
+        act(() => state.source?.onBeanSelect(OPT));
+        expect(state.source?.beanId).toBe('bean-0');
     });
 
     it('shows the missing source only after save is clicked', async () => {

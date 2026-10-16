@@ -1,5 +1,6 @@
 import { getStatus, processColor, stockBarClass, stockLevelPct } from '@entities/bean/lib';
 import { type BeanAssetLine, useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
+import { isOptimisticId } from '@shared/lib/optimistic-id';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
@@ -77,6 +78,8 @@ export const BeanDetail = ({
     if (isLoading) return <Skeleton />;
     if (!bean) return <Empty hasAny={false} />;
 
+    const actionsLocked = isOptimisticId(bean.id);
+
     const currentGrams = summary?.currentGrams ?? 0;
     const effectiveGrams = summary?.effectiveGrams ?? 0;
     const currentStockKg = (currentGrams / 1000).toFixed(2);
@@ -109,15 +112,17 @@ export const BeanDetail = ({
                 <div className="absolute top-6 right-6 flex gap-2 z-2">
                     <button
                         type="button"
+                        disabled={actionsLocked}
                         onClick={() => onEdit(bean)}
-                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] text-muted dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer transition-all duration-200"
+                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] text-muted dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         <Edit3 size={16} />
                     </button>
                     <button
                         type="button"
+                        disabled={actionsLocked}
                         onClick={() => setConfirming(true)}
-                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] flex items-center justify-center cursor-pointer transition-all duration-200 text-red-600 dark:text-red-400"
+                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] flex items-center justify-center cursor-pointer transition-all duration-200 text-red-600 dark:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         <Trash2 size={16} />
                     </button>
@@ -249,8 +254,9 @@ export const BeanDetail = ({
                     </button>
                     <button
                         type="button"
+                        disabled={actionsLocked}
                         onClick={onStartRoast}
-                        className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-0 dark:bg-[#0d0d0d] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+                        className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-0 dark:bg-[#0d0d0d] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {t('beanDetail.startRoast')}
                     </button>
