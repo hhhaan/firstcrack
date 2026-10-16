@@ -6,9 +6,7 @@ import { beanApi } from './api';
 
 /** Swap the optimistic row for the server row, keeping its place in the list. */
 export const replaceOptimisticBean = (list: Bean[], real: Bean, tempId?: string): Bean[] => {
-    const drop = (bean: Bean) =>
-        bean.id === tempId ||
-        (!tempId && isOptimisticId(bean.id) && bean.name === real.name && bean.user_id === real.user_id);
+    const drop = (bean: Bean) => bean.id === tempId;
     const out: Bean[] = [];
     let placed = false;
     for (const bean of list) {

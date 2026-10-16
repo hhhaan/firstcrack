@@ -1,4 +1,5 @@
 import { beanStockEventApi } from '@entities/bean-stock-event/api';
+import { OPTIMISTIC_ID_REFUSED_CODE, OptimisticIdRefusedError } from '@shared/lib/optimistic-id';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { beanApi } from './api';
 
@@ -31,9 +32,12 @@ describe('optimistic bean ids never reach supabase', () => {
     });
 
     it('refuses bean get, update, and delete', async () => {
-        await expect(beanApi.get(OPT)).rejects.toThrow(/unsaved bean id/);
-        await expect(beanApi.update({ id: OPT, name: 'Lot' })).rejects.toThrow(/unsaved bean id/);
-        await expect(beanApi.delete(OPT)).rejects.toThrow(/unsaved bean id/);
+        await expect(beanApi.get(OPT)).rejects.toMatchObject({
+            name: 'OptimisticIdRefusedError',
+            code: OPTIMISTIC_ID_REFUSED_CODE,
+        });
+        await expect(beanApi.update({ id: OPT, name: 'Lot' })).rejects.toBeInstanceOf(OptimisticIdRefusedError);
+        await expect(beanApi.delete(OPT)).rejects.toBeInstanceOf(OptimisticIdRefusedError);
         expect(from).not.toHaveBeenCalled();
         expect(rpc).not.toHaveBeenCalled();
     });

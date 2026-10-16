@@ -12,6 +12,7 @@ import * as Sentry from '@sentry/react';
 import { isOpaqueNetworkMessage } from './errorMessage';
 import { mapServerBatchGateError } from './features/plan-matrix';
 import { httpStatusOf, isClientSqlStateWarning, isDeterministicClientError, isExpectedRefusal } from './httpStatus';
+import { OPTIMISTIC_ID_REFUSED_CODE } from './optimistic-id';
 
 // DSN은 클라이언트 공개값 (Rust/사이드카도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
 const SENTRY_DSN = 'https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944';
@@ -123,7 +124,17 @@ const sidecarHttpStatusOf = (error: unknown): number | string | undefined => {
     return sidecar.status ?? httpStatusOf(error);
 };
 
+const isOptimisticIdRefusal = (error: unknown): boolean => {
+    if (error instanceof Error && error.name === 'OptimisticIdRefusedError') return true;
+    if (error && typeof error === 'object') {
+        const code = (error as { code?: unknown }).code;
+        return code === OPTIMISTIC_ID_REFUSED_CODE;
+    }
+    return false;
+};
+
 export const isActionableError = (error: unknown): boolean => {
+    if (isOptimisticIdRefusal(error)) return false;
     if ((error as { name?: unknown } | null | undefined)?.name === 'AbortError') return false;
     const sidecarStatus = sidecarHttpStatusOf(error);
     if (sidecarStatus !== undefined) return isActionableSidecarHttpStatus(sidecarStatus);

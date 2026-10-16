@@ -1,5 +1,5 @@
 import { inventoryStore } from '@shared/lib/inventoryStore';
-import { isOptimisticId } from '@shared/lib/optimistic-id';
+import { isOptimisticId, OptimisticIdRefusedError, refuseOptimisticBeanId } from '@shared/lib/optimistic-id';
 import { parseStockSummaryJson, type StockSummaryValues } from '@shared/lib/stock-calc';
 import { supabase } from '@shared/lib/supabase';
 import type { Database } from '@shared/types/database.types';
@@ -55,7 +55,7 @@ export const beanStockEventApi = {
     },
 
     insert: async (event: BeanStockEventInsert): Promise<BeanStockEvent> => {
-        if (isOptimisticId(event.bean_id)) throw new Error('Refusing stock write for an unsaved bean id');
+        refuseOptimisticBeanId(event.bean_id, 'Refusing stock write for an unsaved bean id');
         const { data, error } = await supabase.from('bean_stock_events').insert(event).select().single();
         if (error) throw error;
         return data;
@@ -71,7 +71,7 @@ export const beanStockEventApi = {
             events.some((event) => isOptimisticId(event.bean_id)) ||
             roastedEvents.some((event) => isOptimisticId(event.bean_id))
         ) {
-            throw new Error('Refusing stock write for an unsaved bean id');
+            throw new OptimisticIdRefusedError('Refusing stock write for an unsaved bean id');
         }
         if (!events.length && !roastedEvents.length) return;
 

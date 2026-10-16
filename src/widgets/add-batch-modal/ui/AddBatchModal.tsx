@@ -6,6 +6,7 @@ import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { getDateFnsLocale } from '@shared/i18n';
+import { isOptimisticId } from '@shared/lib/optimistic-id';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useAuthStore } from '@shared/store/auth';
@@ -111,7 +112,7 @@ export const AddBatchModal = ({
     const yieldNum = parseFloat(yieldPct) || 82;
     const { batchCount, greenNeededKg, plannedGrams } = deriveBatchQuantities(targetNum, batchSizeNum, yieldNum);
 
-    const selectedBean = beans.find((b) => b.id === beanId);
+    const selectedBean = beans.find((b) => b.id === beanId && !isOptimisticId(b.id));
     const selectedProfile = profiles.find((p) => p.id === profileId);
     const selectedMachine = machines.find((m) => m.id === machineId);
     const selectedBlend = blends.find((b) => b.id === blendId);
@@ -137,7 +138,7 @@ export const AddBatchModal = ({
         setProfileId(id);
         if (!id) return;
         const selected = profiles.find((p) => p.id === id);
-        if (selected?.default_bean_id) {
+        if (selected?.default_bean_id && !isOptimisticId(selected.default_bean_id)) {
             setBatchType('Single Origin');
             setBeanId(selected.default_bean_id);
         } else if (selected?.default_blend_id) {
@@ -192,8 +193,16 @@ export const AddBatchModal = ({
         }
     };
 
+    const handleBeanSelect = (id: string) => {
+        if (isOptimisticId(id)) return;
+        setBeanId(id);
+    };
+
     const beanItems = useMemo(
-        () => beans.filter((b) => b.id === beanId || !hiddenBeans.has(b.id)).map((b) => ({ ...b })),
+        () =>
+            beans
+                .filter((b) => !isOptimisticId(b.id) && (b.id === beanId || !hiddenBeans.has(b.id)))
+                .map((b) => ({ ...b })),
         [beans, beanId, hiddenBeans],
     );
     const defaultProfileId = userProfile?.default_roast_profile_id;
@@ -258,7 +267,7 @@ export const AddBatchModal = ({
                         stockSummaryEffectiveGrams={stockSummary?.effectiveGrams}
                         stockChecks={stockChecks}
                         onProfileSelect={handleProfileSelect}
-                        onBeanSelect={setBeanId}
+                        onBeanSelect={handleBeanSelect}
                         onBlendSelect={setBlendId}
                         sourceInvalid={sourceAttempted && !hasSource}
                     />

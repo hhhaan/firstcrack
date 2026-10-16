@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BatchLimitError } from './features/plan-matrix';
+import { OPTIMISTIC_ID_REFUSED_CODE, OptimisticIdRefusedError } from './optimistic-id';
 import {
     buildSentryOptions,
     captureActionable,
@@ -65,6 +66,11 @@ describe('isActionableError', () => {
         expect(isActionableError(new Error('boom'))).toBe(true);
         expect(isActionableError('boom')).toBe(true);
         expect(isActionableError(undefined)).toBe(true);
+    });
+
+    it('drops optimistic id guard refusals (expected client guard)', () => {
+        expect(isActionableError(new OptimisticIdRefusedError())).toBe(false);
+        expect(isActionableError({ code: OPTIMISTIC_ID_REFUSED_CODE, message: 'Refusing request' })).toBe(false);
     });
 
     it('drops aborts (user navigated away / request cancelled)', () => {
