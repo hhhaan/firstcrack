@@ -88,9 +88,19 @@ there silently deleted nothing for members.
   only — Cafe24 never sends them, so reading them alone rejected every delivery.
   The value is compared against the connection's `webhook_secret` in
   `sales_channel_secrets`, falling back to the app-wide `CAFE24_WEBHOOK_SECRET` env.
-  **Unverified:** what Cafe24 actually puts in `X-API-Key` is not confirmed against
-  official docs — validate against live traffic before trusting Cafe24 push ingest.
+  Set that secret to Cafe24's **webhook verification code**, not the OAuth client
+  secret ([official verification docs](https://developers.cafe24.com/en/app/front/app/develop/webhook/manage)).
   Cafe24 connects via OAuth, so nothing writes the per-connection slot yet.
+- Cafe24 retries still call the batch RPC; the delivery itself is not deduplicated.
+  `20261010054324_channel_orders_batch.sql` locks by owner/platform/order, upserts
+  orders on `(user_id, platform, platform_order_id)` and lines on
+  `(order_id, platform_line_id)`, and gates stock deductions on `fulfilled_at`.
+  Replaying a delivery updates the same order/lines without another deduction;
+  `external_event_id` is not synthesized from an order id (later updates must run).
+
+`order-sync` returns HTTP 500 if any connection fails, including cursor/run persistence;
+the response retains each connection's result. Dispatch keeps HTTP 200 plus `fulfillError`
+when platform shipping succeeds but internal fulfillment fails.
 
 **Cron activation** (`20260801000002_order_sync_cron.sql`): the job is scheduled but no-ops until
 `vault.create_secret('<ORDER_SYNC_CRON_SECRET>', 'order_sync_cron_secret')` exists. It also needs

@@ -65,9 +65,7 @@ serveWithSentry('get-cupping-session', async (req) => {
     const supabase = serviceClient();
     const { data: invite, error } = await supabase
         .from('cupping_invites')
-        .select(
-            'id, expires_at, max_uses, used_count, revoked_at, roast_session_id, sample_id, event_id, user_id',
-        )
+        .select('id, expires_at, max_uses, used_count, revoked_at, roast_session_id, sample_id, event_id, user_id')
         .eq('token', token)
         .maybeSingle();
 
@@ -84,11 +82,13 @@ serveWithSentry('get-cupping-session', async (req) => {
     // Resolve event_id: direct column, or via sample (legacy per-sample invites)
     let eventId = invite.event_id as string | null;
     if (!eventId && invite.sample_id) {
-        const { data: sample } = await supabase
+        const { data: sample, error: sampleError } = await supabase
             .from('cupping_samples')
             .select('event_id')
             .eq('id', invite.sample_id)
             .maybeSingle();
+        if (sampleError) return respondServerError('get-cupping-session', 'lookup failed', sampleError);
+        if (!sample) return jsonResponse({ error: 'sample_not_found' }, 404);
         eventId = sample?.event_id ?? null;
     }
 
@@ -97,11 +97,13 @@ serveWithSentry('get-cupping-session', async (req) => {
     let form = formSchemaOrSca(null);
 
     if (eventId) {
-        const { data: event } = await supabase
+        const { data: event, error: eventError } = await supabase
             .from('cupping_events')
             .select('id, title, ended_at, results_token, form_snapshot')
             .eq('id', eventId)
             .maybeSingle();
+        if (eventError) return respondServerError('get-cupping-session', 'lookup failed', eventError);
+        if (!event) return jsonResponse({ error: 'event_not_found' }, 404);
         // Session closed: clients should open results (same invite token works via get-cupping-results)
         if (event?.ended_at) {
             return jsonResponse(
@@ -118,12 +120,13 @@ serveWithSentry('get-cupping-session', async (req) => {
         eventTitle = event?.title ?? null;
         form = formSchemaOrSca(event?.form_snapshot);
 
-        const { data: sampleRows } = await supabase
+        const { data: sampleRows, error: samplesError } = await supabase
             .from('cupping_samples')
             .select('id, label, sort_order, roast_session_id')
             .eq('event_id', eventId)
             .order('sort_order', { ascending: true })
             .order('created_at', { ascending: true });
+        if (samplesError) return respondServerError('get-cupping-session', 'lookup failed', samplesError);
 
         const rows = (sampleRows ?? []) as SampleRow[];
         const roastIds = [...new Set(rows.map((r) => r.roast_session_id).filter(Boolean))] as string[];
@@ -140,17 +143,10 @@ serveWithSentry('get-cupping-session', async (req) => {
         }
 
         // Legacy single-sample invite: only expose that sample
-        const filtered =
-            invite.sample_id && !invite.event_id
-                ? rows.filter((r) => r.id === invite.sample_id)
-                : rows;
+        const filtered = invite.sample_id && !invite.event_id ? rows.filter((r) => r.id === invite.sample_id) : rows;
 
         samples = filtered.map((r) =>
-            toSampleOut(
-                r.id,
-                r.label,
-                r.roast_session_id ? (beanByRoast.get(r.roast_session_id) ?? null) : null,
-            ),
+            toSampleOut(r.id, r.label, r.roast_session_id ? (beanByRoast.get(r.roast_session_id) ?? null) : null),
         );
     } else if (invite.sample_id) {
         // Orphan sample invite without event

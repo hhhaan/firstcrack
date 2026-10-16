@@ -3,25 +3,22 @@
  * Body: { orderId, carrier, trackingNumber }
  * Outbound mark-shipped against the platform sales channel.
  */
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
-import { getAdapter } from '../_shared/channels/adapters.ts';
-import { isCarrierId, platformCarrierCode } from '../_shared/channels/carriers.ts';
-import { shouldAutoFulfillOnDispatch } from '../_shared/channels/auto-fulfill.ts';
-import { nextDispatchStatus, validateTrackingNumber } from '../_shared/channels/dispatch.ts';
 import {
-    acquireDispatchRunLock,
-    releaseRunLock,
-    type ReleaseRunLockOutcome,
-} from '../_shared/channels/run-lock.ts';
+    corsHeaders,
+    getAuthenticatedUser,
+    jsonResponse,
+    resolveWorkspaceOwner,
+    serviceClient,
+} from '../_shared/auth.ts';
+import { getAdapter } from '../_shared/channels/adapters.ts';
+import { shouldAutoFulfillOnDispatch } from '../_shared/channels/auto-fulfill.ts';
+import { isCarrierId, platformCarrierCode } from '../_shared/channels/carriers.ts';
+import { nextDispatchStatus, validateTrackingNumber } from '../_shared/channels/dispatch.ts';
+import { acquireDispatchRunLock, type ReleaseRunLockOutcome, releaseRunLock } from '../_shared/channels/run-lock.ts';
 import { loadSecretsSession, type SecretsSession } from '../_shared/channels/secrets-session.ts';
 import { mergeStatus } from '../_shared/channels/status-map.ts';
 import type { CanonicalStatus, Platform } from '../_shared/channels/types.ts';
-import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
-
-function serviceClient() {
-    return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-}
+import { captureEdgeException, respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 serveWithSentry('order-dispatch', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -60,23 +57,10 @@ serveWithSentry('order-dispatch', async (req) => {
         .eq('id', body.orderId)
         .maybeSingle();
 
-    if (orderErr || !order) return jsonResponse({ error: 'order not found' }, 404);
-    // Workspace host or org member of host may dispatch; user_id on row stays host.
-    if (order.user_id !== user.id) {
-        const { data: org } = await admin
-            .from('organizations')
-            .select('id')
-            .eq('owner_id', order.user_id)
-            .maybeSingle();
-        if (!org) return jsonResponse({ error: 'Forbidden' }, 403);
-        const { data: membership } = await admin
-            .from('organization_members')
-            .select('user_id')
-            .eq('org_id', org.id)
-            .eq('user_id', user.id)
-            .maybeSingle();
-        if (!membership) return jsonResponse({ error: 'Forbidden' }, 403);
-    }
+    if (orderErr) return respondServerError('order-dispatch', 'Failed to load order', orderErr);
+    if (!order) return jsonResponse({ error: 'order not found' }, 404);
+    const ownerId = await resolveWorkspaceOwner(req, order.user_id, user.id);
+    if (!ownerId) return jsonResponse({ error: 'Forbidden' }, 403);
     if (order.platform === 'manual') {
         return jsonResponse({ error: 'manual orders have no platform dispatch' }, 400);
     }
@@ -84,11 +68,12 @@ serveWithSentry('order-dispatch', async (req) => {
         return jsonResponse({ error: 'order has no sales channel connection' }, 400);
     }
 
-    const { data: existingDispatch } = await admin
+    const { data: existingDispatch, error: dispatchError } = await admin
         .from('order_dispatches')
         .select('id, status, attempt_count, line_results')
         .eq('order_id', order.id)
         .maybeSingle();
+    if (dispatchError) return respondServerError('order-dispatch', 'Failed to load dispatch', dispatchError);
 
     if (existingDispatch && (existingDispatch.status === 'sent' || existingDispatch.status === 'confirmed')) {
         return jsonResponse({ error: 'already dispatched', status: existingDispatch.status }, 409);
@@ -227,7 +212,7 @@ serveWithSentry('order-dispatch', async (req) => {
             const event = result.alreadyShipped ? 'api_already_shipped' : 'api_ok';
             const status = nextDispatchStatus('pending', event);
             const shippedStatus = mergeStatus(order.status as CanonicalStatus, 'shipped');
-            await admin
+            const { error: dispatchSaveError } = await admin
                 .from('order_dispatches')
                 .update({
                     status,
@@ -237,7 +222,8 @@ serveWithSentry('order-dispatch', async (req) => {
                     updated_at: now,
                 })
                 .eq('id', dispatchId);
-            await admin
+            if (dispatchSaveError) throw new Error('Failed to save dispatch result', { cause: dispatchSaveError });
+            const { error: orderSaveError } = await admin
                 .from('orders')
                 .update({
                     status: shippedStatus,
@@ -245,6 +231,7 @@ serveWithSentry('order-dispatch', async (req) => {
                     updated_at: now,
                 })
                 .eq('id', order.id);
+            if (orderSaveError) throw new Error('Failed to save shipped order', { cause: orderSaveError });
 
             // C3: app dispatch pre-sets shipped — auto-fulfill must run here (inbound path never fires).
             let fulfilled = false;
@@ -255,6 +242,7 @@ serveWithSentry('order-dispatch', async (req) => {
                 .eq('id', order.connection_id)
                 .maybeSingle();
             if (connErr) {
+                fulfillError = 'Failed to read auto-fulfill setting';
                 console.error('[order-dispatch] connection lookup', connErr);
                 await captureEdgeException(connErr, {
                     function: 'order-dispatch',

@@ -31,7 +31,6 @@ import type {
     MarkShippedRequest,
     MarkShippedResult,
     PlatformListing,
-    PollCursor,
     TestConnectionResult,
 } from './types.ts';
 
@@ -54,6 +53,9 @@ function requireShopify(secrets: ChannelSecrets): ShopifySecrets {
     const access_token = String(secrets.access_token ?? '').trim();
     if (!raw || !access_token) throw new Error('shopify: shop and access_token required');
     const shop = raw.includes('.') ? raw : `${raw}.myshopify.com`;
+    if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com$/.test(shop)) {
+        throw new Error('shopify: a valid myshopify.com shop required');
+    }
     return { ...secrets, shop, access_token };
 }
 
@@ -68,6 +70,7 @@ async function gql<T>(shop: string, token: string, query: string, variables?: Re
         () =>
             fetch(`https://${shop}/admin/api/${API_VERSION}/graphql.json`, {
                 method: 'POST',
+                redirect: 'manual',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Shopify-Access-Token': token,
@@ -141,9 +144,7 @@ function mapOrder(node: ShopifyOrderNode): CanonicalOrder {
         orderedAt: node.createdAt,
         buyerName: buyer,
         currency: node.totalPriceSet?.shopMoney?.currencyCode ?? null,
-        totalAmount: node.totalPriceSet?.shopMoney?.amount
-            ? Number(node.totalPriceSet.shopMoney.amount)
-            : null,
+        totalAmount: node.totalPriceSet?.shopMoney?.amount ? Number(node.totalPriceSet.shopMoney.amount) : null,
         lines,
         raw: node,
     };

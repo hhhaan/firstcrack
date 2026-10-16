@@ -3,12 +3,9 @@
  * https://developers.cafe24.com/docs-new/en/docs/guide/oauth2-authentication
  */
 
-export const CAFE24_SCOPES = [
-    'mall.read_store',
-    'mall.read_order',
-    'mall.write_order',
-    'mall.read_product',
-] as const;
+import { verifySharedSecret } from '../webhook-auth.ts';
+
+export const CAFE24_SCOPES = ['mall.read_store', 'mall.read_order', 'mall.write_order', 'mall.read_product'] as const;
 
 export const CAFE24_REQUIRED_SCOPES = ['mall.read_order', 'mall.write_order', 'mall.read_store'] as const;
 
@@ -31,8 +28,7 @@ export function cafe24RedirectUri(): string {
 
 function stateSecret(): string {
     return (
-        (Deno.env.get('CAFE24_OAUTH_STATE_SECRET') ?? '').trim() ||
-        (Deno.env.get('CAFE24_CLIENT_SECRET') ?? '').trim()
+        (Deno.env.get('CAFE24_OAUTH_STATE_SECRET') ?? '').trim() || (Deno.env.get('CAFE24_CLIENT_SECRET') ?? '').trim()
     );
 }
 
@@ -84,10 +80,10 @@ export async function signCafe24OAuthState(state: Cafe24OAuthState): Promise<str
 export async function verifyCafe24OAuthState(raw: string): Promise<Cafe24OAuthState> {
     const secret = stateSecret();
     if (!secret) throw new Error('state secret not configured');
-    const [payload, sig] = raw.split('.');
-    if (!payload || !sig) throw new Error('invalid state');
+    const [payload, sig, extra] = raw.split('.');
+    if (!payload || !sig || extra !== undefined) throw new Error('invalid state');
     const expected = await hmacSha256(secret, payload);
-    if (expected !== sig) throw new Error('invalid state signature');
+    if (!verifySharedSecret(expected, sig)) throw new Error('invalid state signature');
 
     const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as Cafe24OAuthState;
     if (!json.userId || !json.mallId || !json.exp) throw new Error('invalid state payload');
