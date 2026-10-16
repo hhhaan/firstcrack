@@ -2,7 +2,7 @@ import { Badge } from '@shared/ui/Badge';
 import type { DashboardInventoryAlert } from '@widgets/dashboard-summary/api/useDashboard';
 import { Coffee } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { alertBg, alertColor } from '../lib/constants';
+import { alertBg, alertColor, alertReasonLabels } from '../lib/constants';
 
 interface InventoryAlertsProps {
     data: DashboardInventoryAlert[];
@@ -25,12 +25,7 @@ export const InventoryAlerts = ({ data, loading }: InventoryAlertsProps) => {
                 data.map((item, i) => {
                     const color = alertColor[item.reason] ?? '#FFFF54';
                     const bg = alertBg[item.reason] ?? 'rgba(255,255,84,0.2)';
-                    const status =
-                        item.reason === 'out'
-                            ? 'Out of Stock'
-                            : item.reason === 'schedule'
-                              ? 'Schedule reservation short'
-                              : 'Low Stock';
+                    const status = t(alertReasonLabels[item.reason]);
                     return (
                         <div
                             key={item.id}

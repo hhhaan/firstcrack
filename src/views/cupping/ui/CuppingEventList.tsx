@@ -195,7 +195,11 @@ export const CuppingEventList = ({
                                             tone={ev.ended_at ? 'muted' : ev.active_invite ? 'good' : 'muted'}
                                             size="sm"
                                         >
-                                            {ev.ended_at ? 'Ended' : ev.active_invite ? 'Active' : 'No link yet'}
+                                            {ev.ended_at
+                                                ? t('cupping.sessionEnded')
+                                                : ev.active_invite
+                                                  ? t('cupping.sessionLinkActive')
+                                                  : t('cupping.sessionLinkNone')}
                                         </Badge>
                                     </td>
                                     <td className="px-4 py-3">

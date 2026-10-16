@@ -298,7 +298,7 @@ export const BeanDetail = ({
                                         )}
                                     </div>
                                     <span className="text-gray-300 dark:text-[#e5e5e5] whitespace-nowrap">
-                                        {new Date(ev.created_at).toLocaleDateString('ko-KR')}
+                                        {new Date(ev.created_at).toLocaleDateString(i18n.language)}
                                     </span>
                                 </div>
                             ))}

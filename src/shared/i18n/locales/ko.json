@@ -2297,5 +2297,15 @@
         "showHidden": "숨긴 항목 보기",
         "hide": "{{name}} 숨기기",
         "restore": "{{name}} 복원"
+    },
+    "themeSelect": {
+        "title": "테마를 선택하세요",
+        "description": "워크스페이스 설정에서 언제든지 변경할 수 있습니다.",
+        "light": "라이트",
+        "lightDesc": "밝고 깔끔한 화면",
+        "dark": "다크",
+        "darkDesc": "눈이 편안한 화면",
+        "system": "시스템",
+        "systemDesc": "OS 설정을 따름"
     }
 }
