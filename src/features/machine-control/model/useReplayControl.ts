@@ -426,7 +426,6 @@ export const useReplayControl = ({
                 // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
                 bumpWriteGenOnRenderStop();
                 setWriting(false);
-                replayRunning = false;
                 setActive(false);
                 setStopReason('observationStale');
             } else if (!sameStamp(lastValidReceivedAtMs, trustedLastValidMs)) {
