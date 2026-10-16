@@ -12,7 +12,7 @@ const heaterValue = (note: string | undefined): number | null => {
 const heaterSignature = (entries: readonly LogEntry[] | null): string =>
     (entries ?? [])
         .filter((entry) => !entry.current && entry.event === 'Heater')
-        .map((entry) => `${entry.id ?? ''}|${logEntryTimeSec(entry)}|${entry.note ?? ''}|${entry.tempC ?? ''}`)
+        .map((entry) => `${entry.id ?? ''}|${logEntryTimeSec(entry) ?? ''}|${entry.note ?? ''}|${entry.tempC ?? ''}`)
         .sort()
         .join('\n');
 
@@ -23,7 +23,7 @@ export const heaterEventsFromLog = (entries: readonly LogEntry[]): Json | null =
         if (entry.current || entry.event !== 'Heater') continue;
         const heater = heaterValue(entry.note);
         const t = logEntryTimeSec(entry);
-        if (heater == null || !Number.isFinite(t) || t < 0) continue;
+        if (heater == null || t == null || !Number.isFinite(t) || t < 0) continue;
         const bt = entry.tempC != null && Number.isFinite(entry.tempC) ? entry.tempC : 0;
         rows.push({ t, bt, heater });
     }

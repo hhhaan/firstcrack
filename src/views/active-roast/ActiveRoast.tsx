@@ -1120,9 +1120,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const reviewChartTurningPoints = useMemo(() => {
         if (!reviewSnapshot) return [];
         const logged = reviewSnapshot.logEntries.find((entry) => entry.event === 'TP' && entry.tempC != null);
-        if (logged?.tempC != null) return [{ timeSec: logEntryTimeSec(logged), temp: logged.tempC }];
+        const loggedTime = logged ? logEntryTimeSec(logged) : null;
+        if (logged?.tempC != null && loggedTime != null) return [{ timeSec: loggedTime, temp: logged.tempC }];
         const drop = reviewSnapshot.logEntries.find((entry) => entry.event === 'Drop');
-        const limit = drop ? logEntryTimeSec(drop) : reviewSnapshot.elapsed;
+        const limit = (drop ? logEntryTimeSec(drop) : null) ?? reviewSnapshot.elapsed;
         const xs: number[] = [];
         const bt: number[] = [];
         for (const point of reviewSnapshot.livePoints) {
@@ -1137,7 +1138,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const reviewHeatSet = useMemo(() => {
         if (!reviewing || reviewHeaterEvents == null) return chart.visibleHeatSet;
         const drop = curveEntries.find((entry) => entry.event === 'Drop');
-        const dropTime = drop ? logEntryTimeSec(drop) : curveElapsed;
+        const dropTime = (drop ? logEntryTimeSec(drop) : null) ?? curveElapsed;
         const points = chart.visibleControlXs.map((t, index) => ({
             t,
             heaterSet: chart.visibleHeatSet[index] ?? null,

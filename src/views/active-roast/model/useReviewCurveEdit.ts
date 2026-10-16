@@ -187,5 +187,5 @@ export const appendReviewEntry = (
         ...(airflow ? { airflow } : {}),
         ...(drum ? { drum } : {}),
     };
-    return [...entries, next].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+    return [...entries, next].sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
 };
