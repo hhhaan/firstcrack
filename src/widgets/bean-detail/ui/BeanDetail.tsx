@@ -247,8 +247,9 @@ export const BeanDetail = ({
                 <div className="flex gap-2.5">
                     <button
                         type="button"
+                        disabled={actionsLocked}
                         onClick={() => onRestock(bean.id)}
-                        className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-sm font-medium cursor-pointer tracking-[0.14px]"
+                        className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-sm font-medium cursor-pointer tracking-[0.14px] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {t('beanDetail.restock')}
                     </button>

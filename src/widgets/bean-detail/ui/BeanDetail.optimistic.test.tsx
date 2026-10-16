@@ -44,7 +44,7 @@ describe('BeanDetail optimistic bean', () => {
         host.remove();
     });
 
-    it('disables edit, delete, and start roast until the server uuid lands', () => {
+    it('disables edit, delete, restock, and start roast until the server uuid lands', () => {
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
@@ -68,7 +68,9 @@ describe('BeanDetail optimistic bean', () => {
         });
         const buttons = host.querySelectorAll('button');
         const startRoast = [...buttons].find((b) => b.textContent === 'beanDetail.startRoast');
+        const restock = [...buttons].find((b) => b.textContent === 'beanDetail.restock');
         expect(startRoast?.disabled).toBe(true);
+        expect(restock?.disabled).toBe(true);
         const iconButtons = host.querySelectorAll('button[disabled]');
         expect(iconButtons.length).toBeGreaterThanOrEqual(2);
     });
