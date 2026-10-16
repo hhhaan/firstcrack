@@ -1196,7 +1196,6 @@
             "apply": "Show as background"
         },
         "review": {
-            "title": "Review completed roast",
             "return": "Return to charge wait"
         }
     },
