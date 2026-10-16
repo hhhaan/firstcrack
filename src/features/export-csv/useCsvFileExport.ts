@@ -1,7 +1,9 @@
 import { downloadCsv } from '@shared/lib/download';
+import { useToastStore } from '@shared/store/toast';
 import { downloadDir, join } from '@tauri-apps/api/path';
 import { confirm } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface CsvExportLabels {
     title: string;
@@ -20,17 +22,27 @@ export interface CsvExportLabels {
  *
  * @returns 사용자가 확인해 실제로 저장했으면 true, 취소했으면 false
  */
-export const useCsvFileExport = () =>
-    useCallback(async (csv: string, filename: string, labels: CsvExportLabels): Promise<boolean> => {
-        const path = await join(await downloadDir(), filename);
-        const confirmed = await confirm(labels.confirmMessage(path), {
-            title: labels.title,
-            kind: 'info',
-            okLabel: labels.okLabel,
-            cancelLabel: labels.cancelLabel,
-        });
-        if (!confirmed) return false;
+export const useCsvFileExport = () => {
+    const { t } = useTranslation();
+    return useCallback(
+        async (csv: string, filename: string, labels: CsvExportLabels): Promise<boolean> => {
+            try {
+                const path = await join(await downloadDir(), filename);
+                const confirmed = await confirm(labels.confirmMessage(path), {
+                    title: labels.title,
+                    kind: 'info',
+                    okLabel: labels.okLabel,
+                    cancelLabel: labels.cancelLabel,
+                });
+                if (!confirmed) return false;
 
-        downloadCsv(csv, filename);
-        return true;
-    }, []);
+                downloadCsv(csv, filename);
+                return true;
+            } catch (err) {
+                useToastStore.getState().show(t('history.exportCsvFailed'), 'error');
+                throw err;
+            }
+        },
+        [t],
+    );
+};

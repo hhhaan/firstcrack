@@ -913,6 +913,12 @@
             "noStock": "在庫不足のため焙煎不可",
             "edit": "編集",
             "delete": "削除",
+            "deleteConfirm": {
+                "title": "このブレンドを削除しますか？",
+                "description": "「{{name}}」は完全に削除されます。元に戻せません。",
+                "cancel": "キャンセル",
+                "confirm": "削除"
+            },
             "modal": {
                 "titleCreate": "ブレンドを追加",
                 "titleEdit": "ブレンドを編集",
@@ -1126,6 +1132,7 @@
         "dialogs": {
             "roastInProgressTitle": "ロースト中",
             "roastInProgressMsg": "ローストが進行中です。本当に終了しますか？",
+            "unsavedCloseMsg": "未保存のローストがあります。保存せずに終了しますか？",
             "end": "終了",
             "cancel": "キャンセル",
             "machineRequiredTitle": "マシン接続が必要",
@@ -1483,6 +1490,7 @@
         "exportPdfConfirm": "保存先: {{path}}\nこの焙煎グラフをA4横向き1ページのPDFに書き出しますか？",
         "exportPdfUnavailable": "書き出せるチャートがありません。",
         "exportPdfFailed": "焙煎グラフPDFを書き出せませんでした。",
+        "exportCsvFailed": "CSVファイルを保存できませんでした。",
         "exportModal": {
             "title": "CSV書き出し",
             "description": "書き出す期間を選択してください。一覧のフィルターとは別に適用されます。",

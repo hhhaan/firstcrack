@@ -3,7 +3,7 @@ import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Check } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface CompleteBatchModalProps {
@@ -18,6 +18,14 @@ interface CompleteBatchModalProps {
 export const CompleteBatchModal = ({ open, batch, onClose, onConfirm, confirmDisabled }: CompleteBatchModalProps) => {
     const { t } = useTranslation();
     const [deductStock, setDeductStock] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const locked = useRef(false);
+
+    useEffect(() => {
+        if (!open) return;
+        locked.current = false;
+        setBusy(false);
+    }, [open]);
 
     if (!open || !batch) return null;
 
@@ -31,6 +39,9 @@ export const CompleteBatchModal = ({ open, batch, onClose, onConfirm, confirmDis
     };
 
     const handleConfirm = () => {
+        if (locked.current || confirmDisabled) return;
+        locked.current = true;
+        setBusy(true);
         onConfirm(deductStock && canDeductStock);
         setDeductStock(false);
     };
@@ -100,7 +111,7 @@ export const CompleteBatchModal = ({ open, batch, onClose, onConfirm, confirmDis
                 <button
                     type="button"
                     onClick={handleConfirm}
-                    disabled={confirmDisabled}
+                    disabled={confirmDisabled || busy}
                     className="flex-1 px-4 py-2.5 rounded-full border-none bg-black text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {t('schedule.completeBatch.confirm')}

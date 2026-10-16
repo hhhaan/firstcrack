@@ -907,6 +907,12 @@
             "selectBlend": "Select a blend to view details",
             "edit": "Edit",
             "delete": "Delete",
+            "deleteConfirm": {
+                "title": "Delete this blend?",
+                "description": "\"{{name}}\" will be permanently deleted. This cannot be undone.",
+                "cancel": "Cancel",
+                "confirm": "Delete"
+            },
             "summary_one": "{{count}} bean · {{total}}% total",
             "summary_other": "{{count}} beans · {{total}}% total",
             "roastableCapacity": "Roastable Capacity",
@@ -1126,6 +1132,7 @@
         "dialogs": {
             "roastInProgressTitle": "Roast in Progress",
             "roastInProgressMsg": "A roast is in progress. Are you sure you want to end it?",
+            "unsavedCloseMsg": "You have an unsaved roast. End without saving?",
             "end": "End",
             "cancel": "Cancel",
             "machineRequiredTitle": "Connect a machine",
@@ -1511,6 +1518,7 @@
         "exportPdfConfirm": "Save to: {{path}}\nExport this roast graph as a one-page A4 landscape PDF?",
         "exportPdfUnavailable": "Chart is not ready to export.",
         "exportPdfFailed": "Couldn't export the roast graph PDF.",
+        "exportCsvFailed": "Couldn't save the CSV file.",
         "exportModal": {
             "title": "Export CSV",
             "description": "Choose a date range for this export. This is separate from the list filters above.",

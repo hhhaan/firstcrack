@@ -60,6 +60,7 @@ export const useSetOrderLineProduct = (userId: string) => {
     return useMutation({
         mutationFn: ({ lineId, productId }: { lineId: string; productId: string }) =>
             orderApi.setLineProduct(lineId, productId),
+        meta: { silentError: true },
         onSuccess: () => {
             invalidateAfterCreateOrder(qc, userId);
         },

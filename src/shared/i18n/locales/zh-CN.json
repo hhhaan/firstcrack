@@ -913,6 +913,12 @@
             "noStock": "库存不足，无法烘焙",
             "edit": "编辑",
             "delete": "删除",
+            "deleteConfirm": {
+                "title": "删除此拼配？",
+                "description": "“{{name}}”将被永久删除。此操作无法撤销。",
+                "cancel": "取消",
+                "confirm": "删除"
+            },
             "modal": {
                 "titleCreate": "添加拼配",
                 "titleEdit": "编辑拼配",
@@ -1126,6 +1132,7 @@
         "dialogs": {
             "roastInProgressTitle": "烘焙进行中",
             "roastInProgressMsg": "烘焙正在进行中。确定要结束吗？",
+            "unsavedCloseMsg": "有未保存的烘焙。确定不保存并结束吗？",
             "end": "结束",
             "cancel": "取消",
             "machineRequiredTitle": "需要连接设备",
@@ -1483,6 +1490,7 @@
         "exportPdfConfirm": "保存到：{{path}}\n将此烘焙曲线导出为横向 A4 单页 PDF？",
         "exportPdfUnavailable": "没有可导出的图表。",
         "exportPdfFailed": "无法导出烘焙曲线 PDF。",
+        "exportCsvFailed": "无法保存 CSV 文件。",
         "exportModal": {
             "title": "导出 CSV",
             "description": "选择导出时间范围。与上方列表筛选互不影响。",

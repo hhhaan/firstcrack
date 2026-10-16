@@ -5,7 +5,9 @@ import type { BlendRoastableResult } from '@shared/lib/blend-stock';
 import { Badge } from '@shared/ui/Badge';
 import { BlendCompositionBar, coloredSegmentsFromSources } from '@widgets/blend-list/ui/BlendCompositionBar';
 import { Edit3, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DeleteBlendModal } from './DeleteBlendModal';
 
 export type BlendDetailProps = {
     blend: BlendWithComponents | null;
@@ -17,6 +19,7 @@ export type BlendDetailProps = {
 
 export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onDelete }: BlendDetailProps) => {
     const { t } = useTranslation();
+    const [confirmId, setConfirmId] = useState<string | null>(null);
 
     if (!blend) return null;
 
@@ -49,6 +52,16 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
 
     return (
         <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative dark:border dark:border-[#585d61]">
+            <DeleteBlendModal
+                open={confirmId === blend.id}
+                blendName={blend.name}
+                onClose={() => setConfirmId(null)}
+                onConfirm={() => {
+                    const id = blend.id;
+                    setConfirmId(null);
+                    onDelete(id);
+                }}
+            />
             <div className="absolute top-6 right-6 flex gap-2 z-2">
                 <button
                     type="button"
@@ -60,7 +73,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                 </button>
                 <button
                     type="button"
-                    onClick={() => onDelete(blend.id)}
+                    onClick={() => setConfirmId(blend.id)}
                     className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] flex items-center justify-center cursor-pointer transition-all duration-200 text-red-600 dark:text-red-400"
                     title={t('beans.blend.delete')}
                 >

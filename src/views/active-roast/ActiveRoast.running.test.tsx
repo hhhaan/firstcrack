@@ -14,8 +14,8 @@ import { ActiveRoastRuntime } from './ActiveRoastRuntime';
 
 vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
 
-const RUNNING_CLOSE = '로스팅이 진행 중입니다. 정말 종료하시겠습니까?';
-const UNSAVED_CLOSE = '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?';
+const RUNNING_CLOSE = 'activeRoast.dialogs.roastInProgressMsg';
+const UNSAVED_CLOSE = 'activeRoast.dialogs.unsavedCloseMsg';
 
 type CloseHandler = (event: { preventDefault: () => void }) => void | Promise<void>;
 
@@ -402,7 +402,14 @@ describe('ActiveRoast running clock (#627)', () => {
         expect(clockText(host)).toContain('0:06');
 
         const runningClose = await closeOnce();
-        expect(dialog.ask).toHaveBeenCalledWith(RUNNING_CLOSE, expect.objectContaining({ title: '로스팅 진행 중' }));
+        expect(dialog.ask).toHaveBeenCalledWith(
+            RUNNING_CLOSE,
+            expect.objectContaining({
+                title: 'activeRoast.dialogs.roastInProgressTitle',
+                okLabel: 'activeRoast.dialogs.end',
+                cancelLabel: 'activeRoast.dialogs.cancel',
+            }),
+        );
         expect(runningClose.preventDefault).toHaveBeenCalledTimes(1);
 
         unmount();
@@ -462,7 +469,10 @@ describe('ActiveRoast running clock (#627)', () => {
         expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
 
         const waitClose = await closeOnce();
-        expect(dialog.ask).toHaveBeenCalledWith(UNSAVED_CLOSE, expect.objectContaining({ title: '로스팅 진행 중' }));
+        expect(dialog.ask).toHaveBeenCalledWith(
+            UNSAVED_CLOSE,
+            expect.objectContaining({ title: 'activeRoast.dialogs.roastInProgressTitle' }),
+        );
         expect(waitClose.preventDefault).toHaveBeenCalledTimes(1);
         unmountWait();
         await flushMicrotasks();

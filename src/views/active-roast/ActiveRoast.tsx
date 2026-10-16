@@ -125,6 +125,10 @@ const chartOnlyPreheatBootMs = Date.now();
 
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
     const { t } = useTranslation();
+    const tRef = useRef(t);
+    useEffect(() => {
+        tRef.current = t;
+    }, [t]);
     const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
@@ -698,15 +702,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 prompting = true;
                 try {
                     const running = isRunningRef.current;
+                    const translate = tRef.current;
                     const ok = await ask(
                         running
-                            ? '로스팅이 진행 중입니다. 정말 종료하시겠습니까?'
-                            : '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?',
+                            ? translate('activeRoast.dialogs.roastInProgressMsg')
+                            : translate('activeRoast.dialogs.unsavedCloseMsg'),
                         {
-                            title: '로스팅 진행 중',
+                            title: translate('activeRoast.dialogs.roastInProgressTitle'),
                             kind: 'warning',
-                            okLabel: '종료',
-                            cancelLabel: '취소',
+                            okLabel: translate('activeRoast.dialogs.end'),
+                            cancelLabel: translate('activeRoast.dialogs.cancel'),
                         },
                     );
                     if (!ok) {
