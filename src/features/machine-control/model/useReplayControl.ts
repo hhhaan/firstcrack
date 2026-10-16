@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { divergeTolerance } from '../lib/controlScale';
 import type { ControlOrigin } from '../lib/controlSender';
 import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
 import {
@@ -13,8 +12,6 @@ import {
 
 /** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
 export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
-
-export { divergeTolerance };
 
 export interface ReplayControlInputs {
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
@@ -46,8 +43,8 @@ export interface ReplayControlInputs {
     pidEngaged: boolean;
     roastFinished: boolean;
     sidecarConnected: boolean;
-    /** 지시했는데 기기가 안 따라온 상태 — 재생을 계속 밀어붙이지 않는다 (#269) */
-    heaterUnacknowledged: boolean;
+    /** Drop-zero retry signal only; never blocks or stops ordinary Replay. */
+    safeOffUnacknowledged: boolean;
     /**
      * 배출 시 화력 정책 — pidDropBehavior 공용 (#316). PID든 Replay든 "DROP 후
      * 화력을 어떻게 둘지"는 한 정책이다. zero면 배출 즉시 heater 0을 쓴다(PID
@@ -55,14 +52,7 @@ export interface ReplayControlInputs {
      * hold면 마지막 재생 값을 남긴다 — 설정으로 선택된, 문서화된 잔류다.
      */
     dropBehavior: 'hold' | 'zero';
-    /** heater 실측 — Replay 마지막 확정 명령과의 지속 이탈 감지용 (#307) */
-    heaterFeedback: number | null;
-    /** heater 지시가 아직 수렴하지 않았다(desired 잔존) — settling 동안은 이탈 판정 제외 */
-    heaterPending: boolean;
-    /**
-     * 사이드카 재연결 대기 중 — 이 동안 실측은 동결되는데 elapsed는 호스트 시계라
-     * 계속 흘러, 같은 샘플 하나로 "지속 이탈"을 확정할 수 있다. 카운트를 멈춘다.
-     */
+    /** Hold ordinary writes while the sidecar reconnects. */
     reconnecting: boolean;
     /**
      * R04 collection-boundary quality. Ordinary TIME/BT writes run only on `'valid'`.
@@ -77,15 +67,14 @@ export interface ReplayControlInputs {
     lastValidReceivedAtMs?: number | null;
     /** Wall-clock for last-valid age. Omit with lastValid to skip long-gap stop in tests. */
     nowMs?: number | null;
-    /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
+    /** resolve number = 전송된 세트포인트(실측 확인 아님), null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
     writeHeater: (value: number, origin?: ControlOrigin) => Promise<number | null>;
     /**
      * 미전송 Replay heater만 선택 취소. fan/drum·수동 commit·DROP zero(safety)는 남긴다.
      */
     cancelUnsentHeater: () => void;
     /**
-     * heater write_map.max — `/status.control.limits.heater.max`. 수렴·이탈
-     * 허용치를 같이 유도한다. 없으면 0~100% 전제(기존 수렴 1 / 이탈 2).
+     * heater write_map.max — `/status.control.limits.heater.max`. Bounds the Replay plan.
      */
     heaterMax?: number | null;
     heaterMin?: number | null;
@@ -97,12 +86,10 @@ export interface ReplayControlInputs {
 export type ReplayStopReason =
     | 'disconnected'
     | 'pid'
-    | 'unacknowledged'
     | 'unwritable'
     | 'finished'
     | 'manual'
     | 'profileChanged'
-    | 'controlDiverged'
     | 'timingGap'
     | 'writeFailed'
     /** Last-valid observation older than the proposed R06 limit. Not a shipping-approved safety rating. */
@@ -111,26 +98,21 @@ export type ReplayStopReason =
 const replayStopCause = ({
     sidecarConnected,
     pidEngaged,
-    heaterUnacknowledged,
     heaterWritable,
     roastFinished,
 }: {
     sidecarConnected: boolean;
     pidEngaged: boolean;
-    heaterUnacknowledged: boolean;
     heaterWritable: boolean;
     roastFinished: boolean;
 }): ReplayStopReason | null => {
     if (!sidecarConnected) return 'disconnected';
     if (pidEngaged) return 'pid';
-    if (heaterUnacknowledged) return 'unacknowledged';
     if (!heaterWritable) return 'unwritable';
     if (roastFinished) return 'finished';
     return null;
 };
 
-/** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
-const DIVERGE_TICKS = 3;
 /**
  * 연속 렌더 사이 elapsed가 이만큼 **초과** 뛰면 JS가 멈췄던 것으로 본다 (#313).
  * elapsed는 호스트 시계에서 유도되지만 갱신은 webview 타이머·폴링이 하므로, 창
@@ -188,10 +170,8 @@ export const useReplayControl = ({
     pidEngaged,
     roastFinished,
     sidecarConnected,
-    heaterUnacknowledged,
     dropBehavior,
-    heaterFeedback,
-    heaterPending,
+    safeOffUnacknowledged,
     reconnecting,
     observationQuality,
     lastValidReceivedAtMs,
@@ -266,7 +246,6 @@ export const useReplayControl = ({
     const stopCause = replayStopCause({
         sidecarConnected,
         pidEngaged,
-        heaterUnacknowledged,
         heaterWritable,
         roastFinished,
     });
@@ -278,13 +257,6 @@ export const useReplayControl = ({
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
     /** zero 정책의 safe-off write가 나갔다 — 기기가 따라올 때까지 재시도 대상 (#316) */
     const [safeOffIssued, setSafeOffIssued] = useState(false);
-    /**
-     * Replay가 마지막으로 쓴 화력 — 수렴 후 실측과의 비교 기준 (#307). 이탈의 원인
-     * (사람 조작반·본체 Auto·안전 인터락·타 소프트웨어)은 구분할 수 없고 하지도
-     * 않는다 — 대응이 모두 "재생 중지"로 같다.
-     */
-    const [lastWritten, setLastWritten] = useState<number | null>(null);
-    const [diverge, setDiverge] = useState({ tick: elapsed, ticks: 0 });
     /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
     const [prevElapsed, setPrevElapsed] = useState(elapsed);
     /**
@@ -295,7 +267,7 @@ export const useReplayControl = ({
     /**
      * 이벤트 write가 /control 응답 대기 중 — 그동안 판정을 멈춰 같은 이벤트를 두 번 쓰지
      * 않는다 (#312). 응답 세대: 배치·프로파일 경계뿐 아니라 사용자 OFF·수동/PID 중단·재시작
-     * 뒤에 도착한 늦은 성공/실패는 무시한다. 옛 응답이 index·lastWritten·stop reason을
+     * 뒤에 도착한 늦은 성공/실패는 무시한다. 옛 응답이 index·stop reason을
      * 덮거나 새 요청의 writing을 풀면 안 된다 (#368 R02).
      */
     const [writing, setWriting] = useState(false);
@@ -400,8 +372,6 @@ export const useReplayControl = ({
         setPrevRoasting(roasting);
         setIndex(0);
         setStopReason(null);
-        setLastWritten(null);
-        setDiverge({ tick: elapsed, ticks: 0 });
         // lookback 자동 차지는 origin을 과거로 잡아 elapsed가 0보다 크게 시작한다 —
         // 이전 배치 기준으로 재면 차지 직후 오중지된다.
         setPrevElapsed(elapsed);
@@ -465,38 +435,6 @@ export const useReplayControl = ({
         }
     }
 
-    // 외부 개입 판정 (#307) — elapsed를 틱으로 쓰는 이유: liveData 스토어는 값이 같으면
-    // 같은 객체를 유지하므로(디듀프) feedback identity로는 "그대로인 이탈"을 못 센다.
-    // effect가 아니라 렌더 중 판정인 이유: 확정 커밋에서 아래 판정 effect가 stale
-    // active로 이벤트를 한 번 더 써서 개입을 덮는 것(프로파일 교체와 같은 레이스)을 막는다.
-    // write는 절대 하지 않는다 — 이탈 시 존중해야 할 값은 기기에 있는 값이다.
-    // reconnecting 동안은 카운트 일시정지(리셋 아님) — 동결된 실측을 elapsed 틱으로
-    // 여러 번 세면 1샘플로 확정된다. 복구 후 새 샘플부터 이어 센다.
-    if (!sameNumber(elapsed, diverge.tick) && !reconnecting) {
-        const deviated =
-            replayRunning &&
-            roasting &&
-            !heaterPending &&
-            lastWritten != null &&
-            heaterFeedback != null &&
-            Math.abs(heaterFeedback - lastWritten) > divergeTolerance(heaterMax);
-        const ticks = deviated ? diverge.ticks + 1 : 0;
-        // 카운터가 0→0이면 setState 생략 — 유휴 중 매초 여분 렌더를 만들지 않는다.
-        // tick이 stale해져도 무해하다: 다음 이탈의 첫 렌더에서 1부터 정상 카운트된다.
-        if (ticks !== 0 || diverge.ticks !== 0) setDiverge({ tick: elapsed, ticks });
-        // 확정 시 중지만 한다 — 배치 잠금은 두지 않는다. 재개는 사람이 토글해야만
-        // 가능하고, 토글이 lastWritten을 리셋해 감지가 즉시 재무장되므로 원인이
-        // 지속되면(인터락·타 소프트웨어) 다음 이벤트 write 후 ~3틱 안에 다시 걸린다.
-        // 앱 슬라이더 개입(manual)과 처벌을 다르게 둘 이유가 없다.
-        if (ticks >= DIVERGE_TICKS) {
-            // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
-            bumpWriteGenOnRenderStop();
-            setWriting(false);
-            setActive(false);
-            setStopReason('controlDiverged');
-        }
-    }
-
     const stop = useCallback(
         (reason: ReplayStopReason = 'manual') => {
             // A confirmation opened before Drop must not cancel the existing safe-off retry.
@@ -525,12 +463,12 @@ export const useReplayControl = ({
 
     // safe-off 재시도 — zero write가 나갔는데 기기가 안 따라오면 다시 쓴다 (#269의
     // PID safe-off와 같은 등급: 아무도 안 보는 로스터에 불이 남는 쪽이 최악이다).
-    // 재시도 간격은 unacknowledged 판정 주기(폴링 N회 ≈ 5~10초)가 자연히 만든다 —
+    // 재시도 간격은 Drop-zero 전용 피드백 카운터가 만든다 —
     // 매 write가 미반영 카운트를 되돌리므로 tight loop이 될 수 없다.
     useEffect(() => {
-        if (!safeOffIssued || !heaterUnacknowledged || !sidecarConnected) return;
+        if (!safeOffIssued || !safeOffUnacknowledged || !sidecarConnected) return;
         void writeHeater(0, 'safety');
-    }, [safeOffIssued, heaterUnacknowledged, sidecarConnected, writeHeater]);
+    }, [safeOffIssued, safeOffUnacknowledged, sidecarConnected, writeHeater]);
 
     // Drop 언토글 = 배출 취소. safe-off 재시도가 살아 있으면 재개된 재생을 0으로 덮는다.
     // End 확정 후에는 roastFinished가 true로 고정이라 하강 에지를 만들지 않는다 —
@@ -546,9 +484,6 @@ export const useReplayControl = ({
             if (!enabled) return;
             // 시작·재개 모두 현재 조건의 마지막 화력으로 동기화한다.
             setIndex(0);
-            // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
-            setLastWritten(null);
-            setDiverge((d) => ({ ...d, ticks: 0 }));
             // Explicit resume ages from the current last-valid only — never invent one from nowMs.
             setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
         },
@@ -581,7 +516,7 @@ export const useReplayControl = ({
     const observationHold = active && observationQuality !== 'valid';
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
-    // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
+    // stopCause 가드: PID·연결 상태는 새 liveBt와 같은 커밋에 바뀔 수 있다 —
     // 위 중지 effect의 setActive(false)는 다음 렌더에나 반영되므로, 같은 커밋의 이
     // effect가 stale active로 한 번 더 쓰는 것을 여기서 막아야 한다.
     // reconnecting 가드: 링크 복구 대기 중에도 sidecarConnected는 true로 유지되고(세션 보존)
@@ -593,11 +528,7 @@ export const useReplayControl = ({
     useEffect(() => {
         if (!active || stopCause != null || !roasting || reconnecting || liveBt == null || plan == null) return;
         if (observationQuality !== 'valid') return;
-        // 이탈 후보 확정 대기 중(1~2틱)에는 이벤트를 쓰지 않는다 — 여기서 쓰면 실기
-        // 개입을 덮는 동시에 lastWritten 갱신·pending으로 판정까지 리셋돼, #307이
-        // 막으려던 경로가 확정 창 안에서 재현된다. 노이즈로 판명되면(카운터 0 복귀)
-        // 이 effect가 다시 실행되고 judgeReplay가 밀린 이벤트를 한 번에 따라잡는다.
-        if (diverge.ticks > 0 || writing) return;
+        if (writing) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
         if (result.nextIndex === index || result.heater == null) return;
         // 성공을 확인한 뒤에만 index를 전진한다 — 실패한 이벤트는 남겨 두고 fail-closed로
@@ -620,7 +551,6 @@ export const useReplayControl = ({
             if (applied != null) {
                 const current = labeledEventsRef.current;
                 setIndex(current ? remapReplayIndex(pending.oldEvents, pending.nextIndex, current) : result.nextIndex);
-                setLastWritten(applied);
                 return;
             }
             setActive(false);
@@ -636,7 +566,6 @@ export const useReplayControl = ({
         afterTurningPoint,
         plan,
         index,
-        diverge.ticks,
         writing,
         observationQuality,
         writeHeater,

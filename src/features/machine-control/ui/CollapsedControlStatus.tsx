@@ -13,14 +13,12 @@ const PID_DOT: Record<string, string> = {
     fault: 'bg-red-500',
 };
 
-/** Status dots for the folded rail. Folding hides the editors; it does not drop PID, Replay, or unacked faults. */
+/** Status dots for the folded rail. Folding hides the editors; it does not drop PID or Replay status. */
 export const CollapsedControlStatus = ({
     pidState,
-    anyUnacknowledged,
     replay,
 }: {
     pidState: string;
-    anyUnacknowledged: boolean;
     replay: ReplayTpWaitFacts & { observationHold: boolean };
 }) => {
     const { t } = useTranslation();
@@ -56,15 +54,6 @@ export const CollapsedControlStatus = ({
                     className="h-2 w-2 rounded-full bg-amber-500"
                     title={holdLabel}
                     aria-label={holdLabel}
-                />
-            )}
-            {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
-            {anyUnacknowledged && (
-                <span
-                    role="img"
-                    className="h-2 w-2 rounded-full bg-red-500"
-                    title="기기가 명령을 반영하지 않았습니다"
-                    aria-label="기기가 명령을 반영하지 않았습니다"
                 />
             )}
         </>
