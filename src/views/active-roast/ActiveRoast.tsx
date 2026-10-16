@@ -42,7 +42,7 @@ import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
-import { profileHeatTarget } from '@features/machine-control/lib/heater-events';
+import { editedHeatSet, profileHeatTarget } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
 import { subscribeExplicitMachineDisconnect } from '@shared/lib/explicitMachineDisconnect';
@@ -268,7 +268,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const reviewSnapshot = useRoastingStore(selectReviewSnapshot);
     const reviewing = reviewSnapshot != null;
     const reviewSessionId = reviewSnapshot?.sessionId ?? null;
-    const { applyReviewLog, reviewSaveError } = useReviewCurveEdit(reviewSessionId);
+    const { applyReviewLog, reviewSaveError, reviewHeaterEvents } = useReviewCurveEdit(reviewSessionId);
     const curvePoints = reviewSnapshot?.livePoints ?? livePoints;
     const curveEntries = reviewSnapshot?.logEntries ?? logEntries;
     const curveElapsed = reviewSnapshot?.elapsed ?? elapsed;
@@ -1134,6 +1134,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             .slice(0, 1)
             .map(({ timeSec, temp }) => ({ timeSec, temp }));
     }, [reviewSnapshot]);
+    const reviewHeatSet = useMemo(() => {
+        if (!reviewing || reviewHeaterEvents == null) return chart.visibleHeatSet;
+        const drop = curveEntries.find((entry) => entry.event === 'Drop');
+        const dropTime = drop ? logEntryTimeSec(drop) : curveElapsed;
+        const points = chart.visibleControlXs.map((t, index) => ({
+            t,
+            heaterSet: chart.visibleHeatSet[index] ?? null,
+        }));
+        return editedHeatSet(points, dropTime, reviewHeaterEvents) ?? chart.visibleHeatSet;
+    }, [reviewing, reviewHeaterEvents, curveEntries, curveElapsed, chart.visibleControlXs, chart.visibleHeatSet]);
     const chartFrame = buildChartFrame({
         isFullscreen,
         bbpActive: reviewing ? false : bbpActive,
@@ -1159,7 +1169,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         drumTemp: chart.visibleDrumTemp,
         heatPower: chart.visibleHeatPower,
         fanSpeed: chart.visibleFanSpeed,
-        heatSet: chart.visibleHeatSet,
+        heatSet: reviewHeatSet,
         heatTarget,
         controlChanges: curveEntries.flatMap((entry) =>
             entry.event === 'Control' && entry.appliedControl

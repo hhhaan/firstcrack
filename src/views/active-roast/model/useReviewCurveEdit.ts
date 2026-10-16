@@ -11,6 +11,7 @@ import type { Json } from '@shared/types/database.types';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { reviewHeaterToSave } from './review-heater';
 
 const READ_ONLY_CODES = ['read_only_plan', 'trial_expired', 'trial_batch_cap'];
 
@@ -26,8 +27,10 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
     const expected = useRef<ExpectedRecord | null>(null);
     const pending = useRef<PendingEdit | null>(null);
     const inflight = useRef(false);
+    const heatTouched = useRef(false);
     const saveRef = useRef<(entries: LogEntry[], previous: LogEntry[] | null) => Promise<void>>(async () => {});
     const [error, setError] = useState<string | null>(null);
+    const [reviewHeaterEvents, setReviewHeaterEvents] = useState<Json | null>(null);
     const rejectText = useCallback(
         (reason: ReviewEventReject) => {
             if (reason === 'duplicate') return t('history.edit.duplicate');
@@ -41,8 +44,15 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
         if (sessionId == null) return;
         expected.current = null;
         pending.current = null;
+        heatTouched.current = false;
+        setReviewHeaterEvents(null);
         setError(null);
     }, [sessionId]);
+
+    useEffect(() => {
+        if (!session.data || heatTouched.current) return;
+        setReviewHeaterEvents(session.data.heater_events);
+    }, [session.data]);
 
     const save = useCallback(
         async (entries: LogEntry[], previousLog: LogEntry[] | null) => {
@@ -58,16 +68,22 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
                 return;
             }
             const built = reviewEventsFromLog(current.events, entries);
+            const heater = reviewHeaterToSave(previousLog, entries, current.heater);
             if (!built.ok) {
                 setError(rejectText(built.reason));
                 if (previousLog) useRoastingStore.getState().replaceReviewLog(previousLog);
+                setReviewHeaterEvents(current.heater);
                 return;
             }
-            if (!built.changed) return;
+            if (!built.changed && heater === current.heater) return;
             useRoastingStore.getState().replaceReviewLog(entries);
+            if (heater !== current.heater) {
+                heatTouched.current = true;
+                setReviewHeaterEvents(heater);
+            }
             const summary = recordSummary(row, built.events);
             const previous = current;
-            expected.current = { events: built.events, heater: current.heater };
+            expected.current = { events: built.events, heater };
             inflight.current = true;
             try {
                 const updated = await mutateAsync({
@@ -75,12 +91,13 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
                     expectedEvents: previous.events,
                     expectedHeaterEvents: previous.heater,
                     events: built.events,
-                    heaterEvents: previous.heater,
+                    heaterEvents: heater,
                     dropTempCelsius: summary.dropTempCelsius,
                     durationSeconds: summary.durationSeconds,
                     profileSummary: summary.profileSummary,
                 });
                 expected.current = { events: updated.events, heater: updated.heater_events };
+                setReviewHeaterEvents(updated.heater_events);
                 setError(null);
             } catch (cause) {
                 expected.current = previous;
@@ -129,13 +146,19 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
                 return;
             }
             setError(null);
+            const previousHeater = expected.current?.heater ?? session.data?.heater_events ?? null;
+            const heater = reviewHeaterToSave(previous, entries, previousHeater);
+            if (heater !== previousHeater) {
+                heatTouched.current = true;
+                setReviewHeaterEvents(heater);
+            }
             useRoastingStore.getState().replaceReviewLog(entries);
             void save(entries, previous);
         },
         [rejectText, save, session.data],
     );
 
-    return { applyReviewLog: apply, reviewSaveError: error };
+    return { applyReviewLog: apply, reviewSaveError: error, reviewHeaterEvents };
 };
 
 export const appendReviewEntry = (
