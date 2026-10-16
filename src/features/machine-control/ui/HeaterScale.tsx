@@ -9,7 +9,6 @@ interface Props {
     limit: ControlLimit;
     value: number | undefined;
     feedback: number | null;
-    unacknowledged: boolean;
     disabled: boolean;
     lockedNote?: string;
     unsupported?: boolean;
@@ -29,7 +28,6 @@ export const HeaterScale = ({
     limit,
     value,
     feedback,
-    unacknowledged,
     disabled,
     lockedNote,
     unsupported = false,
@@ -174,9 +172,7 @@ export const HeaterScale = ({
                         {!unsupported && <span className="ml-0.5 text-sm tracking-normal text-muted">{unit}</span>}
                     </div>
                     {live && feedback != null && (
-                        <span className={`font-mono text-[10px] ${unacknowledged ? 'text-red-500' : 'text-muted'}`}>
-                            기기 {Math.round(feedback)}
-                        </span>
+                        <span className="font-mono text-[10px] text-muted">기기 {Math.round(feedback)}</span>
                     )}
                 </div>
             </div>
@@ -245,10 +241,7 @@ export const HeaterScale = ({
                 {live && livePct != null && (
                     <span
                         data-live-line
-                        className={cn(
-                            'pointer-events-none absolute left-1/2 z-10 h-0.5 w-9 -translate-x-1/2 translate-y-1/2 rounded-full',
-                            unacknowledged ? 'bg-red-500' : 'bg-muted',
-                        )}
+                        className="pointer-events-none absolute left-1/2 z-10 h-0.5 w-9 -translate-x-1/2 translate-y-1/2 rounded-full bg-muted"
                         style={{ bottom: `${livePct}%` }}
                     />
                 )}

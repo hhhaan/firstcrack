@@ -12,7 +12,6 @@ interface Props {
     limit: ControlLimit;
     value: number | undefined;
     feedback: number | null;
-    unacknowledged: boolean;
     disabled: boolean;
     lockedNote?: string;
     unsupported?: boolean;
@@ -28,7 +27,6 @@ export const ChannelChip = ({
     limit,
     value,
     feedback,
-    unacknowledged,
     disabled,
     lockedNote,
     unsupported = false,
@@ -132,10 +130,7 @@ export const ChannelChip = ({
                                 setDraft(String(Math.min(max, Math.max(min, next))));
                             }
                         }}
-                        className={cn(
-                            'w-[3ch] border-0 bg-transparent p-0 text-center font-mono text-[12px] font-semibold tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed',
-                            unacknowledged ? 'text-red-500' : 'text-primary',
-                        )}
+                        className="w-[3ch] border-0 bg-transparent p-0 text-center font-mono text-[12px] font-semibold text-primary tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed"
                     />
                 )}
                 {!unsupported && limit.unit && <span className="text-[10px] text-muted">{limit.unit}</span>}

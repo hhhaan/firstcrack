@@ -27,7 +27,6 @@ const renderControl = (overrides: Partial<Parameters<typeof SetpointControl>[0]>
                 limit: { min: 0, max: 100 },
                 value: 10,
                 feedback: 10,
-                unacknowledged: false,
                 disabled: false,
                 onChange,
                 onCommit,
