@@ -116,7 +116,7 @@
         "workspacePreferences": "워크스페이스 환경설정",
         "nav": {
             "dashboard": "대시보드",
-            "roast": "진행 중인 로스팅",
+            "roast": "로스팅 실행",
             "history": "로스팅 기록",
             "beans": "재고",
             "pricing": "마진 계산기",
