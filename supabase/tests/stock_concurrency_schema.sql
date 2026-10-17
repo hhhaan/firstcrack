@@ -1,4 +1,13 @@
 -- Minimal schema for stock concurrency SQL tests (local Postgres 17, not full Supabase reset).
+-- Never run against a real Supabase `db reset` database — it would replace auth helpers.
+DO $guard$
+BEGIN
+  IF to_regprocedure('public.has_workspace_access(uuid)') IS NOT NULL THEN
+    RAISE EXCEPTION 'stock_concurrency_schema.sql is test-harness only; public.has_workspace_access already exists';
+  END IF;
+END
+$guard$;
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE SCHEMA IF NOT EXISTS auth;
@@ -18,7 +27,13 @@ GRANT EXECUTE ON FUNCTION auth.role() TO authenticated, service_role;
 
 DO $$ BEGIN
   CREATE ROLE authenticated LOGIN;
-  CREATE ROLE service_role LOGIN SUPERUSER;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE ROLE service_role LOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
   CREATE ROLE anon NOLOGIN;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;

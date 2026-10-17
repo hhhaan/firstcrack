@@ -28,40 +28,7 @@ def assert_verify(scenario: str, extra: dict, expected_lines: list[str]) -> None
     assert lines == expected_lines, (scenario, lines, result.stdout)
 
 
-for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_checks in [
-    (
-        'fulfill_race',
-        {'setup': 1, 'fulfill_race': 1},
-        {'call': 1, 'fulfill_a': 1, 'hold': 1},
-        {'call': 1, 'fulfill_b': 1},
-        {'verify': 1, 'fulfill_race': 1},
-        ['1', '1'],
-    ),
-    (
-        'pack_race',
-        {'setup': 1, 'pack_race': 1},
-        {'call': 1, 'pack_a': 1, 'hold': 1},
-        {'call': 1, 'pack_b': 1},
-        {'verify': 1, 'pack_race': 1},
-        ['250'],
-    ),
-    (
-        'session_then_complete',
-        {'setup': 1, 'roast_race': 1},
-        {'call': 1, 'save_session': 1, 'hold': 1},
-        {'call': 1, 'complete_batch': 1},
-        {'verify': 1, 'roast_race': 1},
-        ['-3000', 'done'],
-    ),
-    (
-        'complete_then_session',
-        {'setup': 1, 'roast_race': 1},
-        {'call': 1, 'complete_batch': 1, 'hold': 1},
-        {'call': 1, 'save_session': 1},
-        {'verify': 1, 'roast_race': 1},
-        ['-3000', 'done'],
-    ),
-]:
+def run_race(scenario: str, setup_flags: dict, first_flags: dict, second_flags: dict, verify_flags: dict, verify_checks: list[str]) -> None:
     run_psql({'teardown': 1}, stop=True)
     run_psql(setup_flags, stop=True)
     worker = subprocess.Popen(
@@ -89,7 +56,64 @@ for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_check
     assert_verify(scenario, verify_flags, verify_checks)
     print(f'{scenario}: passed')
 
+
+for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_checks in [
+    (
+        'fulfill_race',
+        {'setup': 1, 'fulfill_race': 1},
+        {'call': 1, 'fulfill_a': 1, 'hold': 1},
+        {'call': 1, 'fulfill_b': 1},
+        {'verify': 1, 'fulfill_race': 1},
+        ['1', '1'],
+    ),
+    (
+        'pack_race',
+        {'setup': 1, 'pack_race': 1},
+        {'call': 1, 'pack_a': 1, 'hold': 1},
+        {'call': 1, 'pack_b': 1},
+        {'verify': 1, 'pack_race': 1},
+        ['250'],
+    ),
+    (
+        'legacy_client_race',
+        {'setup': 1, 'old_client': 1},
+        {'call': 1, 'legacy_complete': 1, 'hold': 1},
+        {'call': 1, 'legacy_complete': 1},
+        {'verify': 1, 'old_client': 1},
+        ['-2000', '1640'],
+    ),
+    (
+        'ef_batch_race',
+        {'setup': 1, 'ef_batch_race': 1},
+        {'call': 1, 'ef_batch_a': 1, 'hold': 1},
+        {'call': 1, 'ef_batch_b': 1},
+        {'verify': 1, 'ef_batch_race': 1},
+        ['1', '1'],
+    ),
+    (
+        'fulfill_ef_race',
+        {'setup': 1, 'fulfill_ef_race': 1},
+        {'call': 1, 'fulfill_mix': 1, 'hold': 1},
+        {'call': 1, 'ef_batch_mix': 1},
+        {'verify': 1, 'fulfill_ef_race': 1},
+        ['1', '1'],
+    ),
+]:
+    run_race(scenario, setup_flags, first_flags, second_flags, verify_flags, verify_checks)
+
 # Single-connection checks
+run_psql({'teardown': 1})
+run_psql({'setup': 1, 'roast_race': 1})
+run_psql({'call': 1, 'save_session': 1})
+run_psql({'call': 1, 'complete_batch': 1})
+assert_verify('session_then_complete', {'verify': 1, 'roast_race': 1}, ['-3000', 'done'])
+
+run_psql({'teardown': 1})
+run_psql({'setup': 1, 'roast_race': 1})
+run_psql({'call': 1, 'complete_batch': 1})
+run_psql({'call': 1, 'save_session': 1})
+assert_verify('complete_then_session', {'verify': 1, 'roast_race': 1}, ['-3000', 'done'])
+
 run_psql({'teardown': 1})
 run_psql({'setup': 1, 'corrective': 1})
 run_psql({'call': 1, 'repair_inbound': 1})
@@ -100,5 +124,21 @@ run_psql({'setup': 1, 'fulfill_race': 1})
 run_psql({'call': 1, 'fulfill_a': 1})
 run_psql({'call': 1, 'retry_fulfill': 1})
 assert_verify('fulfill_retry', {'verify': 1, 'fulfill_race': 1}, ['1', '1'])
+
+run_psql({'teardown': 1})
+run_psql({'setup': 1, 'old_client': 1})
+run_psql({'call': 1, 'legacy_complete': 1})
+assert_verify('old_client_one_session', {'verify': 1, 'old_client': 1}, ['-2000', '1640'])
+
+run_psql({'teardown': 1})
+run_psql({'setup': 1, 'old_client': 1, 'three_sessions': 1})
+run_psql({'call': 1, 'legacy_complete': 1})
+assert_verify('old_client_three_sessions', {'verify': 1, 'old_client': 1}, ['0', '0'])
+
+run_psql({'teardown': 1})
+run_psql({'setup': 1, 'rollback_fail': 1})
+bad = run_psql({'call': 1, 'rollback_bad': 1}, stop=False)
+assert 'insufficient_product_stock' in (bad.stdout + bad.stderr), ('rollback_fail', bad.stdout, bad.stderr)
+assert_verify('rollback_fail', {'verify': 1, 'rollback_fail': 1}, ['2'])
 
 print('all stock concurrency tests passed')

@@ -40,7 +40,7 @@ describe('runCompleteBatchFlow', () => {
         await runCompleteBatchFlow(deps, baseBatch(), true);
 
         expect(deps.ensureMaterialized).toHaveBeenCalledTimes(1);
-        expect(deps.completePlanBatch).toHaveBeenCalledWith('real-1', true);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('real-1', true, ['bean-1']);
     });
 
     it('uses canonical materialized id for the server RPC', async () => {
@@ -49,7 +49,7 @@ describe('runCompleteBatchFlow', () => {
             ensureMaterialized: vi.fn().mockResolvedValue({ targetId: 'real', targetPlanId: 'plan', batch: latest }),
         });
         await runCompleteBatchFlow(deps, baseBatch(), true);
-        expect(deps.completePlanBatch).toHaveBeenCalledWith('real', true);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('real', true, ['new-bean']);
     });
 
     it('complete 실패 → 에러 전파 (서버가 status/ledger 원자 처리)', async () => {
@@ -62,14 +62,14 @@ describe('runCompleteBatchFlow', () => {
     it('deductStock=false → completePlanBatch(..., false)', async () => {
         const deps = makeDeps();
         await runCompleteBatchFlow(deps, baseBatch(), false);
-        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false, ['bean-1']);
     });
 
     it('bean/blend 없음 → 알림, completePlanBatch(..., false)', async () => {
         const deps = makeDeps();
         await runCompleteBatchFlow(deps, baseBatch({ bean_id: null, blend_id: null }), true);
         expect(deps.notify).toHaveBeenCalledWith('schedule.completeBatch.deductStockDisabled');
-        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false, []);
     });
 });
 
