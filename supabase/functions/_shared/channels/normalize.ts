@@ -87,10 +87,10 @@ function parseBatchResult(data: unknown): UpsertResult {
     ) {
         throw new Error('invalid sync_channel_orders_batch result');
     }
-    const held = Array.isArray(result.held) ? result.held : [];
-    const heldFulfillments = Number.isInteger(result.heldFulfillments) ? result.heldFulfillments : 0;
+    const heldRaw = Array.isArray(result.held) ? result.held : [];
+    const heldFulfillmentsOut = Number.isInteger(result.heldFulfillments) ? result.heldFulfillments : 0;
     if (
-        held.some(
+        heldRaw.some(
             (hold) =>
                 !hold ||
                 typeof hold.order_id !== 'string' ||
@@ -108,6 +108,16 @@ function parseBatchResult(data: unknown): UpsertResult {
     ) {
         throw new Error('invalid sync_channel_orders_batch result');
     }
+    const held = heldRaw as Array<{
+        order_id: string;
+        platform_order_id: string;
+        shortages: Array<{
+            product_id: string;
+            order_line_id: string;
+            required_units: number;
+            available_units: number;
+        }>;
+    }>;
     const valid = result as {
         upserted: number;
         cancelledCompensations: number;
@@ -134,7 +144,7 @@ function parseBatchResult(data: unknown): UpsertResult {
                 availableUnits: s.available_units,
             })),
         })),
-        heldFulfillments,
+        heldFulfillments: heldFulfillmentsOut,
     };
 }
 
