@@ -30,6 +30,7 @@ import {
     nearestLivePointAt,
     upsertReviewTurningPoint,
 } from '@features/active-roast/lib/event-marker-drag';
+import { dropControlRole, parseControlMarkerLogId } from '@features/active-roast/lib/fan-drum-markers';
 import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
@@ -113,6 +114,8 @@ import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
 import { RoastSidePanel } from './ui/RoastSidePanel';
 import { RoastSummaryModal } from './ui/RoastSummaryModal';
+
+const markerRowId = (logId: string) => parseControlMarkerLogId(logId)?.id ?? logId;
 
 interface ActiveRoastProps {
     isActive: boolean;
@@ -873,7 +876,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     );
                     return;
                 }
-                const target = frozen.logEntries.find((entry) => entry.id === logId);
+                const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
                 if (!target || target.event === 'Charge' || target.event === 'Drop') return;
                 frozenLogEdit(
                     applyEventMarkerEdit(
@@ -916,7 +919,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     }
                     return;
                 }
-                const target = frozen.logEntries.find((entry) => entry.id === logId);
+                const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
                 if (!target || target.event === 'Charge' || target.event === 'Drop') return;
                 frozenLogEdit(
                     applyEventMarkerEdit(frozen.logEntries, logId, patch, frozen.livePoints, unit, frozen.elapsed),
@@ -997,6 +1000,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const removeCurveEntry = useCallback(
         (id: string) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
+            if (parseControlMarkerLogId(id)) {
+                const source = frozen?.logEntries ?? useRoastingStore.getState().logState.entries;
+                const next = dropControlRole(source, id);
+                if (!next) return;
+                if (frozen) frozenLogEdit(next);
+                else setLogEntries(next);
+                return;
+            }
             if (frozen) {
                 const target = frozen.logEntries.find((entry) => entry.id === id);
                 if (!target || !isReviewDeletableEvent(target.event)) return;
@@ -1009,7 +1020,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             }
             removeLogEntry(id);
         },
-        [frozenLogEdit, removeLogEntry],
+        [frozenLogEdit, removeLogEntry, setLogEntries],
     );
 
     const handleControlApplied = useCallback(

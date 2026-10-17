@@ -42,6 +42,8 @@ const RESERVED_EVENT_NAMES = [
     'Heater',
     'Now',
     'Control',
+    'Fan',
+    'Drum',
     'Mark Drop',
     'First Crack',
     'End Roast',
@@ -74,6 +76,8 @@ const KNOWN_LOG_EVENTS = new Set([
     'Heater',
     'Now',
     'Control',
+    'Fan',
+    'Drum',
 ]);
 
 export const isReservedRoastEventName = (name: string): boolean => RESERVED_KEYS.has(reservedKey(name));

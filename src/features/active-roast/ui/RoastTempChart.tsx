@@ -24,6 +24,7 @@ import {
 import { isRemovableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
+import { isFanDrumMarker } from '@features/active-roast/lib/fan-drum-markers';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
@@ -200,7 +201,7 @@ const scalar = (value: unknown): number | null => (typeof value === 'number' && 
 
 /** Notes can sit ahead of the live curve, up to the axis end. Other events stop at now. */
 const clampMarkerTime = (event: string, timeSec: number, nowSec: number, axisMaxSec: number) => {
-    const cap = event === 'Note' ? axisMaxSec : Math.floor(nowSec);
+    const cap = event === 'Note' || event === 'Fan' || event === 'Drum' ? axisMaxSec : Math.floor(nowSec);
     return Math.max(0, Math.min(cap, Math.round(timeSec)));
 };
 
@@ -1100,6 +1101,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!heat || Number.isNaN(Number(heat))) return;
             patch.note = `${heat}${editForm.heaterUnit || '%'}`;
         }
+        if (editForm.event === 'Fan' || editForm.event === 'Drum') {
+            const value = Number(editForm.note.trim());
+            if (!Number.isFinite(value)) return;
+            patch.note = String(Number(value.toFixed(2)));
+        }
         onEventMarkerEdit(editForm.logId, patch);
         setEditForm(null);
         chartRef.current?.focus();
@@ -1125,17 +1131,18 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         }
     };
 
+    const canDeleteMarker = useCallback(
+        (event: string) =>
+            isFanDrumMarker(event) || (savedReview ? isReviewDeletableEvent(event) : isRemovableLogEvent(event)),
+        [savedReview],
+    );
+
     const deleteEdit = useCallback(() => {
-        if (
-            !editForm ||
-            !onEventMarkerDelete ||
-            !(savedReview ? isReviewDeletableEvent : isRemovableLogEvent)(editForm.event)
-        )
-            return;
+        if (!editForm || !onEventMarkerDelete || !canDeleteMarker(editForm.event)) return;
         onEventMarkerDelete(editForm.logId);
         setEditForm(null);
         chartRef.current?.focus();
-    }, [editForm, onEventMarkerDelete, savedReview]);
+    }, [editForm, onEventMarkerDelete, canDeleteMarker]);
 
     return (
         <div
@@ -1251,9 +1258,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     onWheel={(event) => event.stopPropagation()}
                 >
                     <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">
-                        {editForm.event === 'Note'
-                            ? t('activeRoast.noteEntry.editTitle')
-                            : roastEventLabel(editForm.event)}
+                        {isFanDrumMarker(editForm.event)
+                            ? t(editForm.event === 'Fan' ? 'activeRoast.controls.fan' : 'activeRoast.controls.drum')
+                            : editForm.event === 'Note'
+                              ? t('activeRoast.noteEntry.editTitle')
+                              : roastEventLabel(editForm.event)}
                     </div>
                     <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
                         {t('activeRoast.noteEntry.time')}
@@ -1294,6 +1303,18 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
                         />
                     </label>
+                    {(editForm.event === 'Fan' || editForm.event === 'Drum') && (
+                        <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
+                            {t(editForm.event === 'Fan' ? 'activeRoast.controls.fan' : 'activeRoast.controls.drum')}
+                            <input
+                                id="chart-marker-control"
+                                inputMode="decimal"
+                                value={editForm.note}
+                                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
+                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                            />
+                        </label>
+                    )}
                     {editForm.event === 'Heater' && (
                         <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
                             Heat
@@ -1319,8 +1340,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     )}
                     <div className="flex items-center justify-end gap-1">
                         {onEventMarkerDelete &&
-                            ((savedReview ? isReviewDeletableEvent : isRemovableLogEvent)(editForm.event) ||
-                                (savedReview && editForm.event === 'TP')) && (
+                            (canDeleteMarker(editForm.event) || (savedReview && editForm.event === 'TP')) && (
                                 <button
                                     type="button"
                                     data-chart-marker-delete

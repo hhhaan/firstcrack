@@ -235,6 +235,21 @@ BEGIN
     NULL, 210, 600, NULL);
   ASSERT (SELECT count(*) FROM jsonb_array_elements(heat_saved.events) e WHERE e ->> 'type' = 'Heater') = 0, 'heater removed';
 
+  -- fan/drum chart edits rewrite applied_control on the existing Control row
+  DECLARE
+    control_events jsonb := '[{"id":"c","type":"Charge","time_sec":0,"temp_c":200},{"id":"ctl","type":"Control","time_sec":10,"applied_control":{"heater":40,"fan":50,"drum":55}},{"id":"d","type":"Drop","time_sec":600,"temp_c":210}]';
+    control_id uuid := gen_random_uuid();
+    control_saved roast_sessions;
+  BEGIN
+    INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, drop_temp_celsius, events)
+      VALUES(control_id, owner_id, 1000, 'completed', now(), 640, 210, control_events);
+    control_saved := update_roast_session_record(control_id, control_events, NULL,
+      '[{"id":"c","type":"Charge","time_sec":0,"temp_c":200},{"id":"ctl","type":"Control","time_sec":80,"applied_control":{"heater":40,"fan":45,"drum":55}},{"id":"d","type":"Drop","time_sec":600,"temp_c":210}]'::jsonb,
+      NULL, 210, 640, NULL);
+    ASSERT (SELECT (e -> 'applied_control' ->> 'fan')::numeric FROM jsonb_array_elements(control_saved.events) e WHERE e ->> 'id' = 'ctl') = 45, 'fan value saved';
+    ASSERT (SELECT (e ->> 'time_sec')::numeric FROM jsonb_array_elements(control_saved.events) e WHERE e ->> 'id' = 'ctl') = 80, 'control time saved';
+  END;
+
   BEGIN
     PERFORM update_roast_session_record(session2, saved.events, NULL,
       (SELECT jsonb_agg(e) FROM jsonb_array_elements(saved.events) e WHERE e ->> 'type' <> 'Drop'),

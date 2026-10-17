@@ -12,6 +12,8 @@ import {
     useCurveStyles,
     useRoastSettings,
 } from '@features/active-roast';
+import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
+import { dropStoredControlRole, patchStoredControl } from '@features/active-roast/lib/fan-drum-markers';
 import {
     referenceCurveFromPoints,
     referenceHasControls,
@@ -32,10 +34,11 @@ import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ChartNoAxesCombined, FileDown } from 'lucide-react';
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useHistoryPdfExport } from '../hooks/useHistoryPdfExport';
+import { useRoastRecordSave } from '../hooks/useRoastRecordSave';
 import { sessionDropTime } from '../lib/record-heat';
 import {
     curveStatusKey,
@@ -232,6 +235,30 @@ export function HistorySessionChart({
     );
     const machines = useMachines((s) => s.machines);
     const heaterUnit = profileHeaterBounds(session, machines, ROASTER_REGISTRY).unit;
+    const record = useRoastRecordSave(session);
+    const [markerError, setMarkerError] = useState<string | null>(null);
+    const onEventMarkerEdit = useCallback(
+        (logId: string, patch: EventMarkerPatch) => {
+            const next = patchStoredControl(session.events, logId, patch);
+            if (!next) return;
+            void record.saveEvents(next).then(
+                () => setMarkerError(null),
+                (error: unknown) => setMarkerError(record.errorText(error)),
+            );
+        },
+        [record, session.events],
+    );
+    const onEventMarkerDelete = useCallback(
+        (logId: string) => {
+            const next = dropStoredControlRole(session.events, logId);
+            if (!next) return;
+            void record.saveEvents(next).then(
+                () => setMarkerError(null),
+                (error: unknown) => setMarkerError(record.errorText(error)),
+            );
+        },
+        [record, session.events],
+    );
     const storedEvents = useMemo(() => parseStoredRoastEvents(session.events), [session.events]);
     const eventMarkers = useMemo(() => {
         void resolvedTheme;
@@ -356,6 +383,8 @@ export function HistorySessionChart({
                     currentTimeSec={0}
                     eventMarkerStyle={eventMarkerStyle}
                     eventMarkers={eventMarkers}
+                    onEventMarkerEdit={record.canWrite ? onEventMarkerEdit : undefined}
+                    onEventMarkerDelete={record.canWrite ? onEventMarkerDelete : undefined}
                     showRoRET={false}
                     temperatureUnit={unit}
                     tempMinC={tempBounds.tempMinC}
@@ -367,6 +396,11 @@ export function HistorySessionChart({
                     controlChartHeightPct={24}
                     height={hasControls ? 440 : 360}
                 />
+            )}
+            {markerError && (
+                <p role="alert" className="mt-2 text-xs text-error">
+                    {markerError}
+                </p>
             )}
             {points.length === 0 && (
                 <div

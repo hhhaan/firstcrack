@@ -166,6 +166,27 @@ describe('applyEventMarkerEdit', () => {
         expect(next[0]).toMatchObject({ timeSec: 300, time: '5:00', tempC: null, temp: '' });
     });
 
+    it('updates one fan value and moves the shared control row', () => {
+        const entries = [
+            {
+                id: 'ctl',
+                time: '0:30',
+                timeSec: 30,
+                event: 'Control',
+                temp: '',
+                tempC: null,
+                note: '',
+                appliedControl: { heater: 40, fan: 50, drum: 55 },
+            },
+        ];
+        const next = applyEventMarkerEdit(entries, 'ctl:fan', { timeSec: 60, note: '45' }, livePoints, 'C', 90);
+        expect(next[0]).toMatchObject({
+            id: 'ctl',
+            timeSec: 60,
+            appliedControl: { heater: 40, fan: 45, drum: 55 },
+        });
+    });
+
     it('ignores note patches on phase events', () => {
         const entries = [entry('drop', 'Drop', 60, 200, 'Coffee dropped')];
         const next = applyEventMarkerEdit(entries, 'drop', { note: 'nope' }, livePoints, 'C', 90);

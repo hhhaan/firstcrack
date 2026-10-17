@@ -1014,6 +1014,41 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('[data-chart-marker-delete]')).toBeNull();
     });
 
+    it('deletes a drum label from the edit form', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDelete = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 4, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        {
+                            logId: 'ctl:drum',
+                            event: 'Drum',
+                            timeSec: 4,
+                            timeStr: '0:04',
+                            temp: '',
+                            note: '45',
+                            color: '#111',
+                        },
+                    ],
+                    onEventMarkerEdit: vi.fn(),
+                    onEventMarkerDelete,
+                }),
+            );
+        });
+        act(() => {
+            expect(ref.current?.openMarkerEdit({ clientX: 40, clientY: 20 })).toBe(true);
+        });
+        const button = container.querySelector('[data-chart-marker-delete]') as HTMLButtonElement;
+        expect(button).not.toBeNull();
+        act(() => button.click());
+        expect(onEventMarkerDelete).toHaveBeenCalledWith('ctl:drum');
+    });
+
     it('saved review disables Delete on a turning point', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerDelete = vi.fn();

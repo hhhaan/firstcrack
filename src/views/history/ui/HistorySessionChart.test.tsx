@@ -84,6 +84,15 @@ vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
     };
 });
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('../hooks/useRoastRecordSave', () => ({
+    useRoastRecordSave: () => ({
+        canWrite: false,
+        isPending: false,
+        saveEvents: vi.fn(),
+        saveHeater: vi.fn(),
+        errorText: () => 'fail',
+    }),
+}));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 it('joins BBP and roast in one Charge-relative chart and keeps roast visible on BBP loading/failure/absence', async () => {

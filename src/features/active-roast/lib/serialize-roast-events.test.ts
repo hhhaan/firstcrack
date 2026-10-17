@@ -293,6 +293,20 @@ describe('storedEventsToMarkers', () => {
 
         vi.unstubAllGlobals();
     });
+
+    it('adds a fan or drum label for a control write and skips a repeated fan', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
+        const markers = storedEventsToMarkers([
+            { id: 'a', type: 'Control', time_sec: 10, applied_control: { fan: 50, drum: 55 } },
+            { id: 'b', type: 'Control', time_sec: 20, applied_control: { fan: 50 } },
+        ]);
+        expect(markers.map((marker) => [marker.logId, marker.event, marker.note])).toEqual([
+            ['a:fan', 'Fan', '50'],
+            ['a:drum', 'Drum', '55'],
+        ]);
+        vi.unstubAllGlobals();
+    });
 });
 
 describe('acknowledged control provenance', () => {
