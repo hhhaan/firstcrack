@@ -1724,6 +1724,7 @@
         "alertsFailedRestock": "입고는 저장됐지만 재고 알림을 갱신하지 못했습니다.",
         "alertsFailedAdjust": "재고 조정은 저장됐지만 재고 알림을 갱신하지 못했습니다.",
         "retryAlerts": "알림 다시 계산",
+        "costUpdateFailed": "재고는 저장됐지만 원두 단가를 갱신하지 못했습니다. 원두 정보에서 단가를 수정할 수 있습니다.",
         "adjust": {
             "adjustment": "재고 조정",
             "writeOff": "폐기 처리",

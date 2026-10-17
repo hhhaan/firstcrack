@@ -78,6 +78,7 @@ export const AddBeanModal = ({
         handleSubmit: submitBean,
         isSubmitting,
         alertsFailed,
+        costUpdateFailed,
         retryAlerts,
         stockSaved,
     } = useAddBeanSubmit({
@@ -195,9 +196,10 @@ export const AddBeanModal = ({
             </div>
 
             <ModalScrollBody contentClassName="p-8">
-                {alertsFailed && (
+                {(alertsFailed || costUpdateFailed) && (
                     <div className="mb-4 rounded-md bg-amber-100 px-3 py-2 text-[12px] font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
-                        <p>{t(alertsFailedKey)}</p>
+                        {costUpdateFailed && <p>{t('addBeanModal.costUpdateFailed')}</p>}
+                        {alertsFailed && <p>{t(alertsFailedKey)}</p>}
                         <button
                             type="button"
                             className="mt-2 underline"

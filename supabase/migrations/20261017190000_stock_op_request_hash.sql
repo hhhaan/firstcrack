@@ -184,7 +184,7 @@ BEGIN
      OR v_row.op_kind IS DISTINCT FROM p_op_kind
      OR v_row.request_hash IS DISTINCT FROM p_request_hash THEN
     RAISE EXCEPTION 'idempotency_payload_mismatch'
-      USING ERRCODE = 'P0001',
+      USING ERRCODE = 'PF892',
             DETAIL = format('reference_id=%s', p_reference_id);
   END IF;
 
@@ -198,7 +198,7 @@ BEGIN
       v_legacy := public.packaging_request_hash_from_ledger(p_reference_id);
       IF v_legacy IS DISTINCT FROM p_request_hash THEN
         RAISE EXCEPTION 'idempotency_payload_mismatch'
-          USING ERRCODE = 'P0001',
+          USING ERRCODE = 'PF892',
                 DETAIL = format('reference_id=%s legacy_mismatch', p_reference_id);
       END IF;
     END IF;
@@ -211,7 +211,7 @@ BEGIN
       v_legacy := public.bean_event_request_hash_from_ledger(p_reference_id, v_bean_id);
       IF v_legacy IS DISTINCT FROM p_request_hash THEN
         RAISE EXCEPTION 'idempotency_payload_mismatch'
-          USING ERRCODE = 'P0001',
+          USING ERRCODE = 'PF892',
                 DETAIL = format('reference_id=%s legacy_mismatch', p_reference_id);
       END IF;
     END IF;

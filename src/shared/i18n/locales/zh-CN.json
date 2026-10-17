@@ -1724,6 +1724,7 @@
         "alertsFailedRestock": "入库已保存，但无法刷新库存提醒。",
         "alertsFailedAdjust": "库存调整已保存，但无法刷新库存提醒。",
         "retryAlerts": "重试提醒计算",
+        "costUpdateFailed": "库存已保存，但无法更新生豆成本。可在生豆详情中修改成本。",
         "adjust": {
             "adjustment": "库存调整",
             "writeOff": "报废处理",

@@ -1724,6 +1724,7 @@
         "alertsFailedRestock": "入庫は保存されましたが、在庫アラートを更新できませんでした。",
         "alertsFailedAdjust": "在庫調整は保存されましたが、在庫アラートを更新できませんでした。",
         "retryAlerts": "アラートを再計算",
+        "costUpdateFailed": "在庫は保存されましたが、単価を更新できませんでした。豆の詳細から単価を修正できます。",
         "adjust": {
             "adjustment": "調整",
             "writeOff": "廃棄",

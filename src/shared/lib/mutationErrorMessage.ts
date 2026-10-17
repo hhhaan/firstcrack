@@ -28,14 +28,14 @@ export type MutationErrorText =
  * rather than compared exactly, the same hedge `mapServerBatchGateError` uses, so a wrapped
  * or prefixed server string still maps. The two codes cannot collide.
  */
-/** Postgres P0001 from assert_stock_op_receipt — not SQLSTATE 23505 (isClientRefusal noise). */
-export const IDEMPOTENCY_PAYLOAD_MISMATCH_SQLSTATE = 'P0001';
+/** Custom SQLSTATE for idempotency_payload_mismatch (not 23505 / generic P0001). */
+export const IDEMPOTENCY_PAYLOAD_MISMATCH_SQLSTATE = 'PF892';
 
 const guardMessageKeyOf = (error: unknown): StockGuardMessageKey | null => {
     if (!error || typeof error !== 'object') return null;
     const { message, details, code } = error as { message?: unknown; details?: unknown; code?: unknown };
     const text = `${typeof message === 'string' ? message : ''} ${typeof details === 'string' ? details : ''}`;
-    if (code === IDEMPOTENCY_PAYLOAD_MISMATCH_SQLSTATE && text.includes('idempotency_payload_mismatch')) {
+    if (code === IDEMPOTENCY_PAYLOAD_MISMATCH_SQLSTATE) {
         return 'errors.idempotencyPayloadMismatch';
     }
     return STOCK_GUARD_KEYS.find(([code]) => text.includes(code))?.[1] ?? null;

@@ -45,6 +45,7 @@ export const useAddBeanSubmit = ({
     const insertStockEvent = useInsertStockEvent();
     const opSession = useRef(createActionOpIdSession());
     const [alertsFailed, setAlertsFailed] = useState(false);
+    const [costUpdateFailed, setCostUpdateFailed] = useState(false);
     const [retryingAlerts, setRetryingAlerts] = useState(false);
     const [stockSaved, setStockSaved] = useState(false);
 
@@ -52,6 +53,7 @@ export const useAddBeanSubmit = ({
         if (!open) return;
         opSession.current.reset();
         setAlertsFailed(false);
+        setCostUpdateFailed(false);
         setStockSaved(false);
     }, [open]);
 
@@ -70,11 +72,18 @@ export const useAddBeanSubmit = ({
     };
 
     const finishAfterStockWrite = async (alertsFailedNow: boolean, afterStock: () => void | Promise<void>) => {
-        opSession.current.markSucceeded();
-        await afterStock();
         setStockSaved(true);
-        if (alertsFailedNow) {
-            setAlertsFailed(true);
+        opSession.current.markSucceeded();
+        let costFailed = false;
+        try {
+            await afterStock();
+        } catch (err) {
+            costFailed = true;
+            setCostUpdateFailed(true);
+            logger.capture(err, { context: 'add bean modal', feature: 'inventory' });
+        }
+        if (alertsFailedNow || costFailed) {
+            if (alertsFailedNow) setAlertsFailed(true);
             return;
         }
         onClose();
@@ -187,5 +196,5 @@ export const useAddBeanSubmit = ({
         }
     };
 
-    return { handleSubmit, isSubmitting, alertsFailed, retryAlerts, stockSaved };
+    return { handleSubmit, isSubmitting, alertsFailed, costUpdateFailed, retryAlerts, stockSaved };
 };

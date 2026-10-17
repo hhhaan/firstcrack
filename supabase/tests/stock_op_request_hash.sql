@@ -90,7 +90,7 @@ BEGIN
         'delta_grams', -500, 'event_type', 'packaging', 'reference_id', op_a)));
     RAISE EXCEPTION 'expected idempotency_payload_mismatch for product B';
   EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'P0001' THEN RAISE; END IF;
+    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'PF892' THEN RAISE; END IF;
   END;
 
   SELECT coalesce(sum(delta_units), 0) INTO units_b FROM product_stock_events WHERE product_id = '89200000-0000-0000-0000-000000000011';
@@ -115,7 +115,7 @@ BEGIN
       '[]'::jsonb);
     RAISE EXCEPTION 'legacy mismatch expected';
   EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'P0001' THEN RAISE; END IF;
+    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'PF892' THEN RAISE; END IF;
   END;
 
   INSERT INTO products(id, user_id, name, net_weight_grams)
@@ -161,10 +161,64 @@ BEGIN
       'cost_per_kg', 12000));
     RAISE EXCEPTION 'bean mismatch expected';
   EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'P0001' THEN RAISE; END IF;
+    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'PF892' THEN RAISE; END IF;
   END;
 
   ASSERT (SELECT sum(delta_grams) FROM bean_stock_events WHERE reference_id = op_bean) = 1000, 'grams unchanged after mismatch';
+
+  ASSERT public.bean_event_request_hash(jsonb_build_object(
+      'user_id', owner_id, 'bean_id', '89200000-0000-0000-0000-000000000001',
+      'delta_grams', 1000, 'event_type', 'purchase', 'cost_per_kg', 12000))
+    <> public.bean_event_request_hash(jsonb_build_object(
+      'user_id', owner_id, 'bean_id', '89200000-0000-0000-0000-000000000001',
+      'delta_grams', 1000, 'event_type', 'adjustment', 'cost_per_kg', 12000)),
+    'event_type affects bean hash';
+
+  ASSERT public.bean_event_request_hash(jsonb_build_object(
+      'user_id', owner_id, 'bean_id', '89200000-0000-0000-0000-000000000001',
+      'delta_grams', 1000, 'event_type', 'purchase', 'cost_per_kg', 12000))
+    <> public.bean_event_request_hash(jsonb_build_object(
+      'user_id', owner_id, 'bean_id', '89200000-0000-0000-0000-000000000001',
+      'delta_grams', 2000, 'event_type', 'purchase', 'cost_per_kg', 12000)),
+    'delta_grams affects bean hash';
+
+  ASSERT public.bean_event_request_hash(jsonb_build_object(
+      'user_id', owner_id, 'bean_id', '89200000-0000-0000-0000-000000000001',
+      'delta_grams', 1000, 'event_type', 'purchase', 'cost_per_kg', 12000))
+    = public.bean_event_request_hash(jsonb_build_object(
+      'user_id', owner_id, 'bean_id', '89200000-0000-0000-0000-000000000001',
+      'delta_grams', 1000, 'event_type', 'purchase', 'cost_per_kg', 12000.0)),
+    'trim_scale cost equivalence';
+
+  ASSERT public.packaging_request_hash(
+    jsonb_build_array(
+      jsonb_build_object('product_id', '89200000-0000-0000-0000-000000000010', 'delta_units', 1, 'event_type', 'roast_inbound', 'reference_id', op_a),
+      jsonb_build_object('product_id', '89200000-0000-0000-0000-000000000011', 'delta_units', 2, 'event_type', 'roast_inbound', 'reference_id', op_a)),
+    '[]'::jsonb)
+    = public.packaging_request_hash(
+    jsonb_build_array(
+      jsonb_build_object('product_id', '89200000-0000-0000-0000-000000000011', 'delta_units', 2, 'event_type', 'roast_inbound', 'reference_id', op_a),
+      jsonb_build_object('product_id', '89200000-0000-0000-0000-000000000010', 'delta_units', 1, 'event_type', 'roast_inbound', 'reference_id', op_a)),
+    '[]'::jsonb),
+    'packaging product events sort deterministically';
+
+  ASSERT public.packaging_request_hash(
+    jsonb_build_array(
+      jsonb_build_object('product_id', '89200000-0000-0000-0000-000000000010', 'delta_units', 1, 'event_type', 'roast_inbound', 'reference_id', op_a)),
+    '[]'::jsonb)
+    <> public.packaging_request_hash(
+    jsonb_build_array(
+      jsonb_build_object('product_id', '89200000-0000-0000-0000-000000000010', 'delta_units', 2, 'event_type', 'roast_inbound', 'reference_id', op_a)),
+    '[]'::jsonb),
+    'packaging delta_units affects hash';
+
+  ASSERT public.packaging_request_hash('[]'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object('bean_id', '89200000-0000-0000-0000-000000000001', 'delta_grams', -500, 'event_type', 'packaging', 'reference_id', op_a)))
+    <> public.packaging_request_hash('[]'::jsonb,
+    jsonb_build_array(
+      jsonb_build_object('bean_id', '89200000-0000-0000-0000-000000000001', 'delta_grams', -250, 'event_type', 'packaging', 'reference_id', op_a))),
+    'packaging roasted delta_grams affects hash';
 END $$;
 
 \echo stock_op_request_hash ok

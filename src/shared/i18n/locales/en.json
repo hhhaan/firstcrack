@@ -1724,6 +1724,7 @@
         "alertsFailedRestock": "Restock was saved, but inventory alerts could not be refreshed.",
         "alertsFailedAdjust": "Stock adjustment was saved, but inventory alerts could not be refreshed.",
         "retryAlerts": "Retry alert refresh",
+        "costUpdateFailed": "Stock was saved, but the bean cost could not be updated. You can edit the bean to fix the cost.",
         "adjust": {
             "adjustment": "Adjustment",
             "writeOff": "Write Off",
