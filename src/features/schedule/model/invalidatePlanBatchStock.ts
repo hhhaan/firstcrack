@@ -9,6 +9,7 @@ export function invalidatePlanBatchStock(qc: QueryClient, userId: string, beanId
     void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });
     if (broad) {
         void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockEvents });
+        void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummary });
     }
     for (const beanId of beanIds) {
         void qc.invalidateQueries({ queryKey: stockEventKeys.summary(beanId) });

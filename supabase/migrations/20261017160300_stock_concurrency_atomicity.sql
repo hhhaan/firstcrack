@@ -5,6 +5,10 @@
 -- Global lock order (never acquire a later tier before an earlier one in the same TX):
 --   advisory (channel sync) → recurrence_rules → orders → order_lines → roast_plan_batches
 --   → roast_day_plans (FOR SHARE) → products → beans → blends
+--
+-- lock_roast_plan_batch_for_write uses FOR UPDATE (not FOR NO KEY UPDATE) on roast_plan_batches
+-- so complete_plan_batch / legacy batch clamps block concurrent roast_sessions inserts (FK KEY SHARE)
+-- that would otherwise let complete over-count remaining sessions and over-deduct green.
 
 -- ---------------------------------------------------------------------------
 -- Parent-row locks (deterministic ORDER BY id within each table)
@@ -54,8 +58,6 @@ DECLARE
   v_rule_id uuid;
   v_batch roast_plan_batches;
 BEGIN
-  -- Serialize with save_roast_op for the rest of the caller transaction (session insert + hold).
-  PERFORM pg_advisory_xact_lock(8814001, hashtext(p_batch_id::text));
   SELECT recurrence_rule_id INTO v_rule_id
   FROM roast_plan_batches
   WHERE id = p_batch_id;
@@ -73,24 +75,8 @@ BEGIN
 END;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.roast_session_assert_plan_batch_tx_lock()
-RETURNS trigger
-LANGUAGE plpgsql
-SET search_path = public
-AS $function$
-BEGIN
-  IF NEW.plan_batch_id IS NOT NULL THEN
-    PERFORM pg_advisory_xact_lock(8814001, hashtext(NEW.plan_batch_id::text));
-  END IF;
-  RETURN NEW;
-END;
-$function$;
-
 DROP TRIGGER IF EXISTS roast_sessions_plan_batch_tx_lock ON public.roast_sessions;
-CREATE TRIGGER roast_sessions_plan_batch_tx_lock
-  BEFORE INSERT OR UPDATE OF plan_batch_id ON public.roast_sessions
-  FOR EACH ROW
-  EXECUTE FUNCTION public.roast_session_assert_plan_batch_tx_lock();
+DROP FUNCTION IF EXISTS public.roast_session_assert_plan_batch_tx_lock();
 
 CREATE OR REPLACE FUNCTION public.plan_batch_remaining_roast_grams(p_batch_id uuid)
 RETURNS integer

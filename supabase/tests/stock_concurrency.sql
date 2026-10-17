@@ -159,6 +159,10 @@ SELECT public.insert_packaging_op(
   jsonb_build_array(jsonb_build_object(
     'user_id', :'owner', 'bean_id', '89100000-0000-0000-0000-000000000001',
     'delta_grams', -750, 'event_type', 'packaging', 'reference_id', '89100000-0000-0000-0000-000000000021')));
+\elif :{?direct_session_insert}
+INSERT INTO roast_sessions(id, user_id, plan_batch_id, bean_id, weight_grams, status, roasted_at)
+VALUES ('89100000-0000-0000-0000-000000000035', :'owner', '89100000-0000-0000-0000-000000000012',
+  '89100000-0000-0000-0000-000000000010', 1000, 'completed', now());
 \elif :{?save_session}
 SELECT public.save_roast_op(
   jsonb_build_object('id', '89100000-0000-0000-0000-000000000030', 'user_id', :'owner',
@@ -240,6 +244,10 @@ WHERE bean_id = '89100000-0000-0000-0000-000000000001';
 SELECT sum(delta_grams) AS green_deducted FROM bean_stock_events
 WHERE bean_id = '89100000-0000-0000-0000-000000000010' AND event_type = 'roast';
 SELECT status FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000012';
+\elif :{?session_insert_race}
+SELECT sum(delta_grams) AS green_deducted FROM bean_stock_events
+WHERE bean_id = '89100000-0000-0000-0000-000000000010' AND event_type = 'roast';
+SELECT status FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000012';
 \elif :{?corrective}
 SELECT sum(delta_units) AS balance FROM product_stock_events
 WHERE product_id = '88900000-0000-0000-0000-000000000099';
@@ -279,7 +287,8 @@ DELETE FROM roast_sessions WHERE plan_batch_id = '89100000-0000-0000-0000-000000
      '89100000-0000-0000-0000-000000000030',
      '89100000-0000-0000-0000-000000000031',
      '89100000-0000-0000-0000-000000000032',
-     '89100000-0000-0000-0000-000000000033'
+     '89100000-0000-0000-0000-000000000033',
+     '89100000-0000-0000-0000-000000000035'
    );
 DELETE FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000012';
 DELETE FROM roast_day_plans WHERE id = '89100000-0000-0000-0000-000000000011';

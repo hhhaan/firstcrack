@@ -83,6 +83,14 @@ for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_check
         ['-3000', 'done'],
     ),
     (
+        'session_insert_then_complete',
+        {'setup': 1, 'roast_race': 1},
+        {'call': 1, 'direct_session_insert': 1, 'hold': 1},
+        {'call': 1, 'complete_batch': 1},
+        {'verify': 1, 'session_insert_race': 1},
+        ['-2000', 'done'],
+    ),
+    (
         'complete_then_session',
         {'setup': 1, 'roast_race': 1},
         {'call': 1, 'complete_batch': 1, 'hold': 1},
