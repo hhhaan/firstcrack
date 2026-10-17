@@ -61,6 +61,10 @@ export interface PollCursor {
 export interface FetchOrdersResult {
     orders: CanonicalOrder[];
     nextCursor: PollCursor;
+    /** True when the incoming poll cursor was republished (e.g. Naver detail fetch incomplete). */
+    cursorHeld?: boolean;
+    /** Success-run note for order_sync_runs.error_message (operator visibility). */
+    syncNote?: string;
 }
 
 export interface TestConnectionResult {

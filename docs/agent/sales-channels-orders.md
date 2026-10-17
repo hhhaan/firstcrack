@@ -111,7 +111,11 @@ index). `order-sync` reclaims rows older than 10 min, caps connections per invoc
 wall-clock budget — a hard kill must never strand a connection.
 
 **Watermark:** every adapter returns its cursor through `_shared/channels/poll-cursor.ts`. Hitting a
-page cap means `complete: false` and the watermark stays put; advancing it drops unread orders for good.
+page cap means `complete: false`, the time watermark stays put, and the platform page token (`poll_cursor.token`)
+is persisted so the next run resumes instead of re-reading from offset 0. Advancing the time watermark without
+finishing the page walk drops unread orders for good. Naver `product-orders/query` failures republish the
+incoming cursor (no degraded placeholder lines); `order_sync_runs.error_message` records the hold and Sentry
+tags `naver_cursor_held` for operator visibility.
 
 **Token rotation:** adapters that mint credentials mid-call must hand them to the
 `SecretsRotationSink` they are given. `_shared/channels/secrets-session.ts` is the only writer of

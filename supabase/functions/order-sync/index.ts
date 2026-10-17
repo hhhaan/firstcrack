@@ -85,7 +85,11 @@ async function syncOne(
         if (refreshed) await session.rotate(refreshed);
 
         const cursor = (conn.poll_cursor ?? {}) as PollCursor;
-        const { orders, nextCursor } = await adapter.fetchOrdersSince(session.current(), cursor, session.rotate);
+        const { orders, nextCursor, syncNote } = await adapter.fetchOrdersSince(
+            session.current(),
+            cursor,
+            session.rotate,
+        );
         const { upserted, stockEventSkips } = await upsertCanonicalOrders(
             admin,
             {
@@ -111,16 +115,23 @@ async function syncOne(
             .eq('id', conn.id);
         if (cursorError) throw new Error('Failed to save poll cursor', { cause: cursorError });
 
+        const runNotes = [
+            stockEventSkips.length
+                ? `stock events skipped: ${JSON.stringify(stockEventSkips).slice(0, 400)}`
+                : '',
+            syncNote ?? '',
+        ]
+            .filter(Boolean)
+            .join('; ')
+            .slice(0, 1000);
+
         const { error: runError } = await admin
             .from('order_sync_runs')
             .update({
                 status: 'success',
                 finished_at: now,
                 orders_upserted: upserted,
-                // Success run with refused deductions: keep the evidence on the run row.
-                ...(stockEventSkips.length
-                    ? { error_message: `stock events skipped: ${JSON.stringify(stockEventSkips).slice(0, 900)}` }
-                    : {}),
+                ...(runNotes ? { error_message: runNotes } : {}),
             })
             .eq('id', run.id);
         if (runError) throw new Error('Failed to finish sync run', { cause: runError });
