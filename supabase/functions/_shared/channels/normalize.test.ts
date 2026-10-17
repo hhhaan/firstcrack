@@ -195,6 +195,37 @@ describe('parseBatchResult held payloads', () => {
             ],
         });
     });
+
+    it('defaults missing held fields when RPC predates the hold migration', async () => {
+        const supabase = {
+            from: () => ({
+                select: () => ({
+                    eq: () => ({
+                        eq: () => Promise.resolve({ data: [] }),
+                        not: () => Promise.resolve({ data: [] }),
+                    }),
+                }),
+            }),
+            rpc: () =>
+                Promise.resolve({
+                    data: {
+                        upserted: 0,
+                        cancelledCompensations: 0,
+                        autoFulfillments: 0,
+                        stockEventSkips: [],
+                    },
+                    error: null,
+                }),
+        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+
+        await expect(
+            upsertCanonicalOrders(
+                supabase,
+                { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+                [],
+            ),
+        ).resolves.toMatchObject({ heldFulfillments: 0, fulfillmentHolds: [] });
+    });
 });
 
 describe('product matching (#131 unmapped lines silently skip stock deduction)', () => {
