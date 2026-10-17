@@ -1,4 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    CAFE24_ITEMLESS_ORDER_ID,
+    cafe24ItemlessDetailOrder,
+    cafe24ItemlessWebhookPayload,
+    cafe24Line,
+} from './_shared/channels/cafe24-test-fixtures.ts';
 
 type Query = { table: string; operation: string; values: Record<string, unknown>; single: boolean };
 type Result = { data?: unknown; error?: unknown };
@@ -312,17 +318,7 @@ describe('Cafe24 webhook', () => {
         expect(mocks.upsert).not.toHaveBeenCalled();
     });
 
-    it('fetches order detail when the webhook omits items (#903)', async () => {
-        const itemless = {
-            event_no: 90023,
-            order_id: '20200717-0029236',
-            resource: {
-                mall_id: 'demo',
-                order_id: '20200717-0029236',
-                paid: 'T',
-                order_date: '2026-10-16T00:00:00Z',
-            },
-        };
+    function mockCafe24SecretsAndFetch(detail: Record<string, unknown> | null, fetchStatus = 200) {
         mocks.query.mockImplementation((q) => {
             if (q.table === 'sales_channel_secrets') {
                 return { data: { credentials: { mall_id: 'demo', access_token: 'tok' } } };
@@ -331,26 +327,24 @@ describe('Cafe24 webhook', () => {
         });
         vi.stubGlobal('fetch', async (input: URL | string) => {
             const url = String(input);
-            if (url.includes('/orders/20200717-0029236')) {
-                return new Response(
-                    JSON.stringify({
-                        order: {
-                            order_id: '20200717-0029236',
-                            paid: 'T',
-                            canceled: 'F',
-                            order_date: '2026-10-16T00:00:00Z',
-                            actual_order_amount: { order_price_amount: '15000' },
-                            items: [
-                                { order_item_code: 'line-active', order_status: 'N20', quantity: 1, product_name: 'A' },
-                                { order_item_code: 'line-c40', order_status: 'C40', quantity: 1, product_name: 'B' },
-                            ],
-                        },
-                    }),
-                    { status: 200 },
-                );
+            if (url.includes(`/orders/${CAFE24_ITEMLESS_ORDER_ID}`)) {
+                if (fetchStatus !== 200 || !detail) {
+                    return new Response('error', { status: fetchStatus });
+                }
+                return new Response(JSON.stringify({ order: detail }), { status: 200 });
             }
             return new Response('{}', { status: 404 });
         });
+    }
+
+    it('fetches order detail when the webhook omits items (#903)', async () => {
+        const itemless = cafe24ItemlessWebhookPayload();
+        mockCafe24SecretsAndFetch(
+            cafe24ItemlessDetailOrder([
+                cafe24Line('line-active', 'N20', 1, { product_name: 'A' }),
+                cafe24Line('line-c40', 'C40', 1, { product_name: 'B' }),
+            ]),
+        );
         const response = await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' });
         expect(response.status).toBe(200);
         expect(mocks.upsert).toHaveBeenCalledOnce();
@@ -367,17 +361,8 @@ describe('Cafe24 webhook', () => {
     });
 
     it('does not upsert or claim when detail fetch fails', async () => {
-        const itemless = {
-            event_no: 90023,
-            resource: { mall_id: 'demo', order_id: '20200717-0029236', paid: 'T' },
-        };
-        mocks.query.mockImplementation((q) => {
-            if (q.table === 'sales_channel_secrets') {
-                return { data: { credentials: { mall_id: 'demo', access_token: 'tok' } } };
-            }
-            return defaultResult(q);
-        });
-        vi.stubGlobal('fetch', async () => new Response('error', { status: 500 }));
+        const itemless = cafe24ItemlessWebhookPayload();
+        mockCafe24SecretsAndFetch(null, 500);
         expect((await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' })).status).toBe(500);
         expect(mocks.upsert).not.toHaveBeenCalled();
         expect(
@@ -387,21 +372,8 @@ describe('Cafe24 webhook', () => {
     });
 
     it('does not upsert when detail returns empty items', async () => {
-        const itemless = {
-            event_no: 90023,
-            resource: { mall_id: 'demo', order_id: '20200717-0029236', paid: 'T' },
-        };
-        mocks.query.mockImplementation((q) => {
-            if (q.table === 'sales_channel_secrets') {
-                return { data: { credentials: { mall_id: 'demo', access_token: 'tok' } } };
-            }
-            return defaultResult(q);
-        });
-        vi.stubGlobal('fetch', async () =>
-            new Response(JSON.stringify({ order: { order_id: '20200717-0029236', paid: 'T', items: [] } }), {
-                status: 200,
-            }),
-        );
+        const itemless = cafe24ItemlessWebhookPayload();
+        mockCafe24SecretsAndFetch(cafe24ItemlessDetailOrder([]));
         expect((await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' })).status).toBe(500);
         expect(mocks.upsert).not.toHaveBeenCalled();
         vi.unstubAllGlobals();

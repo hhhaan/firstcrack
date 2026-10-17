@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cafe24ShipmentsResponse } from './cafe24-test-fixtures.ts';
 import { cafe24Adapter } from './cafe24.ts';
 import type { ChannelSecrets } from './types.ts';
 
@@ -29,6 +30,13 @@ function stubFetch(handlers: {
     });
 }
 
+function shipmentWithCodes(codes: string[], nested = false): Array<Record<string, unknown>> {
+    if (nested) {
+        return [{ tracking_no: 'TRACK-1', items: codes.map((order_item_code) => ({ order_item_code })) }];
+    }
+    return [{ tracking_no: 'TRACK-1', order_item_code: codes }];
+}
+
 describe('cafe24Adapter.markShipped (#905)', () => {
     afterEach(() => {
         vi.unstubAllGlobals();
@@ -37,7 +45,7 @@ describe('cafe24Adapter.markShipped (#905)', () => {
     it('fails on unrelated 409 when no shipment matches', async () => {
         stubFetch({
             post: () => new Response('Synthetic state conflict: no shipment was created', { status: 409 }),
-            getShipments: () => new Response(JSON.stringify({ shipments: [] }), { status: 200 }),
+            getShipments: () => cafe24ShipmentsResponse([]),
         });
         const result = await cafe24Adapter.markShipped(secrets, req, noRotate);
         expect(result.ok).toBe(false);
@@ -48,7 +56,7 @@ describe('cafe24Adapter.markShipped (#905)', () => {
         for (const body of ['already shipped', '이미 출고된 주문입니다']) {
             stubFetch({
                 post: () => new Response(body, { status: 422 }),
-                getShipments: () => new Response(JSON.stringify({ shipments: [] }), { status: 200 }),
+                getShipments: () => cafe24ShipmentsResponse([]),
             });
             const result = await cafe24Adapter.markShipped(secrets, req, noRotate);
             expect(result.ok).toBe(false);
@@ -59,18 +67,7 @@ describe('cafe24Adapter.markShipped (#905)', () => {
     it('succeeds as alreadyShipped when GET lists matching tracking and item codes', async () => {
         stubFetch({
             post: () => new Response('conflict', { status: 409 }),
-            getShipments: () =>
-                new Response(
-                    JSON.stringify({
-                        shipments: [
-                            {
-                                tracking_no: 'TRACK-1',
-                                order_item_code: ['item-a', 'item-b'],
-                            },
-                        ],
-                    }),
-                    { status: 200 },
-                ),
+            getShipments: () => cafe24ShipmentsResponse(shipmentWithCodes(['item-a', 'item-b'])),
         });
         const result = await cafe24Adapter.markShipped(secrets, req, noRotate);
         expect(result).toMatchObject({ ok: true, alreadyShipped: true });
@@ -80,18 +77,7 @@ describe('cafe24Adapter.markShipped (#905)', () => {
     it('accepts nested items[].order_item_code on shipments', async () => {
         stubFetch({
             post: () => new Response('conflict', { status: 409 }),
-            getShipments: () =>
-                new Response(
-                    JSON.stringify({
-                        shipments: [
-                            {
-                                tracking_no: 'TRACK-1',
-                                items: [{ order_item_code: 'item-a' }, { order_item_code: 'item-b' }],
-                            },
-                        ],
-                    }),
-                    { status: 200 },
-                ),
+            getShipments: () => cafe24ShipmentsResponse(shipmentWithCodes(['item-a', 'item-b'], true)),
         });
         const result = await cafe24Adapter.markShipped(secrets, req, noRotate);
         expect(result.ok).toBe(true);
@@ -101,13 +87,7 @@ describe('cafe24Adapter.markShipped (#905)', () => {
     it('fails when tracking matches but item codes are only a subset', async () => {
         stubFetch({
             post: () => new Response('conflict', { status: 409 }),
-            getShipments: () =>
-                new Response(
-                    JSON.stringify({
-                        shipments: [{ tracking_no: 'TRACK-1', order_item_code: ['item-a'] }],
-                    }),
-                    { status: 200 },
-                ),
+            getShipments: () => cafe24ShipmentsResponse(shipmentWithCodes(['item-a'])),
         });
         const result = await cafe24Adapter.markShipped(secrets, req, noRotate);
         expect(result.ok).toBe(false);
