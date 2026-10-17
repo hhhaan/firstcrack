@@ -61,7 +61,8 @@ export const BlendRoastedModal = ({ open, onClose }: Props) => {
     }, [open]);
 
     const inputSum = useMemo(() => Object.values(inputs).reduce((a, b) => a + (b || 0), 0), [inputs]);
-    const canSubmit = !!blendId && !!selected && inputSum > 0 && outputGrams > 0 && !isPending;
+    const canSubmit =
+        !!blendId && !!selected && inputSum > 0 && outputGrams > 0 && outputGrams <= inputSum && !isPending;
 
     if (!open) return null;
 

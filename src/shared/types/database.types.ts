@@ -2201,6 +2201,13 @@ export type Database = {
                 Returns: number;
             };
             cancel_order: { Args: { p_order_id: string }; Returns: undefined };
+            order_line_outstanding_units: {
+                Args: { p_line_id: string };
+                Returns: {
+                    product_id: string;
+                    units: number;
+                }[];
+            };
             channel_try_integer: { Args: { p_value: string }; Returns: number };
             channel_try_timestamptz: { Args: { p_value: string }; Returns: string };
             compute_inventory_alerts: {
