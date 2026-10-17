@@ -62,7 +62,7 @@ export const Sidebar = ({
             {/* Header */}
             <div
                 className={cn(
-                    'border-b border-border-subtle dark:border-[#585d61] transition-all duration-200',
+                    'group/sidebar-header border-b border-border-subtle dark:border-[#585d61] transition-all duration-200',
                     rail ? 'px-3 pt-4 pb-3.5' : collapsed ? 'px-4 pt-4 pb-3.5' : 'px-5 pt-5 pb-4',
                 )}
                 onMouseEnter={() => setIsHeaderHovered(true)}
@@ -77,6 +77,7 @@ export const Sidebar = ({
                                     isHeaderHovered && !rail
                                         ? 'opacity-0 scale-90 invisible'
                                         : 'opacity-100 scale-100 visible',
+                                    !rail && 'group-focus-within/sidebar-header:opacity-0',
                                 )}
                             >
                                 <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
@@ -85,12 +86,15 @@ export const Sidebar = ({
                                 type="button"
                                 onClick={onToggleCollapse}
                                 aria-label={t('sidebar.expand')}
+                                aria-expanded={false}
                                 title={t('sidebar.expand')}
                                 className={cn(
                                     'absolute inset-0 w-9 h-9 rounded-lg border-none bg-transparent text-primary flex items-center justify-center cursor-pointer shrink-0 transition-all duration-200 hover:bg-surface hover:shadow-(--shadow-inset)',
                                     isHeaderHovered && !rail
                                         ? 'opacity-100 scale-100 visible'
-                                        : 'opacity-0 scale-90 invisible',
+                                        : rail
+                                          ? 'opacity-0 scale-90 invisible'
+                                          : 'opacity-0 scale-90 focus:opacity-100 focus:scale-100 focus-visible:outline-2 focus-visible:outline-primary',
                                 )}
                                 disabled={rail}
                                 tabIndex={rail ? -1 : undefined}
@@ -117,6 +121,7 @@ export const Sidebar = ({
                                 type="button"
                                 onClick={onToggleCollapse}
                                 aria-label={t('sidebar.collapse')}
+                                aria-expanded={true}
                                 title={t('sidebar.collapse')}
                                 className="w-9 h-9 rounded-lg border-none bg-transparent text-muted flex items-center justify-center cursor-pointer shrink-0 transition-all duration-200 hover:bg-surface hover:shadow-(--shadow-inset) hover:text-primary"
                             >
