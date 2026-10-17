@@ -2,50 +2,7 @@
 -- psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -v owner=11111111-1111-1111-1111-111111111111 -f supabase/tests/ledger_preservation.sql
 BEGIN;
 SELECT set_config('test.owner', :'owner', true);
-
-CREATE OR REPLACE FUNCTION pg_temp.ledger_fixture_line(
-  p_platform_line_id text,
-  p_product_id uuid,
-  p_quantity integer,
-  p_title text DEFAULT 'Coffee',
-  p_unit_price integer DEFAULT 1000,
-  p_line_status text DEFAULT 'active'
-) RETURNS jsonb
-LANGUAGE sql
-IMMUTABLE
-AS $$
-  SELECT jsonb_build_object(
-    'platformLineId', p_platform_line_id,
-    'productId', p_product_id,
-    'title', p_title,
-    'quantity', p_quantity,
-    'unitPrice', p_unit_price,
-    'status', p_line_status
-  );
-$$;
-
-CREATE OR REPLACE FUNCTION pg_temp.ledger_fixture_order(
-  p_platform_order_id text,
-  p_status text,
-  p_ordered_at text,
-  p_total_amount integer,
-  p_lines jsonb,
-  p_buyer_name text DEFAULT NULL
-) RETURNS jsonb
-LANGUAGE sql
-IMMUTABLE
-AS $$
-  SELECT jsonb_build_object(
-    'platformOrderId', p_platform_order_id,
-    'status', p_status,
-    'orderedAt', p_ordered_at,
-    'buyerName', p_buyer_name,
-    'currency', 'KRW',
-    'totalAmount', p_total_amount,
-    'raw', '{}'::jsonb,
-    'lines', p_lines
-  );
-$$;
+\ir channel_sync_fixture_helpers.sql
 
 DO $$
 DECLARE
@@ -85,19 +42,19 @@ BEGIN
 
   -- Fulfillment branch requires ol.status = 'active' (refunded line skipped).
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'active-filter-1', 'paid', '2026-10-17T09:00:00Z', 2,
       jsonb_build_array(
-        pg_temp.ledger_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
-        pg_temp.ledger_fixture_line('af-b', v_product_af, 1, 'B', 1, 'refunded')
+        pg_temp.channel_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
+        pg_temp.channel_fixture_line('af-b', v_product_af, 1, 'B', 1, 'refunded')
       ),
       'A'
     ),
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'active-filter-1', 'shipped', '2026-10-17T09:00:00Z', 2,
       jsonb_build_array(
-        pg_temp.ledger_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
-        pg_temp.ledger_fixture_line('af-b', v_product_af, 1, 'B', 1, 'refunded')
+        pg_temp.channel_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
+        pg_temp.channel_fixture_line('af-b', v_product_af, 1, 'B', 1, 'refunded')
       ),
       'A'
     )
@@ -111,16 +68,16 @@ BEGIN
 
   -- #890: qty 1 paid, then shipped with qty 3 must deduct 3; cancel restores 3 (stock 20).
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-change-1', 'paid', '2026-10-17T10:00:00Z', 1000,
-      jsonb_build_array(pg_temp.ledger_fixture_line('line-1', v_product_id, 1, 'Coffee', 1000, 'active')),
+      jsonb_build_array(pg_temp.channel_fixture_line('line-1', v_product_id, 1, 'Coffee', 1000, 'active')),
       'A'
     )
   ));
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-change-1', 'shipped', '2026-10-17T10:00:00Z', 3000,
-      jsonb_build_array(pg_temp.ledger_fixture_line('line-1', v_product_id, 3, 'Coffee', 1000, 'active')),
+      jsonb_build_array(pg_temp.channel_fixture_line('line-1', v_product_id, 3, 'Coffee', 1000, 'active')),
       'A'
     )
   ));
@@ -133,9 +90,9 @@ BEGIN
   ASSERT stock_units = 17, 'stock after ship';
 
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-change-1', 'cancelled', '2026-10-17T10:00:00Z', 0,
-      jsonb_build_array(pg_temp.ledger_fixture_line('line-1', v_product_id, 3, 'Coffee', 0, 'cancelled')),
+      jsonb_build_array(pg_temp.channel_fixture_line('line-1', v_product_id, 3, 'Coffee', 0, 'cancelled')),
       'A'
     )
   ));
@@ -145,9 +102,9 @@ BEGIN
     'cancel event matches fulfillment';
 
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-change-1', 'cancelled', '2026-10-17T10:00:00Z', 0,
-      jsonb_build_array(pg_temp.ledger_fixture_line('line-1', v_product_id, 3, 'Coffee', 0, 'cancelled')),
+      jsonb_build_array(pg_temp.channel_fixture_line('line-1', v_product_id, 3, 'Coffee', 0, 'cancelled')),
       'A'
     )
   ));
@@ -161,16 +118,16 @@ BEGIN
   VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
 
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-drift-1', 'paid', '2026-10-17T12:00:00Z', 1000,
-      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 1, 'Coffee', 1000, 'active')),
+      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 1, 'Coffee', 1000, 'active')),
       'A'
     )
   ));
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-drift-1', 'shipped', '2026-10-17T12:00:00Z', 1000,
-      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 1, 'Coffee', 1000, 'active')),
+      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 1, 'Coffee', 1000, 'active')),
       'A'
     )
   ));
@@ -182,9 +139,9 @@ BEGIN
   ASSERT stock_units = 19, 'stock after ship 1';
 
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-drift-1', 'shipped', '2026-10-17T12:00:00Z', 3000,
-      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 1000, 'active')),
+      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 1000, 'active')),
       'A'
     )
   ));
@@ -193,9 +150,9 @@ BEGIN
   ASSERT stock_units = 19, 'no second fulfillment after already shipped';
 
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-drift-1', 'cancelled', '2026-10-17T12:00:00Z', 0,
-      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 0, 'cancelled')),
+      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 0, 'cancelled')),
       'A'
     )
   ));
@@ -205,9 +162,9 @@ BEGIN
     'sync cancel event is 1 not line qty';
 
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-drift-1', 'cancelled', '2026-10-17T12:00:00Z', 0,
-      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 0, 'cancelled')),
+      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 0, 'cancelled')),
       'A'
     )
   ));
@@ -222,23 +179,23 @@ BEGIN
   VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
 
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-drift-2', 'paid', '2026-10-17T12:30:00Z', 1000,
-      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line-2', v_product_id2, 1, 'Coffee', 1000, 'active')),
+      jsonb_build_array(pg_temp.channel_fixture_line('drift-line-2', v_product_id2, 1, 'Coffee', 1000, 'active')),
       'A'
     )
   ));
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-drift-2', 'shipped', '2026-10-17T12:30:00Z', 1000,
-      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line-2', v_product_id2, 1, 'Coffee', 1000, 'active')),
+      jsonb_build_array(pg_temp.channel_fixture_line('drift-line-2', v_product_id2, 1, 'Coffee', 1000, 'active')),
       'A'
     )
   ));
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'qty-drift-2', 'shipped', '2026-10-17T12:30:00Z', 3000,
-      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line-2', v_product_id2, 3, 'Coffee', 1000, 'active')),
+      jsonb_build_array(pg_temp.channel_fixture_line('drift-line-2', v_product_id2, 3, 'Coffee', 1000, 'active')),
       'A'
     )
   ));
@@ -261,27 +218,27 @@ BEGIN
   DELETE FROM product_stock_events WHERE user_id = owner_id;
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type) VALUES (owner_id, v_product_id, 10, 'roast_inbound');
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'partial-refund-1', 'paid', '2026-10-17T11:00:00Z', 2,
       jsonb_build_array(
-        pg_temp.ledger_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
-        pg_temp.ledger_fixture_line('pb', v_product_id, 1, 'B', 1, 'active')
+        pg_temp.channel_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
+        pg_temp.channel_fixture_line('pb', v_product_id, 1, 'B', 1, 'active')
       )
     ),
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'partial-refund-1', 'shipped', '2026-10-17T11:00:00Z', 2,
       jsonb_build_array(
-        pg_temp.ledger_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
-        pg_temp.ledger_fixture_line('pb', v_product_id, 1, 'B', 1, 'active')
+        pg_temp.channel_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
+        pg_temp.channel_fixture_line('pb', v_product_id, 1, 'B', 1, 'active')
       )
     )
   ));
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.ledger_fixture_order(
+    pg_temp.channel_fixture_order(
       'partial-refund-1', 'refunded', '2026-10-17T11:00:00Z', 1,
       jsonb_build_array(
-        pg_temp.ledger_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
-        pg_temp.ledger_fixture_line('pb', v_product_id, 1, 'B', 1, 'refunded')
+        pg_temp.channel_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
+        pg_temp.channel_fixture_line('pb', v_product_id, 1, 'B', 1, 'refunded')
       )
     )
   ));
