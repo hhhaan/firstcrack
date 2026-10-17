@@ -1913,6 +1913,7 @@
         "freeLabel": "직접 라벨",
         "freeLabelPlaceholder": "예: Blind A, 대회 랏…",
         "noRoasts": "완료된 로스트가 없습니다",
+        "loadMoreRoasts": "이전 로스팅 더 보기",
         "noSamples": "이 세션에 샘플이 없습니다. 커피를 추가한 뒤, 세션 QR 하나로 모든 샘플을 공유하세요.",
         "noRoastLink": "—",
         "add": "추가",
@@ -2273,6 +2274,7 @@
             "adjustment": "조정",
             "write_off": "폐기",
             "history": "이력",
+            "recentLimit": "최근 {{count}}건만 표시합니다. 이전 이력이 더 있습니다.",
             "order_fulfillment": "주문 이행",
             "order_cancel": "주문 취소"
         }

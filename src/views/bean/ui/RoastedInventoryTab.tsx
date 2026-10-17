@@ -1,13 +1,14 @@
 import { useBeans } from '@entities/bean/queries';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
-import { useRoastedStock, useRoastedStockEvents } from '@entities/roasted-stock-event';
+import { useRoastedStock } from '@entities/roasted-stock-event';
 import { AdjustStockModal } from '@features/adjust-stock';
 import { Badge } from '@shared/ui/Badge';
 import { TableSkeleton } from '@shared/ui/TableSkeleton';
 import { Coffee, Search, SlidersHorizontal } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RoastedStockHistory } from './RoastedStockHistory';
 
 const fmtKg = (grams: number) => `${(grams / 1000).toFixed(2)} kg`;
 
@@ -26,7 +27,6 @@ export const RoastedInventoryTab = () => {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: stock = {}, isLoading } = useRoastedStock(userId);
-    const { data: events = [] } = useRoastedStockEvents(userId);
     const { data: beans = [] } = useBeans(userId);
     const { data: blends = [] } = useBlends(userId);
     const [search, setSearch] = useState('');
@@ -114,9 +114,6 @@ export const RoastedInventoryTab = () => {
                         </thead>
                         <tbody>
                             {rows.map((r) => {
-                                const history = events.filter((e) =>
-                                    r.kind === 'bean' ? e.bean_id === r.id : e.blend_id === r.id,
-                                );
                                 return (
                                     <Fragment key={r.key}>
                                         <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
@@ -177,43 +174,7 @@ export const RoastedInventoryTab = () => {
                                                     colSpan={5}
                                                     className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20"
                                                 >
-                                                    <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                                                        {t('inventory.event.history')}
-                                                    </p>
-                                                    {history.length === 0 ? (
-                                                        <p className="text-[12px] text-muted">—</p>
-                                                    ) : (
-                                                        <ul className="max-h-28 space-y-1.5 overflow-y-auto">
-                                                            {history.slice(0, 20).map((ev) => (
-                                                                <li
-                                                                    key={ev.id}
-                                                                    className="flex gap-2 font-mono text-[12px] text-secondary"
-                                                                >
-                                                                    <span
-                                                                        className={
-                                                                            ev.delta_grams > 0
-                                                                                ? 'text-palette-green'
-                                                                                : 'text-palette-purple'
-                                                                        }
-                                                                    >
-                                                                        {ev.delta_grams > 0 ? '+' : ''}
-                                                                        {ev.delta_grams}g
-                                                                    </span>
-                                                                    <span>
-                                                                        {t(`inventory.event.${ev.event_type}`, {
-                                                                            defaultValue: ev.event_type,
-                                                                        })}
-                                                                    </span>
-                                                                    {ev.note ? (
-                                                                        <span className="text-muted">— {ev.note}</span>
-                                                                    ) : null}
-                                                                    <span className="ml-auto text-muted">
-                                                                        {new Date(ev.created_at).toLocaleDateString()}
-                                                                    </span>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    )}
+                                                    <RoastedStockHistory userId={userId} lot={r} />
                                                 </td>
                                             </tr>
                                         )}

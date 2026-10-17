@@ -1,5 +1,5 @@
 import { isOptimisticId } from '@shared/lib/optimistic-id';
-import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import type { Bean } from '@shared/types/database.types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { beanApi } from './api';
@@ -66,6 +66,7 @@ export const useCreateBean = (userId: string) => {
             const tempId = ctx?.tempId;
             qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) => replaceOptimisticBean(old, realBean, tempId));
             qc.setQueryData(beanKeys.detail(realBean.id), realBean);
+            void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
             if (tempId) qc.removeQueries({ queryKey: beanKeys.detail(tempId) });
         },
     });
@@ -95,6 +96,7 @@ export const useUpdateBean = (userId: string) => {
                 old.map((b) => (b.id === updated.id ? updated : b)),
             );
             qc.setQueryData(beanKeys.detail(updated.id), updated);
+            void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
         },
     });
 };
@@ -114,6 +116,7 @@ export const useDeleteBean = (userId: string) => {
         },
         onSuccess: (_data, id) => {
             qc.removeQueries({ queryKey: beanKeys.detail(id) });
+            void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
             qc.removeQueries({ queryKey: [...inventoryQueryRoots.beanStockEvents, id] });
             qc.removeQueries({ queryKey: [...inventoryQueryRoots.beanStockSummary, id] });
         },

@@ -1,6 +1,6 @@
 import { roastedStockKeys } from '@shared/lib/query-keys';
 import { type QueryClient, useQuery } from '@tanstack/react-query';
-import { roastedStockEventApi } from './api';
+import { type RoastedStockLot, roastedStockEventApi } from './api';
 
 export { roastedStockKeys };
 
@@ -23,9 +23,9 @@ export const useRoastedStock = (userId: string, enabled = true) =>
         enabled: !!userId && enabled,
     });
 
-export const useRoastedStockEvents = (userId: string, enabled = true) =>
+export const useRoastedStockEvents = (userId: string, lot: RoastedStockLot) =>
     useQuery({
-        queryKey: roastedStockKeys.events(userId),
-        queryFn: () => roastedStockEventApi.listByUser(userId, 200),
-        enabled: !!userId && enabled,
+        queryKey: roastedStockKeys.lotEvents(userId, lot.kind, lot.id),
+        queryFn: () => roastedStockEventApi.listByLot(userId, lot),
+        enabled: !!userId && !!lot.id,
     });

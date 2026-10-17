@@ -99,9 +99,12 @@ export const useInsertStockEvent = () => {
             void qc.invalidateQueries({ queryKey: stockEventKeys.purchaseCostsRoot });
             void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
             if (newEvent.user_id) {
-                await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
-                void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
-                void qc.invalidateQueries({ queryKey: dashboardKeys.all(newEvent.user_id) });
+                try {
+                    await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
+                } finally {
+                    void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
+                    void qc.invalidateQueries({ queryKey: dashboardKeys.all(newEvent.user_id) });
+                }
             }
         },
     });

@@ -193,16 +193,23 @@ export const GeneralSettingsTab = () => {
     // const activeTheme = theme ?? 'system';
     const [horizonDays, setHorizonDays] = useState<number | ''>(STOCK_HORIZON_DAYS);
     const savedHorizonRef = useRef(STOCK_HORIZON_DAYS);
+    const horizonGenerationRef = useRef(0);
 
     useEffect(() => {
+        let cancelled = false;
+        const generation = horizonGenerationRef.current;
         void inventoryStore.getHorizonDays().then((days) => {
+            if (cancelled || generation !== horizonGenerationRef.current) return;
             savedHorizonRef.current = days;
             setHorizonDays(days);
         });
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     const saveHorizon = async (value: number) => {
-        const next = Math.max(1, Math.min(365, value));
+        const next = Math.max(1, Math.min(365, Math.round(value)));
         savedHorizonRef.current = next;
         setHorizonDays(next);
         await inventoryStore.setHorizonDays(next);
@@ -249,6 +256,7 @@ export const GeneralSettingsTab = () => {
                             max={365}
                             value={horizonDays}
                             onChange={(event) => {
+                                horizonGenerationRef.current++;
                                 const raw = event.currentTarget.value;
                                 if (raw === '') {
                                     setHorizonDays('');

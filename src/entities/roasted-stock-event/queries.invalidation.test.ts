@@ -21,7 +21,7 @@ describe('roasted/product stock key nesting', () => {
     it('invalidate(byUser) marks nested roasted events stale (deduct/save/package/blend/delete)', async () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
         const uid = 'user-1';
-        const eventsKey = roastedStockKeys.events(uid);
+        const eventsKey = roastedStockKeys.lotEvents(uid, 'bean', 'quiet');
         const siblingKey = [...inventoryQueryRoots.roastedStock, 'events', uid] as const;
         qc.setQueryData(eventsKey, [{ id: 'ev-1' }]);
         qc.setQueryData(siblingKey, [{ id: 'stale-sibling' }]);

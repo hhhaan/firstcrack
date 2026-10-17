@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -109,5 +110,45 @@ describe('AccountSettingsTab display name', () => {
 
         await act(async () => saveButton().click());
         expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Ada Lovelace' }));
+    });
+    it('keeps all edited fields when an unrelated profile cache update arrives', async () => {
+        act(() => {
+            setInputValue(displayNameInput(), 'Draft');
+            setInputValue(container.querySelector('#account-business-name') as HTMLInputElement, 'Roastery');
+            setInputValue(container.querySelector('#account-business-reg') as HTMLInputElement, '123');
+            setInputValue(container.querySelector('#account-location') as HTMLInputElement, '37, 127');
+        });
+        mocks.profile = { ...mocks.profile };
+        act(() => root.render(createElement(AccountSettingsTab, { onClose: () => {} })));
+        expect(displayNameInput().value).toBe('Draft');
+        vi.mocked(parseLocationString).mockReturnValueOnce({ lat: 37, lng: 127 });
+        await act(async () => saveButton().click());
+        expect(mocks.mutateAsync).toHaveBeenCalledWith({
+            display_name: 'Draft',
+            business_name: 'Roastery',
+            business_registration_number: '123',
+        });
+        expect(locationStore.set).toHaveBeenCalledWith({ lat: 37, lng: 127 });
+    });
+
+    it('clears pristine fields when the cached server values become empty', () => {
+        mocks.profile = { ...mocks.profile, display_name: '', business_name: null };
+        act(() => root.render(createElement(AccountSettingsTab, { onClose: () => {} })));
+        expect(displayNameInput().value).toBe('');
+    });
+
+    it('does not overwrite coordinates typed before a delayed location read resolves', async () => {
+        act(() => root.unmount());
+        let resolveRead!: (value: { lat: number; lng: number }) => void;
+        vi.mocked(locationStore.get).mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveRead = resolve;
+            }),
+        );
+        root = createRoot(container);
+        act(() => root.render(createElement(AccountSettingsTab, { onClose: () => {} })));
+        act(() => setInputValue(container.querySelector('#account-location') as HTMLInputElement, '37, 127'));
+        await act(async () => resolveRead({ lat: 1, lng: 2 }));
+        expect(container.querySelector<HTMLInputElement>('#account-location')?.value).toBe('37, 127');
     });
 });

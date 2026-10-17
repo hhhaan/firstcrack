@@ -20,13 +20,15 @@ export interface OrderDispatch {
 }
 
 export const orderDispatchApi = {
-    listByUser: async (userId: string): Promise<OrderDispatch[]> => {
+    listByOrders: async (userId: string, orderIds: string[]): Promise<OrderDispatch[]> => {
+        if (!orderIds.length) return [];
         const { data, error } = await supabase
             .from('order_dispatches')
             .select(
                 'id, user_id, order_id, connection_id, carrier, tracking_number, status, attempt_count, last_error, line_results, requested_at, sent_at, confirmed_at, updated_at',
             )
-            .eq('user_id', userId);
+            .eq('user_id', userId)
+            .in('order_id', orderIds);
         if (error) throw error;
         return (data ?? []) as OrderDispatch[];
     },

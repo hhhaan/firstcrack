@@ -1,7 +1,12 @@
-import { inventoryQueryRoots, planQueryRoots } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots, planQueryRoots } from '@shared/lib/query-keys';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { invalidateAfterCreatePlanBatch, planKeys, scheduledBatchInvalidationKeys } from './queries';
+import {
+    invalidateAfterCreatePlanBatch,
+    invalidateScheduledBatchQueries,
+    planKeys,
+    scheduledBatchInvalidationKeys,
+} from './queries';
 
 describe('plan mutation invalidation', () => {
     it('scheduled keys are planQueryRoots prefixes (staleTime Infinity guard)', () => {
@@ -27,5 +32,14 @@ describe('plan mutation invalidation', () => {
         for (const root of scheduledBatchInvalidationKeys()) {
             expect(keys).toContainEqual(root);
         }
+    });
+    it('invalidates a fresh dashboard cache immediately after a schedule write', () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60_000 } } });
+        const key = dashboardKeys.all('owner');
+        qc.setQueryData(key, { upcomingBatches: [{ id: 'batch' }] });
+        expect(qc.getQueryState(key)?.isInvalidated).toBe(false);
+        invalidateScheduledBatchQueries(qc);
+        expect(qc.getQueryState(key)?.isInvalidated).toBe(true);
+        qc.clear();
     });
 });

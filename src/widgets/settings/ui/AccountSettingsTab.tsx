@@ -61,23 +61,28 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const [businessName, setBusinessName] = useState('');
     const [businessRegNumber, setBusinessRegNumber] = useState('');
     const [location, setLocation] = useState('');
+    const dirtyRef = useRef({ displayName: false, businessName: false, businessRegNumber: false, location: false });
     const [profileSaveStatus, setProfileSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (!profile) return;
-        if (profile.display_name) setDisplayName(profile.display_name);
-        if (profile.business_name) setBusinessName(profile.business_name);
-        if (profile.business_registration_number) setBusinessRegNumber(profile.business_registration_number);
+        if (!dirtyRef.current.displayName) setDisplayName(profile.display_name ?? '');
+        if (!dirtyRef.current.businessName) setBusinessName(profile.business_name ?? '');
+        if (!dirtyRef.current.businessRegNumber) setBusinessRegNumber(profile.business_registration_number ?? '');
     }, [profile]);
 
     useEffect(() => {
+        let cancelled = false;
         locationStore
             .get()
             .then((loc) => {
-                if (loc) setLocation(`${loc.lat}, ${loc.lng}`);
+                if (!cancelled && !dirtyRef.current.location && loc) setLocation(`${loc.lat}, ${loc.lng}`);
             })
             .catch((e) => logger.capture(e, { context: 'settings load location' }));
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     useEffect(
@@ -132,6 +137,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                             aria-invalid={Boolean(displayNameError)}
                             aria-describedby={displayNameError ? 'account-display-name-error' : undefined}
                             onChange={(event) => {
+                                dirtyRef.current.displayName = true;
                                 setDisplayNameTouched(true);
                                 setDisplayName(event.target.value);
                             }}
@@ -148,7 +154,10 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                             id="account-business-name"
                             value={businessName}
                             placeholder={tk('businessNamePlaceholder')}
-                            onChange={(event) => setBusinessName(event.target.value)}
+                            onChange={(event) => {
+                                dirtyRef.current.businessName = true;
+                                setBusinessName(event.target.value);
+                            }}
                             className={valueCls}
                         />
                     </FieldRow>
@@ -158,7 +167,10 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                             value={businessRegNumber}
                             inputMode="numeric"
                             placeholder={tk('businessRegNumberPlaceholder')}
-                            onChange={(event) => setBusinessRegNumber(event.target.value)}
+                            onChange={(event) => {
+                                dirtyRef.current.businessRegNumber = true;
+                                setBusinessRegNumber(event.target.value);
+                            }}
                             className={`${valueCls} tabular-nums tracking-[0.02em]`}
                         />
                     </FieldRow>
@@ -187,7 +199,10 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                             id="account-location"
                             value={location}
                             placeholder={tk('locationPlaceholder')}
-                            onChange={(event) => setLocation(event.target.value)}
+                            onChange={(event) => {
+                                dirtyRef.current.location = true;
+                                setLocation(event.target.value);
+                            }}
                             className={`${valueCls} tabular-nums`}
                         />
                     </FieldRow>

@@ -15,7 +15,7 @@ import { DateRangeFilter } from '@widgets/date-range-filter';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
 import { format, subMonths } from 'date-fns';
 import { AlertTriangle, ChevronDown, ChevronRight, Plus, Search, ShoppingBag, Truck } from 'lucide-react';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrderFilters } from '../hooks/useOrderFilters';
 import { OrdersTableSkeleton } from './OrdersSkeleton';
@@ -30,7 +30,12 @@ export function OrdersTab() {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const f = useOrderFilters();
-    const { data: page, isLoading } = useOrdersPaginated({
+    const {
+        data: page,
+        isLoading,
+        isSuccess,
+        isPlaceholderData,
+    } = useOrdersPaginated({
         userId,
         page: f.page,
         pageSize: PAGE_SIZE,
@@ -42,7 +47,10 @@ export function OrdersTab() {
     });
     const orders = page?.data ?? [];
     const total = page?.total ?? 0;
-    const { data: dispatches = [] } = useOrderDispatches(userId);
+    const { data: dispatches = [] } = useOrderDispatches(
+        userId,
+        orders.map((order) => order.id),
+    );
     const fulfill = useFulfillOrder();
     const cancel = useCancelOrder();
     const [showAdd, setShowAdd] = useState(false);
@@ -67,6 +75,17 @@ export function OrdersTab() {
     }, []);
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const { page: requestedPage, setPage } = f;
+    useEffect(() => {
+        // Placeholder rows/count belong to the previous query, not this page/filter.
+        if (isSuccess && !isPlaceholderData && page && requestedPage > totalPages) setPage(totalPages);
+    }, [isSuccess, isPlaceholderData, page, requestedPage, totalPages, setPage]);
+
+    const [nowMs, setNowMs] = useState(() => Date.now());
+    useEffect(() => {
+        const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
+        return () => window.clearInterval(timer);
+    }, []);
     const safePage = Math.min(f.page, totalPages);
     const start = (safePage - 1) * PAGE_SIZE + 1;
     const end = Math.min(safePage * PAGE_SIZE, total);
@@ -163,6 +182,7 @@ export function OrdersTab() {
                                 <OrderRow
                                     key={o.id}
                                     order={o}
+                                    nowMs={nowMs}
                                     dispatch={dispatchByOrder.get(o.id)}
                                     expanded={expandedId === o.id}
                                     onToggle={() => setExpandedId((id) => (id === o.id ? null : o.id))}
@@ -206,6 +226,7 @@ export function OrdersTab() {
 
 function OrderRow({
     order,
+    nowMs,
     dispatch,
     expanded,
     onToggle,
@@ -216,6 +237,7 @@ function OrderRow({
     onLinkLine,
 }: {
     order: OrderWithLines;
+    nowMs: number;
     dispatch?: OrderDispatch;
     expanded: boolean;
     onToggle: () => void;
@@ -226,7 +248,6 @@ function OrderRow({
     onLinkLine: (line: OrderLine) => void;
 }) {
     const { t } = useTranslation();
-    const [nowMs] = useState(() => Date.now());
     const activeLines = order.order_lines.filter((l) => l.status === 'active');
     const itemCount = activeLines.reduce((n, l) => n + l.quantity, 0);
     // No product_id ⇒ fulfill_order deducts nothing for that line and it never reaches roasting needs.

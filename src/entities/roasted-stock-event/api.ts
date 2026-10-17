@@ -4,6 +4,9 @@ import type { Database } from '@shared/types/database.types';
 export type RoastedStockEvent = Database['public']['Tables']['roasted_stock_events']['Row'];
 export type RoastedStockEventInsert = Database['public']['Tables']['roasted_stock_events']['Insert'];
 
+export type RoastedStockLot = { kind: 'bean' | 'blend'; id: string };
+export const ROASTED_HISTORY_LIMIT = 20;
+
 export type RoastedStockSummary = { grams: number; hasEstimate: boolean };
 
 export const mapRoastedStockRecord = (raw: Record<string, unknown> | null): Record<string, RoastedStockSummary> => {
@@ -30,13 +33,15 @@ export const roastedStockEventApi = {
         return mapRoastedStockRecord(data as Record<string, unknown> | null);
     },
 
-    listByUser: async (userId: string, limit = 100): Promise<RoastedStockEvent[]> => {
+    listByLot: async (userId: string, lot: RoastedStockLot): Promise<RoastedStockEvent[]> => {
         const { data, error } = await supabase
             .from('roasted_stock_events')
             .select('*')
             .eq('user_id', userId)
+            .eq(lot.kind === 'bean' ? 'bean_id' : 'blend_id', lot.id)
             .order('created_at', { ascending: false })
-            .limit(limit);
+            .order('id', { ascending: false })
+            .limit(ROASTED_HISTORY_LIMIT + 1);
         if (error) throw error;
         return data ?? [];
     },
