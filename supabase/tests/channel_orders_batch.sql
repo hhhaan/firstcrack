@@ -3,6 +3,53 @@
 BEGIN;
 SELECT set_config('test.owner', :'owner', true);
 
+CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_line(
+  p_platform_line_id text,
+  p_product_id uuid,
+  p_quantity integer,
+  p_title text DEFAULT 'Coffee',
+  p_unit_price integer DEFAULT 1,
+  p_line_status text DEFAULT 'active',
+  p_platform_product_id text DEFAULT NULL,
+  p_platform_variant_id text DEFAULT NULL
+) RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT jsonb_build_object(
+    'platformLineId', p_platform_line_id,
+    'platformProductId', p_platform_product_id,
+    'platformVariantId', p_platform_variant_id,
+    'productId', p_product_id,
+    'title', p_title,
+    'quantity', p_quantity,
+    'unitPrice', p_unit_price,
+    'status', p_line_status
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_order(
+  p_platform_order_id text,
+  p_status text,
+  p_ordered_at text,
+  p_total_amount integer,
+  p_lines jsonb
+) RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT jsonb_build_object(
+    'platformOrderId', p_platform_order_id,
+    'status', p_status,
+    'orderedAt', p_ordered_at,
+    'buyerName', null,
+    'currency', 'KRW',
+    'totalAmount', p_total_amount,
+    'raw', '{}'::jsonb,
+    'lines', p_lines
+  );
+$$;
+
 DO $$
 DECLARE
   owner_id uuid := current_setting('test.owner')::uuid;
@@ -332,14 +379,15 @@ BEGIN
   DELETE FROM product_stock_events WHERE user_id=owner_id;
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id, 4, 'roast_inbound');
-  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'dual-line-short', 'status', 'shipped', 'orderedAt', '2026-10-11T02:00:00Z',
-    'buyerName', null, 'currency', 'KRW', 'totalAmount', 5, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(
-      jsonb_build_object('platformLineId', 'dual-a', 'productId', v_product_id, 'title', 'A', 'quantity', 2, 'unitPrice', 1, 'status', 'active'),
-      jsonb_build_object('platformLineId', 'dual-b', 'productId', v_product_id, 'title', 'B', 'quantity', 3, 'unitPrice', 1, 'status', 'active')
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'dual-line-short', 'shipped', '2026-10-11T02:00:00Z', 5,
+      jsonb_build_array(
+        pg_temp.channel_fixture_line('dual-a', v_product_id, 2, 'A'),
+        pg_temp.channel_fixture_line('dual-b', v_product_id, 3, 'B')
+      )
     )
-  )));
+  ));
   ASSERT result->>'heldFulfillments' = '1', 'dual-line order held';
   ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='dual-line-short'),
     'dual-line order not fulfilled';
@@ -362,20 +410,16 @@ BEGIN
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id, 5, 'roast_inbound');
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'dual-wave-early', 'status', 'shipped', 'orderedAt', '2026-10-11T03:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 4, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(
-        jsonb_build_object('platformLineId', 'dual-wave-a', 'productId', v_product_id, 'title', 'A', 'quantity', 2, 'unitPrice', 1, 'status', 'active'),
-        jsonb_build_object('platformLineId', 'dual-wave-b', 'productId', v_product_id, 'title', 'B', 'quantity', 2, 'unitPrice', 1, 'status', 'active')
+    pg_temp.channel_fixture_order(
+      'dual-wave-early', 'shipped', '2026-10-11T03:00:00Z', 4,
+      jsonb_build_array(
+        pg_temp.channel_fixture_line('dual-wave-a', v_product_id, 2, 'A'),
+        pg_temp.channel_fixture_line('dual-wave-b', v_product_id, 2, 'B')
       )
     ),
-    jsonb_build_object(
-      'platformOrderId', 'dual-wave-late', 'status', 'shipped', 'orderedAt', '2026-10-11T04:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'dual-wave-late-line', 'productId', v_product_id, 'title', 'Late', 'quantity', 2, 'unitPrice', 1, 'status', 'active'
-      ))
+    pg_temp.channel_fixture_order(
+      'dual-wave-late', 'shipped', '2026-10-11T04:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('dual-wave-late-line', v_product_id, 2, 'Late'))
     )
   ));
   ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='dual-wave-early'),
@@ -403,19 +447,13 @@ BEGIN
 
   -- Scenario 3: one in-stock + one short in the same batch — short order is held, not rolled back.
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'hold-a', 'status', 'shipped', 'orderedAt', '2026-10-11T00:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 1, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'hold-a-line', 'productId', v_product_id, 'title', 'A', 'quantity', 1, 'unitPrice', 1, 'status', 'active'
-      ))
+    pg_temp.channel_fixture_order(
+      'hold-a', 'shipped', '2026-10-11T00:00:00Z', 1,
+      jsonb_build_array(pg_temp.channel_fixture_line('hold-a-line', v_product_id, 1, 'A'))
     ),
-    jsonb_build_object(
-      'platformOrderId', 'hold-b', 'status', 'shipped', 'orderedAt', '2026-10-11T01:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 999999, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'hold-b-line', 'productId', v_product_id, 'title', 'B', 'quantity', 999999, 'unitPrice', 1, 'status', 'active'
-      ))
+    pg_temp.channel_fixture_order(
+      'hold-b', 'shipped', '2026-10-11T01:00:00Z', 999999,
+      jsonb_build_array(pg_temp.channel_fixture_line('hold-b-line', v_product_id, 999999, 'B'))
     )
   ));
   ASSERT result->>'heldFulfillments' = '1', 'one held fulfillment';
@@ -439,19 +477,13 @@ BEGIN
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id, 3, 'roast_inbound');
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'race-early', 'status', 'shipped', 'orderedAt', '2026-10-12T00:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'race-early-line', 'productId', v_product_id, 'title', 'Early', 'quantity', 2, 'unitPrice', 1, 'status', 'active'
-      ))
+    pg_temp.channel_fixture_order(
+      'race-early', 'shipped', '2026-10-12T00:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('race-early-line', v_product_id, 2, 'Early'))
     ),
-    jsonb_build_object(
-      'platformOrderId', 'race-late', 'status', 'shipped', 'orderedAt', '2026-10-12T01:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'race-late-line', 'productId', v_product_id, 'title', 'Late', 'quantity', 2, 'unitPrice', 1, 'status', 'active'
-      ))
+    pg_temp.channel_fixture_order(
+      'race-late', 'shipped', '2026-10-12T01:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('race-late-line', v_product_id, 2, 'Late'))
     )
   ));
   ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='race-early'), 'earlier order fulfilled';
@@ -470,12 +502,9 @@ BEGIN
 
   -- Resync same payloads is idempotent (no duplicate events or holds).
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'race-late', 'status', 'shipped', 'orderedAt', '2026-10-12T01:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'race-late-line', 'productId', v_product_id, 'title', 'Late', 'quantity', 2, 'unitPrice', 1, 'status', 'active'
-      ))
+    pg_temp.channel_fixture_order(
+      'race-late', 'shipped', '2026-10-12T01:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('race-late-line', v_product_id, 2, 'Late'))
     )
   ));
   ASSERT (SELECT count(*) FROM order_fulfillment_holds h JOIN orders o ON o.id=h.order_id
@@ -504,12 +533,11 @@ BEGIN
 
   -- Cancel after hold resolves the hold without cancel compensation.
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'hold-b', 'status', 'cancelled', 'orderedAt', '2026-10-11T01:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'hold-b-line', 'productId', v_product_id, 'title', 'B', 'quantity', 999999, 'unitPrice', 0, 'status', 'cancelled'
-      ))
+    pg_temp.channel_fixture_order(
+      'hold-b', 'cancelled', '2026-10-11T01:00:00Z', 0,
+      jsonb_build_array(
+        pg_temp.channel_fixture_line('hold-b-line', v_product_id, 999999, 'B', 0, 'cancelled')
+      )
     )
   ));
   ASSERT NOT EXISTS (

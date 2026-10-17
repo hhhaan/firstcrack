@@ -2,33 +2,40 @@ import { describe, expect, it } from 'vitest';
 import { buildProductMap, resolveProductId, upsertCanonicalOrders } from './normalize.ts';
 import type { CanonicalOrder, CanonicalOrderLine } from './types.ts';
 
+type UpsertSupabase = Parameters<typeof upsertCanonicalOrders>[0];
+
+const makeUpsertSupabase = (
+    rpcImpl: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: null }>,
+): UpsertSupabase =>
+    ({
+        from: () => ({
+            select: () => ({
+                eq: () => ({
+                    eq: () => Promise.resolve({ data: [] }),
+                    not: () => Promise.resolve({ data: [] }),
+                }),
+            }),
+        }),
+        rpc: rpcImpl,
+    }) as UpsertSupabase;
+
 describe('sync_channel_orders_batch boundary', () => {
     const makeSortCaptureSupabase = (upserted: number) => {
         const payloads: unknown[] = [];
-        const supabase = {
-            from: () => ({
-                select: () => ({
-                    eq: () => ({
-                        eq: () => Promise.resolve({ data: [] }),
-                        not: () => Promise.resolve({ data: [] }),
-                    }),
-                }),
-            }),
-            rpc: (_name: string, args: Record<string, unknown>) => {
-                payloads.push(args.p_orders);
-                return Promise.resolve({
-                    data: {
-                        upserted,
-                        cancelledCompensations: 0,
-                        autoFulfillments: 0,
-                        stockEventSkips: [],
-                        held: [],
-                        heldFulfillments: 0,
-                    },
-                    error: null,
-                });
-            },
-        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+        const supabase = makeUpsertSupabase((_name, args) => {
+            payloads.push(args.p_orders);
+            return Promise.resolve({
+                data: {
+                    upserted,
+                    cancelledCompensations: 0,
+                    autoFulfillments: 0,
+                    stockEventSkips: [],
+                    held: [],
+                    heldFulfillments: 0,
+                },
+                error: null,
+            });
+        });
         return { payloads, supabase };
     };
 
@@ -202,41 +209,32 @@ describe('parseBatchResult held payloads', () => {
     });
 
     it('maps held fulfillments from RPC snake_case', async () => {
-        const supabase = {
-            from: () => ({
-                select: () => ({
-                    eq: () => ({
-                        eq: () => Promise.resolve({ data: [] }),
-                        not: () => Promise.resolve({ data: [] }),
-                    }),
-                }),
+        const supabase = makeUpsertSupabase(() =>
+            Promise.resolve({
+                data: {
+                    upserted: 1,
+                    cancelledCompensations: 0,
+                    autoFulfillments: 0,
+                    stockEventSkips: [],
+                    heldFulfillments: 1,
+                    held: [
+                        {
+                            order_id: 'ord-1',
+                            platform_order_id: 'ext-1',
+                            shortages: [
+                                {
+                                    product_id: 'prod-1',
+                                    order_line_id: 'line-1',
+                                    required_units: 5,
+                                    available_units: 1,
+                                },
+                            ],
+                        },
+                    ],
+                },
+                error: null,
             }),
-            rpc: () =>
-                Promise.resolve({
-                    data: {
-                        upserted: 1,
-                        cancelledCompensations: 0,
-                        autoFulfillments: 0,
-                        stockEventSkips: [],
-                        heldFulfillments: 1,
-                        held: [
-                            {
-                                order_id: 'ord-1',
-                                platform_order_id: 'ext-1',
-                                shortages: [
-                                    {
-                                        product_id: 'prod-1',
-                                        order_line_id: 'line-1',
-                                        required_units: 5,
-                                        available_units: 1,
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    error: null,
-                }),
-        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+        );
 
         await expect(
             upsertCanonicalOrders(
@@ -257,26 +255,17 @@ describe('parseBatchResult held payloads', () => {
     });
 
     it('defaults missing held fields when RPC predates the hold migration', async () => {
-        const supabase = {
-            from: () => ({
-                select: () => ({
-                    eq: () => ({
-                        eq: () => Promise.resolve({ data: [] }),
-                        not: () => Promise.resolve({ data: [] }),
-                    }),
-                }),
+        const supabase = makeUpsertSupabase(() =>
+            Promise.resolve({
+                data: {
+                    upserted: 0,
+                    cancelledCompensations: 0,
+                    autoFulfillments: 0,
+                    stockEventSkips: [],
+                },
+                error: null,
             }),
-            rpc: () =>
-                Promise.resolve({
-                    data: {
-                        upserted: 0,
-                        cancelledCompensations: 0,
-                        autoFulfillments: 0,
-                        stockEventSkips: [],
-                    },
-                    error: null,
-                }),
-        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+        );
 
         await expect(
             upsertCanonicalOrders(
