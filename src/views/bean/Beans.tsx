@@ -161,6 +161,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const detailPanel = (
         <BeanDetail
             bean={selected}
+            hasAny={beans.length > 0}
             isLoading={isLoading}
             affectedBlendNames={affectedBlendNames}
             assetLine={selected ? (assetSummary.byBeanId[selected.id] ?? null) : null}

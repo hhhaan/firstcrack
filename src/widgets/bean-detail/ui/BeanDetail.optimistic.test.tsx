@@ -56,6 +56,7 @@ describe('BeanDetail optimistic bean', () => {
                     { client: qc },
                     createElement(BeanDetail, {
                         bean: bean(),
+                        hasAny: true,
                         isLoading: false,
                         affectedBlendNames: [],
                         onEdit: vi.fn(),

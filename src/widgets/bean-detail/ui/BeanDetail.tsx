@@ -17,6 +17,7 @@ const EVENT_TYPE_LABEL_KEY: Record<string, string> = {
 
 interface BeanDetailProps {
     bean: Bean | null;
+    hasAny: boolean;
     isLoading: boolean;
     affectedBlendNames: string[];
     assetLine?: BeanAssetLine | null;
@@ -62,6 +63,7 @@ const Empty = ({ hasAny }: { hasAny: boolean }) => {
 
 export const BeanDetail = ({
     bean,
+    hasAny,
     isLoading,
     affectedBlendNames,
     assetLine = null,
@@ -76,7 +78,7 @@ export const BeanDetail = ({
     const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
 
     if (isLoading) return <Skeleton />;
-    if (!bean) return <Empty hasAny={false} />;
+    if (!bean) return <Empty hasAny={hasAny} />;
 
     const actionsLocked = isOptimisticId(bean.id);
 
