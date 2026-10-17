@@ -216,6 +216,7 @@ describe('RoastSidePanel live readings (#358)', () => {
             phase: 'standby',
             roastLogDisplayEntries: [
                 { id: 'c', time: '0:00', event: 'Charge', temp: '', note: '' },
+                { id: 'tp', time: '0:30', event: 'TP', temp: '', note: '' },
                 { id: 'y', time: '1:00', event: 'Yellow', temp: '', note: '' },
                 { id: 'n', time: '2:00', event: 'Note', temp: '', note: 'hi' },
                 { id: 's', time: '3:00', event: '시바', temp: '', note: '' },
@@ -224,6 +225,7 @@ describe('RoastSidePanel live readings (#358)', () => {
             ],
         });
         const side = container.querySelector('[data-testid="roast-side-panel"]') as HTMLElement;
+        expect((side.querySelector('[aria-label="Delete tp"]') as HTMLButtonElement).disabled).toBe(true);
         expect(side.querySelector('[aria-label="Delete yellow"]')).not.toBeNull();
         expect(side.querySelector('[aria-label="Delete note"]')).not.toBeNull();
         expect(side.querySelector('[aria-label="Delete 시바"]')).not.toBeNull();

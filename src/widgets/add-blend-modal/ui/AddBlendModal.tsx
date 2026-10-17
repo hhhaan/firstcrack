@@ -4,6 +4,7 @@ import { useCreateBlend, useUpdateBlend } from '@entities/blend';
 import { blendTotalRatio } from '@entities/blend/lib';
 import { useActiveWorkspace } from '@entities/organization';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { formatMutationError, resolveMutationErrorText } from '@shared/lib/mutationErrorMessage';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { formErrorCls, inputCls, labelCls, modalHeaderChrome } from '@shared/ui/form-styles';
 import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
@@ -12,7 +13,7 @@ import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { BlendComponentRow } from '@widgets/add-blend-modal/ui/BlendComponentRow';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { type BlendForm, blendFormSchema } from '../lib/schema';
@@ -29,6 +30,9 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
     const { data: beans = [] } = useBeans(userId);
     const createBlend = useCreateBlend(userId);
     const updateBlend = useUpdateBlend(userId);
+    const submitting = useRef(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    if (!open && submitError !== null) setSubmitError(null);
 
     const {
         register,
@@ -77,19 +81,32 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
     if (!open) return null;
 
     const onSubmit = async (data: BlendForm) => {
-        if (editing) {
-            await updateBlend.mutateAsync({
-                id: editing.id,
-                patch: { name: data.name.trim(), description: data.description.trim() || undefined },
-                components: data.components,
-            });
-        } else {
-            await createBlend.mutateAsync({
-                blend: { name: data.name.trim(), description: data.description.trim() || undefined, user_id: userId },
-                components: data.components,
-            });
+        if (submitting.current) return;
+        submitting.current = true;
+        setSubmitError(null);
+        try {
+            if (editing) {
+                await updateBlend.mutateAsync({
+                    id: editing.id,
+                    patch: { name: data.name.trim(), description: data.description.trim() || undefined },
+                    components: data.components,
+                });
+            } else {
+                await createBlend.mutateAsync({
+                    blend: {
+                        name: data.name.trim(),
+                        description: data.description.trim() || undefined,
+                        user_id: userId,
+                    },
+                    components: data.components,
+                });
+            }
+            onClose();
+        } catch (error) {
+            setSubmitError(formatMutationError(t, resolveMutationErrorText(error)));
+        } finally {
+            submitting.current = false;
         }
-        onClose();
     };
 
     return (
@@ -159,13 +176,18 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                             {t('beans.blend.modal.addComponent')}
                         </button>
                     </div>
+                    {submitError && (
+                        <p role="alert" className="text-sm text-red-500">
+                            {submitError}
+                        </p>
+                    )}
                 </ModalScrollBody>
 
                 <ModalFooter
                     onCancel={onClose}
                     cancelLabel={t('beans.blend.modal.cancel')}
                     primaryType="submit"
-                    primaryDisabled={!isValid}
+                    primaryDisabled={!isValid || createBlend.isPending || updateBlend.isPending}
                     primaryLabel={editing ? t('beans.blend.modal.save') : t('beans.blend.modal.add')}
                 />
             </form>

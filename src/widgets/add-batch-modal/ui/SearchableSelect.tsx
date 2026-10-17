@@ -1,7 +1,41 @@
+import { cn } from '@shared/lib/cn';
 import { inputCls } from '@shared/ui/form-styles';
 import { Check } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+    createContext,
+    type Dispatch,
+    type ReactNode,
+    type SetStateAction,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
+
+const SelectMenuContext = createContext<{
+    active: string | null;
+    setActive: Dispatch<SetStateAction<string | null>>;
+} | null>(null);
+
+export const SelectMenuGroup = ({ children }: { children: ReactNode }) => {
+    const [active, setActive] = useState<string | null>(null);
+    return <SelectMenuContext.Provider value={{ active, setActive }}>{children}</SelectMenuContext.Provider>;
+};
+
+export const useSelectMenu = (id?: string) => {
+    const menu = useContext(SelectMenuContext);
+    const setActive = menu?.setActive;
+    const onOpenChange = useCallback(
+        (next: boolean) => {
+            if (!id || !setActive) return;
+            setActive((current) => (next ? id : current === id ? null : current));
+        },
+        [id, setActive],
+    );
+    if (!id || !menu) return null;
+    return { open: menu.active === id, onOpenChange };
+};
 
 export const SearchableSelect = ({
     placeholder,
@@ -10,6 +44,8 @@ export const SearchableSelect = ({
     onSelect,
     renderLabel,
     renderOption,
+    menuId,
+    invalid = false,
 }: {
     placeholder: string;
     items: { id: string }[];
@@ -17,10 +53,22 @@ export const SearchableSelect = ({
     onSelect: (id: string) => void;
     renderLabel: (item: { id: string }) => string;
     renderOption?: (item: { id: string }) => React.ReactNode;
+    menuId?: string;
+    invalid?: boolean;
 }) => {
     const { t } = useTranslation();
+    const menu = useSelectMenu(menuId);
     const [query, setQuery] = useState('');
-    const [open, setOpen] = useState(false);
+    const [ownOpen, setOwnOpen] = useState(false);
+    const open = menu?.open ?? ownOpen;
+    const onOpenChange = menu?.onOpenChange;
+    const setOpen = useCallback(
+        (next: boolean) => {
+            if (onOpenChange) onOpenChange(next);
+            else setOwnOpen(next);
+        },
+        [onOpenChange],
+    );
 
     const selected = items.find((i) => i.id === selectedId);
     const filtered = items.filter((i) => renderLabel(i).toLowerCase().includes(query.toLowerCase()));
@@ -36,14 +84,19 @@ export const SearchableSelect = ({
         };
         document.addEventListener('mousedown', fn);
         return () => document.removeEventListener('mousedown', fn);
-    }, [open]);
+    }, [open, setOpen]);
 
     return (
         <div className="relative" data-searchable-select="">
             <button
                 type="button"
-                onClick={() => setOpen((o) => !o)}
-                className={`${inputCls} text-left flex items-center justify-between gap-2`}
+                onClick={() => setOpen(!open)}
+                aria-invalid={invalid || undefined}
+                className={cn(
+                    inputCls,
+                    'text-left flex items-center justify-between gap-2',
+                    invalid && 'border-red-500',
+                )}
             >
                 <span className={selected ? 'text-primary' : 'text-muted'}>
                     {selected ? renderLabel(selected) : placeholder}

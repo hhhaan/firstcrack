@@ -101,6 +101,7 @@ describe('plan state helpers', () => {
             fastPolling: true,
             machineControl: false,
             customMachineControl: false,
+            simulator: false,
         };
         for (const key of Object.values(FEATURE)) {
             expect(planHasFeature('pro', key)).toBe(pro[key]);
@@ -208,6 +209,14 @@ describe('planMaxBatchesPerMonth', () => {
         expect(canCompleteBatch('pro', 199)).toBe(true);
         expect(canCompleteBatch('pro', 200)).toBe(false);
         expect(canCompleteBatch('pro_plus', 500)).toBe(true);
+    });
+});
+
+describe('planHasFeature simulator', () => {
+    it('is never granted by a plan', () => {
+        for (const plan of ['trial', 'read_only', 'free', 'pro', 'pro_plus', 'team', 'tester', 'enterprise', '']) {
+            expect(planHasFeature(plan, FEATURE.simulator)).toBe(false);
+        }
     });
 });
 

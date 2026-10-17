@@ -34,7 +34,13 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
         <ModalShell
             onClose={form.handleClose}
             labelledBy="add-machine-modal-title"
-            contentClassName={modalPanel.formXl}
+            contentClassName={
+                form.addressFields.length > 0
+                    ? modalPanel.formXl
+                    : form.selectedDef
+                      ? modalPanel.formLg
+                      : modalPanel.formSm
+            }
         >
             <div className={modalHeaderChrome}>
                 <ModalHeader

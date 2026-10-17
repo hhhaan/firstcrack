@@ -2,11 +2,12 @@ import type { Theme } from '@shared/store/theme';
 import { useThemeStore } from '@shared/store/theme';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Monitor, Moon, Sun } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-const themeOptions: { value: Theme; icon: typeof Sun; label: string; desc: string }[] = [
-    { value: 'light', icon: Sun, label: 'Light', desc: 'Bright and clean interface' },
-    { value: 'dark', icon: Moon, label: 'Dark', desc: 'Easier on the eyes' },
-    { value: 'system', icon: Monitor, label: 'System', desc: 'Follow your OS setting' },
+const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string; descKey: string }[] = [
+    { value: 'light', icon: Sun, labelKey: 'themeSelect.light', descKey: 'themeSelect.lightDesc' },
+    { value: 'dark', icon: Moon, labelKey: 'themeSelect.dark', descKey: 'themeSelect.darkDesc' },
+    { value: 'system', icon: Monitor, labelKey: 'themeSelect.system', descKey: 'themeSelect.systemDesc' },
 ];
 
 const cardCls = (active: boolean) =>
@@ -18,10 +19,11 @@ const cardCls = (active: boolean) =>
 
 /** VOC: restore dark/system — re-mount from App.tsx (`theme === null`). */
 export const ThemeSelectModal = () => {
+    const { t } = useTranslation();
     const setTheme = useThemeStore((s) => s.setTheme);
 
-    const handleSelect = (t: Theme) => {
-        setTheme(t);
+    const handleSelect = (value: Theme) => {
+        setTheme(value);
     };
 
     return (
@@ -35,20 +37,20 @@ export const ThemeSelectModal = () => {
                     id="theme-select-title"
                     className="text-[18px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0"
                 >
-                    Choose your theme
+                    {t('themeSelect.title')}
                 </h2>
-                <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">
-                    You can change this anytime in workspace settings.
-                </p>
+                <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">{t('themeSelect.description')}</p>
             </div>
 
             <div className="flex gap-4">
-                {themeOptions.map(({ value, icon: Icon, label, desc }) => (
+                {themeOptions.map(({ value, icon: Icon, labelKey, descKey }) => (
                     <button type="button" key={value} onClick={() => handleSelect(value)} className={cardCls(false)}>
                         <Icon size={28} strokeWidth={1.5} className="text-[#111827] dark:text-[#e5e5e5]" />
                         <div className="text-center">
-                            <div className="text-[14px] font-semibold text-[#111827] dark:text-[#e5e5e5]">{label}</div>
-                            <div className="text-[11px] text-[#6B7280] dark:text-[#999] mt-0.5">{desc}</div>
+                            <div className="text-[14px] font-semibold text-[#111827] dark:text-[#e5e5e5]">
+                                {t(labelKey)}
+                            </div>
+                            <div className="text-[11px] text-[#6B7280] dark:text-[#999] mt-0.5">{t(descKey)}</div>
                         </div>
                     </button>
                 ))}

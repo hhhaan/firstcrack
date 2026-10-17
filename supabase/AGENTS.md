@@ -23,7 +23,7 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 | `channel-products` | user JWT | List a connection's platform catalog for SKU mapping (#131); secrets stay server-side, Naver returns `[]` | `functions/channel-products/` |
 | `cafe24-oauth-start` | user JWT | Signed OAuth state → authorize URL | `functions/cafe24-oauth-start/` |
 | `cafe24-oauth-callback` | public redirect | Code exchange → connection + secrets | `functions/cafe24-oauth-callback/` |
-| `order-sync` | user JWT **or** `x-cron-secret` | Pull/upsert orders; token refresh | `functions/order-sync/`, `_shared/channels/*` |
+| `order-sync` | user JWT **or** `x-cron-secret` (`verify_jwt = false`) | Pull/upsert orders; token refresh | `functions/order-sync/`, `_shared/channels/*` |
 | `order-webhook` | platform signature (**`verify_jwt = false` — deploy `--no-verify-jwt`**) | Push ingest; topic-routed, idempotent per `X-Shopify-Webhook-Id` | `functions/order-webhook/`, `_shared/webhook-auth.ts`, `_shared/channels/shopify-webhook.ts` |
 | `order-dispatch` | user JWT (+ workspace/org rules) | Mark shipped on platform; `order_dispatches`; takes the `order_sync_runs` run lock (`trigger='dispatch'`) | `functions/order-dispatch/`, `_shared/channels/run-lock.ts` |
 | `create-polar-checkout` | user JWT | Polar checkout URL | `functions/create-polar-checkout/` |
@@ -62,6 +62,7 @@ Presign expiry: **300s** (`_shared/r2.ts`). Profile keys: `profiles/{uuid}/{uuid
 | R2 objects | Client PUT/GET only via presigned URLs from get-*-url EFs |
 | `sales_channel_secrets` | Edge service role only (RLS on, no authenticated grant) |
 | `subscriptions`, billing columns on `profiles` | `polar-webhook` (client write locked by migrations) |
+| `profiles.simulator_enabled` | service role only (client write frozen with billing columns) |
 | Multi-ledger stock | RPCs: `save_roast_op`, `insert_stock_events_batch`, `upsert_roasted_inbound`, `insert_packaging_op`, `insert_roasted_stock_events_batch`, `fulfill_order`, `cancel_order` |
 | Channel orders upsert | `order-sync` / `order-webhook` adapters |
 | Cupping public | Invite/results tokens via cupping EFs — do not open anon table RLS |
@@ -114,12 +115,12 @@ CI gate (supabase-ci `rls-check`): a **new** migration with `CREATE TABLE` must 
 2. Prefer `SECURITY INVOKER` RPCs so RLS still applies (existing stock RPCs follow this).
 3. New Edge Function: put shared crypto/auth in `_shared/`; document auth mode in this table.
 4. Deploy: `supabase functions deploy <name>` after reviewing JWT verify settings for that function.
-   Every function needs a `[functions.<name>]` block in `config.toml` — the default is
-   `verify_jwt = true`, which silently 401s any platform-signed webhook at the gateway.
-   `order-webhook` is the only channel function with `verify_jwt = false`; deploy it as
-   `supabase functions deploy order-webhook --no-verify-jwt`. `order-sync` keeps
-   `verify_jwt = true`, so a cron caller must send `Authorization: Bearer <ANON_KEY>`
-   **and** `x-cron-secret`.
+   Functions without a block default to `verify_jwt = true` (e.g. `channel-products`).
+   `order-webhook` and `order-sync` use `verify_jwt = false`: deploy both with
+   `--no-verify-jwt`. The webhook verifies the platform signature/secret; sync verifies
+   `x-cron-secret` or calls `getAuthenticatedUser` for a manual user JWT. The pg_cron
+   request sends only `x-cron-secret`, without an Authorization header. A valid cron
+   secret authorizes a sweep across all active connections, without a user filter.
 5. A service-role EF bypasses RLS, so it must resolve the **workspace owner** for any
    `user_id` it writes — RLS is `has_workspace_access(user_id)`, not `auth.uid() = user_id`.
    Use `resolveWorkspaceOwner` (`_shared/auth.ts`); it verifies a client-supplied owner id

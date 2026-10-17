@@ -15,6 +15,7 @@ import type { BatchTypeTabs } from './BatchTypeTabs';
 const state = vi.hoisted(() => ({
     ownerId: 'owner',
     componentCount: 1,
+    beans: [{ id: 'bean-0', name: 'Bean' }] as { id: string; name: string }[],
     source: undefined as Parameters<typeof BatchSourceFields>[0] | undefined,
     panel: undefined as Parameters<typeof BatchStockPanel>[0] | undefined,
     tabs: undefined as Parameters<typeof BatchTypeTabs>[0] | undefined,
@@ -25,7 +26,7 @@ const state = vi.hoisted(() => ({
 vi.mock('@entities/bean-stock-event/api', () => ({
     beanStockEventApi: { getStockSummariesByUser: vi.fn(), getStockSummary: vi.fn() },
 }));
-vi.mock('@entities/bean/queries', () => ({ useBeans: () => ({ data: [{ id: 'bean-0', name: 'Bean' }] }) }));
+vi.mock('@entities/bean/queries', () => ({ useBeans: () => ({ data: state.beans }) }));
 vi.mock('@entities/blend', () => ({
     useBlends: () => ({
         data: [
@@ -42,7 +43,10 @@ vi.mock('@entities/blend', () => ({
     }),
 }));
 vi.mock('@entities/organization', () => ({ useActiveWorkspace: () => ({ workspaceOwnerId: state.ownerId }) }));
-vi.mock('@entities/machine', () => ({ useMachines: () => ({ machines: [] }) }));
+vi.mock('@entities/machine', () => ({
+    useMachines: () => ({ machines: [] }),
+    useVisibleMachines: () => [],
+}));
 vi.mock('@entities/profile', () => ({ useProfile: () => ({}) }));
 vi.mock('@entities/roast-profile/queries', () => ({ useRoastProfiles: () => ({ data: [] }) }));
 vi.mock('@shared/lib/useFormEscape', () => ({ useFormEscape: vi.fn() }));
@@ -107,6 +111,7 @@ describe('AddBatchModal shared stock query', () => {
     };
     beforeEach(() => {
         state.ownerId = 'owner';
+        state.beans = [{ id: 'bean-0', name: 'Bean' }];
         state.source = undefined;
         state.panel = undefined;
         qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
@@ -121,8 +126,30 @@ describe('AddBatchModal shared stock query', () => {
         qc.clear();
     });
 
-    it('requires the selected batch type source before enabling submit', async () => {
+    it('omits optimistic beans from the lot picker and ignores opt_ selection', async () => {
+        const OPT = 'opt_11111111-1111-4111-8111-111111111111';
+        state.beans = [
+            { id: OPT, name: 'Pending lot' },
+            { id: 'bean-0', name: 'Bean' },
+        ];
         await render();
+        expect(state.source?.beanItems.map((b) => b.id)).toEqual(['bean-0']);
+        act(() => state.source?.onBeanSelect('bean-0'));
+        expect(state.source?.beanId).toBe('bean-0');
+        act(() => state.source?.onBeanSelect(OPT));
+        expect(state.source?.beanId).toBe('bean-0');
+    });
+
+    it('shows the missing source only after save is clicked', async () => {
+        const onSave = vi.fn();
+        await act(async () =>
+            root.render(
+                <QueryClientProvider client={qc}>
+                    <AddBatchModal open onClose={() => {}} onSave={onSave} />
+                </QueryClientProvider>,
+            ),
+        );
+        await flush();
         act(() => {
             state.header?.onDateChange(new Date(2026, 9, 15));
             state.header?.onMachineSelect('machine-1');
@@ -131,17 +158,25 @@ describe('AddBatchModal shared stock query', () => {
         const submit = [...document.querySelectorAll('button')].find(
             (button) => button.textContent === 'addBatchModal.addBatch',
         );
-        expect(submit?.disabled).toBe(true);
+        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(false);
+
+        act(() => submit?.click());
+        expect(state.source?.sourceInvalid).toBe(true);
+        expect(onSave).not.toHaveBeenCalled();
+
         act(() => state.source?.onBeanSelect('bean-0'));
-        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(false);
         act(() => state.tabs?.onBatchTypeChange('Pre-roast Blend'));
-        expect(submit?.disabled).toBe(true);
+        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(true);
         act(() => state.source?.onBlendSelect('blend'));
-        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(false);
         act(() => state.tabs?.onBatchTypeChange('Post-roast Blend'));
-        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(false);
         act(() => state.source?.onBlendSelect(null));
-        expect(submit?.disabled).toBe(true);
+        expect(submit?.disabled).toBe(false);
+        expect(state.source?.sourceInvalid).toBe(true);
     });
 
     it.each([1, 3, 10])(

@@ -33,8 +33,10 @@ export const getRoastPhaseName = (
     }
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
     const yellowEntry = logEntries.find((e) => e.event === 'Yellow');
-    if (fcStartEntry && elapsed >= logEntryTimeSec(fcStartEntry)) return 'Development';
-    if (yellowEntry && elapsed >= logEntryTimeSec(yellowEntry)) return 'Maillard';
+    const fcStartSec = fcStartEntry ? logEntryTimeSec(fcStartEntry) : null;
+    const yellowSec = yellowEntry ? logEntryTimeSec(yellowEntry) : null;
+    if (fcStartSec != null && elapsed >= fcStartSec) return 'Development';
+    if (yellowSec != null && elapsed >= yellowSec) return 'Maillard';
     return 'Drying';
 };
 

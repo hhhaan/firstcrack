@@ -871,6 +871,41 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 2,
                 },
             ],
+            # Artisan G_UG_control.aset slidercommands. 읽기 셀과 같다.
+            # air=db200/64, drum=db200/72, burner=db200/80.
+            # db200/96(세 번째 슬라이더)는 역할이 확정되지 않아 쓰지 않는다.
+            "write_map": {
+                "fan": {
+                    "db": 200,
+                    "offset": 64,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                    "min": 25,
+                    "max": 100,
+                    "unit": "%",
+                },
+                "drum": {
+                    "db": 200,
+                    "offset": 72,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                    "min": 25,
+                    "max": 60,
+                    "unit": "RPM",
+                },
+                "heater": {
+                    "db": 200,
+                    "offset": 80,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                    "min": 0,
+                    "max": 100,
+                    "unit": "%",
+                },
+            },
         },
         "pid": None,
         "capabilities": ["heater", "fan", "drum"],
@@ -894,6 +929,12 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                 "exhaust_AT": "exhaustAirTemp",
                 "cooling_AT": "coolingAirTemp",
             },
+            # Artisan G_UG_WebSockets.aset / P_Series_III.aset slidercommands.
+            "write_map": {
+                "fan": {"node": "exhaustFan", "min": 0, "max": 100, "unit": "%"},
+                "drum": {"node": "drum", "min": 0, "max": 100, "unit": "%"},
+                "heater": {"node": "burner", "min": 0, "max": 100, "unit": "%"},
+            },
         },
         "pid": None,
         "capabilities": ["heater", "fan", "drum"],
@@ -911,6 +952,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                 "BT": "beanTemp",
                 "ET": "exhaustAirTemp",
                 "heater": "burner",
+            },
+            # Artisan Sample_Roaster.aset: burner 슬라이더만 보인다.
+            "write_map": {
+                "heater": {"node": "burner", "min": 0, "max": 100, "unit": "%"},
             },
         },
         "pid": None,

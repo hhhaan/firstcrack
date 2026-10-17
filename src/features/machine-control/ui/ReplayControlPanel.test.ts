@@ -58,9 +58,9 @@ describe('ReplayControlPanel 무효 관측 대기 (R05)', () => {
             });
         }
     });
-    it.each([false, true])('시작·재개 동기화 안내를 active=%s에서도 보여 준다', (active) => {
+    it.each([false, true])('시작·재개 동기화 안내는 active=%s에서 숨긴다', (active) => {
         const { container, unmount } = renderPanel(replayStub({ active }));
-        expect(container.textContent).toContain(en.activeRoast.replay.syncOnStart);
+        expect(container.textContent).not.toContain(en.activeRoast.replay.syncOnStart);
         unmount();
     });
 

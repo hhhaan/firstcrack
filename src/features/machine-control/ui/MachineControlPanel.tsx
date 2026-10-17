@@ -51,7 +51,7 @@ export const MachineControlPanel = ({
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
     const { machine, pid, replay, pidActive, changeManual, commitManual } = model;
-    const { writable, limits, desired, unacknowledged, sending } = machine;
+    const { writable, limits, desired, sending } = machine;
     const [collapsed, setCollapsed] = useState(false);
     const [heatEditorOpen, setHeatEditorOpen] = useState(false);
     const toggleControlKeys = useShortcutKeys('toggleControl');
@@ -76,10 +76,6 @@ export const MachineControlPanel = ({
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에
     // PID가 덮어써서 "슬라이더가 말을 안 듣는" 상태가 된다. 소유권을 명확히 한다.
     const pidHoldsHeater = pid.engaged;
-    const anyUnacknowledged = MACHINE_CONTROL_CHANNEL_ROLES.some(
-        (role) => limits[role] != null && unacknowledged.has(role),
-    );
-
     return (
         <div
             className={
@@ -105,13 +101,7 @@ export const MachineControlPanel = ({
                 >
                     {collapsed ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
                 </button>
-                {collapsed && (
-                    <CollapsedControlStatus
-                        pidState={pid.state}
-                        anyUnacknowledged={anyUnacknowledged}
-                        replay={replay}
-                    />
-                )}
+                {collapsed && <CollapsedControlStatus pidState={pid.state} replay={replay} />}
             </div>
 
             {/* 접혀도 트리 유지 — 표시 전환이 PID/Replay 패널을 언마운트하지 않는다 */}
@@ -120,7 +110,6 @@ export const MachineControlPanel = ({
                     limits={limits}
                     desired={desired}
                     liveData={liveData}
-                    unacknowledged={unacknowledged}
                     writable={writable && !commandsLocked}
                     sending={sending}
                     pidHoldsHeater={pidHoldsHeater}
@@ -128,12 +117,6 @@ export const MachineControlPanel = ({
                     onChange={changeManual}
                     onCommit={commitManual}
                 />
-                {/* fader 열은 좁아 문장이 안 들어간다 — 경고는 패널 폭 전체를 쓴다 */}
-                {anyUnacknowledged && (
-                    <p className="text-[11px] leading-snug text-red-500">
-                        기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
-                    </p>
-                )}
                 <ReplayControlPanel
                     replay={replay}
                     unit={temperatureUnit}

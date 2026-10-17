@@ -6,33 +6,37 @@ import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
 import { format } from 'date-fns';
 import { CalendarIcon, Cpu } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SearchableSelect } from './SearchableSelect';
+import { SearchableSelect, useSelectMenu } from './SearchableSelect';
 
 type Props = {
     date: Date | undefined;
-    calendarOpen: boolean;
     isDateDisabled: boolean;
     dateChanged: boolean;
     machineId: string;
     machines: Machine[];
     onDateChange: (d: Date | undefined) => void;
-    onCalendarOpenChange: (open: boolean) => void;
     onMachineSelect: (id: string) => void;
 };
 
 export const BatchFormHeader = ({
     date,
-    calendarOpen,
     isDateDisabled,
     dateChanged,
     machineId,
     machines,
     onDateChange,
-    onCalendarOpenChange,
     onMachineSelect,
 }: Props) => {
     const { t } = useTranslation();
+    const dateMenu = useSelectMenu('date');
+    const [ownCalendarOpen, setOwnCalendarOpen] = useState(false);
+    const calendarOpen = dateMenu?.open ?? ownCalendarOpen;
+    const setCalendarOpen = (open: boolean) => {
+        if (dateMenu) dateMenu.onOpenChange(open);
+        else setOwnCalendarOpen(open);
+    };
 
     return (
         <div className="grid grid-cols-2 gap-4">
@@ -43,7 +47,7 @@ export const BatchFormHeader = ({
                 <Popover
                     open={calendarOpen}
                     onOpenChange={(open) => {
-                        if (!isDateDisabled) onCalendarOpenChange(open);
+                        if (!isDateDisabled) setCalendarOpen(open);
                     }}
                 >
                     <PopoverTrigger asChild>
@@ -77,7 +81,7 @@ export const BatchFormHeader = ({
                             selected={date}
                             onSelect={(d) => {
                                 onDateChange(d);
-                                onCalendarOpenChange(false);
+                                setCalendarOpen(false);
                             }}
                             locale={getDateFnsLocale()}
                         />
@@ -89,6 +93,7 @@ export const BatchFormHeader = ({
                     <Cpu size={12} /> {t('addBatchModal.machine')}
                 </label>
                 <SearchableSelect
+                    menuId="machine"
                     placeholder={t('addBatchModal.machine')}
                     items={machines}
                     selectedId={machineId}

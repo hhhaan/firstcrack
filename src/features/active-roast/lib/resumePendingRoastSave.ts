@@ -7,7 +7,7 @@ import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.type
 import { BaseDirectory, exists } from '@tauri-apps/plugin-fs';
 import { clearPendingRoastSave, type PendingRoastSave, writePendingRoastSave } from '../model/pendingRoastSave';
 import type { SaveRoastParams, SaveRoastResult, SyncRoastCurve } from '../model/save-roast-types';
-import { isFixablePlanBatchIdError, isPermanentSaveError, isRoastSaveUserFacingError } from './saveErrorClassification';
+import { isFixablePlanBatchIdError, isPermanentSaveError } from './saveErrorClassification';
 import type { ResolveForRoastFn } from './startNextFromContinue';
 import { toPlanBatchHandoff } from './toPlanBatchHandoff';
 
@@ -168,10 +168,7 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
     } catch (err) {
         checkpoint({
             needsAttention:
-                isPermanentSaveError(err) ||
-                isFixablePlanBatchIdError(err) ||
-                isRoastSaveUserFacingError(err) ||
-                err instanceof BatchLimitError,
+                isPermanentSaveError(err) || isFixablePlanBatchIdError(err) || err instanceof BatchLimitError,
             error: errorMessage(err),
         });
         if (saved) return { savedSession: saved, shouldOpenContinue: false, syncPending: true };

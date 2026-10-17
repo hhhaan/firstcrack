@@ -88,9 +88,19 @@ there silently deleted nothing for members.
   only — Cafe24 never sends them, so reading them alone rejected every delivery.
   The value is compared against the connection's `webhook_secret` in
   `sales_channel_secrets`, falling back to the app-wide `CAFE24_WEBHOOK_SECRET` env.
-  **Unverified:** what Cafe24 actually puts in `X-API-Key` is not confirmed against
-  official docs — validate against live traffic before trusting Cafe24 push ingest.
+  Set that secret to Cafe24's **webhook verification code**, not the OAuth client
+  secret ([official verification docs](https://developers.cafe24.com/en/app/front/app/develop/webhook/manage)).
   Cafe24 connects via OAuth, so nothing writes the per-connection slot yet.
+- Cafe24 retries still call the batch RPC; the delivery itself is not deduplicated.
+  `20261010054324_channel_orders_batch.sql` locks by owner/platform/order, upserts
+  orders on `(user_id, platform, platform_order_id)` and lines on
+  `(order_id, platform_line_id)`, and gates stock deductions on `fulfilled_at`.
+  Replaying a delivery updates the same order/lines without another deduction;
+  `external_event_id` is not synthesized from an order id (later updates must run).
+
+`order-sync` returns HTTP 500 if any connection fails, including cursor/run persistence;
+the response retains each connection's result. Dispatch keeps HTTP 200 plus `fulfillError`
+when platform shipping succeeds but internal fulfillment fails.
 
 **Cron activation** (`20260801000002_order_sync_cron.sql`): the job is scheduled but no-ops until
 `vault.create_secret('<ORDER_SYNC_CRON_SECRET>', 'order_sync_cron_secret')` exists. It also needs
@@ -135,7 +145,7 @@ never left (`sync_channel_orders_batch` gates mapping and restores on `fulfilled
 | **Cancel** | Cancel order; restore stock if already fulfilled | RPC `cancel_order` | product restore via cancel path |
 
 **Do not** equate `fulfilled_at` with platform "shipped".  
-**Do not** flip `orders.status` with ad-hoc updates — inbound status merge is owned by `sync_channel_orders_batch` (cancelled/refunded are terminal); outbound dispatch still uses `_shared/channels/status-map.ts`.
+**Do not** flip `orders.status` with ad-hoc updates — inbound status merge is owned by `sync_channel_orders_batch`. The header becomes `cancelled` or `refunded` only when every line is. One Naver product-order cancel updates that line and leaves the order open, so the remaining lines can still be fulfilled, dispatched, and counted in roasting demand. A local `cancel_order` stays cancelled: it does not mark lines terminal, and a later snapshot reopens the header only when stored lines are mixed. `orders.total_amount` is the original gross and never shrinks. Net sales subtract `unit_price * quantity` of `cancelled` and `refunded` lines; those line amounts are kept when the line cancels. Outbound dispatch still uses `_shared/channels/status-map.ts`.
 
 Inbound persistence is service-role-only RPC `sync_channel_orders_batch`. It verifies the connection owner/platform, reads the latest `auto_fulfill_on_shipped`, serializes concurrent writes for the same external order, and preserves input order when an adapter repeats an external order ID. The RPC owns inbound status merge, earliest `ordered_at`, line diffs, stock idempotency, and dispatch confirmation; `normalize.ts` owns adapter payload validation and product candidate mapping.
 

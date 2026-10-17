@@ -1,5 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
+import { corsHeaders, getAuthenticatedUser, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import {
     type CuppingFormSchema,
     formSchemaOrSca,
@@ -10,9 +9,6 @@ import { normalizeCuppedBy, parseInviteAction, parsePublishSamples } from '../_s
 import { normalizeDescriptors } from '../_shared/cupping-score.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 import { type WrittenRow, writeScorecardsBatch } from './write-scorecards.ts';
-
-const serviceClient = () =>
-    createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
 type Sb = ReturnType<typeof serviceClient>;
 
@@ -261,17 +257,20 @@ async function resolveInviteContext(
     const sampleById = new Map<string, SampleRef>();
 
     if (invite.event_id) {
-        const { data: event } = await supabase
+        const { data: event, error: eventError } = await supabase
             .from('cupping_events')
             .select('ended_at, form_snapshot')
             .eq('id', invite.event_id)
             .maybeSingle();
+        if (eventError) return respondServerError('submit-cupping', 'lookup failed', eventError);
+        if (!event) return jsonResponse({ error: 'event_not_found' }, 404);
         if (event?.ended_at) return jsonResponse({ error: 'ended' }, 410);
         const schema = formSchemaOrSca(event?.form_snapshot);
-        const { data: rows } = await supabase
+        const { data: rows, error: samplesError } = await supabase
             .from('cupping_samples')
             .select('id, roast_session_id, event_id')
             .eq('event_id', invite.event_id);
+        if (samplesError) return respondServerError('submit-cupping', 'lookup failed', samplesError);
         for (const row of rows ?? []) sampleById.set(row.id, row);
         return { schema, sampleById, allowedIds: new Set(sampleById.keys()) };
     }
@@ -279,21 +278,24 @@ async function resolveInviteContext(
     const sampleId = (bodySampleId?.trim() || invite.sample_id) as string | null;
     let eventId: string | null = null;
     if (invite.sample_id) {
-        const { data: sample } = await supabase
+        const { data: sample, error: sampleError } = await supabase
             .from('cupping_samples')
             .select('id, roast_session_id, event_id')
             .eq('id', invite.sample_id)
             .maybeSingle();
+        if (sampleError) return respondServerError('submit-cupping', 'lookup failed', sampleError);
+        if (!sample) return jsonResponse({ error: 'sample_not_found' }, 404);
         if (sample) {
             sampleById.set(sample.id, sample);
             eventId = sample.event_id;
         }
     } else if (sampleId) {
-        const { data: sample } = await supabase
+        const { data: sample, error: sampleError } = await supabase
             .from('cupping_samples')
             .select('id, roast_session_id, event_id')
             .eq('id', sampleId)
             .maybeSingle();
+        if (sampleError) return respondServerError('submit-cupping', 'lookup failed', sampleError);
         if (!sample) return jsonResponse({ error: 'sample_not_found' }, 404);
         sampleById.set(sample.id, sample);
         eventId = sample.event_id;
@@ -301,11 +303,13 @@ async function resolveInviteContext(
 
     let schema: CuppingFormSchema = formSchemaOrSca(null);
     if (eventId) {
-        const { data: event } = await supabase
+        const { data: event, error: eventError } = await supabase
             .from('cupping_events')
             .select('ended_at, form_snapshot')
             .eq('id', eventId)
             .maybeSingle();
+        if (eventError) return respondServerError('submit-cupping', 'lookup failed', eventError);
+        if (!event) return jsonResponse({ error: 'event_not_found' }, 404);
         if (event?.ended_at) return jsonResponse({ error: 'ended' }, 410);
         schema = formSchemaOrSca(event?.form_snapshot);
     }

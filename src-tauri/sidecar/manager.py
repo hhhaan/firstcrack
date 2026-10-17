@@ -918,8 +918,16 @@ class RoasterManager:
 
         어댑터가 아니라 병합된 연결 파라미터에서 읽는다 — 쓰기 가능 여부는
         레지스트리가 정하는 사실이고, 어댑터마다 속성을 노출할 필요가 없다.
+        probat_ws는 node가 있는 항목만 주소다. min/max만 있는 맵은 쓰기가 아니다.
         """
-        return dict(self._merged_params.get("write_map") or {})
+        raw = dict(self._merged_params.get("write_map") or {})
+        if self._protocol != "probat_ws":
+            return raw
+        return {
+            role: spec
+            for role, spec in raw.items()
+            if isinstance(spec, dict) and isinstance(spec.get("node"), str) and spec["node"]
+        }
 
     def _control_writable(self) -> bool:
         """실제로 하드웨어에 쓸 수 있는지. write_map ∩ WRITABLE_PROTOCOLS."""

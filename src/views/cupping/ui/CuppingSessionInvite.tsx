@@ -74,7 +74,7 @@ export const CuppingSessionInvite = ({
                                 tone={activeInvite || sampleCount > 0 ? (activeInvite ? 'good' : 'muted') : 'muted'}
                                 size="sm"
                             >
-                                {activeInvite ? 'Active' : 'No link yet'}
+                                {activeInvite ? t('cupping.sessionLinkActive') : t('cupping.sessionLinkNone')}
                             </Badge>
                         </div>
                         <p className="text-[12px] leading-relaxed text-muted tracking-[0.14px]">

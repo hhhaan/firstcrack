@@ -74,11 +74,13 @@ export const History = () => {
 
     const { workspaceOwnerId } = useActiveWorkspace();
 
-    const useClientPagination = search.length > 0 || originFilter !== 'all' || sortKey === 'duration';
+    const useClientPagination =
+        search.length > 0 || originFilter !== 'all' || sortKey === 'duration' || sortKey === 'bean';
     const [exportOpen, setExportOpen] = useState(false);
     // 전체 목록이 아직 없을 때의 export 요청 — 목록이 도착하면 effect가 집어간다
     const [pendingExportRange, setPendingExportRange] = useState<ExportDateRange | null>(null);
-    // Full list when client search/filter, duration sort (Drop-first, not duration_seconds), compare, or export.
+    // Full list when client search/filter, duration sort (Drop-first, not duration_seconds),
+    // bean sort (display name is a join, not a session column), compare, or export.
     const needFullList = useClientPagination || compareMode || pendingExportRange !== null;
 
     const {
@@ -90,7 +92,7 @@ export const History = () => {
         status: 'completed',
         page: Math.max(1, page),
         pageSize: PAGE_SIZE,
-        sortKey: sortKey === 'bean' ? 'date' : sortKey,
+        sortKey,
         sortAsc,
         level: levelFilter === 'all' ? null : levelFilter,
         fromYM: fromYM || null,
@@ -148,12 +150,8 @@ export const History = () => {
         if (useClientPagination) {
             return paginateSessions(clientSorted, safePage, PAGE_SIZE);
         }
-        const sessions = paginatedResult?.data ?? [];
-        if (sortKey === 'bean') {
-            return sortSessions(sessions, 'bean', sortAsc);
-        }
-        return sessions;
-    }, [useClientPagination, clientSorted, safePage, paginatedResult, sortKey, sortAsc]);
+        return paginatedResult?.data ?? [];
+    }, [useClientPagination, clientSorted, safePage, paginatedResult]);
 
     const isLoading = useClientPagination ? isRawLoading : isPaginatedLoading;
     const isError = useClientPagination ? isRawError : isPaginatedError;

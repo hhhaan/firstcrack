@@ -127,7 +127,7 @@
             "orders": "订单"
         },
         "groups": {
-            "roasting": "烘焙",
+            "roasting": "烘焙与品质",
             "operations": "运营"
         }
     },
@@ -1196,7 +1196,6 @@
             "apply": "显示为背景"
         },
         "review": {
-            "title": "查看已完成的烘焙",
             "return": "返回投豆等待界面"
         }
     },
@@ -2302,5 +2301,15 @@
         "showHidden": "显示隐藏项目",
         "hide": "隐藏{{name}}",
         "restore": "恢复{{name}}"
+    },
+    "themeSelect": {
+        "title": "选择主题",
+        "description": "可随时在工作区设置中更改。",
+        "light": "浅色",
+        "lightDesc": "明亮简洁的界面",
+        "dark": "深色",
+        "darkDesc": "对眼睛更友好",
+        "system": "跟随系统",
+        "systemDesc": "跟随操作系统设置"
     }
 }

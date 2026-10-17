@@ -369,7 +369,7 @@ describe('saveRoastCore', () => {
                 formData: { ...baseParams.formData, beanId: null, beanLabel: null, weightGrams: 5 },
                 selectedBeanId: null,
             }),
-        ).rejects.toMatchObject({ name: 'RoastSaveUserError' });
+        ).rejects.toThrow(/green bean/i);
         expect(deps.saveOp).not.toHaveBeenCalled();
     });
 

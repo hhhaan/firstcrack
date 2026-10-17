@@ -103,6 +103,109 @@ BEGIN
   ASSERT (SELECT count(*) FROM product_stock_events pse JOIN order_lines ol ON ol.id=pse.reference_id
     JOIN orders o ON o.id=ol.order_id WHERE o.platform_order_id='partial-1' AND pse.event_type='order_cancel') = 1,
     'partial refund emitted one restore event';
+  ASSERT (SELECT status = 'shipped' AND total_amount = 2 FROM orders WHERE platform_order_id='partial-1'),
+    'partial refund keeps the order and its original total';
+  ASSERT (SELECT ol.status = 'active' FROM order_lines ol JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='partial-1' AND ol.platform_line_id='partial-a'),
+    'unrefunded line stays active';
+
+  -- One cancelled product order must not close the order or erase the gross.
+  -- Net sales = total_amount - cancelled/refunded line amounts.
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'split-1', 'status', 'paid', 'orderedAt', '2026-10-10T03:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 5500, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(
+      jsonb_build_object('platformLineId','split-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',2000,'status','active'),
+      jsonb_build_object('platformLineId','split-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',3000,'status','active')
+    )
+  )));
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'split-1', 'status', 'cancelled', 'orderedAt', '2026-10-10T03:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId','split-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',0,'status','cancelled'
+    ))
+  )));
+  ASSERT (SELECT status = 'paid' AND total_amount = 5500 AND fulfilled_at IS NULL
+    FROM orders WHERE platform_order_id='split-1'),
+    'partial cancel keeps the order open and the gross total';
+  ASSERT (SELECT ol.status = 'active' AND ol.quantity = 1 AND ol.unit_price = 2000
+    FROM order_lines ol JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='split-1' AND ol.platform_line_id='split-a'),
+    'sibling line stays sellable';
+  ASSERT (SELECT ol.status = 'cancelled' AND ol.quantity = 1 AND ol.unit_price = 3000
+    FROM order_lines ol JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='split-1' AND ol.platform_line_id='split-b'),
+    'cancelled line keeps its commercial amount';
+  ASSERT (SELECT o.total_amount - COALESCE(sum(ol.unit_price * ol.quantity) FILTER (
+      WHERE ol.status IN ('cancelled','refunded')), 0) = 2500
+    FROM orders o JOIN order_lines ol ON ol.order_id = o.id
+    WHERE o.platform_order_id='split-1' GROUP BY o.total_amount),
+    'net sales subtract the cancelled line';
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'split-1', 'status', 'shipped', 'orderedAt', '2026-10-10T03:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId','split-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',2000,'status','active'
+    ))
+  )));
+  ASSERT result->>'autoFulfillments' = '1', 'partial cancel still fulfills the active line';
+  ASSERT (SELECT status = 'shipped' AND total_amount = 5500 FROM orders WHERE platform_order_id='split-1'),
+    'shipping the sibling does not shrink the gross';
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'split-1', 'status', 'cancelled', 'orderedAt', '2026-10-10T03:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId','split-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',0,'status','cancelled'
+    ))
+  )));
+  ASSERT result->>'cancelledCompensations' = '1', 'last line cancel restores only that line';
+  ASSERT (SELECT status = 'cancelled' AND total_amount = 5500 FROM orders WHERE platform_order_id='split-1'),
+    'the order closes once every line is cancelled';
+
+  -- A cancel seen before its siblings must reopen when an active line arrives.
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'reopen-1', 'status', 'cancelled', 'orderedAt', '2026-10-10T04:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId','reopen-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',1000,'status','cancelled'
+    ))
+  )));
+  ASSERT (SELECT status = 'cancelled' FROM orders WHERE platform_order_id='reopen-1'),
+    'a cancel-only snapshot still closes a new order';
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'reopen-1', 'status', 'paid', 'orderedAt', '2026-10-10T04:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 4000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId','reopen-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',4000,'status','active'
+    ))
+  )));
+  ASSERT (SELECT status = 'paid' AND total_amount = 5000 FROM orders WHERE platform_order_id='reopen-1'),
+    'an active sibling reopens the order and keeps both line amounts';
+  ASSERT (SELECT ol.status = 'cancelled' AND ol.unit_price = 1000 FROM order_lines ol
+    JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='reopen-1' AND ol.platform_line_id='reopen-b'),
+    'the earlier cancelled line stays cancelled';
+
+  -- A local cancel leaves lines active, so a later shipped snapshot must not reopen it.
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'local-1', 'status', 'paid', 'orderedAt', '2026-10-10T05:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId','local-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',1000,'status','active'
+    ))
+  )));
+  PERFORM cancel_order((SELECT id FROM orders WHERE platform_order_id='local-1'));
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'local-1', 'status', 'shipped', 'orderedAt', '2026-10-10T05:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId','local-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',1000,'status','active'
+    ))
+  )));
+  ASSERT result->>'autoFulfillments' = '0', 'local cancel does not fulfill on a later snapshot';
+  ASSERT (SELECT status = 'cancelled' AND fulfilled_at IS NULL FROM orders WHERE platform_order_id='local-1'),
+    'local cancel stays cancelled';
 
   -- A fulfilled active line becoming cancelled restores once.
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(

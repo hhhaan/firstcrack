@@ -21,6 +21,11 @@ export const FEATURE = {
      * Runtime control UI is gated separately by machineControl (Pro+).
      */
     customMachineControl: 'customMachineControl',
+    /**
+     * Virtual roaster in the machine list and batch picker.
+     * Not sold. `profiles.simulator_enabled` is the only switch (profile override).
+     */
+    simulator: 'simulator',
 } as const;
 
 export type FeatureKey = (typeof FEATURE)[keyof typeof FEATURE];

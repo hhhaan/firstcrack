@@ -109,6 +109,16 @@ describe('buildEventMarkers', () => {
             { id: 'control', time: '3:02', timeSec: 182, event: 'Control', temp: '', note: '' },
         ];
 
+        entries.push({
+            id: 'heater-again',
+            time: '2:05',
+            timeSec: 125,
+            event: 'Heater',
+            temp: '181.0°C',
+            tempC: 181,
+            note: '50%',
+        });
+
         expect(buildEventMarkers(entries)).toEqual([
             {
                 logId: 'note',

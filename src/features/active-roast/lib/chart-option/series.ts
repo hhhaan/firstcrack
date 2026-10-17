@@ -68,11 +68,15 @@ const controlMarks = (
             formatter: String(Number(value.toFixed(2))),
         },
     });
-    const marks = (changes ?? []).flatMap((change) => {
+    const ordered = [...(changes ?? [])].sort((a, b) => a.timeSec - b.timeSec);
+    let previousHeater: number | undefined;
+    const marks = ordered.flatMap((change) => {
         const value = change.values[role];
-        return value !== undefined && Number.isFinite(value) && Number.isFinite(change.timeSec)
-            ? [mark(change.timeSec, value, false)]
-            : [];
+        if (value === undefined || !Number.isFinite(value) || !Number.isFinite(change.timeSec)) return [];
+        // Clicking the heater that is already set is not another change label.
+        if (role === 'heater' && previousHeater === value) return [];
+        if (role === 'heater') previousHeater = value;
+        return [mark(change.timeSec, value, false)];
     });
     const tail = data.length > 0 ? data[data.length - 1] : undefined;
     if (tail && typeof tail[1] === 'number' && Number.isFinite(tail[1])) marks.push(mark(tail[0], tail[1], true));

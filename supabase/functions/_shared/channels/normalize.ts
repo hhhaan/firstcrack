@@ -83,10 +83,14 @@ function parseBatchResult(data: unknown): UpsertResult {
                 typeof skip.order_id !== 'string' ||
                 typeof skip.order_status !== 'string' ||
                 typeof skip.reason !== 'string',
-        ) ||
-        !Number.isInteger(result.heldFulfillments) ||
-        !Array.isArray(result.held) ||
-        result.held.some(
+        )
+    ) {
+        throw new Error('invalid sync_channel_orders_batch result');
+    }
+    const held = Array.isArray(result.held) ? result.held : [];
+    const heldFulfillments = Number.isInteger(result.heldFulfillments) ? result.heldFulfillments : 0;
+    if (
+        held.some(
             (hold) =>
                 !hold ||
                 typeof hold.order_id !== 'string' ||
@@ -109,17 +113,6 @@ function parseBatchResult(data: unknown): UpsertResult {
         cancelledCompensations: number;
         autoFulfillments: number;
         stockEventSkips: Array<{ reference_id: string; order_id: string; order_status: string; reason: string }>;
-        held: Array<{
-            order_id: string;
-            platform_order_id: string;
-            shortages: Array<{
-                product_id: string;
-                order_line_id: string;
-                required_units: number;
-                available_units: number;
-            }>;
-        }>;
-        heldFulfillments: number;
     };
     return {
         upserted: valid.upserted,
@@ -131,7 +124,7 @@ function parseBatchResult(data: unknown): UpsertResult {
             orderStatus: s.order_status,
             reason: s.reason,
         })),
-        fulfillmentHolds: valid.held.map((h) => ({
+        fulfillmentHolds: held.map((h) => ({
             orderId: h.order_id,
             platformOrderId: h.platform_order_id,
             shortages: h.shortages.map((s) => ({
@@ -141,7 +134,7 @@ function parseBatchResult(data: unknown): UpsertResult {
                 availableUnits: s.available_units,
             })),
         })),
-        heldFulfillments: valid.heldFulfillments,
+        heldFulfillments,
     };
 }
 

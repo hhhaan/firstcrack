@@ -1341,6 +1341,7 @@ export type Database = {
                     id: string;
                     plan: string;
                     polar_customer_id: string | null;
+                    simulator_enabled: boolean;
                     updated_at: string;
                 };
                 Insert: {
@@ -1354,6 +1355,7 @@ export type Database = {
                     id: string;
                     plan?: string;
                     polar_customer_id?: string | null;
+                    simulator_enabled?: boolean;
                     updated_at?: string;
                 };
                 Update: {
@@ -1367,6 +1369,7 @@ export type Database = {
                     id?: string;
                     plan?: string;
                     polar_customer_id?: string | null;
+                    simulator_enabled?: boolean;
                     updated_at?: string;
                 };
                 Relationships: [

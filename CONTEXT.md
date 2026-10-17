@@ -154,6 +154,17 @@ _Avoid_: A temperature-curve target as a synonym for a command's replay conditio
 기준 로스팅에 기록된 Heat set 명령의 재생. 기계가 보고한 Heat feedback 곡선과는 구별된다.
 _Avoid_: Replaying bean temperature as if it were the gas command.
 
+## Production
+
+**Roast batch**: A quantity of green coffee roasted together in one physical cycle, from charge to discharge. Multiple roast batches may fulfill one production plan item.
+_Avoid_: Production plan item.
+
+**Production plan item**: Planned production of a specified coffee or blend recipe and quantity. A post-roast blend is fulfilled by roasting its components separately and blending them afterward.
+_Avoid_: Roast batch.
+
+**Between-batch protocol (BBP)**: A procedure for managing the roaster's thermal condition between one batch's discharge and the next charge. It is distinct from cooling the discharged coffee.
+_Avoid_: Cooling the roasted coffee.
+
 ## Quality
 
 **Development time**:

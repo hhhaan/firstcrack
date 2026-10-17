@@ -498,4 +498,73 @@ describe('ActiveRoast running clock (#627)', () => {
         expect(dialog.ask).not.toHaveBeenCalled();
         expect(event.preventDefault).not.toHaveBeenCalled();
     });
+
+    it('keeps Dev, DTR, and the phase bar from the ended log (#865)', async () => {
+        seed({
+            elapsed: 600,
+            roastStartMs: Date.now() - 600_000,
+            sessionOwnerId: 'owner',
+            logState: {
+                unwind: false,
+                entries: [
+                    { id: 'charge', time: '0:00', timeSec: 0, event: 'Charge', temp: '180', tempC: 180, note: '' },
+                    { id: 'yellow', time: '4:00', timeSec: 240, event: 'Yellow', temp: '150', tempC: 150, note: '' },
+                    { id: 'fc', time: '8:00', timeSec: 480, event: 'FC Start', temp: '190', tempC: 190, note: '' },
+                ],
+            },
+        });
+        const dropped = useRoastingStore.getState().drop({
+            rawBT: 200,
+            unit: 'C',
+            replayActive: false,
+            onset: { timeSec: 600, bt: 200 },
+        });
+        expect(dropped).not.toBeNull();
+        expect(useRoastingStore.getState().saveSucceeded('owner', dropped?.snapshot.sessionId ?? null)).toBe(true);
+        expect(useRoastingStore.getState().elapsed).toBe(0);
+        expect(useRoastingStore.getState().logState.entries).toEqual([]);
+        useRoastingStore.setState({
+            prepared: { ...useRoastingStore.getState().prepared, workspaceOwnerId: '' },
+        });
+
+        const phaseNames = () =>
+            chart.setOption.mock.calls.flatMap((call) => {
+                const option = call[0] as { series?: { data?: unknown[] }[] };
+                return (option.series ?? []).flatMap((series) =>
+                    (series.data ?? []).flatMap((row) =>
+                        Array.isArray(row) && row[5] === 'Development' ? [row[2]] : [],
+                    ),
+                );
+            });
+
+        chart.setOption.mockClear();
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('20%');
+            expect(host.querySelector('[data-testid="dev-row"]')?.textContent).toContain('2:00');
+            expect(phaseNames()).toContain(120);
+
+            await act(async () => {
+                useRoastingStore.setState({ elapsed: 30 });
+            });
+            expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('20%');
+
+            const review = useRoastingStore.getState().completed?.snapshot.logEntries ?? [];
+            await act(async () => {
+                useRoastingStore
+                    .getState()
+                    .replaceReviewLog(
+                        review.map((entry) =>
+                            entry.event === 'FC Start' ? { ...entry, time: '9:00', timeSec: 540 } : entry,
+                        ),
+                    );
+            });
+            expect(useRoastingStore.getState().logState.entries).toEqual([]);
+            expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('10%');
+            expect(phaseNames().slice(-1)[0]).toBe(60);
+        } finally {
+            unmount();
+        }
+    });
 });

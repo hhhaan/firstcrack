@@ -1,5 +1,6 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
+import { omitRepeatHeaterMarks } from '@features/active-roast/lib/repeat-heater';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
@@ -37,7 +38,10 @@ export const calcDevTime = (logEntries: LogEntry[], elapsed: number): DevTimeRes
     const metrics = deriveRoastMetrics(
         logEntries
             .filter((e) => !e.current && e.event !== 'Now')
-            .map((e) => ({ type: e.event, time_sec: logEntryTimeSec(e) })),
+            .flatMap((e) => {
+                const timeSec = logEntryTimeSec(e);
+                return timeSec == null ? [] : [{ type: e.event, time_sec: timeSec }];
+            }),
         { liveElapsed: elapsed },
     );
     const start = formatDevParts(metrics.devTimeSec, metrics.dtrPct);
@@ -118,26 +122,32 @@ export const calcTargetDelta = (
     return { deltaDisplay: toDisplayTemp(rawBT, unit) - toDisplayTemp(targetBt, unit), status };
 };
 
-/** 이벤트 로그를 ECharts 마커 배열로 변환 */
+/** 이벤트 로그를 ECharts 마커 배열로 변환. 같은 화력을 다시 누른 표시는 뺀다. */
 export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
-    logEntries
-        .filter((e) => isChartEventMarker(e.event))
-        .map((e) => {
-            const timeSec = Math.max(0, logEntryTimeSec(e));
-            return {
-                logId: e.id,
-                timeSec,
-                event: e.event,
-                color: getResolvedEventColor(e.event),
-                timeStr: e.time,
-                temp: e.temp,
-                tempC: e.tempC,
-                note: e.note,
-                ...(e.gas ? { gas: e.gas } : {}),
-                ...(e.airflow ? { airflow: e.airflow } : {}),
-                ...(e.drum ? { drum: e.drum } : {}),
-            };
-        });
+    omitRepeatHeaterMarks(
+        logEntries
+            .filter((e) => isChartEventMarker(e.event))
+            .flatMap((e) => {
+                const entryTimeSec = logEntryTimeSec(e);
+                if (entryTimeSec == null) return [];
+                const timeSec = Math.max(0, entryTimeSec);
+                return [
+                    {
+                        logId: e.id,
+                        timeSec,
+                        event: e.event,
+                        color: getResolvedEventColor(e.event),
+                        timeStr: e.time,
+                        temp: e.temp,
+                        tempC: e.tempC,
+                        note: e.note,
+                        ...(e.gas ? { gas: e.gas } : {}),
+                        ...(e.airflow ? { airflow: e.airflow } : {}),
+                        ...(e.drum ? { drum: e.drum } : {}),
+                    },
+                ];
+            }),
+    );
 
 export interface RoastLogDisplayEntry extends LogEntry {
     current?: boolean;
@@ -155,7 +165,7 @@ export const buildRoastLogDisplayEntries = (
 ): RoastLogDisplayEntry[] => {
     const sorted = logEntries
         .filter((e) => e.event !== 'Control')
-        .sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+        .sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
     return [
         ...sorted,
         ...(!roastEnded && charged

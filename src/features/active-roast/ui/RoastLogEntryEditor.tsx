@@ -19,12 +19,14 @@ export function RoastLogEntryEditor({
     options,
     onClose,
     onDelete,
+    deleteDisabled = false,
     deleteLabel,
 }: {
     entry: LogEntry;
     options: RoastLogEditOptions;
     onClose: () => void;
     onDelete?: () => void;
+    deleteDisabled?: boolean;
     deleteLabel?: string;
 }) {
     const { t } = useTranslation();
@@ -133,11 +135,12 @@ export function RoastLogEntryEditor({
                 </p>
             )}
             <div className="flex w-full items-center">
-                {onDelete ? (
+                {onDelete || deleteDisabled ? (
                     <button
                         type="button"
+                        disabled={deleteDisabled}
                         aria-label={deleteLabel}
-                        className="rounded py-1 pr-2 pl-0 text-left text-muted hover:text-primary"
+                        className="rounded py-1 pr-2 pl-0 text-left text-muted hover:text-primary disabled:cursor-default disabled:opacity-40"
                         onClick={onDelete}
                     >
                         {t('common.delete')}

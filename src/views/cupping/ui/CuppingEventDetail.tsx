@@ -62,7 +62,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                         {title}
                         {isEnded ? (
                             <Badge tone="muted" size="sm">
-                                Ended
+                                {t('cupping.sessionEnded')}
                             </Badge>
                         ) : null}
                     </span>

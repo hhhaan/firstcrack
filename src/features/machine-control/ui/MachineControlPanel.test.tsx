@@ -47,7 +47,6 @@ const panelModel = (
         pidEngaged?: boolean;
         pidError?: string | null;
         replayActive?: boolean;
-        unacknowledged?: Array<'heater' | 'fan' | 'drum'>;
         heaterUnit?: string;
         fan?: boolean;
         changeManual?: (role: 'heater' | 'fan' | 'drum', value: number) => void;
@@ -64,7 +63,6 @@ const panelModel = (
                 ...(over.fan ? { fan: { min: 0, max: 100, unit: '%' } } : {}),
             },
             desired: { heater: 40 },
-            unacknowledged: new Set(over.unacknowledged ?? []),
             sending: false,
         },
         pid: {
@@ -251,11 +249,11 @@ describe('MachineControlPanel display', () => {
         unmount();
     });
 
-    it('shows the unacked-command fault in the open panel and on the folded rail', () => {
-        const { host, unmount } = renderPanel(panelModel({ unacknowledged: ['heater'] }));
-        expect(host.textContent).toContain('기기가 명령을 반영하지 않았습니다');
+    it('does not present differing command and feedback values as a fault', () => {
+        const { host, unmount } = renderPanel(panelModel());
+        expect(host.textContent).not.toContain('기기가 명령을 반영하지 않았습니다');
         act(() => (host.querySelector('[aria-label="Collapse machine control"]') as HTMLButtonElement).click());
-        expect(host.querySelector('[aria-label="기기가 명령을 반영하지 않았습니다"]')).not.toBeNull();
+        expect(host.querySelector('[aria-label="기기가 명령을 반영하지 않았습니다"]')).toBeNull();
         unmount();
     });
 

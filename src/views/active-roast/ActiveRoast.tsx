@@ -31,6 +31,7 @@ import {
     upsertReviewTurningPoint,
 } from '@features/active-roast/lib/event-marker-drag';
 import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
+import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
@@ -41,7 +42,7 @@ import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
-import { profileHeatTarget } from '@features/machine-control/lib/heater-events';
+import { editedHeatSet, profileHeatTarget } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
 import { subscribeExplicitMachineDisconnect } from '@shared/lib/explicitMachineDisconnect';
@@ -267,7 +268,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const reviewSnapshot = useRoastingStore(selectReviewSnapshot);
     const reviewing = reviewSnapshot != null;
     const reviewSessionId = reviewSnapshot?.sessionId ?? null;
-    const { applyReviewLog, reviewSaveError } = useReviewCurveEdit(reviewSessionId);
+    const { applyReviewLog, reviewSaveError, reviewHeaterEvents } = useReviewCurveEdit(reviewSessionId);
     const curvePoints = reviewSnapshot?.livePoints ?? livePoints;
     const curveEntries = reviewSnapshot?.logEntries ?? logEntries;
     const curveElapsed = reviewSnapshot?.elapsed ?? elapsed;
@@ -412,7 +413,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     }, [bbpActive, charged, reviewing, setZoomRange, setHoveredChartIndex]);
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
-    const liveDev = useMemo(() => calcDevTime(logEntries, elapsed), [logEntries, elapsed]);
+    // Drop clears the live clock to 0. 0 is a real duration, so the ended screen must keep its own log.
+    const devEntries = reviewing ? curveEntries : logEntries;
+    const devElapsed = reviewing ? curveElapsed : elapsed;
+    const liveDev = useMemo(() => calcDevTime(devEntries, devElapsed), [devEntries, devElapsed]);
     const { devTimeOnly, dtrPct, rollingDevTimeOnly, rollingDtrPct, roastDurationSec } = liveDev;
 
     // 라이프사이클과 하위 훅 사이 순환 의존성을 refs로 분리
@@ -941,6 +945,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const handleHeaterCommitted = useCallback(
         (value: number, heaterUnit: string) => {
             if (!Number.isFinite(value) || !charged || roastEnded || bbpActive) return;
+            const entries = useRoastingStore.getState().logState.entries;
+            if (isRepeatHeaterCommit(entries, value)) return;
             markEvent('Heater', `${value}${heaterUnit}`);
         },
         [bbpActive, charged, markEvent, roastEnded],
@@ -1005,27 +1011,31 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         (applied: AppliedRoastControl) => {
             const state = useRoastingStore.getState();
             if (state.sessionId !== sessionId || state.phase !== 'roasting' || bbpActive) return;
-            const values: AppliedRoastControl = {};
+            const commanded: AppliedRoastControl = {};
             for (const role of ['heater', 'fan', 'drum'] as const) {
                 const value = applied[role];
-                if (value !== undefined && Number.isFinite(value)) values[role] = value;
+                if (value !== undefined && Number.isFinite(value)) commanded[role] = value;
             }
-            if (Object.keys(values).length === 0) return;
+            if (Object.keys(commanded).length === 0) return;
             const timeSec =
                 state.roastStartMs > 0 ? Math.max(0, (Date.now() - state.roastStartMs) / 1000) : state.elapsed;
-            setLogEntries((entries) => [
-                ...entries,
-                {
-                    id: crypto.randomUUID(),
-                    event: 'Control',
-                    time: formatElapsed(timeSec),
-                    timeSec,
-                    temp: '',
-                    tempC: null,
-                    note: '',
-                    appliedControl: values,
-                },
-            ]);
+            setLogEntries((entries) => {
+                const values = controlValuesWithoutRepeatHeater(entries, commanded);
+                if (Object.keys(values).length === 0) return entries;
+                return [
+                    ...entries,
+                    {
+                        id: crypto.randomUUID(),
+                        event: 'Control',
+                        time: formatElapsed(timeSec),
+                        timeSec,
+                        temp: '',
+                        tempC: null,
+                        note: '',
+                        appliedControl: values,
+                    },
+                ];
+            });
         },
         [bbpActive, sessionId, setLogEntries],
     );
@@ -1110,9 +1120,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const reviewChartTurningPoints = useMemo(() => {
         if (!reviewSnapshot) return [];
         const logged = reviewSnapshot.logEntries.find((entry) => entry.event === 'TP' && entry.tempC != null);
-        if (logged?.tempC != null) return [{ timeSec: logEntryTimeSec(logged), temp: logged.tempC }];
+        const loggedTime = logged ? logEntryTimeSec(logged) : null;
+        if (logged?.tempC != null && loggedTime != null) return [{ timeSec: loggedTime, temp: logged.tempC }];
         const drop = reviewSnapshot.logEntries.find((entry) => entry.event === 'Drop');
-        const limit = drop ? logEntryTimeSec(drop) : reviewSnapshot.elapsed;
+        const limit = (drop ? logEntryTimeSec(drop) : null) ?? reviewSnapshot.elapsed;
         const xs: number[] = [];
         const bt: number[] = [];
         for (const point of reviewSnapshot.livePoints) {
@@ -1124,6 +1135,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             .slice(0, 1)
             .map(({ timeSec, temp }) => ({ timeSec, temp }));
     }, [reviewSnapshot]);
+    const reviewHeatSet = useMemo(() => {
+        if (!reviewing || reviewHeaterEvents == null) return chart.visibleHeatSet;
+        const drop = curveEntries.find((entry) => entry.event === 'Drop');
+        const dropTime = (drop ? logEntryTimeSec(drop) : null) ?? curveElapsed;
+        const points = chart.visibleControlXs.map((t, index) => ({
+            t,
+            heaterSet: chart.visibleHeatSet[index] ?? null,
+        }));
+        return editedHeatSet(points, dropTime, reviewHeaterEvents) ?? chart.visibleHeatSet;
+    }, [reviewing, reviewHeaterEvents, curveEntries, curveElapsed, chart.visibleControlXs, chart.visibleHeatSet]);
     const chartFrame = buildChartFrame({
         isFullscreen,
         bbpActive: reviewing ? false : bbpActive,
@@ -1149,7 +1170,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         drumTemp: chart.visibleDrumTemp,
         heatPower: chart.visibleHeatPower,
         fanSpeed: chart.visibleFanSpeed,
-        heatSet: chart.visibleHeatSet,
+        heatSet: reviewHeatSet,
         heatTarget,
         controlChanges: curveEntries.flatMap((entry) =>
             entry.event === 'Control' && entry.appliedControl

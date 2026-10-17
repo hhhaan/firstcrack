@@ -36,7 +36,7 @@ const makeEntry = (event: string, note: string, ctx: CycleFcDualCtx): LogEntry =
 });
 
 const sortByTime = (entries: LogEntry[]): LogEntry[] =>
-    [...entries].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+    [...entries].sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
 
 /** Button label: next action. Unwind at Start-only → unmark Start. */
 export const fcDualButtonLabel = (

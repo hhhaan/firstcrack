@@ -50,6 +50,8 @@ export const RoastLog = ({
                 const key = entry.current ? 'current' : (entry.id ?? `${entry.time}-${entry.event}`);
                 const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
                 const canRemove = deletableEvent(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
+                const deleteLocked =
+                    entry.event === 'TP' && deletableEvent !== isRemovableLogEvent && !deletableEvent(entry.event);
                 const canEdit = !!editOptions && !!entry.id && !entry.current && editableEvent(entry.event);
                 const deleteLabel = `Delete ${roastEventLabel(entry.event).toLowerCase()}`;
                 const editor =
@@ -68,6 +70,7 @@ export const RoastLog = ({
                                       }
                                     : undefined
                             }
+                            deleteDisabled={deleteLocked}
                             deleteLabel={deleteLabel}
                         />
                     ) : null;
@@ -85,16 +88,18 @@ export const RoastLog = ({
                         <Pencil size={14} />
                     </button>
                 ) : null;
-                const showRemove = canRemove && !canEdit;
+                const showRemove = (canRemove || deleteLocked) && !canEdit;
                 const reserveSlot = variant === 'main';
                 const removeButton = showRemove ? (
                     <button
                         type="button"
+                        disabled={deleteLocked}
                         onClick={() => {
-                            if (entry.id) onRemoveEntry?.(entry.id);
+                            if (deleteLocked || !entry.id) return;
+                            onRemoveEntry?.(entry.id);
                         }}
                         aria-label={deleteLabel}
-                        className="shrink-0 border-none bg-transparent px-1 text-[11px] text-muted hover:text-primary cursor-pointer"
+                        className="shrink-0 border-none bg-transparent px-1 text-[11px] text-muted hover:text-primary cursor-pointer disabled:cursor-default disabled:opacity-40"
                     >
                         {t('common.delete')}
                     </button>

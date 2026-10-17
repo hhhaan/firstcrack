@@ -1,4 +1,5 @@
 -- #751 / #872 PR1: short stock holds one order's auto-fulfillment instead of aborting the batch.
+-- sync_channel_orders_batch builds on 20261016190000_partial_line_cancel.sql (partial line cancel).
 
 CREATE TABLE public.order_fulfillment_holds (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -112,6 +113,8 @@ BEGIN
 
   PERFORM pg_advisory_xact_lock(hashtextextended(p_user_id::text||':'||v_platform||':'||i.platform_order_id, 0))
   FROM (SELECT DISTINCT platform_order_id FROM _channel_batch_input) i ORDER BY i.platform_order_id;
+  -- Match manual fulfill/cancel lock order, then lock every candidate product once so
+  -- overlapping batches cannot both pass the post-insert stock balance check.
   PERFORM 1 FROM orders o JOIN _channel_batch_input i
     ON o.user_id=p_user_id AND o.platform=v_platform AND o.platform_order_id=i.platform_order_id
   ORDER BY o.id FOR UPDATE;
@@ -150,14 +153,19 @@ BEGIN
     FROM _channel_batch_input i WHERE i.wave=v_wave
     ON CONFLICT(user_id,platform,platform_order_id) DO UPDATE SET
       connection_id=EXCLUDED.connection_id,
-      status=CASE WHEN EXCLUDED.status IN ('cancelled','refunded') THEN EXCLUDED.status
-        WHEN orders.status IN ('cancelled','refunded') THEN orders.status
+      status=CASE
+        WHEN EXCLUDED.status IN ('cancelled','refunded') OR orders.status IN ('cancelled','refunded') THEN orders.status
         WHEN CASE EXCLUDED.status WHEN 'pending' THEN 0 WHEN 'paid' THEN 1 WHEN 'preparing' THEN 2 WHEN 'shipped' THEN 3 WHEN 'delivered' THEN 4 END
            > CASE orders.status WHEN 'pending' THEN 0 WHEN 'paid' THEN 1 WHEN 'preparing' THEN 2 WHEN 'shipped' THEN 3 WHEN 'delivered' THEN 4 END
         THEN EXCLUDED.status ELSE orders.status END,
       ordered_at=COALESCE(LEAST(orders.ordered_at,channel_try_timestamptz((SELECT x.payload->>'orderedAt'
         FROM _channel_batch_input x WHERE x.wave=v_wave AND x.platform_order_id=EXCLUDED.platform_order_id))),orders.ordered_at),
-      buyer_name=EXCLUDED.buyer_name,currency=EXCLUDED.currency,total_amount=EXCLUDED.total_amount,
+      buyer_name=EXCLUDED.buyer_name,currency=EXCLUDED.currency,
+      total_amount=CASE
+        WHEN EXCLUDED.total_amount IS NULL THEN orders.total_amount
+        WHEN orders.total_amount IS NULL THEN EXCLUDED.total_amount
+        WHEN EXCLUDED.total_amount > orders.total_amount THEN EXCLUDED.total_amount
+        ELSE orders.total_amount END,
       raw=EXCLUDED.raw,synced_at=now(),updated_at=now();
 
     CREATE TEMP TABLE _channel_wave_orders ON COMMIT DROP AS
@@ -178,15 +186,71 @@ BEGIN
     SELECT l.order_id,p_user_id,l.platform_line_id,l.product_id,l.payload->>'platformProductId',l.payload->>'platformVariantId',
       l.payload->>'title',(l.payload->>'quantity')::integer,NULLIF(l.payload->>'unitPrice','')::numeric,l.payload->>'status'
     FROM _channel_lines l ON CONFLICT(order_id,platform_line_id) DO UPDATE SET
-      title=EXCLUDED.title,quantity=EXCLUDED.quantity,unit_price=EXCLUDED.unit_price,status=EXCLUDED.status,
+      title=EXCLUDED.title,
+      quantity=CASE
+        WHEN order_lines.status IN ('cancelled','refunded') THEN order_lines.quantity
+        WHEN EXCLUDED.status IN ('cancelled','refunded') THEN order_lines.quantity
+        ELSE EXCLUDED.quantity END,
+      unit_price=CASE
+        WHEN order_lines.status IN ('cancelled','refunded') THEN order_lines.unit_price
+        WHEN EXCLUDED.status IN ('cancelled','refunded') AND order_lines.unit_price IS NOT NULL THEN order_lines.unit_price
+        ELSE EXCLUDED.unit_price END,
+      status=CASE
+        WHEN order_lines.status = 'refunded' THEN order_lines.status
+        WHEN order_lines.status = 'cancelled' AND EXCLUDED.status = 'refunded' THEN EXCLUDED.status
+        WHEN order_lines.status IN ('cancelled','refunded') THEN order_lines.status
+        ELSE EXCLUDED.status END,
       platform_product_id=EXCLUDED.platform_product_id,platform_variant_id=EXCLUDED.platform_variant_id,product_id=EXCLUDED.product_id;
     UPDATE _channel_lines l SET line_id=ol.id FROM order_lines ol
     WHERE ol.order_id=l.order_id AND ol.platform_line_id=l.platform_line_id;
 
+    UPDATE orders o
+    SET status = resolved.next_status,
+        total_amount = resolved.total_amount,
+        updated_at = now()
+    FROM (
+      SELECT w.order_id,
+        CASE
+          WHEN stats.line_count > 0 AND stats.active_count = 0 THEN
+            CASE WHEN stats.refunded_count > 0 THEN 'refunded' ELSE 'cancelled' END
+          WHEN o2.status IN ('cancelled','refunded')
+            AND stats.active_count > 0
+            AND stats.line_count > stats.active_count THEN
+            CASE
+              WHEN (w.payload->>'status') IN ('pending','paid','preparing','shipped','delivered')
+                THEN w.payload->>'status'
+              ELSE 'paid'
+            END
+          ELSE o2.status
+        END AS next_status,
+        (SELECT max(v) FROM (VALUES (o2.total_amount), (stats.line_gross)) AS amounts(v)) AS total_amount
+      FROM _channel_wave_orders w
+      JOIN orders o2 ON o2.id = w.order_id
+      JOIN LATERAL (
+        SELECT count(*) AS line_count,
+          count(*) FILTER (WHERE ol.status = 'active') AS active_count,
+          count(*) FILTER (WHERE ol.status = 'refunded') AS refunded_count,
+          sum(ol.unit_price * ol.quantity) AS line_gross
+        FROM order_lines ol
+        WHERE ol.order_id = w.order_id
+      ) stats ON true
+    ) resolved
+    WHERE o.id = resolved.order_id
+      AND (o.status IS DISTINCT FROM resolved.next_status OR o.total_amount IS DISTINCT FROM resolved.total_amount);
+    UPDATE _channel_wave_orders w
+    SET next_status = o.status
+    FROM orders o
+    WHERE o.id = w.order_id;
+    UPDATE _channel_lines l
+    SET next_status = w.next_status
+    FROM _channel_wave_orders w
+    WHERE w.order_id = l.order_id;
+
     UPDATE order_fulfillment_holds h SET resolved_at=now(),updated_at=now()
     FROM _channel_wave_orders w
+    JOIN orders o ON o.id = w.order_id
     WHERE h.order_id=w.order_id AND h.resolved_at IS NULL
-      AND w.next_status IN ('cancelled','refunded');
+      AND o.status IN ('cancelled','refunded');
 
     SELECT COALESCE(jsonb_agg(event),'[]'::jsonb) INTO v_events FROM (
       SELECT jsonb_build_object('user_id',p_user_id,'product_id',l.product_id,'delta_units',l.diff_quantity,

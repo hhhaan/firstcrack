@@ -18,7 +18,6 @@ const renderScale = (overrides: Partial<Parameters<typeof HeaterScale>[0]> = {})
         limit: { min: 0, max: 100, unit: '%' },
         value: 70 as number | undefined,
         feedback: 70 as number | null,
-        unacknowledged: false,
         disabled: false,
         onChange,
         onCommit,
@@ -120,14 +119,8 @@ describe('HeaterScale A′ (#436)', () => {
         unmount();
     });
 
-    it('미반영이면 라이브 라인이 red-500이다', () => {
-        const { container, unmount } = renderScale({ value: 80, feedback: 60, unacknowledged: true });
-        expect(container.querySelector('[data-live-line]')?.className).toMatch(/red-500/);
-        unmount();
-    });
-
     it('따라오는 중이면 라이브 라인은 muted이다', () => {
-        const { container, unmount } = renderScale({ value: 80, feedback: 60, unacknowledged: false });
+        const { container, unmount } = renderScale({ value: 80, feedback: 60 });
         expect(container.querySelector('[data-live-line]')?.className).toMatch(/muted/);
         expect(container.querySelector('[data-live-line]')?.className).not.toMatch(/red-500/);
         unmount();
