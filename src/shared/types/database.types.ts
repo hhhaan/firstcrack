@@ -2230,6 +2230,10 @@ export type Database = {
                 };
                 Returns: string[];
             };
+            complete_plan_batch: {
+                Args: { p_batch_id: string; p_deduct?: boolean };
+                Returns: Database['public']['Tables']['roast_plan_batches']['Row'];
+            };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
             resolve_order_fulfillment_hold: { Args: { p_order_id: string }; Returns: undefined };
             retry_order_fulfillment: { Args: { p_order_id: string }; Returns: undefined };

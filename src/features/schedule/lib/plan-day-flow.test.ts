@@ -24,8 +24,7 @@ const baseBatch = (over: Partial<PlanBatchWithProgress> = {}): PlanBatchWithProg
 function makeDeps(overrides: Partial<CompleteBatchFlowDeps> = {}): CompleteBatchFlowDeps {
     return {
         ensureMaterialized: vi.fn().mockResolvedValue({ targetId: 'pb-1', targetPlanId: 'plan-1' }),
-        commitStatus: vi.fn().mockResolvedValue(undefined),
-        deduct: vi.fn().mockResolvedValue(undefined),
+        completePlanBatch: vi.fn().mockResolvedValue(undefined),
         notify: vi.fn(),
         ...overrides,
     };
@@ -34,84 +33,43 @@ function makeDeps(overrides: Partial<CompleteBatchFlowDeps> = {}): CompleteBatch
 describe('runCompleteBatchFlow', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('해피패스: materialize → deduct(referenceId=targetId) → done 커밋 순서', async () => {
+    it('해피패스: materialize → completePlanBatch(targetId, deduct=true)', async () => {
         const deps = makeDeps({
             ensureMaterialized: vi.fn().mockResolvedValue({ targetId: 'real-1', targetPlanId: 'plan-9' }),
         });
         await runCompleteBatchFlow(deps, baseBatch(), true);
 
         expect(deps.ensureMaterialized).toHaveBeenCalledTimes(1);
-        expect(deps.deduct).toHaveBeenCalledWith({
-            deductionGrams: 5000, // 1 remaining session x 5kg
-            singleBeanId: 'bean-1',
-            blendId: null,
-            referenceId: 'real-1',
-        });
-        expect(deps.commitStatus).toHaveBeenCalledWith(
-            expect.anything(),
-            { targetId: 'real-1', targetPlanId: 'plan-9' },
-            'done',
-        );
-        // deduct must run before the done commit
-        const deductOrder = (deps.deduct as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
-        const commitOrder = (deps.commitStatus as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
-        expect(deductOrder).toBeLessThan(commitOrder);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('real-1', true);
     });
 
-    it('deducts using the canonical row, not the stale selection', async () => {
+    it('uses canonical materialized id for the server RPC', async () => {
         const latest = baseBatch({ bean_id: 'new-bean', completed_sessions: 0, batch_size_kg: 2 });
         const deps = makeDeps({
             ensureMaterialized: vi.fn().mockResolvedValue({ targetId: 'real', targetPlanId: 'plan', batch: latest }),
         });
         await runCompleteBatchFlow(deps, baseBatch(), true);
-        expect(deps.deduct).toHaveBeenCalledWith({
-            deductionGrams: 4000,
-            singleBeanId: 'new-bean',
-            blendId: null,
-            referenceId: 'real',
-        });
-        expect(deps.commitStatus).toHaveBeenCalledWith(latest, expect.anything(), 'done');
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('real', true);
     });
 
-    it('deduct 실패 → 에러 전파 + done 커밋 안 함 (재시도 가능)', async () => {
+    it('complete 실패 → 에러 전파 (서버가 status/ledger 원자 처리)', async () => {
         const deps = makeDeps({
-            deduct: vi.fn().mockRejectedValue(new Error('Workspace is still loading')),
+            completePlanBatch: vi.fn().mockRejectedValue(new Error('Workspace is still loading')),
         });
         await expect(runCompleteBatchFlow(deps, baseBatch(), true)).rejects.toThrow('Workspace is still loading');
-        expect(deps.commitStatus).not.toHaveBeenCalled();
     });
 
-    it('roast_already_deducted → 알림 후 done 커밋은 진행 (세션 경로가 이미 차감)', async () => {
-        const deps = makeDeps({
-            deduct: vi.fn().mockRejectedValue(new Error('roast_already_deducted')),
-        });
-        await runCompleteBatchFlow(deps, baseBatch(), true);
-        expect(deps.notify).toHaveBeenCalledWith('activeRoast.summary.deductSkippedAlreadyDeducted');
-        expect(deps.commitStatus).toHaveBeenCalledTimes(1);
-    });
-
-    it('roast_already_deducted가 PostgrestError(비-Error 객체)로 와도 동일하게 처리', async () => {
-        const deps = makeDeps({
-            deduct: vi.fn().mockRejectedValue({ message: 'roast_already_deducted', code: '23505' }),
-        });
-        await runCompleteBatchFlow(deps, baseBatch(), true);
-        expect(deps.notify).toHaveBeenCalledWith('activeRoast.summary.deductSkippedAlreadyDeducted');
-        expect(deps.commitStatus).toHaveBeenCalledTimes(1);
-    });
-
-    it('deductStock=false → 차감 없이 done 커밋', async () => {
+    it('deductStock=false → completePlanBatch(..., false)', async () => {
         const deps = makeDeps();
         await runCompleteBatchFlow(deps, baseBatch(), false);
-        expect(deps.deduct).not.toHaveBeenCalled();
-        expect(deps.commitStatus).toHaveBeenCalledTimes(1);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false);
     });
 
-    it('bean/blend 없음 → 알림, 차감 없이 done 커밋', async () => {
+    it('bean/blend 없음 → 알림, completePlanBatch(..., false)', async () => {
         const deps = makeDeps();
         await runCompleteBatchFlow(deps, baseBatch({ bean_id: null, blend_id: null }), true);
         expect(deps.notify).toHaveBeenCalledWith('schedule.completeBatch.deductStockDisabled');
-        expect(deps.deduct).not.toHaveBeenCalled();
-        expect(deps.commitStatus).toHaveBeenCalledTimes(1);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false);
     });
 });
 

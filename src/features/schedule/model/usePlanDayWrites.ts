@@ -68,10 +68,9 @@ export const usePlanDayWrites = ({
         [userId],
     );
 
-    const commitStatus = useCallback(
-        async (_batch: PlanBatchWithProgress, target: BatchTarget, status: 'in-progress' | 'done') => {
-            if (!target.batch) throw new Error('resolved plan batch required');
-            await planBatchApi.updateRoastStatus(target.batch, status);
+    const completePlanBatch = useCallback(
+        async (batchId: string, deductStock: boolean) => {
+            await planBatchApi.completePlanBatch(batchId, deductStock);
             invalidatePlanScope(qc, userId);
         },
         [qc, userId],
@@ -97,9 +96,9 @@ export const usePlanDayWrites = ({
     );
 
     const completeBatch = useCallback(
-        (batch: PlanBatchWithProgress, deductStock: boolean, deps: Pick<CompleteBatchFlowDeps, 'deduct' | 'notify'>) =>
-            runCompleteBatchFlow({ ensureMaterialized, commitStatus, ...deps }, batch, deductStock),
-        [ensureMaterialized, commitStatus],
+        (batch: PlanBatchWithProgress, deductStock: boolean, deps: Pick<CompleteBatchFlowDeps, 'notify'>) =>
+            runCompleteBatchFlow({ ensureMaterialized, completePlanBatch, ...deps }, batch, deductStock),
+        [ensureMaterialized, completePlanBatch],
     );
 
     const createOneOffOrRecurring = useCallback(

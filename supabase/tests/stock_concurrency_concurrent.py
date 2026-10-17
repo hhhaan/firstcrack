@@ -1,0 +1,104 @@
+"""Two-connection stock concurrency tests. Usage: python3 supabase/tests/stock_concurrency_concurrent.py <owner-uuid>"""
+
+import os
+import pathlib
+import subprocess
+import sys
+
+fixture = pathlib.Path(__file__).with_name('stock_concurrency.sql').read_text()
+owner = sys.argv[1]
+pgurl = os.environ.get('STOCK_PSQL_URL', 'postgresql://postgres:postgres@127.0.0.1:5433/fc_test')
+base = ['psql', pgurl, '-v', f'owner={owner}']
+
+
+def run_psql(extra_vars: dict, *, stop: bool = True, input_text: str | None = None, tuples_only: bool = False) -> subprocess.CompletedProcess:
+    args = base + (['-v', 'ON_ERROR_STOP=1'] if stop else [])
+    if tuples_only:
+        args.extend(['-t', '-A'])
+    for key, value in extra_vars.items():
+        args.extend(['-v', f'{key}={value}'])
+    args.extend(['-f', str(pathlib.Path(__file__).with_name('stock_concurrency.sql'))])
+    return subprocess.run(args, input=input_text, text=True, capture_output=True, timeout=30)
+
+
+def assert_verify(scenario: str, extra: dict, expected_lines: list[str]) -> None:
+    result = run_psql({'verify': 1, **extra}, tuples_only=True)
+    assert result.returncode == 0, (scenario, result.stdout, result.stderr)
+    lines = [line for line in result.stdout.strip().splitlines() if line]
+    assert lines == expected_lines, (scenario, lines, result.stdout)
+
+
+for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_checks in [
+    (
+        'fulfill_race',
+        {'setup': 1, 'fulfill_race': 1},
+        {'call': 1, 'fulfill_a': 1, 'hold': 1},
+        {'call': 1, 'fulfill_b': 1},
+        {'verify': 1, 'fulfill_race': 1},
+        ['1', '1'],
+    ),
+    (
+        'pack_race',
+        {'setup': 1, 'pack_race': 1},
+        {'call': 1, 'pack_a': 1, 'hold': 1},
+        {'call': 1, 'pack_b': 1},
+        {'verify': 1, 'pack_race': 1},
+        ['250'],
+    ),
+    (
+        'session_then_complete',
+        {'setup': 1, 'roast_race': 1},
+        {'call': 1, 'save_session': 1, 'hold': 1},
+        {'call': 1, 'complete_batch': 1},
+        {'verify': 1, 'roast_race': 1},
+        ['-3000', 'done'],
+    ),
+    (
+        'complete_then_session',
+        {'setup': 1, 'roast_race': 1},
+        {'call': 1, 'complete_batch': 1, 'hold': 1},
+        {'call': 1, 'save_session': 1},
+        {'verify': 1, 'roast_race': 1},
+        ['-3000', 'done'],
+    ),
+]:
+    run_psql({'teardown': 1}, stop=True)
+    run_psql(setup_flags, stop=True)
+    worker = subprocess.Popen(
+        base + ['-v', 'ON_ERROR_STOP=1'] + [arg for k, v in {**first_flags}.items() for arg in ('-v', f'{k}={v}')]
+        + ['-f', str(pathlib.Path(__file__).with_name('stock_concurrency.sql'))],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    worker.stdin.write(fixture)
+    worker.stdin.close()
+    for line in worker.stdout:
+        if line.strip() == 'ready':
+            break
+    else:
+        raise AssertionError(f'{scenario}: first writer failed: {worker.wait()}')
+    assert worker.poll() is None, f'{scenario}: first transaction already ended'
+    second = run_psql(second_flags, stop=False)
+    remaining = worker.stdout.read()
+    assert worker.wait(timeout=30) == 0, (scenario, remaining)
+    if second.returncode != 0 and 'insufficient' not in (second.stdout + second.stderr):
+        raise AssertionError((scenario, second.stdout, second.stderr))
+    assert_verify(scenario, verify_flags, verify_checks)
+    print(f'{scenario}: passed')
+
+# Single-connection checks
+run_psql({'teardown': 1})
+run_psql({'setup': 1, 'corrective': 1})
+run_psql({'call': 1, 'repair_inbound': 1})
+assert_verify('corrective_inbound', {'verify': 1, 'corrective': 1}, ['-2'])
+
+run_psql({'teardown': 1})
+run_psql({'setup': 1, 'fulfill_race': 1})
+run_psql({'call': 1, 'fulfill_a': 1})
+run_psql({'call': 1, 'retry_fulfill': 1})
+assert_verify('fulfill_retry', {'verify': 1, 'fulfill_race': 1}, ['1', '1'])
+
+print('all stock concurrency tests passed')

@@ -60,10 +60,9 @@ Use recurrence-rule merge APIs (`recurrenceRuleApi` / `mergeRecurrenceRuleMaster
 
 `useScheduleDayView` → complete modal:
 
-1. Optional green deduct: `batchGreenNeededGramsFromBatch(batch)` = remaining sessions × size (`src/shared/lib/batch-stock.ts`)
-2. `useDeductRoastStock` with **`reference_id = plan_batch.id`**
-3. Status transition to done
-4. If server returns `roast_already_deducted`, still allow complete (session path already took stock)
+1. Materialize virtual recurring rows (`ensureMaterialized`)
+2. `complete_plan_batch(batch_id, deduct)` — one RPC locks the plan batch, counts linked sessions, deducts remaining slots × `batch_size_kg`, optional estimate `roast_inbound`, and sets `status = done`
+3. Older clients may still call `insert_stock_events_batch` with a batch ref; Postgres clamps that deduct to the same remaining grams (no hard reject)
 
 ### Handoff to Active Roast
 

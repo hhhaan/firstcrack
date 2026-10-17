@@ -33,7 +33,7 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 |---|---|---|
 | Bean create / restock | `src/widgets/add-bean-modal/ui/useAddBeanSubmit.ts` | `purchase` (`reference_id` null) |
 | Roast save deduct | `src/views/active-roast/model/useRoastSaveFlow.ts` → `src/features/active-roast/model/useDeductRoastStock.ts` / server `save_roast_op` | `roast`, ref = session or batch id. Blends: `src/features/active-roast/lib/buildRoastStockEvents.ts` → `insert_stock_events_batch` RPC |
-| Schedule batch complete | `src/views/schedule/hooks/useScheduleDayView.ts` + `batchGreenNeededGramsFromBatch` (`src/shared/lib/batch-stock.ts`) | `roast`, ref = `plan_batch.id` (remaining sessions only) |
+| Schedule batch complete | `complete_plan_batch` RPC via schedule writes (`plan-day-flow.ts`) | `roast`, ref = `plan_batch.id` (remaining sessions computed under batch lock). Legacy app versions still call `insert_stock_events_batch`; the server clamps batch-level `roast` events to `plan_batch_remaining_roast_grams` after locking the batch. |
 | Manual adjust | `src/features/adjust-*` (product/roasted); bean adjust UI where present | `adjustment` / `write_off` |
 
 ### roasted_stock_events (bulk)
