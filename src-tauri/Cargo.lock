@@ -3727,7 +3727,7 @@ dependencies = [
 
 [[package]]
 name = "roastery-agent"
-version = "1.2.24"
+version = "1.2.25"
 dependencies = [
  "libc",
  "objc2",
