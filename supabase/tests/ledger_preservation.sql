@@ -1,4 +1,4 @@
--- Local database fixture. Usage:
+-- Local database fixture. Run with psql -f from repo root (\ir resolves next to this file; piping stdin breaks includes).
 -- psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -v owner=11111111-1111-1111-1111-111111111111 -f supabase/tests/ledger_preservation.sql
 BEGIN;
 SELECT set_config('test.owner', :'owner', true);
@@ -40,31 +40,40 @@ BEGIN
 
   -- Superuser runs sync (service_role grants vary on trimmed local harnesses).
 
-  -- Fulfillment branch requires ol.status = 'active' (refunded line skipped).
+  -- Fulfillment branch requires ol.status = 'active' (cancelled row kept when payload flips to active).
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
     pg_temp.channel_fixture_order(
       'active-filter-1', 'paid', '2026-10-17T09:00:00Z', 2,
       jsonb_build_array(
         pg_temp.channel_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
-        pg_temp.channel_fixture_line('af-b', v_product_af, 1, 'B', 1, 'refunded')
-      ),
-      'A'
-    ),
-    pg_temp.channel_fixture_order(
-      'active-filter-1', 'shipped', '2026-10-17T09:00:00Z', 2,
-      jsonb_build_array(
-        pg_temp.channel_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
-        pg_temp.channel_fixture_line('af-b', v_product_af, 1, 'B', 1, 'refunded')
+        pg_temp.channel_fixture_line('af-b', v_product_af, 1, 'B', 1, 'cancelled')
       ),
       'A'
     )
   ));
+  ASSERT (SELECT ol.status FROM order_lines ol JOIN orders o ON o.id = ol.order_id
+    WHERE o.platform_order_id = 'active-filter-1' AND ol.platform_line_id = 'af-b') = 'cancelled',
+    'line b stored cancelled on paid';
+
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'active-filter-1', 'shipped', '2026-10-17T09:00:00Z', 2,
+      jsonb_build_array(
+        pg_temp.channel_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
+        pg_temp.channel_fixture_line('af-b', v_product_af, 1, 'B', 1, 'active')
+      ),
+      'A'
+    )
+  ));
+  ASSERT (SELECT ol.status FROM order_lines ol JOIN orders o ON o.id = ol.order_id
+    WHERE o.platform_order_id = 'active-filter-1' AND ol.platform_line_id = 'af-b') = 'cancelled',
+    'line b stays cancelled despite active payload';
   ASSERT (
     SELECT count(*) FROM product_stock_events pse
     JOIN order_lines ol ON ol.id = pse.reference_id
     JOIN orders o ON o.id = ol.order_id
     WHERE o.platform_order_id = 'active-filter-1' AND pse.event_type = 'order_fulfillment'
-  ) = 1, 'non-active line skipped for fulfillment';
+  ) = 1, 'ol.status active filter skips cancelled line (would be 2 without it)';
 
   -- #890: qty 1 paid, then shipped with qty 3 must deduct 3; cancel restores 3 (stock 20).
   PERFORM pg_temp.sync_single_line_order(

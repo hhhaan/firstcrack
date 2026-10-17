@@ -1,4 +1,4 @@
--- Local database fixture. Usage:
+-- Local database fixture. Run with psql -f from repo root (\ir resolves next to this file; piping stdin breaks includes).
 -- psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -v owner=<profile uuid> -f supabase/tests/channel_orders_batch.sql
 BEGIN;
 SELECT set_config('test.owner', :'owner', true);

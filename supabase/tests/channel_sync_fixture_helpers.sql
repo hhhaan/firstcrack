@@ -1,4 +1,4 @@
--- Shared pg_temp payloads for channel sync SQL fixtures (included via \i).
+-- Shared pg_temp payloads for channel sync SQL fixtures (included via \ir from ledger_preservation / channel_orders_batch).
 CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_line(
   p_platform_line_id text,
   p_product_id uuid,
