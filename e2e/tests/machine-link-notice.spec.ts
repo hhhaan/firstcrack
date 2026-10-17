@@ -1,4 +1,59 @@
 import { expect, goNav, test } from '../fixtures/app';
+import { E2E_USER } from '../fixtures/constants';
+
+test.beforeEach(async ({ authedPage: page }) => {
+    await page.route('**/rest/v1/profiles*', (route) =>
+        route.fulfill({
+            json: { id: E2E_USER.id, plan: 'pro', business_name: 'E2E Roastery', simulator_enabled: true },
+        }),
+    );
+    await page.reload();
+    await expect(page.getByTestId('app-sidebar')).toBeVisible();
+});
+
+test('Machines disconnect button respects the in-progress roast confirmation', async ({ authedPage: page }) => {
+    let connected = true;
+    let disconnects = 0;
+    await page.route('http://127.0.0.1:9999/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/disconnect') {
+            disconnects += 1;
+            connected = false;
+        }
+        await route.fulfill({
+            json:
+                path === '/temperatures'
+                    ? { bt: 185, et: 210, ror: 0, heater: 70, timestamp: Date.now() / 1000 }
+                    : { connected, roaster: 'virtual', machine_id: '__virtual__', capabilities: ['heater'] },
+        });
+    });
+    await goNav(page, 'roast');
+    await page.waitForFunction(() => Boolean(window.__FC_E2E__?.forceChargedSession));
+    await page.evaluate(() => {
+        window.__FC_E2E__?.forceChargedSession();
+        Object.assign(window, {
+            '__e2e_plugin:dialog|message': () => {
+                Object.assign(window, { __e2e_disconnect_prompted: true });
+                return '취소';
+            },
+        });
+    });
+    await goNav(page, 'machines');
+    const disconnect = page.getByRole('button', { name: 'Disconnect', exact: true });
+    await expect(disconnect).toBeVisible();
+    await disconnect.click();
+    await page.waitForFunction(() => '__e2e_disconnect_prompted' in window);
+    await expect(disconnect).toBeVisible();
+    expect(disconnects).toBe(0);
+    await page.evaluate(() => {
+        Object.assign(window, {
+            '__e2e_plugin:dialog|message': () => '연결 해제',
+        });
+    });
+    await disconnect.click();
+    await expect.poll(() => disconnects).toBe(1);
+    await expect(page.getByRole('button', { name: 'Connect', exact: true })).toBeVisible();
+});
 
 test('machine link notice survives screen changes and re-arms only after a healthy reading', async ({
     authedPage: page,

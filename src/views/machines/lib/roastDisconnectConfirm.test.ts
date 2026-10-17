@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import machinesSrc from '../Machines.tsx?raw';
 
 const { ask } = vi.hoisted(() => ({ ask: vi.fn() }));
 
@@ -32,10 +31,6 @@ describe('disconnectMachineWithRoastGuard', () => {
     beforeEach(() => {
         ask.mockReset();
         Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
-    });
-
-    it('wires the Machines disconnect button through the guard', () => {
-        expect(machinesSrc).toContain('disconnectMachineWithRoastGuard');
     });
 
     it('roasting + cancel keeps the connection', async () => {
