@@ -99,8 +99,9 @@ describe('HistoryQcEditor sentry', () => {
             tags: { feature: 'history-qc', rpc: 'set_session_charge_weight', 'db.code': 'XX000' },
         });
         const event: Sentry.ErrorEvent = {
+            type: undefined,
             exception: { values: [{ type: 'SupabaseError', value: (captured as Error).message }] },
-            ...hint,
+            ...(hint && typeof hint === 'object' ? hint : {}),
         };
         expect(JSON.stringify(event)).toContain('192.168.10.60');
         expect(JSON.stringify(event)).toContain('/Users/test/secret');

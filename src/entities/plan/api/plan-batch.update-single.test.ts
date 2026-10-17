@@ -41,7 +41,7 @@ describe('planBatchApi.updateSingle virtual exception', () => {
     });
 
     it('inserts a modified exception when no conflict', async () => {
-        const row = { id: 'batch-1', ...patch };
+        const row = { ...patch, id: 'batch-1' };
         const insertQ = chainable({ data: row, error: null });
         from.mockReturnValueOnce(insertQ);
 
