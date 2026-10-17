@@ -122,11 +122,3 @@ export function sumRoastedGrams(
 export function sumProductUnits(ledger: InventoryLedger, productId: string): number {
     return ledger.product.filter((e) => e.product_id === productId).reduce((s, e) => s + e.delta_units, 0);
 }
-
-export function roastReferenceIds(ledger: InventoryLedger): Set<string> {
-    const refs = new Set<string>();
-    for (const e of ledger.bean) {
-        if (e.event_type === 'roast' && e.reference_id) refs.add(e.reference_id);
-    }
-    return refs;
-}
