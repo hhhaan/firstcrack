@@ -204,11 +204,25 @@ it('uses fixed axis defaults, validates intervals, and restores persisted choice
         timeRangeCustom: false,
     });
     expect(normalizeRoastSettings({}).rorAxisMode).toBe('preset');
-    expect(normalizeRoastSettings({ rorGridInterval: 4 })).toMatchObject({
+    expect(normalizeRoastSettings({ rorGridInterval: 15 })).toMatchObject({
         rorAxisMode: 'list',
         rorTickMode: 'interval',
-        rorGridInterval: 4,
+        rorGridInterval: 15,
     });
+    expect(normalizeRoastSettings({ rorGridInterval: 6 }).rorGridInterval).toBe(5);
+    expect(normalizeRoastSettings({ rorGridInterval: 8 }).rorGridInterval).toBe(10);
+    expect(normalizeRoastSettings({ rorGridInterval: 4 }).rorGridInterval).toBe(5);
+    expect(normalizeRoastSettings({ rorGridInterval: 0.1 }).rorGridInterval).toBe(5);
+    expect(normalizeRoastSettings({ rorGridInterval: 1 }).rorGridInterval).toBe(5);
+    expect(normalizeRoastSettings({ rorGridPresetInterval: 1 }).rorGridPresetInterval).toBe(5);
+    expect(normalizeRoastSettings({ rorGridPresetInterval: 2 }).rorGridPresetInterval).toBe(5);
+    expect(normalizeRoastSettings({ rorGridInterval: 250 }).rorGridInterval).toBe(100);
+    expect(normalizeRoastSettings({ temperatureUnit: 'F', rorGridInterval: 0.1 }).rorGridInterval).toBeCloseTo(
+        (5 * 5) / 9,
+    );
+    expect(normalizeRoastSettings({ temperatureUnit: 'F', rorGridInterval: (10 * 5) / 9 }).rorGridInterval).toBeCloseTo(
+        (10 * 5) / 9,
+    );
     expect(normalizeRoastSettings({ rorTicksC: [10, -5, 0, 0] }).rorTicksC).toEqual([-5, 0, 10]);
     expect(normalizeRoastSettings({ rorTicksC: [301] }).rorTicksC).toEqual([]);
     expect(normalizeRoastSettings({ tempGridInterval: 15 }).tempAxisMode).toBe('preset');

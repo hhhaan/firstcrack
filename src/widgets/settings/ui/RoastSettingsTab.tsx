@@ -192,6 +192,8 @@ const NumberInput = ({
     max,
     suffix,
     ariaLabel,
+    integer = false,
+    step = 1,
 }: {
     id?: string;
     value: number;
@@ -200,6 +202,8 @@ const NumberInput = ({
     max?: number;
     suffix?: string;
     ariaLabel?: string;
+    integer?: boolean;
+    step?: number;
 }) => {
     const [local, setLocal] = useState(() => String(value));
 
@@ -221,18 +225,27 @@ const NumberInput = ({
                 value={local}
                 valueIsNumericString
                 allowNegative
+                decimalScale={integer ? 0 : undefined}
                 onValueChange={(values) => {
                     setLocal(values.value);
-                    if (values.floatValue !== undefined) {
-                        onChange(clamp(values.floatValue));
-                    }
+                    if (integer || values.floatValue === undefined) return;
+                    onChange(clamp(values.floatValue));
                 }}
-                onBlur={() => {
-                    if (local === '') {
-                        const fallback = min ?? 0;
-                        setLocal(String(fallback));
-                        onChange(fallback);
+                onBlur={(event) => {
+                    const typed = event.currentTarget.value;
+                    if (!integer) {
+                        if (typed === '') {
+                            const fallback = min ?? 0;
+                            setLocal(String(fallback));
+                            onChange(fallback);
+                        }
+                        return;
                     }
+                    const parsed = Number(typed);
+                    const stepped = Number.isFinite(parsed) ? Math.round(parsed / step) * step : Number.NaN;
+                    const next = Number.isFinite(stepped) ? clamp(stepped) : (min ?? value);
+                    setLocal(String(next));
+                    if (next !== value) onChange(next);
                 }}
                 className="w-14 bg-transparent text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
             />
@@ -382,7 +395,7 @@ const TimeRangeRow = ({ custom, presetMin, customMin }: { custom: boolean; prese
     );
 };
 
-const ROR_GRID_PRESETS = [5, 1, 2, 10] as const;
+const ROR_GRID_PRESETS = [5, 10] as const;
 const ROR_LABEL_PRESETS = [1, 2, 5] as const;
 const isPresetValue = (presets: readonly number[], value: string) => presets.includes(Number(value));
 
@@ -606,12 +619,16 @@ const RorTickSection = () => {
                                 </label>
                                 <NumberInput
                                     id="roast-ror-interval"
-                                    value={show(roastSettings.rorGridInterval)}
+                                    integer
+                                    step={5}
+                                    value={Math.round(show(roastSettings.rorGridInterval))}
                                     onChange={(value) =>
-                                        updateRoastSettings({ rorGridInterval: fromDisplayRoR(value, unit) })
+                                        updateRoastSettings({
+                                            rorGridInterval: fromDisplayRoR(Math.round(value / 5) * 5, unit),
+                                        })
                                     }
-                                    min={show(0.1)}
-                                    max={show(100)}
+                                    min={5}
+                                    max={Math.round(show(100))}
                                     suffix={suffix}
                                 />
                             </SettingsOptionRow>

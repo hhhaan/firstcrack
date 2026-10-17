@@ -15,7 +15,13 @@ import {
 } from '../lib/curve-style';
 import { DEFAULT_EVENT_BUTTONS, normalizeEventButtons } from '../lib/event-buttons';
 import { mapFirescopeGraphSettings } from '../lib/firescope-settings';
-import { normalizeRorTicks, normalizeTemperatureTicks, type TemperatureUnit } from '../lib/temperature';
+import {
+    fromDisplayRoR,
+    normalizeRorTicks,
+    normalizeTemperatureTicks,
+    type TemperatureUnit,
+    toDisplayRoR,
+} from '../lib/temperature';
 import type {
     EventMarkerStyle,
     FontScalePct,
@@ -170,6 +176,19 @@ const DEFAULT_SETTINGS: RoastSettings = {
 const clampNum = (value: unknown, min: number, max: number, fallback: number) => {
     const n = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
     return Math.min(max, Math.max(min, n));
+};
+
+/** RoR grid step in the active unit. 6 and 8 land on 5 and 10. */
+const ROR_GRID_INTERVAL_STEP = 5;
+
+const normalizeRorGridInterval = (value: unknown, unit: TemperatureUnit, fallback: number): number => {
+    const source = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    const display = toDisplayRoR(source, unit);
+    const maxDisplay = Math.round(toDisplayRoR(100, unit));
+    const rounded = Number.isFinite(display)
+        ? Math.round(display / ROR_GRID_INTERVAL_STEP) * ROR_GRID_INTERVAL_STEP
+        : ROR_GRID_INTERVAL_STEP;
+    return fromDisplayRoR(Math.min(maxDisplay, Math.max(ROR_GRID_INTERVAL_STEP, rounded)), unit);
 };
 
 const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback);
@@ -344,15 +363,14 @@ export const normalizeRoastSettings = (
         controlYMax,
         rorYMin,
         rorYMax,
-        rorGridInterval: clampNum(
+        rorGridInterval: normalizeRorGridInterval(
             merged.rorGridInterval,
-            0.1,
-            100,
+            merged.temperatureUnit === 'F' ? 'F' : 'C',
             previous?.rorGridInterval ?? DEFAULT_SETTINGS.rorGridInterval,
         ),
         rorGridPresetInterval: pickPreset(
             merged.rorGridPresetInterval,
-            [1, 2, 5, 10],
+            [5, 10],
             previous?.rorGridPresetInterval ?? DEFAULT_SETTINGS.rorGridPresetInterval,
         ),
         rorAxisMode: axisModeOf(
