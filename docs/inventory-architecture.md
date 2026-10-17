@@ -70,7 +70,9 @@ When one transaction touches multiple parents, acquire locks in this order only:
 8. `beans`
 9. `blends`
 
-Row locks use `FOR NO KEY UPDATE` on products, beans, blends, and plan batches where possible so `KEY SHARE` FK readers (e.g. `order_lines` inserts) are not blocked.
+Row locks use `FOR NO KEY UPDATE` on products, beans, and blends so `KEY SHARE` FK readers (e.g. `order_lines` inserts) are not blocked.
+
+**Exceptions (still compatible):** `#875` channel sync paths may lock `products` with `FOR UPDATE`. `save_roast_op` and `lock_roast_plan_batch_for_write` lock `recurrence_rules` then `roast_plan_batches` with **`FOR UPDATE`** on the batch row (not `FOR NO KEY UPDATE`) so `complete_plan_batch` and legacy batch clamps block concurrent `roast_sessions` FK inserts that would skew remaining-session grams. Legacy `insert_stock_events_batch` reads `roast_day_plans` with `FOR SHARE` for owner checks after the batch lock.
 
 ---
 

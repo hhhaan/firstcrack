@@ -1,5 +1,6 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as planBatchStockIds from './plan-batch-stock-ids';
 import {
     buildReorderIds,
     type CompleteBatchFlowDeps,
@@ -25,6 +26,7 @@ function makeDeps(overrides: Partial<CompleteBatchFlowDeps> = {}): CompleteBatch
     return {
         ensureMaterialized: vi.fn().mockResolvedValue({ targetId: 'pb-1', targetPlanId: 'plan-1' }),
         completePlanBatch: vi.fn().mockResolvedValue(undefined),
+        invalidatePlanBatchStock: vi.fn().mockResolvedValue(undefined),
         notify: vi.fn(),
         ...overrides,
     };
@@ -40,7 +42,8 @@ describe('runCompleteBatchFlow', () => {
         await runCompleteBatchFlow(deps, baseBatch(), true);
 
         expect(deps.ensureMaterialized).toHaveBeenCalledTimes(1);
-        expect(deps.completePlanBatch).toHaveBeenCalledWith('real-1', true, ['bean-1']);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('real-1', true);
+        expect(deps.invalidatePlanBatchStock).toHaveBeenCalledWith(['bean-1']);
     });
 
     it('uses canonical materialized id for the server RPC', async () => {
@@ -49,7 +52,18 @@ describe('runCompleteBatchFlow', () => {
             ensureMaterialized: vi.fn().mockResolvedValue({ targetId: 'real', targetPlanId: 'plan', batch: latest }),
         });
         await runCompleteBatchFlow(deps, baseBatch(), true);
-        expect(deps.completePlanBatch).toHaveBeenCalledWith('real', true, ['new-bean']);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('real', true);
+        expect(deps.invalidatePlanBatchStock).toHaveBeenCalledWith(['new-bean']);
+    });
+
+    it('passes blend component bean ids for stock invalidation', async () => {
+        vi.spyOn(planBatchStockIds, 'stockBeanIdsForPlanBatch').mockResolvedValue(['b1', 'b2']);
+        const blendBatch = baseBatch({ bean_id: null, blend_id: 'blend-1' });
+        const deps = makeDeps();
+        await runCompleteBatchFlow(deps, blendBatch, true);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', true);
+        expect(deps.invalidatePlanBatchStock).toHaveBeenCalledWith(['b1', 'b2']);
+        vi.restoreAllMocks();
     });
 
     it('complete 실패 → 에러 전파 (서버가 status/ledger 원자 처리)', async () => {
@@ -62,14 +76,33 @@ describe('runCompleteBatchFlow', () => {
     it('deductStock=false → completePlanBatch(..., false)', async () => {
         const deps = makeDeps();
         await runCompleteBatchFlow(deps, baseBatch(), false);
-        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false, ['bean-1']);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false);
+        expect(deps.invalidatePlanBatchStock).toHaveBeenCalledWith(['bean-1']);
     });
 
     it('bean/blend 없음 → 알림, completePlanBatch(..., false)', async () => {
         const deps = makeDeps();
         await runCompleteBatchFlow(deps, baseBatch({ bean_id: null, blend_id: null }), true);
         expect(deps.notify).toHaveBeenCalledWith('schedule.completeBatch.deductStockDisabled');
-        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false, []);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', false);
+        expect(deps.invalidatePlanBatchStock).toHaveBeenCalledWith([]);
+    });
+
+    it('completes before blend lookup; broad invalidation when lookup fails', async () => {
+        const order: string[] = [];
+        vi.spyOn(planBatchStockIds, 'stockBeanIdsForPlanBatch').mockRejectedValue(new Error('offline'));
+        const deps = makeDeps({
+            completePlanBatch: vi.fn().mockImplementation(async () => {
+                order.push('complete');
+            }),
+            invalidatePlanBatchStock: vi.fn().mockImplementation(async () => {
+                order.push('invalidate');
+            }),
+        });
+        await runCompleteBatchFlow(deps, baseBatch({ blend_id: 'blend-1' }), true);
+        expect(order).toEqual(['complete', 'invalidate']);
+        expect(deps.invalidatePlanBatchStock).toHaveBeenCalledWith([], true);
+        vi.restoreAllMocks();
     });
 });
 

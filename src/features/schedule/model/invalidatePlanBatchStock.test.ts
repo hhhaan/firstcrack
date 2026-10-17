@@ -30,4 +30,16 @@ describe('invalidatePlanBatchStock', () => {
         });
         expect(qc.invalidateQueries).toHaveBeenCalledTimes(6);
     });
+
+    it('broad fallback also refreshes per-bean summary and event roots', () => {
+        const qc = { invalidateQueries: vi.fn() } as unknown as QueryClient;
+        invalidatePlanBatchStock(qc, 'user-1', [], true);
+
+        expect(qc.invalidateQueries).toHaveBeenCalledWith({
+            queryKey: inventoryQueryRoots.beanStockEvents,
+        });
+        expect(qc.invalidateQueries).toHaveBeenCalledWith({
+            queryKey: inventoryQueryRoots.beanStockSummary,
+        });
+    });
 });

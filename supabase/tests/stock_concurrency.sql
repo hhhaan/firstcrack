@@ -119,6 +119,19 @@ INSERT INTO products(id, user_id, name, net_weight_grams)
 VALUES ('88900000-0000-0000-0000-000000000088', :'owner', 'rollback sku', 200);
 INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
 VALUES (:'owner', '88900000-0000-0000-0000-000000000088', 2, 'roast_inbound');
+\elif :{?recurrence_40001}
+DELETE FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000020';
+DELETE FROM recurrence_rules WHERE id IN (
+  '89100000-0000-0000-0000-000000000021', '89100000-0000-0000-0000-000000000022');
+DELETE FROM roast_day_plans WHERE id = '89100000-0000-0000-0000-000000000019';
+INSERT INTO roast_day_plans(id, user_id, date)
+VALUES ('89100000-0000-0000-0000-000000000019', :'owner', '2099-07-01');
+INSERT INTO recurrence_rules(id, user_id, rrule, dtstart, bean_name, batch_size_kg, target_roasted_kg)
+VALUES ('89100000-0000-0000-0000-000000000021', :'owner', 'FREQ=DAILY', '2099-07-01', 'r-a', 1, 1),
+       ('89100000-0000-0000-0000-000000000022', :'owner', 'FREQ=DAILY', '2099-07-02', 'r-b', 1, 1);
+INSERT INTO roast_plan_batches(id, plan_id, recurrence_rule_id, original_date, bean_name, batch_size_kg, target_roasted_kg, status)
+VALUES ('89100000-0000-0000-0000-000000000020', '89100000-0000-0000-0000-000000000019',
+  '89100000-0000-0000-0000-000000000021', '2099-07-01', 'recur batch', 1, 1, 'pending');
 \endif
 COMMIT;
 \elif :{?call}
@@ -146,6 +159,10 @@ SELECT public.insert_packaging_op(
   jsonb_build_array(jsonb_build_object(
     'user_id', :'owner', 'bean_id', '89100000-0000-0000-0000-000000000001',
     'delta_grams', -750, 'event_type', 'packaging', 'reference_id', '89100000-0000-0000-0000-000000000021')));
+\elif :{?direct_session_insert}
+INSERT INTO roast_sessions(id, user_id, plan_batch_id, bean_id, weight_grams, status, roasted_at)
+VALUES ('89100000-0000-0000-0000-000000000035', :'owner', '89100000-0000-0000-0000-000000000012',
+  '89100000-0000-0000-0000-000000000010', 1000, 'completed', now());
 \elif :{?save_session}
 SELECT public.save_roast_op(
   jsonb_build_object('id', '89100000-0000-0000-0000-000000000030', 'user_id', :'owner',
@@ -189,6 +206,25 @@ SELECT public.insert_product_stock_events_batch(jsonb_build_array(jsonb_build_ob
 SELECT public.insert_product_stock_events_batch(jsonb_build_array(jsonb_build_object(
   'user_id', :'owner', 'product_id', '88900000-0000-0000-0000-000000000088',
   'delta_units', -5, 'event_type', 'adjustment')));
+\elif :{?clamp_twice}
+SELECT jsonb_array_length(public.clamp_roast_events_to_grams(
+  jsonb_build_array(
+    jsonb_build_object('event_type', 'roast', 'bean_id', '89100000-0000-0000-0000-000000000040', 'delta_grams', -500),
+    jsonb_build_object('event_type', 'roast', 'bean_id', '89100000-0000-0000-0000-000000000041', 'delta_grams', -500),
+    jsonb_build_object('event_type', 'roast', 'bean_id', '89100000-0000-0000-0000-000000000042', 'delta_grams', -500)
+  ), 1000));
+SELECT jsonb_array_length(public.clamp_roast_events_to_grams(
+  jsonb_build_array(
+    jsonb_build_object('event_type', 'roast', 'bean_id', '89100000-0000-0000-0000-000000000043', 'delta_grams', -400),
+    jsonb_build_object('event_type', 'roast', 'bean_id', '89100000-0000-0000-0000-000000000044', 'delta_grams', -600)
+  ), 700));
+\elif :{?recurrence_hold}
+SELECT * FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000020' FOR UPDATE;
+UPDATE roast_plan_batches
+SET recurrence_rule_id = '89100000-0000-0000-0000-000000000022'
+WHERE id = '89100000-0000-0000-0000-000000000020';
+\elif :{?lock_batch_write}
+SELECT public.lock_roast_plan_batch_for_write('89100000-0000-0000-0000-000000000020');
 \endif
 \echo ready
 \if :{?hold}
@@ -205,6 +241,10 @@ WHERE product_id = '88900000-0000-0000-0000-000000000001' AND event_type = 'orde
 SELECT sum(delta_grams) AS bulk_balance FROM roasted_stock_events
 WHERE bean_id = '89100000-0000-0000-0000-000000000001';
 \elif :{?roast_race}
+SELECT sum(delta_grams) AS green_deducted FROM bean_stock_events
+WHERE bean_id = '89100000-0000-0000-0000-000000000010' AND event_type = 'roast';
+SELECT status FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000012';
+\elif :{?session_insert_race}
 SELECT sum(delta_grams) AS green_deducted FROM bean_stock_events
 WHERE bean_id = '89100000-0000-0000-0000-000000000010' AND event_type = 'roast';
 SELECT status FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000012';
@@ -231,6 +271,13 @@ WHERE product_id = '88900000-0000-0000-0000-000000000011' AND event_type = 'orde
 \elif :{?rollback_fail}
 SELECT sum(delta_units) FROM product_stock_events
 WHERE product_id = '88900000-0000-0000-0000-000000000088';
+\elif :{?clamp_twice}
+SELECT 1;
+\elif :{?orders_lock_def}
+SELECT CASE
+  WHEN pg_get_functiondef('public.insert_product_stock_events_batch(jsonb)'::regprocedure) ~* 'FROM\s+orders'
+   AND pg_get_functiondef('public.insert_product_stock_events_batch(jsonb)'::regprocedure) ~* 'FOR\s+UPDATE'
+  THEN 1 ELSE 0 END;
 \endif
 \elif :{?teardown}
 DELETE FROM roasted_stock_events WHERE reference_id = '89100000-0000-0000-0000-000000000012';
@@ -240,7 +287,8 @@ DELETE FROM roast_sessions WHERE plan_batch_id = '89100000-0000-0000-0000-000000
      '89100000-0000-0000-0000-000000000030',
      '89100000-0000-0000-0000-000000000031',
      '89100000-0000-0000-0000-000000000032',
-     '89100000-0000-0000-0000-000000000033'
+     '89100000-0000-0000-0000-000000000033',
+     '89100000-0000-0000-0000-000000000035'
    );
 DELETE FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000012';
 DELETE FROM roast_day_plans WHERE id = '89100000-0000-0000-0000-000000000011';
@@ -253,6 +301,10 @@ DELETE FROM order_lines WHERE id::text LIKE '88900000-0000-0000-0000-0000000000%
 DELETE FROM orders WHERE id::text LIKE '88900000-0000-0000-0000-0000000000%';
 DELETE FROM products WHERE id::text LIKE '88900000-0000-0000-0000-0000000000%'
    OR id::text LIKE '89100000-0000-0000-0000-0000000000%';
+DELETE FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000020';
+DELETE FROM roast_day_plans WHERE id = '89100000-0000-0000-0000-000000000019';
+DELETE FROM recurrence_rules WHERE id IN (
+  '89100000-0000-0000-0000-000000000021', '89100000-0000-0000-0000-000000000022');
 \else
 \warn 'use setup, call, verify, or teardown with scenario flags'
 \quit 1

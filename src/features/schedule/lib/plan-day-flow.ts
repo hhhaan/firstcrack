@@ -1,4 +1,5 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import { stockBeanIdsForPlanBatch } from './plan-batch-stock-ids';
 
 export type BatchTarget = { targetId: string; targetPlanId: string; batch?: PlanBatchWithProgress };
 
@@ -6,7 +7,9 @@ export type CompleteBatchFlowDeps = {
     /** Virtual recurring → real exception row (status preserved); real row → identity. */
     ensureMaterialized: (batch: PlanBatchWithProgress) => Promise<BatchTarget>;
     /** Server RPC: remaining-session deduct + status=done in one transaction. */
-    completePlanBatch: (batchId: string, deductStock: boolean, stockBeanIds?: string[]) => Promise<void>;
+    completePlanBatch: (batchId: string, deductStock: boolean) => Promise<void>;
+    /** After successful complete — bean ids optional; broad=true skips per-bean keys. */
+    invalidatePlanBatchStock: (beanIds: string[], broad?: boolean) => void | Promise<void>;
     /** i18n key → user-facing alert */
     notify: (key: string) => void;
 };
@@ -29,8 +32,14 @@ export async function runCompleteBatchFlow(
         shouldDeduct = false;
     }
 
-    const stockBeanIds = batch.bean_id ? [batch.bean_id] : [];
-    await deps.completePlanBatch(target.targetId, shouldDeduct, stockBeanIds);
+    await deps.completePlanBatch(target.targetId, shouldDeduct);
+
+    try {
+        const stockBeanIds = await stockBeanIdsForPlanBatch(batch);
+        await deps.invalidatePlanBatchStock(stockBeanIds);
+    } catch {
+        await deps.invalidatePlanBatchStock([], true);
+    }
 }
 
 /**
