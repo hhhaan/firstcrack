@@ -266,8 +266,8 @@ export async function upsertCanonicalOrders(
     const ordersByFulfillmentPriority = [...orders].sort((a, b) => {
         const at = Date.parse(a.orderedAt);
         const bt = Date.parse(b.orderedAt);
-        const aTime = Number.isFinite(at) ? at : 0;
-        const bTime = Number.isFinite(bt) ? bt : 0;
+        const aTime = Number.isFinite(at) ? at : Number.POSITIVE_INFINITY;
+        const bTime = Number.isFinite(bt) ? bt : Number.POSITIVE_INFINITY;
         if (aTime !== bTime) return aTime - bTime;
         return a.platformOrderId.localeCompare(b.platformOrderId);
     });

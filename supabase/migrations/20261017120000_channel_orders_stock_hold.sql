@@ -58,6 +58,68 @@ $function$;
 REVOKE ALL ON FUNCTION public.resolve_order_fulfillment_hold(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.resolve_order_fulfillment_hold(uuid) TO service_role;
 
+-- Aggregated per-product demand for an order's active lines (representative line = lowest id).
+CREATE OR REPLACE FUNCTION public.order_aggregated_product_demand(p_order_id uuid, p_pending_lines_only boolean DEFAULT false)
+RETURNS TABLE(product_id uuid, required_units integer, representative_line_id uuid)
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $function$
+  SELECT d.product_id, d.required_units, d.representative_line_id
+  FROM (
+    SELECT ol.product_id,
+           SUM(ol.quantity)::integer AS required_units,
+           (array_agg(ol.id ORDER BY ol.id))[1] AS representative_line_id
+    FROM order_lines ol
+    WHERE ol.order_id = p_order_id
+      AND ol.status = 'active'
+      AND ol.product_id IS NOT NULL
+      AND (
+        NOT p_pending_lines_only
+        OR NOT EXISTS (
+          SELECT 1 FROM product_stock_events pse
+          WHERE pse.reference_id = ol.id AND pse.event_type = 'order_fulfillment'
+        )
+      )
+    GROUP BY ol.product_id
+  ) d
+  ORDER BY d.representative_line_id;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.order_fulfillment_shortages_json(p_order_id uuid, p_pending_lines_only boolean DEFAULT false)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $function$
+DECLARE
+  v_shortages jsonb := '[]'::jsonb;
+  v_rec RECORD;
+  v_balance integer;
+BEGIN
+  FOR v_rec IN
+    SELECT d.product_id, d.required_units, d.representative_line_id AS line_id
+    FROM public.order_aggregated_product_demand(p_order_id, p_pending_lines_only) d
+  LOOP
+    SELECT COALESCE(SUM(pse.delta_units), 0)::integer INTO v_balance
+    FROM product_stock_events pse WHERE pse.product_id = v_rec.product_id;
+    IF v_balance < v_rec.required_units THEN
+      v_shortages := v_shortages || jsonb_build_object(
+        'product_id', v_rec.product_id,
+        'order_line_id', v_rec.line_id,
+        'required_units', v_rec.required_units,
+        'available_units', GREATEST(v_balance, 0)
+      );
+    END IF;
+  END LOOP;
+  RETURN v_shortages;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.order_aggregated_product_demand(uuid, boolean) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.order_fulfillment_shortages_json(uuid, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.order_aggregated_product_demand(uuid, boolean) TO service_role;
+GRANT EXECUTE ON FUNCTION public.order_fulfillment_shortages_json(uuid, boolean) TO service_role;
+
 -- ---------------------------------------------------------------------------
 -- sync_channel_orders_batch: pre-filter fulfillment on stock / open holds
 -- ---------------------------------------------------------------------------
@@ -296,13 +358,16 @@ BEGIN
         v_shortages := '[]'::jsonb;
         v_is_short := false;
         FOR v_line_rec IN
-          SELECT fp.product_id,
-                 SUM(fp.required_units)::integer AS required_units,
-                 MIN(fp.line_id) AS line_id
-          FROM _fulfill_plan fp
-          WHERE fp.order_id=v_order_rec.order_id
-          GROUP BY fp.product_id
-          ORDER BY MIN(fp.line_id)
+          SELECT sub.product_id, sub.required_units, sub.line_id
+          FROM (
+            SELECT fp.product_id,
+                   SUM(fp.required_units)::integer AS required_units,
+                   (array_agg(fp.line_id ORDER BY fp.line_id))[1] AS line_id
+            FROM _fulfill_plan fp
+            WHERE fp.order_id=v_order_rec.order_id
+            GROUP BY fp.product_id
+          ) sub
+          ORDER BY sub.line_id
         LOOP
           SELECT COALESCE(sb.units, 0) INTO v_balance FROM _sim_balance sb WHERE sb.product_id=v_line_rec.product_id;
           IF v_balance IS NULL THEN v_balance := 0; END IF;
@@ -379,28 +444,7 @@ BEGIN
       WHERE w.fulfilled_at IS NULL AND w.next_status IN ('shipped','delivered')
         AND EXISTS (SELECT 1 FROM order_fulfillment_holds h WHERE h.order_id=w.order_id AND h.resolved_at IS NULL)
     LOOP
-      v_shortages := '[]'::jsonb;
-      FOR v_line_rec IN
-        SELECT ol.product_id,
-               SUM(ol.quantity)::integer AS required_units,
-               MIN(ol.id) AS line_id
-        FROM order_lines ol
-        WHERE ol.order_id=v_order_rec.order_id AND ol.status='active' AND ol.product_id IS NOT NULL
-        GROUP BY ol.product_id
-        ORDER BY MIN(ol.id)
-      LOOP
-        SELECT COALESCE(SUM(pse.delta_units),0)::integer INTO v_balance
-        FROM product_stock_events pse WHERE pse.product_id=v_line_rec.product_id;
-        IF v_balance IS NULL THEN v_balance := 0; END IF;
-        IF v_balance < v_line_rec.required_units THEN
-          v_shortages := v_shortages || jsonb_build_object(
-            'product_id', v_line_rec.product_id,
-            'order_line_id', v_line_rec.line_id,
-            'required_units', v_line_rec.required_units,
-            'available_units', GREATEST(v_balance, 0)
-          );
-        END IF;
-      END LOOP;
+      v_shortages := public.order_fulfillment_shortages_json(v_order_rec.order_id, false);
       UPDATE order_fulfillment_holds h SET shortages=v_shortages,updated_at=now()
       WHERE h.order_id=v_order_rec.order_id AND h.resolved_at IS NULL;
     END LOOP;
@@ -466,30 +510,7 @@ BEGIN
     RAISE EXCEPTION 'order_not_shipped' USING ERRCODE = 'check_violation';
   END IF;
 
-  FOR v_line_rec IN
-    SELECT ol.product_id,
-           SUM(ol.quantity)::integer AS required_units,
-           MIN(ol.id) AS line_id
-    FROM order_lines ol
-    WHERE ol.order_id = p_order_id AND ol.status = 'active' AND ol.product_id IS NOT NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM product_stock_events pse
-        WHERE pse.reference_id = ol.id AND pse.event_type = 'order_fulfillment'
-      )
-    GROUP BY ol.product_id
-    ORDER BY MIN(ol.id)
-  LOOP
-    SELECT COALESCE(SUM(pse.delta_units), 0)::integer INTO v_balance
-    FROM product_stock_events pse WHERE pse.product_id = v_line_rec.product_id;
-    IF v_balance < v_line_rec.required_units THEN
-      v_shortages := v_shortages || jsonb_build_object(
-        'product_id', v_line_rec.product_id,
-        'order_line_id', v_line_rec.line_id,
-        'required_units', v_line_rec.required_units,
-        'available_units', GREATEST(v_balance, 0)
-      );
-    END IF;
-  END LOOP;
+  v_shortages := public.order_fulfillment_shortages_json(p_order_id, true);
 
   IF jsonb_array_length(v_shortages) > 0 THEN
     RAISE EXCEPTION 'insufficient_product_stock'

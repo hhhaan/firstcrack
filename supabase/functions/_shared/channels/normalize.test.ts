@@ -157,6 +157,47 @@ describe('sync_channel_orders_batch boundary', () => {
         const sent = payloads[0] as CanonicalOrder[];
         expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-2']);
     });
+
+    it('sorts invalid or missing orderedAt after valid timestamps', async () => {
+        const payloads: unknown[] = [];
+        const supabase = {
+            from: () => ({
+                select: () => ({
+                    eq: () => ({
+                        eq: () => Promise.resolve({ data: [] }),
+                        not: () => Promise.resolve({ data: [] }),
+                    }),
+                }),
+            }),
+            rpc: (_name: string, args: Record<string, unknown>) => {
+                payloads.push(args.p_orders);
+                return Promise.resolve({
+                    data: {
+                        upserted: 3,
+                        cancelledCompensations: 0,
+                        autoFulfillments: 0,
+                        stockEventSkips: [],
+                        held: [],
+                        heldFulfillments: 0,
+                    },
+                    error: null,
+                });
+            },
+        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+
+        await upsertCanonicalOrders(
+            supabase,
+            { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+            [
+                { ...order(3), orderedAt: 'not-a-date' },
+                { ...order(1), orderedAt: '2026-10-10T00:00:00.000Z' },
+                { ...order(2), orderedAt: '2026-10-12T00:00:00.000Z' },
+            ],
+        );
+
+        const sent = payloads[0] as CanonicalOrder[];
+        expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-2', 'O-3']);
+    });
 });
 
 describe('parseBatchResult held payloads', () => {
