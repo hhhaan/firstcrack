@@ -1720,6 +1720,8 @@
         "confirmRestock": "确认补货",
         "confirmWriteOff": "确认报废",
         "confirmAdjustment": "确认调整",
+        "alertsFailed": "入库已保存，但无法刷新库存提醒。",
+        "retryAlerts": "重试提醒计算",
         "adjust": {
             "adjustment": "库存调整",
             "writeOff": "报废处理",
@@ -2289,7 +2291,8 @@
         "mutationFailed": "操作失败，请稍后重试。",
         "mutationFailedDetail": "操作失败：{{message}}",
         "insufficientProductStock": "成品库存不足。请在库存管理的“成品”标签页调整库存后重试。",
-        "insufficientRoastedStock": "熟豆库存不足。请在库存管理的“熟豆（散装）”标签页调整库存后重试。"
+        "insufficientRoastedStock": "熟豆库存不足。请在库存管理的“熟豆（散装）”标签页调整库存后重试。",
+        "idempotencyPayloadMismatch": "相同操作 ID 已用于不同的入库内容。请关闭后重试或更改数量。"
     },
     "planGate": {
         "monthly_batch_cap": "已达到本月烘焙上限（{{used}}/{{max}}）。升级到更高套餐可继续烘焙。",

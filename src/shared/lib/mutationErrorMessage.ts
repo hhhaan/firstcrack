@@ -11,6 +11,7 @@ const MAX_DETAIL_LENGTH = 160;
 const STOCK_GUARD_KEYS = [
     ['insufficient_product_stock', 'errors.insufficientProductStock'],
     ['insufficient_roasted_stock', 'errors.insufficientRoastedStock'],
+    ['idempotency_payload_mismatch', 'errors.idempotencyPayloadMismatch'],
 ] as const;
 
 type StockGuardMessageKey = (typeof STOCK_GUARD_KEYS)[number][1];

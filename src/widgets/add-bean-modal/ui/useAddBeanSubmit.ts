@@ -1,7 +1,9 @@
 import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
-import { useInsertStockEvent } from '@entities/bean-stock-event';
+import { beanStockEventApi, stockEventContentKey, useInsertStockEvent } from '@entities/bean-stock-event';
+import { createActionOpIdSession } from '@shared/lib/action-op-id';
 import { logger } from '@shared/lib/logger';
 import type { Bean } from '@shared/types/database.types';
+import { useRef, useState } from 'react';
 import type { BeanForm } from '../lib/schema';
 import type { BeanModalTab } from '../lib/types';
 
@@ -39,11 +41,28 @@ export const useAddBeanSubmit = ({
     const createBean = useCreateBean(userId);
     const updateBean = useUpdateBean(userId);
     const insertStockEvent = useInsertStockEvent();
+    const opSession = useRef(createActionOpIdSession());
+    const [alertsFailed, setAlertsFailed] = useState(false);
+    const [retryingAlerts, setRetryingAlerts] = useState(false);
 
-    const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending;
+    const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending || retryingAlerts;
+
+    const retryAlerts = async () => {
+        setRetryingAlerts(true);
+        try {
+            await beanStockEventApi.computeInventoryAlerts(userId);
+            setAlertsFailed(false);
+            onClose();
+        } catch (err) {
+            logger.capture(err, { feature: 'inventory', rpc: 'compute_inventory_alerts' });
+        } finally {
+            setRetryingAlerts(false);
+        }
+    };
 
     const handleSubmit = async (formData: BeanForm) => {
         if (isSubmitting) return;
+        setAlertsFailed(false);
         try {
             if (tab === 'new') {
                 const stockGrams = Math.round(parseFloat(formData.stock) * 1000) || 0;
@@ -62,14 +81,19 @@ export const useAddBeanSubmit = ({
                     purchase_date: new Date().toISOString().split('T')[0],
                 });
                 if (stockGrams > 0) {
-                    await insertStockEvent.mutateAsync({
+                    const event = {
                         user_id: userId,
                         bean_id: newBean.id,
                         delta_grams: stockGrams,
-                        event_type: 'purchase',
+                        event_type: 'purchase' as const,
                         reference_id: crypto.randomUUID(),
                         cost_per_kg: newBean.cost_per_kg,
-                    });
+                    };
+                    const { alertsFailed: failed } = await insertStockEvent.mutateAsync(event);
+                    if (failed) {
+                        setAlertsFailed(true);
+                        return;
+                    }
                 }
                 onSuccess?.(newBean);
             } else if (tab === 'edit' && initialData) {
@@ -92,18 +116,27 @@ export const useAddBeanSubmit = ({
                 if (!Number.isFinite(amount) || amount <= 0) return;
                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
                 const restockCostValue = restockCost ? parseFloat(restockCost) : NaN;
-                await insertStockEvent.mutateAsync({
+                const costPerKg = Number.isFinite(restockCostValue) ? restockCostValue : null;
+                const draft = {
                     user_id: userId,
                     bean_id: selectedBeanId,
                     delta_grams: amount,
-                    event_type: 'purchase',
-                    reference_id: crypto.randomUUID(),
-                    cost_per_kg: Number.isFinite(restockCostValue) ? restockCostValue : null,
+                    event_type: 'purchase' as const,
+                    cost_per_kg: costPerKg,
+                };
+                const reference_id = opSession.current.getOrCreate(stockEventContentKey(draft));
+                const { alertsFailed: failed } = await insertStockEvent.mutateAsync({
+                    ...draft,
+                    reference_id,
                 });
+                if (failed) {
+                    setAlertsFailed(true);
+                    return;
+                }
+                opSession.current.markSucceeded();
                 if (currentBean) {
                     const newCost = restockCostValue;
                     if (Number.isFinite(newCost) && newCost !== currentBean.cost_per_kg) {
-                        // beanApi.update does a partial (PATCH) update — only changed fields needed.
                         await updateBean.mutateAsync({
                             id: selectedBeanId,
                             cost_per_kg: newCost,
@@ -117,14 +150,24 @@ export const useAddBeanSubmit = ({
                 const delta =
                     adjustType === 'write_off' ? -Math.abs(rawGrams) : adjustSign === '+' ? rawGrams : -rawGrams;
                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
-                await insertStockEvent.mutateAsync({
+                const draft = {
                     user_id: userId,
                     bean_id: selectedBeanId,
                     delta_grams: delta,
                     event_type: adjustType,
                     note: adjustNote || null,
-                    reference_id: crypto.randomUUID(),
+                    cost_per_kg: null,
+                };
+                const reference_id = opSession.current.getOrCreate(stockEventContentKey(draft));
+                const { alertsFailed: failed } = await insertStockEvent.mutateAsync({
+                    ...draft,
+                    reference_id,
                 });
+                if (failed) {
+                    setAlertsFailed(true);
+                    return;
+                }
+                opSession.current.markSucceeded();
                 onSuccess?.(currentBean ?? null);
             }
             onClose();
@@ -133,5 +176,5 @@ export const useAddBeanSubmit = ({
         }
     };
 
-    return { handleSubmit, isSubmitting };
+    return { handleSubmit, isSubmitting, alertsFailed, retryAlerts };
 };

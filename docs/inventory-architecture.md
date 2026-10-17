@@ -69,7 +69,7 @@ Retries must not double-count. Pattern: partial unique + `ON CONFLICT DO NOTHING
 | roasted | packaging / blend_produce / blend_consume partial uniques | `20260721000000` |
 | product | `(reference_id, product_id, event_type) WHERE reference_id IS NOT NULL` | `20260717000000` |
 
-Manual `purchase` / adjust with `reference_id` null has **no** DB idempotency — client submit guards only.
+Client-issued `reference_id` on purchase/adjust/packaging is bound to a payload hash in `stock_op_receipts` (`insert_bean_stock_event`, `insert_packaging_op`). Same key + different content raises `idempotency_payload_mismatch`. Null `reference_id` still has no DB idempotency.
 
 ---
 

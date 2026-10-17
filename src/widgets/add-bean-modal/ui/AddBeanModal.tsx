@@ -74,7 +74,12 @@ export const AddBeanModal = ({
         formState: { errors },
     } = form;
 
-    const { handleSubmit: submitBean, isSubmitting } = useAddBeanSubmit({
+    const {
+        handleSubmit: submitBean,
+        isSubmitting,
+        alertsFailed,
+        retryAlerts,
+    } = useAddBeanSubmit({
         userId,
         tab,
         selectedBeanId,
@@ -180,6 +185,19 @@ export const AddBeanModal = ({
             </div>
 
             <ModalScrollBody contentClassName="p-8">
+                {alertsFailed && (
+                    <div className="mb-4 rounded-md bg-amber-100 px-3 py-2 text-[12px] font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+                        <p>{t('addBeanModal.alertsFailed')}</p>
+                        <button
+                            type="button"
+                            className="mt-2 underline"
+                            disabled={isSubmitting}
+                            onClick={() => void retryAlerts()}
+                        >
+                            {t('addBeanModal.retryAlerts')}
+                        </button>
+                    </div>
+                )}
                 {tab === 'adjust' ? (
                     <BeanAdjustTab
                         {...pickerProps}

@@ -163,7 +163,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
                 onSearchChange={setSearch}
                 stockSummaries={stockSummaries}
                 assetByBeanId={assetSummary.byBeanId}
-                assetsReady={!assetsLoading}
+                assetsReady={!assetsLoading && !assetsError}
             />
         </div>
     );
@@ -173,7 +173,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
             bean={selected}
             isLoading={isLoading}
             affectedBlendNames={affectedBlendNames}
-            assetLine={selected ? (assetSummary.byBeanId[selected.id] ?? null) : null}
+            assetLine={selected && !assetsError ? (assetSummary.byBeanId[selected.id] ?? null) : null}
             onEdit={(bean) => openModal('edit', bean.id, bean)}
             onRestock={(id) => openModal('restock', id)}
             onStartRoast={() => {

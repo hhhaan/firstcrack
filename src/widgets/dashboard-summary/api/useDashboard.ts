@@ -4,6 +4,7 @@ import { type InventoryAlert, inventoryAlertApi } from '@entities/inventory-aler
 import { batchStatus, planBatchApi } from '@entities/plan';
 import { roastSessionApi } from '@entities/roast';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
+import { inventoryStore } from '@shared/lib/inventoryStore';
 import { dashboardKeys } from '@shared/lib/query-keys';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { formatDateLocal } from '@shared/lib/rrule';
@@ -90,12 +91,13 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
-    const [completedRows, beans, stockSummaries, monthlyRows, inventoryAlertsRes] = await Promise.all([
+    const [completedRows, beans, stockSummaries, monthlyRows, inventoryAlertsRes, horizonDays] = await Promise.all([
         roastSessionApi.listCompletedDashboard(userId, lastMonthStart),
         beanApi.list(userId),
         beanStockEventApi.getStockSummariesByUser(userId),
         roastSessionApi.listCompletedWeightsSince(userId, sixMonthsAgo),
         inventoryAlertApi.listActive(userId),
+        inventoryStore.getHorizonDays(),
     ]);
 
     const horizonEnd14 = format(addDays(now, 14), 'yyyy-MM-dd');
@@ -120,7 +122,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
                 status: b.status,
                 date: b.scheduled_date ?? today,
                 isRecurring: recurring,
-                stockShort: recurring && isBatchStockShort(b, summary),
+                stockShort: recurring && isBatchStockShort(b, summary, horizonDays),
             };
         });
 

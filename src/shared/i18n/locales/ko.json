@@ -1720,6 +1720,8 @@
         "confirmRestock": "재입고 확인",
         "confirmWriteOff": "폐기 확인",
         "confirmAdjustment": "조정 확인",
+        "alertsFailed": "입고는 저장됐지만 재고 알림을 갱신하지 못했습니다.",
+        "retryAlerts": "알림 다시 계산",
         "adjust": {
             "adjustment": "재고 조정",
             "writeOff": "폐기 처리",
@@ -2289,7 +2291,8 @@
         "mutationFailed": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
         "mutationFailedDetail": "요청을 처리하지 못했습니다: {{message}}",
         "insufficientProductStock": "완제품 재고가 부족합니다. 재고관리 완제품 탭에서 재고를 보정한 뒤 다시 시도해 주세요.",
-        "insufficientRoastedStock": "원두 재고가 부족합니다. 재고관리 원두(벌크) 탭에서 재고를 보정한 뒤 다시 시도해 주세요."
+        "insufficientRoastedStock": "원두 재고가 부족합니다. 재고관리 원두(벌크) 탭에서 재고를 보정한 뒤 다시 시도해 주세요.",
+        "idempotencyPayloadMismatch": "같은 작업 ID로 다른 내용이 이미 저장됐습니다. 닫은 뒤 다시 시도하거나 수량을 변경해 주세요."
     },
     "planGate": {
         "monthly_batch_cap": "이번 달 로스팅 한도({{used}}/{{max}})에 도달했습니다. 계속하려면 상위 플랜이 필요합니다.",

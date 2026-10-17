@@ -15,7 +15,9 @@ export {
     resolveUnitCost,
     sumGreenInventoryAssets,
 } from './lib/asset-value';
+export { stockEventContentKey } from './lib/stockEventContentKey';
 export {
+    type InsertStockEventResult,
     stockEventKeys,
     useBeanPurchaseCosts,
     useBeanStockEvents,

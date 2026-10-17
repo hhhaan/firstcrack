@@ -1720,6 +1720,8 @@
         "confirmRestock": "Confirm Restock",
         "confirmWriteOff": "Confirm Write-off",
         "confirmAdjustment": "Confirm Adjustment",
+        "alertsFailed": "Stock was saved, but inventory alerts could not be refreshed.",
+        "retryAlerts": "Retry alert refresh",
         "adjust": {
             "adjustment": "Adjustment",
             "writeOff": "Write Off",
@@ -2289,7 +2291,8 @@
         "mutationFailed": "Something went wrong. Please try again.",
         "mutationFailedDetail": "Something went wrong: {{message}}",
         "insufficientProductStock": "Not enough product stock. Adjust stock on the Products tab in Inventory, then try again.",
-        "insufficientRoastedStock": "Not enough roasted stock. Adjust stock on the Roasted (bulk) tab in Inventory, then try again."
+        "insufficientRoastedStock": "Not enough roasted stock. Adjust stock on the Roasted (bulk) tab in Inventory, then try again.",
+        "idempotencyPayloadMismatch": "This action was already recorded with different details. Close and try again, or change the amount."
     },
     "planGate": {
         "monthly_batch_cap": "Monthly batch limit reached ({{used}}/{{max}}). Upgrade to Pro+ for unlimited batches.",

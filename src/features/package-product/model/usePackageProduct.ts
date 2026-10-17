@@ -7,6 +7,7 @@ import { orderKeys } from '@shared/lib/query-keys';
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { buildPackagingEvents } from '../lib/buildPackagingEvents';
+import { packagingContentKey } from '../lib/packagingContentKey';
 
 export interface PackageProductParams {
     productId: string;
@@ -15,6 +16,8 @@ export interface PackageProductParams {
 }
 
 type ProductSource = Pick<Product, 'id' | 'bean_id' | 'blend_id' | 'net_weight_grams'>;
+
+const preDeductRoastedGrams = new WeakMap<PackageProductParams, number>();
 
 async function resolveProduct(qc: QueryClient, userId: string, productId: string) {
     const cached = qc.getQueryData<Product[]>(productKeys.all(userId))?.find((p) => p.id === productId);
@@ -39,15 +42,22 @@ async function resolveProduct(qc: QueryClient, userId: string, productId: string
 export const usePackageProduct = () => {
     const qc = useQueryClient();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    // H5: retry after timeout must reuse opId (partial unique), not mint a new one per attempt
     const opSession = useRef(createActionOpIdSession());
 
     const mutation = useMutation({
-        mutationFn: async ({ productId, units, note }: PackageProductParams) => {
+        mutationFn: async (params: PackageProductParams) => {
+            const { productId, units, note } = params;
             if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Workspace is still loading');
 
             const product = await resolveProduct(qc, workspaceOwnerId, productId);
-            const opId = opSession.current.getOrCreate();
+            const contentKey = packagingContentKey({
+                productId,
+                units,
+                beanId: product.bean_id,
+                blendId: product.blend_id,
+                netWeightGrams: product.net_weight_grams,
+            });
+            const opId = opSession.current.getOrCreate(contentKey);
             const { productEvents, roastedEvents } = buildPackagingEvents({
                 userId: workspaceOwnerId,
                 productId,
@@ -59,13 +69,18 @@ export const usePackageProduct = () => {
                 note,
             });
 
-            // 경고용 부족량 — RQ 캐시 우선, miss 시 RPC 1회
             let shortageGrams: number | null = null;
             if (roastedEvents.length > 0) {
-                const stock = await ensureRoastedStock(qc, workspaceOwnerId);
                 const key = product.blend_id ? `blend:${product.blend_id}` : `bean:${product.bean_id}`;
-                const have = stock[key]?.grams ?? 0;
                 const need = units * product.net_weight_grams;
+                const snap = preDeductRoastedGrams.get(params);
+                let have: number;
+                if (snap !== undefined) {
+                    have = snap;
+                } else {
+                    const stock = await ensureRoastedStock(qc, workspaceOwnerId);
+                    have = stock[key]?.grams ?? 0;
+                }
                 if (have < need) shortageGrams = need - have;
             }
 
@@ -74,7 +89,8 @@ export const usePackageProduct = () => {
 
             return { ownerId: workspaceOwnerId, product, units, shortageGrams };
         },
-        onMutate: async ({ productId, units }) => {
+        onMutate: async (params) => {
+            const { productId, units } = params;
             if (!workspaceOwnerId) return;
             const ownerId = workspaceOwnerId;
             const product = qc.getQueryData<Product[]>(productKeys.all(ownerId))?.find((p) => p.id === productId);
@@ -84,6 +100,12 @@ export const usePackageProduct = () => {
 
             const prevProductStock = qc.getQueryData<Record<string, number>>(productStockKeys.byUser(ownerId));
             const prevRoasted = qc.getQueryData<Record<string, RoastedStockSummary>>(roastedStockKeys.byUser(ownerId));
+
+            if (product && (product.bean_id || product.blend_id)) {
+                const key = product.blend_id ? `blend:${product.blend_id}` : `bean:${product.bean_id}`;
+                const cur = prevRoasted?.[key]?.grams;
+                if (cur !== undefined) preDeductRoastedGrams.set(params, cur);
+            }
 
             qc.setQueryData<Record<string, number>>(productStockKeys.byUser(ownerId), (prev) => ({
                 ...(prev ?? {}),

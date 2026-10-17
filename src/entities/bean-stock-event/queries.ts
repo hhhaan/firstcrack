@@ -1,7 +1,8 @@
+import { logger } from '@shared/lib/logger';
 import { isOptimisticId } from '@shared/lib/optimistic-id';
 import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { BeanStockEventInsert, StockSummary } from './api';
+import type { BeanStockEvent, BeanStockEventInsert, StockSummary } from './api';
 import { beanStockEventApi } from './api';
 
 /** Optimistic stock summary patch (also used by insert mutation onMutate). */
@@ -15,6 +16,8 @@ export const applyStockEventDelta = (summary: StockSummary, event: BeanStockEven
         effectiveGrams: nextAvailable - summary.reservedGrams,
     };
 };
+
+export type InsertStockEventResult = { row: BeanStockEvent; alertsFailed: boolean };
 
 export const stockEventKeys = {
     byBean: (beanId: string) => [...inventoryQueryRoots.beanStockEvents, beanId] as const,
@@ -59,7 +62,19 @@ export const useBeanPurchaseCosts = (userId: string) =>
 export const useInsertStockEvent = () => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: beanStockEventApi.insert,
+        mutationFn: async (newEvent: BeanStockEventInsert): Promise<InsertStockEventResult> => {
+            const row = await beanStockEventApi.insert(newEvent);
+            let alertsFailed = false;
+            if (newEvent.user_id) {
+                try {
+                    await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
+                } catch (err) {
+                    logger.capture(err, { feature: 'inventory', rpc: 'compute_inventory_alerts' });
+                    alertsFailed = true;
+                }
+            }
+            return { row, alertsFailed };
+        },
         onMutate: async (newEvent: BeanStockEventInsert) => {
             const beanId = newEvent.bean_id;
             await qc.cancelQueries({ queryKey: stockEventKeys.summary(beanId) });
@@ -91,7 +106,7 @@ export const useInsertStockEvent = () => {
                 for (const [queryKey, data] of ctx.prevSummaries) qc.setQueryData(queryKey, data);
             }
         },
-        onSettled: async (_data, _err, newEvent: BeanStockEventInsert) => {
+        onSettled: (_data, _err, newEvent: BeanStockEventInsert) => {
             const beanId = newEvent.bean_id;
             void qc.invalidateQueries({ queryKey: stockEventKeys.byBean(beanId) });
             void qc.invalidateQueries({ queryKey: stockEventKeys.summary(beanId) });
@@ -99,7 +114,6 @@ export const useInsertStockEvent = () => {
             void qc.invalidateQueries({ queryKey: stockEventKeys.purchaseCostsRoot });
             void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
             if (newEvent.user_id) {
-                await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
                 void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
                 void qc.invalidateQueries({ queryKey: dashboardKeys.all(newEvent.user_id) });
             }

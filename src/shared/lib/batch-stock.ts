@@ -12,15 +12,50 @@ export const batchGreenNeededGramsFromBatch = (batch: PlanBatchWithProgress): nu
 
 export { batchGreenNeededGrams };
 
+const toDateKey = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+
+/** Grams this batch reserves when it is inside the server reservation horizon. */
+export const batchOwnReservedGrams = (batch: PlanBatchWithProgress, horizonDays = STOCK_HORIZON_DAYS): number => {
+    if (!batch.bean_id || batch.blend_id) return 0;
+    if (batch.exception_type === 'cancelled') return 0;
+    if (batch.status !== 'pending' && batch.status !== 'in-progress') return 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizonEnd = new Date(today);
+    horizonEnd.setDate(horizonEnd.getDate() + horizonDays);
+    const horizonKey = toDateKey(horizonEnd);
+
+    if (batch.scheduled_date != null && batch.scheduled_date > horizonKey) return 0;
+
+    return batchGreenNeededGramsFromBatch(batch);
+};
+
+export const batchAvailableGramsForShortCheck = (
+    batch: PlanBatchWithProgress,
+    summary: StockSummaryValues | number | undefined,
+    horizonDays = STOCK_HORIZON_DAYS,
+): number => {
+    const effectiveGrams = typeof summary === 'number' ? summary : summary?.effectiveGrams;
+    if (effectiveGrams === undefined) return 0;
+    return effectiveGrams + batchOwnReservedGrams(batch, horizonDays);
+};
+
 export const isBatchStockShort = (
     batch: PlanBatchWithProgress,
     summary: StockSummaryValues | number | undefined,
+    horizonDays = STOCK_HORIZON_DAYS,
 ): boolean => {
     if (!batch.bean_id && !batch.blend_id) return false;
-    const effectiveGrams = typeof summary === 'number' ? summary : summary?.effectiveGrams;
     const needed = batchGreenNeededGramsFromBatch(batch);
     if (needed <= 0) return false;
-    return (effectiveGrams ?? 0) < needed;
+    const available = batchAvailableGramsForShortCheck(batch, summary, horizonDays);
+    return available < needed;
 };
 
 /** Green (g) required for all recurring instances within the reservation horizon. */
