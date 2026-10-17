@@ -1,8 +1,8 @@
 /**
  * POST /order-sync
  * Auth: user JWT (manual "Sync now") OR header x-cron-secret (pg_cron / scheduler).
- * Body: { connectionId?: string, workspaceOwnerId?: string }
- * Cron dispatch sends one connectionId per invocation (see invoke_order_sync_cron).
+ * Body: { connectionId?: string, workspaceOwnerId?: string } — cron requires connectionId
+ * (see invoke_order_sync_cron); manual sync-all may omit it.
  */
 import {
     corsHeaders,
