@@ -62,7 +62,8 @@ Use recurrence-rule merge APIs (`recurrenceRuleApi` / `mergeRecurrenceRuleMaster
 
 1. Materialize virtual recurring rows (`ensureMaterialized`)
 2. `complete_plan_batch(batch_id, deduct)` — one RPC locks the plan batch, counts linked sessions, deducts remaining slots × `batch_size_kg`, optional estimate `roast_inbound`, and sets `status = done`
-3. Older clients may still call `insert_stock_events_batch` with a batch ref; Postgres clamps that deduct to the same remaining grams (no hard reject)
+3. Older clients may still call `insert_stock_events_batch` with a batch ref; Postgres clamps green **and batch-ref estimate `roast_inbound`** to the same remaining grams (no hard reject)
+4. Stock parent lock order: see **Stock write lock order** in `docs/inventory-architecture.md` (`20261017160300_stock_concurrency_atomicity.sql`)
 
 ### Handoff to Active Roast
 

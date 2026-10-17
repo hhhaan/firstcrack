@@ -183,9 +183,8 @@ export async function completePlanBatch(batchId: string, deductStock: boolean): 
         p_deduct: deductStock,
     });
     if (error) throw error;
-    const deps = defaultResolveForRoastDeps();
-    const sessions = await deps.countSessions(batchId);
-    return { ...(data as PlanBatch), completed_sessions: sessions };
+    const row = data as PlanBatch;
+    return { ...row, completed_sessions: row.batch_count ?? 0 };
 }
 
 /** Only change status if the row still has the revision we validated. */

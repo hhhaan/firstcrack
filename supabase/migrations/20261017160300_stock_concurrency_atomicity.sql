@@ -1,6 +1,10 @@
 -- #889 / #891: lock product or plan-batch parents before balance checks; atomic batch complete.
 -- Stacked on 20261017120000_channel_orders_stock_hold.sql.
 -- Legacy clients still call insert_stock_events_batch with plan_batch reference — clamp to server remaining grams.
+--
+-- Global lock order (never acquire a later tier before an earlier one in the same TX):
+--   advisory (channel sync) → recurrence_rules → orders → order_lines → roast_plan_batches
+--   → roast_day_plans (FOR SHARE) → products → beans → blends
 
 -- ---------------------------------------------------------------------------
 -- Parent-row locks (deterministic ORDER BY id within each table)
@@ -20,7 +24,7 @@ BEGIN
   FROM products p
   WHERE p.id = ANY (p_product_ids)
   ORDER BY p.id
-  FOR UPDATE;
+  FOR NO KEY UPDATE;
 END;
 $function$;
 
@@ -32,10 +36,10 @@ SET search_path = public
 AS $function$
 BEGIN
   IF p_bean_ids IS NOT NULL AND cardinality(p_bean_ids) > 0 THEN
-    PERFORM 1 FROM beans b WHERE b.id = ANY (p_bean_ids) ORDER BY b.id FOR UPDATE;
+    PERFORM 1 FROM beans b WHERE b.id = ANY (p_bean_ids) ORDER BY b.id FOR NO KEY UPDATE;
   END IF;
   IF p_blend_ids IS NOT NULL AND cardinality(p_blend_ids) > 0 THEN
-    PERFORM 1 FROM blends bl WHERE bl.id = ANY (p_blend_ids) ORDER BY bl.id FOR UPDATE;
+    PERFORM 1 FROM blends bl WHERE bl.id = ANY (p_blend_ids) ORDER BY bl.id FOR NO KEY UPDATE;
   END IF;
 END;
 $function$;
@@ -57,9 +61,12 @@ BEGIN
     RAISE EXCEPTION 'plan batch not found';
   END IF;
   IF v_rule_id IS NOT NULL THEN
-    PERFORM 1 FROM recurrence_rules WHERE id = v_rule_id FOR UPDATE;
+    PERFORM 1 FROM recurrence_rules WHERE id = v_rule_id FOR NO KEY UPDATE;
   END IF;
-  SELECT * INTO v_batch FROM roast_plan_batches WHERE id = p_batch_id FOR UPDATE;
+  SELECT * INTO v_batch FROM roast_plan_batches WHERE id = p_batch_id FOR NO KEY UPDATE;
+  IF v_batch.recurrence_rule_id IS DISTINCT FROM v_rule_id THEN
+    RAISE EXCEPTION 'plan recurrence changed; retry required' USING ERRCODE = '40001';
+  END IF;
   RETURN v_batch;
 END;
 $function$;
@@ -365,15 +372,10 @@ SET search_path = public
 AS $function$
 DECLARE
   v_total integer := 0;
-  v_scaled jsonb := '[]'::jsonb;
   v_other jsonb := '[]'::jsonb;
-  v_roast jsonb;
-  v_elem jsonb;
-  v_abs integer;
-  v_allocated integer := 0;
-  v_i integer := 0;
-  v_n integer;
-  v_grams integer;
+  v_scaled jsonb := '[]'::jsonb;
+  v_remainder integer;
+  v_row record;
 BEGIN
   IF p_cap <= 0 THEN
     SELECT COALESCE(jsonb_agg(e), '[]'::jsonb)
@@ -388,14 +390,6 @@ BEGIN
   FROM jsonb_array_elements(p_events) AS e
   WHERE e->>'event_type' = 'roast';
 
-  SELECT COALESCE(jsonb_agg(e.elem ORDER BY e.bean_key), '[]'::jsonb)
-    INTO v_roast
-  FROM (
-    SELECT e AS elem, COALESCE(e->>'bean_id', '') AS bean_key
-    FROM jsonb_array_elements(p_events) AS e
-    WHERE e->>'event_type' = 'roast'
-  ) e;
-
   SELECT COALESCE(jsonb_agg(e), '[]'::jsonb)
     INTO v_other
   FROM jsonb_array_elements(p_events) AS e
@@ -405,24 +399,132 @@ BEGIN
     RETURN p_events;
   END IF;
 
-  v_n := jsonb_array_length(v_roast);
-  FOR v_i IN 0..(v_n - 1) LOOP
-    v_elem := v_roast->v_i;
-    v_abs := abs((v_elem->>'delta_grams')::integer);
-    IF v_i = v_n - 1 THEN
-      v_grams := p_cap - v_allocated;
-    ELSE
-      v_grams := round(v_abs::numeric * p_cap / v_total)::integer;
-    END IF;
-    v_allocated := v_allocated + v_grams;
-    v_scaled := v_scaled || jsonb_build_array(
-      v_elem || jsonb_build_object('delta_grams', -GREATEST(v_grams, 0))
-    );
-  END LOOP;
+  CREATE TEMP TABLE _clamp_roast ON COMMIT DROP AS
+  SELECT
+    row_number() OVER (ORDER BY COALESCE(e->>'bean_id', '')) AS ord,
+    e AS elem,
+    abs((e->>'delta_grams')::integer) AS abs_g,
+    floor(abs((e->>'delta_grams')::integer)::numeric * p_cap / v_total)::integer AS base_g,
+    (abs((e->>'delta_grams')::integer)::numeric * p_cap / v_total)
+      - floor(abs((e->>'delta_grams')::integer)::numeric * p_cap / v_total) AS frac
+  FROM jsonb_array_elements(p_events) AS e
+  WHERE e->>'event_type' = 'roast';
+
+  v_remainder := p_cap - (SELECT COALESCE(sum(base_g), 0) FROM _clamp_roast);
+  IF v_remainder > 0 THEN
+    UPDATE _clamp_roast c
+    SET base_g = c.base_g + 1
+    FROM (
+      SELECT ord
+      FROM _clamp_roast
+      ORDER BY frac DESC, ord
+      LIMIT v_remainder
+    ) picks
+    WHERE c.ord = picks.ord;
+  END IF;
+
+  SELECT COALESCE(jsonb_agg(
+    c.elem || jsonb_build_object('delta_grams', -GREATEST(c.base_g, 0))
+    ORDER BY c.ord
+  ), '[]'::jsonb)
+    INTO v_scaled
+  FROM _clamp_roast c;
 
   RETURN v_other || v_scaled;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.clamp_roast_events_to_grams(jsonb, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.clamp_roast_events_to_grams(jsonb, integer) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.scale_roasted_plan_batch_ref_events(
+  p_events jsonb,
+  p_batch_id uuid,
+  p_numerator integer,
+  p_denominator integer
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = public
+AS $function$
+DECLARE
+  v_total integer := 0;
+  v_cap integer;
+  v_remainder integer;
+  v_scaled jsonb := '[]'::jsonb;
+  v_other jsonb := '[]'::jsonb;
+BEGIN
+  IF p_denominator <= 0 OR p_numerator >= p_denominator THEN
+    RETURN p_events;
+  END IF;
+  IF p_numerator <= 0 THEN
+    SELECT COALESCE(jsonb_agg(e), '[]'::jsonb)
+      INTO v_other
+    FROM jsonb_array_elements(p_events) AS e
+    WHERE NULLIF(e->>'reference_id', '')::uuid IS DISTINCT FROM p_batch_id;
+    RETURN v_other;
+  END IF;
+
+  SELECT COALESCE(sum(abs((e->>'delta_grams')::integer)), 0)::integer
+    INTO v_total
+  FROM jsonb_array_elements(p_events) AS e
+  WHERE NULLIF(e->>'reference_id', '')::uuid = p_batch_id;
+
+  SELECT COALESCE(jsonb_agg(e), '[]'::jsonb)
+    INTO v_other
+  FROM jsonb_array_elements(p_events) AS e
+    WHERE NULLIF(e->>'reference_id', '')::uuid IS DISTINCT FROM p_batch_id;
+
+  IF v_total <= 0 THEN
+    RETURN p_events;
+  END IF;
+
+  v_cap := round(v_total::numeric * p_numerator / p_denominator)::integer;
+  IF v_cap <= 0 THEN
+    RETURN v_other;
+  END IF;
+  IF v_cap >= v_total THEN
+    RETURN p_events;
+  END IF;
+
+  CREATE TEMP TABLE _clamp_roasted ON COMMIT DROP AS
+  SELECT
+    row_number() OVER (ORDER BY COALESCE(e->>'bean_id', ''), COALESCE(e->>'blend_id', '')) AS ord,
+    e AS elem,
+    abs((e->>'delta_grams')::integer) AS abs_g,
+    (e->>'delta_grams')::integer AS signed_g,
+    floor(abs((e->>'delta_grams')::integer)::numeric * v_cap / v_total)::integer AS base_g,
+    (abs((e->>'delta_grams')::integer)::numeric * v_cap / v_total)
+      - floor(abs((e->>'delta_grams')::integer)::numeric * v_cap / v_total) AS frac
+  FROM jsonb_array_elements(p_events) AS e
+  WHERE NULLIF(e->>'reference_id', '')::uuid = p_batch_id;
+
+  v_remainder := v_cap - (SELECT COALESCE(sum(base_g), 0) FROM _clamp_roasted);
+  IF v_remainder > 0 THEN
+    UPDATE _clamp_roasted c
+    SET base_g = c.base_g + 1
+    FROM (
+      SELECT ord FROM _clamp_roasted ORDER BY frac DESC, ord LIMIT v_remainder
+    ) picks
+    WHERE c.ord = picks.ord;
+  END IF;
+
+  SELECT COALESCE(jsonb_agg(
+    c.elem || jsonb_build_object(
+      'delta_grams',
+      CASE WHEN c.signed_g < 0 THEN -c.base_g ELSE c.base_g END
+    )
+    ORDER BY c.ord
+  ), '[]'::jsonb)
+    INTO v_scaled
+  FROM _clamp_roasted c;
+
+  RETURN v_other || v_scaled;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.scale_roasted_plan_batch_ref_events(jsonb, uuid, integer, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.scale_roasted_plan_batch_ref_events(jsonb, uuid, integer, integer) TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION insert_stock_events_batch(
   p_events jsonb,
@@ -436,7 +538,10 @@ DECLARE
   v_ref uuid;
   v_has_roast boolean;
   v_events jsonb := p_events;
+  v_roasted_events jsonb := p_roasted_events;
   v_remaining integer;
+  v_orig_roast integer;
+  v_clamped_roast integer;
   v_user_id uuid;
   v_batch roast_plan_batches;
   v_owner uuid;
@@ -467,9 +572,25 @@ BEGIN
         SELECT COALESCE(jsonb_agg(e), '[]'::jsonb) INTO v_events
         FROM jsonb_array_elements(p_events) AS e
         WHERE e->>'event_type' IS DISTINCT FROM 'roast';
+        v_roasted_events := public.scale_roasted_plan_batch_ref_events(p_roasted_events, v_ref, 0, 1);
       ELSE
         v_remaining := public.plan_batch_remaining_roast_grams(v_ref);
         v_events := public.clamp_roast_events_to_grams(p_events, v_remaining);
+        SELECT COALESCE(sum(abs((e->>'delta_grams')::integer)), 0)::integer
+          INTO v_orig_roast
+        FROM jsonb_array_elements(p_events) AS e
+        WHERE e->>'event_type' = 'roast';
+        SELECT COALESCE(sum(abs((e->>'delta_grams')::integer)), 0)::integer
+          INTO v_clamped_roast
+        FROM jsonb_array_elements(v_events) AS e
+        WHERE e->>'event_type' = 'roast';
+        IF v_remaining <= 0 OR v_clamped_roast <= 0 THEN
+          v_roasted_events := public.scale_roasted_plan_batch_ref_events(p_roasted_events, v_ref, 0, 1);
+        ELSIF v_orig_roast > 0 AND v_clamped_roast < v_orig_roast THEN
+          v_roasted_events := public.scale_roasted_plan_batch_ref_events(
+            p_roasted_events, v_ref, v_clamped_roast, v_orig_roast
+          );
+        END IF;
       END IF;
     ELSIF v_ref IS NOT NULL AND public.roast_deduction_blocked(v_ref) THEN
       RAISE EXCEPTION 'roast_already_deducted'
@@ -490,6 +611,7 @@ BEGIN
   FROM jsonb_array_elements(v_events) AS e
   WHERE (e->>'event_type') = 'roast'
     AND COALESCE((e->>'delta_grams')::integer, 0) <> 0
+  ORDER BY (e->>'bean_id')::uuid
   ON CONFLICT (reference_id, bean_id) WHERE reference_id IS NOT NULL DO NOTHING;
 
   INSERT INTO bean_stock_events (user_id, bean_id, delta_grams, event_type, reference_id, note, created_by)
@@ -515,7 +637,7 @@ BEGIN
     NULLIF(e->>'reference_id', '')::uuid,
     COALESCE((e->>'is_estimate')::boolean, false),
     auth.uid()
-  FROM jsonb_array_elements(p_roasted_events) AS e
+  FROM jsonb_array_elements(v_roasted_events) AS e
   ON CONFLICT DO NOTHING;
 END;
 $function$;

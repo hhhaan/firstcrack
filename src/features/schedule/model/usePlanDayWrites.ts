@@ -26,6 +26,7 @@ import {
     runCompleteBatchFlow,
 } from '../lib/plan-day-flow';
 import type { EditScope, NewBatchData } from '../lib/types';
+import { invalidatePlanBatchStock } from './invalidatePlanBatchStock';
 
 /**
  * Plan Day write paths — every mutation the day view can make, in one place.
@@ -69,9 +70,10 @@ export const usePlanDayWrites = ({
     );
 
     const completePlanBatch = useCallback(
-        async (batchId: string, deductStock: boolean) => {
+        async (batchId: string, deductStock: boolean, stockBeanIds: string[] = []) => {
             await planBatchApi.completePlanBatch(batchId, deductStock);
             invalidatePlanScope(qc, userId);
+            invalidatePlanBatchStock(qc, userId, stockBeanIds);
         },
         [qc, userId],
     );

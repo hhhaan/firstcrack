@@ -6,7 +6,7 @@ export type CompleteBatchFlowDeps = {
     /** Virtual recurring → real exception row (status preserved); real row → identity. */
     ensureMaterialized: (batch: PlanBatchWithProgress) => Promise<BatchTarget>;
     /** Server RPC: remaining-session deduct + status=done in one transaction. */
-    completePlanBatch: (batchId: string, deductStock: boolean) => Promise<void>;
+    completePlanBatch: (batchId: string, deductStock: boolean, stockBeanIds?: string[]) => Promise<void>;
     /** i18n key → user-facing alert */
     notify: (key: string) => void;
 };
@@ -29,7 +29,8 @@ export async function runCompleteBatchFlow(
         shouldDeduct = false;
     }
 
-    await deps.completePlanBatch(target.targetId, shouldDeduct);
+    const stockBeanIds = batch.bean_id ? [batch.bean_id] : [];
+    await deps.completePlanBatch(target.targetId, shouldDeduct, stockBeanIds);
 }
 
 /**

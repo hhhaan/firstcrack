@@ -56,6 +56,22 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 
 **Never** insert multi-ledger ops with raw table inserts from the client. Use the RPCs above.
 
+### Stock write lock order (`20261017160300_stock_concurrency_atomicity.sql`)
+
+When one transaction touches multiple parents, acquire locks in this order only:
+
+1. Advisory locks (channel order sync)
+2. `recurrence_rules` (recurring plan batches)
+3. `orders`
+4. `order_lines` (implicit via fulfillment paths)
+5. `roast_plan_batches`
+6. `roast_day_plans` (`FOR SHARE` for owner checks)
+7. `products`
+8. `beans`
+9. `blends`
+
+Row locks use `FOR NO KEY UPDATE` on products, beans, blends, and plan batches where possible so `KEY SHARE` FK readers (e.g. `order_lines` inserts) are not blocked.
+
 ---
 
 ## 3. Idempotency (partial unique indexes)
