@@ -117,6 +117,46 @@ describe('sync_channel_orders_batch boundary', () => {
         expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-1']);
         expect(sent[0]?.lines[0]?.productId).toBe('prod-1');
     });
+
+    it('sorts orders by orderedAt before RPC chunking', async () => {
+        const payloads: unknown[] = [];
+        const supabase = {
+            from: () => ({
+                select: () => ({
+                    eq: () => ({
+                        eq: () => Promise.resolve({ data: [] }),
+                        not: () => Promise.resolve({ data: [] }),
+                    }),
+                }),
+            }),
+            rpc: (_name: string, args: Record<string, unknown>) => {
+                payloads.push(args.p_orders);
+                return Promise.resolve({
+                    data: {
+                        upserted: 2,
+                        cancelledCompensations: 0,
+                        autoFulfillments: 0,
+                        stockEventSkips: [],
+                        held: [],
+                        heldFulfillments: 0,
+                    },
+                    error: null,
+                });
+            },
+        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+
+        await upsertCanonicalOrders(
+            supabase,
+            { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+            [
+                { ...order(2), orderedAt: '2026-10-12T00:00:00.000Z' },
+                { ...order(1), orderedAt: '2026-10-10T00:00:00.000Z' },
+            ],
+        );
+
+        const sent = payloads[0] as CanonicalOrder[];
+        expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-2']);
+    });
 });
 
 describe('parseBatchResult held payloads', () => {

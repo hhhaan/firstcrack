@@ -263,6 +263,14 @@ export async function upsertCanonicalOrders(
     }
 
     const productMap = await buildProductMap(supabase, ctx.userId, ctx.platform, orders);
+    const ordersByFulfillmentPriority = [...orders].sort((a, b) => {
+        const at = Date.parse(a.orderedAt);
+        const bt = Date.parse(b.orderedAt);
+        const aTime = Number.isFinite(at) ? at : 0;
+        const bTime = Number.isFinite(bt) ? bt : 0;
+        if (aTime !== bTime) return aTime - bTime;
+        return a.platformOrderId.localeCompare(b.platformOrderId);
+    });
     const result: UpsertResult = {
         upserted: 0,
         cancelledCompensations: 0,
@@ -273,8 +281,8 @@ export async function upsertCanonicalOrders(
     };
     const stockEventSkips: StockEventSkip[] = [];
     const fulfillmentHolds: FulfillmentHold[] = [];
-    for (let i = 0; i < orders.length; i += 100) {
-        const batch = orders.slice(i, i + 100).map((order) => ({
+    for (let i = 0; i < ordersByFulfillmentPriority.length; i += 100) {
+        const batch = ordersByFulfillmentPriority.slice(i, i + 100).map((order) => ({
             ...order,
             lines: order.lines.map((line) => ({ ...line, productId: resolveProductId(productMap, line) })),
         }));

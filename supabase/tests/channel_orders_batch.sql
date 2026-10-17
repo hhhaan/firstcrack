@@ -328,6 +328,79 @@ BEGIN
   ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='unmapped-shipped'),
     'fulfilled_at requires an inserted fulfillment';
 
+  -- Same SKU on multiple lines: aggregate demand per order (stock 4, lines 2+3 held; sync does not abort).
+  DELETE FROM product_stock_events WHERE user_id=owner_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 4, 'roast_inbound');
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'dual-line-short', 'status', 'shipped', 'orderedAt', '2026-10-11T02:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 5, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(
+      jsonb_build_object('platformLineId', 'dual-a', 'productId', v_product_id, 'title', 'A', 'quantity', 2, 'unitPrice', 1, 'status', 'active'),
+      jsonb_build_object('platformLineId', 'dual-b', 'productId', v_product_id, 'title', 'B', 'quantity', 3, 'unitPrice', 1, 'status', 'active')
+    )
+  )));
+  ASSERT result->>'heldFulfillments' = '1', 'dual-line order held';
+  ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='dual-line-short'),
+    'dual-line order not fulfilled';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id=pse.reference_id
+    JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='dual-line-short' AND pse.event_type='order_fulfillment'
+  ), 'dual-line short emits no fulfillment events';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    JOIN orders o ON o.id=h.order_id
+    CROSS JOIN LATERAL jsonb_array_elements(h.shortages) s
+    WHERE o.platform_order_id='dual-line-short' AND h.resolved_at IS NULL
+      AND (s->>'required_units')::integer = 5 AND (s->>'available_units')::integer = 4
+  ), 'dual-line hold reports aggregate shortage';
+
+  -- Same wave: earlier multi-line order consumes stock; later order sees reduced balance.
+  DELETE FROM product_stock_events WHERE user_id=owner_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 5, 'roast_inbound');
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    jsonb_build_object(
+      'platformOrderId', 'dual-wave-early', 'status', 'shipped', 'orderedAt', '2026-10-11T03:00:00Z',
+      'buyerName', null, 'currency', 'KRW', 'totalAmount', 4, 'raw', '{}'::jsonb,
+      'lines', jsonb_build_array(
+        jsonb_build_object('platformLineId', 'dual-wave-a', 'productId', v_product_id, 'title', 'A', 'quantity', 2, 'unitPrice', 1, 'status', 'active'),
+        jsonb_build_object('platformLineId', 'dual-wave-b', 'productId', v_product_id, 'title', 'B', 'quantity', 2, 'unitPrice', 1, 'status', 'active')
+      )
+    ),
+    jsonb_build_object(
+      'platformOrderId', 'dual-wave-late', 'status', 'shipped', 'orderedAt', '2026-10-11T04:00:00Z',
+      'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
+      'lines', jsonb_build_array(jsonb_build_object(
+        'platformLineId', 'dual-wave-late-line', 'productId', v_product_id, 'title', 'Late', 'quantity', 2, 'unitPrice', 1, 'status', 'active'
+      ))
+    )
+  ));
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='dual-wave-early'),
+    'earlier dual-line order fulfilled';
+  ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='dual-wave-late'),
+    'later order held after aggregate consumption';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    JOIN orders o ON o.id=h.order_id
+    CROSS JOIN LATERAL jsonb_array_elements(h.shortages) s
+    WHERE o.platform_order_id='dual-wave-late' AND h.resolved_at IS NULL
+      AND (s->>'required_units')::integer = 2 AND (s->>'available_units')::integer = 1
+  ), 'later order shortage reflects remaining stock';
+
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 10, 'adjustment');
+  PERFORM retry_order_fulfillment((SELECT id FROM orders WHERE platform_order_id='dual-line-short'));
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='dual-line-short'),
+    'retry fulfills dual-line held order';
+  ASSERT (SELECT count(*) FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id=pse.reference_id
+    JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='dual-line-short' AND pse.event_type='order_fulfillment') = 2,
+    'dual-line retry deducts every active line';
+
   -- Scenario 3: one in-stock + one short in the same batch — short order is held, not rolled back.
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
     jsonb_build_object(

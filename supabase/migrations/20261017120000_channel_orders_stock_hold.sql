@@ -296,9 +296,13 @@ BEGIN
         v_shortages := '[]'::jsonb;
         v_is_short := false;
         FOR v_line_rec IN
-          SELECT fp.line_id, fp.product_id, fp.required_units
-          FROM _fulfill_plan fp WHERE fp.order_id=v_order_rec.order_id
-          ORDER BY fp.line_id
+          SELECT fp.product_id,
+                 SUM(fp.required_units)::integer AS required_units,
+                 MIN(fp.line_id) AS line_id
+          FROM _fulfill_plan fp
+          WHERE fp.order_id=v_order_rec.order_id
+          GROUP BY fp.product_id
+          ORDER BY MIN(fp.line_id)
         LOOP
           SELECT COALESCE(sb.units, 0) INTO v_balance FROM _sim_balance sb WHERE sb.product_id=v_line_rec.product_id;
           IF v_balance IS NULL THEN v_balance := 0; END IF;
@@ -315,9 +319,14 @@ BEGIN
         IF v_is_short THEN
           INSERT INTO _wave_held VALUES (v_order_rec.order_id, v_shortages);
         ELSE
-          UPDATE _sim_balance sb SET units=sb.units-fp.required_units
-          FROM _fulfill_plan fp
-          WHERE fp.order_id=v_order_rec.order_id AND sb.product_id=fp.product_id;
+          UPDATE _sim_balance sb SET units=sb.units-agg.total_units
+          FROM (
+            SELECT fp.product_id, SUM(fp.required_units)::integer AS total_units
+            FROM _fulfill_plan fp
+            WHERE fp.order_id=v_order_rec.order_id
+            GROUP BY fp.product_id
+          ) agg
+          WHERE sb.product_id=agg.product_id;
         END IF;
       END LOOP;
 
@@ -372,10 +381,13 @@ BEGIN
     LOOP
       v_shortages := '[]'::jsonb;
       FOR v_line_rec IN
-        SELECT ol.id AS line_id, ol.product_id, ol.quantity AS required_units
+        SELECT ol.product_id,
+               SUM(ol.quantity)::integer AS required_units,
+               MIN(ol.id) AS line_id
         FROM order_lines ol
         WHERE ol.order_id=v_order_rec.order_id AND ol.status='active' AND ol.product_id IS NOT NULL
-        ORDER BY ol.id
+        GROUP BY ol.product_id
+        ORDER BY MIN(ol.id)
       LOOP
         SELECT COALESCE(SUM(pse.delta_units),0)::integer INTO v_balance
         FROM product_stock_events pse WHERE pse.product_id=v_line_rec.product_id;
@@ -455,14 +467,17 @@ BEGIN
   END IF;
 
   FOR v_line_rec IN
-    SELECT ol.id AS line_id, ol.product_id, ol.quantity AS required_units
+    SELECT ol.product_id,
+           SUM(ol.quantity)::integer AS required_units,
+           MIN(ol.id) AS line_id
     FROM order_lines ol
     WHERE ol.order_id = p_order_id AND ol.status = 'active' AND ol.product_id IS NOT NULL
       AND NOT EXISTS (
         SELECT 1 FROM product_stock_events pse
         WHERE pse.reference_id = ol.id AND pse.event_type = 'order_fulfillment'
       )
-    ORDER BY ol.id
+    GROUP BY ol.product_id
+    ORDER BY MIN(ol.id)
   LOOP
     SELECT COALESCE(SUM(pse.delta_units), 0)::integer INTO v_balance
     FROM product_stock_events pse WHERE pse.product_id = v_line_rec.product_id;
