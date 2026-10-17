@@ -10,7 +10,12 @@
  * Cafe24: mall_id in payload; X-API-Key vs stored webhook verification code
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
-import { mapCafe24Order } from '../_shared/channels/cafe24.ts';
+import {
+    cafe24ItemsMissing,
+    fetchCafe24CanonicalOrder,
+    mapCafe24Order,
+} from '../_shared/channels/cafe24.ts';
+import { createSecretsSession } from '../_shared/channels/secrets-session.ts';
 import { cafe24WebhookEventKey, isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
 import { gidToId, lineQuantity, lineStatusOf, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
@@ -268,6 +273,7 @@ serveWithSentry('order-webhook', async (req) => {
         // nothing writes the per-connection slot yet — CAFE24_WEBHOOK_SECRET stays
         // the SSoT until a Cafe24 secret write path exists.
         let cafe24Secret = Deno.env.get('CAFE24_WEBHOOK_SECRET');
+        let channelCredentials: Record<string, string> = {};
         if (conn) {
             const { data: secretRow } = await admin
                 .from('sales_channel_secrets')
@@ -275,6 +281,7 @@ serveWithSentry('order-webhook', async (req) => {
                 .eq('connection_id', conn.id)
                 .maybeSingle();
             const creds = (secretRow?.credentials ?? {}) as Record<string, string>;
+            channelCredentials = creds;
             if (creds.webhook_secret) cafe24Secret = creds.webhook_secret;
         }
 
@@ -317,8 +324,27 @@ serveWithSentry('order-webhook', async (req) => {
         // Webhook wraps the order under `resource` (sample payloads: event_no 90023 etc.);
         // some senders put order_id at the top level only.
         const resource = (payload.resource ?? payload.order ?? payload) as Record<string, unknown>;
-        const order = mapCafe24Order({ ...resource, order_id: resource.order_id ?? payload.order_id });
-        if (!order) return jsonResponse({ ok: true, skipped: 'unparseable' });
+        const platformOrderId = String(resource.order_id ?? payload.order_id ?? '').trim();
+        if (!platformOrderId) return jsonResponse({ ok: true, skipped: 'unparseable' });
+
+        let order: CanonicalOrder;
+        if (cafe24ItemsMissing(resource)) {
+            const accessToken = String(channelCredentials.access_token ?? '').trim();
+            if (!accessToken) throw new Error('cafe24: missing access_token');
+            const secretsSession = createSecretsSession(admin, conn.id, {
+                ...channelCredentials,
+                mall_id: mallId,
+                access_token: accessToken,
+            });
+            order = await fetchCafe24CanonicalOrder(secretsSession.current(), secretsSession.rotate, platformOrderId);
+        } else {
+            const mapped = mapCafe24Order({ ...resource, order_id: platformOrderId });
+            if (!mapped) return jsonResponse({ ok: true, skipped: 'unparseable' });
+            if (mapped.lines.some((l) => l.platformLineId.endsWith('-unknown'))) {
+                throw new Error('cafe24: incomplete order lines');
+            }
+            order = mapped;
+        }
 
         const externalEventId = await cafe24WebhookEventKey(payload, rawBody);
         const runs = admin as unknown as WebhookEventRunClient;

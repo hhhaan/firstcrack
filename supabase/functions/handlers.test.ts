@@ -76,7 +76,8 @@ vi.mock('./_shared/channels/run-lock.ts', () => ({
     acquireDispatchRunLock: async () => ({ ok: true, runId: 'run' }),
     releaseRunLock: vi.fn(),
 }));
-vi.mock('./_shared/channels/secrets-session.ts', () => ({
+vi.mock('./_shared/channels/secrets-session.ts', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./_shared/channels/secrets-session.ts')>()),
     loadSecretsSession: async () => ({ current: () => ({}), rotate: vi.fn() }),
 }));
 
@@ -309,6 +310,101 @@ describe('Cafe24 webhook', () => {
         mocks.upsert.mockClear();
         expect((await request('order-webhook', body)).status).toBe(401);
         expect(mocks.upsert).not.toHaveBeenCalled();
+    });
+
+    it('fetches order detail when the webhook omits items (#903)', async () => {
+        const itemless = {
+            event_no: 90023,
+            order_id: '20200717-0029236',
+            resource: {
+                mall_id: 'demo',
+                order_id: '20200717-0029236',
+                paid: 'T',
+                order_date: '2026-10-16T00:00:00Z',
+            },
+        };
+        mocks.query.mockImplementation((q) => {
+            if (q.table === 'sales_channel_secrets') {
+                return { data: { credentials: { mall_id: 'demo', access_token: 'tok' } } };
+            }
+            return defaultResult(q);
+        });
+        vi.stubGlobal('fetch', async (input: URL | string) => {
+            const url = String(input);
+            if (url.includes('/orders/20200717-0029236')) {
+                return new Response(
+                    JSON.stringify({
+                        order: {
+                            order_id: '20200717-0029236',
+                            paid: 'T',
+                            canceled: 'F',
+                            order_date: '2026-10-16T00:00:00Z',
+                            actual_order_amount: { order_price_amount: '15000' },
+                            items: [
+                                { order_item_code: 'line-active', order_status: 'N20', quantity: 1, product_name: 'A' },
+                                { order_item_code: 'line-c40', order_status: 'C40', quantity: 1, product_name: 'B' },
+                            ],
+                        },
+                    }),
+                    { status: 200 },
+                );
+            }
+            return new Response('{}', { status: 404 });
+        });
+        const response = await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' });
+        expect(response.status).toBe(200);
+        expect(mocks.upsert).toHaveBeenCalledOnce();
+        const orders = mocks.upsert.mock.calls[0][2] as Array<{
+            totalAmount: number | null;
+            lines: Array<{ platformLineId: string; status: string }>;
+        }>;
+        expect(orders[0].totalAmount).toBe(15000);
+        const lineIds = orders[0].lines.map((l) => l.platformLineId);
+        expect(lineIds).toEqual(['line-active', 'line-c40']);
+        expect(lineIds.some((id) => id.endsWith('-unknown'))).toBe(false);
+        expect(orders[0].lines.find((l) => l.platformLineId === 'line-c40')?.status).toBe('cancelled');
+        vi.unstubAllGlobals();
+    });
+
+    it('does not upsert or claim when detail fetch fails', async () => {
+        const itemless = {
+            event_no: 90023,
+            resource: { mall_id: 'demo', order_id: '20200717-0029236', paid: 'T' },
+        };
+        mocks.query.mockImplementation((q) => {
+            if (q.table === 'sales_channel_secrets') {
+                return { data: { credentials: { mall_id: 'demo', access_token: 'tok' } } };
+            }
+            return defaultResult(q);
+        });
+        vi.stubGlobal('fetch', async () => new Response('error', { status: 500 }));
+        expect((await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' })).status).toBe(500);
+        expect(mocks.upsert).not.toHaveBeenCalled();
+        expect(
+            mocks.query.mock.calls.some(([q]) => q.table === 'order_sync_runs' && q.operation === 'insert'),
+        ).toBe(false);
+        vi.unstubAllGlobals();
+    });
+
+    it('does not upsert when detail returns empty items', async () => {
+        const itemless = {
+            event_no: 90023,
+            resource: { mall_id: 'demo', order_id: '20200717-0029236', paid: 'T' },
+        };
+        mocks.query.mockImplementation((q) => {
+            if (q.table === 'sales_channel_secrets') {
+                return { data: { credentials: { mall_id: 'demo', access_token: 'tok' } } };
+            }
+            return defaultResult(q);
+        });
+        vi.stubGlobal('fetch', async () =>
+            new Response(JSON.stringify({ order: { order_id: '20200717-0029236', paid: 'T', items: [] } }), {
+                status: 200,
+            }),
+        );
+        expect((await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' })).status).toBe(500);
+        expect(mocks.upsert).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
     });
 });
 
