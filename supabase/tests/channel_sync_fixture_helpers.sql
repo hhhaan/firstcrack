@@ -90,3 +90,51 @@ BEGIN
   );
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION pg_temp.insert_product_with_stock(
+  p_product_id uuid,
+  p_owner uuid,
+  p_name text,
+  p_sku text,
+  p_stock_units integer,
+  p_net_weight_grams integer DEFAULT 200
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  INSERT INTO products(id, user_id, name, sku, net_weight_grams)
+  VALUES (p_product_id, p_owner, p_name, p_sku, p_net_weight_grams);
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (p_owner, p_product_id, p_stock_units, 'roast_inbound');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.sync_active_filter_snapshot(
+  p_owner uuid,
+  p_connection uuid,
+  p_product_id uuid,
+  p_order_status text,
+  p_line_b_status text
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM sync_channel_orders_batch(
+    p_owner,
+    p_connection,
+    jsonb_build_array(
+      pg_temp.channel_fixture_order(
+        'active-filter-1',
+        p_order_status,
+        '2026-10-17T09:00:00Z',
+        2,
+        jsonb_build_array(
+          pg_temp.channel_fixture_line('af-a', p_product_id, 1, 'A', 1, 'active'),
+          pg_temp.channel_fixture_line('af-b', p_product_id, 1, 'B', 1, p_line_b_status)
+        ),
+        'A'
+      )
+    )
+  );
+END;
+$$;

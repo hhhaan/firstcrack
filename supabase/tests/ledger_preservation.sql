@@ -41,30 +41,12 @@ BEGIN
   -- Superuser runs sync (service_role grants vary on trimmed local harnesses).
 
   -- Fulfillment branch requires ol.status = 'active' (cancelled row kept when payload flips to active).
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'active-filter-1', 'paid', '2026-10-17T09:00:00Z', 2,
-      jsonb_build_array(
-        pg_temp.channel_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
-        pg_temp.channel_fixture_line('af-b', v_product_af, 1, 'B', 1, 'cancelled')
-      ),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_active_filter_snapshot(owner_id, connection_id, v_product_af, 'paid', 'cancelled');
   ASSERT (SELECT ol.status FROM order_lines ol JOIN orders o ON o.id = ol.order_id
     WHERE o.platform_order_id = 'active-filter-1' AND ol.platform_line_id = 'af-b') = 'cancelled',
     'line b stored cancelled on paid';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'active-filter-1', 'shipped', '2026-10-17T09:00:00Z', 2,
-      jsonb_build_array(
-        pg_temp.channel_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
-        pg_temp.channel_fixture_line('af-b', v_product_af, 1, 'B', 1, 'active')
-      ),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_active_filter_snapshot(owner_id, connection_id, v_product_af, 'shipped', 'active');
   ASSERT (SELECT ol.status FROM order_lines ol JOIN orders o ON o.id = ol.order_id
     WHERE o.platform_order_id = 'active-filter-1' AND ol.platform_line_id = 'af-b') = 'cancelled',
     'line b stays cancelled despite active payload';
@@ -105,10 +87,8 @@ BEGIN
   ASSERT stock_units = 20, 'double cancel is no-op';
 
   -- #890 outstanding units: ship at qty 1, line drifts to 3, cancel restores 1 (not line qty).
-  INSERT INTO products(id, user_id, name, sku, net_weight_grams)
-  VALUES (v_product_id2, owner_id, 'Outstanding fixture', 'LEDGER-2', 200);
-  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
-  VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
+  PERFORM pg_temp.insert_product_with_stock(
+    v_product_id2, owner_id, 'Outstanding fixture', 'LEDGER-2', 20);
 
   PERFORM pg_temp.sync_single_line_order(
     owner_id, connection_id, 'qty-drift-1', 'paid', '2026-10-17T12:00:00Z', 1000,
@@ -146,10 +126,8 @@ BEGIN
 
   -- cancel_order RPC restores outstanding units (fails with legacy cancel_order using line quantity).
   v_product_id2 := gen_random_uuid();
-  INSERT INTO products(id, user_id, name, sku, net_weight_grams)
-  VALUES (v_product_id2, owner_id, 'Outstanding fixture B', 'LEDGER-3', 200);
-  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
-  VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
+  PERFORM pg_temp.insert_product_with_stock(
+    v_product_id2, owner_id, 'Outstanding fixture B', 'LEDGER-3', 20);
 
   PERFORM pg_temp.sync_single_line_order(
     owner_id, connection_id, 'qty-drift-2', 'paid', '2026-10-17T12:30:00Z', 1000,
