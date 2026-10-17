@@ -54,6 +54,8 @@ DECLARE
   v_rule_id uuid;
   v_batch roast_plan_batches;
 BEGIN
+  -- Serialize with save_roast_op for the rest of the caller transaction (session insert + hold).
+  PERFORM pg_advisory_xact_lock(8814001, hashtext(p_batch_id::text));
   SELECT recurrence_rule_id INTO v_rule_id
   FROM roast_plan_batches
   WHERE id = p_batch_id;
@@ -63,13 +65,32 @@ BEGIN
   IF v_rule_id IS NOT NULL THEN
     PERFORM 1 FROM recurrence_rules WHERE id = v_rule_id FOR NO KEY UPDATE;
   END IF;
-  SELECT * INTO v_batch FROM roast_plan_batches WHERE id = p_batch_id FOR NO KEY UPDATE;
+  SELECT * INTO v_batch FROM roast_plan_batches WHERE id = p_batch_id FOR UPDATE;
   IF v_batch.recurrence_rule_id IS DISTINCT FROM v_rule_id THEN
     RAISE EXCEPTION 'plan recurrence changed; retry required' USING ERRCODE = '40001';
   END IF;
   RETURN v_batch;
 END;
 $function$;
+
+CREATE OR REPLACE FUNCTION public.roast_session_assert_plan_batch_tx_lock()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $function$
+BEGIN
+  IF NEW.plan_batch_id IS NOT NULL THEN
+    PERFORM pg_advisory_xact_lock(8814001, hashtext(NEW.plan_batch_id::text));
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS roast_sessions_plan_batch_tx_lock ON public.roast_sessions;
+CREATE TRIGGER roast_sessions_plan_batch_tx_lock
+  BEFORE INSERT OR UPDATE OF plan_batch_id ON public.roast_sessions
+  FOR EACH ROW
+  EXECUTE FUNCTION public.roast_session_assert_plan_batch_tx_lock();
 
 CREATE OR REPLACE FUNCTION public.plan_batch_remaining_roast_grams(p_batch_id uuid)
 RETURNS integer
@@ -599,7 +620,7 @@ BEGIN
         RAISE EXCEPTION 'workspace access denied';
       END IF;
       v_batch := public.lock_roast_plan_batch_for_write(v_ref);
-      SELECT user_id INTO v_owner FROM roast_day_plans WHERE id = v_batch.plan_id;
+      SELECT user_id INTO v_owner FROM roast_day_plans WHERE id = v_batch.plan_id FOR SHARE;
       IF v_owner IS DISTINCT FROM v_user_id AND NOT public.has_workspace_access(v_owner) THEN
         RAISE EXCEPTION 'plan batch owner mismatch';
       END IF;

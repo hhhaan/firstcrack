@@ -69,11 +69,14 @@ export const usePlanDayWrites = ({
         [userId],
     );
 
-    const completePlanBatch = useCallback(
-        async (batchId: string, deductStock: boolean, stockBeanIds: string[] = []) => {
-            await planBatchApi.completePlanBatch(batchId, deductStock);
+    const completePlanBatch = useCallback(async (batchId: string, deductStock: boolean) => {
+        await planBatchApi.completePlanBatch(batchId, deductStock);
+    }, []);
+
+    const invalidatePlanBatchStockAfterComplete = useCallback(
+        (beanIds: string[], broad = false) => {
             invalidatePlanScope(qc, userId);
-            invalidatePlanBatchStock(qc, userId, stockBeanIds);
+            invalidatePlanBatchStock(qc, userId, beanIds, broad);
         },
         [qc, userId],
     );
@@ -99,8 +102,17 @@ export const usePlanDayWrites = ({
 
     const completeBatch = useCallback(
         (batch: PlanBatchWithProgress, deductStock: boolean, deps: Pick<CompleteBatchFlowDeps, 'notify'>) =>
-            runCompleteBatchFlow({ ensureMaterialized, completePlanBatch, ...deps }, batch, deductStock),
-        [ensureMaterialized, completePlanBatch],
+            runCompleteBatchFlow(
+                {
+                    ensureMaterialized,
+                    completePlanBatch,
+                    invalidatePlanBatchStock: invalidatePlanBatchStockAfterComplete,
+                    ...deps,
+                },
+                batch,
+                deductStock,
+            ),
+        [ensureMaterialized, completePlanBatch, invalidatePlanBatchStockAfterComplete],
     );
 
     const createOneOffOrRecurring = useCallback(

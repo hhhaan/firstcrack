@@ -160,7 +160,6 @@ SELECT public.insert_packaging_op(
     'user_id', :'owner', 'bean_id', '89100000-0000-0000-0000-000000000001',
     'delta_grams', -750, 'event_type', 'packaging', 'reference_id', '89100000-0000-0000-0000-000000000021')));
 \elif :{?save_session}
-SELECT * FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000012' FOR UPDATE;
 SELECT public.save_roast_op(
   jsonb_build_object('id', '89100000-0000-0000-0000-000000000030', 'user_id', :'owner',
     'plan_batch_id', '89100000-0000-0000-0000-000000000012',
@@ -169,7 +168,6 @@ SELECT public.save_roast_op(
     'expected_plan_bean_id', '89100000-0000-0000-0000-000000000010'),
   true, 1000, 0, false);
 \elif :{?complete_batch}
-SELECT * FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000012' FOR UPDATE;
 SELECT public.complete_plan_batch('89100000-0000-0000-0000-000000000012', true);
 \elif :{?repair_inbound}
 SELECT public.insert_product_stock_events_batch(jsonb_build_array(jsonb_build_object(
@@ -267,6 +265,11 @@ SELECT sum(delta_units) FROM product_stock_events
 WHERE product_id = '88900000-0000-0000-0000-000000000088';
 \elif :{?clamp_twice}
 SELECT 1;
+\elif :{?orders_lock_def}
+SELECT CASE
+  WHEN pg_get_functiondef('public.insert_product_stock_events_batch(jsonb)'::regprocedure) ~* 'FROM\s+orders'
+   AND pg_get_functiondef('public.insert_product_stock_events_batch(jsonb)'::regprocedure) ~* 'FOR\s+UPDATE'
+  THEN 1 ELSE 0 END;
 \endif
 \elif :{?teardown}
 DELETE FROM roasted_stock_events WHERE reference_id = '89100000-0000-0000-0000-000000000012';
@@ -289,6 +292,8 @@ DELETE FROM order_lines WHERE id::text LIKE '88900000-0000-0000-0000-0000000000%
 DELETE FROM orders WHERE id::text LIKE '88900000-0000-0000-0000-0000000000%';
 DELETE FROM products WHERE id::text LIKE '88900000-0000-0000-0000-0000000000%'
    OR id::text LIKE '89100000-0000-0000-0000-0000000000%';
+DELETE FROM roast_plan_batches WHERE id = '89100000-0000-0000-0000-000000000020';
+DELETE FROM roast_day_plans WHERE id = '89100000-0000-0000-0000-000000000019';
 DELETE FROM recurrence_rules WHERE id IN (
   '89100000-0000-0000-0000-000000000021', '89100000-0000-0000-0000-000000000022');
 \else

@@ -70,6 +70,6 @@ describe('usePlanDayWrites completePlanBatch', () => {
         cleanup();
         expect(planBatchApi.completePlanBatch).toHaveBeenCalled();
         expect(invalidatePlanScope).toHaveBeenCalled();
-        expect(invalidatePlanBatchStock).toHaveBeenCalledWith(expect.any(QueryClient), 'user-1', ['bean-1']);
+        expect(invalidatePlanBatchStock).toHaveBeenCalledWith(expect.any(QueryClient), 'user-1', ['bean-1'], false);
     });
 });

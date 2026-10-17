@@ -99,7 +99,6 @@ for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_check
         ['-2000', '1640'],
     ),
     (
-        # insert_product_stock_events_batch must lock orders (migration ~:177) before product balance checks.
         'ef_batch_race',
         {'setup': 1, 'ef_batch_race': 1},
         {'call': 1, 'ef_batch_a': 1, 'hold': 1},
@@ -175,5 +174,7 @@ run_psql({'setup': 1, 'rollback_fail': 1})
 bad = run_psql({'call': 1, 'rollback_bad': 1}, stop=False)
 assert 'insufficient_product_stock' in (bad.stdout + bad.stderr), ('rollback_fail', bad.stdout, bad.stderr)
 assert_verify('rollback_fail', {'verify': 1, 'rollback_fail': 1}, ['2'])
+
+assert_verify('insert_product_stock_events_batch_orders_lock', {'verify': 1, 'orders_lock_def': 1}, ['1'])
 
 print('all stock concurrency tests passed')
