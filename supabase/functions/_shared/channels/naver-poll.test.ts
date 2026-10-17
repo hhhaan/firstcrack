@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { pollNaverOrders } from './naver-poll.ts';
+import { NAVER_CURSOR_HELD_TAG, pollNaverOrders } from './naver-poll.ts';
 import type { PollCursor } from './types.ts';
+
+const SENTRY_DSN = 'https://publickey@o111.ingest.sentry.io/222';
 
 const NOW = Date.parse('2026-07-26T12:00:00.000Z');
 const SINCE = '2026-07-19T12:00:00.000+00:00';
@@ -119,6 +121,57 @@ describe('pollNaverOrders (#900 page resume, #902 detail hold)', () => {
         expect(result.nextCursor).toEqual(cursor);
         expect(result.cursorHeld).toBe(true);
         expect(result.syncNote).toMatch(/held cursor/i);
+    });
+
+    it('holds cursor and posts one Sentry event when product-orders/query returns 400', async () => {
+        const env: Record<string, string> = { SENTRY_DSN };
+        vi.stubGlobal('Deno', {
+            env: { get: (key: string) => env[key] },
+        });
+
+        const fetchMock = vi.fn(async (input: URL | string, _init?: RequestInit) => {
+            const url = String(input);
+            if (url.includes('/store/')) {
+                return new Response('{}', { status: 200 });
+            }
+            if (url.includes('last-changed-statuses')) {
+                return new Response(
+                    JSON.stringify({
+                        data: {
+                            lastChangeStatuses: [
+                                {
+                                    productOrderId: 'P-1',
+                                    orderId: 'O-1',
+                                    productOrderStatus: 'PAYED',
+                                    paymentDate: '2026-07-20T09:00:00+09:00',
+                                },
+                            ],
+                        },
+                    }),
+                    { status: 200 },
+                );
+            }
+            if (url.includes('product-orders/query')) {
+                return new Response('bad request', { status: 400 });
+            }
+            return new Response('{}', { status: 404 });
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        const cursor: PollCursor = { since: SINCE };
+        const result = await pollNaverOrders('tok', cursor);
+        expect(result.cursorHeld).toBe(true);
+        expect(result.nextCursor).toEqual(cursor);
+
+        const sentryCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('/store/'));
+        expect(sentryCalls).toHaveLength(1);
+        const event = JSON.parse(String(sentryCalls[0][1]?.body)) as {
+            tags?: Record<string, string>;
+            extra?: Record<string, unknown>;
+        };
+        expect(event.tags?.[NAVER_CURSOR_HELD_TAG]).toBe('detail_fetch');
+        expect(event.tags?.naver_upstream_status).toBe('400');
+        expect(event.extra?.upstreamStatus).toBe(400);
     });
 
     it('upserts successful chunks but holds cursor when a later chunk fails', async () => {

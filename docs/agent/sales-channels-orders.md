@@ -120,7 +120,7 @@ tags `naver_cursor_held` for operator visibility.
 Naver list resume: when `since` + `moreSequence` finish the API’s implicit +24h continuation slice, the
 same poll continues `planNaverScan` forward to `now` (or publishes an incomplete cursor) so days between
 `since+24h` and the watermark are not skipped. If Naver rejects a stored `moreSequence` (4xx), the adapter
-drops the token and re-walks that window from `since` without pagination.
+drops the token and re-walks that window from `since` (up to `MAX_PAGES_PER_WINDOW` pages per slice).
 
 **Known gaps (PR-B):** one bad `product-order` id in a detail chunk fails the whole chunk (up to 299 siblings
 retry with it). Cafe24 primary `order_date` offset resume is implemented; the platform’s maximum `/orders`

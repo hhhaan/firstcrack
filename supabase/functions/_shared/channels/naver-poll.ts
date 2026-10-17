@@ -5,10 +5,10 @@
 import { captureEdgeException } from '../sentry.ts';
 import {
     getLastChanged,
+    type LastChangedRow,
     NaverHttpError,
     queryProductOrders,
     toNaverDateTime,
-    type LastChangedRow,
 } from './naver-http.ts';
 import { mergeNaverOrdersByOrderId, naverCommercialQuantity, naverPaymentAmount } from './naver-order.ts';
 import { NAVER_WINDOW_MS, planNaverScan } from './naver-windows.ts';
@@ -84,13 +84,14 @@ function mapDetail(entry: Record<string, unknown>): CanonicalOrder | null {
     const line: CanonicalOrderLine = {
         platformLineId: productOrderId || `${orderId}-line`,
         platformProductId: po.productId != null ? String(po.productId) : null,
-        platformVariantId: po.optionCode != null
-            ? String(po.optionCode)
-            : po.optionManageCode != null
-              ? String(po.optionManageCode)
-              : po.itemNo != null
-                ? String(po.itemNo)
-                : null,
+        platformVariantId:
+            po.optionCode != null
+                ? String(po.optionCode)
+                : po.optionManageCode != null
+                  ? String(po.optionManageCode)
+                  : po.itemNo != null
+                    ? String(po.itemNo)
+                    : null,
         title: String(po.productName ?? 'Naver item'),
         quantity: qty,
         unitPrice: unitPrice ?? (totalPay != null && qty ? totalPay / qty : null),
@@ -109,20 +110,28 @@ function mapDetail(entry: Record<string, unknown>): CanonicalOrder | null {
     };
 }
 
-async function heldCursorResult(
-    incoming: PollCursor,
-    failedIds: string[],
-    cause: unknown,
-): Promise<FetchOrdersResult> {
+async function heldCursorResult(incoming: PollCursor, failedIds: string[], cause: unknown): Promise<FetchOrdersResult> {
     const sample = failedIds.slice(0, 5).join(',');
     const suffix = failedIds.length > 5 ? ` (+${failedIds.length - 5} more)` : '';
     const syncNote = `naver detail fetch held cursor (${failedIds.length} ids: ${sample}${suffix})`;
     const err = cause instanceof Error ? cause : new Error(String(cause));
+    const upstreamStatus = cause instanceof NaverHttpError ? cause.status : undefined;
+    const tags: Record<string, string> = {
+        platform: 'naver',
+        step: 'product-orders-query',
+        [NAVER_CURSOR_HELD_TAG]: 'detail_fetch',
+    };
+    if (upstreamStatus !== undefined) {
+        tags.naver_upstream_status = String(upstreamStatus);
+    }
     await captureEdgeException(err, {
         function: 'order-sync',
-        status: cause instanceof NaverHttpError ? cause.status : 502,
-        tags: { platform: 'naver', step: 'product-orders-query', [NAVER_CURSOR_HELD_TAG]: 'detail_fetch' },
-        extra: { failedCount: failedIds.length },
+        status: 502,
+        tags,
+        extra: {
+            failedCount: failedIds.length,
+            ...(upstreamStatus !== undefined ? { upstreamStatus } : {}),
+        },
     });
     return {
         orders: [],

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NAVER_WINDOW_MS } from './naver-windows.ts';
 import { pollNaverOrders } from './naver-poll.ts';
-import type { PollCursor } from './types.ts';
+import { NAVER_WINDOW_MS } from './naver-windows.ts';
 
 const NOW_MS = Date.parse('2026-07-26T12:00:00.000Z');
 const SINCE_MS = Date.parse('2026-07-21T12:19:00.000Z');
