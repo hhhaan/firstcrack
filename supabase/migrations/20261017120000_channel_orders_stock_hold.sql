@@ -86,34 +86,41 @@ AS $function$
   ORDER BY d.representative_line_id;
 $function$;
 
+CREATE OR REPLACE FUNCTION public.fulfillment_shortage_entry(
+  p_product_id uuid,
+  p_line_id uuid,
+  p_required_units integer,
+  p_available_units integer
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = public
+AS $function$
+  SELECT jsonb_build_object(
+    'product_id', p_product_id,
+    'order_line_id', p_line_id,
+    'required_units', p_required_units,
+    'available_units', GREATEST(p_available_units, 0)
+  );
+$function$;
+
 CREATE OR REPLACE FUNCTION public.order_fulfillment_shortages_json(p_order_id uuid, p_pending_lines_only boolean DEFAULT false)
 RETURNS jsonb
-LANGUAGE plpgsql
+LANGUAGE sql
 STABLE
 SET search_path = public
 AS $function$
-DECLARE
-  v_shortages jsonb := '[]'::jsonb;
-  v_rec RECORD;
-  v_balance integer;
-BEGIN
-  FOR v_rec IN
-    SELECT d.product_id, d.required_units, d.representative_line_id AS line_id
-    FROM public.order_aggregated_product_demand(p_order_id, p_pending_lines_only) d
-  LOOP
-    SELECT COALESCE(SUM(pse.delta_units), 0)::integer INTO v_balance
-    FROM product_stock_events pse WHERE pse.product_id = v_rec.product_id;
-    IF v_balance < v_rec.required_units THEN
-      v_shortages := v_shortages || jsonb_build_object(
-        'product_id', v_rec.product_id,
-        'order_line_id', v_rec.line_id,
-        'required_units', v_rec.required_units,
-        'available_units', GREATEST(v_balance, 0)
-      );
-    END IF;
-  END LOOP;
-  RETURN v_shortages;
-END;
+  SELECT COALESCE(jsonb_agg(public.fulfillment_shortage_entry(
+    d.product_id, d.representative_line_id, d.required_units, bal.units
+  )), '[]'::jsonb)
+  FROM public.order_aggregated_product_demand(p_order_id, p_pending_lines_only) d
+  CROSS JOIN LATERAL (
+    SELECT COALESCE(SUM(pse.delta_units), 0)::integer AS units
+    FROM product_stock_events pse
+    WHERE pse.product_id = d.product_id
+  ) bal
+  WHERE bal.units < d.required_units;
 $function$;
 REVOKE ALL ON FUNCTION public.order_aggregated_product_demand(uuid, boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.order_fulfillment_shortages_json(uuid, boolean) FROM PUBLIC, anon, authenticated;
@@ -201,8 +208,6 @@ DECLARE
   v_held jsonb := '[]'::jsonb;
   v_held_fulfillments integer := 0;
   v_order_rec RECORD;
-  v_line_rec RECORD;
-  v_balance integer;
   v_shortages jsonb;
   v_is_short boolean;
 BEGIN
@@ -412,32 +417,22 @@ BEGIN
         JOIN orders o ON o.id=fp.order_id
         ORDER BY o.ordered_at, o.platform_order_id
       LOOP
-        v_shortages := '[]'::jsonb;
-        v_is_short := false;
-        FOR v_line_rec IN
-          SELECT sub.product_id, sub.required_units, sub.line_id
-          FROM (
-            SELECT fp.product_id,
-                   SUM(fp.required_units)::integer AS required_units,
-                   (array_agg(fp.line_id ORDER BY fp.line_id))[1] AS line_id
-            FROM _fulfill_plan fp
-            WHERE fp.order_id=v_order_rec.order_id
-            GROUP BY fp.product_id
-          ) sub
-          ORDER BY sub.line_id
-        LOOP
-          SELECT COALESCE(sb.units, 0) INTO v_balance FROM _sim_balance sb WHERE sb.product_id=v_line_rec.product_id;
-          IF v_balance IS NULL THEN v_balance := 0; END IF;
-          IF v_balance < v_line_rec.required_units THEN
-            v_is_short := true;
-            v_shortages := v_shortages || jsonb_build_object(
-              'product_id', v_line_rec.product_id,
-              'order_line_id', v_line_rec.line_id,
-              'required_units', v_line_rec.required_units,
-              'available_units', GREATEST(v_balance, 0)
-            );
-          END IF;
-        END LOOP;
+        SELECT COALESCE(jsonb_agg(public.fulfillment_shortage_entry(
+          agg.product_id, agg.line_id, agg.required_units, COALESCE(sb.units, 0)
+        )), '[]'::jsonb)
+        INTO v_shortages
+        FROM (
+          SELECT fp.product_id,
+                 SUM(fp.required_units)::integer AS required_units,
+                 (array_agg(fp.line_id ORDER BY fp.line_id))[1] AS line_id
+          FROM _fulfill_plan fp
+          WHERE fp.order_id = v_order_rec.order_id
+          GROUP BY fp.product_id
+        ) agg
+        LEFT JOIN _sim_balance sb ON sb.product_id = agg.product_id
+        WHERE COALESCE(sb.units, 0) < agg.required_units;
+
+        v_is_short := jsonb_array_length(v_shortages) > 0;
         IF v_is_short THEN
           INSERT INTO _wave_held VALUES (v_order_rec.order_id, v_shortages);
         ELSE
