@@ -3,12 +3,57 @@
 BEGIN;
 SELECT set_config('test.owner', :'owner', true);
 
+CREATE OR REPLACE FUNCTION pg_temp.ledger_fixture_line(
+  p_platform_line_id text,
+  p_product_id uuid,
+  p_quantity integer,
+  p_title text DEFAULT 'Coffee',
+  p_unit_price integer DEFAULT 1000,
+  p_line_status text DEFAULT 'active'
+) RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT jsonb_build_object(
+    'platformLineId', p_platform_line_id,
+    'productId', p_product_id,
+    'title', p_title,
+    'quantity', p_quantity,
+    'unitPrice', p_unit_price,
+    'status', p_line_status
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.ledger_fixture_order(
+  p_platform_order_id text,
+  p_status text,
+  p_ordered_at text,
+  p_total_amount integer,
+  p_lines jsonb,
+  p_buyer_name text DEFAULT NULL
+) RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT jsonb_build_object(
+    'platformOrderId', p_platform_order_id,
+    'status', p_status,
+    'orderedAt', p_ordered_at,
+    'buyerName', p_buyer_name,
+    'currency', 'KRW',
+    'totalAmount', p_total_amount,
+    'raw', '{}'::jsonb,
+    'lines', p_lines
+  );
+$$;
+
 DO $$
 DECLARE
   owner_id uuid := current_setting('test.owner')::uuid;
   connection_id uuid := gen_random_uuid();
   v_product_id uuid := gen_random_uuid();
   v_product_id2 uuid := gen_random_uuid();
+  v_product_af uuid := gen_random_uuid();
   bean_id uuid := gen_random_uuid();
   blend_id uuid := gen_random_uuid();
   plan_id uuid;
@@ -31,23 +76,54 @@ BEGIN
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id, 20, 'roast_inbound');
 
+  INSERT INTO products(id, user_id, name, sku, net_weight_grams)
+  VALUES (v_product_af, owner_id, 'Active filter fixture', 'LEDGER-AF', 200);
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_af, 5, 'roast_inbound');
+
   -- Superuser runs sync (service_role grants vary on trimmed local harnesses).
 
+  -- Fulfillment branch requires ol.status = 'active' (refunded line skipped).
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'active-filter-1', 'paid', '2026-10-17T09:00:00Z', 2,
+      jsonb_build_array(
+        pg_temp.ledger_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
+        pg_temp.ledger_fixture_line('af-b', v_product_af, 1, 'B', 1, 'refunded')
+      ),
+      'A'
+    ),
+    pg_temp.ledger_fixture_order(
+      'active-filter-1', 'shipped', '2026-10-17T09:00:00Z', 2,
+      jsonb_build_array(
+        pg_temp.ledger_fixture_line('af-a', v_product_af, 1, 'A', 1, 'active'),
+        pg_temp.ledger_fixture_line('af-b', v_product_af, 1, 'B', 1, 'refunded')
+      ),
+      'A'
+    )
+  ));
+  ASSERT (
+    SELECT count(*) FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id = pse.reference_id
+    JOIN orders o ON o.id = ol.order_id
+    WHERE o.platform_order_id = 'active-filter-1' AND pse.event_type = 'order_fulfillment'
+  ) = 1, 'non-active line skipped for fulfillment';
+
   -- #890: qty 1 paid, then shipped with qty 3 must deduct 3; cancel restores 3 (stock 20).
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-change-1', 'status', 'paid', 'orderedAt', '2026-10-17T10:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'line-1', 'productId', v_product_id, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
-    ))
-  )));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-change-1', 'status', 'shipped', 'orderedAt', '2026-10-17T10:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 3000, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'line-1', 'productId', v_product_id, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 1000, 'status', 'active'
-    ))
-  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-change-1', 'paid', '2026-10-17T10:00:00Z', 1000,
+      jsonb_build_array(pg_temp.ledger_fixture_line('line-1', v_product_id, 1, 'Coffee', 1000, 'active')),
+      'A'
+    )
+  ));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-change-1', 'shipped', '2026-10-17T10:00:00Z', 3000,
+      jsonb_build_array(pg_temp.ledger_fixture_line('line-1', v_product_id, 3, 'Coffee', 1000, 'active')),
+      'A'
+    )
+  ));
   SELECT id INTO v_order_id FROM orders WHERE platform_order_id = 'qty-change-1';
   SELECT id INTO line_id FROM order_lines WHERE order_lines.order_id = v_order_id AND platform_line_id = 'line-1';
   ASSERT (SELECT quantity FROM order_lines WHERE id = line_id) = 3, 'line quantity stored as 3';
@@ -56,25 +132,25 @@ BEGIN
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id;
   ASSERT stock_units = 17, 'stock after ship';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-change-1', 'status', 'cancelled', 'orderedAt', '2026-10-17T10:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'line-1', 'productId', v_product_id, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 0, 'status', 'cancelled'
-    ))
-  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-change-1', 'cancelled', '2026-10-17T10:00:00Z', 0,
+      jsonb_build_array(pg_temp.ledger_fixture_line('line-1', v_product_id, 3, 'Coffee', 0, 'cancelled')),
+      'A'
+    )
+  ));
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id;
   ASSERT stock_units = 20, 'cancel restores actual deducted units';
   ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_cancel') = 3,
     'cancel event matches fulfillment';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-change-1', 'status', 'cancelled', 'orderedAt', '2026-10-17T10:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'line-1', 'productId', v_product_id, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 0, 'status', 'cancelled'
-    ))
-  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-change-1', 'cancelled', '2026-10-17T10:00:00Z', 0,
+      jsonb_build_array(pg_temp.ledger_fixture_line('line-1', v_product_id, 3, 'Coffee', 0, 'cancelled')),
+      'A'
+    )
+  ));
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id;
   ASSERT stock_units = 20, 'double cancel is no-op';
 
@@ -84,20 +160,20 @@ BEGIN
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-drift-1', 'status', 'paid', 'orderedAt', '2026-10-17T12:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
-    ))
-  )));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-drift-1', 'status', 'shipped', 'orderedAt', '2026-10-17T12:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
-    ))
-  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-drift-1', 'paid', '2026-10-17T12:00:00Z', 1000,
+      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 1, 'Coffee', 1000, 'active')),
+      'A'
+    )
+  ));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-drift-1', 'shipped', '2026-10-17T12:00:00Z', 1000,
+      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 1, 'Coffee', 1000, 'active')),
+      'A'
+    )
+  ));
   SELECT id INTO v_order_id FROM orders WHERE platform_order_id = 'qty-drift-1';
   SELECT id INTO line_id FROM order_lines WHERE order_id = v_order_id AND platform_line_id = 'drift-line';
   ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_fulfillment') = -1,
@@ -105,36 +181,36 @@ BEGIN
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
   ASSERT stock_units = 19, 'stock after ship 1';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-drift-1', 'status', 'shipped', 'orderedAt', '2026-10-17T12:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 3000, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 1000, 'status', 'active'
-    ))
-  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-drift-1', 'shipped', '2026-10-17T12:00:00Z', 3000,
+      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 1000, 'active')),
+      'A'
+    )
+  ));
   ASSERT (SELECT quantity FROM order_lines WHERE id = line_id) = 3, 'line qty updated to 3';
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
   ASSERT stock_units = 19, 'no second fulfillment after already shipped';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-drift-1', 'status', 'cancelled', 'orderedAt', '2026-10-17T12:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 0, 'status', 'cancelled'
-    ))
-  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-drift-1', 'cancelled', '2026-10-17T12:00:00Z', 0,
+      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 0, 'cancelled')),
+      'A'
+    )
+  ));
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
   ASSERT stock_units = 20, 'sync cancel restores outstanding 1';
   ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_cancel') = 1,
     'sync cancel event is 1 not line qty';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-drift-1', 'status', 'cancelled', 'orderedAt', '2026-10-17T12:00:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 0, 'status', 'cancelled'
-    ))
-  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-drift-1', 'cancelled', '2026-10-17T12:00:00Z', 0,
+      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 0, 'cancelled')),
+      'A'
+    )
+  ));
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
   ASSERT stock_units = 20, 'repeated sync cancel no-op';
 
@@ -145,27 +221,27 @@ BEGIN
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-drift-2', 'status', 'paid', 'orderedAt', '2026-10-17T12:30:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'drift-line-2', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
-    ))
-  )));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-drift-2', 'status', 'shipped', 'orderedAt', '2026-10-17T12:30:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'drift-line-2', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
-    ))
-  )));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId', 'qty-drift-2', 'status', 'shipped', 'orderedAt', '2026-10-17T12:30:00Z',
-    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 3000, 'raw', '{}'::jsonb,
-    'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId', 'drift-line-2', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 1000, 'status', 'active'
-    ))
-  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-drift-2', 'paid', '2026-10-17T12:30:00Z', 1000,
+      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line-2', v_product_id2, 1, 'Coffee', 1000, 'active')),
+      'A'
+    )
+  ));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-drift-2', 'shipped', '2026-10-17T12:30:00Z', 1000,
+      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line-2', v_product_id2, 1, 'Coffee', 1000, 'active')),
+      'A'
+    )
+  ));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'qty-drift-2', 'shipped', '2026-10-17T12:30:00Z', 3000,
+      jsonb_build_array(pg_temp.ledger_fixture_line('drift-line-2', v_product_id2, 3, 'Coffee', 1000, 'active')),
+      'A'
+    )
+  ));
   SELECT id INTO v_order_id FROM orders WHERE platform_order_id = 'qty-drift-2';
   SELECT id INTO line_id FROM order_lines WHERE order_id = v_order_id AND platform_line_id = 'drift-line-2';
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
@@ -185,31 +261,30 @@ BEGIN
   DELETE FROM product_stock_events WHERE user_id = owner_id;
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type) VALUES (owner_id, v_product_id, 10, 'roast_inbound');
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'partial-refund-1', 'status', 'paid', 'orderedAt', '2026-10-17T11:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(
-        jsonb_build_object('platformLineId','pa','productId',v_product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
-        jsonb_build_object('platformLineId','pb','productId',v_product_id,'title','B','quantity',1,'unitPrice',1,'status','active')
+    pg_temp.ledger_fixture_order(
+      'partial-refund-1', 'paid', '2026-10-17T11:00:00Z', 2,
+      jsonb_build_array(
+        pg_temp.ledger_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
+        pg_temp.ledger_fixture_line('pb', v_product_id, 1, 'B', 1, 'active')
       )
     ),
-    jsonb_build_object(
-      'platformOrderId', 'partial-refund-1', 'status', 'shipped', 'orderedAt', '2026-10-17T11:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(
-        jsonb_build_object('platformLineId','pa','productId',v_product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
-        jsonb_build_object('platformLineId','pb','productId',v_product_id,'title','B','quantity',1,'unitPrice',1,'status','active')
+    pg_temp.ledger_fixture_order(
+      'partial-refund-1', 'shipped', '2026-10-17T11:00:00Z', 2,
+      jsonb_build_array(
+        pg_temp.ledger_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
+        pg_temp.ledger_fixture_line('pb', v_product_id, 1, 'B', 1, 'active')
       )
     )
   ));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-    'platformOrderId','partial-refund-1','status','refunded','orderedAt','2026-10-17T11:00:00Z',
-    'buyerName',null,'currency','KRW','totalAmount',1,'raw','{}'::jsonb,
-    'lines',jsonb_build_array(
-      jsonb_build_object('platformLineId','pa','productId',v_product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
-      jsonb_build_object('platformLineId','pb','productId',v_product_id,'title','B','quantity',1,'unitPrice',1,'status','refunded')
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.ledger_fixture_order(
+      'partial-refund-1', 'refunded', '2026-10-17T11:00:00Z', 1,
+      jsonb_build_array(
+        pg_temp.ledger_fixture_line('pa', v_product_id, 1, 'A', 1, 'active'),
+        pg_temp.ledger_fixture_line('pb', v_product_id, 1, 'B', 1, 'refunded')
+      )
     )
-  )));
+  ));
   ASSERT (SELECT count(*) FROM product_stock_events WHERE event_type='order_cancel'
     AND reference_id IN (SELECT ol.id FROM order_lines ol JOIN orders o ON o.id=ol.order_id WHERE o.platform_order_id='partial-refund-1')) = 1,
     'partial refund one restore';
