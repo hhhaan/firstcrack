@@ -9,10 +9,14 @@ CREATE TABLE IF NOT EXISTS public._order_sync_scheduler_http_log (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+DROP FUNCTION IF EXISTS net.http_post(text, jsonb, jsonb);
+
 CREATE OR REPLACE FUNCTION net.http_post(
   url text,
+  body jsonb DEFAULT '{}'::jsonb,
+  params jsonb DEFAULT '{}'::jsonb,
   headers jsonb DEFAULT '{}'::jsonb,
-  body jsonb DEFAULT '{}'::jsonb
+  timeout_milliseconds integer DEFAULT 1000
 )
 RETURNS bigint
 LANGUAGE plpgsql
@@ -33,12 +37,16 @@ DO $$
 DECLARE
   owner_id uuid := '11111111-1111-1111-1111-111111111111'::uuid;
   sentinel text := 'sentinel-secret-value-not-in-tick';
+  order_sync_url constant text :=
+    'https://vjdgdolfxvnxushxrmff.supabase.co/functions/v1/order-sync';
   v_err text;
   v_tick record;
   v_i int;
   conn_ids uuid[] := ARRAY[]::uuid[];
   v_conn uuid;
   v_running uuid;
+  v_order uuid[];
+  v_elem jsonb;
 BEGIN
   DELETE FROM public._order_sync_scheduler_http_log;
   DELETE FROM public.order_sync_scheduler_ticks;
@@ -87,6 +95,8 @@ BEGIN
   ASSERT (
     SELECT (body->>'connectionId')::uuid FROM public._order_sync_scheduler_http_log ORDER BY id DESC LIMIT 1
   ) = v_conn, 'due connection id';
+  ASSERT (SELECT url FROM public._order_sync_scheduler_http_log ORDER BY id DESC LIMIT 1) = order_sync_url,
+    'order-sync URL uses project ref vjdgdolfxvnxushxrmff';
   DELETE FROM public.sales_channel_connections WHERE shop_identifier LIKE 'sched-%';
 
   -- Zero due → no_due_connections tick, no HTTP
@@ -96,7 +106,8 @@ BEGIN
   ASSERT v_tick.dispatched_count = 0, 'zero dispatch';
   ASSERT position(sentinel IN v_tick::text) = 0, 'tick must not store secret';
 
-  -- Twelve due: ten dispatched, oldest first (nulls first)
+  -- Twelve due: ten dispatched, full order (null first, then oldest last_polled_at)
+  conn_ids := ARRAY[]::uuid[];
   FOR v_i IN 1..12 LOOP
     v_conn := gen_random_uuid();
     conn_ids := array_append(conn_ids, v_conn);
@@ -118,18 +129,52 @@ BEGIN
   SELECT * INTO v_tick FROM public.order_sync_scheduler_ticks ORDER BY created_at DESC LIMIT 1;
   ASSERT v_tick.due_count = 12, 'due count';
   ASSERT v_tick.dispatched_count = 10, 'cap K=10';
+  ASSERT v_tick.oldest_last_polled_at IS NULL, 'never-polled due → NULL oldest_last_polled_at';
   ASSERT (SELECT count(*) FROM public._order_sync_scheduler_http_log) = 10, 'ten http posts';
-  ASSERT (
-    SELECT (body->>'connectionId')::uuid
-    FROM public._order_sync_scheduler_http_log
-    ORDER BY id
-    LIMIT 1
-  ) = conn_ids[1], 'null last_polled_at first';
+
+  SELECT array_agg((body->>'connectionId')::uuid ORDER BY id) INTO v_order
+  FROM public._order_sync_scheduler_http_log;
+  ASSERT v_order = (
+    SELECT array_agg(s.id)
+    FROM (
+      SELECT c.id
+      FROM public.sales_channel_connections c
+      WHERE c.id = ANY (conn_ids)
+      ORDER BY c.last_polled_at ASC NULLS FIRST, c.id
+      LIMIT 10
+    ) s
+  ), 'dispatch order: nulls first then oldest last_polled_at';
+
+  ASSERT (SELECT url FROM public._order_sync_scheduler_http_log ORDER BY id LIMIT 1) = order_sync_url,
+    'dispatch URL';
+
+  FOR v_elem IN SELECT jsonb_array_elements(v_tick.dispatches) LOOP
+    ASSERT (SELECT count(*) FROM jsonb_object_keys(v_elem) k) = 2, 'dispatches entry has two keys';
+    ASSERT v_elem ? 'connection_id' AND v_elem ? 'net_request_id', 'dispatches keys only';
+    ASSERT NOT (v_elem ? 'url'), 'dispatches must not echo url';
+  END LOOP;
+
   ASSERT position(sentinel IN (SELECT headers::text FROM public._order_sync_scheduler_http_log LIMIT 1)) > 0,
     'cron header carries secret to edge only';
   ASSERT position(sentinel IN v_tick.dispatches::text) = 0, 'dispatches json must not echo secret';
 
-  -- Fresh running cron row blocks dispatch; webhook running does not
+  -- Stale (11m) running cron row does not block dispatch
+  DELETE FROM public.order_sync_scheduler_ticks;
+  DELETE FROM public._order_sync_scheduler_http_log;
+  DELETE FROM public.order_sync_runs;
+  UPDATE public.sales_channel_connections SET last_polled_at = now() - interval '20 minutes';
+
+  v_running := conn_ids[4];
+  INSERT INTO public.order_sync_runs (connection_id, user_id, trigger, status, started_at)
+  VALUES (v_running, owner_id, 'cron', 'running', now() - interval '11 minutes');
+
+  PERFORM public.invoke_order_sync_cron();
+  ASSERT (
+    SELECT count(*) FROM public._order_sync_scheduler_http_log h
+    WHERE (h.body->>'connectionId')::uuid = v_running
+  ) = 1, 'stale 11m running row still dispatched';
+
+  -- Fresh cron/products lock: skip dispatch, count skipped_locked
   DELETE FROM public.order_sync_scheduler_ticks;
   DELETE FROM public._order_sync_scheduler_http_log;
   DELETE FROM public.order_sync_runs;
@@ -140,18 +185,43 @@ BEGIN
   VALUES (v_running, owner_id, 'cron', 'running', now());
 
   INSERT INTO public.order_sync_runs (connection_id, user_id, trigger, status, started_at)
+  VALUES (conn_ids[5], owner_id, 'products', 'running', now());
+
+  INSERT INTO public.order_sync_runs (connection_id, user_id, trigger, status, started_at)
   VALUES (conn_ids[3], owner_id, 'webhook', 'running', now());
 
   PERFORM public.invoke_order_sync_cron();
   SELECT * INTO v_tick FROM public.order_sync_scheduler_ticks ORDER BY created_at DESC LIMIT 1;
-  ASSERT v_tick.skipped_locked_count >= 1, 'locked due counted';
+  ASSERT v_tick.skipped_locked_count = 2, 'fresh cron + products locks counted';
   ASSERT (
     SELECT count(*) FROM public._order_sync_scheduler_http_log h
     WHERE (h.body->>'connectionId')::uuid = v_running
-  ) = 0, 'locked connection not dispatched';
+  ) = 0, 'fresh cron running not dispatched';
+  ASSERT (
+    SELECT count(*) FROM public._order_sync_scheduler_http_log h
+    WHERE (h.body->>'connectionId')::uuid = conn_ids[5]
+  ) = 0, 'fresh products running not dispatched';
+  ASSERT (
+    SELECT count(*) FROM public._order_sync_scheduler_http_log h
+    WHERE (h.body->>'connectionId')::uuid = conn_ids[3]
+  ) = 1, 'webhook-only running still dispatched';
+
+  -- Non-active never dispatched
+  v_conn := gen_random_uuid();
+  INSERT INTO public.sales_channel_connections (
+    id, user_id, platform, shop_identifier, status, last_polled_at
+  ) VALUES (v_conn, owner_id, 'shopify', 'sched-disabled', 'disabled', now() - interval '1 day');
+  DELETE FROM public.order_sync_scheduler_ticks;
+  DELETE FROM public._order_sync_scheduler_http_log;
+  DELETE FROM public.order_sync_runs;
+  PERFORM public.invoke_order_sync_cron();
+  ASSERT (
+    SELECT count(*) FROM public._order_sync_scheduler_http_log h
+    WHERE (h.body->>'connectionId')::uuid = v_conn
+  ) = 0, 'disabled connection not dispatched';
 
   -- products trigger legal; running products blocks cron insert (23505)
-  UPDATE public.order_sync_runs SET status = 'error', finished_at = now() WHERE connection_id = v_running;
+  UPDATE public.order_sync_runs SET status = 'error', finished_at = now();
   INSERT INTO public.order_sync_runs (connection_id, user_id, trigger, status)
   VALUES (v_running, owner_id, 'products', 'running');
   BEGIN
@@ -161,9 +231,6 @@ BEGIN
   EXCEPTION WHEN unique_violation THEN
     NULL;
   END;
-  UPDATE public.order_sync_runs SET status = 'error', finished_at = now() WHERE connection_id = v_running AND trigger = 'products';
-  INSERT INTO public.order_sync_runs (connection_id, user_id, trigger, status)
-  VALUES (v_running, owner_id, 'cron', 'running');
 
   -- overdue_count: active with last_polled older than 30 minutes
   UPDATE public.sales_channel_connections

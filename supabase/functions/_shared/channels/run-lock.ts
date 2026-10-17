@@ -81,7 +81,6 @@ export type AcquireConnectionRunLockResult =
     | { ok: false; conflict: true }
     | { ok: false; conflict: false; error: string };
 
-/** @deprecated alias — use {@link AcquireConnectionRunLockResult}. */
 export type AcquireDispatchRunLockResult = AcquireConnectionRunLockResult;
 
 /**

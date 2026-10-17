@@ -251,7 +251,7 @@ serveWithSentry('order-sync', async (req) => {
 
         const waitUntil = (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime
             ?.waitUntil;
-        const work = runSyncForConnection(admin, conn, lock.runId);
+        const work = Promise.resolve().then(() => runSyncForConnection(admin, conn, lock.runId));
         if (waitUntil) {
             waitUntil(work);
         } else {

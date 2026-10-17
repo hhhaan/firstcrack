@@ -1,4 +1,16 @@
 import { supabase } from '@shared/lib/supabase';
+import { FunctionsHttpError } from '@supabase/supabase-js';
+
+/** Thrown when channel-products returns 409 (sync/dispatch/products run holds the connection lock). */
+export class ChannelProductsRunConflictError extends Error {
+    constructor() {
+        super('CHANNEL_PRODUCTS_RUN_CONFLICT');
+        this.name = 'ChannelProductsRunConflictError';
+    }
+}
+
+export const isChannelProductsRunConflict = (error: unknown): boolean =>
+    error instanceof ChannelProductsRunConflictError;
 
 export type ChannelPlatform = 'naver' | 'cafe24' | 'shopify';
 export type ChannelStatus = 'pending' | 'active' | 'error' | 'disabled';
@@ -117,7 +129,12 @@ export const salesChannelApi = {
         const { data, error } = await supabase.functions.invoke('channel-products', {
             body: { connectionId },
         });
-        if (error) throw error;
+        if (error) {
+            if (error instanceof FunctionsHttpError && error.context.status === 409) {
+                throw new ChannelProductsRunConflictError();
+            }
+            throw error;
+        }
         if (data?.error) throw new Error(data.error);
         return (data?.listings ?? []) as ChannelListing[];
     },

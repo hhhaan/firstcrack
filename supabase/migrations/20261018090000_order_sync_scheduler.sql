@@ -22,8 +22,13 @@ CREATE TABLE public.order_sync_scheduler_ticks (
   dispatches              jsonb NOT NULL DEFAULT '[]'::jsonb
 );
 
+COMMENT ON COLUMN public.order_sync_scheduler_ticks.oldest_last_polled_at IS
+  'Among due connections this tick: NULL when any due row has never been polled (last_polled_at IS NULL); otherwise MIN(last_polled_at).';
+
 ALTER TABLE public.order_sync_scheduler_ticks ENABLE ROW LEVEL SECURITY;
 -- skip-grant-check: cron-role scheduler log; workspace members do not read it
+
+REVOKE ALL ON TABLE public.order_sync_scheduler_ticks FROM PUBLIC, anon, authenticated;
 
 CREATE INDEX order_sync_scheduler_ticks_created_at_idx
   ON public.order_sync_scheduler_ticks (created_at);
@@ -50,7 +55,7 @@ DECLARE
   v_conn_id           uuid;
   v_request_id        bigint;
   v_url               constant text :=
-    'https://vjdgdolfxvnvushxrmff.supabase.co/functions/v1/order-sync';
+    'https://vjdgdolfxvnxushxrmff.supabase.co/functions/v1/order-sync';
 BEGIN
   SELECT s.decrypted_secret INTO v_secret
   FROM vault.decrypted_secrets s
@@ -82,7 +87,10 @@ BEGIN
          AND r.trigger <> 'webhook'
          AND r.started_at >= now() - v_stale_lock
      )),
-    (SELECT min(d.last_polled_at) FROM due d)
+    (SELECT CASE
+       WHEN EXISTS (SELECT 1 FROM due d WHERE d.last_polled_at IS NULL) THEN NULL
+       ELSE (SELECT min(d.last_polled_at) FROM due d)
+     END)
   INTO v_due_count, v_skipped_locked, v_oldest_polled;
 
   IF v_due_count = 0 THEN

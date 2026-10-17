@@ -1,5 +1,5 @@
 export type { ChannelListing, ChannelPlatform, ChannelStatus, ConnectCredentials, SalesChannelConnection } from './api';
-export { salesChannelApi } from './api';
+export { ChannelProductsRunConflictError, isChannelProductsRunConflict, salesChannelApi } from './api';
 export {
     invalidateAfterSyncOrders,
     salesChannelKeys,

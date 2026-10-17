@@ -5,7 +5,7 @@ import {
     useProductChannelSkus,
     useUpsertProductChannelSku,
 } from '@entities/product';
-import { useChannelListings, useSalesChannels } from '@entities/sales-channel';
+import { isChannelProductsRunConflict, useChannelListings, useSalesChannels } from '@entities/sales-channel';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { Badge } from '@shared/ui/Badge';
 import { FormSelect } from '@shared/ui/FormSelect';
@@ -184,7 +184,9 @@ function MapChannelProductBody({ product, onClose }: { product: Product; onClose
                                 />
                                 <p className="mt-1 text-[11px] text-muted">
                                     {listings.isError
-                                        ? t('orders.mapping.listingError')
+                                        ? isChannelProductsRunConflict(listings.error)
+                                            ? t('orders.mapping.catalogSyncInProgress')
+                                            : t('orders.mapping.listingError')
                                         : t('orders.mapping.manualHelp')}
                                 </p>
                             </div>

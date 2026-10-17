@@ -2268,6 +2268,7 @@ export type Database = {
                 Args: { p_events: Json };
                 Returns: undefined;
             };
+            invoke_order_sync_cron: { Args: Record<PropertyKey, never>; Returns: undefined };
             insert_stock_events_batch: {
                 Args: { p_events: Json; p_roasted_events?: Json };
                 Returns: undefined;

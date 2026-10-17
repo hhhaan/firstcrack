@@ -1,4 +1,6 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const edgeWaitUntilTasks: Promise<unknown>[] = [];
 
 type Query = { table: string; operation: string; values: Record<string, unknown>; single: boolean };
 type Result = { data?: unknown; error?: unknown };
@@ -147,6 +149,11 @@ beforeAll(async () => {
     await import('./submit-cupping/index.ts');
 });
 
+afterEach(async () => {
+    await Promise.allSettled(edgeWaitUntilTasks.splice(0));
+    vi.unstubAllGlobals();
+});
+
 beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('Deno', { env: { get: (key: string) => (key.endsWith('SECRET') ? 'shared-secret' : undefined) } });
@@ -192,13 +199,35 @@ describe('order-sync persistence and authorization', () => {
 
     it('cron requires connectionId; accepts per-connection dispatch without a user JWT', async () => {
         mocks.user.mockResolvedValue(null);
-        vi.stubGlobal('EdgeRuntime', { waitUntil: vi.fn() });
+        vi.stubGlobal('EdgeRuntime', {
+            waitUntil: (promise: Promise<unknown>) => {
+                edgeWaitUntilTasks.push(promise);
+            },
+        });
         expect((await request('order-sync', {}, { 'x-cron-secret': 'shared-secret' })).status).toBe(400);
-        expect((await request('order-sync', { connectionId: 'connection' }, { 'x-cron-secret': 'shared-secret' })).status).toBe(
-            202,
-        );
+        expect(
+            (await request('order-sync', { connectionId: 'connection' }, { 'x-cron-secret': 'shared-secret' })).status,
+        ).toBe(202);
+        await Promise.allSettled(edgeWaitUntilTasks.splice(0));
         expect(mocks.user).not.toHaveBeenCalled();
         expect((await request('order-sync', {}, { 'x-cron-secret': 'wrong' })).status).toBe(401);
+    });
+
+    it('cron 202 runs sync in waitUntil and completes before the test ends', async () => {
+        mocks.user.mockResolvedValue(null);
+        vi.stubGlobal('EdgeRuntime', {
+            waitUntil: (promise: Promise<unknown>) => {
+                edgeWaitUntilTasks.push(promise);
+            },
+        });
+        const response = await request(
+            'order-sync',
+            { connectionId: 'connection' },
+            { 'x-cron-secret': 'shared-secret' },
+        );
+        expect(response.status).toBe(202);
+        await Promise.allSettled(edgeWaitUntilTasks.splice(0));
+        expect(mocks.adapter.fetchOrdersSince).toHaveBeenCalledTimes(1);
     });
 
     it('cron 23505 returns skipped without calling the adapter', async () => {
@@ -211,7 +240,11 @@ describe('order-sync persistence and authorization', () => {
             }
             return defaultResult(q);
         });
-        const response = await request('order-sync', { connectionId: 'connection' }, { 'x-cron-secret': 'shared-secret' });
+        const response = await request(
+            'order-sync',
+            { connectionId: 'connection' },
+            { 'x-cron-secret': 'shared-secret' },
+        );
         expect(response.status).toBe(200);
         expect(await response.json()).toMatchObject({ skipped: true });
         expect(mocks.adapter.fetchOrdersSince).not.toHaveBeenCalled();

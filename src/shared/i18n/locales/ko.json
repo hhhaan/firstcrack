@@ -2072,6 +2072,7 @@
             "listingPick": "상품 선택",
             "listingLoading": "카탈로그 불러오는 중…",
             "listingError": "카탈로그를 불러오지 못했습니다. 옵션/상품 ID를 직접 입력하세요.",
+            "catalogSyncInProgress": "이 스토어에서 다른 동기화가 진행 중입니다. 잠시 후 다시 시도하세요.",
             "manualKey": "옵션 / 상품 ID",
             "manualKeyPh": "예: 4521098765 또는 SKU",
             "manualHelp": "스토어가 주문 항목에 표시하는 ID를 사용하세요 (옵션 ID 우선, 없으면 상품 ID).",
