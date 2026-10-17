@@ -2201,13 +2201,6 @@ export type Database = {
                 Returns: number;
             };
             cancel_order: { Args: { p_order_id: string }; Returns: undefined };
-            order_line_outstanding_units: {
-                Args: { p_line_id: string };
-                Returns: {
-                    product_id: string;
-                    units: number;
-                }[];
-            };
             channel_try_integer: { Args: { p_value: string }; Returns: number };
             channel_try_timestamptz: { Args: { p_value: string }; Returns: string };
             compute_inventory_alerts: {
@@ -2238,6 +2231,13 @@ export type Database = {
                 Returns: string[];
             };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
+            order_line_outstanding_units: {
+                Args: { p_line_id: string };
+                Returns: {
+                    product_id: string;
+                    units: number;
+                }[];
+            };
             resolve_order_fulfillment_hold: { Args: { p_order_id: string }; Returns: undefined };
             retry_order_fulfillment: { Args: { p_order_id: string }; Returns: undefined };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };

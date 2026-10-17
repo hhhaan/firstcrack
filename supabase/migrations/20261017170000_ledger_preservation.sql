@@ -2,8 +2,6 @@
 -- Fulfillment uses post-upsert line quantity; cancel/refund restores net deducted units.
 -- Session inbound upsert applies after batch estimate; blend output capped at input sum.
 
-GRANT USAGE ON SCHEMA auth TO authenticated, service_role;
-
 CREATE OR REPLACE FUNCTION public.order_line_outstanding_units(p_line_id uuid)
 RETURNS TABLE(product_id uuid, units integer)
 LANGUAGE sql
@@ -257,7 +255,7 @@ BEGIN
       JOIN order_lines ol ON ol.id = l.line_id
       WHERE v_auto_fulfill AND l.fulfilled_at IS NULL AND l.next_status IN ('shipped','delivered')
         AND l.prev_status NOT IN ('shipped','delivered') AND ol.product_id IS NOT NULL
-        AND ol.quantity > 0 AND l.payload->>'status'='active'
+        AND ol.quantity > 0 AND ol.status = 'active' AND l.payload->>'status'='active'
         AND NOT EXISTS (
           SELECT 1 FROM order_fulfillment_holds h
           WHERE h.order_id=l.order_id AND h.resolved_at IS NULL
@@ -393,7 +391,7 @@ CREATE OR REPLACE FUNCTION upsert_roasted_inbound(
 ) RETURNS void
 LANGUAGE plpgsql
 SECURITY INVOKER
-SET search_path = public, auth
+SET search_path = public
 AS $$
 DECLARE
   v_bean_id uuid;
@@ -454,8 +452,8 @@ BEGIN
     FROM jsonb_array_elements(p_events) AS e
     WHERE (e->>'event_type') IN ('blend_produce', 'blend_consume')
   LOOP
-    SELECT COALESCE(SUM(trunc((e->>'delta_grams')::numeric)::integer) FILTER (WHERE e->>'event_type' = 'blend_produce'), 0),
-           COALESCE(-SUM(trunc((e->>'delta_grams')::numeric)::integer) FILTER (WHERE e->>'event_type' = 'blend_consume'), 0)
+    SELECT COALESCE(SUM((e->>'delta_grams')::integer) FILTER (WHERE e->>'event_type' = 'blend_produce'), 0),
+           COALESCE(-SUM((e->>'delta_grams')::integer) FILTER (WHERE e->>'event_type' = 'blend_consume'), 0)
       INTO v_output, v_input
     FROM jsonb_array_elements(p_events) AS e
     WHERE (e->>'event_type') IN ('blend_produce', 'blend_consume')
@@ -470,7 +468,7 @@ BEGIN
 
   INSERT INTO roasted_stock_events (user_id, bean_id, blend_id, delta_grams, event_type, reference_id, note, is_estimate)
   SELECT (e->>'user_id')::uuid, (e->>'bean_id')::uuid, (e->>'blend_id')::uuid,
-         trunc((e->>'delta_grams')::numeric)::integer, e->>'event_type', (e->>'reference_id')::uuid,
+         (e->>'delta_grams')::integer, e->>'event_type', (e->>'reference_id')::uuid,
          e->>'note', COALESCE((e->>'is_estimate')::boolean, false)
   FROM jsonb_array_elements(p_events) AS e
   ON CONFLICT DO NOTHING;

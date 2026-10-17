@@ -11,6 +11,12 @@ export type BuildBlendingEventsParams = {
     note?: string;
 };
 
+const assertWholeGrams = (grams: number) => {
+    if (!Number.isFinite(grams) || !Number.isInteger(grams)) {
+        throw new Error('grams_must_be_whole');
+    }
+};
+
 /** 로스팅 후 블렌딩: 싱글 벌크 소진 + 블렌드 벌크 생성. 순수. */
 export const buildBlendingEvents = ({
     userId,
@@ -20,9 +26,11 @@ export const buildBlendingEvents = ({
     opId,
     note,
 }: BuildBlendingEventsParams): RoastedStockEventInsert[] => {
+    assertWholeGrams(outputGrams);
     const active = inputs.filter((i) => i.grams > 0);
     if (active.length === 0) throw new Error('blending needs at least one input');
     if (outputGrams <= 0) throw new Error('output must be positive');
+    for (const i of active) assertWholeGrams(i.grams);
     const inputSum = active.reduce((sum, i) => sum + i.grams, 0);
     if (outputGrams > inputSum) throw new Error('blend_output_exceeds_input');
 

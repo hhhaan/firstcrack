@@ -63,6 +63,15 @@ DECLARE
   v_hold_b_order_id uuid;
   v_manual_hold_order_id uuid;
 BEGIN
+  INSERT INTO auth.users (id) VALUES (owner_id) ON CONFLICT DO NOTHING;
+  INSERT INTO profiles (id, plan) VALUES (owner_id, 'team') ON CONFLICT (id) DO UPDATE SET plan = EXCLUDED.plan;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    CREATE ROLE service_role NOINHERIT BYPASSRLS;
+  END IF;
+  GRANT USAGE ON SCHEMA public TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO service_role;
+
   INSERT INTO sales_channel_connections(id, user_id, platform, shop_identifier, status, auto_fulfill_on_shipped)
   VALUES (connection_id, owner_id, 'shopify', 'batch-fixture', 'active', true);
   INSERT INTO products(id, user_id, name, sku, net_weight_grams)
@@ -71,6 +80,7 @@ BEGIN
   VALUES (owner_id, v_product_id, 100, 'roast_inbound');
 
   SET LOCAL ROLE service_role;
+  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
   PERFORM set_config('request.jwt.claims', json_build_object('role','service_role')::text, true);
 
   -- Repeated order ids are applied sequentially: paid → shipped, and the earliest timestamp wins.

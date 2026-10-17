@@ -8,6 +8,7 @@ DECLARE
   owner_id uuid := current_setting('test.owner')::uuid;
   connection_id uuid := gen_random_uuid();
   v_product_id uuid := gen_random_uuid();
+  v_product_id2 uuid := gen_random_uuid();
   bean_id uuid := gen_random_uuid();
   blend_id uuid := gen_random_uuid();
   plan_id uuid;
@@ -76,6 +77,109 @@ BEGIN
   )));
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id;
   ASSERT stock_units = 20, 'double cancel is no-op';
+
+  -- #890 outstanding units: ship at qty 1, line drifts to 3, cancel restores 1 (not line qty).
+  INSERT INTO products(id, user_id, name, sku, net_weight_grams)
+  VALUES (v_product_id2, owner_id, 'Outstanding fixture', 'LEDGER-2', 200);
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
+
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'qty-drift-1', 'status', 'paid', 'orderedAt', '2026-10-17T12:00:00Z',
+    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
+    ))
+  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'qty-drift-1', 'status', 'shipped', 'orderedAt', '2026-10-17T12:00:00Z',
+    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
+    ))
+  )));
+  SELECT id INTO v_order_id FROM orders WHERE platform_order_id = 'qty-drift-1';
+  SELECT id INTO line_id FROM order_lines WHERE order_id = v_order_id AND platform_line_id = 'drift-line';
+  ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_fulfillment') = -1,
+    'initial ship deducts 1';
+  SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
+  ASSERT stock_units = 19, 'stock after ship 1';
+
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'qty-drift-1', 'status', 'shipped', 'orderedAt', '2026-10-17T12:00:00Z',
+    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 3000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 1000, 'status', 'active'
+    ))
+  )));
+  ASSERT (SELECT quantity FROM order_lines WHERE id = line_id) = 3, 'line qty updated to 3';
+  SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
+  ASSERT stock_units = 19, 'no second fulfillment after already shipped';
+
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'qty-drift-1', 'status', 'cancelled', 'orderedAt', '2026-10-17T12:00:00Z',
+    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 0, 'status', 'cancelled'
+    ))
+  )));
+  SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
+  ASSERT stock_units = 20, 'sync cancel restores outstanding 1';
+  ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_cancel') = 1,
+    'sync cancel event is 1 not line qty';
+
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'qty-drift-1', 'status', 'cancelled', 'orderedAt', '2026-10-17T12:00:00Z',
+    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'drift-line', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 0, 'status', 'cancelled'
+    ))
+  )));
+  SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
+  ASSERT stock_units = 20, 'repeated sync cancel no-op';
+
+  -- cancel_order RPC restores outstanding units (fails with legacy cancel_order using line quantity).
+  v_product_id2 := gen_random_uuid();
+  INSERT INTO products(id, user_id, name, sku, net_weight_grams)
+  VALUES (v_product_id2, owner_id, 'Outstanding fixture B', 'LEDGER-3', 200);
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
+
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'qty-drift-2', 'status', 'paid', 'orderedAt', '2026-10-17T12:30:00Z',
+    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'drift-line-2', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
+    ))
+  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'qty-drift-2', 'status', 'shipped', 'orderedAt', '2026-10-17T12:30:00Z',
+    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'drift-line-2', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
+    ))
+  )));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'qty-drift-2', 'status', 'shipped', 'orderedAt', '2026-10-17T12:30:00Z',
+    'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 3000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'drift-line-2', 'productId', v_product_id2, 'title', 'Coffee', 'quantity', 3, 'unitPrice', 1000, 'status', 'active'
+    ))
+  )));
+  SELECT id INTO v_order_id FROM orders WHERE platform_order_id = 'qty-drift-2';
+  SELECT id INTO line_id FROM order_lines WHERE order_id = v_order_id AND platform_line_id = 'drift-line-2';
+  SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
+  ASSERT stock_units = 19, 'pre cancel_order stock';
+
+  PERFORM cancel_order(v_order_id);
+  SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
+  ASSERT stock_units = 20, 'cancel_order restores outstanding 1';
+  ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_cancel') = 1,
+    'cancel_order event is 1';
+
+  PERFORM cancel_order(v_order_id);
+  SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
+  ASSERT stock_units = 20, 'repeated cancel_order no-op';
 
   -- Partial refund restores only outstanding units.
   DELETE FROM product_stock_events WHERE user_id = owner_id;
@@ -146,7 +250,7 @@ BEGIN
   RESET ROLE;
   -- Superuser runs sync (service_role grants vary on trimmed local harnesses).
 
-  -- #897 blend output cap (integer truncation).
+  -- #897 blend output cap (whole grams only).
   BEGIN
     PERFORM insert_roasted_stock_events_batch(jsonb_build_array(
       jsonb_build_object('user_id', owner_id, 'bean_id', bean_id, 'blend_id', null, 'delta_grams', -200,
@@ -182,12 +286,19 @@ BEGIN
   END;
 
   op_id := gen_random_uuid();
-  PERFORM insert_roasted_stock_events_batch(jsonb_build_array(
-    jsonb_build_object('user_id', owner_id, 'bean_id', bean_id, 'blend_id', null, 'delta_grams', -200.9,
-      'event_type', 'blend_consume', 'reference_id', op_id),
-    jsonb_build_object('user_id', owner_id, 'bean_id', null, 'blend_id', blend_id, 'delta_grams', 200.9,
-      'event_type', 'blend_produce', 'reference_id', op_id)
-  ));
+  BEGIN
+    PERFORM insert_roasted_stock_events_batch(jsonb_build_array(
+      jsonb_build_object('user_id', owner_id, 'bean_id', bean_id, 'blend_id', null, 'delta_grams', -200.9,
+        'event_type', 'blend_consume', 'reference_id', op_id),
+      jsonb_build_object('user_id', owner_id, 'bean_id', null, 'blend_id', blend_id, 'delta_grams', 200.9,
+        'event_type', 'blend_produce', 'reference_id', op_id)
+    ));
+    RAISE EXCEPTION 'fractional grams should be rejected';
+  EXCEPTION WHEN invalid_text_representation THEN NULL;
+  END;
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM roasted_stock_events WHERE reference_id = op_id
+  ), 'fractional blend rejected with no rows';
 END $$;
 
 ROLLBACK;
