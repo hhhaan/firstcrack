@@ -1,5 +1,6 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as planBatchStockIds from './plan-batch-stock-ids';
 import {
     buildReorderIds,
     type CompleteBatchFlowDeps,
@@ -50,6 +51,15 @@ describe('runCompleteBatchFlow', () => {
         });
         await runCompleteBatchFlow(deps, baseBatch(), true);
         expect(deps.completePlanBatch).toHaveBeenCalledWith('real', true, ['new-bean']);
+    });
+
+    it('passes blend component bean ids for stock invalidation', async () => {
+        vi.spyOn(planBatchStockIds, 'stockBeanIdsForPlanBatch').mockResolvedValue(['b1', 'b2']);
+        const blendBatch = baseBatch({ bean_id: null, blend_id: 'blend-1' });
+        const deps = makeDeps();
+        await runCompleteBatchFlow(deps, blendBatch, true);
+        expect(deps.completePlanBatch).toHaveBeenCalledWith('pb-1', true, ['b1', 'b2']);
+        vi.restoreAllMocks();
     });
 
     it('complete 실패 → 에러 전파 (서버가 status/ledger 원자 처리)', async () => {

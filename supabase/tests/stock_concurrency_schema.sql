@@ -1,4 +1,5 @@
 -- Minimal schema for stock concurrency SQL tests (local Postgres 17, not full Supabase reset).
+\set ON_ERROR_STOP on
 -- Never run against a real Supabase `db reset` database — it would replace auth helpers.
 DO $guard$
 BEGIN

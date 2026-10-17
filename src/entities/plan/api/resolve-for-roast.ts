@@ -177,14 +177,13 @@ export async function resolveForRoast(
 }
 
 /** Atomic batch complete: server computes remaining green deduct + status=done (#891). */
-export async function completePlanBatch(batchId: string, deductStock: boolean): Promise<PlanBatchWithProgress> {
+export async function completePlanBatch(batchId: string, deductStock: boolean): Promise<PlanBatch> {
     const { data, error } = await supabase.rpc('complete_plan_batch', {
         p_batch_id: batchId,
         p_deduct: deductStock,
     });
     if (error) throw error;
-    const row = data as PlanBatch;
-    return { ...row, completed_sessions: row.batch_count ?? 0 };
+    return data as PlanBatch;
 }
 
 /** Only change status if the row still has the revision we validated. */

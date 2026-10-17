@@ -1,4 +1,5 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import { stockBeanIdsForPlanBatch } from './plan-batch-stock-ids';
 
 export type BatchTarget = { targetId: string; targetPlanId: string; batch?: PlanBatchWithProgress };
 
@@ -29,7 +30,7 @@ export async function runCompleteBatchFlow(
         shouldDeduct = false;
     }
 
-    const stockBeanIds = batch.bean_id ? [batch.bean_id] : [];
+    const stockBeanIds = await stockBeanIdsForPlanBatch(batch);
     await deps.completePlanBatch(target.targetId, shouldDeduct, stockBeanIds);
 }
 

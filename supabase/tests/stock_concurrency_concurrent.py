@@ -75,6 +75,22 @@ for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_check
         ['250'],
     ),
     (
+        'session_then_complete',
+        {'setup': 1, 'roast_race': 1},
+        {'call': 1, 'save_session': 1, 'hold': 1},
+        {'call': 1, 'complete_batch': 1},
+        {'verify': 1, 'roast_race': 1},
+        ['-3000', 'done'],
+    ),
+    (
+        'complete_then_session',
+        {'setup': 1, 'roast_race': 1},
+        {'call': 1, 'complete_batch': 1, 'hold': 1},
+        {'call': 1, 'save_session': 1},
+        {'verify': 1, 'roast_race': 1},
+        ['-3000', 'done'],
+    ),
+    (
         'legacy_client_race',
         {'setup': 1, 'old_client': 1},
         {'call': 1, 'legacy_complete': 1, 'hold': 1},
@@ -83,6 +99,7 @@ for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_check
         ['-2000', '1640'],
     ),
     (
+        # insert_product_stock_events_batch must lock orders (migration ~:177) before product balance checks.
         'ef_batch_race',
         {'setup': 1, 'ef_batch_race': 1},
         {'call': 1, 'ef_batch_a': 1, 'hold': 1},
@@ -101,18 +118,36 @@ for scenario, setup_flags, first_flags, second_flags, verify_flags, verify_check
 ]:
     run_race(scenario, setup_flags, first_flags, second_flags, verify_flags, verify_checks)
 
+# recurrence_rule_id must not change between observe and batch lock (SQLSTATE 40001)
+run_psql({'teardown': 1})
+run_psql({'setup': 1, 'recurrence_40001': 1})
+worker = subprocess.Popen(
+    base + ['-v', 'ON_ERROR_STOP=1', '-v', 'call=1', '-v', 'recurrence_hold=1', '-v', 'hold=1']
+    + ['-f', str(pathlib.Path(__file__).with_name('stock_concurrency.sql'))],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True,
+    bufsize=1,
+)
+worker.stdin.write(fixture)
+worker.stdin.close()
+for line in worker.stdout:
+    if line.strip() == 'ready':
+        break
+else:
+    raise AssertionError(f'recurrence_40001: hold writer failed: {worker.wait()}')
+second = run_psql({'call': 1, 'lock_batch_write': 1}, stop=False)
+remaining = worker.stdout.read()
+assert worker.wait(timeout=30) == 0, ('recurrence_40001', remaining)
+assert 'plan recurrence changed' in (second.stdout + second.stderr), ('recurrence_40001', second.stdout, second.stderr)
+print('recurrence_40001: passed')
+
 # Single-connection checks
 run_psql({'teardown': 1})
-run_psql({'setup': 1, 'roast_race': 1})
-run_psql({'call': 1, 'save_session': 1})
-run_psql({'call': 1, 'complete_batch': 1})
-assert_verify('session_then_complete', {'verify': 1, 'roast_race': 1}, ['-3000', 'done'])
-
-run_psql({'teardown': 1})
-run_psql({'setup': 1, 'roast_race': 1})
-run_psql({'call': 1, 'complete_batch': 1})
-run_psql({'call': 1, 'save_session': 1})
-assert_verify('complete_then_session', {'verify': 1, 'roast_race': 1}, ['-3000', 'done'])
+clamp = run_psql({'call': 1, 'clamp_twice': 1})
+assert clamp.returncode == 0, ('clamp_twice_in_tx', clamp.stdout, clamp.stderr)
+print('clamp_twice_in_tx: passed')
 
 run_psql({'teardown': 1})
 run_psql({'setup': 1, 'corrective': 1})

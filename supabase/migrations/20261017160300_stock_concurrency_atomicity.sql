@@ -365,6 +365,58 @@ $function$;
 -- insert_stock_events_batch: plan_batch roast clamp under batch lock (legacy complete path)
 -- ---------------------------------------------------------------------------
 
+CREATE OR REPLACE FUNCTION public.allocate_largest_remainder_shares(p_weights integer[], p_cap integer)
+RETURNS integer[]
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = public
+AS $function$
+DECLARE
+  v_total integer := 0;
+  v_n integer;
+  v_out integer[];
+  v_remainder integer;
+  v_i integer;
+  v_pick record;
+BEGIN
+  v_n := COALESCE(cardinality(p_weights), 0);
+  IF v_n = 0 THEN
+    RETURN p_weights;
+  END IF;
+  IF p_cap <= 0 THEN
+    RETURN array_fill(0, ARRAY[v_n]);
+  END IF;
+  FOR v_i IN 1..v_n LOOP
+    v_total := v_total + GREATEST(p_weights[v_i], 0);
+  END LOOP;
+  IF v_total <= 0 OR v_total <= p_cap THEN
+    RETURN p_weights;
+  END IF;
+
+  v_out := ARRAY[]::integer[];
+  FOR v_i IN 1..v_n LOOP
+    v_out := v_out || floor(GREATEST(p_weights[v_i], 0)::numeric * p_cap / v_total)::integer;
+  END LOOP;
+  v_remainder := p_cap - (SELECT COALESCE(sum(x), 0) FROM unnest(v_out) AS x);
+  IF v_remainder > 0 THEN
+    FOR v_pick IN
+      SELECT gs AS idx,
+        (GREATEST(p_weights[gs], 0)::numeric * p_cap / v_total)
+          - floor(GREATEST(p_weights[gs], 0)::numeric * p_cap / v_total) AS frac
+      FROM generate_series(1, v_n) AS gs
+      ORDER BY frac DESC, gs
+      LIMIT v_remainder
+    LOOP
+      v_out[v_pick.idx] := v_out[v_pick.idx] + 1;
+    END LOOP;
+  END IF;
+  RETURN v_out;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.allocate_largest_remainder_shares(integer[], integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.allocate_largest_remainder_shares(integer[], integer) TO authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.clamp_roast_events_to_grams(p_events jsonb, p_cap integer)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -374,8 +426,10 @@ DECLARE
   v_total integer := 0;
   v_other jsonb := '[]'::jsonb;
   v_scaled jsonb := '[]'::jsonb;
-  v_remainder integer;
-  v_row record;
+  v_weights integer[];
+  v_allocs integer[];
+  v_roast jsonb;
+  v_i integer;
 BEGIN
   IF p_cap <= 0 THEN
     SELECT COALESCE(jsonb_agg(e), '[]'::jsonb)
@@ -385,50 +439,34 @@ BEGIN
     RETURN v_other;
   END IF;
 
-  SELECT COALESCE(sum(abs((e->>'delta_grams')::integer)), 0)::integer
-    INTO v_total
-  FROM jsonb_array_elements(p_events) AS e
-  WHERE e->>'event_type' = 'roast';
+  SELECT COALESCE(jsonb_agg(e.elem ORDER BY e.ord), '[]'::jsonb),
+         array_agg(e.abs_g ORDER BY e.ord),
+         COALESCE(sum(e.abs_g), 0)::integer
+    INTO v_roast, v_weights, v_total
+  FROM (
+    SELECT row_number() OVER (ORDER BY COALESCE(e->>'bean_id', '')) AS ord,
+      e AS elem,
+      abs((e->>'delta_grams')::integer) AS abs_g
+    FROM jsonb_array_elements(p_events) AS e
+    WHERE e->>'event_type' = 'roast'
+  ) e;
 
   SELECT COALESCE(jsonb_agg(e), '[]'::jsonb)
     INTO v_other
   FROM jsonb_array_elements(p_events) AS e
   WHERE e->>'event_type' IS DISTINCT FROM 'roast';
 
-  IF v_total <= 0 OR v_total <= p_cap THEN
+  IF v_total <= 0 OR v_total <= p_cap OR v_roast IS NULL OR jsonb_array_length(v_roast) = 0 THEN
     RETURN p_events;
   END IF;
 
-  CREATE TEMP TABLE _clamp_roast ON COMMIT DROP AS
-  SELECT
-    row_number() OVER (ORDER BY COALESCE(e->>'bean_id', '')) AS ord,
-    e AS elem,
-    abs((e->>'delta_grams')::integer) AS abs_g,
-    floor(abs((e->>'delta_grams')::integer)::numeric * p_cap / v_total)::integer AS base_g,
-    (abs((e->>'delta_grams')::integer)::numeric * p_cap / v_total)
-      - floor(abs((e->>'delta_grams')::integer)::numeric * p_cap / v_total) AS frac
-  FROM jsonb_array_elements(p_events) AS e
-  WHERE e->>'event_type' = 'roast';
-
-  v_remainder := p_cap - (SELECT COALESCE(sum(base_g), 0) FROM _clamp_roast);
-  IF v_remainder > 0 THEN
-    UPDATE _clamp_roast c
-    SET base_g = c.base_g + 1
-    FROM (
-      SELECT ord
-      FROM _clamp_roast
-      ORDER BY frac DESC, ord
-      LIMIT v_remainder
-    ) picks
-    WHERE c.ord = picks.ord;
-  END IF;
-
-  SELECT COALESCE(jsonb_agg(
-    c.elem || jsonb_build_object('delta_grams', -GREATEST(c.base_g, 0))
-    ORDER BY c.ord
-  ), '[]'::jsonb)
-    INTO v_scaled
-  FROM _clamp_roast c;
+  v_allocs := public.allocate_largest_remainder_shares(v_weights, p_cap);
+  v_scaled := '[]'::jsonb;
+  FOR v_i IN 1..cardinality(v_weights) LOOP
+    v_scaled := v_scaled || jsonb_build_array(
+      (v_roast->(v_i - 1)) || jsonb_build_object('delta_grams', -GREATEST(v_allocs[v_i], 0))
+    );
+  END LOOP;
 
   RETURN v_other || v_scaled;
 END;
@@ -450,9 +488,13 @@ AS $function$
 DECLARE
   v_total integer := 0;
   v_cap integer;
-  v_remainder integer;
   v_scaled jsonb := '[]'::jsonb;
   v_other jsonb := '[]'::jsonb;
+  v_elems jsonb;
+  v_weights integer[];
+  v_signs integer[];
+  v_allocs integer[];
+  v_i integer;
 BEGIN
   IF p_denominator <= 0 OR p_numerator >= p_denominator THEN
     RETURN p_events;
@@ -487,37 +529,30 @@ BEGIN
     RETURN p_events;
   END IF;
 
-  CREATE TEMP TABLE _clamp_roasted ON COMMIT DROP AS
-  SELECT
-    row_number() OVER (ORDER BY COALESCE(e->>'bean_id', ''), COALESCE(e->>'blend_id', '')) AS ord,
-    e AS elem,
-    abs((e->>'delta_grams')::integer) AS abs_g,
-    (e->>'delta_grams')::integer AS signed_g,
-    floor(abs((e->>'delta_grams')::integer)::numeric * v_cap / v_total)::integer AS base_g,
-    (abs((e->>'delta_grams')::integer)::numeric * v_cap / v_total)
-      - floor(abs((e->>'delta_grams')::integer)::numeric * v_cap / v_total) AS frac
-  FROM jsonb_array_elements(p_events) AS e
-  WHERE NULLIF(e->>'reference_id', '')::uuid = p_batch_id;
+  SELECT COALESCE(jsonb_agg(e.elem ORDER BY e.ord), '[]'::jsonb),
+         array_agg(e.abs_g ORDER BY e.ord),
+         array_agg(e.signed_g ORDER BY e.ord)
+    INTO v_elems, v_weights, v_signs
+  FROM (
+    SELECT row_number() OVER (
+      ORDER BY COALESCE(e->>'bean_id', ''), COALESCE(e->>'blend_id', '')
+    ) AS ord,
+      e AS elem,
+      abs((e->>'delta_grams')::integer) AS abs_g,
+      (e->>'delta_grams')::integer AS signed_g
+    FROM jsonb_array_elements(p_events) AS e
+    WHERE NULLIF(e->>'reference_id', '')::uuid = p_batch_id
+  ) e;
 
-  v_remainder := v_cap - (SELECT COALESCE(sum(base_g), 0) FROM _clamp_roasted);
-  IF v_remainder > 0 THEN
-    UPDATE _clamp_roasted c
-    SET base_g = c.base_g + 1
-    FROM (
-      SELECT ord FROM _clamp_roasted ORDER BY frac DESC, ord LIMIT v_remainder
-    ) picks
-    WHERE c.ord = picks.ord;
-  END IF;
-
-  SELECT COALESCE(jsonb_agg(
-    c.elem || jsonb_build_object(
-      'delta_grams',
-      CASE WHEN c.signed_g < 0 THEN -c.base_g ELSE c.base_g END
-    )
-    ORDER BY c.ord
-  ), '[]'::jsonb)
-    INTO v_scaled
-  FROM _clamp_roasted c;
+  v_allocs := public.allocate_largest_remainder_shares(v_weights, v_cap);
+  FOR v_i IN 1..COALESCE(cardinality(v_weights), 0) LOOP
+    v_scaled := v_scaled || jsonb_build_array(
+      (v_elems->(v_i - 1)) || jsonb_build_object(
+        'delta_grams',
+        CASE WHEN v_signs[v_i] < 0 THEN -GREATEST(v_allocs[v_i], 0) ELSE GREATEST(v_allocs[v_i], 0) END
+      )
+    );
+  END LOOP;
 
   RETURN v_other || v_scaled;
 END;
