@@ -120,6 +120,63 @@ REVOKE ALL ON FUNCTION public.order_fulfillment_shortages_json(uuid, boolean) FR
 GRANT EXECUTE ON FUNCTION public.order_aggregated_product_demand(uuid, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.order_fulfillment_shortages_json(uuid, boolean) TO service_role;
 
+CREATE OR REPLACE FUNCTION public.insert_active_order_fulfillment_events(
+  p_order_id uuid,
+  p_skip_already_fulfilled boolean DEFAULT false
+)
+RETURNS SETOF uuid
+LANGUAGE sql
+SET search_path = public
+AS $function$
+  INSERT INTO product_stock_events (user_id, product_id, delta_units, event_type, reference_id, created_by)
+  SELECT ol.user_id, ol.product_id, -ol.quantity, 'order_fulfillment', ol.id, auth.uid()
+  FROM order_lines ol
+  WHERE ol.order_id = p_order_id
+    AND ol.status = 'active'
+    AND ol.product_id IS NOT NULL
+    AND (
+      NOT p_skip_already_fulfilled
+      OR NOT EXISTS (
+        SELECT 1 FROM product_stock_events pse
+        WHERE pse.reference_id = ol.id AND pse.event_type = 'order_fulfillment'
+      )
+    )
+  ON CONFLICT (reference_id, product_id, event_type) WHERE reference_id IS NOT NULL DO NOTHING
+  RETURNING product_id;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.assert_product_stock_not_negative(p_order_id uuid, p_product_ids uuid[])
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = public
+AS $function$
+DECLARE
+  v_bad_product uuid;
+  v_bad_units integer;
+BEGIN
+  IF p_product_ids IS NULL OR cardinality(p_product_ids) = 0 THEN
+    RETURN;
+  END IF;
+  SELECT pse.product_id, SUM(pse.delta_units)::integer
+    INTO v_bad_product, v_bad_units
+  FROM product_stock_events pse
+  WHERE pse.product_id = ANY (p_product_ids)
+  GROUP BY pse.product_id
+  HAVING SUM(pse.delta_units) < 0
+  LIMIT 1;
+  IF v_bad_product IS NOT NULL THEN
+    RAISE EXCEPTION 'insufficient_product_stock'
+      USING ERRCODE = 'check_violation',
+            DETAIL = format('order_id=%s product_id=%s balance_units=%s', p_order_id, v_bad_product, v_bad_units);
+  END IF;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.insert_active_order_fulfillment_events(uuid, boolean) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.assert_product_stock_not_negative(uuid, uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.insert_active_order_fulfillment_events(uuid, boolean) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.assert_product_stock_not_negative(uuid, uuid[]) TO authenticated, service_role;
+
 -- ---------------------------------------------------------------------------
 -- sync_channel_orders_batch: pre-filter fulfillment on stock / open holds
 -- ---------------------------------------------------------------------------
@@ -478,11 +535,7 @@ DECLARE
   v_user_id uuid;
   v_fulfilled_at timestamptz;
   v_shortages jsonb := '[]'::jsonb;
-  v_line_rec RECORD;
-  v_balance integer;
   v_products uuid[];
-  v_bad_product uuid;
-  v_bad_units integer;
 BEGIN
   SELECT o.user_id, o.status, o.fulfilled_at INTO v_user_id, v_status, v_fulfilled_at
   FROM orders o WHERE o.id = p_order_id FOR UPDATE;
@@ -518,34 +571,10 @@ BEGIN
             DETAIL = format('order_id=%s shortages=%s', p_order_id, v_shortages::text);
   END IF;
 
-  WITH ins AS (
-    INSERT INTO product_stock_events (user_id, product_id, delta_units, event_type, reference_id, created_by)
-    SELECT ol.user_id, ol.product_id, -ol.quantity, 'order_fulfillment', ol.id, auth.uid()
-    FROM order_lines ol
-    WHERE ol.order_id = p_order_id AND ol.status = 'active' AND ol.product_id IS NOT NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM product_stock_events pse
-        WHERE pse.reference_id = ol.id AND pse.event_type = 'order_fulfillment'
-      )
-    ON CONFLICT (reference_id, product_id, event_type) WHERE reference_id IS NOT NULL DO NOTHING
-    RETURNING product_id
-  )
-  SELECT array_agg(DISTINCT product_id) INTO v_products FROM ins;
+  SELECT array_agg(DISTINCT product_id) INTO v_products
+  FROM public.insert_active_order_fulfillment_events(p_order_id, true) AS product_id;
 
-  IF v_products IS NOT NULL THEN
-    SELECT pse.product_id, SUM(pse.delta_units)::integer
-      INTO v_bad_product, v_bad_units
-    FROM product_stock_events pse
-    WHERE pse.product_id = ANY (v_products)
-    GROUP BY pse.product_id
-    HAVING SUM(pse.delta_units) < 0
-    LIMIT 1;
-    IF v_bad_product IS NOT NULL THEN
-      RAISE EXCEPTION 'insufficient_product_stock'
-        USING ERRCODE = 'check_violation',
-              DETAIL = format('order_id=%s product_id=%s balance_units=%s', p_order_id, v_bad_product, v_bad_units);
-    END IF;
-  END IF;
+  PERFORM public.assert_product_stock_not_negative(p_order_id, v_products);
 
   UPDATE orders SET fulfilled_at = now(), updated_at = now()
   WHERE id = p_order_id AND fulfilled_at IS NULL;
@@ -565,10 +594,8 @@ RETURNS void
 LANGUAGE plpgsql
 AS $function$
 DECLARE
-  v_status         text;
-  v_products       uuid[];
-  v_bad_product    uuid;
-  v_bad_units      integer;
+  v_status   text;
+  v_products uuid[];
 BEGIN
   SELECT o.status INTO v_status
   FROM orders o
@@ -587,32 +614,10 @@ BEGIN
             DETAIL = format('order_id=%s status=%s', p_order_id, v_status);
   END IF;
 
-  WITH ins AS (
-    INSERT INTO product_stock_events (user_id, product_id, delta_units, event_type, reference_id, created_by)
-    SELECT ol.user_id, ol.product_id, -ol.quantity, 'order_fulfillment', ol.id, auth.uid()
-    FROM order_lines ol
-    WHERE ol.order_id = p_order_id AND ol.status = 'active' AND ol.product_id IS NOT NULL
-    ON CONFLICT (reference_id, product_id, event_type) WHERE reference_id IS NOT NULL DO NOTHING
-    RETURNING product_id
-  )
-  SELECT array_agg(DISTINCT product_id) INTO v_products FROM ins;
+  SELECT array_agg(DISTINCT product_id) INTO v_products
+  FROM public.insert_active_order_fulfillment_events(p_order_id, false) AS product_id;
 
-  IF v_products IS NOT NULL THEN
-    SELECT pse.product_id, SUM(pse.delta_units)::integer
-      INTO v_bad_product, v_bad_units
-    FROM product_stock_events pse
-    WHERE pse.product_id = ANY (v_products)
-    GROUP BY pse.product_id
-    HAVING SUM(pse.delta_units) < 0
-    LIMIT 1;
-
-    IF v_bad_product IS NOT NULL THEN
-      RAISE EXCEPTION 'insufficient_product_stock'
-        USING ERRCODE = 'check_violation',
-              DETAIL = format('order_id=%s product_id=%s balance_units=%s',
-                              p_order_id, v_bad_product, v_bad_units);
-    END IF;
-  END IF;
+  PERFORM public.assert_product_stock_not_negative(p_order_id, v_products);
 
   UPDATE orders SET fulfilled_at = now(), updated_at = now()
   WHERE id = p_order_id AND fulfilled_at IS NULL;

@@ -3,6 +3,35 @@ import { buildProductMap, resolveProductId, upsertCanonicalOrders } from './norm
 import type { CanonicalOrder, CanonicalOrderLine } from './types.ts';
 
 describe('sync_channel_orders_batch boundary', () => {
+    const makeSortCaptureSupabase = (upserted: number) => {
+        const payloads: unknown[] = [];
+        const supabase = {
+            from: () => ({
+                select: () => ({
+                    eq: () => ({
+                        eq: () => Promise.resolve({ data: [] }),
+                        not: () => Promise.resolve({ data: [] }),
+                    }),
+                }),
+            }),
+            rpc: (_name: string, args: Record<string, unknown>) => {
+                payloads.push(args.p_orders);
+                return Promise.resolve({
+                    data: {
+                        upserted,
+                        cancelledCompensations: 0,
+                        autoFulfillments: 0,
+                        stockEventSkips: [],
+                        held: [],
+                        heldFulfillments: 0,
+                    },
+                    error: null,
+                });
+            },
+        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
+        return { payloads, supabase };
+    };
+
     const order = (i: number): CanonicalOrder => ({
         platformOrderId: `O-${i}`,
         status: 'paid',
@@ -118,85 +147,35 @@ describe('sync_channel_orders_batch boundary', () => {
         expect(sent[0]?.lines[0]?.productId).toBe('prod-1');
     });
 
-    it('sorts orders by orderedAt before RPC chunking', async () => {
-        const payloads: unknown[] = [];
-        const supabase = {
-            from: () => ({
-                select: () => ({
-                    eq: () => ({
-                        eq: () => Promise.resolve({ data: [] }),
-                        not: () => Promise.resolve({ data: [] }),
-                    }),
-                }),
-            }),
-            rpc: (_name: string, args: Record<string, unknown>) => {
-                payloads.push(args.p_orders);
-                return Promise.resolve({
-                    data: {
-                        upserted: 2,
-                        cancelledCompensations: 0,
-                        autoFulfillments: 0,
-                        stockEventSkips: [],
-                        held: [],
-                        heldFulfillments: 0,
-                    },
-                    error: null,
-                });
-            },
-        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
-
-        await upsertCanonicalOrders(
-            supabase,
-            { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
-            [
+    it.each([
+        {
+            label: 'by orderedAt',
+            upserted: 2,
+            input: [
                 { ...order(2), orderedAt: '2026-10-12T00:00:00.000Z' },
                 { ...order(1), orderedAt: '2026-10-10T00:00:00.000Z' },
             ],
-        );
-
-        const sent = payloads[0] as CanonicalOrder[];
-        expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-2']);
-    });
-
-    it('sorts invalid or missing orderedAt after valid timestamps', async () => {
-        const payloads: unknown[] = [];
-        const supabase = {
-            from: () => ({
-                select: () => ({
-                    eq: () => ({
-                        eq: () => Promise.resolve({ data: [] }),
-                        not: () => Promise.resolve({ data: [] }),
-                    }),
-                }),
-            }),
-            rpc: (_name: string, args: Record<string, unknown>) => {
-                payloads.push(args.p_orders);
-                return Promise.resolve({
-                    data: {
-                        upserted: 3,
-                        cancelledCompensations: 0,
-                        autoFulfillments: 0,
-                        stockEventSkips: [],
-                        held: [],
-                        heldFulfillments: 0,
-                    },
-                    error: null,
-                });
-            },
-        } as unknown as Parameters<typeof upsertCanonicalOrders>[0];
-
-        await upsertCanonicalOrders(
-            supabase,
-            { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
-            [
+            expected: ['O-1', 'O-2'],
+        },
+        {
+            label: 'invalid orderedAt last',
+            upserted: 3,
+            input: [
                 { ...order(3), orderedAt: 'not-a-date' },
                 { ...order(1), orderedAt: '2026-10-10T00:00:00.000Z' },
                 { ...order(2), orderedAt: '2026-10-12T00:00:00.000Z' },
             ],
+            expected: ['O-1', 'O-2', 'O-3'],
+        },
+    ])('sorts orders $label before RPC chunking', async ({ upserted, input, expected }) => {
+        const { payloads, supabase } = makeSortCaptureSupabase(upserted);
+        await upsertCanonicalOrders(
+            supabase,
+            { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+            input,
         );
-
         const sent = payloads[0] as CanonicalOrder[];
-        expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-2', 'O-3']);
+        expect(sent.map((item) => item.platformOrderId)).toEqual(expected);
     });
 });
 
