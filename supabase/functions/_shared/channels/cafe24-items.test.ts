@@ -58,6 +58,37 @@ describe('mapCafe24Order item status (#901)', () => {
         expect(order?.lines.every((l) => l.status === 'cancelled')).toBe(true);
     });
 
+    it('maps every line cancelled on a fully cancelled order even with in-progress item codes', () => {
+        const order = mapCafe24Order(
+            cafe24Order({
+                canceled: 'T',
+                order_status: 'C40',
+                items: [
+                    { order_item_code: 'line-n20', order_status: 'N20', quantity: 1 },
+                    { order_item_code: 'line-c00', order_status: 'C00', quantity: 0 },
+                ],
+            }),
+        );
+        expect(order?.status).toBe('cancelled');
+        expect(order?.lines.every((l) => l.status === 'cancelled')).toBe(true);
+        expect(order?.lines.every((l) => l.quantity >= 1)).toBe(true);
+    });
+
+    it('maps every line refunded when the order header is a completed return', () => {
+        const order = mapCafe24Order(
+            cafe24Order({
+                order_status: 'R40',
+                items: [
+                    { order_item_code: 'line-n20', order_status: 'N20', quantity: 1 },
+                    { order_item_code: 'line-r00', order_status: 'R00', quantity: 0 },
+                ],
+            }),
+        );
+        expect(order?.status).toBe('refunded');
+        expect(order?.lines.every((l) => l.status === 'refunded')).toBe(true);
+        expect(order?.lines.every((l) => l.quantity >= 1)).toBe(true);
+    });
+
     it('maps R40 to refunded lines without forcing the header refunded', () => {
         const order = mapCafe24Order(
             cafe24Order({

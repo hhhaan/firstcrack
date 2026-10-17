@@ -248,6 +248,9 @@ function cafe24LineStatusFromItemCode(code: string): LineStatus {
 }
 
 function lineStatusForCafe24Item(item: Record<string, unknown>, orderStatus: CanonicalStatus): LineStatus {
+    if (orderStatus === 'cancelled' || orderStatus === 'refunded') {
+        return lineStatusOf(orderStatus);
+    }
     const code = cafe24ItemStatusCode(item);
     if (code) return cafe24LineStatusFromItemCode(code);
     return lineStatusOf(orderStatus);
@@ -361,7 +364,7 @@ export function mapCafe24Order(order: Record<string, unknown>): CanonicalOrder |
     const orderId = String(order.order_id ?? '');
     if (!orderId) return null;
 
-    const status =
+    let status =
         cafe24ToCanonical({
             paid: order.paid != null ? String(order.paid) : null,
             canceled: order.canceled != null ? String(order.canceled) : null,
@@ -369,6 +372,9 @@ export function mapCafe24Order(order: Record<string, unknown>): CanonicalOrder |
             processStatus: order.process_status != null ? String(order.process_status) : null,
             orderStatus: order.order_status != null ? String(order.order_status) : null,
         }) ?? 'paid';
+    if (status !== 'cancelled' && CAFE24_ITEM_REFUNDED.has(cafe24ItemStatusCode(order))) {
+        status = 'refunded';
+    }
 
     let lines = mapItems(order, status);
     if (!lines.length) {
