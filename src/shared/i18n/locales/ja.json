@@ -1720,7 +1720,9 @@
         "confirmRestock": "補充を確認",
         "confirmWriteOff": "廃棄を確認",
         "confirmAdjustment": "調整を確認",
-        "alertsFailed": "入庫は保存されましたが、在庫アラートを更新できませんでした。",
+        "alertsFailed": "在庫変更は保存されましたが、在庫アラートを更新できませんでした。",
+        "alertsFailedRestock": "入庫は保存されましたが、在庫アラートを更新できませんでした。",
+        "alertsFailedAdjust": "在庫調整は保存されましたが、在庫アラートを更新できませんでした。",
         "retryAlerts": "アラートを再計算",
         "adjust": {
             "adjustment": "調整",
@@ -2292,7 +2294,7 @@
         "mutationFailedDetail": "処理に失敗しました: {{message}}",
         "insufficientProductStock": "完成品の在庫が不足しています。在庫管理の「完成品」タブで在庫を調整してから、もう一度お試しください。",
         "insufficientRoastedStock": "焙煎豆の在庫が不足しています。在庫管理の「焙煎豆（バルク）」タブで在庫を調整してから、もう一度お試しください。",
-        "idempotencyPayloadMismatch": "同じ操作IDで別の内容が既に記録されています。閉じてやり直すか、数量を変更してください。"
+        "idempotencyPayloadMismatch": "同じ操作IDで別の内容が既に記録されています。数量を変更するか、この画面を閉じて再度開いてください。"
     },
     "planGate": {
         "monthly_batch_cap": "今月のロースト上限（{{used}}/{{max}}）に達しました。続けるには上位プランが必要です。",

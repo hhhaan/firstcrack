@@ -50,12 +50,13 @@ export const usePackageProduct = () => {
             if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Workspace is still loading');
 
             const product = await resolveProduct(qc, workspaceOwnerId, productId);
+            const deltaGrams = product.bean_id || product.blend_id ? -(units * product.net_weight_grams) : 0;
             const contentKey = packagingContentKey({
                 productId,
                 units,
                 beanId: product.bean_id,
                 blendId: product.blend_id,
-                netWeightGrams: product.net_weight_grams,
+                deltaGrams,
             });
             const opId = opSession.current.getOrCreate(contentKey);
             const { productEvents, roastedEvents } = buildPackagingEvents({

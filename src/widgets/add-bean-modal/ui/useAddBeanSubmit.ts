@@ -3,11 +3,12 @@ import { beanStockEventApi, stockEventContentKey, useInsertStockEvent } from '@e
 import { createActionOpIdSession } from '@shared/lib/action-op-id';
 import { logger } from '@shared/lib/logger';
 import type { Bean } from '@shared/types/database.types';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { BeanForm } from '../lib/schema';
 import type { BeanModalTab } from '../lib/types';
 
 interface UseAddBeanSubmitParams {
+    open: boolean;
     userId: string;
     tab: BeanModalTab;
     selectedBeanId: string | null;
@@ -24,6 +25,7 @@ interface UseAddBeanSubmitParams {
 }
 
 export const useAddBeanSubmit = ({
+    open,
     userId,
     tab,
     selectedBeanId,
@@ -44,6 +46,14 @@ export const useAddBeanSubmit = ({
     const opSession = useRef(createActionOpIdSession());
     const [alertsFailed, setAlertsFailed] = useState(false);
     const [retryingAlerts, setRetryingAlerts] = useState(false);
+    const [stockSaved, setStockSaved] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        opSession.current.reset();
+        setAlertsFailed(false);
+        setStockSaved(false);
+    }, [open]);
 
     const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending || retryingAlerts;
 
@@ -52,7 +62,6 @@ export const useAddBeanSubmit = ({
         try {
             await beanStockEventApi.computeInventoryAlerts(userId);
             setAlertsFailed(false);
-            onClose();
         } catch (err) {
             logger.capture(err, { feature: 'inventory', rpc: 'compute_inventory_alerts' });
         } finally {
@@ -60,8 +69,19 @@ export const useAddBeanSubmit = ({
         }
     };
 
+    const finishAfterStockWrite = async (alertsFailedNow: boolean, afterStock: () => void | Promise<void>) => {
+        opSession.current.markSucceeded();
+        await afterStock();
+        setStockSaved(true);
+        if (alertsFailedNow) {
+            setAlertsFailed(true);
+            return;
+        }
+        onClose();
+    };
+
     const handleSubmit = async (formData: BeanForm) => {
-        if (isSubmitting) return;
+        if (isSubmitting || stockSaved) return;
         setAlertsFailed(false);
         try {
             if (tab === 'new') {
@@ -90,12 +110,11 @@ export const useAddBeanSubmit = ({
                         cost_per_kg: newBean.cost_per_kg,
                     };
                     const { alertsFailed: failed } = await insertStockEvent.mutateAsync(event);
-                    if (failed) {
-                        setAlertsFailed(true);
-                        return;
-                    }
+                    await finishAfterStockWrite(failed, () => onSuccess?.(newBean));
+                    return;
                 }
                 onSuccess?.(newBean);
+                onClose();
             } else if (tab === 'edit' && initialData) {
                 const updated = await updateBean.mutateAsync({
                     id: initialData.id,
@@ -111,6 +130,7 @@ export const useAddBeanSubmit = ({
                     tasting_notes: formData.tastingNotes || null,
                 });
                 onSuccess?.(updated);
+                onClose();
             } else if (tab === 'restock' && selectedBeanId && restockAmount) {
                 const amount = Math.round(parseFloat(restockAmount) * 1000);
                 if (!Number.isFinite(amount) || amount <= 0) return;
@@ -129,21 +149,18 @@ export const useAddBeanSubmit = ({
                     ...draft,
                     reference_id,
                 });
-                if (failed) {
-                    setAlertsFailed(true);
-                    return;
-                }
-                opSession.current.markSucceeded();
-                if (currentBean) {
-                    const newCost = restockCostValue;
-                    if (Number.isFinite(newCost) && newCost !== currentBean.cost_per_kg) {
-                        await updateBean.mutateAsync({
-                            id: selectedBeanId,
-                            cost_per_kg: newCost,
-                        });
+                await finishAfterStockWrite(failed, async () => {
+                    if (currentBean) {
+                        const newCost = restockCostValue;
+                        if (Number.isFinite(newCost) && newCost !== currentBean.cost_per_kg) {
+                            await updateBean.mutateAsync({
+                                id: selectedBeanId,
+                                cost_per_kg: newCost,
+                            });
+                        }
                     }
-                }
-                onSuccess?.(currentBean ?? null);
+                    onSuccess?.(currentBean ?? null);
+                });
             } else if (tab === 'adjust' && selectedBeanId && adjustAmount) {
                 const rawGrams = Math.round(parseFloat(adjustAmount) * 1000);
                 if (!Number.isFinite(rawGrams) || rawGrams <= 0) return;
@@ -163,18 +180,12 @@ export const useAddBeanSubmit = ({
                     ...draft,
                     reference_id,
                 });
-                if (failed) {
-                    setAlertsFailed(true);
-                    return;
-                }
-                opSession.current.markSucceeded();
-                onSuccess?.(currentBean ?? null);
+                await finishAfterStockWrite(failed, () => onSuccess?.(currentBean ?? null));
             }
-            onClose();
         } catch (err) {
             logger.capture(err, { context: 'add bean modal' });
         }
     };
 
-    return { handleSubmit, isSubmitting, alertsFailed, retryAlerts };
+    return { handleSubmit, isSubmitting, alertsFailed, retryAlerts, stockSaved };
 };

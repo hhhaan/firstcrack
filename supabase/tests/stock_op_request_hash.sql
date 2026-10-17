@@ -5,8 +5,6 @@ SELECT set_config('test.owner', :'owner', true);
 SELECT set_config('request.jwt.claim.sub', :'owner', true);
 SELECT set_config('request.jwt.claim.role', 'authenticated', true);
 
-ALTER TABLE bean_stock_events ADD COLUMN IF NOT EXISTS cost_per_kg numeric;
-
 DELETE FROM stock_op_receipts WHERE reference_id IN (
   '89200000-0000-0000-0000-000000000020',
   '89200000-0000-0000-0000-000000000021',
@@ -91,8 +89,8 @@ BEGIN
         'user_id', owner_id, 'bean_id', '89200000-0000-0000-0000-000000000001',
         'delta_grams', -500, 'event_type', 'packaging', 'reference_id', op_a)));
     RAISE EXCEPTION 'expected idempotency_payload_mismatch for product B';
-  EXCEPTION WHEN unique_violation THEN
-    IF SQLERRM <> 'idempotency_payload_mismatch' THEN RAISE; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'P0001' THEN RAISE; END IF;
   END;
 
   SELECT coalesce(sum(delta_units), 0) INTO units_b FROM product_stock_events WHERE product_id = '89200000-0000-0000-0000-000000000011';
@@ -116,8 +114,8 @@ BEGIN
         'delta_units', 1, 'event_type', 'roast_inbound', 'reference_id', op_legacy)),
       '[]'::jsonb);
     RAISE EXCEPTION 'legacy mismatch expected';
-  EXCEPTION WHEN unique_violation THEN
-    IF SQLERRM <> 'idempotency_payload_mismatch' THEN RAISE; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'P0001' THEN RAISE; END IF;
   END;
 
   INSERT INTO products(id, user_id, name, net_weight_grams)
@@ -162,8 +160,8 @@ BEGIN
       'reference_id', op_bean,
       'cost_per_kg', 12000));
     RAISE EXCEPTION 'bean mismatch expected';
-  EXCEPTION WHEN unique_violation THEN
-    IF SQLERRM <> 'idempotency_payload_mismatch' THEN RAISE; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'idempotency_payload_mismatch' OR SQLSTATE <> 'P0001' THEN RAISE; END IF;
   END;
 
   ASSERT (SELECT sum(delta_grams) FROM bean_stock_events WHERE reference_id = op_bean) = 1000, 'grams unchanged after mismatch';

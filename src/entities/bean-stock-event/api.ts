@@ -113,17 +113,19 @@ export const beanStockEventApi = {
         userId: string,
     ): Promise<{ bean_id: string; delta_grams: number; cost_per_kg: number }[]> => {
         const out: { bean_id: string; delta_grams: number; cost_per_kg: number }[] = [];
-        let from = 0;
+        let lastId: string | null = null;
         for (;;) {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('bean_stock_events')
-                .select('bean_id, delta_grams, cost_per_kg')
+                .select('id, bean_id, delta_grams, cost_per_kg')
                 .eq('user_id', userId)
                 .eq('event_type', 'purchase')
                 .not('cost_per_kg', 'is', null)
                 .gt('delta_grams', 0)
                 .order('id', { ascending: true })
-                .range(from, from + PURCHASE_COST_PAGE_SIZE - 1);
+                .limit(PURCHASE_COST_PAGE_SIZE);
+            if (lastId) query = query.gt('id', lastId);
+            const { data, error } = await query;
             if (error) throw error;
             const page = data ?? [];
             for (const row of page) {
@@ -134,7 +136,8 @@ export const beanStockEventApi = {
                 });
             }
             if (page.length < PURCHASE_COST_PAGE_SIZE) return out;
-            from += PURCHASE_COST_PAGE_SIZE;
+            lastId = page[page.length - 1]?.id ?? null;
+            if (!lastId) return out;
         }
     },
 

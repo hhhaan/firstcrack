@@ -59,22 +59,24 @@ export const useBeanPurchaseCosts = (userId: string) =>
         enabled: !!userId,
     });
 
+export const insertStockEventWithAlerts = async (newEvent: BeanStockEventInsert): Promise<InsertStockEventResult> => {
+    const row = await beanStockEventApi.insert(newEvent);
+    let alertsFailed = false;
+    if (newEvent.user_id) {
+        try {
+            await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
+        } catch (err) {
+            logger.capture(err, { feature: 'inventory', rpc: 'compute_inventory_alerts' });
+            alertsFailed = true;
+        }
+    }
+    return { row, alertsFailed };
+};
+
 export const useInsertStockEvent = () => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: async (newEvent: BeanStockEventInsert): Promise<InsertStockEventResult> => {
-            const row = await beanStockEventApi.insert(newEvent);
-            let alertsFailed = false;
-            if (newEvent.user_id) {
-                try {
-                    await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
-                } catch (err) {
-                    logger.capture(err, { feature: 'inventory', rpc: 'compute_inventory_alerts' });
-                    alertsFailed = true;
-                }
-            }
-            return { row, alertsFailed };
-        },
+        mutationFn: insertStockEventWithAlerts,
         onMutate: async (newEvent: BeanStockEventInsert) => {
             const beanId = newEvent.bean_id;
             await qc.cancelQueries({ queryKey: stockEventKeys.summary(beanId) });

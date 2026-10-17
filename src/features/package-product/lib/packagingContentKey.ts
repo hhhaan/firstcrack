@@ -4,6 +4,6 @@ export const packagingContentKey = (params: {
     units: number;
     beanId: string | null;
     blendId: string | null;
-    netWeightGrams: number;
+    deltaGrams: number;
 }): string =>
-    `${params.productId}|${params.units}|${params.beanId ?? ''}|${params.blendId ?? ''}|${params.netWeightGrams}`;
+    `${params.productId}|${params.units}|roast_inbound|${params.beanId ?? ''}|${params.blendId ?? ''}|packaging|${params.deltaGrams}`;

@@ -50,6 +50,14 @@ describe('isBatchStockShort', () => {
         expect(isBatchStockShort(batch({ completed_sessions: 2 }), 0)).toBe(false);
     });
 
+    it('still warns when another batch reservation consumes stock (blend batches have no own add-back)', () => {
+        const today = new Date();
+        const scheduled = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const b = batch({ status: 'pending', scheduled_date: scheduled, bean_id: null, blend_id: 'blend-1' });
+        expect(isBatchStockShort(b, 2000)).toBe(true);
+        expect(isBatchStockShort(b, 10000)).toBe(false);
+    });
+
     it('adds back own reservation for pending in-horizon batch', () => {
         const today = new Date();
         const scheduled = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;

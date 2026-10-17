@@ -12,11 +12,16 @@ export const batchGreenNeededGramsFromBatch = (batch: PlanBatchWithProgress): nu
 
 export { batchGreenNeededGrams };
 
-const toDateKey = (d: Date): string => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+/** Business calendar for plan batch dates (aligns with roastery schedule entry). */
+export const STOCK_RESERVATION_TIME_ZONE = 'Asia/Seoul';
+
+const calendarDateKey = (instant: Date, timeZone = STOCK_RESERVATION_TIME_ZONE): string =>
+    new Intl.DateTimeFormat('en-CA', { timeZone }).format(instant);
+
+const addCalendarDays = (dateKey: string, days: number): string => {
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const utc = Date.UTC(y, m - 1, d + days);
+    return calendarDateKey(new Date(utc), STOCK_RESERVATION_TIME_ZONE);
 };
 
 /** Grams this batch reserves when it is inside the server reservation horizon. */
@@ -25,11 +30,8 @@ export const batchOwnReservedGrams = (batch: PlanBatchWithProgress, horizonDays 
     if (batch.exception_type === 'cancelled') return 0;
     if (batch.status !== 'pending' && batch.status !== 'in-progress') return 0;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const horizonEnd = new Date(today);
-    horizonEnd.setDate(horizonEnd.getDate() + horizonDays);
-    const horizonKey = toDateKey(horizonEnd);
+    const todayKey = calendarDateKey(new Date());
+    const horizonKey = addCalendarDays(todayKey, horizonDays);
 
     if (batch.scheduled_date != null && batch.scheduled_date > horizonKey) return 0;
 

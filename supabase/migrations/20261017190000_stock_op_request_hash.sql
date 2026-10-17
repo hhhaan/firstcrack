@@ -1,5 +1,6 @@
 -- #892 / #893: bind idempotency keys to request content (stock_op_receipts + payload hash).
 -- Stacked on 20261017160300_stock_concurrency_atomicity.sql — insert_packaging_op keeps PR-C locks.
+-- Re-sync insert_packaging_op body from PR-C whenever that migration changes (receipt assert stays first).
 
 -- ---------------------------------------------------------------------------
 -- Receipt table
@@ -15,12 +16,16 @@ CREATE TABLE public.stock_op_receipts (
 
 ALTER TABLE public.stock_op_receipts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY stock_op_receipts_workspace ON public.stock_op_receipts
-  FOR ALL
-  USING (public.has_workspace_access(user_id))
-  WITH CHECK (public.has_workspace_access(user_id));
+REVOKE ALL ON TABLE public.stock_op_receipts FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public.stock_op_receipts TO authenticated;
 
-GRANT SELECT, INSERT ON public.stock_op_receipts TO authenticated;
+CREATE POLICY stock_op_receipts_select ON public.stock_op_receipts
+  FOR SELECT
+  USING (public.has_workspace_access(user_id));
+
+CREATE POLICY stock_op_receipts_insert ON public.stock_op_receipts
+  FOR INSERT
+  WITH CHECK (public.has_workspace_access(user_id));
 
 -- ---------------------------------------------------------------------------
 -- Canonical payload hashes (note / created_by excluded)
@@ -35,29 +40,34 @@ AS $function$
   SELECT md5(
     COALESCE((
       SELECT string_agg(
-        (e->>'product_id') || '|'
-        || (e->>'delta_units') || '|'
-        || COALESCE(r.bean_id, '') || '|'
-        || COALESCE(r.blend_id, '') || '|'
-        || COALESCE(r.net_w::text, '0'),
-        ';' ORDER BY (e->>'product_id'), (e->>'delta_units')
+        COALESCE(e->>'product_id', '') || '|'
+        || COALESCE(e->>'delta_units', '') || '|'
+        || COALESCE(e->>'event_type', '') || '|'
+        || COALESCE(NULLIF(e->>'reference_id', ''), ''),
+        ';' ORDER BY
+          COALESCE(e->>'product_id', ''),
+          COALESCE(e->>'event_type', ''),
+          (e->>'delta_units')::integer,
+          COALESCE(NULLIF(e->>'reference_id', ''), '')
       )
       FROM jsonb_array_elements(COALESCE(p_product_events, '[]'::jsonb)) AS e
-      LEFT JOIN LATERAL (
-        SELECT
-          NULLIF(re->>'bean_id', '') AS bean_id,
-          NULLIF(re->>'blend_id', '') AS blend_id,
-          CASE
-            WHEN (e->>'delta_units')::integer > 0
-              AND re IS NOT NULL
-              AND abs((re->>'delta_grams')::integer) > 0
-            THEN abs((re->>'delta_grams')::integer) / (e->>'delta_units')::integer
-            ELSE 0
-          END AS net_w
-        FROM jsonb_array_elements(COALESCE(p_roasted_events, '[]'::jsonb)) AS re
-        WHERE NULLIF(re->>'reference_id', '')::uuid IS NOT DISTINCT FROM NULLIF(e->>'reference_id', '')::uuid
-        LIMIT 1
-      ) r ON true
+    ), '')
+    || '|'
+    || COALESCE((
+      SELECT string_agg(
+        COALESCE(NULLIF(e->>'bean_id', ''), '') || '|'
+        || COALESCE(NULLIF(e->>'blend_id', ''), '') || '|'
+        || COALESCE(e->>'delta_grams', '') || '|'
+        || COALESCE(e->>'event_type', '') || '|'
+        || COALESCE(NULLIF(e->>'reference_id', ''), ''),
+        ';' ORDER BY
+          COALESCE(NULLIF(e->>'bean_id', ''), ''),
+          COALESCE(NULLIF(e->>'blend_id', ''), ''),
+          COALESCE(e->>'event_type', ''),
+          (e->>'delta_grams')::integer,
+          COALESCE(NULLIF(e->>'reference_id', ''), '')
+      )
+      FROM jsonb_array_elements(COALESCE(p_roasted_events, '[]'::jsonb)) AS e
     ), '')
   );
 $function$;
@@ -73,8 +83,9 @@ AS $function$
       SELECT jsonb_agg(jsonb_build_object(
         'product_id', pse.product_id,
         'delta_units', pse.delta_units,
+        'event_type', pse.event_type,
         'reference_id', pse.reference_id
-      ) ORDER BY pse.product_id, pse.delta_units)
+      ) ORDER BY pse.product_id, pse.event_type, pse.delta_units, pse.reference_id)
       FROM product_stock_events pse
       WHERE pse.reference_id = p_reference_id
     ), '[]'::jsonb),
@@ -83,8 +94,9 @@ AS $function$
         'bean_id', rse.bean_id,
         'blend_id', rse.blend_id,
         'delta_grams', rse.delta_grams,
+        'event_type', rse.event_type,
         'reference_id', rse.reference_id
-      ) ORDER BY rse.bean_id, rse.blend_id)
+      ) ORDER BY rse.bean_id, rse.blend_id, rse.event_type, rse.delta_grams, rse.reference_id)
       FROM roasted_stock_events rse
       WHERE rse.reference_id = p_reference_id AND rse.event_type = 'packaging'
     ), '[]'::jsonb)
@@ -105,7 +117,7 @@ AS $function$
     || COALESCE(
       CASE
         WHEN p_event->>'cost_per_kg' IS NULL OR p_event->>'cost_per_kg' = 'null' THEN ''
-        ELSE trim(trailing '.' from trim(trailing '0' from to_char((p_event->>'cost_per_kg')::numeric, 'FM999999999990.999999')))
+        ELSE trim_scale((p_event->>'cost_per_kg')::numeric)::text
       END,
       ''
     )
@@ -129,6 +141,11 @@ AS $function$
   WHERE e.reference_id = p_reference_id AND e.bean_id = p_bean_id
   LIMIT 1;
 $function$;
+
+REVOKE ALL ON FUNCTION public.packaging_request_hash_from_ledger(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.bean_event_request_hash_from_ledger(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.packaging_request_hash_from_ledger(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.bean_event_request_hash_from_ledger(uuid, uuid) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- assert_stock_op_receipt
@@ -154,20 +171,22 @@ BEGIN
     RETURN;
   END IF;
 
+  INSERT INTO public.stock_op_receipts (reference_id, user_id, op_kind, request_hash)
+  VALUES (p_reference_id, p_user_id, p_op_kind, p_request_hash)
+  ON CONFLICT (reference_id) DO NOTHING;
+
   SELECT * INTO v_row FROM public.stock_op_receipts WHERE reference_id = p_reference_id;
-  IF FOUND THEN
-    IF v_row.user_id IS DISTINCT FROM p_user_id
-       OR v_row.op_kind IS DISTINCT FROM p_op_kind
-       OR v_row.request_hash IS DISTINCT FROM p_request_hash THEN
-      RAISE EXCEPTION 'idempotency_payload_mismatch'
-        USING ERRCODE = 'unique_violation',
-              DETAIL = format('reference_id=%s', p_reference_id);
-    END IF;
-    RETURN;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'stock_op_receipt_missing' USING ERRCODE = 'P0001';
   END IF;
 
-  INSERT INTO public.stock_op_receipts (reference_id, user_id, op_kind, request_hash)
-  VALUES (p_reference_id, p_user_id, p_op_kind, p_request_hash);
+  IF v_row.user_id IS DISTINCT FROM p_user_id
+     OR v_row.op_kind IS DISTINCT FROM p_op_kind
+     OR v_row.request_hash IS DISTINCT FROM p_request_hash THEN
+    RAISE EXCEPTION 'idempotency_payload_mismatch'
+      USING ERRCODE = 'P0001',
+            DETAIL = format('reference_id=%s', p_reference_id);
+  END IF;
 
   IF p_op_kind = 'packaging' THEN
     IF EXISTS (
@@ -179,7 +198,7 @@ BEGIN
       v_legacy := public.packaging_request_hash_from_ledger(p_reference_id);
       IF v_legacy IS DISTINCT FROM p_request_hash THEN
         RAISE EXCEPTION 'idempotency_payload_mismatch'
-          USING ERRCODE = 'unique_violation',
+          USING ERRCODE = 'P0001',
                 DETAIL = format('reference_id=%s legacy_mismatch', p_reference_id);
       END IF;
     END IF;
@@ -192,7 +211,7 @@ BEGIN
       v_legacy := public.bean_event_request_hash_from_ledger(p_reference_id, v_bean_id);
       IF v_legacy IS DISTINCT FROM p_request_hash THEN
         RAISE EXCEPTION 'idempotency_payload_mismatch'
-          USING ERRCODE = 'unique_violation',
+          USING ERRCODE = 'P0001',
                 DETAIL = format('reference_id=%s legacy_mismatch', p_reference_id);
       END IF;
     END IF;
