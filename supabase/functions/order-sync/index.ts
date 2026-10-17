@@ -4,28 +4,29 @@
  * Body: { connectionId?: string, workspaceOwnerId?: string } — omit connectionId to
  * sync all active connections (cron / manual sync-all).
  */
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, getAuthenticatedUser, jsonResponse, resolveWorkspaceOwner } from '../_shared/auth.ts';
+import {
+    corsHeaders,
+    getAuthenticatedUser,
+    jsonResponse,
+    resolveWorkspaceOwner,
+    serviceClient,
+} from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { reclaimStaleRuns } from '../_shared/channels/run-lock.ts';
 import { loadSecretsSession } from '../_shared/channels/secrets-session.ts';
 import type { Platform, PollCursor } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
+import { verifySharedSecret } from '../_shared/webhook-auth.ts';
 
 /** Cron sweeps every active connection, so one invocation must stay well inside the wall clock. */
 const INVOCATION_BUDGET_MS = 90 * 1000;
 /** Connections handled per invocation. Ordered least-recently-polled first → round robin. */
 const MAX_CONNECTIONS_PER_RUN = 25;
 
-function serviceClient() {
-    return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-}
-
 function isCron(req: Request): boolean {
     const secret = Deno.env.get('ORDER_SYNC_CRON_SECRET');
-    if (!secret) return false;
-    return req.headers.get('x-cron-secret') === secret;
+    return verifySharedSecret(secret, req.headers.get('x-cron-secret'));
 }
 
 type ConnRow = {
@@ -97,7 +98,7 @@ async function syncOne(
         );
 
         const now = new Date().toISOString();
-        await admin
+        const { error: cursorError } = await admin
             .from('sales_channel_connections')
             .update({
                 poll_cursor: nextCursor,
@@ -108,8 +109,9 @@ async function syncOne(
                 updated_at: now,
             })
             .eq('id', conn.id);
+        if (cursorError) throw new Error('Failed to save poll cursor', { cause: cursorError });
 
-        await admin
+        const { error: runError } = await admin
             .from('order_sync_runs')
             .update({
                 status: 'success',
@@ -121,6 +123,7 @@ async function syncOne(
                     : {}),
             })
             .eq('id', run.id);
+        if (runError) throw new Error('Failed to finish sync run', { cause: runError });
 
         return { ok: true, upserted, ...(stockEventSkips.length ? { stockEventSkips } : {}) };
     } catch (e) {
@@ -248,5 +251,5 @@ serveWithSentry('order-sync', async (req) => {
         });
     }
 
-    return jsonResponse({ results, truncated });
+    return jsonResponse({ results, truncated }, results.some((result) => !result.ok) ? 500 : 200);
 });

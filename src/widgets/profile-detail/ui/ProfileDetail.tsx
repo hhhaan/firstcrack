@@ -185,7 +185,7 @@ export const ProfileDetail = ({
                             icon={<AlertCircle size={10} strokeWidth={2} />}
                             className="tracking-[0.2px]"
                         >
-                            No recorded data · Reference curve
+                            {t('profiles.detail.noRecordedData')}
                         </Badge>
                     )}
                 </div>

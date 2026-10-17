@@ -74,18 +74,18 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                 </h2>
                 <div className="flex gap-1.5 flex-wrap">
                     <Badge tone="neutral" className="text-xs px-2.25">
-                        {components.length === 1 ? '1 bean' : `${components.length} beans`}
+                        {t('beans.blend.componentCount', { count: components.length })}
                     </Badge>
                     <Badge tone="soft" className="text-xs px-2.25">
                         {total}%
                     </Badge>
                     {roastable.maxGrams > 0 ? (
                         <Badge tone="good" className="text-xs px-2.25">
-                            Up to {roastableKg}kg
+                            {t('beans.blend.roastableKg', { kg: roastableKg })}
                         </Badge>
                     ) : (
                         <Badge tone="bad" className="text-xs px-2.25">
-                            Insufficient stock
+                            {t('beans.blend.noStock')}
                         </Badge>
                     )}
                 </div>

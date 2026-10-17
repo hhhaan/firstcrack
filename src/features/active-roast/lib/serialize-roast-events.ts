@@ -1,33 +1,39 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import { omitRepeatHeaterMarks } from '@features/active-roast/lib/repeat-heater';
 import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/temperature';
-import { parseTimeSec } from '@features/active-roast/lib/time';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatElapsed } from '@shared/lib/format';
+import { parseEditTime } from '@shared/lib/time-edit';
 import type { AppliedRoastControl, LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
 
 const formatStoredEventTemp = (tempC: number | null | undefined, unit: TemperatureUnit): string =>
     tempC != null && Number.isFinite(tempC) ? `${Math.round(toDisplayTemp(tempC, unit))}${tempUnitLabel(unit)}` : '—';
 
-/** Prefer stored timeSec; fall back to display "m:ss". */
-export const logEntryTimeSec = (entry: Pick<LogEntry, 'time' | 'timeSec'>): number =>
-    entry.timeSec ?? parseTimeSec(entry.time);
+/** Prefer stored timeSec; fall back to display "m:ss". null = neither yields a valid time. */
+export const logEntryTimeSec = (entry: Pick<LogEntry, 'time' | 'timeSec'>): number | null =>
+    entry.timeSec ?? parseEditTime(entry.time);
 
 /** LogEntry[] → DB jsonb payload (skips ephemeral "Now" rows). */
 export const serializeRoastEvents = (logEntries: LogEntry[]): StoredRoastEvent[] =>
     logEntries
         .filter((e) => !e.current && e.event !== 'Now')
-        .map((e) => ({
-            id: e.id ?? crypto.randomUUID(),
-            type: e.event,
-            time_sec: logEntryTimeSec(e),
-            temp_c: e.tempC ?? null,
-            note: e.note || null,
-            ...(e.appliedControl ? { applied_control: e.appliedControl } : {}),
-            ...(e.gas ? { gas: e.gas } : {}),
-            ...(e.airflow ? { airflow: e.airflow } : {}),
-            ...(e.drum ? { drum: e.drum } : {}),
-        }))
+        .flatMap((e): StoredRoastEvent[] => {
+            const timeSec = logEntryTimeSec(e);
+            if (timeSec == null) return [];
+            return [
+                {
+                    id: e.id ?? crypto.randomUUID(),
+                    type: e.event,
+                    time_sec: timeSec,
+                    temp_c: e.tempC ?? null,
+                    note: e.note || null,
+                    ...(e.appliedControl ? { applied_control: e.appliedControl } : {}),
+                    ...(e.gas ? { gas: e.gas } : {}),
+                    ...(e.airflow ? { airflow: e.airflow } : {}),
+                    ...(e.drum ? { drum: e.drum } : {}),
+                },
+            ];
+        })
         .sort((a, b) => a.time_sec - b.time_sec);
 
 const optionalJsonNumber = (v: unknown): number | null | undefined => {

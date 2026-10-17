@@ -38,7 +38,10 @@ export const calcDevTime = (logEntries: LogEntry[], elapsed: number): DevTimeRes
     const metrics = deriveRoastMetrics(
         logEntries
             .filter((e) => !e.current && e.event !== 'Now')
-            .map((e) => ({ type: e.event, time_sec: logEntryTimeSec(e) })),
+            .flatMap((e) => {
+                const timeSec = logEntryTimeSec(e);
+                return timeSec == null ? [] : [{ type: e.event, time_sec: timeSec }];
+            }),
         { liveElapsed: elapsed },
     );
     const start = formatDevParts(metrics.devTimeSec, metrics.dtrPct);
@@ -124,21 +127,25 @@ export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
     omitRepeatHeaterMarks(
         logEntries
             .filter((e) => isChartEventMarker(e.event))
-            .map((e) => {
-                const timeSec = Math.max(0, logEntryTimeSec(e));
-                return {
-                    logId: e.id,
-                    timeSec,
-                    event: e.event,
-                    color: getResolvedEventColor(e.event),
-                    timeStr: e.time,
-                    temp: e.temp,
-                    tempC: e.tempC,
-                    note: e.note,
-                    ...(e.gas ? { gas: e.gas } : {}),
-                    ...(e.airflow ? { airflow: e.airflow } : {}),
-                    ...(e.drum ? { drum: e.drum } : {}),
-                };
+            .flatMap((e) => {
+                const entryTimeSec = logEntryTimeSec(e);
+                if (entryTimeSec == null) return [];
+                const timeSec = Math.max(0, entryTimeSec);
+                return [
+                    {
+                        logId: e.id,
+                        timeSec,
+                        event: e.event,
+                        color: getResolvedEventColor(e.event),
+                        timeStr: e.time,
+                        temp: e.temp,
+                        tempC: e.tempC,
+                        note: e.note,
+                        ...(e.gas ? { gas: e.gas } : {}),
+                        ...(e.airflow ? { airflow: e.airflow } : {}),
+                        ...(e.drum ? { drum: e.drum } : {}),
+                    },
+                ];
             }),
     );
 
@@ -158,7 +165,7 @@ export const buildRoastLogDisplayEntries = (
 ): RoastLogDisplayEntry[] => {
     const sorted = logEntries
         .filter((e) => e.event !== 'Control')
-        .sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+        .sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
     return [
         ...sorted,
         ...(!roastEnded && charged

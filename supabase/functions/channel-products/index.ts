@@ -9,10 +9,16 @@
  * Naver's adapter returns [] until its product API is wired — the client then falls back
  * to manual key entry.
  */
-import { corsHeaders, getAuthenticatedUser, jsonResponse, resolveWorkspaceOwner, serviceClient } from '../_shared/auth.ts';
+import {
+    corsHeaders,
+    getAuthenticatedUser,
+    jsonResponse,
+    resolveWorkspaceOwner,
+    serviceClient,
+} from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { loadSecretsSession } from '../_shared/channels/secrets-session.ts';
-import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
+import { captureEdgeException, respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 serveWithSentry('channel-products', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -31,11 +37,12 @@ serveWithSentry('channel-products', async (req) => {
     if (!connectionId) return jsonResponse({ error: 'connectionId required' }, 400);
 
     const admin = serviceClient();
-    const { data: conn } = await admin
+    const { data: conn, error: connError } = await admin
         .from('sales_channel_connections')
         .select('id, user_id, platform, status')
         .eq('id', connectionId)
         .maybeSingle();
+    if (connError) return respondServerError('channel-products', 'Failed to load connection', connError);
     if (!conn) return jsonResponse({ error: 'Connection not found' }, 404);
 
     // The connection belongs to a workspace owner; the caller must be that owner or a member.
@@ -58,6 +65,6 @@ serveWithSentry('channel-products', async (req) => {
             status: 502,
             tags: { platform: conn.platform },
         });
-        return jsonResponse({ error: `Failed to list products: ${msg}` }, 502);
+        return jsonResponse({ error: 'Failed to list products' }, 502);
     }
 });

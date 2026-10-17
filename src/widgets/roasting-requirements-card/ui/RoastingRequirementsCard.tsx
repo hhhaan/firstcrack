@@ -31,6 +31,7 @@ export const RoastingRequirementsCard = () => {
             id ? (map.get(id) ?? id.slice(0, 8)) : t('orders.requirements.profileUnassigned');
     }, [roastProfiles, t]);
 
+    // RPC emits one row per (bean, profile); stock is per-bean and identical on each row.
     const beanRows = useMemo(() => aggregateBeanRequirements(req?.beans ?? []), [req?.beans]);
 
     const toggleBreakdown = (beanId: string) => {

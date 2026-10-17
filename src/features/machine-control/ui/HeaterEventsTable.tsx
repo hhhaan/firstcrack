@@ -142,7 +142,7 @@ export const HeaterEventsTable = ({
                                             />
                                         )}
                                     </td>
-                                    <td className={`${cellClass} border-y px-1 py-2`}>
+                                    <td className={`${cellClass} border-y px-1 py-2 align-bottom`}>
                                         <input
                                             value={row.heater}
                                             onChange={(e) => {
@@ -159,7 +159,9 @@ export const HeaterEventsTable = ({
                                             readOnly={locked}
                                         />
                                     </td>
-                                    <td className={`${cellClass} rounded-r-xl border-y border-r py-2 pr-1`}>
+                                    <td
+                                        className={`${cellClass} rounded-r-xl border-y border-r py-2 pr-1 align-bottom`}
+                                    >
                                         {onDelete && (
                                             <button
                                                 type="button"

@@ -1,49 +1,34 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act } from 'react';
+import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RoastingRequirementsCard } from './RoastingRequirementsCard';
 
-const state = vi.hoisted(() => ({
-    beans: [{ id: 'bean-1', name: 'Ethiopia' }],
-    profiles: [
-        { id: 'p1', name: 'Light' },
-        { id: 'p2', name: 'Dark' },
-    ],
-    requirements: {
-        products: [],
-        beans: [
-            {
-                bean_id: 'bean-1',
-                roast_profile_id: 'p1',
-                roasted_grams_needed: 0,
-                green_grams_needed: 4000,
-                green_available: 5000,
-            },
-            {
-                bean_id: 'bean-1',
-                roast_profile_id: 'p2',
-                roasted_grams_needed: 0,
-                green_grams_needed: 4000,
-                green_available: 5000,
-            },
-        ],
-    },
-}));
+const BEAN = 'bean-1';
+
+const requirements = vi.hoisted(() => ({ current: { products: [], beans: [] } as unknown }));
 
 vi.mock('@entities/bean', () => ({
-    useBeans: () => ({ data: state.beans }),
+    useBeans: () => ({ data: [{ id: BEAN, name: 'Ethiopia' }] }),
 }));
+
 vi.mock('@entities/order', () => ({
-    useRoastingRequirements: () => ({ data: state.requirements, isLoading: false }),
+    useRoastingRequirements: () => ({ data: requirements.current, isLoading: false }),
 }));
+
 vi.mock('@entities/organization', () => ({
-    useActiveWorkspace: () => ({ workspaceOwnerId: 'owner' }),
+    useActiveWorkspace: () => ({ workspaceOwnerId: 'user-1' }),
 }));
+
 vi.mock('@entities/roast-profile', () => ({
-    useRoastProfiles: () => ({ data: state.profiles }),
+    useRoastProfiles: () => ({
+        data: [
+            { id: 'p1', name: 'Light' },
+            { id: 'p2', name: 'Dark' },
+        ],
+    }),
 }));
+
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({
         t: (key: string, opts?: { name?: string; amount?: string; bean?: string }) => {
@@ -52,108 +37,77 @@ vi.mock('react-i18next', () => ({
             }
             if (key === 'orders.requirements.expandBreakdown') return `Expand ${opts?.bean}`;
             if (key === 'orders.requirements.collapseBreakdown') return `Collapse ${opts?.bean}`;
-            return (
-                {
-                    'orders.requirements.title': 'Roasting',
-                    'orders.requirements.bean': 'Bean',
-                    'orders.requirements.green': 'Green',
-                    'orders.requirements.available': 'Available',
-                }[key] ?? key
-            );
+            return key;
         },
     }),
 }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const row = (roastProfileId: string, needed: number, available: number) => ({
+    bean_id: BEAN,
+    roast_profile_id: roastProfileId,
+    roasted_grams_needed: 0,
+    green_grams_needed: needed,
+    green_available: available,
+});
+
+const render = () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastingRequirementsCard)));
+    return { host, root };
+};
+
+afterEach(() => {
+    requirements.current = { products: [], beans: [] };
+    document.body.replaceChildren();
+});
+
 describe('RoastingRequirementsCard', () => {
-    let qc: QueryClient;
-    let root: ReturnType<typeof createRoot>;
-    let container: HTMLDivElement;
+    it('sums the shortfall across profiles and compares it to the single stock', () => {
+        requirements.current = { products: [], beans: [row('p1', 4000, 5000), row('p2', 4000, 5000)] };
+        const { host, root } = render();
 
-    beforeEach(() => {
-        state.requirements = {
-            products: [],
-            beans: [
-                {
-                    bean_id: 'bean-1',
-                    roast_profile_id: 'p1',
-                    roasted_grams_needed: 0,
-                    green_grams_needed: 4000,
-                    green_available: 5000,
-                },
-                {
-                    bean_id: 'bean-1',
-                    roast_profile_id: 'p2',
-                    roasted_grams_needed: 0,
-                    green_grams_needed: 4000,
-                    green_available: 5000,
-                },
-            ],
-        };
-        qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
-        container = document.createElement('div');
-        document.body.appendChild(container);
-        root = createRoot(container);
-    });
+        const mainRow = host.querySelector('tbody tr');
+        const cells = [...(mainRow?.querySelectorAll('td') ?? [])].map((td) => td.textContent);
+        expect(cells[0]).toContain('Ethiopia');
+        expect(cells[1]).toBe('8.00 kg');
+        expect(cells[2]).toBe('5.00 kg');
+        expect(host.querySelector('td:last-child')?.className).toContain('text-red-500');
 
-    afterEach(() => {
         act(() => root.unmount());
-        container.remove();
     });
 
-    const render = async () => {
-        await act(async () => {
-            root.render(
-                <QueryClientProvider client={qc}>
-                    <RoastingRequirementsCard />
-                </QueryClientProvider>,
-            );
-        });
-    };
+    it('shows per-profile breakdown after expanding the bean row', () => {
+        requirements.current = { products: [], beans: [row('p1', 4000, 5000), row('p2', 4000, 5000)] };
+        const { host, root } = render();
 
-    it('aggregates to one row with 8.00 kg needed and red available when short', async () => {
-        await render();
-        const rows = container.querySelectorAll('tbody tr');
-        expect(rows).toHaveLength(1);
-        expect(container.textContent).toContain('8.00 kg');
-        expect(container.textContent).toContain('5.00 kg');
-        const availableCell = rows[0].querySelectorAll('td')[2];
-        expect(availableCell?.className).toContain('text-red-500');
-    });
-
-    it('shows per-profile breakdown after expanding the bean row', async () => {
-        await render();
-        const toggle = container.querySelector('button[aria-expanded="false"]') as HTMLButtonElement;
+        const toggle = host.querySelector('button[aria-expanded="false"]') as HTMLButtonElement;
         expect(toggle).toBeTruthy();
-        expect(container.textContent).not.toContain('Light · 4.00 kg');
+        expect(host.textContent).not.toContain('Light · 4.00 kg');
 
-        await act(async () => {
+        act(() => {
             toggle.click();
         });
 
-        expect(container.querySelector('button[aria-expanded="true"]')).toBeTruthy();
-        expect(container.textContent).toContain('Light · 4.00 kg');
-        expect(container.textContent).toContain('Dark · 4.00 kg');
+        expect(host.querySelector('button[aria-expanded="true"]')).toBeTruthy();
+        expect(host.textContent).toContain('Light · 4.00 kg');
+        expect(host.textContent).toContain('Dark · 4.00 kg');
+
+        act(() => root.unmount());
     });
 
-    it('does not highlight available when aggregated need is below stock', async () => {
-        state.requirements = {
-            products: [],
-            beans: [
-                {
-                    bean_id: 'bean-1',
-                    roast_profile_id: 'p1',
-                    roasted_grams_needed: 0,
-                    green_grams_needed: 4000,
-                    green_available: 5000,
-                },
-            ],
-        };
-        await render();
-        const availableCell = container.querySelector('tbody tr td:last-child');
-        expect(availableCell?.className).not.toContain('text-red-500');
-        expect(container.textContent).toContain('4.00 kg');
-        expect(container.textContent).toContain('Light · 4.00 kg');
+    it('keeps the default color when the single need fits the stock', () => {
+        requirements.current = { products: [], beans: [row('p1', 4000, 5000)] };
+        const { host, root } = render();
+
+        const available = host.querySelector('td:last-child');
+        expect(available?.textContent).toBe('5.00 kg');
+        expect(available?.className).not.toContain('text-red-500');
+        expect(host.textContent).toContain('Light · 4.00 kg');
+
+        act(() => root.unmount());
     });
 });

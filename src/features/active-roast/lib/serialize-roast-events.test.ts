@@ -75,9 +75,21 @@ describe('serializeRoastEvents', () => {
         ]);
     });
 
-    it('falls back to parseTimeSec when timeSec missing', () => {
+    it('falls back to parseEditTime when timeSec missing', () => {
         const entries: LogEntry[] = [{ time: '1:05', event: 'Yellow', temp: '', note: '' }];
         expect(serializeRoastEvents(entries)[0].time_sec).toBe(65);
+    });
+
+    it('drops rows whose display time cannot be parsed instead of writing 0', () => {
+        const entries: LogEntry[] = [
+            { id: 'a', time: 'abc', event: 'Charge', temp: '', note: '' },
+            { id: 'b', time: '1:30', event: 'Yellow', temp: '', note: '' },
+            { id: 'c', time: '12:3', event: 'FC Start', temp: '', note: '' },
+        ];
+        expect(serializeRoastEvents(entries)).toEqual([
+            { id: 'b', type: 'Yellow', time_sec: 90, temp_c: null, note: null },
+            { id: 'c', type: 'FC Start', time_sec: 750, temp_c: null, note: null },
+        ]);
     });
 
     it('skips ephemeral Now / current rows', () => {
@@ -176,6 +188,12 @@ describe('serializeRoastEvents', () => {
 describe('logEntryTimeSec', () => {
     it('prefers timeSec', () => {
         expect(logEntryTimeSec({ time: '1:00', timeSec: 59.5 })).toBe(59.5);
+    });
+
+    it('parses display time with parseEditTime and returns null for garbage', () => {
+        expect(logEntryTimeSec({ time: '1:30' })).toBe(90);
+        expect(logEntryTimeSec({ time: '12:3' })).toBe(750);
+        expect(logEntryTimeSec({ time: 'abc' })).toBeNull();
     });
 });
 

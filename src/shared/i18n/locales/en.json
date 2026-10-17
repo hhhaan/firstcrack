@@ -127,7 +127,7 @@
             "orders": "Orders"
         },
         "groups": {
-            "roasting": "Roasting",
+            "roasting": "Roasting & Quality",
             "operations": "Operations"
         }
     },
@@ -1196,7 +1196,6 @@
             "apply": "Show as background"
         },
         "review": {
-            "title": "Review completed roast",
             "return": "Return to charge wait"
         }
     },
@@ -2303,5 +2302,15 @@
         "showHidden": "Show hidden items",
         "hide": "Hide {{name}}",
         "restore": "Restore {{name}}"
+    },
+    "themeSelect": {
+        "title": "Choose your theme",
+        "description": "You can change this anytime in workspace settings.",
+        "light": "Light",
+        "lightDesc": "Bright and clean interface",
+        "dark": "Dark",
+        "darkDesc": "Easier on the eyes",
+        "system": "System",
+        "systemDesc": "Follow your OS setting"
     }
 }

@@ -1,6 +1,6 @@
 import { normalizeYMRange } from '@shared/lib/sessionFilter';
 import { ChevronDown, X } from 'lucide-react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { YearMonthRangeFields } from './YearMonthRangeFields';
 
@@ -68,17 +68,27 @@ export const DateRangeFilter = ({
     const [draftFrom, setDraftFrom] = useState(initFrom);
     const [draftTo, setDraftTo] = useState(initTo);
 
+    const resetDraft = useCallback(() => {
+        setDraftFrom(fromYM || (monthOptions[0] ?? ''));
+        setDraftTo(toYM || (monthOptions[monthOptions.length - 1] ?? ''));
+    }, [fromYM, toYM, monthOptions]);
+
+    const closePanel = useCallback(() => {
+        resetDraft();
+        setOpen(false);
+    }, [resetDraft]);
+
     useEffect(() => {
         if (!open) return;
         const handler = (e: MouseEvent) => {
             const target = e.target as Element;
             const inPanel = ref.current?.contains(target);
             const inPortal = !!target?.closest('[data-radix-popper-content-wrapper]');
-            if (!inPanel && !inPortal) setOpen(false);
+            if (!inPanel && !inPortal) closePanel();
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-    }, [open]);
+    }, [open, closePanel]);
 
     const fmtLabel = (ym: string) => {
         if (!ym) return '—';
@@ -93,19 +103,26 @@ export const DateRangeFilter = ({
         return presetLabel ? t(`history.datePresets.${presetLabel}`) : t('history.datePresets.period');
     })();
 
+    const isCompleteYM = (v: string) => /^\d{4}-\d{2}$/.test(v);
+    const canApply = isCompleteYM(draftFrom) && isCompleteYM(draftTo);
+
     const handlePresetClick = (p: DatePreset) => {
         if (p === 'custom') {
-            setDraftFrom(fromYM || initFrom);
-            setDraftTo(toYM || initTo);
+            resetDraft();
+            onPresetChange(p);
+            return;
         }
         onPresetChange(p);
-        if (p !== 'custom') setOpen(false);
+        closePanel();
     };
 
     const handleApply = () => {
+        if (!canApply) return;
         const { fromYM: f, toYM: to } = normalizeYMRange(draftFrom, draftTo);
         onFromYM(f);
         onToYM(to);
+        setDraftFrom(f);
+        setDraftTo(to);
         setOpen(false);
     };
 
@@ -113,7 +130,7 @@ export const DateRangeFilter = ({
         <div ref={ref} className="relative">
             <button
                 type="button"
-                onClick={() => setOpen((o) => !o)}
+                onClick={() => (open ? closePanel() : setOpen(true))}
                 className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
                     isActive
                         ? 'bg-surface-warm-solid text-primary'
@@ -129,7 +146,7 @@ export const DateRangeFilter = ({
                         onClick={(e) => {
                             e.stopPropagation();
                             onPresetChange('all');
-                            setOpen(false);
+                            closePanel();
                         }}
                     />
                 ) : (
@@ -169,7 +186,7 @@ export const DateRangeFilter = ({
                                 <button
                                     type="button"
                                     onClick={handleApply}
-                                    disabled={!draftFrom || !draftTo}
+                                    disabled={!canApply}
                                     className="mt-1 ml-auto rounded-lg border border-[#111] dark:border-[#585d61] bg-[#111] px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     {t('history.customRange.apply')}

@@ -1,5 +1,6 @@
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { isOptimisticId } from '@shared/lib/optimistic-id';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { Bean } from '@shared/types/database.types';
 import {
@@ -121,8 +122,9 @@ export const AddBeanModal = ({
         (tab === 'restock' && (!selectedBeanId || restockGrams <= 0)) ||
         (tab === 'adjust' && (!selectedBeanId || adjustGrams <= 0 || adjustExceedsStock));
 
-    const visibleBeans = showAllBeans ? existingBeans : existingBeans.slice(0, BEAN_LIST_LIMIT);
-    const hiddenBeanCount = existingBeans.length - BEAN_LIST_LIMIT;
+    const savedBeans = existingBeans.filter((bean) => !isOptimisticId(bean.id));
+    const visibleBeans = showAllBeans ? savedBeans : savedBeans.slice(0, BEAN_LIST_LIMIT);
+    const hiddenBeanCount = savedBeans.length - BEAN_LIST_LIMIT;
     const pickerProps = {
         visibleBeans,
         showAllBeans,

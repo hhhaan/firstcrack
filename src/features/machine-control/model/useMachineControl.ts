@@ -19,18 +19,13 @@ const EMPTY_LIMITS: ControlCapability['limits'] = {};
 
 const ROLES: ControlRole[] = ['heater', 'fan', 'drum'];
 
-/**
- * 이만큼의 폴링 동안 기기가 안 따라오면 명령이 먹지 않은 것으로 보고 경고한다.
- * 경과 시간 대신 폴링 횟수로 세는 이유: 시계를 읽지 않아도 되고(렌더 순수성),
- * 판정 기준이 "기기를 N번 확인했는데 그대로였다"로 더 직접적이다.
- * 폴링 주기 0.5~1s 기준 약 5~10초.
- */
-const STALE_COMMAND_POLLS = 10;
+/** Drop-zero retries only; feedback lag never fails an ordinary command. */
+const SAFE_OFF_RETRY_POLLS = 10;
 
 /** /status 실패 시 capability 재조회 간격 */
 const CAPABILITY_RETRY_MS = 3000;
 
-/** role 값 null = 그 채널의 피드백을 읽을 수 없는 머신 — 수렴 판정이 영영 안 되므로 미반영으로 드러난다 */
+/** null means the machine cannot report that feedback channel. */
 export type MachineFeedback = Record<ControlRole, number | null> | null;
 
 /**
@@ -51,16 +46,12 @@ export const useMachineControl = (
 ) => {
     const [connectionStatus, setConnectionStatus] = useState<SidecarStatus | null>(null);
     const capability = connectionStatus?.control;
-    /**
-     * desired: 사용자가 지시했지만 기기가 아직 따라오지 않은 값
-     * unackPolls: role별로 "지시했는데 기기가 그대로였던" 폴링 횟수
-     * 한 state로 묶은 이유: feedback 반영 시 둘을 원자적으로 갱신해야 하는데,
-     * updater 안에서 다른 setState를 부르면 순수성이 깨진다(StrictMode 재실행 시 이중 카운트).
-     */
     const [tracking, setTracking] = useState<{
         desired: ControlCommand;
-        unackPolls: Partial<Record<ControlRole, number>>;
-    }>({ desired: {}, unackPolls: {} });
+        zeroPolls: number;
+        /** Remember the zero request even when the adapter clamps the applied value. */
+        zeroRequested: boolean;
+    }>({ desired: {}, zeroPolls: 0, zeroRequested: false });
     const [sending, setSending] = useState(false);
 
     const sender = useMemo(
@@ -96,7 +87,7 @@ export const useMachineControl = (
         if (!sidecarConnected) {
             sender.dispose();
             setConnectionStatus(null);
-            setTracking({ desired: {}, unackPolls: {} });
+            setTracking({ desired: {}, zeroPolls: 0, zeroRequested: false });
             return;
         }
         let cancelled = false;
@@ -149,27 +140,27 @@ export const useMachineControl = (
     const heaterMax = capability?.limits.heater?.max;
     useEffect(() => {
         if (!feedback) return;
-        setTracking(({ desired: prev, unackPolls: prevPolls }) => {
+        setTracking((tracking) => {
+            const { desired: prev, zeroPolls: prevZeroPolls } = tracking;
             const settled = settledRoles(prev, feedback, convergeTolerance(heaterMax));
-            const settledSet = new Set(settled);
-            const nextPolls: Partial<Record<ControlRole, number>> = {};
-            for (const role of ROLES) {
-                if (prev[role] == null || settledSet.has(role)) continue;
-                nextPolls[role] = (prevPolls[role] ?? 0) + 1;
-            }
-            if (settled.length === 0) return { desired: prev, unackPolls: nextPolls };
+            const zeroPolls =
+                tracking.zeroRequested && prev.heater != null && !settled.includes('heater')
+                    ? Math.min(prevZeroPolls + 1, SAFE_OFF_RETRY_POLLS)
+                    : 0;
+            if (settled.length === 0 && zeroPolls === prevZeroPolls) return tracking;
             const nextDesired = { ...prev };
             for (const role of settled) delete nextDesired[role];
-            return { desired: nextDesired, unackPolls: nextPolls };
+            return { ...tracking, desired: nextDesired, zeroPolls };
         });
     }, [feedback, heaterMax]);
 
     const setValue = useCallback(
         (role: ControlRole, value: number) => {
-            // 새 지시이므로 미반영 카운트를 되돌린다
+            // A new heater write restarts the separate Drop-zero retry window.
             setTracking((t) => ({
                 desired: { ...t.desired, [role]: value },
-                unackPolls: { ...t.unackPolls, [role]: 0 },
+                zeroPolls: role === 'heater' ? 0 : t.zeroPolls,
+                zeroRequested: role === 'heater' ? value === 0 : t.zeroRequested,
             }));
             sender.queue(role, value);
         },
@@ -184,32 +175,19 @@ export const useMachineControl = (
         if (cancelled.length === 0) return;
         setTracking((t) => {
             const nextDesired = { ...t.desired };
-            const nextPolls = { ...t.unackPolls };
             let changed = false;
             for (const cmd of cancelled) {
                 for (const role of ROLES) {
                     if (cmd[role] == null || nextDesired[role] !== cmd[role]) continue;
                     delete nextDesired[role];
-                    delete nextPolls[role];
                     changed = true;
                 }
             }
-            return changed ? { desired: nextDesired, unackPolls: nextPolls } : t;
+            return changed
+                ? { ...t, desired: nextDesired, zeroPolls: nextDesired.heater != null ? t.zeroPolls : 0 }
+                : t;
         });
     }, [sender]);
-
-    /** 지시했는데 기기가 계속 그대로인 role — 명령이 먹지 않았을 가능성 */
-    const unacknowledged = new Set(ROLES.filter((role) => (tracking.unackPolls[role] ?? 0) >= STALE_COMMAND_POLLS));
-
-    // HTTP는 성공했는데 기기가 안 따라온 경우 — 사이드카 에러 어디에도 안 잡힌다 (#269)
-    const unackKey = [...unacknowledged].join(',');
-    useEffect(() => {
-        if (!unackKey) return;
-        logger.capture(new Error('machine-control: command unacknowledged'), {
-            feature: 'machine-control',
-            roles: unackKey,
-        });
-    }, [unackKey]);
 
     // 연결이 없으면 env로 고른 기기의 제어 화면만 채운다. 쓰기는 사이드카가 그대로 거절한다.
     const preview = sidecarConnected ? null : devRoasterControl();
@@ -220,7 +198,7 @@ export const useMachineControl = (
         /** PID 지원 여부 — 같은 /status 응답에서 오므로 따로 조회하지 않는다 */
         pidCapability: sidecarConnected ? capability?.pid : preview?.pid,
         desired: tracking.desired,
-        unacknowledged,
+        safeOffUnacknowledged: tracking.zeroPolls >= SAFE_OFF_RETRY_POLLS,
         sending,
         setValue,
         commitNow,

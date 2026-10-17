@@ -16,11 +16,31 @@ import {
     setSidebarItemHidden,
 } from './sidebar-preferences';
 
-const roasting = ['roast', 'history', 'profiles', 'machines', 'cupping'] as const;
-const operations = ['dashboard', 'schedule', 'beans', 'orders', 'pricing'] as const;
+const roasting = ['schedule', 'roast', 'history', 'profiles', 'cupping', 'machines'] as const;
+const operations = ['dashboard', 'beans', 'orders', 'pricing'] as const;
 const defaults = [...operations, ...roasting];
 
 describe('normalizeSidebarPreferences', () => {
+    it('updates the previous default order while preserving hidden and collapsed preferences', () => {
+        expect(
+            normalizeSidebarPreferences({
+                order: [
+                    'dashboard',
+                    'schedule',
+                    'beans',
+                    'orders',
+                    'pricing',
+                    'roast',
+                    'history',
+                    'profiles',
+                    'machines',
+                    'cupping',
+                ],
+                collapsed: true,
+                hidden: ['cupping'],
+            }),
+        ).toEqual({ collapsed: true, hidden: ['cupping'], order: defaults });
+    });
     it('drops duplicates and unknown ids, then appends missing items in group order', () => {
         expect(
             normalizeSidebarPreferences({
@@ -35,13 +55,13 @@ describe('normalizeSidebarPreferences', () => {
                 'orders',
                 'beans',
                 'dashboard',
-                'schedule',
                 'pricing',
                 'roast',
                 'history',
+                'schedule',
                 'profiles',
-                'machines',
                 'cupping',
+                'machines',
             ],
         });
     });
@@ -54,11 +74,11 @@ describe('normalizeSidebarPreferences', () => {
         ).toEqual([
             'pricing',
             'dashboard',
-            'schedule',
             'beans',
             'orders',
             'cupping',
             'roast',
+            'schedule',
             'history',
             'profiles',
             'machines',
@@ -99,16 +119,16 @@ describe('sidebar order edits', () => {
 
     it('moves one step inside the group and leaves collapse alone on reset', () => {
         setSidebarCollapsed(true);
-        moveSidebarItem('roast', -1);
+        moveSidebarItem('schedule', -1);
         expect(getSidebarPreferences().order).toEqual(defaults);
 
         moveSidebarItem('history', -1);
-        expect(getSidebarPreferences().order.slice(0, 5)).toEqual([...operations]);
-        expect(getSidebarPreferences().order.slice(5, 7)).toEqual(['history', 'roast']);
+        expect(getSidebarPreferences().order.slice(0, 4)).toEqual([...operations]);
+        expect(getSidebarPreferences().order.slice(4, 7)).toEqual(['schedule', 'history', 'roast']);
 
-        moveSidebarItem('cupping', 1);
+        moveSidebarItem('machines', 1);
         const order = getSidebarPreferences().order;
-        expect(order[order.length - 1]).toBe('cupping');
+        expect(order[order.length - 1]).toBe('machines');
 
         setSidebarItemHidden('cupping', true);
         setSidebarItemHidden('orders', true);

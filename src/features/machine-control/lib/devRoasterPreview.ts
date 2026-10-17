@@ -1,7 +1,7 @@
 import { type ControlCapability, ROASTER_REGISTRY } from '@entities/machine';
 
 const CHANNELS = ['heater', 'fan', 'drum'] as const;
-/** Same set as the sidecar. Read capabilities do not make a protocol writable. */
+/** S7 and virtual only. probat_ws writes need a node map this preview does not carry. */
 const WRITABLE_PROTOCOLS = new Set(['s7', 'virtual']);
 
 /**
