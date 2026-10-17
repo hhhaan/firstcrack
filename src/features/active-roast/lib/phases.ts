@@ -1,5 +1,5 @@
+import { parseEditTime } from '@shared/lib/time-edit';
 import type { LogEntry } from '@shared/types/roast';
-import { logEntryTimeSec } from './serialize-roast-events';
 
 export interface PhaseSegment {
     name: string;
@@ -35,7 +35,7 @@ export const computePhaseSegments = (logEntries: LogEntry[], elapsed: number, ch
 
     const get = (event: string) => {
         const e = logEntries.find((l) => l.event === event);
-        return e ? logEntryTimeSec(e) : null;
+        return e ? (e.timeSec ?? parseEditTime(e.time)) : null;
     };
 
     const yellow = get('Yellow');
