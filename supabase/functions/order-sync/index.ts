@@ -117,7 +117,7 @@ async function syncOne(
 
         const runNotes = [
             stockEventSkips.length
-                ? `stock events skipped: ${JSON.stringify(stockEventSkips).slice(0, 400)}`
+                ? `stock events skipped: ${JSON.stringify(stockEventSkips).slice(0, 900)}`
                 : '',
             syncNote ?? '',
         ]

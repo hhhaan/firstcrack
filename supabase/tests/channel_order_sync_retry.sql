@@ -10,6 +10,8 @@ DECLARE
   v_product_id uuid := gen_random_uuid();
   v_order_id uuid;
   v_line_id uuid;
+  v_line jsonb;
+  v_payload jsonb;
   result jsonb;
   event_count integer;
 BEGIN
@@ -20,18 +22,19 @@ BEGIN
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id, 50, 'roast_inbound');
 
+  v_line := jsonb_build_object(
+    'platformLineId', 'PO-LINE-1', 'platformProductId', 'EXT-99', 'platformVariantId', null,
+    'productId', v_product_id, 'title', 'Coffee', 'quantity', 4, 'unitPrice', 9000, 'status', 'active'
+  );
+  v_payload := jsonb_build_object(
+    'platformOrderId', 'NAVER-ORD-1', 'status', 'paid', 'orderedAt', '2026-10-10T01:00:00Z',
+    'buyerName', 'Buyer', 'currency', 'KRW', 'totalAmount', 36000, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(v_line)
+  );
+
   SET LOCAL ROLE service_role;
 
-  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'NAVER-ORD-1', 'status', 'paid', 'orderedAt', '2026-10-10T01:00:00Z',
-      'buyerName', 'Buyer', 'currency', 'KRW', 'totalAmount', 36000, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'PO-LINE-1', 'platformProductId', 'EXT-99', 'platformVariantId', null,
-        'productId', v_product_id, 'title', 'Coffee', 'quantity', 4, 'unitPrice', 9000, 'status', 'active'
-      ))
-    )
-  ));
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(v_payload));
   ASSERT (result->>'upserted')::integer = 1, 'initial upsert';
 
   SELECT o.id, ol.id INTO v_order_id, v_line_id
@@ -41,65 +44,30 @@ BEGIN
   ASSERT (SELECT quantity FROM order_lines WHERE id = v_line_id) = 4, 'quantity stored';
   ASSERT (SELECT unit_price FROM order_lines WHERE id = v_line_id) = 9000, 'unit price stored';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'NAVER-ORD-1', 'status', 'paid', 'orderedAt', '2026-10-10T01:00:00Z',
-      'buyerName', 'Buyer', 'currency', 'KRW', 'totalAmount', 36000, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'PO-LINE-1', 'platformProductId', 'EXT-99', 'platformVariantId', null,
-        'productId', v_product_id, 'title', 'Coffee', 'quantity', 4, 'unitPrice', 9000, 'status', 'active'
-      ))
-    )
-  ));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(v_payload));
   ASSERT (SELECT quantity FROM order_lines WHERE id = v_line_id) = 4, 'retry idempotent quantity';
   ASSERT (SELECT count(*) FROM product_stock_events WHERE event_type = 'order_fulfillment'
     AND reference_id = v_line_id) = 0, 'paid replay does not fulfill';
 
-  -- Simulate legacy degraded placeholder that the adapter no longer writes.
   UPDATE order_lines SET quantity = 1, unit_price = NULL, platform_product_id = NULL
   WHERE id = v_line_id;
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'NAVER-ORD-1', 'status', 'paid', 'orderedAt', '2026-10-10T01:00:00Z',
-      'buyerName', 'Buyer', 'currency', 'KRW', 'totalAmount', 36000, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'PO-LINE-1', 'platformProductId', 'EXT-99', 'platformVariantId', null,
-        'productId', v_product_id, 'title', 'Coffee', 'quantity', 4, 'unitPrice', 9000, 'status', 'active'
-      ))
-    )
-  ));
+  v_payload := jsonb_set(v_payload, '{status}', '"paid"');
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(v_payload));
   ASSERT (SELECT quantity FROM order_lines WHERE id = v_line_id) = 4, 'degraded line repaired';
   ASSERT (SELECT unit_price FROM order_lines WHERE id = v_line_id) = 9000, 'unit price repaired';
   ASSERT (SELECT platform_product_id FROM order_lines WHERE id = v_line_id) = 'EXT-99', 'platform product restored';
   ASSERT (SELECT product_id FROM order_lines WHERE id = v_line_id) = v_product_id, 'product_id preserved';
 
-  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'NAVER-ORD-1', 'status', 'shipped', 'orderedAt', '2026-10-10T01:00:00Z',
-      'buyerName', 'Buyer', 'currency', 'KRW', 'totalAmount', 36000, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'PO-LINE-1', 'platformProductId', 'EXT-99', 'platformVariantId', null,
-        'productId', v_product_id, 'title', 'Coffee', 'quantity', 4, 'unitPrice', 9000, 'status', 'active'
-      ))
-    )
-  ));
+  v_payload := jsonb_set(v_payload, '{status}', '"shipped"');
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(v_payload));
   ASSERT (result->>'autoFulfillments')::integer = 1, 'shipped auto-fulfills once';
 
   SELECT count(*) INTO event_count FROM product_stock_events
   WHERE event_type = 'order_fulfillment' AND reference_id = v_line_id;
   ASSERT event_count = 1, 'single fulfillment event';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    jsonb_build_object(
-      'platformOrderId', 'NAVER-ORD-1', 'status', 'shipped', 'orderedAt', '2026-10-10T01:00:00Z',
-      'buyerName', 'Buyer', 'currency', 'KRW', 'totalAmount', 36000, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'PO-LINE-1', 'platformProductId', 'EXT-99', 'platformVariantId', null,
-        'productId', v_product_id, 'title', 'Coffee', 'quantity', 4, 'unitPrice', 9000, 'status', 'active'
-      ))
-    )
-  ));
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(v_payload));
   ASSERT (SELECT count(*) FROM product_stock_events WHERE event_type = 'order_fulfillment'
     AND reference_id = v_line_id) = 1, 'shipped replay does not double-fulfill';
 END $$;

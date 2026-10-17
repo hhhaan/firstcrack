@@ -32,8 +32,8 @@ import {
     type NaverDispatchResponse,
     readNaverDispatchResult,
 } from './dispatch.ts';
+import { getLastChanged, NAVER_API_BASE, naverRequest, okStatus, toNaverDateTime } from './naver-http.ts';
 import { pollNaverOrders } from './naver-poll.ts';
-import { type HttpAttempt, naverThrottle, readHttpAttempt, withRetry } from './rate-limit.ts';
 import type {
     ChannelAdapter,
     ChannelSecrets,
@@ -45,21 +45,6 @@ import type {
     SecretsRotationSink,
     TestConnectionResult,
 } from './types.ts';
-
-const BASE = 'https://api.commerce.naver.com/external';
-
-/**
- * Single choke point for every Naver HTTP call, so 429 / gateway-5xx backoff exists in exactly one
- * place instead of at each call site. `readHttpAttempt` drains the body on every attempt — an
- * abandoned response body would leak across a retry.
- */
-async function naverRequest(url: URL | string, init?: RequestInit): Promise<HttpAttempt> {
-    return withRetry(() => fetch(url, init).then(readHttpAttempt), naverThrottle, { label: 'naver' });
-}
-
-function okStatus(attempt: HttpAttempt): boolean {
-    return attempt.status >= 200 && attempt.status < 300;
-}
 
 export interface NaverSecrets extends ChannelSecrets {
     client_id: string;
@@ -105,7 +90,7 @@ export async function exchangeNaverToken(clientId: string, clientSecret: string)
 
     // Safe to retry: `client_credentials` is stateless here — a re-issue mints an additional token
     // and revokes nothing, unlike Cafe24's refresh_token grant.
-    const res = await naverRequest(`${BASE}/v1/oauth2/token`, {
+    const res = await naverRequest(`${NAVER_API_BASE}/v1/oauth2/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
@@ -138,56 +123,6 @@ async function authorizedToken(secrets: ChannelSecrets, onRotate: SecretsRotatio
     const { token, refreshed } = await withToken(requireNaver(secrets));
     if (refreshed) await onRotate(refreshed);
     return token;
-}
-
-/** Official date-time example: 2023-01-16T17:14:51.794+09:00 — ISO-8601 with offset is accepted. */
-function toNaverDateTime(d: Date): string {
-    return d.toISOString().replace(/\.\d{3}Z$/, '.000+00:00');
-}
-
-type LastChangedRow = {
-    orderId?: string;
-    productOrderId?: string;
-    productOrderStatus?: string;
-    claimStatus?: string;
-    lastChangedDate?: string;
-    paymentDate?: string;
-};
-
-type LastChangedResponse = {
-    data?: {
-        lastChangeStatuses?: LastChangedRow[];
-        more?: { moreFrom?: string; moreSequence?: string | number };
-    };
-    lastChangeStatuses?: LastChangedRow[];
-    more?: { moreFrom?: string; moreSequence?: string | number };
-};
-
-async function getLastChanged(
-    token: string,
-    lastChangedFrom: string,
-    lastChangedTo?: string,
-    moreSequence?: string,
-): Promise<{ rows: LastChangedRow[]; moreFrom?: string; moreSequence?: string }> {
-    const url = new URL(`${BASE}/v1/pay-order/seller/product-orders/last-changed-statuses`);
-    url.searchParams.set('lastChangedFrom', lastChangedFrom);
-    if (lastChangedTo) url.searchParams.set('lastChangedTo', lastChangedTo);
-    if (moreSequence) url.searchParams.set('moreSequence', moreSequence);
-
-    const res = await naverRequest(url, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
-    if (!okStatus(res)) {
-        throw new Error(`naver last-changed ${res.status}: ${res.body.slice(0, 300)}`);
-    }
-    const json = JSON.parse(res.body) as LastChangedResponse;
-    const rows = json.data?.lastChangeStatuses ?? json.lastChangeStatuses ?? [];
-    const more = json.data?.more ?? json.more;
-    return {
-        rows,
-        moreFrom: more?.moreFrom,
-        moreSequence: more?.moreSequence != null ? String(more.moreSequence) : undefined,
-    };
 }
 
 export const naverAdapter: ChannelAdapter = {
@@ -227,7 +162,7 @@ export const naverAdapter: ChannelAdapter = {
         const body = buildNaverDispatchPayload(req);
         // Retries here are 429 / 502-504 only: the gateway rejected the call, so nothing was
         // dispatched. A plain 500 is never replayed — that one could have shipped already.
-        const res = await naverRequest(`${BASE}/v1/pay-order/seller/product-orders/dispatch`, {
+        const res = await naverRequest(`${NAVER_API_BASE}/v1/pay-order/seller/product-orders/dispatch`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${token}`,
