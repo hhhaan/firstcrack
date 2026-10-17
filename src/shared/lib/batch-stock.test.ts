@@ -7,6 +7,7 @@ import {
     isBatchStockShort,
     isRecurringHorizonStockShort,
     recurringHorizonGreenNeededGrams,
+    stockReservationUtcDateKey,
 } from './batch-stock';
 import { STOCK_HORIZON_DAYS } from './stock-calc';
 
@@ -25,6 +26,14 @@ const batch = (over: Partial<PlanBatchWithProgress> = {}): PlanBatchWithProgress
         exception_type: null,
         ...over,
     }) as PlanBatchWithProgress;
+
+describe('stockReservationUtcDateKey', () => {
+    it('uses UTC calendar date (not local/Seoul) for server CURRENT_DATE alignment', () => {
+        const instant = new Date('2026-10-18T16:30:00.000Z');
+        expect(stockReservationUtcDateKey(instant)).toBe('2026-10-18');
+        expect(instant.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })).toBe('2026-10-19');
+    });
+});
 
 describe('batchGreenNeededGramsFromBatch', () => {
     it('uses remaining sessions × size', () => {

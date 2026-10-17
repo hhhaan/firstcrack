@@ -200,14 +200,16 @@ export const AddBeanModal = ({
                     <div className="mb-4 rounded-md bg-amber-100 px-3 py-2 text-[12px] font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
                         {costUpdateFailed && <p>{t('addBeanModal.costUpdateFailed')}</p>}
                         {alertsFailed && <p>{t(alertsFailedKey)}</p>}
-                        <button
-                            type="button"
-                            className="mt-2 underline"
-                            disabled={isSubmitting}
-                            onClick={() => void retryAlerts()}
-                        >
-                            {t('addBeanModal.retryAlerts')}
-                        </button>
+                        {alertsFailed && (
+                            <button
+                                type="button"
+                                className="mt-2 underline"
+                                disabled={isSubmitting}
+                                onClick={() => void retryAlerts()}
+                            >
+                                {t('addBeanModal.retryAlerts')}
+                            </button>
+                        )}
                     </div>
                 )}
                 {tab === 'adjust' ? (
