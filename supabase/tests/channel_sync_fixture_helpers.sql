@@ -46,3 +46,47 @@ AS $$
     'lines', p_lines
   );
 $$;
+
+CREATE OR REPLACE FUNCTION pg_temp.sync_single_line_order(
+  p_owner uuid,
+  p_connection uuid,
+  p_platform_order_id text,
+  p_header_status text,
+  p_ordered_at text,
+  p_total_amount integer,
+  p_platform_line_id text,
+  p_product_id uuid,
+  p_quantity integer,
+  p_unit_price integer,
+  p_line_status text,
+  p_buyer_name text DEFAULT NULL,
+  p_title text DEFAULT 'Coffee'
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM sync_channel_orders_batch(
+    p_owner,
+    p_connection,
+    jsonb_build_array(
+      pg_temp.channel_fixture_order(
+        p_platform_order_id,
+        p_header_status,
+        p_ordered_at,
+        p_total_amount,
+        jsonb_build_array(
+          pg_temp.channel_fixture_line(
+            p_platform_line_id,
+            p_product_id,
+            p_quantity,
+            p_title,
+            p_unit_price,
+            p_line_status
+          )
+        ),
+        p_buyer_name
+      )
+    )
+  );
+END;
+$$;

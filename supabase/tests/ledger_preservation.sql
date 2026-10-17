@@ -67,20 +67,12 @@ BEGIN
   ) = 1, 'non-active line skipped for fulfillment';
 
   -- #890: qty 1 paid, then shipped with qty 3 must deduct 3; cancel restores 3 (stock 20).
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-change-1', 'paid', '2026-10-17T10:00:00Z', 1000,
-      jsonb_build_array(pg_temp.channel_fixture_line('line-1', v_product_id, 1, 'Coffee', 1000, 'active')),
-      'A'
-    )
-  ));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-change-1', 'shipped', '2026-10-17T10:00:00Z', 3000,
-      jsonb_build_array(pg_temp.channel_fixture_line('line-1', v_product_id, 3, 'Coffee', 1000, 'active')),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-change-1', 'paid', '2026-10-17T10:00:00Z', 1000,
+    'line-1', v_product_id, 1, 1000, 'active', 'A');
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-change-1', 'shipped', '2026-10-17T10:00:00Z', 3000,
+    'line-1', v_product_id, 3, 1000, 'active', 'A');
   SELECT id INTO v_order_id FROM orders WHERE platform_order_id = 'qty-change-1';
   SELECT id INTO line_id FROM order_lines WHERE order_lines.order_id = v_order_id AND platform_line_id = 'line-1';
   ASSERT (SELECT quantity FROM order_lines WHERE id = line_id) = 3, 'line quantity stored as 3';
@@ -89,25 +81,17 @@ BEGIN
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id;
   ASSERT stock_units = 17, 'stock after ship';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-change-1', 'cancelled', '2026-10-17T10:00:00Z', 0,
-      jsonb_build_array(pg_temp.channel_fixture_line('line-1', v_product_id, 3, 'Coffee', 0, 'cancelled')),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-change-1', 'cancelled', '2026-10-17T10:00:00Z', 0,
+    'line-1', v_product_id, 3, 0, 'cancelled', 'A');
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id;
   ASSERT stock_units = 20, 'cancel restores actual deducted units';
   ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_cancel') = 3,
     'cancel event matches fulfillment';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-change-1', 'cancelled', '2026-10-17T10:00:00Z', 0,
-      jsonb_build_array(pg_temp.channel_fixture_line('line-1', v_product_id, 3, 'Coffee', 0, 'cancelled')),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-change-1', 'cancelled', '2026-10-17T10:00:00Z', 0,
+    'line-1', v_product_id, 3, 0, 'cancelled', 'A');
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id;
   ASSERT stock_units = 20, 'double cancel is no-op';
 
@@ -117,20 +101,12 @@ BEGIN
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-drift-1', 'paid', '2026-10-17T12:00:00Z', 1000,
-      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 1, 'Coffee', 1000, 'active')),
-      'A'
-    )
-  ));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-drift-1', 'shipped', '2026-10-17T12:00:00Z', 1000,
-      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 1, 'Coffee', 1000, 'active')),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-drift-1', 'paid', '2026-10-17T12:00:00Z', 1000,
+    'drift-line', v_product_id2, 1, 1000, 'active', 'A');
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-drift-1', 'shipped', '2026-10-17T12:00:00Z', 1000,
+    'drift-line', v_product_id2, 1, 1000, 'active', 'A');
   SELECT id INTO v_order_id FROM orders WHERE platform_order_id = 'qty-drift-1';
   SELECT id INTO line_id FROM order_lines WHERE order_id = v_order_id AND platform_line_id = 'drift-line';
   ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_fulfillment') = -1,
@@ -138,36 +114,24 @@ BEGIN
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
   ASSERT stock_units = 19, 'stock after ship 1';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-drift-1', 'shipped', '2026-10-17T12:00:00Z', 3000,
-      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 1000, 'active')),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-drift-1', 'shipped', '2026-10-17T12:00:00Z', 3000,
+    'drift-line', v_product_id2, 3, 1000, 'active', 'A');
   ASSERT (SELECT quantity FROM order_lines WHERE id = line_id) = 3, 'line qty updated to 3';
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
   ASSERT stock_units = 19, 'no second fulfillment after already shipped';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-drift-1', 'cancelled', '2026-10-17T12:00:00Z', 0,
-      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 0, 'cancelled')),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-drift-1', 'cancelled', '2026-10-17T12:00:00Z', 0,
+    'drift-line', v_product_id2, 3, 0, 'cancelled', 'A');
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
   ASSERT stock_units = 20, 'sync cancel restores outstanding 1';
   ASSERT (SELECT delta_units FROM product_stock_events WHERE reference_id = line_id AND event_type = 'order_cancel') = 1,
     'sync cancel event is 1 not line qty';
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-drift-1', 'cancelled', '2026-10-17T12:00:00Z', 0,
-      jsonb_build_array(pg_temp.channel_fixture_line('drift-line', v_product_id2, 3, 'Coffee', 0, 'cancelled')),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-drift-1', 'cancelled', '2026-10-17T12:00:00Z', 0,
+    'drift-line', v_product_id2, 3, 0, 'cancelled', 'A');
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
   ASSERT stock_units = 20, 'repeated sync cancel no-op';
 
@@ -178,27 +142,15 @@ BEGIN
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id2, 20, 'roast_inbound');
 
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-drift-2', 'paid', '2026-10-17T12:30:00Z', 1000,
-      jsonb_build_array(pg_temp.channel_fixture_line('drift-line-2', v_product_id2, 1, 'Coffee', 1000, 'active')),
-      'A'
-    )
-  ));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-drift-2', 'shipped', '2026-10-17T12:30:00Z', 1000,
-      jsonb_build_array(pg_temp.channel_fixture_line('drift-line-2', v_product_id2, 1, 'Coffee', 1000, 'active')),
-      'A'
-    )
-  ));
-  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
-    pg_temp.channel_fixture_order(
-      'qty-drift-2', 'shipped', '2026-10-17T12:30:00Z', 3000,
-      jsonb_build_array(pg_temp.channel_fixture_line('drift-line-2', v_product_id2, 3, 'Coffee', 1000, 'active')),
-      'A'
-    )
-  ));
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-drift-2', 'paid', '2026-10-17T12:30:00Z', 1000,
+    'drift-line-2', v_product_id2, 1, 1000, 'active', 'A');
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-drift-2', 'shipped', '2026-10-17T12:30:00Z', 1000,
+    'drift-line-2', v_product_id2, 1, 1000, 'active', 'A');
+  PERFORM pg_temp.sync_single_line_order(
+    owner_id, connection_id, 'qty-drift-2', 'shipped', '2026-10-17T12:30:00Z', 3000,
+    'drift-line-2', v_product_id2, 3, 1000, 'active', 'A');
   SELECT id INTO v_order_id FROM orders WHERE platform_order_id = 'qty-drift-2';
   SELECT id INTO line_id FROM order_lines WHERE order_id = v_order_id AND platform_line_id = 'drift-line-2';
   SELECT COALESCE(SUM(delta_units), 0)::integer INTO stock_units FROM product_stock_events WHERE product_id = v_product_id2;
