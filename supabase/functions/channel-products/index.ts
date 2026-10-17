@@ -17,6 +17,10 @@ import {
     serviceClient,
 } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
+import {
+    acquireConnectionRunLock,
+    releaseRunLock,
+} from '../_shared/channels/run-lock.ts';
 import { loadSecretsSession } from '../_shared/channels/secrets-session.ts';
 import { captureEdgeException, respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
@@ -50,12 +54,27 @@ serveWithSentry('channel-products', async (req) => {
     const ownerId = await resolveWorkspaceOwner(req, conn.user_id, user.id);
     if (!ownerId) return jsonResponse({ error: 'Forbidden' }, 403);
 
+    const lock = await acquireConnectionRunLock(admin, {
+        connectionId: conn.id,
+        userId: conn.user_id,
+        trigger: 'products',
+    });
+    if (!lock.ok) {
+        if (lock.conflict) return jsonResponse({ error: 'another run in progress' }, 409);
+        return respondServerError('channel-products', 'Failed to acquire run lock', new Error(lock.error));
+    }
+
+    let outcome: { status: 'success' | 'error'; errorMessage?: string } = {
+        status: 'error',
+        errorMessage: 'list products failed',
+    };
     try {
         const session = await loadSecretsSession(admin, conn.id);
         const adapter = getAdapter(conn.platform);
         const refreshed = await adapter.refreshAuth(session.current());
         if (refreshed) await session.rotate(refreshed);
         const listings = await adapter.listProducts(session.current(), session.rotate);
+        outcome = { status: 'success' };
         return jsonResponse({ platform: conn.platform, listings });
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -66,5 +85,7 @@ serveWithSentry('channel-products', async (req) => {
             tags: { platform: conn.platform },
         });
         return jsonResponse({ error: 'Failed to list products' }, 502);
+    } finally {
+        await releaseRunLock(admin, lock.runId, outcome);
     }
 });

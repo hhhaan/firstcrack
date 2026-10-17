@@ -857,6 +857,42 @@ export type Database = {
                     },
                 ];
             };
+            order_sync_scheduler_ticks: {
+                Row: {
+                    created_at: string;
+                    dispatched_count: number;
+                    dispatches: Json;
+                    due_count: number;
+                    id: string;
+                    oldest_last_polled_at: string | null;
+                    overdue_count: number;
+                    skipped_locked_count: number;
+                    status: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    dispatched_count?: number;
+                    dispatches?: Json;
+                    due_count?: number;
+                    id?: string;
+                    oldest_last_polled_at?: string | null;
+                    overdue_count?: number;
+                    skipped_locked_count?: number;
+                    status: string;
+                };
+                Update: {
+                    created_at?: string;
+                    dispatched_count?: number;
+                    dispatches?: Json;
+                    due_count?: number;
+                    id?: string;
+                    oldest_last_polled_at?: string | null;
+                    overdue_count?: number;
+                    skipped_locked_count?: number;
+                    status?: string;
+                };
+                Relationships: [];
+            };
             order_sync_runs: {
                 Row: {
                     connection_id: string | null;

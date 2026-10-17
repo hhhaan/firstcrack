@@ -74,19 +74,23 @@ export async function reclaimStaleRuns(admin: RunLockClient): Promise<void> {
     }
 }
 
-export type AcquireDispatchRunLockResult =
+export type ConnectionRunTrigger = 'cron' | 'manual' | 'dispatch' | 'products';
+
+export type AcquireConnectionRunLockResult =
     | { ok: true; runId: string }
     | { ok: false; conflict: true }
     | { ok: false; conflict: false; error: string };
 
+/** @deprecated alias — use {@link AcquireConnectionRunLockResult}. */
+export type AcquireDispatchRunLockResult = AcquireConnectionRunLockResult;
+
 /**
- * Take the same per-connection lock order-sync uses, with `trigger: 'dispatch'`.
- * Reclaims stale cron/manual/dispatch runs first so a dead row cannot block us.
+ * Insert the per-connection `running` row (partial unique index). Reclaims stale runs first.
  */
-export async function acquireDispatchRunLock(
+export async function acquireConnectionRunLock(
     admin: RunLockClient,
-    args: { connectionId: string; userId: string },
-): Promise<AcquireDispatchRunLockResult> {
+    args: { connectionId: string; userId: string; trigger: ConnectionRunTrigger },
+): Promise<AcquireConnectionRunLockResult> {
     await reclaimStaleRuns(admin);
 
     const { data: run, error: runErr } = await admin
@@ -94,7 +98,7 @@ export async function acquireDispatchRunLock(
         .insert({
             connection_id: args.connectionId,
             user_id: args.userId,
-            trigger: 'dispatch',
+            trigger: args.trigger,
             status: 'running',
         })
         .select('id')
@@ -105,7 +109,7 @@ export async function acquireDispatchRunLock(
             await admin.from('order_sync_runs').insert({
                 connection_id: args.connectionId,
                 user_id: args.userId,
-                trigger: 'dispatch',
+                trigger: args.trigger,
                 status: 'skipped',
                 finished_at: new Date().toISOString(),
                 error_message: 'another run in progress',
@@ -116,6 +120,17 @@ export async function acquireDispatchRunLock(
     }
 
     return { ok: true, runId: run.id };
+}
+
+/**
+ * Take the same per-connection lock order-sync uses, with `trigger: 'dispatch'`.
+ * Reclaims stale cron/manual/dispatch runs first so a dead row cannot block us.
+ */
+export async function acquireDispatchRunLock(
+    admin: RunLockClient,
+    args: { connectionId: string; userId: string },
+): Promise<AcquireDispatchRunLockResult> {
+    return acquireConnectionRunLock(admin, { ...args, trigger: 'dispatch' });
 }
 
 export type ReleaseRunLockOutcome = {

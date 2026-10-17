@@ -12,8 +12,9 @@
  *   Shopify  HTTP **200** + `errors[].extensions.code = "THROTTLED"`, wait derived from
  *            `extensions.cost.throttleStatus`.
  *
- * Waiting is capped per step *and* in total, because an Edge Function has a wall clock (order-sync
- * budgets 90s for up to 25 connections). Exceeding a cap raises `RateLimitError` rather than
+ * Waiting is capped per step *and* in total, because an Edge Function has a wall clock (manual
+ * sync-all budgets 90s for up to 25 connections; cron is one connection per invocation). Exceeding
+ * a cap raises `RateLimitError` rather than
  * sleeping on or — worse — returning a throttled response as if it were data: order-sync only
  * writes `poll_cursor` on its success path, so propagating the failure is what keeps the watermark
  * from advancing over a window the platform refused to serve.
