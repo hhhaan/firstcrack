@@ -11,26 +11,19 @@
  * `sales_channel_secrets` upsert and could overwrite another tenant's
  * credentials (issue #122).
  */
-import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
     corsHeaders,
     getAuthenticatedUser,
     jsonResponse,
     resolveWorkspaceOwner,
+    serviceClient,
 } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { pickConnectCredentials } from '../_shared/channels/connect-credentials.ts';
 import type { ChannelSecrets, Platform } from '../_shared/channels/types.ts';
-import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
+import { captureEdgeException, respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 const PLATFORMS = new Set(['naver', 'cafe24', 'shopify']);
-
-function serviceClient() {
-    return createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
-}
 
 function validateCredentials(platform: Platform, credentials: ChannelSecrets): string | null {
     if (platform === 'naver') {
@@ -110,20 +103,21 @@ serveWithSentry('channel-connect', async (req) => {
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('[channel-connect] test failed', platform, msg);
-        return jsonResponse({ error: `Connection test failed: ${msg}` }, 400);
+        return jsonResponse({ error: 'Connection test failed' }, 400);
     }
 
     const admin = serviceClient();
     const now = new Date().toISOString();
 
     // Upsert connection by (workspace owner, platform, shop_identifier)
-    const { data: existing } = await admin
+    const { data: existing, error: existingError } = await admin
         .from('sales_channel_connections')
         .select('id')
         .eq('user_id', ownerId)
         .eq('platform', platform)
         .eq('shop_identifier', shopIdentifier)
         .maybeSingle();
+    if (existingError) return respondServerError('channel-connect', 'Failed to load connection', existingError);
 
     let connectionId: string;
 
@@ -135,11 +129,12 @@ serveWithSentry('channel-connect', async (req) => {
         // over what is stored — otherwise an omitted optional field such as
         // `webhook_secret` is wiped and every later webhook fails HMAC.
         // Clearing a stored secret therefore requires disconnect + reconnect.
-        const { data: storedSecrets } = await admin
+        const { data: storedSecrets, error: secretsError } = await admin
             .from('sales_channel_secrets')
             .select('credentials')
             .eq('connection_id', connectionId)
             .maybeSingle();
+        if (secretsError) return respondServerError('channel-connect', 'Failed to load credentials', secretsError);
         if (storedSecrets?.credentials) {
             secretsToStore = { ...(storedSecrets.credentials as ChannelSecrets), ...secretsToStore };
         }

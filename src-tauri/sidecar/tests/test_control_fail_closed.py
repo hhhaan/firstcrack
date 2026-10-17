@@ -26,7 +26,6 @@ NOOP_ROASTERS = (
     ("kaleido", "kaleido"),
     ("custom_modbus", "modbus"),
     ("custom_phidget", "phidget"),
-    ("custom_probat_ws", "probat_ws"),
 )
 
 NOOP_ADAPTERS = (
@@ -97,6 +96,78 @@ class TestNoopProtocolControl:
 
         with pytest.raises(ControlUnavailable):
             await manager.control(heater=50)
+
+
+class TestProbatWsWriteMap:
+    async def test_min_max_only_map_is_not_writable(self, client):
+        with (
+            patch.object(ProbatWSAdapter, "connect", new_callable=AsyncMock),
+            patch.object(ProbatWSAdapter, "disconnect", new_callable=AsyncMock),
+        ):
+            connected = await client.post(
+                "/connect",
+                json={"roaster": "custom_probat_ws", "write_map": _CLIENT_WRITE_MAP},
+            )
+            assert connected.status == 200
+            resp = await client.post("/control", json={"heater": 50})
+            assert resp.status == 409
+
+    def test_registry_presets_are_writable(self, manager):
+        for key in ("probat_ws", "probat_sample_ws", "probat_gug_control_s7"):
+            reg = ROASTER_REGISTRY[key]
+            manager._connected = True
+            manager._protocol = reg["protocol"]
+            manager._roaster_key = key
+            manager._merged_params = dict(reg["default_params"])
+            assert "heater" in manager.write_limits()
+            assert manager.status()["control"]["writable"] is True
+
+    async def test_set_control_params_uses_artisan_nodes(self):
+        adapter = ProbatWSAdapter(write_map=ROASTER_REGISTRY["probat_ws"]["default_params"]["write_map"])
+        sent: list[str] = []
+
+        class FakeWs:
+            async def send(self, raw: str) -> None:
+                sent.append(raw)
+
+        adapter._ws = FakeWs()
+        adapter._connected = True
+        await adapter.control(heater=40, fan=10)
+        payloads = [__import__("json").loads(raw) for raw in sent]
+        assert [item["params"] for item in payloads] == [{"burner": 40}, {"exhaustFan": 10}]
+        assert all(item["command"] == "setControlParams" for item in payloads)
+
+    async def test_control_without_socket_does_not_succeed(self):
+        adapter = ProbatWSAdapter(write_map=ROASTER_REGISTRY["probat_ws"]["default_params"]["write_map"])
+        with pytest.raises(ConnectionError):
+            await adapter.control(heater=40)
+
+    async def test_control_send_failure_closes_connection(self):
+        adapter = ProbatWSAdapter(write_map=ROASTER_REGISTRY["probat_ws"]["default_params"]["write_map"])
+        socket = AsyncMock()
+        socket.send.side_effect = OSError("write failed")
+        adapter._ws = socket
+        adapter._connected = True
+
+        with pytest.raises(ConnectionError):
+            await adapter.control(heater=40)
+
+        socket.close.assert_awaited_once()
+        assert adapter._ws is None
+        assert adapter.connected is False
+
+
+@pytest.mark.parametrize(
+    "role,offset,minimum,maximum,unit",
+    [("heater", 80, 0, 100, "%"), ("fan", 64, 25, 100, "%"), ("drum", 72, 25, 60, "RPM")],
+)
+def test_probat_gug_control_s7_write_map(role, offset, minimum, maximum, unit):
+    params = ROASTER_REGISTRY["probat_gug_control_s7"]["default_params"]
+    spec = params["write_map"][role]
+    assert (spec["db"], spec["offset"], spec["type"], spec["div"]) == (200, offset, 0, 0)
+    assert (spec["min"], spec["max"], spec["unit"]) == (minimum, maximum, unit)
+    read = next(channel for channel in params["channels"] if channel["role"] == role)
+    assert (read["db"], read["offset"]) == (spec["db"], spec["offset"])
 
 
 class TestWritableHonorsProtocol:

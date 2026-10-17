@@ -101,6 +101,19 @@ describe('claimWebhookEventRun', () => {
         expect(result).toEqual({ ok: true, runId: 'run-1' });
     });
 
+    it('surfaces lookup errors after 23505 instead of acking duplicate', async () => {
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: null, error: { message: 'db timeout' } },
+        });
+        const result = await claimWebhookEventRun(admin, {
+            connectionId: 'conn-1',
+            userId: 'user-1',
+            externalEventId: 'evt-1',
+        });
+        expect(result).toEqual({ ok: false, duplicate: false, error: 'db timeout' });
+    });
+
     it('23505 on a fresh running row → duplicate', async () => {
         const recent = new Date().toISOString();
         const { admin } = mockWebhookRuns({

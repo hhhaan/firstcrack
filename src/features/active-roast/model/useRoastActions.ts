@@ -78,7 +78,7 @@ export const useRoastActions = ({
                     note: tp.fallback ? 'Turning Point (fallback timeout)' : 'Turning Point detected',
                 };
                 const next = idx === -1 ? [...prev, newEntry] : prev.map((e, i) => (i === idx ? newEntry : e));
-                return next.sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+                return next.sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
             });
         },
         [unit, setLogEntries],

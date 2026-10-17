@@ -176,10 +176,9 @@ def test_w6a_pro_aset_confirms_fan_owns_register_24() -> None:
     assert "PID_area=0" in text
 
 
-def test_non_giesen_s7_has_no_write_map() -> None:
-    """write_map 부재 = 쓰기 미지원. Probat은 쓰기 맵을 검증한 적이 없다."""
-    for key in ("probat_gug_s7", "probat_gug_control_s7"):
-        assert "write_map" not in ROASTER_REGISTRY[key]["default_params"]
+def test_read_only_probat_s7_has_no_write_map() -> None:
+    """G/UG 읽기 전용 프리셋은 G/UG Control의 쓰기 맵을 공유하지 않는다."""
+    assert "write_map" not in ROASTER_REGISTRY["probat_gug_s7"]["default_params"]
 
 
 @pytest.mark.asyncio

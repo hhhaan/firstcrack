@@ -7,7 +7,7 @@
  *
  * Shopify headers: X-Shopify-Shop-Domain, X-Shopify-Hmac-Sha256, X-Shopify-Topic,
  *                  X-Shopify-Webhook-Id (idempotency key)
- * Cafe24: mall_id in payload; x-cafe24-webhook-secret / x-webhook-secret vs CAFE24_WEBHOOK_SECRET
+ * Cafe24: mall_id in payload; X-API-Key vs stored webhook verification code
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { mapCafe24Order } from '../_shared/channels/cafe24.ts';
@@ -18,6 +18,7 @@ import {
     claimWebhookEventRun,
     completeWebhookEventRun,
     releaseWebhookEventClaim,
+    type WebhookEventRunClient,
 } from '../_shared/channels/webhook-event-run.ts';
 import { shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
@@ -215,6 +216,16 @@ serveWithSentry('order-webhook', async (req) => {
                     },
                     [order],
                 );
+                const { error: runError } = await admin
+                    .from('order_sync_runs')
+                    .update({
+                        status: 'success',
+                        finished_at: new Date().toISOString(),
+                        orders_upserted: 1,
+                    })
+                    .eq('id', run.id);
+
+                if (runError) throw new Error('Failed to finish webhook run', { cause: runError });
             } catch (e) {
                 // Release the idempotency key so the platform retry is processed.
                 const msg = e instanceof Error ? e.message : String(e);
@@ -229,15 +240,6 @@ serveWithSentry('order-webhook', async (req) => {
                     .eq('id', run.id);
                 throw e;
             }
-
-            await admin
-                .from('order_sync_runs')
-                .update({
-                    status: 'success',
-                    finished_at: new Date().toISOString(),
-                    orders_upserted: 1,
-                })
-                .eq('id', run.id);
 
             return jsonResponse({ ok: true, upserted: 1 });
         }
@@ -276,15 +278,9 @@ serveWithSentry('order-webhook', async (req) => {
             if (creds.webhook_secret) cafe24Secret = creds.webhook_secret;
         }
 
-        // Cafe24 authenticates webhooks with `X-API-Key` (issue #132 C1). Reading
-        // only x-cafe24-webhook-secret / x-webhook-secret — names Cafe24 never
-        // sends — left the header permanently null, so fail-closed rejected 100%
-        // of deliveries. Those names stay as a fallback for manual relays.
-        //
-        // UNVERIFIED: what the X-API-Key *value* is (app key vs. a developer-set
-        // secret) could not be confirmed against Cafe24's official docs, so it is
-        // compared against our stored shared secret. Confirm against live traffic
-        // before treating Cafe24 push ingest as working.
+        // Cafe24 sends its webhook verification code in X-API-Key (not the OAuth client secret).
+        // https://developers.cafe24.com/en/app/front/app/develop/webhook/manage
+        // Legacy header names remain available for manual relays.
         //
         // fail-closed: 헤더 또는 시크릿 부재 = 검증 불가 = 거부.
         const cafe24Header =
@@ -325,7 +321,8 @@ serveWithSentry('order-webhook', async (req) => {
         if (!order) return jsonResponse({ ok: true, skipped: 'unparseable' });
 
         const externalEventId = await cafe24WebhookEventKey(payload, rawBody);
-        const claim = await claimWebhookEventRun(admin, {
+        const runs = admin as unknown as WebhookEventRunClient;
+        const claim = await claimWebhookEventRun(runs, {
             connectionId: conn.id,
             userId: conn.user_id,
             externalEventId,
@@ -350,11 +347,11 @@ serveWithSentry('order-webhook', async (req) => {
             );
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
-            await releaseWebhookEventClaim(admin, claim.runId, msg);
+            await releaseWebhookEventClaim(runs, claim.runId, msg);
             throw e;
         }
 
-        await completeWebhookEventRun(admin, claim.runId, 1);
+        await completeWebhookEventRun(runs, claim.runId, 1);
 
         return jsonResponse({ ok: true, upserted: 1 });
     } catch (e) {

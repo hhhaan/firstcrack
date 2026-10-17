@@ -6,7 +6,8 @@ import { showMutationErrorToast } from './mutationErrorToast';
 export const createAppQueryClient = () =>
     new QueryClient({
         queryCache: new QueryCache({
-            onError: (error, query) => reportReactQueryError(error, query.meta as Record<string, unknown>),
+            onError: (error, query) =>
+                reportReactQueryError(error, query.meta as Record<string, unknown>, query.queryKey),
         }),
         mutationCache: new MutationCache({
             onError: (error, _variables, _onMutateResult, mutation) => {

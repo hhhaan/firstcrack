@@ -1,8 +1,8 @@
 import { createDevicePreference } from '@shared/lib/device-preference';
 
 export const SIDEBAR_GROUPS = [
-    { labelKey: 'sidebar.groups.operations', ids: ['dashboard', 'schedule', 'beans', 'orders', 'pricing'] },
-    { labelKey: 'sidebar.groups.roasting', ids: ['roast', 'history', 'profiles', 'machines', 'cupping'] },
+    { labelKey: 'sidebar.groups.operations', ids: ['dashboard', 'beans', 'orders', 'pricing'] },
+    { labelKey: 'sidebar.groups.roasting', ids: ['schedule', 'roast', 'history', 'profiles', 'cupping', 'machines'] },
 ] as const;
 
 export type SidebarNavId = (typeof SIDEBAR_GROUPS)[number]['ids'][number];
@@ -12,6 +12,18 @@ const GROUP_INDEX = new Map<string, number>(
 );
 
 const DEFAULT_ORDER: SidebarNavId[] = SIDEBAR_GROUPS.flatMap((group) => [...group.ids]);
+const LEGACY_DEFAULT_ORDER = [
+    'dashboard',
+    'schedule',
+    'beans',
+    'orders',
+    'pricing',
+    'roast',
+    'history',
+    'profiles',
+    'machines',
+    'cupping',
+];
 
 type SidebarPreferences = { collapsed: boolean; order: SidebarNavId[]; hidden: SidebarNavId[] };
 
@@ -35,7 +47,12 @@ export const normalizeSidebarPreferences = (raw: unknown): SidebarPreferences =>
         raw !== null && typeof raw === 'object'
             ? (raw as { collapsed?: unknown; order?: unknown; hidden?: unknown })
             : {};
-    const kept = readIds(data.order);
+    const savedOrder = readIds(data.order);
+    const kept =
+        savedOrder.length === LEGACY_DEFAULT_ORDER.length &&
+        savedOrder.every((id, index) => id === LEGACY_DEFAULT_ORDER[index])
+            ? DEFAULT_ORDER
+            : savedOrder;
     const byGroup = SIDEBAR_GROUPS.map(() => [] as SidebarNavId[]);
     for (const id of kept) {
         const index = GROUP_INDEX.get(id);

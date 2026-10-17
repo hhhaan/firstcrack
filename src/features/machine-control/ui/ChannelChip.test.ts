@@ -19,7 +19,6 @@ const renderChip = (overrides: Partial<Parameters<typeof ChannelChip>[0]> = {}) 
                 limit: { min: 0, max: 100, unit: '%' },
                 value: 80,
                 feedback: 80,
-                unacknowledged: false,
                 disabled: false,
                 onChange,
                 onCommit,

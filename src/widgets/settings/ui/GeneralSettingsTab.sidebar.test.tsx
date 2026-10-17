@@ -63,22 +63,23 @@ describe('GeneralSettingsTab sidebar order', () => {
     });
 
     it('moves one step inside a group and resets to the default order', () => {
-        expect(moveButton('Up', 'roast').disabled).toBe(true);
-        expect(moveButton('Down', 'cupping').disabled).toBe(true);
+        expect(moveButton('Up', 'schedule').disabled).toBe(true);
+        expect(moveButton('Down', 'machines').disabled).toBe(true);
         expect(moveButton('Up', 'dashboard').disabled).toBe(true);
         expect(moveButton('Down', 'pricing').disabled).toBe(true);
 
         act(() => moveButton('Down', 'roast').click());
 
-        expect(groupItems('sidebar.groups.roasting')).toEqual(['history', 'roast', 'profiles', 'machines', 'cupping']);
-        expect(groupItems('sidebar.groups.operations')).toEqual([
-            'dashboard',
+        expect(groupItems('sidebar.groups.roasting')).toEqual([
             'schedule',
-            'beans',
-            'orders',
-            'pricing',
+            'history',
+            'roast',
+            'profiles',
+            'cupping',
+            'machines',
         ]);
-        expect(moveButton('Up', 'history').disabled).toBe(true);
+        expect(groupItems('sidebar.groups.operations')).toEqual(['dashboard', 'beans', 'orders', 'pricing']);
+        expect(moveButton('Up', 'history').disabled).toBe(false);
         expect(moveButton('Down', 'roast').disabled).toBe(false);
 
         act(() => {
@@ -88,14 +89,15 @@ describe('GeneralSettingsTab sidebar order', () => {
             reset?.click();
         });
 
-        expect(groupItems('sidebar.groups.roasting')).toEqual(['roast', 'history', 'profiles', 'machines', 'cupping']);
-        expect(groupItems('sidebar.groups.operations')).toEqual([
-            'dashboard',
+        expect(groupItems('sidebar.groups.roasting')).toEqual([
             'schedule',
-            'beans',
-            'orders',
-            'pricing',
+            'roast',
+            'history',
+            'profiles',
+            'cupping',
+            'machines',
         ]);
+        expect(groupItems('sidebar.groups.operations')).toEqual(['dashboard', 'beans', 'orders', 'pricing']);
     });
 
     it('hides an item and shows it again on reset', () => {

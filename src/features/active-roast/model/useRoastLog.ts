@@ -84,7 +84,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
                     ...(drum ? { drum } : {}),
                 };
 
-                return [...prev, newEntry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+                return [...prev, newEntry].sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
             });
 
             if (!isRemoval && buttonLabel) {

@@ -53,7 +53,6 @@ const mount = async (props: { replay?: Replay; unit?: 'C' | 'F'; heaterUnit?: st
                     props.folded
                         ? createElement(CollapsedControlStatus, {
                               pidState: 'off',
-                              anyUnacknowledged: false,
                               replay: next.replay ?? baseReplay(),
                           })
                         : createElement(ReplayControlPanel, {

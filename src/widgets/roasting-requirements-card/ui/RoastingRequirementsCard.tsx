@@ -1,5 +1,5 @@
 import { useBeans } from '@entities/bean';
-import { useRoastingRequirements } from '@entities/order';
+import { type RoastingRequirements, useRoastingRequirements } from '@entities/order';
 import { useActiveWorkspace } from '@entities/organization';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { Flame } from 'lucide-react';
@@ -18,7 +18,18 @@ export const RoastingRequirementsCard = () => {
         return (id: string) => map.get(id) ?? id.slice(0, 8);
     }, [beans]);
 
-    const beanRows = (req?.beans ?? []).filter((b) => b.green_grams_needed > 0);
+    // The RPC emits one row per (bean, profile) and joins the bean's whole stock onto each.
+    // Sum the shortfall per bean; every row carries the same stock, so one is enough.
+    const beanRows = useMemo(() => {
+        const byBean = new Map<string, RoastingRequirements['beans'][number]>();
+        for (const row of req?.beans ?? []) {
+            if (row.green_grams_needed <= 0) continue;
+            const merged = byBean.get(row.bean_id);
+            if (merged) merged.green_grams_needed += row.green_grams_needed;
+            else byBean.set(row.bean_id, { ...row });
+        }
+        return [...byBean.values()];
+    }, [req?.beans]);
 
     return (
         <div className="rounded-xl border border-border-subtle bg-main-bg p-5 dark:border-[#585d61]">
@@ -59,7 +70,7 @@ export const RoastingRequirementsCard = () => {
                             const short = b.green_grams_needed > b.green_available;
                             return (
                                 <tr
-                                    key={`${b.bean_id}-${b.roast_profile_id ?? 'none'}`}
+                                    key={b.bean_id}
                                     className="border-b border-border-subtle last:border-0 dark:border-[#585d61]"
                                 >
                                     <td className="py-2.5 text-[13px] font-medium text-primary">

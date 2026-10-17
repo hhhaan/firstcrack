@@ -78,7 +78,7 @@ export async function claimWebhookEventRun(
             status: 500,
             tags: { step: 'webhook-claim-lookup' },
         });
-        return { ok: false, duplicate: true };
+        return { ok: false, duplicate: false, error: fetchErr.message ?? 'claim lookup failed' };
     }
 
     if (!existing || existing.status !== 'running' || existing.started_at >= staleBefore) {

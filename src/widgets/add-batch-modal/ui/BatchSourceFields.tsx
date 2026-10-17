@@ -77,7 +77,7 @@ export const BatchSourceFields = ({
                 {batchType === 'Single Origin' ? (
                     <>
                         <label className={labelCls}>
-                            <Package size={12} /> Green Coffee Lot
+                            <Package size={12} /> {t('addBatchModal.greenCoffeeLot')}
                         </label>
                         <SearchableSelect
                             menuId="source"

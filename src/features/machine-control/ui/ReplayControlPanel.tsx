@@ -27,11 +27,9 @@ const replayStatus = (active: boolean, observationHold: boolean) => {
 // 맵에 없으면 렌더 생략. 중지는 useReplayControl이 그대로 한다.
 const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
     disconnected: '연결 끊김으로 재생 중지',
-    unacknowledged: '명령 미반영으로 재생 중지',
     unwritable: '히터 제어 불가로 재생 중지',
     manual: '수동 조작으로 재생 중지',
     profileChanged: '프로파일 변경으로 재생 중지',
-    controlDiverged: '화력이 재생 지시에서 벗어나 재생 중지',
     timingGap: '화면이 멈췄던 동안 재생 중지 — 현재 화력을 확인하세요',
     writeFailed: '화력 명령 전송 실패로 재생 중지 — 현재 화력을 확인하세요',
     observationStale: '온도 데이터가 끊겨 재생 중지 — 현재 화력을 확인하세요',
@@ -54,7 +52,7 @@ const replayDisabledHint = (
     if (replay.missingHeatSet) return t('activeRoast.replay.missingHeatSet');
     if (!replay.available) return t('activeRoast.replay.invalidPlan');
     if (!replay.active && replay.blocked) {
-        return '지금은 켤 수 없습니다 — 배출됐거나 화력 명령이 아직 반영되지 않았습니다';
+        return '지금은 켤 수 없습니다 — 배출 여부와 기기 연결·히터 제어 상태를 확인하세요';
     }
     return undefined;
 };
@@ -192,8 +190,8 @@ const ReplayPanelMessages = ({
                         role="tooltip"
                         className="pointer-events-none absolute bottom-full left-0 right-0 z-10 mb-1 hidden rounded-md border border-border-subtle bg-surface-elevated p-2 leading-snug text-secondary group-hover:block"
                     >
-                        재생 중에는 자리를 비우지 마세요 — 화력이 재생 지시에서 계속 벗어나면 자동 중지됩니다. 수동
-                        조절은 체크 해제 후 하세요. 기센은 본체 Auto를 Manual로 두어야 합니다.
+                        재생 중에는 자리를 비우지 마세요. 수동 조절은 체크 해제 후 하세요. 기기 조작반에서 바꾼 화력은
+                        다음 재생 명령으로 덮일 수 있습니다. 기센은 본체 Auto를 Manual로 두어야 합니다.
                     </span>
                 </div>
             )}

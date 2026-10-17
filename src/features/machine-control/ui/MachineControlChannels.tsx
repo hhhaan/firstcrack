@@ -15,7 +15,6 @@ export const MachineControlChannels = ({
     limits,
     desired,
     liveData,
-    unacknowledged,
     writable,
     sending,
     pidHoldsHeater,
@@ -26,7 +25,6 @@ export const MachineControlChannels = ({
     limits: ControlCapability['limits'];
     desired: ControlCommand;
     liveData: { heater: number | null; fan: number; drum: number } | null;
-    unacknowledged: Set<ControlRole>;
     writable: boolean;
     sending: boolean;
     pidHoldsHeater: boolean;
@@ -42,7 +40,6 @@ export const MachineControlChannels = ({
                     limit={limits.heater ?? {}}
                     value={limits.heater != null ? desired.heater : undefined}
                     feedback={limits.heater != null && liveData ? liveData.heater : null}
-                    unacknowledged={limits.heater != null && unacknowledged.has('heater')}
                     disabled={!writable || limits.heater == null || pidHoldsHeater || replayActive}
                     unsupported={limits.heater == null}
                     sending={sending}
@@ -61,7 +58,6 @@ export const MachineControlChannels = ({
                                 limit={limits[role] ?? {}}
                                 value={desired[role]}
                                 feedback={liveData ? liveData[role] : null}
-                                unacknowledged={unacknowledged.has(role)}
                                 disabled={!writable}
                                 onChange={onChange}
                                 onCommit={onCommit}
@@ -87,7 +83,6 @@ export const MachineControlChannels = ({
                         limit={limits[role] ?? {}}
                         value={supported ? desired[role] : undefined}
                         feedback={supported && liveData ? liveData[role] : null}
-                        unacknowledged={supported && unacknowledged.has(role)}
                         disabled={!writable || !supported || lockedByPid || lockedByReplay}
                         unsupported={!supported}
                         lockedNote={!supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined}

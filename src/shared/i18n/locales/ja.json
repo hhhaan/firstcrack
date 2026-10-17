@@ -127,7 +127,7 @@
             "orders": "注文"
         },
         "groups": {
-            "roasting": "焙煎",
+            "roasting": "焙煎・品質",
             "operations": "運営"
         }
     },
@@ -1196,7 +1196,6 @@
             "apply": "背景として表示"
         },
         "review": {
-            "title": "完了した焙煎を確認",
             "return": "待機画面に戻る"
         }
     },
@@ -2298,5 +2297,15 @@
         "showHidden": "非表示の項目を表示",
         "hide": "{{name}}を非表示",
         "restore": "{{name}}を再表示"
+    },
+    "themeSelect": {
+        "title": "テーマを選択してください",
+        "description": "ワークスペース設定からいつでも変更できます。",
+        "light": "ライト",
+        "lightDesc": "明るくすっきりした画面",
+        "dark": "ダーク",
+        "darkDesc": "目に優しい画面",
+        "system": "システム",
+        "systemDesc": "OS設定に合わせる"
     }
 }

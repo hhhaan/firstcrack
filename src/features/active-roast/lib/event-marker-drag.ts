@@ -100,7 +100,7 @@ export function upsertReviewTurningPoint(
         tempC: nearest.bt,
         note: '',
     };
-    return [...entries, next].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+    return [...entries, next].sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
 }
 
 /**
@@ -122,9 +122,12 @@ export function applyEventMarkerEdit(
 
     const nextTemp = patch.tempC;
     const hasTemp = nextTemp !== undefined;
+    const nearTimeSec = patch.timeSec ?? logEntryTimeSec(target);
     const nextTimeSec =
         nextTemp !== undefined
-            ? liveTimeAtTemperature(livePoints, nextTemp, patch.timeSec ?? logEntryTimeSec(target), maxTimeSec)
+            ? nearTimeSec != null
+                ? liveTimeAtTemperature(livePoints, nextTemp, nearTimeSec, maxTimeSec)
+                : null
             : patch.timeSec;
     if (hasTemp && nextTimeSec == null) return entries;
     const nextNote = patch.note;
@@ -139,13 +142,6 @@ export function applyEventMarkerEdit(
     )
         return entries;
 
-    const boundedTimeSec =
-        hasTime && nextTimeSec != null
-            ? target.event === 'Note'
-                ? Math.max(0, Math.round(nextTimeSec))
-                : Math.min(Math.max(Math.round(nextTimeSec), 0), Math.floor(maxTimeSec))
-            : logEntryTimeSec(target);
-
     return entries
         .map((entry) => {
             if (entry.id !== logId) return entry;
@@ -155,7 +151,11 @@ export function applyEventMarkerEdit(
                 if (patch.airflow !== undefined) next.airflow = patch.airflow.trim() || undefined;
                 if (patch.drum !== undefined) next.drum = patch.drum.trim() || undefined;
             }
-            if (!hasTime) return next;
+            if (!hasTime || nextTimeSec == null) return next;
+            const boundedTimeSec =
+                target.event === 'Note'
+                    ? Math.max(0, Math.round(nextTimeSec))
+                    : Math.min(Math.max(Math.round(nextTimeSec), 0), Math.floor(maxTimeSec));
             const newTimeStr = formatElapsed(boundedTimeSec);
             const nearest = nearestLivePointAt(livePoints, boundedTimeSec);
             const close = nearest != null && Math.abs(nearest.time - boundedTimeSec) <= NEAREST_BT_MAX_SEC;
@@ -171,5 +171,5 @@ export function applyEventMarkerEdit(
                 tempC: nextTemp ?? nearest.bt,
             };
         })
-        .sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+        .sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
 }

@@ -28,9 +28,14 @@
 // declares the named export); only running it does. Default import is the working form.
 import bcrypt from 'npm:bcryptjs@2.4.3';
 import { captureEdgeException } from '../sentry.ts';
-import { buildNaverDispatchPayload, type NaverDispatchResponse, readNaverDispatchResult } from './dispatch.ts';
+import {
+    buildNaverDispatchPayload,
+    type NaverDispatchResponse,
+    readNaverDispatchResult,
+} from './dispatch.ts';
+import { mergeNaverOrdersByOrderId, naverCommercialQuantity, naverPaymentAmount } from './naver-order.ts';
 import { planNaverScan } from './naver-windows.ts';
-import { lineQuantity, lineStatusOf } from './normalize.ts';
+import { lineStatusOf } from './normalize.ts';
 import { nextPollCursor } from './poll-cursor.ts';
 import { type HttpAttempt, naverThrottle, readHttpAttempt, withRetry } from './rate-limit.ts';
 import { naverToCanonical } from './status-map.ts';
@@ -246,18 +251,12 @@ function mapDetail(entry: Record<string, unknown>): CanonicalOrder | null {
         naverToCanonical(String(po.productOrderStatus ?? ''), po.claimStatus != null ? String(po.claimStatus) : null) ??
         'paid';
 
-    const qty = lineQuantity(po.remainQuantity ?? po.quantity ?? po.initialQuantity);
-    const unitPrice = po.unitPrice != null ? Number(po.unitPrice) : null;
-    const totalPay =
-        po.remainPaymentAmount != null
-            ? Number(po.remainPaymentAmount)
-            : po.totalPaymentAmount != null
-              ? Number(po.totalPaymentAmount)
-              : po.initialPaymentAmount != null
-                ? Number(po.initialPaymentAmount)
-                : null;
-
     const lineStatus = lineStatusOf(status);
+    const terminal = lineStatus !== 'active';
+    const qty = naverCommercialQuantity(po, terminal);
+    const totalPay = naverPaymentAmount(po, terminal);
+    const parsedUnit = po.unitPrice != null ? Number(po.unitPrice) : null;
+    const unitPrice = parsedUnit != null && Number.isFinite(parsedUnit) ? parsedUnit : null;
 
     const line: CanonicalOrderLine = {
         platformLineId: productOrderId || `${orderId}-line`,
@@ -286,34 +285,6 @@ function mapDetail(entry: Record<string, unknown>): CanonicalOrder | null {
         lines: [line],
         raw: entry,
     };
-}
-
-function mergeByOrderId(parts: CanonicalOrder[]): CanonicalOrder[] {
-    const map = new Map<string, CanonicalOrder>();
-    for (const o of parts) {
-        const cur = map.get(o.platformOrderId);
-        if (!cur) {
-            map.set(o.platformOrderId, { ...o, lines: [...o.lines] });
-            continue;
-        }
-        cur.lines.push(...o.lines);
-        // Prefer terminal / higher rank from naverToCanonical merge rules
-        if (o.status === 'cancelled' || o.status === 'refunded') cur.status = o.status;
-        else if (cur.status !== 'cancelled' && cur.status !== 'refunded') {
-            const rank: Record<string, number> = {
-                pending: 0,
-                paid: 1,
-                preparing: 2,
-                shipped: 3,
-                delivered: 4,
-            };
-            if ((rank[o.status] ?? 0) > (rank[cur.status] ?? 0)) cur.status = o.status;
-        }
-        // Partial polls may set a line-only sum here; DB trigger order_lines_recompute_naver_total is the final total.
-        const sum = cur.lines.reduce((n, l) => n + (l.unitPrice ?? 0) * l.quantity, 0);
-        if (sum) cur.totalAmount = sum;
-    }
-    return [...map.values()];
 }
 
 export const naverAdapter: ChannelAdapter = {
@@ -442,7 +413,7 @@ export const naverAdapter: ChannelAdapter = {
         }
 
         return {
-            orders: mergeByOrderId(mapped),
+            orders: mergeNaverOrdersByOrderId(mapped),
             nextCursor: nextPollCursor({
                 complete: truncatedAt === null,
                 windowEnd: new Date(end).toISOString(),

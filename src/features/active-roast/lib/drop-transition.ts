@@ -112,7 +112,7 @@ const ensureDropLog = (
                       }
                     : e,
             )
-            .sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+            .sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
     }
     const entry: LogEntry = {
         id: crypto.randomUUID(),
@@ -123,7 +123,7 @@ const ensureDropLog = (
         tempC: dropBt,
         note,
     };
-    return [...logEntries, entry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+    return [...logEntries, entry].sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
 };
 
 export const buildDropSummary = (
@@ -134,7 +134,10 @@ export const buildDropSummary = (
     sessionId: string,
 ): DropSummary => {
     const metrics = deriveRoastMetrics(
-        logEntries.map((e) => ({ type: e.event, time_sec: logEntryTimeSec(e) })),
+        logEntries.flatMap((e) => {
+            const timeSec = logEntryTimeSec(e);
+            return timeSec == null ? [] : [{ type: e.event, time_sec: timeSec }];
+        }),
         { liveElapsed: dropTimeSec },
     );
     const roastTimeStr =

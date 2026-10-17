@@ -1,4 +1,5 @@
 import type { StockSummary } from '@entities/bean-stock-event';
+import { persistedId } from '@shared/lib/optimistic-id';
 import type { Bean } from '@shared/types/database.types';
 import { useEffect } from 'react';
 import type { UseFormReset } from 'react-hook-form';
@@ -45,7 +46,7 @@ export const useAddBeanFormReset = ({
     useEffect(() => {
         if (!open) return;
         setTab(initialTab);
-        setSelectedBeanId(initialBeanId);
+        setSelectedBeanId(persistedId(initialBeanId));
         setRestockAmount('');
         setRestockCost('');
         setAdjustType('adjustment');

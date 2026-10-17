@@ -1,4 +1,5 @@
 import { inventoryStore } from '@shared/lib/inventoryStore';
+import { isOptimisticId, OptimisticIdRefusedError, refuseOptimisticBeanId } from '@shared/lib/optimistic-id';
 import { parseStockSummaryJson, type StockSummaryValues } from '@shared/lib/stock-calc';
 import { supabase } from '@shared/lib/supabase';
 import type { Database } from '@shared/types/database.types';
@@ -31,6 +32,7 @@ const mapSummariesRecord = (raw: Record<string, unknown> | null): Record<string,
 
 export const beanStockEventApi = {
     listByBean: async (beanId: string): Promise<BeanStockEvent[]> => {
+        if (isOptimisticId(beanId)) return [];
         const { data, error } = await supabase
             .from('bean_stock_events')
             .select('*')
@@ -53,6 +55,7 @@ export const beanStockEventApi = {
     },
 
     insert: async (event: BeanStockEventInsert): Promise<BeanStockEvent> => {
+        refuseOptimisticBeanId(event.bean_id, 'Refusing stock write for an unsaved bean id');
         const { data, error } = await supabase.from('bean_stock_events').insert(event).select().single();
         if (error) throw error;
         return data;
@@ -64,6 +67,12 @@ export const beanStockEventApi = {
      * roastedEvents is a structural type (entities↔entities import forbidden).
      */
     insertMany: async (events: BeanStockEventInsert[], roastedEvents: RoastedInboundEvent[] = []): Promise<void> => {
+        if (
+            events.some((event) => isOptimisticId(event.bean_id)) ||
+            roastedEvents.some((event) => isOptimisticId(event.bean_id))
+        ) {
+            throw new OptimisticIdRefusedError('Refusing stock write for an unsaved bean id');
+        }
         if (!events.length && !roastedEvents.length) return;
 
         const { error } = await supabase.rpc('insert_stock_events_batch', {
@@ -74,6 +83,7 @@ export const beanStockEventApi = {
     },
 
     getStockSummary: async (beanId: string, horizonDays?: number): Promise<StockSummary> => {
+        if (isOptimisticId(beanId)) return parseStockSummaryJson({});
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
 
         const { data, error } = await supabase.rpc('get_bean_stock_summary', {
