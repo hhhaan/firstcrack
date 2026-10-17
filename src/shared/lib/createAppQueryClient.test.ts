@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react';
 import { SidecarHttpError } from '@shared/lib/sidecar';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAppQueryClient } from './createAppQueryClient';
+import { showMutationErrorToast } from './mutationErrorToast';
 
 vi.mock('./mutationErrorToast', () => ({
     showMutationErrorToast: vi.fn(),
@@ -47,6 +48,11 @@ describe('createAppQueryClient (main.tsx wiring)', () => {
             meta: { feature: 'roast-session', rpc: 'update_roast_session' },
         });
         await expect(mutation.execute(undefined)).rejects.toBe(err);
+
+        expect(showMutationErrorToast).toHaveBeenCalledExactlyOnceWith(err, {
+            feature: 'roast-session',
+            rpc: 'update_roast_session',
+        });
 
         expect(Sentry.captureException).toHaveBeenCalledTimes(1);
         const [, hint] = vi.mocked(Sentry.captureException).mock.calls[0] as [

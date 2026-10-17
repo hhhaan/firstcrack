@@ -217,13 +217,18 @@ describe('AddBatchModal shared stock query', () => {
             qc.setQueryData(stockEventKeys.summariesByUser('owner'), {});
         });
         await flush();
+        expect(state.source?.stockSummaryEffectiveGrams).toBeUndefined();
+        expect(state.source?.stockChecks.isShortage).toBe(false);
         expect(state.panel?.selectedBean).toBeUndefined();
         vi.mocked(beanStockEventApi.getStockSummariesByUser).mockRejectedValue(new Error('unavailable'));
         await act(async () => {
             await qc.invalidateQueries({ queryKey: stockEventKeys.summariesRoot });
         });
         await flush();
+        expect(qc.getQueryState(stockEventKeys.summariesByUser('owner'))?.status).toBe('error');
+        expect(state.source?.stockSummaryEffectiveGrams).toBeUndefined();
         expect(state.source?.stockChecks.isShortage).toBe(false);
+        expect(state.panel?.selectedBean).toBeUndefined();
     });
 
     it('updates selections after stock invalidation and isolates workspace caches', async () => {
@@ -240,6 +245,9 @@ describe('AddBatchModal shared stock query', () => {
         await render();
         expect(state.source?.stockSummaryEffectiveGrams).toBeUndefined();
         expect(state.panel?.selectedBean).toBeUndefined();
+        expect(state.source?.stockChecks.isShortage).toBe(false);
+        expect(qc.getQueryData(stockEventKeys.summariesByUser('owner'))).toEqual({ 'bean-0': summary(2000) });
+        expect(qc.getQueryData(stockEventKeys.summariesByUser('other'))).toEqual({});
         expect(beanStockEventApi.getStockSummariesByUser).toHaveBeenLastCalledWith('other');
         expect(beanStockEventApi.getStockSummary).not.toHaveBeenCalled();
     });

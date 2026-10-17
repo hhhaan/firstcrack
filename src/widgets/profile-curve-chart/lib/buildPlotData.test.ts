@@ -21,7 +21,7 @@ describe('buildProfileCurvePlotData', () => {
         expect(ysArrays[0]?.[1]).toBeCloseTo(180, 0);
     });
 
-    it('returns empty xs when curve is empty', () => {
+    it('returns a zero-time sample with null BT when curve is empty', () => {
         const { xs, ysArrays } = buildProfileCurvePlotData([[]]);
         expect(xs).toEqual([0]);
         expect(ysArrays[0]).toEqual([null]);
@@ -37,8 +37,8 @@ describe('computeProfileCurveYRange', () => {
                 { t: 120, bt: 205 },
             ],
         ]);
-        expect(range[0]).toBeLessThanOrEqual(175);
-        expect(range[1]).toBeGreaterThanOrEqual(210);
+        expect(range[0]).toBeLessThan(175);
+        expect(range[1]).toBeGreaterThan(210);
     });
 
     it('expands beyond fixed 140–230 when curve exceeds it', () => {

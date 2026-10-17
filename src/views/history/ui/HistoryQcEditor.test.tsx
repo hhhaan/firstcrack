@@ -123,7 +123,7 @@ describe('History QC editors', () => {
         expect(update).toHaveBeenCalledWith({ id: 's1', ambient_humidity_pct: null });
     });
 
-    it('keeps extra decimals and signs out of numeric fields', async () => {
+    it('limits decimal precision and permits negatives only for ambient temperature', async () => {
         await render(createElement(ChargeWeightEditor, { session }));
         await type(field('history-charge-weight'), '12.5');
         expect(field('history-charge-weight').value).toBe('1000');

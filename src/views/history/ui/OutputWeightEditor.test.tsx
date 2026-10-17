@@ -84,10 +84,11 @@ describe('OutputWeightEditor', () => {
         expect(host.textContent).not.toContain('1–0');
     });
 
-    it('rejects letters in the output weight', async () => {
+    it.each(['85a', 'abc', '85.5'])('rejects invalid output weight %s', async (value) => {
         await render(createElement(OutputWeightEditor, { session: { ...session, weight_grams: 850 } }));
-        await blur('85.5');
+        await blur(value);
         expect(input().value).toBe('');
+        expect(setOutput).not.toHaveBeenCalled();
         await blur('850');
         expect(input().value).toBe('850');
     });

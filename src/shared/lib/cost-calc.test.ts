@@ -86,7 +86,7 @@ describe('sellingPriceFromMargin', () => {
         expect(sellingPriceFromMargin(8000, 0)).toBe(8000);
     });
 
-    it('returns 0 when margin is 79%', () => {
+    it('calculates selling price for a 79% margin', () => {
         expect(sellingPriceFromMargin(10000, 79)).toBeCloseTo(47619.05, 0);
     });
 

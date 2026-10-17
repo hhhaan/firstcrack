@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import * as Sentry from '@sentry/react';
-import { tagsFromQueryMeta } from '@shared/lib/sentry';
+import { buildSentryOptions, tagsFromQueryMeta } from '@shared/lib/sentry';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement } from 'react';
@@ -78,8 +78,8 @@ describe('HistoryQcEditor sentry', () => {
     it('reports exactly one actionable event when charge save fails', async () => {
         setChargeWeight.mockRejectedValue({
             code: 'XX000',
-            message: 'save failed',
-            details: 'path=/secret',
+            message: 'save failed at /Users/test/secret on 192.168.10.60:502',
+            details: 'path=/Users/test/secret',
             hint: 'nope',
         });
         await render();
@@ -98,8 +98,16 @@ describe('HistoryQcEditor sentry', () => {
         expect(hint).toMatchObject({
             tags: { feature: 'history-qc', rpc: 'set_session_charge_weight', 'db.code': 'XX000' },
         });
-        const blob = JSON.stringify(hint);
-        expect(blob).not.toContain('/secret');
+        const event: Sentry.ErrorEvent = {
+            exception: { values: [{ type: 'SupabaseError', value: (captured as Error).message }] },
+            ...hint,
+        };
+        expect(JSON.stringify(event)).toContain('192.168.10.60');
+        expect(JSON.stringify(event)).toContain('/Users/test/secret');
+        const scrubbed = buildSentryOptions().beforeSend(event, { originalException: captured });
+        expect(scrubbed).not.toBeNull();
+        const blob = JSON.stringify(scrubbed);
+        expect(blob).not.toContain('/Users/test/secret');
         expect(blob).not.toMatch(/\d{1,3}(?:\.\d{1,3}){3}/);
     });
 });

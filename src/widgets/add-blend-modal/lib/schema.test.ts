@@ -62,14 +62,30 @@ describe('blendFormSchema', () => {
 
         const frac = blendFormSchema.safeParse({
             ...valid,
-            components: [{ bean_id: 'b1', ratio_pct: 50.5 }],
+            components: [
+                { bean_id: 'b1', ratio_pct: 50.5 },
+                { bean_id: 'b2', ratio_pct: 49.5 },
+            ],
         });
         expect(frac.success).toBe(false);
+        if (!frac.success) {
+            expect(frac.error.issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ code: 'invalid_type', expected: 'integer', received: 'float' }),
+                ]),
+            );
+            expect(frac.error.issues.some((i) => i.message === '구성 비율 합계가 100%여야 합니다')).toBe(false);
+        }
 
         const over = blendFormSchema.safeParse({
             ...valid,
             components: [{ bean_id: 'b1', ratio_pct: 101 }],
         });
         expect(over.success).toBe(false);
+        if (!over.success) {
+            expect(over.error.issues).toContainEqual(
+                expect.objectContaining({ code: 'too_big', maximum: 100, path: ['components', 0, 'ratio_pct'] }),
+            );
+        }
     });
 });
