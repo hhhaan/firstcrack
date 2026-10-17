@@ -88,7 +88,10 @@ function parseBatchResult(data: unknown): UpsertResult {
         throw new Error('invalid sync_channel_orders_batch result');
     }
     const heldRaw = Array.isArray(result.held) ? result.held : [];
-    const heldFulfillmentsOut = Number.isInteger(result.heldFulfillments) ? result.heldFulfillments : 0;
+    const heldFulfillmentsOut: number =
+        typeof result.heldFulfillments === 'number' && Number.isInteger(result.heldFulfillments)
+            ? result.heldFulfillments
+            : 0;
     if (
         heldRaw.some(
             (hold) =>
