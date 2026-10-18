@@ -217,7 +217,7 @@ test('settings is a responsive page and preserves existing preferences and entry
     await expect(navigation.getByRole('status')).toHaveText('No settings found.');
     await expect(settings.getByRole('main').getByRole('status')).toHaveText('No settings found.');
     await search.fill('   ');
-    await expect(navigation.getByRole('button')).toHaveCount(15);
+    await expect(navigation.getByRole('button')).toHaveCount(16);
     await search.fill('');
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
 
