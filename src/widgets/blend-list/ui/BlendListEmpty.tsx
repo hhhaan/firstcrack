@@ -13,7 +13,7 @@ export const BlendListEmpty = ({ hasBeans, onAdd, onNeedBeans }: BlendListEmptyP
 
     if (!hasBeans) {
         return (
-            <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+            <div className="bg-main-bg border border-gray-200 rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
                 <div className="text-[13px] text-muted text-center leading-relaxed">
                     {t('beans.blend.needBeansFirst')}
                 </div>
@@ -25,7 +25,7 @@ export const BlendListEmpty = ({ hasBeans, onAdd, onNeedBeans }: BlendListEmptyP
     }
 
     return (
-        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+        <div className="bg-main-bg border border-gray-200 rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
             <div className="text-[13px] text-muted text-center leading-relaxed">
                 {t('beans.blend.empty')}
                 <br />

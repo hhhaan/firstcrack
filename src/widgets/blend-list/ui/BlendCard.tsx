@@ -18,7 +18,7 @@ export const BlendCard = ({ blend, roastableKg, onSelect }: BlendCardProps) => {
     return (
         <div
             onClick={onSelect}
-            className="rounded-lg bg-main-bg px-4 py-3.5 cursor-pointer transition-all duration-150 dark:border dark:border-[#585d61]"
+            className="rounded-lg border border-gray-200 bg-main-bg px-4 py-3.5 cursor-pointer transition-all duration-150"
         >
             <div className="flex items-start justify-between gap-2 mb-1">
                 <span className="text-[13px] font-medium text-primary tracking-[0.14px] leading-snug">

@@ -51,7 +51,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
     ];
 
     return (
-        <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative dark:border dark:border-[#585d61]">
+        <div className="bg-main-bg rounded-lg border border-gray-200 px-8 py-7 h-fit relative">
             <DeleteBlendModal
                 open={confirmId === blend.id}
                 blendName={blend.name}
