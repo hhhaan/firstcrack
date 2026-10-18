@@ -55,85 +55,65 @@ export const Sidebar = ({
         <aside
             data-testid="app-sidebar"
             className={cn(
-                'shrink-0 h-full bg-transparent flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out',
+                'shrink-0 h-full bg-transparent flex flex-col overflow-hidden transition-[width] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
                 rail ? 'w-[60px]' : collapsed ? 'w-[53px]' : 'w-[170px] sm:w-[200px] lg:w-[220px]',
             )}
         >
             {/* Header */}
             <div
                 className={cn(
-                    'group/sidebar-header pt-3 pb-2 transition-all duration-200',
+                    'group/sidebar-header pt-3 pb-2 transition-[padding] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
                     rail ? 'px-3' : collapsed ? 'px-[8.5px]' : 'px-5',
                 )}
                 onMouseEnter={() => setIsHeaderHovered(true)}
                 onMouseLeave={() => setIsHeaderHovered(false)}
             >
-                <div className={cn('flex items-center gap-2.5', collapsed ? 'justify-center' : 'justify-between')}>
-                    {collapsed ? (
-                        <div className="relative w-9 h-9 flex items-center justify-center">
-                            <div
-                                className={cn(
-                                    'absolute inset-0 flex items-center justify-center transition-all duration-200',
-                                    isHeaderHovered && !rail
-                                        ? 'opacity-0 scale-90 invisible'
-                                        : 'opacity-100 scale-100 visible',
-                                    !rail && 'group-focus-within/sidebar-header:opacity-0',
-                                )}
-                            >
-                                <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={onToggleCollapse}
-                                aria-label={t('sidebar.expand')}
-                                aria-expanded={false}
-                                title={t('sidebar.expand')}
-                                className={cn(
-                                    'absolute inset-0 w-9 h-9 rounded-lg border-none bg-transparent text-primary flex items-center justify-center cursor-pointer shrink-0 transition-all duration-200 hover:bg-surface hover:shadow-(--shadow-inset)',
-                                    isHeaderHovered && !rail
-                                        ? 'opacity-100 scale-100 visible'
-                                        : rail
-                                          ? 'opacity-0 scale-90 invisible'
-                                          : 'opacity-0 scale-90 focus:opacity-100 focus:scale-100 focus-visible:outline-2 focus-visible:outline-primary',
-                                )}
-                                disabled={rail}
-                                tabIndex={rail ? -1 : undefined}
-                            >
-                                <SidePanelOpen size={18} />
-                            </button>
-                        </div>
-                    ) : (
-                        <>
-                            <div
-                                className="flex items-center gap-2.5 min-w-0 cursor-pointer select-none"
-                                onClick={async () => {
-                                    if ((window as Window & { __TAURI__?: unknown }).__TAURI__) {
-                                        const { message } = await import('@tauri-apps/plugin-dialog');
-                                        void message('First Crack no Football Club');
-                                    } else {
-                                        alert('First Crack no Football Club');
-                                    }
-                                }}
-                            >
-                                <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={onToggleCollapse}
-                                aria-label={t('sidebar.collapse')}
-                                aria-expanded={true}
-                                title={t('sidebar.collapse')}
-                                className="w-9 h-9 rounded-lg border-none bg-transparent text-muted flex items-center justify-center cursor-pointer shrink-0 transition-all duration-200 hover:bg-surface hover:shadow-(--shadow-inset) hover:text-primary"
-                            >
-                                <SidePanelClose size={18} />
-                            </button>
-                        </>
-                    )}
+                <div className="relative flex h-9 items-center">
+                    <button
+                        type="button"
+                        disabled={collapsed}
+                        className={cn(
+                            'flex w-9 h-9 shrink-0 items-center justify-center border-none bg-transparent p-0 cursor-pointer select-none transition-opacity duration-150 focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none',
+                            collapsed && 'pointer-events-none',
+                            collapsed && !rail && 'group-focus-within/sidebar-header:opacity-0',
+                            collapsed && isHeaderHovered && !rail ? 'opacity-0' : 'opacity-100',
+                        )}
+                        onClick={async () => {
+                            if ((window as Window & { __TAURI__?: unknown }).__TAURI__) {
+                                const { message } = await import('@tauri-apps/plugin-dialog');
+                                void message('First Crack no Football Club');
+                            } else {
+                                alert('First Crack no Football Club');
+                            }
+                        }}
+                    >
+                        <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onToggleCollapse}
+                        aria-label={t(collapsed ? 'sidebar.expand' : 'sidebar.collapse')}
+                        aria-expanded={!collapsed}
+                        title={t(collapsed ? 'sidebar.expand' : 'sidebar.collapse')}
+                        disabled={rail}
+                        tabIndex={rail ? -1 : undefined}
+                        className={cn(
+                            'absolute right-0 w-9 h-9 rounded-lg border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-[opacity,color,background-color,box-shadow] duration-150 hover:bg-surface hover:shadow-(--shadow-inset) hover:text-primary focus:opacity-100 focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none',
+                            rail ? 'invisible opacity-0' : collapsed && !isHeaderHovered ? 'opacity-0' : 'opacity-100',
+                        )}
+                    >
+                        {collapsed ? <SidePanelOpen size={18} /> : <SidePanelClose size={18} />}
+                    </button>
                 </div>
             </div>
 
             {/* Workspace selector */}
-            <div className={cn('pt-3 pb-2', rail ? 'px-3' : edgePad)}>
+            <div
+                className={cn(
+                    'pt-3 pb-2 transition-[padding] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                    rail ? 'px-3' : edgePad,
+                )}
+            >
                 <Popover open={wsOpen} onOpenChange={setWsOpen}>
                     <PopoverTrigger asChild>
                         <button
@@ -149,8 +129,10 @@ export const Sidebar = ({
                             </div>
                             <div
                                 className={cn(
-                                    'flex-1 flex items-center justify-between pr-2.5 transition-all duration-220 overflow-hidden whitespace-nowrap',
-                                    collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]',
+                                    'flex-1 min-w-0 flex items-center justify-between pr-2.5 transition-[opacity,translate] duration-150 overflow-hidden whitespace-nowrap motion-reduce:transition-none',
+                                    collapsed
+                                        ? 'opacity-0 -translate-x-1'
+                                        : 'opacity-100 translate-x-0 delay-75 motion-reduce:delay-0',
                                 )}
                             >
                                 <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
@@ -222,7 +204,12 @@ export const Sidebar = ({
             />
 
             {/* Footer */}
-            <div className={cn('py-2.5', rail ? 'px-3' : edgePad)}>
+            <div
+                className={cn(
+                    'py-2.5 transition-[padding] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                    rail ? 'px-3' : edgePad,
+                )}
+            >
                 <button
                     type="button"
                     aria-label={t('sidebar.settings')}
@@ -237,14 +224,20 @@ export const Sidebar = ({
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center">
                         <Settings size={18} strokeWidth={2} />
                     </span>
-                    {!collapsed && (
-                        <>
-                            <span className="flex-1 text-left text-[13px]">{t('sidebar.settings')}</span>
-                            <kbd className="pr-2 whitespace-nowrap font-sans text-xs text-muted opacity-60">
-                                {formatShortcut(settingsKeys)}
-                            </kbd>
-                        </>
-                    )}
+                    <span
+                        aria-hidden={collapsed}
+                        className={cn(
+                            'flex flex-1 min-w-0 items-center whitespace-nowrap transition-[opacity,translate] duration-150 motion-reduce:transition-none',
+                            collapsed
+                                ? 'opacity-0 -translate-x-1'
+                                : 'opacity-100 translate-x-0 delay-75 motion-reduce:delay-0',
+                        )}
+                    >
+                        <span className="flex-1 text-left text-[13px]">{t('sidebar.settings')}</span>
+                        <kbd className="pr-2 whitespace-nowrap font-sans text-xs text-muted opacity-60">
+                            {formatShortcut(settingsKeys)}
+                        </kbd>
+                    </span>
                 </button>
             </div>
         </aside>

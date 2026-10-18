@@ -59,8 +59,18 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
     const hiddenIds = new Set(hidden);
 
     return (
-        <nav className={cn('flex-1 overflow-y-auto py-1', rail ? 'px-3' : edgePad)}>
-            <div className={cn('flex flex-col', collapsed ? 'gap-1' : 'gap-3')}>
+        <nav
+            className={cn(
+                'flex-1 overflow-y-auto py-1 transition-[padding] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                rail ? 'px-3' : edgePad,
+            )}
+        >
+            <div
+                className={cn(
+                    'flex flex-col transition-[gap] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                    collapsed ? 'gap-1' : 'gap-3',
+                )}
+            >
                 {SIDEBAR_GROUPS.map((group, index) => {
                     const ids = order.filter((id) => groupIdSets[index].has(id) && !hiddenIds.has(id));
                     if (ids.length === 0) return null;
@@ -68,8 +78,8 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                         <div key={group.labelKey}>
                             <div
                                 className={cn(
-                                    'font-medium text-muted transition-all duration-220 overflow-hidden whitespace-nowrap',
-                                    collapsed ? 'h-0 p-0 opacity-0' : 'mb-1.5 px-2.5 text-xs opacity-100',
+                                    'px-2.5 text-xs leading-4 font-medium text-muted transition-[height,margin,opacity] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden whitespace-nowrap motion-reduce:transition-none',
+                                    collapsed ? 'h-0 mb-0 opacity-0' : 'h-4 mb-1.5 opacity-100',
                                 )}
                             >
                                 {t(group.labelKey)}
@@ -92,7 +102,7 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         aria-current={isActive ? 'page' : undefined}
                                         title={collapsed ? label : undefined}
                                         className={cn(
-                                            'flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-lg border-none mb-0.5 transition-[padding,background-color] duration-220',
+                                            'flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-lg border-none mb-0.5 transition-[padding,background-color] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
                                             isActive
                                                 ? 'bg-main-bg shadow-(--shadow-inset)'
                                                 : 'bg-transparent hover:bg-primary/5',
@@ -116,8 +126,10 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         </div>
                                         <div
                                             className={cn(
-                                                'flex items-center gap-2 transition-all duration-220 overflow-hidden whitespace-nowrap',
-                                                collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
+                                                'flex min-w-0 items-center gap-2 transition-[opacity,translate] duration-150 overflow-hidden whitespace-nowrap motion-reduce:transition-none',
+                                                collapsed
+                                                    ? 'opacity-0 -translate-x-1'
+                                                    : 'opacity-100 translate-x-0 delay-75 motion-reduce:delay-0',
                                             )}
                                         >
                                             <span
