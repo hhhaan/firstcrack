@@ -1,4 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    CAFE24_ITEMLESS_ORDER_ID,
+    cafe24ItemlessDetailOrder,
+    cafe24ItemlessWebhookPayload,
+    cafe24Line,
+} from './_shared/channels/cafe24-test-fixtures.ts';
 
 type Query = { table: string; operation: string; values: Record<string, unknown>; single: boolean };
 type Result = { data?: unknown; error?: unknown };
@@ -76,7 +82,8 @@ vi.mock('./_shared/channels/run-lock.ts', () => ({
     acquireDispatchRunLock: async () => ({ ok: true, runId: 'run' }),
     releaseRunLock: vi.fn(),
 }));
-vi.mock('./_shared/channels/secrets-session.ts', () => ({
+vi.mock('./_shared/channels/secrets-session.ts', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./_shared/channels/secrets-session.ts')>()),
     loadSecretsSession: async () => ({ current: () => ({}), rotate: vi.fn() }),
 }));
 
@@ -309,6 +316,67 @@ describe('Cafe24 webhook', () => {
         mocks.upsert.mockClear();
         expect((await request('order-webhook', body)).status).toBe(401);
         expect(mocks.upsert).not.toHaveBeenCalled();
+    });
+
+    function mockCafe24SecretsAndFetch(detail: Record<string, unknown> | null, fetchStatus = 200) {
+        mocks.query.mockImplementation((q) => {
+            if (q.table === 'sales_channel_secrets') {
+                return { data: { credentials: { mall_id: 'demo', access_token: 'tok' } } };
+            }
+            return defaultResult(q);
+        });
+        vi.stubGlobal('fetch', async (input: URL | string) => {
+            const url = String(input);
+            if (url.includes(`/orders/${CAFE24_ITEMLESS_ORDER_ID}`)) {
+                if (fetchStatus !== 200 || !detail) {
+                    return new Response('error', { status: fetchStatus });
+                }
+                return new Response(JSON.stringify({ order: detail }), { status: 200 });
+            }
+            return new Response('{}', { status: 404 });
+        });
+    }
+
+    it('fetches order detail when the webhook omits items (#903)', async () => {
+        const itemless = cafe24ItemlessWebhookPayload();
+        mockCafe24SecretsAndFetch(
+            cafe24ItemlessDetailOrder([
+                cafe24Line('line-active', 'N20', 1, { product_name: 'A' }),
+                cafe24Line('line-c40', 'C40', 1, { product_name: 'B' }),
+            ]),
+        );
+        const response = await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' });
+        expect(response.status).toBe(200);
+        expect(mocks.upsert).toHaveBeenCalledOnce();
+        const orders = mocks.upsert.mock.calls[0][2] as Array<{
+            totalAmount: number | null;
+            lines: Array<{ platformLineId: string; status: string }>;
+        }>;
+        expect(orders[0].totalAmount).toBe(15000);
+        const lineIds = orders[0].lines.map((l) => l.platformLineId);
+        expect(lineIds).toEqual(['line-active', 'line-c40']);
+        expect(lineIds.some((id) => id.endsWith('-unknown'))).toBe(false);
+        expect(orders[0].lines.find((l) => l.platformLineId === 'line-c40')?.status).toBe('cancelled');
+        vi.unstubAllGlobals();
+    });
+
+    it('does not upsert or claim when detail fetch fails', async () => {
+        const itemless = cafe24ItemlessWebhookPayload();
+        mockCafe24SecretsAndFetch(null, 500);
+        expect((await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' })).status).toBe(500);
+        expect(mocks.upsert).not.toHaveBeenCalled();
+        expect(
+            mocks.query.mock.calls.some(([q]) => q.table === 'order_sync_runs' && q.operation === 'insert'),
+        ).toBe(false);
+        vi.unstubAllGlobals();
+    });
+
+    it('does not upsert when detail returns empty items', async () => {
+        const itemless = cafe24ItemlessWebhookPayload();
+        mockCafe24SecretsAndFetch(cafe24ItemlessDetailOrder([]));
+        expect((await request('order-webhook', itemless, { 'X-API-Key': 'shared-secret' })).status).toBe(500);
+        expect(mocks.upsert).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
     });
 });
 

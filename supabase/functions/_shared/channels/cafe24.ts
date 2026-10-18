@@ -39,6 +39,7 @@ import type {
     ChannelAdapter,
     ChannelSecrets,
     FetchOrdersResult,
+    LineStatus,
     MarkShippedRequest,
     MarkShippedResult,
     PlatformListing,
@@ -46,6 +47,10 @@ import type {
     SecretsRotationSink,
     TestConnectionResult,
 } from './types.ts';
+
+/** Cafe24 per-item order_status codes that mean cancel complete (partial cancel on a paid order). */
+const CAFE24_ITEM_CANCELLED = new Set(['C40', 'C41', 'C42', 'C43', 'C47', 'C48', 'C49']);
+const CAFE24_ITEM_REFUNDED = new Set(['R40']);
 
 export interface Cafe24Secrets extends ChannelSecrets {
     mall_id: string;
@@ -228,6 +233,98 @@ async function openSession(secrets: ChannelSecrets, onRotate: SecretsRotationSin
     };
 }
 
+function cafe24ItemStatusCode(item: Record<string, unknown>): string {
+    for (const key of ['order_status', 'status_code', 'order_status_code']) {
+        const v = item[key];
+        if (v != null && String(v).trim() !== '') return String(v).trim().toUpperCase();
+    }
+    return '';
+}
+
+function cafe24LineStatusFromItemCode(code: string): LineStatus {
+    if (CAFE24_ITEM_CANCELLED.has(code)) return 'cancelled';
+    if (CAFE24_ITEM_REFUNDED.has(code)) return 'refunded';
+    return 'active';
+}
+
+function lineStatusForCafe24Item(item: Record<string, unknown>, orderStatus: CanonicalStatus): LineStatus {
+    if (orderStatus === 'cancelled' || orderStatus === 'refunded') {
+        return lineStatusOf(orderStatus);
+    }
+    const code = cafe24ItemStatusCode(item);
+    if (code) return cafe24LineStatusFromItemCode(code);
+    return lineStatusOf(orderStatus);
+}
+
+/** Official webhooks often omit `items`; sync list rows can too. */
+export function cafe24ItemsMissing(order: Record<string, unknown>): boolean {
+    const items = order.items;
+    return !Array.isArray(items) || items.length === 0;
+}
+
+export async function fetchCafe24OrderById(session: Cafe24Session, orderId: string): Promise<Record<string, unknown>> {
+    const detail = (await session.run((s) =>
+        cafe24Get(s.mall_id, s.access_token, `/orders/${encodeURIComponent(orderId)}`, {
+            embed: 'items,buyer',
+        }),
+    )) as { order?: Record<string, unknown> };
+    if (!detail.order) throw new Error(`cafe24: order ${orderId} not found`);
+    return detail.order;
+}
+
+/** Admin GET after an item-less webhook notification — never persist `-unknown` placeholders. */
+export async function fetchCafe24CanonicalOrder(
+    secrets: ChannelSecrets,
+    onRotate: SecretsRotationSink,
+    orderId: string,
+): Promise<CanonicalOrder> {
+    const session = await openSession(secrets, onRotate);
+    const raw = await fetchCafe24OrderById(session, orderId);
+    const order = mapCafe24Order({ ...raw, order_id: raw.order_id ?? orderId });
+    if (!order) throw new Error('cafe24: unparseable order');
+    if (order.lines.some((l) => l.platformLineId.endsWith('-unknown'))) {
+        throw new Error('cafe24: order detail missing items');
+    }
+    return order;
+}
+
+function shipmentItemCodes(shipment: Record<string, unknown>): Set<string> {
+    const codes = new Set<string>();
+    const raw = shipment.order_item_code;
+    if (typeof raw === 'string' && raw.trim()) codes.add(raw.trim());
+    if (Array.isArray(raw)) {
+        for (const c of raw) {
+            if (c != null && String(c).trim()) codes.add(String(c).trim());
+        }
+    }
+    const items = shipment.items;
+    if (Array.isArray(items)) {
+        for (const it of items) {
+            if (it && typeof it === 'object') {
+                const code = (it as Record<string, unknown>).order_item_code;
+                if (code != null && String(code).trim()) codes.add(String(code).trim());
+            }
+        }
+    }
+    return codes;
+}
+
+function cafe24ShipmentAlreadyExists(
+    shipments: Array<Record<string, unknown>>,
+    req: MarkShippedRequest,
+): boolean {
+    const tracking = req.trackingNumber.trim();
+    const wanted = req.lines.map((l) => l.platformLineId);
+    if (!wanted.length) return false;
+    for (const shipment of shipments) {
+        const t = String(shipment.tracking_no ?? shipment.tracking_number ?? '').trim();
+        if (t !== tracking) continue;
+        const codes = shipmentItemCodes(shipment);
+        if (wanted.every((id) => codes.has(id))) return true;
+    }
+    return false;
+}
+
 function amountOf(order: Record<string, unknown>): number | null {
     const actual = order.actual_order_amount;
     if (actual && typeof actual === 'object') {
@@ -241,18 +338,22 @@ function amountOf(order: Record<string, unknown>): number | null {
 
 function mapItems(order: Record<string, unknown>, orderStatus: CanonicalStatus): CanonicalOrderLine[] {
     const items = (order.items ?? []) as Array<Record<string, unknown>>;
-    const lineStatus = lineStatusOf(orderStatus);
 
-    return items.map((it, i) => ({
-        platformLineId: String(it.order_item_code ?? it.item_no ?? `${order.order_id}-${i}`),
-        platformProductId: it.product_no != null ? String(it.product_no) : null,
-        platformVariantId:
-            it.variant_code != null ? String(it.variant_code) : it.option_id != null ? String(it.option_id) : null,
-        title: String(it.product_name ?? it.product_name_default ?? 'Item'),
-        quantity: lineQuantity(it.quantity),
-        unitPrice: it.product_price != null ? Number(it.product_price) : it.price != null ? Number(it.price) : null,
-        status: lineStatus,
-    }));
+    return items.map((it, i) => {
+        const status = lineStatusForCafe24Item(it, orderStatus);
+        let quantity = lineQuantity(it.quantity);
+        if ((status === 'cancelled' || status === 'refunded') && quantity <= 0) quantity = 1;
+        return {
+            platformLineId: String(it.order_item_code ?? it.item_no ?? `${order.order_id}-${i}`),
+            platformProductId: it.product_no != null ? String(it.product_no) : null,
+            platformVariantId:
+                it.variant_code != null ? String(it.variant_code) : it.option_id != null ? String(it.option_id) : null,
+            title: String(it.product_name ?? it.product_name_default ?? 'Item'),
+            quantity,
+            unitPrice: it.product_price != null ? Number(it.product_price) : it.price != null ? Number(it.price) : null,
+            status,
+        };
+    });
 }
 
 /**
@@ -429,15 +530,9 @@ export const cafe24Adapter: ChannelAdapter = {
         for (let i = 0; i < orders.length; i++) {
             if (orders[i].lines.length === 1 && orders[i].lines[0].platformLineId.endsWith('-unknown')) {
                 try {
-                    const detail = (await session.run((s) =>
-                        cafe24Get(s.mall_id, s.access_token, `/orders/${orders[i].platformOrderId}`, {
-                            embed: 'items,buyer',
-                        }),
-                    )) as { order?: Record<string, unknown> };
-                    if (detail.order) {
-                        const mapped = mapCafe24Order(detail.order);
-                        if (mapped) orders[i] = mapped;
-                    }
+                    const detailOrder = await fetchCafe24OrderById(session, orders[i].platformOrderId);
+                    const mapped = mapCafe24Order(detailOrder);
+                    if (mapped) orders[i] = mapped;
                 } catch {
                     // keep placeholder
                 }
@@ -516,10 +611,21 @@ export const cafe24Adapter: ChannelAdapter = {
         const text = res.body;
 
         if (res.status < 200 || res.status >= 300) {
-            // 오탐 시 fulfill_order까지 진행되어 재고가 차감된다 → 명시적 "이미 처리됨"만 성공 취급
-            const already = /already|이미/i.test(text);
-            if (already || res.status === 409) {
-                return { ok: true, alreadyShipped: true, error: text.slice(0, 300) };
+            // HTTP 409 alone is not proof of shipment (official: duplicate no-op PUT). Confirm via GET.
+            try {
+                const listed = (await session.run((s) =>
+                    cafe24Get(s.mall_id, s.access_token, `/orders/${encodeURIComponent(req.platformOrderId)}/shipments`),
+                )) as { shipments?: Array<Record<string, unknown>> };
+                if (cafe24ShipmentAlreadyExists(listed.shipments ?? [], req)) {
+                    return {
+                        ok: true,
+                        alreadyShipped: true,
+                        lineResults: req.lines.map((l) => ({ platformLineId: l.platformLineId, ok: true })),
+                        error: text.slice(0, 300),
+                    };
+                }
+            } catch {
+                // fall through to failure
             }
             return {
                 ok: false,
