@@ -13,9 +13,9 @@ export const PHASE_BAR_NARROW_THRESHOLD = 30;
 export const PHASE_BAR_TEXT_INSET = 6;
 export const PHASE_BAR_STROKE_WIDTH = 0.5;
 /** BT, ET, RoR, and their reference curves. */
-export const TEMP_CURVE_WIDTH = 1.8;
+export const TEMP_CURVE_WIDTH = 2;
 /** Heat, damper, drum, and their reference curves. */
-export const CONTROL_CURVE_WIDTH = 1.5;
+export const CONTROL_CURVE_WIDTH = 2;
 /** Vertical guides for heater, roast events, notes, and turning points. */
 export const EVENT_MARK_LINE_WIDTH = 1;
 /** Stored reference/profile curves fade to a translucent gray so they read as background. */
@@ -26,7 +26,7 @@ export const PHASE_BAR_FONT_FAMILY = 'monospace';
 export const PHASE_BAR_FONT_WEIGHT = 600;
 
 // ── Axis label typography ────────────────────────────────────────────────────
-export const AXIS_LABEL_FONT = { fontSize: 11, fontFamily: 'monospace' as const } as const;
+export const AXIS_LABEL_FONT = { fontSize: 12, fontWeight: 500, fontFamily: 'monospace' as const } as const;
 export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as const } as const;
 
 // ── Curve event labels (`이름|mm:ss|온도`). Axis ticks and the phase bar stay put.
