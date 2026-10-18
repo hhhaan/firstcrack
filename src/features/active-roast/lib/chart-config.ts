@@ -9,7 +9,6 @@ export const Y_AXIS_NAME_GAP = 0;
 
 // ── Phase bar dimensions & text style (temp-grid overlay strip) ──────────────
 export const PHASE_BAR_HEIGHT = 26;
-export const PHASE_BAR_WIDE_THRESHOLD = 70;
 export const PHASE_BAR_NARROW_THRESHOLD = 30;
 export const PHASE_BAR_TEXT_INSET = 6;
 export const PHASE_BAR_STROKE_WIDTH = 0.5;
