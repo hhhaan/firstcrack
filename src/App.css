@@ -258,8 +258,6 @@ body {
         "tnum" 1,
         "lnum" 1,
         "zero" 1;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
 html[lang="en"] {
