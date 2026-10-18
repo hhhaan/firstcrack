@@ -1,6 +1,5 @@
 import { setLanguage, supportedLanguages } from '@shared/i18n';
 import { inventoryStore } from '@shared/lib/inventoryStore';
-import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
 import { useShortcutStore } from '@shared/store/keyboard-shortcuts';
 import {
     moveSidebarItem,
@@ -191,16 +190,18 @@ export const GeneralSettingsTab = () => {
     // const theme = useThemeStore((s) => s.theme);
     // const setTheme = useThemeStore((s) => s.setTheme);
     // const activeTheme = theme ?? 'system';
-    const [horizonDays, setHorizonDays] = useState<number | ''>(STOCK_HORIZON_DAYS);
-    const savedHorizonRef = useRef(STOCK_HORIZON_DAYS);
-    const horizonGenerationRef = useRef(0);
+    const [horizonDays, setHorizonDays] = useState<number | ''>('');
+    const savedHorizonRef = useRef<number | null>(null);
+    const hasCommittedHorizonRef = useRef(false);
+    const horizonDraftClearedRef = useRef(false);
 
     useEffect(() => {
         let cancelled = false;
-        const generation = horizonGenerationRef.current;
         void inventoryStore.getHorizonDays().then((days) => {
-            if (cancelled || generation !== horizonGenerationRef.current) return;
-            savedHorizonRef.current = days;
+            if (cancelled) return;
+            if (!hasCommittedHorizonRef.current) savedHorizonRef.current = days;
+            if (hasCommittedHorizonRef.current) return;
+            if (horizonDraftClearedRef.current) return;
             setHorizonDays(days);
         });
         return () => {
@@ -210,7 +211,9 @@ export const GeneralSettingsTab = () => {
 
     const saveHorizon = async (value: number) => {
         const next = Math.max(1, Math.min(365, Math.round(value)));
+        hasCommittedHorizonRef.current = true;
         savedHorizonRef.current = next;
+        horizonDraftClearedRef.current = false;
         setHorizonDays(next);
         await inventoryStore.setHorizonDays(next);
     };
@@ -256,9 +259,9 @@ export const GeneralSettingsTab = () => {
                             max={365}
                             value={horizonDays}
                             onChange={(event) => {
-                                horizonGenerationRef.current++;
                                 const raw = event.currentTarget.value;
                                 if (raw === '') {
+                                    horizonDraftClearedRef.current = true;
                                     setHorizonDays('');
                                     return;
                                 }
@@ -267,7 +270,10 @@ export const GeneralSettingsTab = () => {
                                 void saveHorizon(next);
                             }}
                             onBlur={() => {
-                                if (horizonDays === '') setHorizonDays(savedHorizonRef.current);
+                                if (horizonDays !== '') return;
+                                horizonDraftClearedRef.current = false;
+                                const restore = savedHorizonRef.current;
+                                if (restore != null) setHorizonDays(restore);
                             }}
                             className={`${inputCls} w-20 rounded-lg py-1.5 text-[13px]`}
                         />

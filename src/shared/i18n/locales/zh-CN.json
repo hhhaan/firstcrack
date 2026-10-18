@@ -1558,6 +1558,7 @@
     "beanList": {
         "searchPlaceholder": "搜索生豆...",
         "empty": "尚无生豆。请添加您的第一批生豆！",
+        "allHidden": "所有生豆均已隐藏。",
         "noResults": "未找到结果。"
     },
     "deleteBeanModal": {
@@ -1768,7 +1769,8 @@
     "beanDetail": {
         "empty": {
             "select": "选择生豆以查看详情",
-            "addFirst": "添加您的第一批生豆开始使用。"
+            "addFirst": "添加您的第一批生豆开始使用。",
+            "allHidden": "所有生豆均已隐藏。请显示隐藏项目后再选择。"
         },
         "origin": "产地",
         "region": "产区",

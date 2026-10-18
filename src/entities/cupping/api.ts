@@ -351,12 +351,12 @@ export const cuppingApi = {
             .eq('id', eventId)
             .is('results_token', null)
             .select()
-            .single();
-        if (error) {
-            // Concurrent ensure: re-read
+            .maybeSingle();
+        if (error) throw error;
+        if (!data) {
             const again = await cuppingApi.getEvent(eventId);
             if (again.results_token) return again;
-            throw error;
+            throw new Error('CUPPING_RESULTS_TOKEN_NOT_SET');
         }
         return data;
     },

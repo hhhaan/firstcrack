@@ -1701,6 +1701,7 @@
     "beanList": {
         "searchPlaceholder": "생두 검색...",
         "empty": "아직 등록된 원두가 없습니다. 첫 번째 원두를 추가해 보세요!",
+        "allHidden": "모든 생두가 숨김 처리되어 있습니다.",
         "noResults": "검색 결과가 없습니다."
     },
     "deleteBeanModal": {
@@ -1835,7 +1836,8 @@
     "beanDetail": {
         "empty": {
             "select": "생두를 선택해 상세 정보를 확인하세요",
-            "addFirst": "첫 번째 생두를 추가해 시작하세요."
+            "addFirst": "첫 번째 생두를 추가해 시작하세요.",
+            "allHidden": "모든 생두가 숨김 처리되어 있습니다. 숨긴 항목을 표시해 선택하세요."
         },
         "origin": "원산지",
         "region": "지역",

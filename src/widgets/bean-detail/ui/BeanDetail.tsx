@@ -3,6 +3,7 @@ import { type BeanAssetLine, useBeanStockEvents, useBeanStockSummary } from '@en
 import { isOptimisticId } from '@shared/lib/optimistic-id';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
+import { beanDetailEmptyMessageKey, CatalogHiddenEmpty } from '@shared/ui/CatalogHiddenEmpty';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Edit3, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -18,6 +19,8 @@ const EVENT_TYPE_LABEL_KEY: Record<string, string> = {
 interface BeanDetailProps {
     bean: Bean | null;
     hasAny: boolean;
+    allHidden?: boolean;
+    onShowHidden?: () => void;
     isLoading: boolean;
     affectedBlendNames: string[];
     assetLine?: BeanAssetLine | null;
@@ -52,18 +55,29 @@ const Skeleton = () => (
     </div>
 );
 
-const Empty = ({ hasAny }: { hasAny: boolean }) => {
-    const { t } = useTranslation();
-    return (
-        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
-            {hasAny ? t('beanDetail.empty.select') : t('beanDetail.empty.addFirst')}
-        </div>
-    );
-};
+const Empty = ({
+    hasAny,
+    allHidden,
+    onShowHidden,
+}: {
+    hasAny: boolean;
+    allHidden?: boolean;
+    onShowHidden?: () => void;
+}) => (
+    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center dark:text-[#e5e5e5]">
+        <CatalogHiddenEmpty
+            className="text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]"
+            messageKey={beanDetailEmptyMessageKey(!!allHidden, hasAny)}
+            onShowHidden={allHidden ? onShowHidden : undefined}
+        />
+    </div>
+);
 
 export const BeanDetail = ({
     bean,
     hasAny,
+    allHidden = false,
+    onShowHidden,
     isLoading,
     affectedBlendNames,
     assetLine = null,
@@ -78,7 +92,7 @@ export const BeanDetail = ({
     const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
 
     if (isLoading) return <Skeleton />;
-    if (!bean) return <Empty hasAny={hasAny} />;
+    if (!bean) return <Empty hasAny={hasAny} allHidden={allHidden} onShowHidden={onShowHidden} />;
 
     const actionsLocked = isOptimisticId(bean.id);
 

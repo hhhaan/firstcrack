@@ -63,8 +63,10 @@ describe('GeneralSettingsTab delayed inventory horizon', () => {
     const input = () => container.querySelector('#settings-horizon') as HTMLInputElement;
     const change = (value: string) =>
         act(() => {
-            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input(), value);
-            input().dispatchEvent(new Event('input', { bubbles: true }));
+            const el = input();
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(el, value);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
         });
 
     beforeEach(() => {
@@ -100,12 +102,37 @@ describe('GeneralSettingsTab delayed inventory horizon', () => {
         expect(inventoryStore.setHorizonDays).not.toHaveBeenCalled();
     });
 
-    it('preserves a cleared draft during the initial load and restores the last commit on blur', async () => {
+    it('restores the last committed value on blur after clear, even when the stored read returns something else', async () => {
+        change('99');
         change('');
         await act(async () => resolveRead(14));
         expect(input().value).toBe('');
         act(() => input().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
-        expect(input().value).toBe('28');
+        expect(input().value).toBe('99');
+    });
+
+    it('keeps the committed value after clear and blur when the stored read finishes later', async () => {
+        change('60');
+        change('');
+        act(() => input().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+        expect(input().value).toBe('60');
+        await act(async () => resolveRead(14));
+        expect(input().value).toBe('60');
+    });
+
+    it('shows the stored value after an empty blur when the read finishes later', async () => {
+        change('');
+        act(() => input().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+        expect(input().value).toBe('');
+        await act(async () => resolveRead(45));
+        expect(input().value).toBe('45');
+    });
+
+    it('keeps a typed value when the stored read finishes later', async () => {
+        change('60');
+        await act(async () => resolveRead(14));
+        expect(input().value).toBe('60');
+        expect(inventoryStore.setHorizonDays).toHaveBeenLastCalledWith(60);
     });
 
     it('commits only integers within 1–365', () => {

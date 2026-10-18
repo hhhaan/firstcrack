@@ -3,6 +3,7 @@ import type { BeanAssetLine, StockSummary } from '@entities/bean-stock-event';
 import { cn } from '@shared/lib/cn';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
+import { beanListEmptyMessageKey, CatalogHiddenEmpty } from '@shared/ui/CatalogHiddenEmpty';
 import { CatalogVisibilityButton } from '@shared/ui/CatalogVisibilityControls';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Search } from 'lucide-react';
@@ -10,6 +11,8 @@ import { useTranslation } from 'react-i18next';
 
 interface BeanListProps {
     beans: Bean[];
+    /** Total beans in catalog (including hidden), when list receives only visible rows */
+    catalogTotal?: number;
     isLoading: boolean;
     selectedId: string | null;
     onSelect: (id: string) => void;
@@ -20,6 +23,7 @@ interface BeanListProps {
     assetsReady?: boolean;
     hidden?: ReadonlySet<string>;
     onToggleHidden?: (id: string) => void;
+    onShowHidden?: () => void;
 }
 
 const Skeleton = () => (
@@ -42,6 +46,7 @@ const Skeleton = () => (
 
 export const BeanList = ({
     beans,
+    catalogTotal = 0,
     isLoading,
     selectedId,
     onSelect,
@@ -52,6 +57,7 @@ export const BeanList = ({
     assetsReady = false,
     hidden,
     onToggleHidden,
+    onShowHidden,
 }: BeanListProps) => {
     const { t, i18n } = useTranslation();
     const searchLower = search.toLowerCase();
@@ -146,9 +152,11 @@ export const BeanList = ({
                     })}
 
                     {filtered.length === 0 && (
-                        <div className="px-5 py-10 text-center text-sm tracking-[0.14px] text-muted">
-                            {beans.length === 0 ? t('beanList.empty') : t('beanList.noResults')}
-                        </div>
+                        <CatalogHiddenEmpty
+                            className="px-5 py-10 text-center text-sm tracking-[0.14px] text-muted"
+                            messageKey={beanListEmptyMessageKey(catalogTotal, beans.length)}
+                            onShowHidden={catalogTotal > 0 && beans.length === 0 ? onShowHidden : undefined}
+                        />
                     )}
                 </div>
             )}
