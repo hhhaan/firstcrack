@@ -26,6 +26,7 @@ import {
     runCompleteBatchFlow,
 } from '../lib/plan-day-flow';
 import type { EditScope, NewBatchData } from '../lib/types';
+import { invalidatePlanBatchStock } from './invalidatePlanBatchStock';
 
 /**
  * Plan Day write paths — every mutation the day view can make, in one place.
@@ -68,11 +69,14 @@ export const usePlanDayWrites = ({
         [userId],
     );
 
-    const commitStatus = useCallback(
-        async (_batch: PlanBatchWithProgress, target: BatchTarget, status: 'in-progress' | 'done') => {
-            if (!target.batch) throw new Error('resolved plan batch required');
-            await planBatchApi.updateRoastStatus(target.batch, status);
+    const completePlanBatch = useCallback(async (batchId: string, deductStock: boolean) => {
+        await planBatchApi.completePlanBatch(batchId, deductStock);
+    }, []);
+
+    const invalidatePlanBatchStockAfterComplete = useCallback(
+        (beanIds: string[], broad = false) => {
             invalidatePlanScope(qc, userId);
+            invalidatePlanBatchStock(qc, userId, beanIds, broad);
         },
         [qc, userId],
     );
@@ -97,9 +101,18 @@ export const usePlanDayWrites = ({
     );
 
     const completeBatch = useCallback(
-        (batch: PlanBatchWithProgress, deductStock: boolean, deps: Pick<CompleteBatchFlowDeps, 'deduct' | 'notify'>) =>
-            runCompleteBatchFlow({ ensureMaterialized, commitStatus, ...deps }, batch, deductStock),
-        [ensureMaterialized, commitStatus],
+        (batch: PlanBatchWithProgress, deductStock: boolean, deps: Pick<CompleteBatchFlowDeps, 'notify'>) =>
+            runCompleteBatchFlow(
+                {
+                    ensureMaterialized,
+                    completePlanBatch,
+                    invalidatePlanBatchStock: invalidatePlanBatchStockAfterComplete,
+                    ...deps,
+                },
+                batch,
+                deductStock,
+            ),
+        [ensureMaterialized, completePlanBatch, invalidatePlanBatchStockAfterComplete],
     );
 
     const createOneOffOrRecurring = useCallback(

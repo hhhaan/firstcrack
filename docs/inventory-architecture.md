@@ -33,7 +33,7 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 |---|---|---|
 | Bean create / restock | `src/widgets/add-bean-modal/ui/useAddBeanSubmit.ts` | `purchase` (`reference_id` null) |
 | Roast save deduct | `src/views/active-roast/model/useRoastSaveFlow.ts` → `src/features/active-roast/model/useDeductRoastStock.ts` / server `save_roast_op` | `roast`, ref = session or batch id. Blends: `src/features/active-roast/lib/buildRoastStockEvents.ts` → `insert_stock_events_batch` RPC |
-| Schedule batch complete | `src/views/schedule/hooks/useScheduleDayView.ts` + `batchGreenNeededGramsFromBatch` (`src/shared/lib/batch-stock.ts`) | `roast`, ref = `plan_batch.id` (remaining sessions only) |
+| Schedule batch complete | `complete_plan_batch` RPC via schedule writes (`plan-day-flow.ts`) | `roast`, ref = `plan_batch.id` (remaining sessions computed under batch lock). Legacy app versions still call `insert_stock_events_batch`; the server clamps batch-level `roast` events to `plan_batch_remaining_roast_grams` after locking the batch. |
 | Manual adjust | `src/features/adjust-*` (product/roasted); bean adjust UI where present | `adjustment` / `write_off` |
 
 ### roasted_stock_events (bulk)
@@ -55,6 +55,24 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 | Channel cancel / inbound | `sync_channel_orders_batch` RPC | atomically writes cancel/restore paths when platform status changes |
 
 **Never** insert multi-ledger ops with raw table inserts from the client. Use the RPCs above.
+
+### Stock write lock order (`20261017160300_stock_concurrency_atomicity.sql`)
+
+When one transaction touches multiple parents, acquire locks in this order only:
+
+1. Advisory locks (channel order sync)
+2. `recurrence_rules` (recurring plan batches)
+3. `orders`
+4. `order_lines` (implicit via fulfillment paths)
+5. `roast_plan_batches`
+6. `roast_day_plans` (`FOR SHARE` for owner checks)
+7. `products`
+8. `beans`
+9. `blends`
+
+Row locks use `FOR NO KEY UPDATE` on products, beans, and blends so `KEY SHARE` FK readers (e.g. `order_lines` inserts) are not blocked.
+
+**Exceptions (still compatible):** `#875` channel sync paths may lock `products` with `FOR UPDATE`. `save_roast_op` and `lock_roast_plan_batch_for_write` lock `recurrence_rules` then `roast_plan_batches` with **`FOR UPDATE`** on the batch row (not `FOR NO KEY UPDATE`) so `complete_plan_batch` and legacy batch clamps block concurrent `roast_sessions` FK inserts that would skew remaining-session grams. Legacy `insert_stock_events_batch` reads `roast_day_plans` with `FOR SHARE` for owner checks after the batch lock.
 
 ---
 

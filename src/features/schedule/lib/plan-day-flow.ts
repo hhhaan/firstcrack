@@ -1,32 +1,22 @@
-import { batchGreenNeededGramsFromBatch } from '@shared/lib/batch-stock';
-import { errorMessage } from '@shared/lib/errorMessage';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import { stockBeanIdsForPlanBatch } from './plan-batch-stock-ids';
 
 export type BatchTarget = { targetId: string; targetPlanId: string; batch?: PlanBatchWithProgress };
-
-export type DeductRoastStockInput = {
-    deductionGrams: number;
-    singleBeanId: string | null;
-    blendId: string | null;
-    referenceId: string;
-};
 
 export type CompleteBatchFlowDeps = {
     /** Virtual recurring → real exception row (status preserved); real row → identity. */
     ensureMaterialized: (batch: PlanBatchWithProgress) => Promise<BatchTarget>;
-    /** Status UPDATE only. */
-    commitStatus: (batch: PlanBatchWithProgress, target: BatchTarget, status: 'done') => Promise<void>;
-    /** Injected by the composer — green deduction lives in active-roast (features must not import features). */
-    deduct: (params: DeductRoastStockInput) => Promise<void>;
+    /** Server RPC: remaining-session deduct + status=done in one transaction. */
+    completePlanBatch: (batchId: string, deductStock: boolean) => Promise<void>;
+    /** After successful complete — bean ids optional; broad=true skips per-bean keys. */
+    invalidatePlanBatchStock: (beanIds: string[], broad?: boolean) => void | Promise<void>;
     /** i18n key → user-facing alert */
     notify: (key: string) => void;
 };
 
 /**
- * Complete-batch order (#108): materialize first (deduct needs the real reference id),
- * then deduct BEFORE committing status=done. A deduct failure leaves the batch
- * not-done, so retry is safe — the reference-unique deduct is idempotent.
- * `roast_already_deducted` still completes (the session save path already took stock).
+ * Complete-batch order (#108 / #891): materialize first, then atomic server complete.
+ * Legacy clients may still call insert_stock_events_batch; the server clamps batch refs.
  */
 export async function runCompleteBatchFlow(
     deps: CompleteBatchFlowDeps,
@@ -36,30 +26,20 @@ export async function runCompleteBatchFlow(
     const target = await deps.ensureMaterialized(batch);
     batch = target.batch ?? batch;
 
-    if (deductStock) {
-        const deductionGrams = batchGreenNeededGramsFromBatch(batch);
-        if (!batch.bean_id && !batch.blend_id) {
-            deps.notify('schedule.completeBatch.deductStockDisabled');
-        } else if (deductionGrams > 0) {
-            try {
-                await deps.deduct({
-                    deductionGrams,
-                    singleBeanId: batch.bean_id ?? null,
-                    blendId: batch.blend_id ?? null,
-                    referenceId: target.targetId,
-                });
-            } catch (deductErr) {
-                // C2: session path already deducted — completing is still correct
-                if (errorMessage(deductErr).includes('roast_already_deducted')) {
-                    deps.notify('activeRoast.summary.deductSkippedAlreadyDeducted');
-                } else {
-                    throw deductErr; // status untouched — batch stays incomplete for retry
-                }
-            }
-        }
+    let shouldDeduct = deductStock;
+    if (deductStock && !batch.bean_id && !batch.blend_id) {
+        deps.notify('schedule.completeBatch.deductStockDisabled');
+        shouldDeduct = false;
     }
 
-    await deps.commitStatus(batch, target, 'done');
+    await deps.completePlanBatch(target.targetId, shouldDeduct);
+
+    try {
+        const stockBeanIds = await stockBeanIdsForPlanBatch(batch);
+        await deps.invalidatePlanBatchStock(stockBeanIds);
+    } catch {
+        await deps.invalidatePlanBatchStock([], true);
+    }
 }
 
 /**
