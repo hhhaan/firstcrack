@@ -10,7 +10,8 @@ export function SettingsSection({ children, className, group }: SettingsSectionP
             data-settings-section
             data-settings-group={group}
             className={cn(
-                'flex min-w-0 flex-col gap-2.5 in-[.settings-compact]:gap-2 in-[.settings-compact]:border-b in-[.settings-compact]:border-border in-[.settings-compact]:py-4 in-[.settings-compact]:first:pt-0 in-[.settings-compact]:last:border-b-0',
+                // `hidden` siblings stay in the tree, so :last-child still draws a rule under a one-section group such as Alerts.
+                'flex min-w-0 flex-col gap-2.5 in-[.settings-compact]:gap-2 in-[.settings-compact]:border-border in-[.settings-compact]:py-4 in-[.settings-compact]:first:pt-0 in-[.settings-compact]:has-[~_[data-settings-section]:not([hidden])]:border-b',
                 className,
             )}
         >
