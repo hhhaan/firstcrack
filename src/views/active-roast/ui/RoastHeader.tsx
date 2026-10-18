@@ -110,7 +110,7 @@ export const RoastHeader = ({
                 )}
 
                 <div className="relative inline-flex items-center mb-1 min-w-0">
-                    <span className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
+                    <span className="font-(--font-display) text-[28px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
                         {beanTitle}
                     </span>
 
