@@ -71,7 +71,8 @@ vi.mock('./_shared/channels/normalize.ts', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./_shared/channels/normalize.ts')>()),
     upsertCanonicalOrders: mocks.upsert,
 }));
-vi.mock('./_shared/channels/run-lock.ts', () => ({
+vi.mock('./_shared/channels/run-lock.ts', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./_shared/channels/run-lock.ts')>()),
     reclaimStaleRuns: vi.fn(),
     acquireDispatchRunLock: async () => ({ ok: true, runId: 'run' }),
     releaseRunLock: vi.fn(),
@@ -308,6 +309,27 @@ describe('Cafe24 webhook', () => {
         expect((await request('order-webhook', body, { 'X-API-Key': 'shared-secret' })).status).toBe(500);
         mocks.upsert.mockClear();
         expect((await request('order-webhook', body)).status).toBe(401);
+        expect(mocks.upsert).not.toHaveBeenCalled();
+    });
+
+    it('returns 409 when another worker holds a fresh running claim', async () => {
+        mocks.query.mockImplementation((q) => {
+            if (q.table === 'order_sync_runs' && q.operation === 'insert') {
+                return { data: null, error: { code: '23505', message: 'duplicate key' } };
+            }
+            if (q.table === 'order_sync_runs' && q.operation === 'select') {
+                return {
+                    data: {
+                        id: 'run-live',
+                        status: 'running',
+                        started_at: new Date().toISOString(),
+                    },
+                };
+            }
+            return defaultResult(q);
+        });
+        const response = await request('order-webhook', body, { 'X-API-Key': 'shared-secret' });
+        expect(response.status).toBe(409);
         expect(mocks.upsert).not.toHaveBeenCalled();
     });
 });

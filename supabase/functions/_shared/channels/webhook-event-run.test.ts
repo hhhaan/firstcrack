@@ -90,14 +90,19 @@ function mockWebhookRuns(handlers: {
     return { admin, ops };
 }
 
+/** Format an instant as +09:00 wall time (for staleness via Date.parse, not string compare). */
+function formatKstOffset(ms: number): string {
+    const shifted = new Date(ms + 9 * 3600_000);
+    const pad = (n: number, w = 2) => String(n).padStart(w, '0');
+    return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}T${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(shifted.getUTCSeconds())}.${pad(shifted.getUTCMilliseconds(), 3)}+09:00`;
+}
+
+const claimArgs = { connectionId: 'conn-1', userId: 'user-1', externalEventId: 'evt-1' };
+
 describe('claimWebhookEventRun', () => {
     it('returns run id on fresh insert', async () => {
         const { admin } = mockWebhookRuns({ insert: { data: { id: 'run-1' }, error: null } });
-        const result = await claimWebhookEventRun(admin, {
-            connectionId: 'conn-1',
-            userId: 'user-1',
-            externalEventId: 'evt-1',
-        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
         expect(result).toEqual({ ok: true, runId: 'run-1' });
     });
 
@@ -106,11 +111,7 @@ describe('claimWebhookEventRun', () => {
             insert: { data: null, error: { code: '23505', message: 'dup' } },
             existing: { data: null, error: { message: 'db timeout' } },
         });
-        const result = await claimWebhookEventRun(admin, {
-            connectionId: 'conn-1',
-            userId: 'user-1',
-            externalEventId: 'evt-1',
-        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
         expect(result).toEqual({ ok: false, duplicate: false, error: 'db timeout' });
     });
 
@@ -120,11 +121,7 @@ describe('claimWebhookEventRun', () => {
             insert: { data: null, error: { code: '23505', message: 'dup' } },
             existing: { data: { id: 'run-live', status: 'running', started_at: recent }, error: null },
         });
-        const result = await claimWebhookEventRun(admin, {
-            connectionId: 'conn-1',
-            userId: 'user-1',
-            externalEventId: 'evt-1',
-        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
         expect(result).toEqual({ ok: false, inProgress: true });
     });
 
@@ -136,41 +133,62 @@ describe('claimWebhookEventRun', () => {
                 error: null,
             },
         });
-        const result = await claimWebhookEventRun(admin, {
-            connectionId: 'conn-1',
-            userId: 'user-1',
-            externalEventId: 'evt-1',
-        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
         expect(result).toEqual({ ok: false, duplicate: true });
     });
 
-    it('parses non-UTC offset started_at when deciding staleness', async () => {
-        const staleStarted = '2020-06-01T12:00:00+09:00';
+    it('23505 when existing row is error → in progress (retry, not duplicate ack)', async () => {
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: {
+                data: { id: 'run-err', status: 'error', started_at: new Date().toISOString() },
+                error: null,
+            },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, inProgress: true });
+    });
+
+    it('lost reclaim race (0 rows) → in progress', async () => {
+        const staleStarted = new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString();
         const { admin } = mockWebhookRuns({
             insert: { data: null, error: { code: '23505', message: 'dup' } },
             existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
-            reclaim: { data: { id: 'stale-run' }, error: null },
+            reclaim: { data: null, error: null },
         });
-        const result = await claimWebhookEventRun(admin, {
-            connectionId: 'conn-1',
-            userId: 'user-1',
-            externalEventId: 'evt-1',
-        });
-        expect(result).toEqual({ ok: true, runId: 'stale-run' });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, inProgress: true });
     });
 
-    it('23505 on a stale running row → reclaims and proceeds', async () => {
+    it('reclaim update error → surfaces error', async () => {
         const staleStarted = new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString();
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
+            reclaim: { data: null, error: { message: 'reclaim failed' } },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, duplicate: false, error: 'reclaim failed' });
+    });
+
+    it.each([
+        ['utc iso', () => new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString()],
+        [
+            'kst +09:00 offset',
+            () => formatKstOffset(Date.now() - STALE_RUN_MS - 60_000),
+        ],
+    ])('23505 on a stale running row → reclaims (%s)', async (_label, startedAt) => {
+        const staleStarted = startedAt();
+        const staleBeforeIso = new Date(Date.now() - STALE_RUN_MS).toISOString();
+        if (_label === 'kst +09:00 offset') {
+            expect(staleStarted >= staleBeforeIso).toBe(true);
+        }
         const { admin, ops } = mockWebhookRuns({
             insert: { data: null, error: { code: '23505', message: 'dup' } },
             existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
             reclaim: { data: { id: 'stale-run' }, error: null },
         });
-        const result = await claimWebhookEventRun(admin, {
-            connectionId: 'conn-1',
-            userId: 'user-1',
-            externalEventId: 'evt-1',
-        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
         expect(result).toEqual({ ok: true, runId: 'stale-run' });
         const reclaim = ops.find((o) => o.kind === 'update' && o.terminal === 'updateSingle');
         expect(reclaim?.filters).toContainEqual(['eq', 'id', 'stale-run']);

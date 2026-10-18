@@ -99,7 +99,7 @@ export async function claimWebhookEventRun(
             return { ok: false, inProgress: true };
         }
     } else {
-        return { ok: false, duplicate: true };
+        return { ok: false, inProgress: true };
     }
 
     const { data: reclaimed, error: reclaimErr } = await admin
@@ -118,8 +118,17 @@ export async function claimWebhookEventRun(
         .select('id')
         .single();
 
-    if (reclaimErr || !reclaimed) {
-        return { ok: false, duplicate: true };
+    if (reclaimErr) {
+        console.error('[webhook-event-run] reclaim stale webhook claim', reclaimErr);
+        await captureEdgeException(reclaimErr, {
+            function: 'order-webhook',
+            status: 500,
+            tags: { step: 'webhook-claim-reclaim' },
+        });
+        return { ok: false, duplicate: false, error: reclaimErr.message ?? 'claim reclaim failed' };
+    }
+    if (!reclaimed) {
+        return { ok: false, inProgress: true };
     }
 
     console.warn('[webhook-event-run] reclaimed stale webhook claim', reclaimed.id);
