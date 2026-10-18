@@ -24,7 +24,7 @@ interface BeanListProps {
 const Skeleton = () => (
     <div className="flex flex-col gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-main-bg rounded-lg px-4 py-3.5 dark:border dark:border-[#585d61]">
+            <div key={i} className="bg-main-bg rounded-lg border border-border px-4 py-3.5">
                 <div className="flex justify-between mb-2.5">
                     <div>
                         <div className="w-35 h-3 rounded-md bg-surface mb-1.5 animate-pulse" />
@@ -59,7 +59,7 @@ export const BeanList = ({
 
     return (
         <div>
-            <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-main-bg px-3 py-[9px] dark:border dark:border-[#585d61]">
+            <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-border bg-main-bg px-3 py-[9px]">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
@@ -88,7 +88,7 @@ export const BeanList = ({
                                 data-testid={`bean-list-item-${bean.id}`}
                                 data-stock-kg={(currentGrams / 1000).toFixed(2)}
                                 onClick={() => onSelect(bean.id)}
-                                className="cursor-pointer rounded-lg bg-main-bg px-4 py-3.5 transition-all duration-150 dark:border dark:border-[#585d61]"
+                                className="cursor-pointer rounded-lg border border-border bg-main-bg px-4 py-3.5 transition-all duration-150"
                             >
                                 <div className="mb-2 flex items-start justify-between">
                                     <div>

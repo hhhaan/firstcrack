@@ -123,7 +123,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     );
 
     const emptyState = (
-        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+        <div className="bg-main-bg border border-border rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
             <div className="text-[13px] text-muted text-center leading-relaxed">
                 {t('beans.empty.title')}
                 <br />

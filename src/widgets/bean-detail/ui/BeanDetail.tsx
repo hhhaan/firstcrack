@@ -28,7 +28,7 @@ interface BeanDetailProps {
 }
 
 const Skeleton = () => (
-    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7">
+    <div className="bg-main-bg border border-border rounded-lg px-8 py-7">
         <div className="mb-6">
             <div className="w-50 h-8 rounded-lg bg-surface mb-2.5 animate-pulse" />
             <div className="flex gap-1.5">
@@ -55,7 +55,7 @@ const Skeleton = () => (
 const Empty = ({ hasAny }: { hasAny: boolean }) => {
     const { t } = useTranslation();
     return (
-        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
+        <div className="bg-main-bg border border-border rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
             {hasAny ? t('beanDetail.empty.select') : t('beanDetail.empty.addFirst')}
         </div>
     );
@@ -110,7 +110,7 @@ export const BeanDetail = ({
                     setConfirming(false);
                 }}
             />
-            <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative dark:border dark:border-[#585d61]">
+            <div className="bg-main-bg rounded-lg border border-border px-8 py-7 h-fit relative">
                 <div className="absolute top-6 right-6 flex gap-2 z-2">
                     <button
                         type="button"
