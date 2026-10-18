@@ -49,6 +49,13 @@ describe('cafe24WebhookEventKey', () => {
         const key = await cafe24WebhookEventKey({}, rawBody);
         expect(key.startsWith('cafe24:na:na:')).toBe(true);
     });
+
+    it('reads order_id from resource when top-level order_id is absent', async () => {
+        const payload = { event_no: 90023, resource: orderPayload.resource };
+        const body = JSON.stringify(payload);
+        const key = await cafe24WebhookEventKey(payload, body);
+        expect(key.startsWith('cafe24:90023:20260727-0000001:')).toBe(true);
+    });
 });
 
 describe('isCafe24Uninstall', () => {

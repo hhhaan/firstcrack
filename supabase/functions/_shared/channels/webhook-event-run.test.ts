@@ -114,7 +114,7 @@ describe('claimWebhookEventRun', () => {
         expect(result).toEqual({ ok: false, duplicate: false, error: 'db timeout' });
     });
 
-    it('23505 on a fresh running row → duplicate', async () => {
+    it('23505 on a fresh running row → in progress (caller should not ack 200)', async () => {
         const recent = new Date().toISOString();
         const { admin } = mockWebhookRuns({
             insert: { data: null, error: { code: '23505', message: 'dup' } },
@@ -125,7 +125,38 @@ describe('claimWebhookEventRun', () => {
             userId: 'user-1',
             externalEventId: 'evt-1',
         });
+        expect(result).toEqual({ ok: false, inProgress: true });
+    });
+
+    it('23505 when existing row is success → duplicate', async () => {
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: {
+                data: { id: 'run-done', status: 'success', started_at: new Date().toISOString() },
+                error: null,
+            },
+        });
+        const result = await claimWebhookEventRun(admin, {
+            connectionId: 'conn-1',
+            userId: 'user-1',
+            externalEventId: 'evt-1',
+        });
         expect(result).toEqual({ ok: false, duplicate: true });
+    });
+
+    it('parses non-UTC offset started_at when deciding staleness', async () => {
+        const staleStarted = '2020-06-01T12:00:00+09:00';
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
+            reclaim: { data: { id: 'stale-run' }, error: null },
+        });
+        const result = await claimWebhookEventRun(admin, {
+            connectionId: 'conn-1',
+            userId: 'user-1',
+            externalEventId: 'evt-1',
+        });
+        expect(result).toEqual({ ok: true, runId: 'stale-run' });
     });
 
     it('23505 on a stale running row → reclaims and proceeds', async () => {

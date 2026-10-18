@@ -36,7 +36,14 @@ export type WebhookEventRunClient = {
 export type ClaimWebhookEventRunResult =
     | { ok: true; runId: string }
     | { ok: false; duplicate: true }
+    | { ok: false; inProgress: true }
     | { ok: false; duplicate: false; error: string };
+
+function isStaleWebhookClaim(startedAt: string): boolean {
+    const startedMs = Date.parse(startedAt);
+    if (Number.isNaN(startedMs)) return false;
+    return startedMs < Date.now() - STALE_RUN_MS;
+}
 
 /** Insert a running webhook row, or reclaim a stale running duplicate (same external_event_id). */
 export async function claimWebhookEventRun(
@@ -63,7 +70,7 @@ export async function claimWebhookEventRun(
         return { ok: false, duplicate: false, error: runErr?.message ?? 'run insert failed' };
     }
 
-    const staleBefore = new Date(Date.now() - STALE_RUN_MS).toISOString();
+    const staleBeforeIso = new Date(Date.now() - STALE_RUN_MS).toISOString();
     const { data: existing, error: fetchErr } = await admin
         .from('order_sync_runs')
         .select('id, status, started_at')
@@ -81,7 +88,17 @@ export async function claimWebhookEventRun(
         return { ok: false, duplicate: false, error: fetchErr.message ?? 'claim lookup failed' };
     }
 
-    if (!existing || existing.status !== 'running' || existing.started_at >= staleBefore) {
+    if (!existing) {
+        return { ok: false, duplicate: false, error: 'claim conflict' };
+    }
+    if (existing.status === 'success') {
+        return { ok: false, duplicate: true };
+    }
+    if (existing.status === 'running') {
+        if (!isStaleWebhookClaim(existing.started_at)) {
+            return { ok: false, inProgress: true };
+        }
+    } else {
         return { ok: false, duplicate: true };
     }
 
@@ -97,7 +114,7 @@ export async function claimWebhookEventRun(
         })
         .eq('id', existing.id)
         .eq('status', 'running')
-        .lt('started_at', staleBefore)
+        .lt('started_at', staleBeforeIso)
         .select('id')
         .single();
 

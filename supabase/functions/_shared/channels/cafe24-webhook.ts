@@ -19,7 +19,13 @@ async function sha256Hex(rawBody: string): Promise<string> {
 /** Stable idempotency key for Cafe24 webhook deliveries (body hash — no delivery-id header). */
 export async function cafe24WebhookEventKey(payload: Record<string, unknown>, rawBody: string): Promise<string> {
     const eventNo = payload.event_no != null ? String(payload.event_no) : 'na';
-    const orderId = payload.order_id != null ? String(payload.order_id) : 'na';
+    const resource = (payload.resource ?? payload.order ?? payload) as Record<string, unknown>;
+    const orderId =
+        resource.order_id != null
+            ? String(resource.order_id)
+            : payload.order_id != null
+              ? String(payload.order_id)
+              : 'na';
     const hash = await sha256Hex(rawBody);
     return `cafe24:${eventNo}:${orderId}:${hash}`;
 }
