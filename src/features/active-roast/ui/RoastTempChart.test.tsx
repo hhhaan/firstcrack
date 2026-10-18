@@ -290,7 +290,9 @@ describe('RoastTempChart interactions', () => {
             expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 6 })).toBe(false);
             act(() => expect(ref.current?.openMarkerEdit(point)).toBe(true));
             expect(ref.current?.beginMarkerDrag({ ...point, button: 0, pointerId: 7 })).toBe(true);
-            expect(ref.current?.moveMarkerDrag({ clientX: 80, clientY: point.clientY, pointerId: 7 })).toBe(true);
+            expect(
+                ref.current?.moveMarkerDrag({ clientX: point.clientX + 30, clientY: point.clientY, pointerId: 7 }),
+            ).toBe(true);
             expect(onEventMarkerDrag).toHaveBeenCalledWith('yellow-1', 8);
             expect(ref.current?.endMarkerDrag(7)).toBe(true);
         } finally {
@@ -326,6 +328,29 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDrag).toHaveBeenCalledWith('note-1', 8);
         expect(convertToPixel.mock.calls.every(([, value]) => !Array.isArray(value))).toBe(true);
         expect(convertFromPixel.mock.calls.every(([, value]) => !Array.isArray(value))).toBe(true);
+    });
+
+    it('moves a marker by the pointer delta when the grab is not on the anchor', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDrag = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        { logId: 'note-1', event: 'Note', timeSec: 5, timeStr: '0:05', temp: '180°C', color: '#888' },
+                    ],
+                    onEventMarkerDrag,
+                }),
+            );
+        });
+
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 59, clientY: 20, pointerId: 11 })).toBe(true);
+        expect(ref.current?.moveMarkerDrag({ clientX: 69, clientY: 20, pointerId: 11 })).toBe(true);
+        expect(onEventMarkerDrag).toHaveBeenCalledWith('note-1', 6);
     });
 
     it('drags the turning-point mark', () => {

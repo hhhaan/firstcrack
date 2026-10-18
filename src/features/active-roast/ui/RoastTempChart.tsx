@@ -387,7 +387,14 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
     const yRangeInterval = usesCustomTickList(roastSettings) ? undefined : axisSettings.tempGridInterval;
 
-    const dragStateRef = useRef<{ pointerId: number; logId: string; event: string; timeSec: number } | null>(null);
+    const dragStateRef = useRef<{
+        pointerId: number;
+        logId: string;
+        event: string;
+        timeSec: number;
+        originTimeSec: number;
+        originX: number;
+    } | null>(null);
     const PIXEL_THRESHOLD = 10;
     const lastChartSizeRef = useRef({ w: 0, h: 0 });
     const [noteForm, setNoteForm] = useState<{ x: number; y: number; timeSec: number } | null>(null);
@@ -799,16 +806,21 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         (event: Pick<PointerEvent, 'button' | 'clientX' | 'clientY' | 'pointerId'>) => {
             if (event.button !== 0) return false;
             const selected = findDraggableMarker(event.clientX, event.clientY);
-            if (!selected?.logId) return false;
+            const point = localPoint(event.clientX, event.clientY);
+            if (!selected?.logId || !point) return false;
+            // Label text sits to the right of the event. Absolute pointer time would jump there,
+            // and past the live head that clamps to the latest sample.
             dragStateRef.current = {
                 pointerId: event.pointerId,
                 logId: selected.logId,
                 event: selected.event,
                 timeSec: selected.timeSec,
+                originTimeSec: selected.timeSec,
+                originX: point.x,
             };
             return true;
         },
-        [findDraggableMarker],
+        [findDraggableMarker, localPoint],
     );
 
     const hitTestMarker = useCallback(
@@ -825,10 +837,16 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const chart = chartInstanceRef.current;
             const point = localPoint(event.clientX, event.clientY);
             if (!chart || !point) return true;
+            const origin = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, drag.originX));
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
-            if (converted == null) return true;
+            if (origin == null || converted == null) return true;
             const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
-            const nextTimeSec = clampMarkerTime(drag.event, converted, currentTimeSec, axisMax);
+            const nextTimeSec = clampMarkerTime(
+                drag.event,
+                drag.originTimeSec + (converted - origin),
+                currentTimeSec,
+                axisMax,
+            );
             if (nextTimeSec !== drag.timeSec) {
                 onEventMarkerDrag(drag.logId, nextTimeSec);
                 drag.timeSec = nextTimeSec;
