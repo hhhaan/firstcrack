@@ -54,7 +54,7 @@
 | `--color-main-bg` | `#ffffff` | `#181d21` | 페이지/카드 배경 |
 | `--color-roast-bg` | `#ffffff` | `#181d21` | 로스팅 화면 전용 배경 |
 | `--color-shell-bg` | `#f4f4f4` | `#262b30` | 앱 헤더·사이드바 배경 |
-| `--color-dashboard-card-bg` | `#f9fafc` | `#262b30` | 대시보드 카드 배경 |
+| `--color-dashboard-card-bg` | `#f4f4f4` | `#262b30` | 대시보드 카드 배경 |
 | `--color-surface` | `#f3f4f7` | `#181d21` | 버튼/인풋/서피스 배경 |
 | `--color-surface-elevated` | `#f3f4f7` | `#262b30` | 카드·모달 내 상승 서피스 |
 | `--color-surface-warm` | `rgba(245, 242, 239, 0.8)` | `rgba(30, 28, 26, 0.8)` | 따뜻한 톤 서피스 (호버 등) |
