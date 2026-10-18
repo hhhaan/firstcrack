@@ -11,7 +11,7 @@ type Op = {
     kind: 'insert' | 'select' | 'update';
     values?: Record<string, unknown>;
     filters: Array<[string, string, unknown]>;
-    terminal: 'insertSingle' | 'maybeSingle' | 'updateSingle' | 'updateVoid';
+    terminal: 'insertSingle' | 'maybeSingle' | 'updateMaybeSingle' | 'updateVoid';
 };
 
 function mockWebhookRuns(handlers: {
@@ -39,27 +39,24 @@ function mockWebhookRuns(handlers: {
             },
             select: (columns: string) => {
                 if (kind === 'update') {
-                    op.terminal = 'updateSingle';
+                    op.terminal = 'updateMaybeSingle';
                 }
                 expect(columns).toBeTruthy();
                 return builder;
             },
             maybeSingle: () => {
-                op.terminal = 'maybeSingle';
                 ops.push(op);
-                return Promise.resolve(
-                    handlers.existing ?? { data: null, error: null },
-                );
+                if (kind === 'update') {
+                    op.terminal = 'updateMaybeSingle';
+                    return Promise.resolve(handlers.reclaim ?? { data: null, error: null });
+                }
+                op.terminal = 'maybeSingle';
+                return Promise.resolve(handlers.existing ?? { data: null, error: null });
             },
             single: () => {
                 ops.push(op);
-                if (op.terminal === 'insertSingle') {
-                    return Promise.resolve(handlers.insert ?? { data: { id: 'run-new' }, error: null });
-                }
-                if (op.terminal === 'updateSingle') {
-                    return Promise.resolve(handlers.reclaim ?? { data: { id: 'stale-run' }, error: null });
-                }
-                return Promise.resolve({ data: null, error: null });
+                expect(op.terminal).toBe('insertSingle');
+                return Promise.resolve(handlers.insert ?? { data: { id: 'run-new' }, error: null });
             },
             then: (
                 resolve: (v: { data: unknown; error: PostgrestLikeError | null }) => unknown,
@@ -171,6 +168,23 @@ describe('claimWebhookEventRun', () => {
         expect(result).toEqual({ ok: false, duplicate: false, error: 'reclaim failed' });
     });
 
+    it('reclaim update returns PGRST116 → 500 (not confused with maybeSingle 0-row race)', async () => {
+        const staleStarted = new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString();
+        const { admin: pgErr } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
+            reclaim: {
+                data: null,
+                error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' },
+            },
+        });
+        expect(await claimWebhookEventRun(pgErr, claimArgs)).toEqual({
+            ok: false,
+            duplicate: false,
+            error: 'JSON object requested, multiple (or no) rows returned',
+        });
+    });
+
     it.each([
         ['utc iso', () => new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString()],
         [
@@ -190,7 +204,7 @@ describe('claimWebhookEventRun', () => {
         });
         const result = await claimWebhookEventRun(admin, claimArgs);
         expect(result).toEqual({ ok: true, runId: 'stale-run' });
-        const reclaim = ops.find((o) => o.kind === 'update' && o.terminal === 'updateSingle');
+        const reclaim = ops.find((o) => o.kind === 'update' && o.terminal === 'updateMaybeSingle');
         expect(reclaim?.filters).toContainEqual(['eq', 'id', 'stale-run']);
         expect(reclaim?.filters).toContainEqual(['eq', 'status', 'running']);
         expect(reclaim?.filters.some((f) => f[0] === 'lt' && f[1] === 'started_at')).toBe(true);

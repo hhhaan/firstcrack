@@ -10,6 +10,7 @@ type FilterQuery = PromiseLike<{ data: unknown; error: PostgrestLikeError | null
     lt: (column: string, value: unknown) => FilterQuery;
     select: (columns: string) => {
         single: () => PromiseLike<{ data: { id: string } | null; error: PostgrestLikeError | null }>;
+        maybeSingle: () => PromiseLike<{ data: { id: string } | null; error: PostgrestLikeError | null }>;
     };
     maybeSingle: () => PromiseLike<{
         data: { id: string; status: string; started_at: string } | null;
@@ -116,7 +117,7 @@ export async function claimWebhookEventRun(
         .eq('status', 'running')
         .lt('started_at', staleBeforeIso)
         .select('id')
-        .single();
+        .maybeSingle();
 
     if (reclaimErr) {
         console.error('[webhook-event-run] reclaim stale webhook claim', reclaimErr);
