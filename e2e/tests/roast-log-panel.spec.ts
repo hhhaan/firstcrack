@@ -81,6 +81,12 @@ for (const machineControl of [false, true]) {
                 await expect.poll(async () => (await canvas.boundingBox())?.width).toBe(after?.width);
                 const plot = await canvas.boundingBox();
                 if (!plot) throw new Error('Chart canvas is missing');
+                const legend = await chart.getByText(/^Drum(?: \([^)]*\))?$/).boundingBox();
+                const frameBottom = await chart.evaluate(
+                    (element) => element.parentElement?.parentElement?.getBoundingClientRect().bottom,
+                );
+                if (!legend || frameBottom == null) throw new Error('Control legend is missing');
+                expect(legend.y + legend.height).toBeLessThanOrEqual(frameBottom);
                 await page.evaluate(
                     (label) => {
                         const badge = document.createElement('div');
@@ -122,6 +128,7 @@ for (const machineControl of [false, true]) {
             const bodyBox = await panel.getByText('new live note', { exact: true }).boundingBox();
             const titleBox = await panel.getByRole('heading', { name: 'Roast Log' }).boundingBox();
             expect(bodyBox?.x).toBe(titleBox?.x);
+            await panel.getByRole('button', { name: 'Edit Note', exact: true }).click();
             await panel.getByRole('button', { name: 'Delete note' }).click();
             await expect(panel.getByText('new live note', { exact: true })).toHaveCount(0);
             await panel.getByRole('button', { name: 'Collapse roast log' }).click();
