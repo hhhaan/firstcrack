@@ -9,7 +9,7 @@ import type { RoastNoteControls } from '@shared/types/roast';
 type TempSample = { bt: number | null; et: number | null };
 
 const FULLSCREEN_CHART_CLASS = 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-2.5';
-const WINDOWED_CHART_CLASS = 'rounded relative z-1 pt-5 pb-[30px] flex-1 dark:border dark:border-[#585d61]';
+const WINDOWED_CHART_CLASS = 'rounded relative z-1 py-5 flex-1 dark:border dark:border-[#585d61]';
 
 export const orNull = <T>(value: T | null | undefined): T | null => value ?? null;
 

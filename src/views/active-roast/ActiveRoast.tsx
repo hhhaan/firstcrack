@@ -1215,7 +1215,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
-        <div className="p-6 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
+        <div className="px-6 pt-6 pb-3 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
             <RoastHeader
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
