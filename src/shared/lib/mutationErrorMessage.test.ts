@@ -64,6 +64,18 @@ describe('resolveMutationErrorText', () => {
     });
 
     it('still maps the guard code when the server string arrives wrapped', () => {
+        expect(
+            resolveMutationErrorText({
+                code: 'PF892',
+                message: 'idempotency_payload_mismatch',
+            }),
+        ).toEqual({
+            key: 'errors.idempotencyPayloadMismatch',
+        });
+        expect(resolveMutationErrorText(new Error('idempotency_payload_mismatch'))).toEqual({
+            key: 'errors.idempotencyPayloadMismatch',
+        });
+
         expect(resolveMutationErrorText(new Error('insufficient_product_stock'))).toEqual({
             key: 'errors.insufficientProductStock',
         });

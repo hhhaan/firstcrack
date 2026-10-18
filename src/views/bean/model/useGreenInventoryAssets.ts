@@ -19,10 +19,10 @@ export const useGreenInventoryAssets = (userId: string, beans: Bean[]) => {
     const { data: stockSummaries = {}, isLoading: stockLoading } = useBeanStockSummaries(userId);
     const { data: purchaseCosts = [], isLoading: costsLoading, isError: costsError } = useBeanPurchaseCosts(userId);
 
-    const summary = useMemo(
-        () => (beans.length === 0 ? EMPTY : buildGreenInventoryAssets(beans, stockSummaries, purchaseCosts)),
-        [beans, stockSummaries, purchaseCosts],
-    );
+    const summary = useMemo(() => {
+        if (beans.length === 0 || costsError) return EMPTY;
+        return buildGreenInventoryAssets(beans, stockSummaries, purchaseCosts);
+    }, [beans, stockSummaries, purchaseCosts, costsError]);
 
     return {
         summary,

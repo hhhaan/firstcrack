@@ -2012,6 +2012,30 @@ export type Database = {
                     },
                 ];
             };
+            stock_op_receipts: {
+                Row: {
+                    created_at: string;
+                    op_kind: string;
+                    reference_id: string;
+                    request_hash: string;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    op_kind: string;
+                    reference_id: string;
+                    request_hash: string;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    op_kind?: string;
+                    reference_id?: string;
+                    request_hash?: string;
+                    user_id?: string;
+                };
+                Relationships: [];
+            };
             subscriptions: {
                 Row: {
                     amount: number | null;
@@ -2273,6 +2297,10 @@ export type Database = {
                 Returns: Json;
             };
             has_workspace_access: { Args: { target_owner: string }; Returns: boolean };
+            insert_bean_stock_event: {
+                Args: { p_event: Json };
+                Returns: Database['public']['Tables']['bean_stock_events']['Row'];
+            };
             insert_packaging_op: {
                 Args: { p_product_events: Json; p_roasted_events: Json };
                 Returns: undefined;

@@ -74,7 +74,15 @@ export const AddBeanModal = ({
         formState: { errors },
     } = form;
 
-    const { handleSubmit: submitBean, isSubmitting } = useAddBeanSubmit({
+    const {
+        handleSubmit: submitBean,
+        isSubmitting,
+        alertsFailed,
+        costUpdateFailed,
+        retryAlerts,
+        stockSaved,
+    } = useAddBeanSubmit({
+        open,
         userId,
         tab,
         selectedBeanId,
@@ -119,8 +127,16 @@ export const AddBeanModal = ({
 
     const isSubmitDisabled =
         isSubmitting ||
+        stockSaved ||
         (tab === 'restock' && (!selectedBeanId || restockGrams <= 0)) ||
         (tab === 'adjust' && (!selectedBeanId || adjustGrams <= 0 || adjustExceedsStock));
+
+    const alertsFailedKey =
+        tab === 'restock'
+            ? 'addBeanModal.alertsFailedRestock'
+            : tab === 'adjust'
+              ? 'addBeanModal.alertsFailedAdjust'
+              : 'addBeanModal.alertsFailed';
 
     const savedBeans = existingBeans.filter((bean) => !isOptimisticId(bean.id));
     const visibleBeans = showAllBeans ? savedBeans : savedBeans.slice(0, BEAN_LIST_LIMIT);
@@ -180,6 +196,22 @@ export const AddBeanModal = ({
             </div>
 
             <ModalScrollBody contentClassName="p-8">
+                {(alertsFailed || costUpdateFailed) && (
+                    <div className="mb-4 rounded-md bg-amber-100 px-3 py-2 text-[12px] font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+                        {costUpdateFailed && <p>{t('addBeanModal.costUpdateFailed')}</p>}
+                        {alertsFailed && <p>{t(alertsFailedKey)}</p>}
+                        {alertsFailed && (
+                            <button
+                                type="button"
+                                className="mt-2 underline"
+                                disabled={isSubmitting}
+                                onClick={() => void retryAlerts()}
+                            >
+                                {t('addBeanModal.retryAlerts')}
+                            </button>
+                        )}
+                    </div>
+                )}
                 {tab === 'adjust' ? (
                     <BeanAdjustTab
                         {...pickerProps}
@@ -229,7 +261,7 @@ export const AddBeanModal = ({
                             type="submit"
                             form="bean-form"
                             data-testid="bean-form-submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || stockSaved}
                             className={`${modalPrimaryBtnCls} flex-[2]`}
                         >
                             {isSubmitting

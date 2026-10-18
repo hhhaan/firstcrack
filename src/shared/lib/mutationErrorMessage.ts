@@ -11,6 +11,7 @@ const MAX_DETAIL_LENGTH = 160;
 const STOCK_GUARD_KEYS = [
     ['insufficient_product_stock', 'errors.insufficientProductStock'],
     ['insufficient_roasted_stock', 'errors.insufficientRoastedStock'],
+    ['idempotency_payload_mismatch', 'errors.idempotencyPayloadMismatch'],
 ] as const;
 
 type StockGuardMessageKey = (typeof STOCK_GUARD_KEYS)[number][1];
@@ -27,10 +28,16 @@ export type MutationErrorText =
  * rather than compared exactly, the same hedge `mapServerBatchGateError` uses, so a wrapped
  * or prefixed server string still maps. The two codes cannot collide.
  */
+/** Custom SQLSTATE for idempotency_payload_mismatch (not 23505 / generic P0001). */
+export const IDEMPOTENCY_PAYLOAD_MISMATCH_SQLSTATE = 'PF892';
+
 const guardMessageKeyOf = (error: unknown): StockGuardMessageKey | null => {
     if (!error || typeof error !== 'object') return null;
-    const { message, details } = error as { message?: unknown; details?: unknown };
+    const { message, details, code } = error as { message?: unknown; details?: unknown; code?: unknown };
     const text = `${typeof message === 'string' ? message : ''} ${typeof details === 'string' ? details : ''}`;
+    if (code === IDEMPOTENCY_PAYLOAD_MISMATCH_SQLSTATE) {
+        return 'errors.idempotencyPayloadMismatch';
+    }
     return STOCK_GUARD_KEYS.find(([code]) => text.includes(code))?.[1] ?? null;
 };
 

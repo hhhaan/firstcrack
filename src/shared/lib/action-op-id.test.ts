@@ -20,4 +20,12 @@ describe('createActionOpIdSession', () => {
         expect(session.peek()).toBeNull();
         expect(session.getOrCreate()).toBe('id-2');
     });
+
+    it('mints a new id when content key changes', () => {
+        let n = 0;
+        const session = createActionOpIdSession(() => `id-${++n}`);
+        expect(session.getOrCreate('a')).toBe('id-1');
+        expect(session.getOrCreate('a')).toBe('id-1');
+        expect(session.getOrCreate('b')).toBe('id-2');
+    });
 });

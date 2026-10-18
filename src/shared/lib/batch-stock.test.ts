@@ -1,11 +1,15 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
 import {
+    batchAvailableGramsForShortCheck,
     batchGreenNeededGramsFromBatch,
+    batchOwnReservedGrams,
     isBatchStockShort,
     isRecurringHorizonStockShort,
     recurringHorizonGreenNeededGrams,
+    stockReservationUtcDateKey,
 } from './batch-stock';
+import { STOCK_HORIZON_DAYS } from './stock-calc';
 
 const batch = (over: Partial<PlanBatchWithProgress> = {}): PlanBatchWithProgress =>
     ({
@@ -17,12 +21,22 @@ const batch = (over: Partial<PlanBatchWithProgress> = {}): PlanBatchWithProgress
         batch_count: 2,
         completed_sessions: 0,
         sort_order: 0,
+        status: 'done',
+        scheduled_date: null,
+        exception_type: null,
         ...over,
     }) as PlanBatchWithProgress;
 
+describe('stockReservationUtcDateKey', () => {
+    it('uses UTC calendar date (not local/Seoul) for server CURRENT_DATE alignment', () => {
+        const instant = new Date('2026-10-18T16:30:00.000Z');
+        expect(stockReservationUtcDateKey(instant)).toBe('2026-10-18');
+        expect(instant.toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })).toBe('2026-10-19');
+    });
+});
+
 describe('batchGreenNeededGramsFromBatch', () => {
     it('uses remaining sessions × size', () => {
-        // 2 batches, 0 done, 5kg → 10000g
         expect(batchGreenNeededGramsFromBatch(batch())).toBe(10000);
         expect(batchGreenNeededGramsFromBatch(batch({ completed_sessions: 1 }))).toBe(5000);
     });
@@ -33,7 +47,7 @@ describe('isBatchStockShort', () => {
         expect(isBatchStockShort(batch({ bean_id: null, blend_id: null }), 0)).toBe(false);
     });
 
-    it('true when effective < needed', () => {
+    it('true when effective < needed (no own reservation)', () => {
         expect(
             isBatchStockShort(batch(), { effectiveGrams: 9999, currentGrams: 0, availableGrams: 0, reservedGrams: 0 }),
         ).toBe(true);
@@ -44,6 +58,57 @@ describe('isBatchStockShort', () => {
     it('false when needed is 0 (all sessions done)', () => {
         expect(isBatchStockShort(batch({ completed_sessions: 2 }), 0)).toBe(false);
     });
+
+    it('still warns when another batch reservation consumes stock (blend batches have no own add-back)', () => {
+        const scheduled = new Date().toISOString().slice(0, 10);
+        const b = batch({ status: 'pending', scheduled_date: scheduled, bean_id: null, blend_id: 'blend-1' });
+        expect(isBatchStockShort(b, 2000)).toBe(true);
+        expect(isBatchStockShort(b, 10000)).toBe(false);
+    });
+
+    it('bean batch: other 10kg reserved — add-back avoids false short when stock covers own batch', () => {
+        const scheduled = new Date().toISOString().slice(0, 10);
+        const b = batch({ status: 'pending', scheduled_date: scheduled });
+        expect(isBatchStockShort(b, 5000)).toBe(false);
+        expect(batchOwnReservedGrams(b)).toBe(10000);
+    });
+
+    it('bean batch: still short when effective + own reservation is below need', () => {
+        const scheduled = new Date().toISOString().slice(0, 10);
+        const b = batch({ status: 'pending', scheduled_date: scheduled, completed_sessions: 1 });
+        expect(batchGreenNeededGramsFromBatch(b)).toBe(5000);
+        expect(isBatchStockShort(b, 0)).toBe(false);
+        expect(isBatchStockShort(b, -1)).toBe(true);
+    });
+
+    it('adds back own reservation for pending in-horizon batch', () => {
+        const today = new Date();
+        const scheduled = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const b = batch({ status: 'pending', scheduled_date: scheduled });
+        expect(
+            isBatchStockShort(b, {
+                effectiveGrams: 5000,
+                currentGrams: 15000,
+                availableGrams: 15000,
+                reservedGrams: 10000,
+            }),
+        ).toBe(false);
+    });
+
+    it('does not add own reservation when scheduled beyond horizon', () => {
+        const far = new Date();
+        far.setDate(far.getDate() + STOCK_HORIZON_DAYS + 5);
+        const scheduled = `${far.getFullYear()}-${String(far.getMonth() + 1).padStart(2, '0')}-${String(far.getDate()).padStart(2, '0')}`;
+        const b = batch({ status: 'pending', scheduled_date: scheduled });
+        expect(batchOwnReservedGrams(b)).toBe(0);
+        expect(isBatchStockShort(b, 5000)).toBe(true);
+    });
+});
+
+describe('batchAvailableGramsForShortCheck', () => {
+    it('returns 0 when summary missing', () => {
+        expect(batchAvailableGramsForShortCheck(batch(), undefined)).toBe(0);
+    });
 });
 
 describe('recurringHorizonGreenNeededGrams', () => {
@@ -53,8 +118,6 @@ describe('recurringHorizonGreenNeededGrams', () => {
     });
 
     it('scales by instances in horizon × batchCount × size', () => {
-        // Use a fixed "today" relative: if dtstart is far past weekly, still counts from today.
-        // Weekly from a recent Monday — just assert positive multiple of 5000g for batchCount=1 size=5.
         const dtstart = new Date();
         dtstart.setHours(0, 0, 0, 0);
         const grams = recurringHorizonGreenNeededGrams('weekly', dtstart, 5, 1);

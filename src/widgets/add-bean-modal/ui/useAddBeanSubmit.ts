@@ -1,11 +1,14 @@
 import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
-import { useInsertStockEvent } from '@entities/bean-stock-event';
+import { beanStockEventApi, stockEventContentKey, useInsertStockEvent } from '@entities/bean-stock-event';
+import { createActionOpIdSession } from '@shared/lib/action-op-id';
 import { logger } from '@shared/lib/logger';
 import type { Bean } from '@shared/types/database.types';
+import { useEffect, useRef, useState } from 'react';
 import type { BeanForm } from '../lib/schema';
 import type { BeanModalTab } from '../lib/types';
 
 interface UseAddBeanSubmitParams {
+    open: boolean;
     userId: string;
     tab: BeanModalTab;
     selectedBeanId: string | null;
@@ -22,6 +25,7 @@ interface UseAddBeanSubmitParams {
 }
 
 export const useAddBeanSubmit = ({
+    open,
     userId,
     tab,
     selectedBeanId,
@@ -39,11 +43,55 @@ export const useAddBeanSubmit = ({
     const createBean = useCreateBean(userId);
     const updateBean = useUpdateBean(userId);
     const insertStockEvent = useInsertStockEvent();
+    const opSession = useRef(createActionOpIdSession());
+    const [alertsFailed, setAlertsFailed] = useState(false);
+    const [costUpdateFailed, setCostUpdateFailed] = useState(false);
+    const [retryingAlerts, setRetryingAlerts] = useState(false);
+    const [stockSaved, setStockSaved] = useState(false);
 
-    const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending;
+    useEffect(() => {
+        if (!open) return;
+        opSession.current.reset();
+        setAlertsFailed(false);
+        setCostUpdateFailed(false);
+        setStockSaved(false);
+    }, [open]);
+
+    const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending || retryingAlerts;
+
+    const retryAlerts = async () => {
+        setRetryingAlerts(true);
+        try {
+            await beanStockEventApi.computeInventoryAlerts(userId);
+            setAlertsFailed(false);
+        } catch (err) {
+            logger.capture(err, { feature: 'inventory', rpc: 'compute_inventory_alerts' });
+        } finally {
+            setRetryingAlerts(false);
+        }
+    };
+
+    const finishAfterStockWrite = async (alertsFailedNow: boolean, afterStock: () => void | Promise<void>) => {
+        setStockSaved(true);
+        opSession.current.markSucceeded();
+        let costFailed = false;
+        try {
+            await afterStock();
+        } catch (err) {
+            costFailed = true;
+            setCostUpdateFailed(true);
+            logger.capture(err, { context: 'add bean modal', feature: 'inventory' });
+        }
+        if (alertsFailedNow || costFailed) {
+            if (alertsFailedNow) setAlertsFailed(true);
+            return;
+        }
+        onClose();
+    };
 
     const handleSubmit = async (formData: BeanForm) => {
-        if (isSubmitting) return;
+        if (isSubmitting || stockSaved) return;
+        setAlertsFailed(false);
         try {
             if (tab === 'new') {
                 const stockGrams = Math.round(parseFloat(formData.stock) * 1000) || 0;
@@ -62,16 +110,20 @@ export const useAddBeanSubmit = ({
                     purchase_date: new Date().toISOString().split('T')[0],
                 });
                 if (stockGrams > 0) {
-                    await insertStockEvent.mutateAsync({
+                    const event = {
                         user_id: userId,
                         bean_id: newBean.id,
                         delta_grams: stockGrams,
-                        event_type: 'purchase',
+                        event_type: 'purchase' as const,
                         reference_id: crypto.randomUUID(),
                         cost_per_kg: newBean.cost_per_kg,
-                    });
+                    };
+                    const { alertsFailed: failed } = await insertStockEvent.mutateAsync(event);
+                    await finishAfterStockWrite(failed, () => onSuccess?.(newBean));
+                    return;
                 }
                 onSuccess?.(newBean);
+                onClose();
             } else if (tab === 'edit' && initialData) {
                 const updated = await updateBean.mutateAsync({
                     id: initialData.id,
@@ -87,51 +139,62 @@ export const useAddBeanSubmit = ({
                     tasting_notes: formData.tastingNotes || null,
                 });
                 onSuccess?.(updated);
+                onClose();
             } else if (tab === 'restock' && selectedBeanId && restockAmount) {
                 const amount = Math.round(parseFloat(restockAmount) * 1000);
                 if (!Number.isFinite(amount) || amount <= 0) return;
                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
                 const restockCostValue = restockCost ? parseFloat(restockCost) : NaN;
-                await insertStockEvent.mutateAsync({
+                const costPerKg = Number.isFinite(restockCostValue) ? restockCostValue : null;
+                const draft = {
                     user_id: userId,
                     bean_id: selectedBeanId,
                     delta_grams: amount,
-                    event_type: 'purchase',
-                    reference_id: crypto.randomUUID(),
-                    cost_per_kg: Number.isFinite(restockCostValue) ? restockCostValue : null,
+                    event_type: 'purchase' as const,
+                    cost_per_kg: costPerKg,
+                };
+                const reference_id = opSession.current.getOrCreate(stockEventContentKey(draft));
+                const { alertsFailed: failed } = await insertStockEvent.mutateAsync({
+                    ...draft,
+                    reference_id,
                 });
-                if (currentBean) {
-                    const newCost = restockCostValue;
-                    if (Number.isFinite(newCost) && newCost !== currentBean.cost_per_kg) {
-                        // beanApi.update does a partial (PATCH) update — only changed fields needed.
-                        await updateBean.mutateAsync({
-                            id: selectedBeanId,
-                            cost_per_kg: newCost,
-                        });
+                await finishAfterStockWrite(failed, async () => {
+                    if (currentBean) {
+                        const newCost = restockCostValue;
+                        if (Number.isFinite(newCost) && newCost !== currentBean.cost_per_kg) {
+                            await updateBean.mutateAsync({
+                                id: selectedBeanId,
+                                cost_per_kg: newCost,
+                            });
+                        }
                     }
-                }
-                onSuccess?.(currentBean ?? null);
+                    onSuccess?.(currentBean ?? null);
+                });
             } else if (tab === 'adjust' && selectedBeanId && adjustAmount) {
                 const rawGrams = Math.round(parseFloat(adjustAmount) * 1000);
                 if (!Number.isFinite(rawGrams) || rawGrams <= 0) return;
                 const delta =
                     adjustType === 'write_off' ? -Math.abs(rawGrams) : adjustSign === '+' ? rawGrams : -rawGrams;
                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
-                await insertStockEvent.mutateAsync({
+                const draft = {
                     user_id: userId,
                     bean_id: selectedBeanId,
                     delta_grams: delta,
                     event_type: adjustType,
                     note: adjustNote || null,
-                    reference_id: crypto.randomUUID(),
+                    cost_per_kg: null,
+                };
+                const reference_id = opSession.current.getOrCreate(stockEventContentKey(draft));
+                const { alertsFailed: failed } = await insertStockEvent.mutateAsync({
+                    ...draft,
+                    reference_id,
                 });
-                onSuccess?.(currentBean ?? null);
+                await finishAfterStockWrite(failed, () => onSuccess?.(currentBean ?? null));
             }
-            onClose();
         } catch (err) {
             logger.capture(err, { context: 'add bean modal' });
         }
     };
 
-    return { handleSubmit, isSubmitting };
+    return { handleSubmit, isSubmitting, alertsFailed, costUpdateFailed, retryAlerts, stockSaved };
 };

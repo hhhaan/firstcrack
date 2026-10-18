@@ -4,12 +4,18 @@ import { useDayBatches, useDayPlan } from '@entities/plan';
 import { type RoastPhase, useRoastingStore } from '@features/active-roast';
 import { type EditScope, type NewBatchData, usePlanDayWrites } from '@features/schedule';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
-import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
+import {
+    batchAvailableGramsForShortCheck,
+    batchGreenNeededGramsFromBatch,
+    isBatchStockShort,
+} from '@shared/lib/batch-stock';
+import { inventoryStore } from '@shared/lib/inventoryStore';
 import { logger } from '@shared/lib/logger';
+import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { confirm } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { batchStatus, toDateKey, unknownErrorMessage } from '../lib';
 
 /** Live/unsaved roast blocks schedule Start. Machine connected (preheating/standby) does not. */
@@ -59,6 +65,10 @@ export const useScheduleDayView = ({
         [rangeData, dateKey],
     );
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
+    const [horizonDays, setHorizonDays] = useState(STOCK_HORIZON_DAYS);
+    useEffect(() => {
+        void inventoryStore.getHorizonDays().then(setHorizonDays);
+    }, []);
     const isLoading = isDayPlanLoading || isBatchesLoading;
 
     const writes = usePlanDayWrites({ userId, dateKey, planId, batches });
@@ -192,19 +202,21 @@ export const useScheduleDayView = ({
     const isRecurringStockShort = useCallback(
         (batch: PlanBatchWithProgress) => {
             if (!batch.recurrence_rule_id || !batch.bean_id) return false;
-            return isBatchStockShort(batch, stockSummaries[batch.bean_id]?.effectiveGrams);
+            return isBatchStockShort(batch, stockSummaries[batch.bean_id], horizonDays);
         },
-        [stockSummaries],
+        [stockSummaries, horizonDays],
     );
 
     const recurringStockShortDetail = useCallback(
         (batch: PlanBatchWithProgress) => {
             if (!batch.bean_id) return null;
             const neededKg = (batchGreenNeededGramsFromBatch(batch) / 1000).toFixed(1);
-            const availableKg = ((stockSummaries[batch.bean_id]?.effectiveGrams ?? 0) / 1000).toFixed(1);
+            const availableKg = (
+                batchAvailableGramsForShortCheck(batch, stockSummaries[batch.bean_id], horizonDays) / 1000
+            ).toFixed(1);
             return { neededKg, availableKg };
         },
-        [stockSummaries],
+        [stockSummaries, horizonDays],
     );
 
     const clearEditScope = useCallback(() => {

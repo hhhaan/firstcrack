@@ -4,6 +4,9 @@ import { parseStockSummaryJson, type StockSummaryValues } from '@shared/lib/stoc
 import { supabase } from '@shared/lib/supabase';
 import type { Database } from '@shared/types/database.types';
 
+/** PostgREST `max_rows` in supabase/config.toml. A single select silently drops the rest. */
+export const PURCHASE_COST_PAGE_SIZE = 1000;
+
 export type BeanStockEvent = Database['public']['Tables']['bean_stock_events']['Row'];
 export type BeanStockEventInsert = Database['public']['Tables']['bean_stock_events']['Insert'];
 
@@ -56,9 +59,9 @@ export const beanStockEventApi = {
 
     insert: async (event: BeanStockEventInsert): Promise<BeanStockEvent> => {
         refuseOptimisticBeanId(event.bean_id, 'Refusing stock write for an unsaved bean id');
-        const { data, error } = await supabase.from('bean_stock_events').insert(event).select().single();
+        const { data, error } = await supabase.rpc('insert_bean_stock_event', { p_event: event });
         if (error) throw error;
-        return data;
+        return data as BeanStockEvent;
     },
 
     /**
@@ -109,19 +112,33 @@ export const beanStockEventApi = {
     listPurchaseCostsByUser: async (
         userId: string,
     ): Promise<{ bean_id: string; delta_grams: number; cost_per_kg: number }[]> => {
-        const { data, error } = await supabase
-            .from('bean_stock_events')
-            .select('bean_id, delta_grams, cost_per_kg')
-            .eq('user_id', userId)
-            .eq('event_type', 'purchase')
-            .not('cost_per_kg', 'is', null)
-            .gt('delta_grams', 0);
-        if (error) throw error;
-        return (data ?? []).map((row) => ({
-            bean_id: row.bean_id,
-            delta_grams: row.delta_grams,
-            cost_per_kg: row.cost_per_kg as number,
-        }));
+        const out: { bean_id: string; delta_grams: number; cost_per_kg: number }[] = [];
+        let lastId: string | null = null;
+        for (;;) {
+            let query = supabase
+                .from('bean_stock_events')
+                .select('id, bean_id, delta_grams, cost_per_kg')
+                .eq('user_id', userId)
+                .eq('event_type', 'purchase')
+                .not('cost_per_kg', 'is', null)
+                .gt('delta_grams', 0)
+                .order('id', { ascending: true })
+                .limit(PURCHASE_COST_PAGE_SIZE);
+            if (lastId) query = query.gt('id', lastId);
+            const { data, error } = await query;
+            if (error) throw error;
+            const page = data ?? [];
+            for (const row of page) {
+                out.push({
+                    bean_id: row.bean_id,
+                    delta_grams: row.delta_grams,
+                    cost_per_kg: row.cost_per_kg as number,
+                });
+            }
+            if (page.length < PURCHASE_COST_PAGE_SIZE) return out;
+            lastId = page[page.length - 1]?.id ?? null;
+            if (!lastId) return out;
+        }
     },
 
     computeInventoryAlerts: async (userId: string, horizonDays?: number): Promise<void> => {
