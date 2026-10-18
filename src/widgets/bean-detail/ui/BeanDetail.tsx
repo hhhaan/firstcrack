@@ -54,6 +54,12 @@ const Skeleton = () => (
     </div>
 );
 
+function beanDetailEmptyMessageKey(allHidden: boolean, hasAny: boolean): string {
+    if (allHidden) return 'beanDetail.empty.allHidden';
+    if (hasAny) return 'beanDetail.empty.select';
+    return 'beanDetail.empty.addFirst';
+}
+
 const Empty = ({
     hasAny,
     allHidden,
@@ -66,13 +72,7 @@ const Empty = ({
     const { t } = useTranslation();
     return (
         <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex flex-col items-center justify-center gap-3 text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
-            <span>
-                {allHidden
-                    ? t('beanDetail.empty.allHidden')
-                    : hasAny
-                      ? t('beanDetail.empty.select')
-                      : t('beanDetail.empty.addFirst')}
-            </span>
+            <span>{t(beanDetailEmptyMessageKey(!!allHidden, hasAny))}</span>
             {allHidden && onShowHidden ? (
                 <button
                     type="button"

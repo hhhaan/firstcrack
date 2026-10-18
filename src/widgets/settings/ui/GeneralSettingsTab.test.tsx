@@ -102,13 +102,22 @@ describe('GeneralSettingsTab delayed inventory horizon', () => {
         expect(inventoryStore.setHorizonDays).not.toHaveBeenCalled();
     });
 
-    it('preserves a cleared draft during the initial load and restores the stored value on blur', async () => {
+    it('restores the last committed value on blur after clear, even when the stored read returns something else', async () => {
         change('99');
         change('');
         await act(async () => resolveRead(14));
         expect(input().value).toBe('');
         act(() => input().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
-        expect(input().value).toBe('14');
+        expect(input().value).toBe('99');
+    });
+
+    it('keeps the committed value after clear and blur when the stored read finishes later', async () => {
+        change('60');
+        change('');
+        act(() => input().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+        expect(input().value).toBe('60');
+        await act(async () => resolveRead(14));
+        expect(input().value).toBe('60');
     });
 
     it('shows the stored value after an empty blur when the read finishes later', async () => {

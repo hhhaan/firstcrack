@@ -25,6 +25,12 @@ interface BeanListProps {
     onShowHidden?: () => void;
 }
 
+function beanListEmptyMessageKey(catalogTotal: number, visibleCount: number): string {
+    if (catalogTotal > 0 && visibleCount === 0) return 'beanList.allHidden';
+    if (visibleCount === 0) return 'beanList.empty';
+    return 'beanList.noResults';
+}
+
 const Skeleton = () => (
     <div className="flex flex-col gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -152,11 +158,7 @@ export const BeanList = ({
 
                     {filtered.length === 0 && (
                         <div className="flex flex-col items-center gap-3 px-5 py-10 text-center text-sm tracking-[0.14px] text-muted">
-                            {catalogTotal > 0 && beans.length === 0
-                                ? t('beanList.allHidden')
-                                : beans.length === 0
-                                  ? t('beanList.empty')
-                                  : t('beanList.noResults')}
+                            {t(beanListEmptyMessageKey(catalogTotal, beans.length))}
                             {catalogTotal > 0 && beans.length === 0 && onShowHidden ? (
                                 <button
                                     type="button"

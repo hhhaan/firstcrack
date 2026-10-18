@@ -192,15 +192,17 @@ export const GeneralSettingsTab = () => {
     // const activeTheme = theme ?? 'system';
     const [horizonDays, setHorizonDays] = useState<number | ''>('');
     const savedHorizonRef = useRef<number | null>(null);
-    /** none = no edit; cleared = empty draft; committed = user saved a number */
-    const horizonUserDraftRef = useRef<'none' | 'cleared' | 'committed'>('none');
+    const hasCommittedHorizonRef = useRef(false);
+    const committedHorizonRef = useRef<number | null>(null);
+    const horizonDraftClearedRef = useRef(false);
+
     useEffect(() => {
         let cancelled = false;
         void inventoryStore.getHorizonDays().then((days) => {
             if (cancelled) return;
-            if (horizonUserDraftRef.current === 'committed') return;
-            savedHorizonRef.current = days;
-            if (horizonUserDraftRef.current === 'cleared') return;
+            if (!hasCommittedHorizonRef.current) savedHorizonRef.current = days;
+            if (hasCommittedHorizonRef.current) return;
+            if (horizonDraftClearedRef.current) return;
             setHorizonDays(days);
         });
         return () => {
@@ -210,8 +212,10 @@ export const GeneralSettingsTab = () => {
 
     const saveHorizon = async (value: number) => {
         const next = Math.max(1, Math.min(365, Math.round(value)));
-        horizonUserDraftRef.current = 'committed';
+        hasCommittedHorizonRef.current = true;
+        committedHorizonRef.current = next;
         savedHorizonRef.current = next;
+        horizonDraftClearedRef.current = false;
         setHorizonDays(next);
         await inventoryStore.setHorizonDays(next);
     };
@@ -259,7 +263,7 @@ export const GeneralSettingsTab = () => {
                             onChange={(event) => {
                                 const raw = event.currentTarget.value;
                                 if (raw === '') {
-                                    horizonUserDraftRef.current = 'cleared';
+                                    horizonDraftClearedRef.current = true;
                                     setHorizonDays('');
                                     return;
                                 }
@@ -269,10 +273,11 @@ export const GeneralSettingsTab = () => {
                             }}
                             onBlur={() => {
                                 if (horizonDays !== '') return;
-                                horizonUserDraftRef.current = 'none';
-                                if (savedHorizonRef.current != null) {
-                                    setHorizonDays(savedHorizonRef.current);
-                                }
+                                horizonDraftClearedRef.current = false;
+                                const restore = hasCommittedHorizonRef.current
+                                    ? committedHorizonRef.current
+                                    : savedHorizonRef.current;
+                                if (restore != null) setHorizonDays(restore);
                             }}
                             className={`${inputCls} w-20 rounded-lg py-1.5 text-[13px]`}
                         />

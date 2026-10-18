@@ -44,3 +44,25 @@ describe('cuppingApi.deleteEvent', () => {
         expect(q.select).toHaveBeenCalledWith('id');
     });
 });
+
+const endedEvent = {
+    id: 'ev-1',
+    results_token: null,
+    ended_at: '2026-10-01T00:00:00Z',
+};
+
+describe('cuppingApi.ensureResultsToken', () => {
+    beforeEach(() => {
+        from.mockReset();
+    });
+
+    it('re-reads when the conditional update matches zero rows (no 406 from .single())', async () => {
+        const readAfter = { ...endedEvent, results_token: 'existing-token' };
+        from.mockReturnValueOnce(chainable({ data: endedEvent, error: null }))
+            .mockReturnValueOnce(chainable({ data: null, error: null }))
+            .mockReturnValueOnce(chainable({ data: readAfter, error: null }));
+
+        await expect(cuppingApi.ensureResultsToken('ev-1')).resolves.toEqual(readAfter);
+        expect(from).toHaveBeenCalledTimes(3);
+    });
+});
