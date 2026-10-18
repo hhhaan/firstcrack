@@ -632,7 +632,7 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('[data-chart-note-form]')).toBeNull();
     });
 
-    it('restores each field in the editor and clears a field without changing the others', () => {
+    it('edits a note mark with time only', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();
         act(() =>
@@ -663,26 +663,19 @@ describe('RoastTempChart interactions', () => {
         act(() => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
-        const gas = container.querySelector('#chart-marker-gas') as HTMLInputElement;
-        expect(gas.value).toBe('0');
-        expect((container.querySelector('#chart-marker-airflow') as HTMLInputElement).value).toBe('50%');
-        expect((container.querySelector('#chart-marker-drum') as HTMLInputElement).value).toBe('55');
-        const comment = container.querySelector('#chart-marker-note') as HTMLTextAreaElement;
-        expect(comment.value).toBe('color');
-        act(() => {
-            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(gas, '');
-            gas.dispatchEvent(new Event('input', { bubbles: true }));
-        });
-        act(() => comment.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', shiftKey: true })));
+        const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
+        expect(form.textContent).toContain('Gas 0');
+        expect(form.querySelector('#chart-marker-gas')).toBeNull();
+        expect(form.querySelector('#chart-marker-airflow')).toBeNull();
+        expect(form.querySelector('#chart-marker-drum')).toBeNull();
+        expect(form.querySelector('#chart-marker-note')).toBeNull();
+        expect(form.querySelectorAll('input')).toHaveLength(1);
+        const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
+        act(() => time.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', shiftKey: true })));
         expect(onEventMarkerEdit).not.toHaveBeenCalled();
-        act(() => comment.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
-        expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', {
-            timeSec: 5,
-            note: 'color',
-            gas: '',
-            airflow: '50%',
-            drum: '55',
-        });
+        act(() => replaceMarkerTime(time, '0:08'));
+        act(() => time.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', { timeSec: 8 });
     });
 
     it('opens a marker editor on click and saves Heater time but not heat value', () => {
@@ -715,12 +708,11 @@ describe('RoastTempChart interactions', () => {
         act(() => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
-        const time = container.querySelector('#chart-marker-time') as HTMLInputElement;
-        const heat = container.querySelector('#chart-marker-heat') as HTMLInputElement;
+        const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
+        const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
         expect(time.value).toBe('0:05');
-        expect(heat.value).toBe('50');
-        expect(heat.disabled).toBe(true);
-        expect(heat.readOnly).toBe(true);
+        expect(form.querySelector('#chart-marker-heat')).toBeNull();
+        expect(form.querySelectorAll('input')).toHaveLength(1);
 
         act(() => replaceMarkerTime(time, '0:08'));
         act(() =>
@@ -764,22 +756,14 @@ describe('RoastTempChart interactions', () => {
         act(() => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
-        const heat = container.querySelector('#chart-marker-heat') as HTMLInputElement;
-        expect(heat.disabled).toBe(false);
-        expect(heat.readOnly).toBe(false);
-        expect(container.querySelector('[data-chart-marker-delete]')).not.toBeNull();
-        act(() => {
-            const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-            setter?.call(heat, '70');
-            heat.dispatchEvent(new Event('input', { bubbles: true }));
-            heat.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-        act(() =>
-            container
-                .querySelector('[data-chart-marker-edit]')
-                ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
-        );
-        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', expect.objectContaining({ note: '70%' }));
+        const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
+        expect(form.querySelector('#chart-marker-heat')).toBeNull();
+        expect(form.querySelectorAll('input')).toHaveLength(1);
+        expect(form.querySelector('[data-chart-marker-delete]')).not.toBeNull();
+        const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
+        act(() => replaceMarkerTime(time, '0:08'));
+        act(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8 });
     });
 
     it('keeps marker time to digits and seconds 0–60', () => {

@@ -949,7 +949,6 @@
             "eventRecorded": "已记录：{{event}}",
             "futureEventHint": "事件只能记录到当前时刻。",
             "title": "添加记录",
-            "editTitle": "编辑记录",
             "time": "时间",
             "gas": "燃气",
             "airflow": "排风",

@@ -1298,7 +1298,6 @@
             "eventRecorded": "기록됨: {{event}}",
             "futureEventHint": "이벤트는 현재 시점까지만 기록할 수 있습니다.",
             "title": "기록 추가",
-            "editTitle": "기록 수정",
             "time": "시간",
             "gas": "가스",
             "airflow": "배기",

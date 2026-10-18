@@ -949,7 +949,6 @@
             "eventRecorded": "記録済み: {{event}}",
             "futureEventHint": "イベントは現在時刻までしか記録できません。",
             "title": "記録を追加",
-            "editTitle": "記録を編集",
             "time": "時間",
             "gas": "ガス",
             "airflow": "排気",
