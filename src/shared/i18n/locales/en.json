@@ -2031,6 +2031,8 @@
             "fulfilled": "Fulfilled",
             "retryFulfillment": "Retry shipment",
             "stockHoldBadge": "On hold (insufficient stock)",
+            "stockHoldNoDemandBadge": "On hold (link products)",
+            "stockHoldNoDemand": "No mapped products to deduct. Link order lines to products, then retry shipment.",
             "stockHoldLine": "{{product}} — required {{required}} / available {{available}}",
             "stockHoldUnknownProduct": "Product",
             "col": {

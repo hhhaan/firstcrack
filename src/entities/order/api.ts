@@ -172,9 +172,12 @@ export const orderApi = {
         return data ?? [];
     },
 
-    retryFulfillment: async (orderId: string): Promise<void> => {
-        const { error } = await supabase.rpc('retry_order_fulfillment', { p_order_id: orderId });
+    retryFulfillment: async (
+        orderId: string,
+    ): Promise<Database['public']['Functions']['retry_order_fulfillment']['Returns']> => {
+        const { data, error } = await supabase.rpc('retry_order_fulfillment', { p_order_id: orderId });
         if (error) throw error;
+        return data;
     },
 
     /** Atomic RPC: restore stock for fulfilled lines + set status cancelled. */

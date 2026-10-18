@@ -28,6 +28,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrderFilters } from '../hooks/useOrderFilters';
 import { OrdersTableSkeleton } from './OrdersSkeleton';
+import { canRetryHold, stockHoldBadgeKey } from './orderStockHoldFlags';
 import { dispatchTone, EmptyState, GhostButton, orderStatusTone } from './orderUi';
 
 const PAGE_SIZE = 20;
@@ -269,8 +270,14 @@ function OrderRow({
     const unmappedCount = activeLines.filter((l) => !l.product_id).length;
     const { cancelled, fulfilled, canFulfill, canDispatch } = orderActionFlags(order, dispatch);
     const shortages = (hold?.shortages ?? []) as FulfillmentHoldShortage[];
-    const canRetryHold =
-        !!hold && !fulfilled && !cancelled && (order.status === 'shipped' || order.status === 'delivered');
+    const holdReason = hold?.reason ?? null;
+    const isNoStockDemandHold = holdReason === 'no_stock_demand';
+    const canRetry = canRetryHold({
+        hold: !!hold,
+        fulfilled,
+        cancelled,
+        status: order.status,
+    });
     // Local cancel restores product stock; channel-platform cancellations are synced FROM the platform
     // (webhook and/or poll — Naver has no webhook, cancels arrive via poll claim statuses), so manual-only
     // local cancel avoids double-restoring.
@@ -343,7 +350,7 @@ function OrderRow({
                         ) : null}
                         {hold ? (
                             <Badge tone="warn" size="sm" icon={<AlertTriangle size={11} strokeWidth={1.75} />}>
-                                {t('orders.order.stockHoldBadge')}
+                                {t(stockHoldBadgeKey(holdReason))}
                             </Badge>
                         ) : null}
                     </div>
@@ -355,12 +362,12 @@ function OrderRow({
                 </td>
                 <td className="px-4 py-3.5">
                     <div className="flex flex-wrap gap-1.5">
-                        {canRetryHold ? (
+                        {canRetry ? (
                             <GhostButton onClick={onRetryFulfillment} disabled={retryPending}>
                                 {t('orders.order.retryFulfillment')}
                             </GhostButton>
                         ) : null}
-                        {canFulfill && !canRetryHold ? (
+                        {canFulfill && !canRetry ? (
                             <GhostButton
                                 onClick={onFulfill}
                                 disabled={fulfillPending}
@@ -385,7 +392,11 @@ function OrderRow({
                         <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                             {t('orders.order.lines')}
                         </p>
-                        {shortages.length > 0 ? (
+                        {isNoStockDemandHold ? (
+                            <p className="mb-3 text-[12px] text-amber-800 dark:text-amber-300">
+                                {t('orders.order.stockHoldNoDemand')}
+                            </p>
+                        ) : shortages.length > 0 ? (
                             <ul className="mb-3 space-y-1 text-[12px] text-amber-800 dark:text-amber-300">
                                 {shortages.map((s) => (
                                     <li key={s.order_line_id}>

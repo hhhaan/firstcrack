@@ -2031,6 +2031,8 @@
             "fulfilled": "已完成",
             "retryFulfillment": "重新发货",
             "stockHoldBadge": "库存不足，发货暂缓",
+            "stockHoldNoDemandBadge": "发货暂缓（需关联商品）",
+            "stockHoldNoDemand": "没有可扣减的已关联商品。请将订单行关联到商品后再重试发货。",
             "stockHoldLine": "{{product}} — 需要 {{required}} / 可用 {{available}}",
             "stockHoldUnknownProduct": "商品",
             "col": {
