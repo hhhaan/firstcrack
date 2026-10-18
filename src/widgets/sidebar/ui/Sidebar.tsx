@@ -49,21 +49,21 @@ export const Sidebar = ({
             ? myName
             : activeMembership?.owner_business_name || activeMembership?.org_name || t('sidebar.workspace');
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
-    const edgePad = collapsed ? 'px-1.5' : 'px-3';
+    const edgePad = collapsed ? 'px-[8.5px]' : 'px-3';
 
     return (
         <aside
             data-testid="app-sidebar"
             className={cn(
                 'shrink-0 h-full bg-transparent flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out',
-                rail ? 'w-[60px]' : collapsed ? 'w-[48px]' : 'w-[170px] sm:w-[200px] lg:w-[220px]',
+                rail ? 'w-[60px]' : collapsed ? 'w-[53px]' : 'w-[170px] sm:w-[200px] lg:w-[220px]',
             )}
         >
             {/* Header */}
             <div
                 className={cn(
                     'group/sidebar-header pt-3 pb-2 transition-all duration-200',
-                    rail ? 'px-3' : collapsed ? 'px-1.5' : 'px-5',
+                    rail ? 'px-3' : collapsed ? 'px-[8.5px]' : 'px-5',
                 )}
                 onMouseEnter={() => setIsHeaderHovered(true)}
                 onMouseLeave={() => setIsHeaderHovered(false)}
