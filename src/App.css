@@ -46,7 +46,7 @@
 
     --color-main-bg: #ffffff;
     --color-roast-bg: #ffffff;
-    --color-kpi-bg: #f9fafc;
+    --color-dashboard-card-bg: #f9fafc;
     --color-surface: #f4f4f4;
     --color-surface-elevated: #f4f4f4;
     --color-surface-warm: rgba(245, 242, 239, 0.8);
@@ -151,7 +151,7 @@
 html.dark {
     --color-main-bg: #181d21;
     --color-roast-bg: #181d21;
-    --color-kpi-bg: #262b30;
+    --color-dashboard-card-bg: #262b30;
     --color-surface: #181d21;
     --color-surface-elevated: #262b30;
     --color-surface-warm: rgba(30, 28, 26, 0.8);

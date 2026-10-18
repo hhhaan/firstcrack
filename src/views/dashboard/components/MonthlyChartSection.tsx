@@ -32,7 +32,7 @@ export const MonthlyChartSection = ({
     );
 
     return (
-        <div className="bg-surface/45 dark:bg-surface-elevated rounded-lg px-6 py-5 w-full flex flex-col dark:border dark:border-[#585d61]">
+        <div className="bg-dashboard-card-bg rounded-lg px-6 py-5 w-full flex flex-col dark:border dark:border-[#585d61]">
             <div className="flex items-center justify-between mb-5 shrink-0">
                 <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">
                     {t('dashboard.monthlyBatches')}

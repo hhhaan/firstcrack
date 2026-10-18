@@ -21,7 +21,7 @@ export const KpiCard = ({ label, value, change, icon: Icon, onRefresh, refreshin
     else if (isNegative) changeTone = 'bad';
 
     return (
-        <div className="bg-kpi-bg rounded-lg px-5 pt-5 pb-4.5 dark:border dark:border-border">
+        <div className="bg-dashboard-card-bg rounded-lg px-5 pt-5 pb-4.5 dark:border dark:border-border">
             <div className="flex items-start justify-between mb-3.5">
                 <div className="w-8.5 h-8.5 rounded-lg bg-surface dark:bg-surface-elevated flex items-center justify-center">
                     <Icon size={16} strokeWidth={1.5} className="text-secondary" />

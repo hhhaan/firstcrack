@@ -14,7 +14,7 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
     const { t } = useTranslation();
 
     return (
-        <div className="bg-surface/45 dark:bg-surface-elevated rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
+        <div className="bg-dashboard-card-bg rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
             <div className="flex items-center justify-between mb-3.5">
                 <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">
                     {t('dashboard.upcomingBatches')}
