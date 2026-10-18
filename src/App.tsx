@@ -285,7 +285,7 @@ export const App = () => {
                             'flex min-h-0 min-w-0 flex-1 flex-col bg-main-bg',
                             view === 'roast' || view === 'settings' ? 'overflow-hidden' : 'overflow-auto',
                             view !== 'settings' &&
-                                'my-3 mr-3 rounded-[20px] border border-border-subtle shadow-(--shadow-edge)',
+                                'mt-1.5 mr-3 mb-3 rounded-[20px] border border-border-subtle shadow-(--shadow-edge)',
                         )}
                     >
                         {view !== 'settings' && (

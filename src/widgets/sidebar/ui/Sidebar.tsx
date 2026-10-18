@@ -62,8 +62,8 @@ export const Sidebar = ({
             {/* Header */}
             <div
                 className={cn(
-                    'group/sidebar-header transition-all duration-200',
-                    rail ? 'px-3 pt-4 pb-3.5' : collapsed ? 'px-4 pt-4 pb-3.5' : 'px-5 pt-5 pb-4',
+                    'group/sidebar-header pt-3 pb-2 transition-all duration-200',
+                    rail ? 'px-3' : collapsed ? 'px-4' : 'px-5',
                 )}
                 onMouseEnter={() => setIsHeaderHovered(true)}
                 onMouseLeave={() => setIsHeaderHovered(false)}

@@ -220,7 +220,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 | 섹션 간격 | `24–32px` |
 | 그리드 갭 | `24px` (`gap-6`) |
 
-The ten primary views share an inset content panel in `src/App.tsx`: 12px top/right/bottom margin, 20px corners, `bg-main-bg`, and a subtle border/edge shadow. The sidebar shares the shell background (`surface`, `surface-elevated` in dark mode); its current item uses `main-bg` with an inset shadow. Settings keeps its full-width layout. Active roast uses 24px inner padding and retains fixed chart height with independently scrolling control/sensor panels. All dashboard cards use `dashboard-card-bg`.
+The ten primary views share an inset content panel in `src/App.tsx`: 6px top margin, 12px right/bottom margin, 20px corners, `bg-main-bg`, and a subtle border/edge shadow. The sidebar shares the shell background (`surface`, `surface-elevated` in dark mode); its current item uses `main-bg` with an inset shadow. Its logo header uses 12px top and 8px bottom padding. Settings keeps its full-width layout. Active roast uses 24px inner padding and retains fixed chart height with independently scrolling control/sensor panels. All dashboard cards use `dashboard-card-bg`.
 
 ---
 
