@@ -1,5 +1,6 @@
 import {
     AXIS_LABEL_FONT,
+    AXIS_LABEL_MARGIN,
     AXIS_MINOR_SPLIT_NUMBER,
     CHART_GRID_LEFT,
     CHART_GRID_RIGHT,
@@ -45,9 +46,10 @@ export const buildAxisStyles = (colors: ResolvedChartColors) => {
     const axisLabelStyle = {
         ...AXIS_LABEL_FONT,
         color: colors.axisLabel,
+        margin: AXIS_LABEL_MARGIN,
     };
     const axisNameStyle = { color: colors.axisLabel };
-    const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
+    const rightYAxisLabel = { ...axisLabelStyle };
     return { axisLabelStyle, axisNameStyle, rightYAxisLabel };
 };
 

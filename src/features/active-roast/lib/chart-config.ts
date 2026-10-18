@@ -2,6 +2,8 @@ import { isCustomRoastEvent } from './event-buttons';
 
 // ── Grid margins ─────────────────────────────────────────────────────────────
 export const CHART_GRID_LEFT = 38;
+/** Gap between an axis tick label and the plot. */
+export const AXIS_LABEL_MARGIN = 8;
 export const CHART_GRID_TOP = 10;
 export const CHART_GRID_RIGHT = 8;
 export const CHART_GRID_RIGHT_WITH_ROR = 32;
