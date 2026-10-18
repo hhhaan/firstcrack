@@ -24,6 +24,7 @@ DECLARE
   v_batch_a_id uuid;
   v_batch_b_id uuid;
   v_foreign_hold_order_id uuid;
+  v_foreign_owner_retry_order_id uuid;
 BEGIN
   INSERT INTO sales_channel_connections(id, user_id, platform, shop_identifier, status, auto_fulfill_on_shipped)
   VALUES (connection_id, owner_id, 'shopify', 'batch-fixture', 'active', true);
@@ -745,14 +746,35 @@ BEGIN
   BEGIN
     PERFORM retry_order_fulfillment(v_foreign_hold_order_id);
     RAISE EXCEPTION 'foreign workspace retry allowed';
-  EXCEPTION WHEN SQLSTATE 'P0002' THEN NULL;
+  EXCEPTION
+    WHEN SQLSTATE 'P0002' THEN NULL;
+    WHEN OTHERS THEN RAISE;
   END;
+  SET LOCAL ROLE service_role;
+  UPDATE orders SET status = 'cancelled', updated_at = now()
+  WHERE id = v_foreign_hold_order_id;
+  PERFORM set_config('request.jwt.claim.sub', stranger_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', stranger_id, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
   BEGIN
     PERFORM resolve_cancelled_order_hold(v_foreign_hold_order_id);
     RAISE EXCEPTION 'foreign workspace resolve allowed';
-  EXCEPTION WHEN SQLSTATE 'P0002' OR check_violation THEN NULL;
+  EXCEPTION
+    WHEN SQLSTATE 'P0002' THEN NULL;
+    WHEN OTHERS THEN RAISE;
   END;
   SET LOCAL ROLE service_role;
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    WHERE h.order_id = v_foreign_hold_order_id AND h.resolved_at IS NULL
+  ), 'foreign resolve denied leaves hold open';
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'foreign-owner-guard', 'shipped', '2026-10-14T06:00:00Z', 5,
+      jsonb_build_array(pg_temp.channel_fixture_line('foreign-owner-guard-line', v_product_id, 5, 'Owner'))
+    )
+  ));
+  SELECT id INTO v_foreign_owner_retry_order_id FROM orders WHERE platform_order_id = 'foreign-owner-guard';
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
   VALUES (owner_id, v_product_id, 10, 'adjustment');
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
@@ -760,7 +782,7 @@ BEGIN
   SET LOCAL ROLE authenticated;
   SELECT count(*) INTO hold_count FROM order_fulfillment_holds;
   ASSERT hold_count > 0, 'owner can read holds';
-  SELECT retry_order_fulfillment(v_foreign_hold_order_id) INTO v_retry_result;
+  SELECT retry_order_fulfillment(v_foreign_owner_retry_order_id) INTO v_retry_result;
   ASSERT v_retry_result->>'outcome' = 'fulfilled', 'owner authenticated retry succeeds';
   RESET ROLE;
   SET LOCAL ROLE service_role;
