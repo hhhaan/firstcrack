@@ -328,13 +328,16 @@ serveWithSentry('order-webhook', async (req) => {
             externalEventId,
         });
         if (!claim.ok) {
-            if ('inProgress' in claim && claim.inProgress) {
+            if ('inProgress' in claim) {
                 return jsonResponse({ error: 'webhook claim in progress' }, 409);
             }
-            if (claim.duplicate) {
+            if ('duplicate' in claim && claim.duplicate) {
                 return jsonResponse({ ok: true, skipped: 'duplicate delivery' });
             }
-            throw new Error(claim.error);
+            if ('error' in claim) {
+                throw new Error(claim.error);
+            }
+            throw new Error('webhook claim failed');
         }
 
         try {
