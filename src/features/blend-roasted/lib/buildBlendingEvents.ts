@@ -5,10 +5,16 @@ export type BuildBlendingEventsParams = {
     blendId: string;
     /** 실제 투입량 — 레시피 비율은 프리필일 뿐, 여기 값이 진실 */
     inputs: { beanId: string; grams: number }[];
-    /** 실측 산출량 — 투입 합계와 달라도 됨(핸들링 로스) */
+    /** 실측 산출량 — 투입 합계 이하(핸들링 로스 허용) */
     outputGrams: number;
     opId: string;
     note?: string;
+};
+
+const assertWholeGrams = (grams: number) => {
+    if (!Number.isFinite(grams) || !Number.isInteger(grams)) {
+        throw new Error('grams_must_be_whole');
+    }
 };
 
 /** 로스팅 후 블렌딩: 싱글 벌크 소진 + 블렌드 벌크 생성. 순수. */
@@ -20,9 +26,13 @@ export const buildBlendingEvents = ({
     opId,
     note,
 }: BuildBlendingEventsParams): RoastedStockEventInsert[] => {
+    assertWholeGrams(outputGrams);
     const active = inputs.filter((i) => i.grams > 0);
     if (active.length === 0) throw new Error('blending needs at least one input');
     if (outputGrams <= 0) throw new Error('output must be positive');
+    for (const i of active) assertWholeGrams(i.grams);
+    const inputSum = active.reduce((sum, i) => sum + i.grams, 0);
+    if (outputGrams > inputSum) throw new Error('blend_output_exceeds_input');
 
     return [
         ...active.map(

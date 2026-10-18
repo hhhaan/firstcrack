@@ -1,54 +1,8 @@
--- Local database fixture. Usage:
+-- Local database fixture. Run with psql -f from repo root (\ir resolves next to this file; piping stdin breaks includes).
 -- psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -v owner=<profile uuid> -f supabase/tests/channel_orders_batch.sql
 BEGIN;
 SELECT set_config('test.owner', :'owner', true);
-
-CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_line(
-  p_platform_line_id text,
-  p_product_id uuid,
-  p_quantity integer,
-  p_title text DEFAULT 'Coffee',
-  p_unit_price integer DEFAULT 1,
-  p_line_status text DEFAULT 'active',
-  p_platform_product_id text DEFAULT NULL,
-  p_platform_variant_id text DEFAULT NULL
-) RETURNS jsonb
-LANGUAGE sql
-IMMUTABLE
-AS $$
-  SELECT jsonb_build_object(
-    'platformLineId', p_platform_line_id,
-    'platformProductId', p_platform_product_id,
-    'platformVariantId', p_platform_variant_id,
-    'productId', p_product_id,
-    'title', p_title,
-    'quantity', p_quantity,
-    'unitPrice', p_unit_price,
-    'status', p_line_status
-  );
-$$;
-
-CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_order(
-  p_platform_order_id text,
-  p_status text,
-  p_ordered_at text,
-  p_total_amount integer,
-  p_lines jsonb
-) RETURNS jsonb
-LANGUAGE sql
-IMMUTABLE
-AS $$
-  SELECT jsonb_build_object(
-    'platformOrderId', p_platform_order_id,
-    'status', p_status,
-    'orderedAt', p_ordered_at,
-    'buyerName', null,
-    'currency', 'KRW',
-    'totalAmount', p_total_amount,
-    'raw', '{}'::jsonb,
-    'lines', p_lines
-  );
-$$;
+\ir channel_sync_fixture_helpers.sql
 
 DO $$
 DECLARE
@@ -63,6 +17,15 @@ DECLARE
   v_hold_b_order_id uuid;
   v_manual_hold_order_id uuid;
 BEGIN
+  INSERT INTO auth.users (id) VALUES (owner_id) ON CONFLICT DO NOTHING;
+  INSERT INTO profiles (id, plan) VALUES (owner_id, 'team') ON CONFLICT (id) DO UPDATE SET plan = EXCLUDED.plan;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    CREATE ROLE service_role NOINHERIT BYPASSRLS;
+  END IF;
+  GRANT USAGE ON SCHEMA public TO service_role;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO service_role;
+
   INSERT INTO sales_channel_connections(id, user_id, platform, shop_identifier, status, auto_fulfill_on_shipped)
   VALUES (connection_id, owner_id, 'shopify', 'batch-fixture', 'active', true);
   INSERT INTO products(id, user_id, name, sku, net_weight_grams)
@@ -71,6 +34,7 @@ BEGIN
   VALUES (owner_id, v_product_id, 100, 'roast_inbound');
 
   SET LOCAL ROLE service_role;
+  PERFORM set_config('request.jwt.claim.role', 'service_role', true);
   PERFORM set_config('request.jwt.claims', json_build_object('role','service_role')::text, true);
 
   -- Repeated order ids are applied sequentially: paid → shipped, and the earliest timestamp wins.

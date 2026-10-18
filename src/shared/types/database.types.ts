@@ -2298,6 +2298,13 @@ export type Database = {
                     user_id: string;
                 }[];
             };
+            order_line_outstanding_units: {
+                Args: { p_line_id: string };
+                Returns: {
+                    product_id: string;
+                    units: number;
+                }[];
+            };
             profile_write_error: { Args: { p_user_id: string }; Returns: string };
             redeem_org_invite: { Args: { p_token: string }; Returns: string };
             remove_org_member: {

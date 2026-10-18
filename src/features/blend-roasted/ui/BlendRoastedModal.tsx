@@ -61,7 +61,17 @@ export const BlendRoastedModal = ({ open, onClose }: Props) => {
     }, [open]);
 
     const inputSum = useMemo(() => Object.values(inputs).reduce((a, b) => a + (b || 0), 0), [inputs]);
-    const canSubmit = !!blendId && !!selected && inputSum > 0 && outputGrams > 0 && !isPending;
+    const isWholeGrams = (n: number) => Number.isFinite(n) && Number.isInteger(n);
+    const inputsAreWhole = Object.values(inputs).every((g) => isWholeGrams(g || 0));
+    const canSubmit =
+        !!blendId &&
+        !!selected &&
+        inputSum > 0 &&
+        isWholeGrams(outputGrams) &&
+        outputGrams > 0 &&
+        outputGrams <= inputSum &&
+        inputsAreWhole &&
+        !isPending;
 
     if (!open) return null;
 
@@ -122,7 +132,10 @@ export const BlendRoastedModal = ({ open, onClose }: Props) => {
                                     min={1}
                                     className={`${inputCls} pr-10`}
                                     value={targetGrams}
-                                    onChange={(e) => setTargetGrams(Math.max(0, Number(e.target.value) || 0))}
+                                    step={1}
+                                    onChange={(e) =>
+                                        setTargetGrams(Math.round(Math.max(0, Number(e.target.value) || 0)))
+                                    }
                                 />
                                 <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted">
                                     g
@@ -164,10 +177,13 @@ export const BlendRoastedModal = ({ open, onClose }: Props) => {
                                                     min={0}
                                                     className={`${inputCls} pr-10`}
                                                     value={grams}
+                                                    step={1}
                                                     onChange={(e) =>
                                                         setInputs((prev) => ({
                                                             ...prev,
-                                                            [c.bean_id]: Math.max(0, Number(e.target.value) || 0),
+                                                            [c.bean_id]: Math.round(
+                                                                Math.max(0, Number(e.target.value) || 0),
+                                                            ),
                                                         }))
                                                     }
                                                 />
@@ -195,11 +211,12 @@ export const BlendRoastedModal = ({ open, onClose }: Props) => {
                                     id="blend-actual-output"
                                     type="number"
                                     min={1}
+                                    step={1}
                                     className={`${inputCls} pr-10`}
                                     value={outputGrams}
                                     onChange={(e) => {
                                         setOutputTouched(true);
-                                        setOutputGrams(Math.max(0, Number(e.target.value) || 0));
+                                        setOutputGrams(Math.round(Math.max(0, Number(e.target.value) || 0)));
                                     }}
                                 />
                                 <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted">

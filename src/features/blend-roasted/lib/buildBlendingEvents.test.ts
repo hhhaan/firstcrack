@@ -62,4 +62,27 @@ describe('buildBlendingEvents', () => {
             buildBlendingEvents({ ...base, inputs: [{ beanId: 'b1', grams: 100 }], outputGrams: 0 }),
         ).toThrow();
     });
+
+    it('rejects output above input sum', () => {
+        expect(() =>
+            buildBlendingEvents({
+                ...base,
+                inputs: [{ beanId: 'b1', grams: 200 }],
+                outputGrams: 5000,
+            }),
+        ).toThrow('blend_output_exceeds_input');
+    });
+
+    it('rejects fractional grams', () => {
+        expect(() =>
+            buildBlendingEvents({
+                ...base,
+                inputs: [
+                    { beanId: 'b1', grams: 100.5 },
+                    { beanId: 'b2', grams: 100.5 },
+                ],
+                outputGrams: 201,
+            }),
+        ).toThrow('grams_must_be_whole');
+    });
 });
