@@ -51,7 +51,10 @@ export function SettingsLayout({
         if (emptyRef.current) emptyRef.current.hidden = !terms.length || visible > 0;
     }, [query, tab?.label, activeTab, roastGroup, t]);
     return (
-        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-main-bg" data-testid="settings-page">
+        <div
+            className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-shell-bg dark:bg-main-bg"
+            data-testid="settings-page"
+        >
             <SettingsSidebar
                 activeTab={activeTab}
                 onTabChange={changeTab}
@@ -61,7 +64,7 @@ export function SettingsLayout({
                 query={query}
                 onQueryChange={search}
             />
-            <div className="flex min-h-0 min-w-0 flex-1 bg-primary/[0.02]">
+            <div className="flex min-h-0 min-w-0 flex-1 bg-transparent dark:bg-primary/[0.02]">
                 <main
                     key={`${activeTab}:${roastGroup}`}
                     aria-labelledby="settings-page-title"

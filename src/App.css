@@ -46,6 +46,7 @@
 
     --color-main-bg: #ffffff;
     --color-roast-bg: #ffffff;
+    --color-shell-bg: #f4f4f4;
     --color-dashboard-card-bg: #f9fafc;
     --color-surface: #f3f4f7;
     --color-surface-elevated: #f3f4f7;
@@ -151,6 +152,7 @@
 html.dark {
     --color-main-bg: #181d21;
     --color-roast-bg: #181d21;
+    --color-shell-bg: #262b30;
     --color-dashboard-card-bg: #262b30;
     --color-surface: #181d21;
     --color-surface-elevated: #262b30;
@@ -248,7 +250,7 @@ body {
     font-size: 16px;
     line-height: 1.5;
     color: var(--color-primary);
-    background: var(--color-surface);
+    background: var(--color-shell-bg);
     font-variant-numeric: tabular-nums lining-nums;
     font-kerning: normal;
     font-feature-settings:

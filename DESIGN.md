@@ -53,6 +53,7 @@
 |---|---|---|---|
 | `--color-main-bg` | `#ffffff` | `#181d21` | 페이지/카드 배경 |
 | `--color-roast-bg` | `#ffffff` | `#181d21` | 로스팅 화면 전용 배경 |
+| `--color-shell-bg` | `#f4f4f4` | `#262b30` | 앱 헤더·사이드바 배경 |
 | `--color-dashboard-card-bg` | `#f9fafc` | `#262b30` | 대시보드 카드 배경 |
 | `--color-surface` | `#f3f4f7` | `#181d21` | 버튼/인풋/서피스 배경 |
 | `--color-surface-elevated` | `#f3f4f7` | `#262b30` | 카드·모달 내 상승 서피스 |
@@ -195,7 +196,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 - **`font-variant-numeric: tabular-nums lining-nums`** — `body` + 전역 `*`. **컴포넌트에서 재선언 금지.**
 - `font-kerning: normal`; `font-feature-settings: "kern" 1, "tnum" 1, "lnum" 1, "zero" 1`
 - 로스팅 우측 패널 숫자: Inconsolata, `letter-spacing: -0.03em`.
-- body: `16px` / `line-height: 1.5` / `color: var(--color-primary)` / `background: var(--color-surface)`
+- body: `16px` / `line-height: 1.5` / `color: var(--color-primary)` / `background: var(--color-shell-bg)`
 
 #### Type scale (구현 관례)
 
@@ -220,7 +221,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 | 섹션 간격 | `24–32px` |
 | 그리드 갭 | `24px` (`gap-6`) |
 
-The ten primary views share an inset content panel in `src/App.tsx`: 6px top margin, 12px right/bottom margin, 20px corners, `bg-main-bg`, and a subtle border/edge shadow. The sidebar shares the shell background (`surface`, `surface-elevated` in dark mode); its current item uses `main-bg` with an inset shadow. Its logo header uses 12px top and 8px bottom padding. Settings applies the same panel geometry in `SettingsLayout`, retaining its `primary/2` navigation background and `main-bg` content color; its navigation starts with 12px top padding. Active roast uses 24px inner padding and retains fixed chart height with independently scrolling control/sensor panels. All dashboard cards use `dashboard-card-bg`.
+The ten primary views share an inset content panel in `src/App.tsx`: 6px top margin, 12px right/bottom margin, 20px corners, `bg-main-bg`, and a subtle border/edge shadow. The sidebar shares the shell background (`shell-bg`); its current item uses `main-bg` with an inset shadow. Its logo header uses 12px top and 8px bottom padding. Settings applies the same panel geometry in `SettingsLayout`, using `shell-bg` for its light navigation/frame and `main-bg` for content; its dark navigation retains `primary/2` over `main-bg`. Its navigation starts with 12px top padding. Active roast uses 24px inner padding and retains fixed chart height with independently scrolling control/sensor panels. All dashboard cards use `dashboard-card-bg`.
 
 ---
 

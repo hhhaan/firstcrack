@@ -265,7 +265,7 @@ export const App = () => {
 
     return (
         <ErrorBoundary fallback={appShellFallback}>
-            <div className="flex h-screen flex-col overflow-hidden bg-surface dark:bg-surface-elevated">
+            <div className="flex h-screen flex-col overflow-hidden bg-shell-bg">
                 {/* VOC: restore first-run theme picker — {theme === null && <ThemeSelectModal />} */}
                 <PendingRoastRecovery />
                 {shortcutsOpen && <KeyboardShortcutsModal />}

@@ -43,7 +43,7 @@ export function SettingsSidebar({
         onTabChange(id);
     };
     return (
-        <aside className="flex w-[170px] shrink-0 flex-col overflow-y-auto bg-primary/[0.02] px-3 pt-3 pb-5 sm:w-[200px] lg:w-[220px]">
+        <aside className="flex w-[170px] shrink-0 flex-col overflow-y-auto bg-transparent px-3 pt-3 pb-5 sm:w-[200px] lg:w-[220px] dark:bg-primary/[0.02]">
             <div className="mb-4 flex items-center gap-1.5 px-1">
                 <button
                     type="button"
