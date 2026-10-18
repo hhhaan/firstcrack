@@ -1,3 +1,4 @@
+import { cn } from '@shared/lib/cn';
 import { logger } from '@shared/lib/logger';
 import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
@@ -264,18 +265,11 @@ export const App = () => {
 
     return (
         <ErrorBoundary fallback={appShellFallback}>
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: '100vh',
-                    overflow: 'hidden',
-                }}
-            >
+            <div className="flex h-screen flex-col overflow-hidden bg-surface dark:bg-surface-elevated">
                 {/* VOC: restore first-run theme picker — {theme === null && <ThemeSelectModal />} */}
                 <PendingRoastRecovery />
                 {shortcutsOpen && <KeyboardShortcutsModal />}
-                <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                <div className="flex min-h-0 flex-1 overflow-hidden">
                     {view !== 'settings' && (
                         <Sidebar
                             activeView={view}
@@ -285,16 +279,14 @@ export const App = () => {
                             onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
                         />
                     )}
-                    <div
-                        style={{
-                            flex: 1,
-                            minHeight: 0,
-                            minWidth: 0,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            overflow: view === 'roast' || view === 'settings' ? 'hidden' : 'auto',
-                            background: 'var(--color-surface)',
-                        }}
+                    <main
+                        data-testid="app-content"
+                        className={cn(
+                            'flex min-h-0 min-w-0 flex-1 flex-col bg-main-bg',
+                            view === 'roast' || view === 'settings' ? 'overflow-hidden' : 'overflow-auto',
+                            view !== 'settings' &&
+                                'my-3 mr-3 rounded-[20px] border border-border-subtle shadow-(--shadow-edge)',
+                        )}
                     >
                         {view !== 'settings' && (
                             <InventoryAlertBanner userId={workspaceOwnerId || user.id} onNavigate={setView} />
@@ -375,7 +367,7 @@ export const App = () => {
                                 <Schedule onStartBatch={handleStartBatch} />
                             </ViewErrorBoundary>
                         )}
-                    </div>
+                    </main>
                 </div>
 
                 {isSidecarDead && (

@@ -55,14 +55,14 @@ export const Sidebar = ({
         <aside
             data-testid="app-sidebar"
             className={cn(
-                'shrink-0 h-full bg-main-bg border-r border-border dark:border-[#585d61] flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out',
+                'shrink-0 h-full bg-transparent flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out',
                 rail ? 'w-[60px]' : collapsed ? 'w-[68px]' : 'w-[170px] sm:w-[200px] lg:w-[220px]',
             )}
         >
             {/* Header */}
             <div
                 className={cn(
-                    'group/sidebar-header border-b border-border-subtle dark:border-[#585d61] transition-all duration-200',
+                    'group/sidebar-header transition-all duration-200',
                     rail ? 'px-3 pt-4 pb-3.5' : collapsed ? 'px-4 pt-4 pb-3.5' : 'px-5 pt-5 pb-4',
                 )}
                 onMouseEnter={() => setIsHeaderHovered(true)}
@@ -222,7 +222,7 @@ export const Sidebar = ({
             />
 
             {/* Footer */}
-            <div className={cn('py-2.5 border-t border-border-subtle dark:border-[#585d61]', rail ? 'px-3' : edgePad)}>
+            <div className={cn('py-2.5', rail ? 'px-3' : edgePad)}>
                 <button
                     type="button"
                     aria-label={t('sidebar.settings')}

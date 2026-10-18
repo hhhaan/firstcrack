@@ -89,9 +89,13 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         data-testid={navTestId(id)}
                                         onClick={() => onNavigate(id)}
                                         aria-label={label}
+                                        aria-current={isActive ? 'page' : undefined}
                                         title={collapsed ? label : undefined}
                                         className={cn(
-                                            'flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-lg border-none bg-transparent mb-0.5 transition-[padding,background-color] duration-220 hover:bg-primary/5',
+                                            'flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-lg border-none mb-0.5 transition-[padding,background-color] duration-220',
+                                            isActive
+                                                ? 'bg-main-bg shadow-(--shadow-inset)'
+                                                : 'bg-transparent hover:bg-primary/5',
                                             collapsed || rail ? 'pl-0' : 'pl-2',
                                         )}
                                     >
