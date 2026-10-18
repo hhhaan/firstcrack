@@ -48,6 +48,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const { hidden, setHidden } = useCatalogVisibility(authUserId, userId, 'beans');
     const [showHidden, setShowHidden] = useState(false);
     const visibleBeans = beans.filter((bean) => showHidden || !hidden.has(bean.id));
+    const allBeansHidden = beans.length > 0 && visibleBeans.length === 0 && !showHidden;
     const {
         summary: assetSummary,
         stockSummaries,
@@ -144,7 +145,9 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
             <CatalogVisibilityFilter checked={showHidden} onChange={setShowHidden} />
             <BeanList
                 beans={visibleBeans}
+                catalogTotal={beans.length}
                 hidden={hidden}
+                onShowHidden={() => setShowHidden(true)}
                 onToggleHidden={(id) => setHidden(id, !hidden.has(id))}
                 isLoading={isLoading}
                 selectedId={selected?.id ?? null}
@@ -162,6 +165,8 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
         <BeanDetail
             bean={selected}
             hasAny={beans.length > 0}
+            allHidden={allBeansHidden}
+            onShowHidden={() => setShowHidden(true)}
             isLoading={isLoading}
             affectedBlendNames={affectedBlendNames}
             assetLine={selected ? (assetSummary.byBeanId[selected.id] ?? null) : null}

@@ -18,6 +18,8 @@ const EVENT_TYPE_LABEL_KEY: Record<string, string> = {
 interface BeanDetailProps {
     bean: Bean | null;
     hasAny: boolean;
+    allHidden?: boolean;
+    onShowHidden?: () => void;
     isLoading: boolean;
     affectedBlendNames: string[];
     assetLine?: BeanAssetLine | null;
@@ -52,11 +54,34 @@ const Skeleton = () => (
     </div>
 );
 
-const Empty = ({ hasAny }: { hasAny: boolean }) => {
+const Empty = ({
+    hasAny,
+    allHidden,
+    onShowHidden,
+}: {
+    hasAny: boolean;
+    allHidden?: boolean;
+    onShowHidden?: () => void;
+}) => {
     const { t } = useTranslation();
     return (
-        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
-            {hasAny ? t('beanDetail.empty.select') : t('beanDetail.empty.addFirst')}
+        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex flex-col items-center justify-center gap-3 text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
+            <span>
+                {allHidden
+                    ? t('beanDetail.empty.allHidden')
+                    : hasAny
+                      ? t('beanDetail.empty.select')
+                      : t('beanDetail.empty.addFirst')}
+            </span>
+            {allHidden && onShowHidden ? (
+                <button
+                    type="button"
+                    onClick={onShowHidden}
+                    className="text-[13px] font-medium text-primary underline-offset-2 hover:underline"
+                >
+                    {t('catalog.showHidden')}
+                </button>
+            ) : null}
         </div>
     );
 };
@@ -64,6 +89,8 @@ const Empty = ({ hasAny }: { hasAny: boolean }) => {
 export const BeanDetail = ({
     bean,
     hasAny,
+    allHidden = false,
+    onShowHidden,
     isLoading,
     affectedBlendNames,
     assetLine = null,
@@ -78,7 +105,7 @@ export const BeanDetail = ({
     const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
 
     if (isLoading) return <Skeleton />;
-    if (!bean) return <Empty hasAny={hasAny} />;
+    if (!bean) return <Empty hasAny={hasAny} allHidden={allHidden} onShowHidden={onShowHidden} />;
 
     const actionsLocked = isOptimisticId(bean.id);
 

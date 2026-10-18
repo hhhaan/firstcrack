@@ -7,7 +7,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CuppingResultsShare } from './CuppingResultsShare';
 
-vi.mock('@entities/cupping/api', () => ({ cuppingApi: { ensureResultsToken: vi.fn() } }));
+vi.mock('@entities/cupping/api', () => ({
+    cuppingApi: {
+        ensureResultsToken: vi.fn(),
+        getEvent: vi.fn(() => Promise.reject(new Error('unexpected getEvent'))),
+    },
+}));
 const mocks = vi.hoisted(() => ({ language: 'en' }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => `${mocks.language}:${key}` }) }));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -65,6 +70,7 @@ describe('results token mutation lifecycle', () => {
         render();
         await act(async () => {});
         expect(cuppingApi.ensureResultsToken).toHaveBeenCalledTimes(1);
+        expect(cuppingApi.getEvent).not.toHaveBeenCalled();
         await act(async () => resolveToken({ ...event, results_token: 'token' }));
         expect(qc.getQueryData<CuppingEvent>(cuppingKeys.event(event.id))?.results_token).toBe('token');
         expect(qc.getQueryData<CuppingEventSummary[]>(cuppingKeys.events('owner'))?.[0].results_token).toBe('token');

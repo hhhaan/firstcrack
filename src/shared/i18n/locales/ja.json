@@ -1701,6 +1701,7 @@
     "beanList": {
         "searchPlaceholder": "豆を検索...",
         "empty": "豆がまだありません。最初のロットを追加してください！",
+        "allHidden": "すべての豆が非表示になっています。",
         "noResults": "結果が見つかりません。"
     },
     "deleteBeanModal": {
@@ -1768,7 +1769,8 @@
     "beanDetail": {
         "empty": {
             "select": "豆を選択して詳細を表示",
-            "addFirst": "最初の生豆ロットを追加してください。"
+            "addFirst": "最初の生豆ロットを追加してください。",
+            "allHidden": "すべての豆が非表示です。非表示の項目を表示して選択してください。"
         },
         "origin": "産地",
         "region": "地域",

@@ -13,7 +13,7 @@ type CuppingResultsShareProps = {
 
 export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResultsShareProps) => {
     const { t } = useTranslation();
-    const { data: detail } = useCuppingEvent(eventId);
+    const { data: detail } = useCuppingEvent(eventId, listEvent == null);
     const { mutate: ensureToken, isPending: ensuring, isError } = useEnsureResultsToken(userId);
     const requestedEventRef = useRef<string | null>(null);
     const resultsToken = detail?.results_token ?? listEvent?.results_token ?? null;

@@ -1701,6 +1701,7 @@
     "beanList": {
         "searchPlaceholder": "Search beans...",
         "empty": "No beans yet. Add your first lot!",
+        "allHidden": "All beans are hidden.",
         "noResults": "No results found."
     },
     "deleteBeanModal": {
@@ -1768,7 +1769,8 @@
     "beanDetail": {
         "empty": {
             "select": "Select a bean to view details",
-            "addFirst": "Add your first bean lot to get started."
+            "addFirst": "Add your first bean lot to get started.",
+            "allHidden": "All beans are hidden. Show hidden items to pick one."
         },
         "origin": "Origin",
         "region": "Region",
