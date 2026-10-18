@@ -2031,6 +2031,8 @@
             "fulfilled": "출고 완료",
             "retryFulfillment": "재출고",
             "stockHoldBadge": "재고 부족으로 출고 보류",
+            "stockHoldNoDemandBadge": "출고 보류 (상품 연결 필요)",
+            "stockHoldNoDemand": "차감할 연결 상품이 없습니다. 주문 라인을 상품에 연결한 뒤 재출고하세요.",
             "stockHoldLine": "{{product}} — 필요 {{required}} / 가용 {{available}}",
             "stockHoldUnknownProduct": "상품",
             "col": {

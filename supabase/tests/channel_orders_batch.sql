@@ -2,53 +2,9 @@
 -- psql "$LOCAL_DATABASE_URL" -v ON_ERROR_STOP=1 -v owner=<profile uuid> -f supabase/tests/channel_orders_batch.sql
 BEGIN;
 SELECT set_config('test.owner', :'owner', true);
-
-CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_line(
-  p_platform_line_id text,
-  p_product_id uuid,
-  p_quantity integer,
-  p_title text DEFAULT 'Coffee',
-  p_unit_price integer DEFAULT 1,
-  p_line_status text DEFAULT 'active',
-  p_platform_product_id text DEFAULT NULL,
-  p_platform_variant_id text DEFAULT NULL
-) RETURNS jsonb
-LANGUAGE sql
-IMMUTABLE
-AS $$
-  SELECT jsonb_build_object(
-    'platformLineId', p_platform_line_id,
-    'platformProductId', p_platform_product_id,
-    'platformVariantId', p_platform_variant_id,
-    'productId', p_product_id,
-    'title', p_title,
-    'quantity', p_quantity,
-    'unitPrice', p_unit_price,
-    'status', p_line_status
-  );
-$$;
-
-CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_order(
-  p_platform_order_id text,
-  p_status text,
-  p_ordered_at text,
-  p_total_amount integer,
-  p_lines jsonb
-) RETURNS jsonb
-LANGUAGE sql
-IMMUTABLE
-AS $$
-  SELECT jsonb_build_object(
-    'platformOrderId', p_platform_order_id,
-    'status', p_status,
-    'orderedAt', p_ordered_at,
-    'buyerName', null,
-    'currency', 'KRW',
-    'totalAmount', p_total_amount,
-    'raw', '{}'::jsonb,
-    'lines', p_lines
-  );
-$$;
+INSERT INTO auth.users (id) VALUES (current_setting('test.owner')::uuid) ON CONFLICT DO NOTHING;
+INSERT INTO profiles (id) VALUES (current_setting('test.owner')::uuid) ON CONFLICT DO NOTHING;
+\ir _channel_order_fixtures.sql
 
 DO $$
 DECLARE
@@ -62,6 +18,13 @@ DECLARE
   hold_count integer;
   v_hold_b_order_id uuid;
   v_manual_hold_order_id uuid;
+  v_cancel_hold_order_id uuid;
+  v_no_demand_order_id uuid;
+  v_retry_result jsonb;
+  v_batch_a_id uuid;
+  v_batch_b_id uuid;
+  v_foreign_hold_order_id uuid;
+  v_foreign_owner_retry_order_id uuid;
 BEGIN
   INSERT INTO sales_channel_connections(id, user_id, platform, shop_identifier, status, auto_fulfill_on_shipped)
   VALUES (connection_id, owner_id, 'shopify', 'batch-fixture', 'active', true);
@@ -242,7 +205,12 @@ BEGIN
       'platformLineId','local-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',1000,'status','active'
     ))
   )));
+  PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
   PERFORM cancel_order((SELECT id FROM orders WHERE platform_order_id='local-1'));
+  SET LOCAL ROLE service_role;
+  PERFORM set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
     'platformOrderId', 'local-1', 'status', 'shipped', 'orderedAt', '2026-10-10T05:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
@@ -614,8 +582,157 @@ BEGIN
   ), 'authenticated fulfill resolved hold';
   RESET ROLE;
 
-  stranger_id := gen_random_uuid();
+  -- #924: cancel_order closes an open stock hold in the same transaction.
+  DELETE FROM product_stock_events WHERE user_id = owner_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 1, 'roast_inbound');
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'cancel-hold', 'shipped', '2026-10-14T00:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('cancel-hold-line', v_product_id, 2, 'Hold'))
+    )
+  ));
+  SELECT id INTO v_cancel_hold_order_id FROM orders WHERE platform_order_id = 'cancel-hold';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    WHERE h.order_id = v_cancel_hold_order_id AND h.resolved_at IS NULL
+  ), '#924 open hold before cancel';
+  PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM cancel_order(v_cancel_hold_order_id);
+  ASSERT (SELECT status = 'cancelled' FROM orders WHERE id = v_cancel_hold_order_id), '#924 order cancelled';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    WHERE h.order_id = v_cancel_hold_order_id AND h.resolved_at IS NULL
+  ), '#924 hold resolved on cancel';
+  ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE id = v_cancel_hold_order_id), '#924 never fulfilled';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id = pse.reference_id
+    WHERE ol.order_id = v_cancel_hold_order_id
+  ), '#924 no stock events on unfulfilled cancel';
+  RESET ROLE;
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'resolve-guard', 'shipped', '2026-10-14T00:30:00Z', 3,
+      jsonb_build_array(pg_temp.channel_fixture_line('resolve-guard-line', v_product_id, 3, 'Guard'))
+    )
+  ));
+  SELECT id INTO v_cancel_hold_order_id FROM orders WHERE platform_order_id = 'resolve-guard';
+  BEGIN
+    PERFORM resolve_cancelled_order_hold(v_cancel_hold_order_id);
+    RAISE EXCEPTION '#924 resolve on non-cancelled order accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+
+  -- #922: retry with no mapped demand keeps hold open and records no_stock_demand.
+  DELETE FROM product_stock_events WHERE user_id = owner_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 1, 'roast_inbound');
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'no-demand', 'shipped', '2026-10-14T01:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('no-demand-mapped', v_product_id, 2, 'Mapped'))
+    )
+  ));
+  SELECT id INTO v_no_demand_order_id FROM orders WHERE platform_order_id = 'no-demand';
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'no-demand', 'status', 'shipped', 'orderedAt', '2026-10-14T01:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(
+      jsonb_build_object(
+        'platformLineId', 'no-demand-mapped', 'platformProductId', null, 'platformVariantId', null,
+        'productId', v_product_id, 'title', 'Mapped', 'quantity', 2, 'unitPrice', 1, 'status', 'cancelled'
+      ),
+      jsonb_build_object(
+        'platformLineId', 'no-demand-unmapped', 'platformProductId', null, 'platformVariantId', null,
+        'productId', null, 'title', 'Unmapped', 'quantity', 1, 'unitPrice', 1, 'status', 'active'
+      )
+    )
+  )));
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    WHERE h.order_id = v_no_demand_order_id AND h.resolved_at IS NULL
+      AND h.reason = 'no_stock_demand'
+  ), '#922 sync refresh sets no_stock_demand reason';
+  SELECT retry_order_fulfillment(v_no_demand_order_id) INTO v_retry_result;
+  ASSERT v_retry_result->>'outcome' = 'no_stock_demand', '#922 retry outcome';
+  ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE id = v_no_demand_order_id), '#922 not fulfilled';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    WHERE h.order_id = v_no_demand_order_id AND h.resolved_at IS NULL
+      AND h.reason = 'no_stock_demand' AND h.shortages = '[]'::jsonb
+  ), '#922 hold stays open';
+  UPDATE order_lines SET product_id = v_product_id
+  WHERE order_id = v_no_demand_order_id AND platform_line_id = 'no-demand-unmapped';
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 5, 'adjustment');
+  SELECT retry_order_fulfillment(v_no_demand_order_id) INTO v_retry_result;
+  ASSERT v_retry_result->>'outcome' = 'fulfilled', '#922 retry after mapping';
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE id = v_no_demand_order_id), '#922 fulfilled after map';
+
+  -- #923: cancel credit in the same batch counts before later fulfill simulation.
+  DELETE FROM product_stock_events WHERE user_id = owner_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 5, 'roast_inbound');
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'batch-cancel-a', 'shipped', '2026-10-14T02:00:00Z', 5,
+      jsonb_build_array(pg_temp.channel_fixture_line('batch-cancel-a-line', v_product_id, 5, 'A'))
+    )
+  ));
+  SELECT id INTO v_batch_a_id FROM orders WHERE platform_order_id = 'batch-cancel-a';
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE id = v_batch_a_id), '#923 A fulfilled first';
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'batch-cancel-a', 'cancelled', '2026-10-14T02:00:00Z', 0,
+      jsonb_build_array(
+        pg_temp.channel_fixture_line('batch-cancel-a-line', v_product_id, 5, 'A', 1, 'cancelled')
+      )
+    ),
+    pg_temp.channel_fixture_order(
+      'batch-cancel-b', 'shipped', '2026-10-14T03:00:00Z', 5,
+      jsonb_build_array(pg_temp.channel_fixture_line('batch-cancel-b-line', v_product_id, 5, 'B'))
+    )
+  ));
+  SELECT id INTO v_batch_b_id FROM orders WHERE platform_order_id = 'batch-cancel-b';
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE id = v_batch_b_id), '#923 B fulfilled same batch';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h WHERE h.order_id = v_batch_b_id AND h.resolved_at IS NULL
+  ), '#923 B not held';
+  ASSERT COALESCE(result->>'heldFulfillments', '0') = '0', '#923 no held in batch';
+  ASSERT (SELECT count(*) FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id = pse.reference_id
+    JOIN orders o ON o.id = ol.order_id
+    WHERE o.platform_order_id = 'batch-cancel-b' AND pse.event_type = 'order_fulfillment') = 1,
+    '#923 one fulfillment for B';
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'batch-cancel-b', 'shipped', '2026-10-14T03:00:00Z', 5,
+      jsonb_build_array(pg_temp.channel_fixture_line('batch-cancel-b-line', v_product_id, 5, 'B'))
+    )
+  ));
+  ASSERT (SELECT count(*) FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id = pse.reference_id
+    JOIN orders o ON o.id = ol.order_id
+    WHERE o.platform_order_id = 'batch-cancel-b' AND pse.event_type = 'order_fulfillment') = 1,
+    '#923 replay idempotent';
+
+  DELETE FROM product_stock_events WHERE user_id = owner_id AND product_id = v_product_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 1, 'roast_inbound');
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'foreign-guard', 'shipped', '2026-10-14T05:00:00Z', 5,
+      jsonb_build_array(pg_temp.channel_fixture_line('foreign-guard-line', v_product_id, 5, 'Guard'))
+    )
+  ));
+  SELECT id INTO v_foreign_hold_order_id FROM orders WHERE platform_order_id = 'foreign-guard';
+
+  stranger_id := '33333333-3333-3333-3333-333333333333'::uuid;
   INSERT INTO auth.users (id) VALUES (stranger_id) ON CONFLICT DO NOTHING;
+  INSERT INTO profiles (id) VALUES (stranger_id) ON CONFLICT DO NOTHING;
   SET LOCAL ROLE authenticated;
   BEGIN
     PERFORM sync_channel_orders_batch(owner_id, connection_id, '[]'::jsonb);
@@ -627,14 +744,49 @@ BEGIN
   SELECT count(*) INTO hold_count FROM order_fulfillment_holds;
   ASSERT hold_count = 0, 'stranger cannot read holds';
   BEGIN
-    PERFORM retry_order_fulfillment(v_hold_b_order_id);
-    RAISE EXCEPTION 'stranger retry allowed';
-  EXCEPTION WHEN SQLSTATE 'P0002' OR check_violation THEN NULL;
+    PERFORM retry_order_fulfillment(v_foreign_hold_order_id);
+    RAISE EXCEPTION 'foreign workspace retry allowed';
+  EXCEPTION
+    WHEN SQLSTATE 'P0002' THEN NULL;
+    WHEN OTHERS THEN RAISE;
   END;
+  SET LOCAL ROLE service_role;
+  UPDATE orders SET status = 'cancelled', updated_at = now()
+  WHERE id = v_foreign_hold_order_id;
+  PERFORM set_config('request.jwt.claim.sub', stranger_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', stranger_id, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN
+    PERFORM resolve_cancelled_order_hold(v_foreign_hold_order_id);
+    RAISE EXCEPTION 'foreign workspace resolve allowed';
+  EXCEPTION
+    WHEN SQLSTATE 'P0002' THEN NULL;
+    WHEN OTHERS THEN RAISE;
+  END;
+  SET LOCAL ROLE service_role;
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    WHERE h.order_id = v_foreign_hold_order_id AND h.resolved_at IS NULL
+  ), 'foreign resolve denied leaves hold open';
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'foreign-owner-guard', 'shipped', '2026-10-14T06:00:00Z', 5,
+      jsonb_build_array(pg_temp.channel_fixture_line('foreign-owner-guard-line', v_product_id, 5, 'Owner'))
+    )
+  ));
+  SELECT id INTO v_foreign_owner_retry_order_id FROM orders WHERE platform_order_id = 'foreign-owner-guard';
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 10, 'adjustment');
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
   SELECT count(*) INTO hold_count FROM order_fulfillment_holds;
   ASSERT hold_count > 0, 'owner can read holds';
+  SELECT retry_order_fulfillment(v_foreign_owner_retry_order_id) INTO v_retry_result;
+  ASSERT v_retry_result->>'outcome' = 'fulfilled', 'owner authenticated retry succeeds';
+  RESET ROLE;
+  SET LOCAL ROLE service_role;
+  PERFORM set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
 END $$;
 
 ROLLBACK;

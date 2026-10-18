@@ -2200,6 +2200,10 @@ export type Database = {
                 };
                 Returns: number;
             };
+            assert_product_stock_not_negative: {
+                Args: { p_order_id: string; p_product_ids: string[] };
+                Returns: undefined;
+            };
             cancel_order: { Args: { p_order_id: string }; Returns: undefined };
             channel_try_integer: { Args: { p_value: string }; Returns: number };
             channel_try_timestamptz: { Args: { p_value: string }; Returns: string };
@@ -2230,9 +2234,35 @@ export type Database = {
                 };
                 Returns: string[];
             };
+            fulfillment_shortage_entry: {
+                Args: {
+                    p_available_units: number;
+                    p_line_id: string;
+                    p_product_id: string;
+                    p_required_units: number;
+                };
+                Returns: Json;
+            };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
+            insert_active_order_fulfillment_events: {
+                Args: { p_order_id: string; p_skip_already_fulfilled?: boolean };
+                Returns: string[];
+            };
+            order_aggregated_product_demand: {
+                Args: { p_order_id: string; p_pending_lines_only?: boolean };
+                Returns: {
+                    product_id: string;
+                    representative_line_id: string;
+                    required_units: number;
+                }[];
+            };
+            order_fulfillment_shortages_json: {
+                Args: { p_order_id: string; p_pending_lines_only?: boolean };
+                Returns: Json;
+            };
+            resolve_cancelled_order_hold: { Args: { p_order_id: string }; Returns: undefined };
             resolve_order_fulfillment_hold: { Args: { p_order_id: string }; Returns: undefined };
-            retry_order_fulfillment: { Args: { p_order_id: string }; Returns: undefined };
+            retry_order_fulfillment: { Args: { p_order_id: string }; Returns: Json };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_effective_stock: {

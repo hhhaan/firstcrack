@@ -2031,6 +2031,8 @@
             "fulfilled": "出荷済み",
             "retryFulfillment": "再出荷",
             "stockHoldBadge": "在庫不足で出荷保留",
+            "stockHoldNoDemandBadge": "出荷保留（商品の紐付けが必要）",
+            "stockHoldNoDemand": "差し引く紐付け商品がありません。注文行を商品に紐付けてから再出荷してください。",
             "stockHoldLine": "{{product}} — 必要 {{required}} / 在庫 {{available}}",
             "stockHoldUnknownProduct": "商品",
             "col": {
