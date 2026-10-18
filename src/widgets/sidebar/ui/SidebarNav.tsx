@@ -102,7 +102,7 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
                                             <Icon
                                                 size={16}
-                                                strokeWidth={1.5}
+                                                strokeWidth={2}
                                                 className={isActive ? 'text-primary' : 'text-muted'}
                                             />
                                             {showBadge && collapsed && (

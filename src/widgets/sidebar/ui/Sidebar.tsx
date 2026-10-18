@@ -235,7 +235,7 @@ export const Sidebar = ({
                     className="flex h-9 w-full items-center overflow-hidden rounded-lg bg-transparent text-secondary transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
                 >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center">
-                        <Settings size={18} strokeWidth={1.5} />
+                        <Settings size={18} strokeWidth={2} />
                     </span>
                     {!collapsed && (
                         <>
