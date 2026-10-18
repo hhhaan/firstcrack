@@ -3,6 +3,7 @@ import type { BeanAssetLine, StockSummary } from '@entities/bean-stock-event';
 import { cn } from '@shared/lib/cn';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
+import { beanListEmptyMessageKey, CatalogHiddenEmpty } from '@shared/ui/CatalogHiddenEmpty';
 import { CatalogVisibilityButton } from '@shared/ui/CatalogVisibilityControls';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Search } from 'lucide-react';
@@ -23,12 +24,6 @@ interface BeanListProps {
     hidden?: ReadonlySet<string>;
     onToggleHidden?: (id: string) => void;
     onShowHidden?: () => void;
-}
-
-function beanListEmptyMessageKey(catalogTotal: number, visibleCount: number): string {
-    if (catalogTotal > 0 && visibleCount === 0) return 'beanList.allHidden';
-    if (visibleCount === 0) return 'beanList.empty';
-    return 'beanList.noResults';
 }
 
 const Skeleton = () => (
@@ -157,18 +152,11 @@ export const BeanList = ({
                     })}
 
                     {filtered.length === 0 && (
-                        <div className="flex flex-col items-center gap-3 px-5 py-10 text-center text-sm tracking-[0.14px] text-muted">
-                            {t(beanListEmptyMessageKey(catalogTotal, beans.length))}
-                            {catalogTotal > 0 && beans.length === 0 && onShowHidden ? (
-                                <button
-                                    type="button"
-                                    onClick={onShowHidden}
-                                    className="text-[13px] font-medium text-primary underline-offset-2 hover:underline"
-                                >
-                                    {t('catalog.showHidden')}
-                                </button>
-                            ) : null}
-                        </div>
+                        <CatalogHiddenEmpty
+                            className="px-5 py-10"
+                            messageKey={beanListEmptyMessageKey(catalogTotal, beans.length)}
+                            onShowHidden={catalogTotal > 0 && beans.length === 0 ? onShowHidden : undefined}
+                        />
                     )}
                 </div>
             )}

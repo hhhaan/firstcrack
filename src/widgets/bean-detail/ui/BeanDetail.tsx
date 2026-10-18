@@ -3,6 +3,7 @@ import { type BeanAssetLine, useBeanStockEvents, useBeanStockSummary } from '@en
 import { isOptimisticId } from '@shared/lib/optimistic-id';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
+import { beanDetailEmptyMessageKey, CatalogHiddenEmpty } from '@shared/ui/CatalogHiddenEmpty';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Edit3, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -54,12 +55,6 @@ const Skeleton = () => (
     </div>
 );
 
-function beanDetailEmptyMessageKey(allHidden: boolean, hasAny: boolean): string {
-    if (allHidden) return 'beanDetail.empty.allHidden';
-    if (hasAny) return 'beanDetail.empty.select';
-    return 'beanDetail.empty.addFirst';
-}
-
 const Empty = ({
     hasAny,
     allHidden,
@@ -68,23 +63,14 @@ const Empty = ({
     hasAny: boolean;
     allHidden?: boolean;
     onShowHidden?: () => void;
-}) => {
-    const { t } = useTranslation();
-    return (
-        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex flex-col items-center justify-center gap-3 text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
-            <span>{t(beanDetailEmptyMessageKey(!!allHidden, hasAny))}</span>
-            {allHidden && onShowHidden ? (
-                <button
-                    type="button"
-                    onClick={onShowHidden}
-                    className="text-[13px] font-medium text-primary underline-offset-2 hover:underline"
-                >
-                    {t('catalog.showHidden')}
-                </button>
-            ) : null}
-        </div>
-    );
-};
+}) => (
+    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center dark:text-[#e5e5e5]">
+        <CatalogHiddenEmpty
+            messageKey={beanDetailEmptyMessageKey(!!allHidden, hasAny)}
+            onShowHidden={allHidden ? onShowHidden : undefined}
+        />
+    </div>
+);
 
 export const BeanDetail = ({
     bean,
