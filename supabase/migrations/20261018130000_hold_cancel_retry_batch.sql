@@ -12,17 +12,13 @@ AS $function$
 DECLARE
   v_user_id uuid;
   v_status text;
-  v_is_service boolean;
 BEGIN
-  v_is_service := current_user IN ('service_role', 'postgres', 'supabase_admin')
-    OR coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb ->> 'role' = 'service_role';
-
   SELECT o.user_id, o.status INTO v_user_id, v_status
   FROM orders o
   WHERE o.id = p_order_id;
 
   IF NOT FOUND OR (
-    NOT v_is_service
+    auth.role() IS DISTINCT FROM 'service_role'
     AND NOT coalesce(public.has_workspace_access(v_user_id), false)
   ) THEN
     RAISE EXCEPTION 'order_not_found'
@@ -97,15 +93,11 @@ DECLARE
   v_fulfilled_at timestamptz;
   v_shortages jsonb := '[]'::jsonb;
   v_products uuid[];
-  v_is_service boolean;
 BEGIN
-  v_is_service := current_user IN ('service_role', 'postgres', 'supabase_admin')
-    OR coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb ->> 'role' = 'service_role';
-
   SELECT o.user_id, o.status, o.fulfilled_at INTO v_user_id, v_status, v_fulfilled_at
   FROM orders o WHERE o.id = p_order_id FOR UPDATE;
   IF NOT FOUND OR (
-    NOT v_is_service
+    auth.role() IS DISTINCT FROM 'service_role'
     AND NOT coalesce(public.has_workspace_access(v_user_id), false)
   ) THEN
     RAISE EXCEPTION 'order_not_found' USING ERRCODE = 'no_data_found', DETAIL = format('order_id=%s', p_order_id);
@@ -357,12 +349,12 @@ BEGIN
 
     SELECT COALESCE(jsonb_agg(event),'[]'::jsonb) INTO v_events FROM (
       SELECT jsonb_build_object('user_id',p_user_id,'product_id',l.product_id,'delta_units',l.diff_quantity,
-        'event_type','order_cancel','reference_id',l.line_id,'created_by',p_user_id) event FROM _channel_lines l
+        'event_type','order_cancel','reference_id',l.line_id) event FROM _channel_lines l
       WHERE l.product_id IS NOT NULL AND l.diff_quantity<>0 AND l.diff_status='active'
         AND l.payload->>'status' IN ('cancelled','refunded') AND l.fulfilled_at IS NOT NULL
       UNION ALL
       SELECT jsonb_build_object('user_id',p_user_id,'product_id',l.product_id,'delta_units',-l.diff_quantity,
-        'event_type','order_fulfillment','reference_id',l.line_id,'created_by',p_user_id) FROM _channel_lines l
+        'event_type','order_fulfillment','reference_id',l.line_id) FROM _channel_lines l
       WHERE v_auto_fulfill AND l.fulfilled_at IS NULL AND l.next_status IN ('shipped','delivered')
         AND l.prev_status NOT IN ('shipped','delivered') AND l.product_id IS NOT NULL
         AND l.diff_quantity<>0 AND l.payload->>'status'='active'

@@ -24,7 +24,7 @@ import { DateRangeFilter } from '@widgets/date-range-filter';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
 import { format, subMonths } from 'date-fns';
 import { AlertTriangle, ChevronDown, ChevronRight, Plus, Search, ShoppingBag, Truck } from 'lucide-react';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrderFilters } from '../hooks/useOrderFilters';
 import { OrdersTableSkeleton } from './OrdersSkeleton';
@@ -293,6 +293,27 @@ function OrderRow({
             ? t('orders.order.fulfilled')
             : t(`orders.status.${order.status}`, { defaultValue: order.status });
 
+    let holdDetail: ReactNode = null;
+    if (isNoStockDemandHold) {
+        holdDetail = (
+            <p className="mb-3 text-[12px] text-amber-800 dark:text-amber-300">{t('orders.order.stockHoldNoDemand')}</p>
+        );
+    } else if (shortages.length > 0) {
+        holdDetail = (
+            <ul className="mb-3 space-y-1 text-[12px] text-amber-800 dark:text-amber-300">
+                {shortages.map((s) => (
+                    <li key={s.order_line_id}>
+                        {t('orders.order.stockHoldLine', {
+                            product: productNameById.get(s.product_id) ?? t('orders.order.stockHoldUnknownProduct'),
+                            required: s.required_units,
+                            available: s.available_units,
+                        })}
+                    </li>
+                ))}
+            </ul>
+        );
+    }
+
     return (
         <Fragment>
             <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
@@ -392,25 +413,7 @@ function OrderRow({
                         <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                             {t('orders.order.lines')}
                         </p>
-                        {isNoStockDemandHold ? (
-                            <p className="mb-3 text-[12px] text-amber-800 dark:text-amber-300">
-                                {t('orders.order.stockHoldNoDemand')}
-                            </p>
-                        ) : shortages.length > 0 ? (
-                            <ul className="mb-3 space-y-1 text-[12px] text-amber-800 dark:text-amber-300">
-                                {shortages.map((s) => (
-                                    <li key={s.order_line_id}>
-                                        {t('orders.order.stockHoldLine', {
-                                            product:
-                                                productNameById.get(s.product_id) ??
-                                                t('orders.order.stockHoldUnknownProduct'),
-                                            required: s.required_units,
-                                            available: s.available_units,
-                                        })}
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : null}
+                        {holdDetail}
                         {activeLines.length === 0 ? (
                             <p className="text-[12px] text-muted">—</p>
                         ) : (
