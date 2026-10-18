@@ -2027,6 +2027,7 @@
         },
         "order": {
             "newTitle": "新規注文",
+            "refresh": "更新",
             "empty": "注文はまだありません。",
             "buyer": "購入者",
             "lines": "商品",

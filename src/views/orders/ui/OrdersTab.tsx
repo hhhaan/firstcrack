@@ -1,5 +1,11 @@
-import { type OrderLine, type OrderStatusFilter, type OrderWithLines, useOrdersPaginated } from '@entities/order';
-import { type OrderDispatch, useOrderDispatches } from '@entities/order-dispatch';
+import {
+    type OrderLine,
+    type OrderStatusFilter,
+    type OrderWithLines,
+    orderKeys,
+    useOrdersPaginated,
+} from '@entities/order';
+import { type OrderDispatch, orderDispatchKeys, useOrderDispatches } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
 import { DispatchModal } from '@features/dispatch-order';
 import { LinkOrderLineModal } from '@features/map-channel-product';
@@ -9,12 +15,13 @@ import { Badge } from '@shared/ui/Badge';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TablePagination } from '@shared/ui/TablePagination';
+import { useQueryClient } from '@tanstack/react-query';
 import { confirm } from '@tauri-apps/plugin-dialog';
 import { AddOrderModal } from '@widgets/add-order-modal';
 import { DateRangeFilter } from '@widgets/date-range-filter';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
 import { format, subMonths } from 'date-fns';
-import { AlertTriangle, ChevronDown, ChevronRight, Plus, Search, ShoppingBag, Truck } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Plus, RefreshCw, Search, ShoppingBag, Truck } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrderFilters } from '../hooks/useOrderFilters';
@@ -28,6 +35,7 @@ const PLATFORM_OPTIONS = ['manual', 'naver', 'cafe24', 'shopify'];
 
 export function OrdersTab() {
     const { t } = useTranslation();
+    const qc = useQueryClient();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const f = useOrderFilters();
     const { data: page, isLoading } = useOrdersPaginated({
@@ -46,6 +54,7 @@ export function OrdersTab() {
     const fulfill = useFulfillOrder();
     const cancel = useCancelOrder();
     const [showAdd, setShowAdd] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [dispatchOrderId, setDispatchOrderId] = useState<string | null>(null);
     const [linkLine, setLinkLine] = useState<{ line: OrderLine; platform: string } | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -65,6 +74,23 @@ export function OrdersTab() {
             format(subMonths(now, CUSTOM_RANGE_MONTHS - 1 - i), 'yyyy-MM'),
         );
     }, []);
+
+    const refresh = async () => {
+        if (!userId || refreshing) return;
+        setRefreshing(true);
+        try {
+            // staleTime is Infinity, so the list, roast demand, and dispatch badges stay put until invalidated.
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: orderKeys.all(userId) }),
+                qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) }),
+                qc.invalidateQueries({ queryKey: orderDispatchKeys.all(userId) }),
+            ]);
+        } catch {
+            // QueryCache already reports a failed refetch. Swallow so the click does not reject twice.
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const safePage = Math.min(f.page, totalPages);
@@ -111,6 +137,16 @@ export function OrdersTab() {
                         onFromYM={f.setFromYM}
                         onToYM={f.setToYM}
                     />
+                    <SurfaceButton
+                        onClick={() => void refresh()}
+                        disabled={!userId || refreshing}
+                        icon={
+                            <RefreshCw size={14} strokeWidth={2} className={refreshing ? 'animate-spin' : undefined} />
+                        }
+                        className="px-4 py-2"
+                    >
+                        {t('orders.order.refresh')}
+                    </SurfaceButton>
                     <SurfaceButton
                         onClick={() => setShowAdd(true)}
                         icon={<Plus size={14} strokeWidth={2} />}

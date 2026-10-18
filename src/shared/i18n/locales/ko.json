@@ -2027,6 +2027,7 @@
         },
         "order": {
             "newTitle": "새 주문",
+            "refresh": "새로고침",
             "empty": "주문이 없습니다.",
             "buyer": "주문자",
             "lines": "품목",

@@ -2027,6 +2027,7 @@
         },
         "order": {
             "newTitle": "New order",
+            "refresh": "Refresh",
             "empty": "No orders yet.",
             "buyer": "Buyer",
             "lines": "Items",

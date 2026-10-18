@@ -2027,6 +2027,7 @@
         },
         "order": {
             "newTitle": "新建订单",
+            "refresh": "刷新",
             "empty": "暂无订单。",
             "buyer": "买家",
             "lines": "商品明细",
