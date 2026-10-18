@@ -66,6 +66,7 @@ const Empty = ({
 }) => (
     <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center dark:text-[#e5e5e5]">
         <CatalogHiddenEmpty
+            className="text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]"
             messageKey={beanDetailEmptyMessageKey(!!allHidden, hasAny)}
             onShowHidden={allHidden ? onShowHidden : undefined}
         />

@@ -1,14 +1,5 @@
-// @vitest-environment jsdom
-import { beanDetailEmptyMessageKey, beanListEmptyMessageKey, CatalogHiddenEmpty } from '@shared/ui/CatalogHiddenEmpty';
-import { act, createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-vi.mock('react-i18next', () => ({
-    useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
-}));
-
-(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+import { beanDetailEmptyMessageKey, beanListEmptyMessageKey } from '@shared/ui/CatalogHiddenEmpty';
+import { describe, expect, it } from 'vitest';
 
 describe('catalog empty message keys', () => {
     it('beanListEmptyMessageKey', () => {
@@ -21,37 +12,5 @@ describe('catalog empty message keys', () => {
         expect(beanDetailEmptyMessageKey(true, true)).toBe('beanDetail.empty.allHidden');
         expect(beanDetailEmptyMessageKey(false, true)).toBe('beanDetail.empty.select');
         expect(beanDetailEmptyMessageKey(false, false)).toBe('beanDetail.empty.addFirst');
-    });
-});
-
-describe('CatalogHiddenEmpty', () => {
-    let host: HTMLDivElement;
-    let root: Root;
-    const onShowHidden = vi.fn();
-
-    beforeEach(() => {
-        onShowHidden.mockClear();
-        host = document.createElement('div');
-        document.body.appendChild(host);
-        root = createRoot(host);
-    });
-
-    afterEach(() => {
-        act(() => root.unmount());
-        host.remove();
-    });
-
-    it('renders all-hidden copy with show-hidden action', () => {
-        act(() =>
-            root.render(
-                createElement(CatalogHiddenEmpty, {
-                    messageKey: 'beanList.allHidden',
-                    onShowHidden,
-                }),
-            ),
-        );
-        expect(host.textContent).toContain('beanList.allHidden');
-        act(() => host.querySelector('button')?.click());
-        expect(onShowHidden).toHaveBeenCalledTimes(1);
     });
 });

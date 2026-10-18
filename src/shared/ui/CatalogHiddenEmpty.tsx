@@ -1,3 +1,4 @@
+import { cn } from '@shared/lib/cn';
 import { useTranslation } from 'react-i18next';
 
 type CatalogHiddenEmptyProps = {
@@ -9,9 +10,7 @@ type CatalogHiddenEmptyProps = {
 export const CatalogHiddenEmpty = ({ messageKey, onShowHidden, className }: CatalogHiddenEmptyProps) => {
     const { t } = useTranslation();
     return (
-        <div
-            className={className ?? 'flex flex-col items-center gap-3 text-center text-sm tracking-[0.14px] text-muted'}
-        >
+        <div className={cn('flex flex-col items-center gap-3', className)}>
             <span>{t(messageKey)}</span>
             {onShowHidden ? (
                 <button

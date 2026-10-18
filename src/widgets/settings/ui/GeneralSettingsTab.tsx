@@ -193,7 +193,6 @@ export const GeneralSettingsTab = () => {
     const [horizonDays, setHorizonDays] = useState<number | ''>('');
     const savedHorizonRef = useRef<number | null>(null);
     const hasCommittedHorizonRef = useRef(false);
-    const committedHorizonRef = useRef<number | null>(null);
     const horizonDraftClearedRef = useRef(false);
 
     useEffect(() => {
@@ -213,7 +212,6 @@ export const GeneralSettingsTab = () => {
     const saveHorizon = async (value: number) => {
         const next = Math.max(1, Math.min(365, Math.round(value)));
         hasCommittedHorizonRef.current = true;
-        committedHorizonRef.current = next;
         savedHorizonRef.current = next;
         horizonDraftClearedRef.current = false;
         setHorizonDays(next);
@@ -274,9 +272,7 @@ export const GeneralSettingsTab = () => {
                             onBlur={() => {
                                 if (horizonDays !== '') return;
                                 horizonDraftClearedRef.current = false;
-                                const restore = hasCommittedHorizonRef.current
-                                    ? committedHorizonRef.current
-                                    : savedHorizonRef.current;
+                                const restore = savedHorizonRef.current;
                                 if (restore != null) setHorizonDays(restore);
                             }}
                             className={`${inputCls} w-20 rounded-lg py-1.5 text-[13px]`}

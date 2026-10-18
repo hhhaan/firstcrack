@@ -153,7 +153,7 @@ export const BeanList = ({
 
                     {filtered.length === 0 && (
                         <CatalogHiddenEmpty
-                            className="px-5 py-10"
+                            className="px-5 py-10 text-center text-sm tracking-[0.14px] text-muted"
                             messageKey={beanListEmptyMessageKey(catalogTotal, beans.length)}
                             onShowHidden={catalogTotal > 0 && beans.length === 0 ? onShowHidden : undefined}
                         />
