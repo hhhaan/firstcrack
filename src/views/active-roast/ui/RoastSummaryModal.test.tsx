@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { act, createElement } from 'react';
@@ -66,6 +67,7 @@ const baseProps = {
 afterEach(() => {
     planMock.batches = [];
     useRoastingStore.getState().reset();
+    useBbpStore.setState({ active: false, recording: false, startMs: 0, points: [] });
 });
 
 const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {}) => {
@@ -81,6 +83,15 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
         },
     };
 };
+
+it('keeps the live BBP readout parked off the summary', () => {
+    useBbpStore.setState({ active: true, recording: true, startMs: Date.now() - 15_000, points: [] });
+    const { unmount } = renderModal({ bbpEnabled: true, ambientTemp: 13, ambientHumidity: 60 });
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(document.querySelector('[data-testid="roast-summary-bbp"]')).toBeNull();
+    expect(dialog?.textContent).toContain('activeRoast.summary.temperature 13°C');
+    unmount();
+});
 
 it('keeps the overlay from passing clicks through to the roast screen', () => {
     const { unmount } = renderModal();

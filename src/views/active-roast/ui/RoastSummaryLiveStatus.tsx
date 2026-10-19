@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /** Current roaster readings, independent of the completed batch's snapshot and form. */
-export const RoastSummaryLiveStatus = () => {
+export const RoastSummaryLiveStatus = ({ ambientLine = null }: { ambientLine?: string | null }) => {
     const { t } = useTranslation();
     const elapsed = useBbpTimer();
     const { temperatureUnit: unit, pollIntervalMs } = useRoastSettings();
@@ -33,7 +33,7 @@ export const RoastSummaryLiveStatus = () => {
         <section
             aria-label={t('activeRoast.summary.bbpLive')}
             data-testid="roast-summary-bbp"
-            className="mb-3.5 rounded-lg border border-border-subtle bg-surface-warm px-3 py-2"
+            className="rounded-[16px] border border-border-subtle bg-surface-warm-solid px-4 py-3 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px] dark:border-[#585d61]"
         >
             <h3 className="m-0 mb-1 text-[11px] font-medium text-muted">{t('activeRoast.summary.bbpLive')}</h3>
             <dl className="m-0 grid grid-cols-3 gap-2 text-[13px]">
@@ -49,6 +49,9 @@ export const RoastSummaryLiveStatus = () => {
                 ))}
             </dl>
             {!fresh && <p className="m-0 mt-1 text-[11px] text-muted">{t('activeRoast.summary.liveUnavailable')}</p>}
+            {ambientLine ? (
+                <p className="m-0 mt-2 font-(--font-mono) text-[11px] tracking-[0.14px] text-muted">{ambientLine}</p>
+            ) : null}
         </section>
     );
 };
