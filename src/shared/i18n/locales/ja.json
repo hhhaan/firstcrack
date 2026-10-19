@@ -10,7 +10,7 @@
         "recordingHint": "新しいキーの組み合わせを押してください。Escでキャンセルできます。",
         "change": "ショートカットを変更: {{action}}",
         "fixed": "変更できないショートカット",
-        "doubleTap": "400ms以内に2回押す",
+        "globalHint": "ウィンドウが非アクティブでも動作します。ロースト中のみシステム全体のショートカットとして登録されます。",
         "noResults": "一致するショートカットはありません",
         "groups": {
             "app": "アプリ",
@@ -1017,7 +1017,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",

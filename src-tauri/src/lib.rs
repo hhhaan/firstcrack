@@ -512,6 +512,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_notification::init());
 
     // Sentry가 꺼진 debug 빌드에서는 플러그인(webview JS 주입 포함)도 붙이지 않는다.
