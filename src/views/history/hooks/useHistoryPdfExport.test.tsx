@@ -1,0 +1,53 @@
+// @vitest-environment jsdom
+import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { expect, it, vi } from 'vitest';
+import { useHistoryPdfExport } from './useHistoryPdfExport';
+
+const mocks = vi.hoisted(() => ({ exportPdf: vi.fn(async () => true) }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('@features/active-roast', () => ({ formatTemp: (value: unknown) => String(value) }));
+vi.mock('@features/export-history-pdf', async () => ({
+    historyPdfFilename: (await import('@features/export-history-pdf/lib/filename')).historyPdfFilename,
+    historyPdfChartBox: () => ({ width: 100, height: 100 }),
+    useExportHistoryPdf: () => mocks.exportPdf,
+}));
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+it('exports the selected batch title in the filename and PDF header while retaining the actual bean', async () => {
+    const chartRef = { current: { getDataURL: () => 'data:image/png;base64,AA==' } } as Parameters<
+        typeof useHistoryPdfExport
+    >[0]['chartRef'];
+    const session = {
+        batch_name: 'Batch A',
+        beans: { name: 'Green B' },
+        roasted_at: '2026-10-19T00:00:00Z',
+    } as unknown as RoastSessionWithRelations;
+    let latest!: ReturnType<typeof useHistoryPdfExport>;
+    const Probe = ({ value }: { value: RoastSessionWithRelations }) => {
+        latest = useHistoryPdfExport({ session: value, chartRef, hasControls: false, unit: 'C', canCapture: true });
+        return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    try {
+        await act(async () => root.render(createElement(Probe, { value: session })));
+        await act(async () => latest.onExportPdf());
+        expect(mocks.exportPdf).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                filename: expect.stringContaining('batch-a'),
+                header: expect.objectContaining({ roastTitle: 'Batch A', bean: 'Green B' }),
+            }),
+        );
+        await act(async () => root.render(createElement(Probe, { value: { ...session, batch_name: 'Batch B' } })));
+        await act(async () => latest.onExportPdf());
+        expect(mocks.exportPdf).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                filename: expect.stringContaining('batch-b'),
+                header: expect.objectContaining({ roastTitle: 'Batch B', bean: 'Green B' }),
+            }),
+        );
+    } finally {
+        act(() => root.unmount());
+    }
+});

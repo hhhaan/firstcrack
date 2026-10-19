@@ -1,10 +1,10 @@
-import { sessionBeanName } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
@@ -60,7 +60,7 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         label: 'roastTitle',
         width: '180px',
         sortable: false,
-        render: (s) => s.batch_name?.trim() || s.bean_label?.trim() || sessionBeanName(s) || '—',
+        render: (s) => sessionRoastTitle(s) || '—',
     },
     {
         key: 'bean',

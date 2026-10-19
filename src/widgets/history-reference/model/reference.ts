@@ -1,5 +1,5 @@
 import { formatDateShort } from '@shared/lib/format';
-import { sessionBeanName } from '@shared/lib/sessionBeanName';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 
 export type HistoryReference = {
@@ -16,7 +16,7 @@ export type HistoryReference = {
 };
 
 export const historyReferenceTitle = (session: RoastSessionWithRelations) =>
-    `${session.batch_name?.trim() || session.bean_label?.trim() || sessionBeanName(session) || '—'} · ${formatDateShort(session.roasted_at)}`;
+    `${sessionRoastTitle(session) || '—'} · ${formatDateShort(session.roasted_at)}`;
 
 export const toHistoryReference = (session: RoastSessionWithRelations, ownerId: string): HistoryReference | null => {
     if (!session.tsv_path || session.user_id !== ownerId) return null;

@@ -1,6 +1,5 @@
 import { useActiveWorkspace } from '@entities/organization';
 import {
-    sessionBeanName,
     useDeleteRoastSession,
     useRoastSessionFilterMeta,
     useRoastSessions,
@@ -10,6 +9,7 @@ import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
 import { formatDateShort } from '@shared/lib/format';
 import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastProfile } from '@shared/types/database.types';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { PageHeader } from '@shared/ui/PageHeader';
@@ -388,7 +388,7 @@ export const History = () => {
                     open={deletingId !== null}
                     sessionName={
                         deletingSession
-                            ? `${sessionBeanName(deletingSession) ?? ''} (${formatDateShort(deletingSession.roasted_at)})`.trim()
+                            ? `${sessionRoastTitle(deletingSession) ?? ''} (${formatDateShort(deletingSession.roasted_at)})`.trim()
                             : ''
                     }
                     isLoading={deleteSession.isPending}
