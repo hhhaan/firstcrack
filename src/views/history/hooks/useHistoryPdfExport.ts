@@ -32,20 +32,21 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
         }
         setExporting(true);
         try {
+            const distinctTitle = session.batch_name?.trim() || session.bean_label?.trim() || undefined;
             await exportPdf({
                 title: t('history.title'),
                 filename: historyPdfFilename(sessionRoastTitle(session), session.roasted_at),
                 chartDataUrl,
                 header: {
                     bean: sessionBeanName(session) ?? '—',
-                    roastTitle: sessionRoastTitle(session) ?? '—',
+                    ...(distinctTitle ? { roastTitle: distinctTitle } : {}),
                     date: formatDateShort(session.roasted_at),
                     duration: formatDuration(session.duration_seconds),
                     charge: formatTemp(session.charge_temp_celsius, unit),
                     drop: formatTemp(session.drop_temp_celsius, unit),
                     labels: {
                         bean: t('history.table.bean'),
-                        roastTitle: t('history.recordText.title'),
+                        ...(distinctTitle ? { roastTitle: t('history.recordText.title') } : {}),
                         date: t('history.table.date'),
                         duration: t('history.table.duration'),
                         charge: t('history.compare.charge'),
