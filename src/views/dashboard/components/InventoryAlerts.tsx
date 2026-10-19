@@ -13,7 +13,7 @@ export const InventoryAlerts = ({ data, loading }: InventoryAlertsProps) => {
     const { t } = useTranslation();
 
     return (
-        <div className="bg-dashboard-card-bg rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
+        <section className="min-w-0 p-6 lg:p-8">
             <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">
                 {t('dashboard.inventoryAlerts')}
             </h2>
@@ -66,6 +66,6 @@ export const InventoryAlerts = ({ data, loading }: InventoryAlertsProps) => {
                     );
                 })
             )}
-        </div>
+        </section>
     );
 };

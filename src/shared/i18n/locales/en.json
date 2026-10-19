@@ -841,6 +841,12 @@
         "phidgetDriverLink": "Download Phidget22 driver"
     },
     "dashboard": {
+        "comparedToLastMonth": "vs. last month",
+        "comparedToPreviousClose": "vs. previous close",
+        "previousClose": "Previous close",
+        "lastSixMonths": "Last 6 months",
+        "thisMonth": "This month",
+        "refresh": "Refresh futures price",
         "greeting": {
             "morning": "Good morning",
             "afternoon": "Good afternoon",

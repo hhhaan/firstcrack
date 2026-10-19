@@ -10,7 +10,12 @@ import { formatDateLocal } from '@shared/lib/rrule';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
-import { averageRoastDurationSec, splitDashboardMonths } from '../lib/dashboard-roast-stats';
+import {
+    averageRoastDurationSec,
+    type DailyRoastMetric,
+    dailyRoastMetrics,
+    splitDashboardMonths,
+} from '../lib/dashboard-roast-stats';
 
 /** Recent-row view model. `roastDurationSec` is History 시간 (Charge→Drop), not record End. */
 export type DashboardRecentSession = {
@@ -63,6 +68,7 @@ export interface DashboardData {
     upcomingBatches: UpcomingBatch[];
     inventoryAlerts: DashboardInventoryAlert[];
     monthlyBatches: MonthlyBatch[];
+    dailyMetrics: DailyRoastMetric[];
     loading: boolean;
     error: string | null;
 }
@@ -179,6 +185,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         upcomingBatches,
         inventoryAlerts,
         monthlyBatches,
+        dailyMetrics: dailyRoastMetrics(thisMonth, now),
     };
 };
 
@@ -193,6 +200,7 @@ const EMPTY: Omit<DashboardData, 'loading' | 'error'> = {
     upcomingBatches: [],
     inventoryAlerts: [],
     monthlyBatches: [],
+    dailyMetrics: [],
 };
 
 export const useDashboard = (userId: string): DashboardData => {
@@ -204,7 +212,8 @@ export const useDashboard = (userId: string): DashboardData => {
     });
 
     return {
-        ...(data ?? EMPTY),
+        ...EMPTY,
+        ...data,
         loading: isLoading,
         error: error instanceof Error ? error.message : null,
     };

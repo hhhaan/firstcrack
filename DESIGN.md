@@ -204,7 +204,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 |---|---|---|---|---|
 | Page Title (h1) | `32px` | — | `-0.4px` | `font-(--font-display)`, `leading-[1.13]` |
 | 섹션 타이틀 | `26px` | Light (`300`) | `-0.3px` | |
-| KPI Value | `26px` | Semi-bold | `-0.5px` | `leading-[1.2]` |
+| Dashboard KPI Value | `44–48px` | Light (`300`) | `-1.6px` | `leading-[1.15]` |
 | 본문 | `14–16px` | Regular/Medium | `+0.14px` | |
 | 작은 텍스트 | `13px` | Medium | `+0.14px` | 버튼, 테이블 셀 |
 | 캡션/라벨 | `12px` / `11px` | Medium/Semi | `+0.14px` / uppercase | form labels |
@@ -221,7 +221,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 | 섹션 간격 | `24–32px` |
 | 그리드 갭 | `24px` (`gap-6`) |
 
-The ten primary views share an inset content panel in `src/App.tsx`: 6px top margin, 12px right/bottom margin, 20px corners, `bg-main-bg`, and a subtle border/edge shadow. The sidebar shares the shell background (`shell-bg`); its current item uses `main-bg` with an inset shadow. Its logo header uses 12px top and 8px bottom padding. Settings applies the same panel geometry in `SettingsLayout`, using `shell-bg` for its light navigation/frame and `main-bg` for content; its dark navigation retains `primary/2` over `main-bg`. Its navigation starts with 12px top padding. Active roast uses 24px top/side padding, 12px bottom padding and no extra header gap; its windowed chart frame has no extra horizontal padding and uses 20px vertical padding to clear the legends. The chart retains fixed height with independently scrolling control/sensor panels. All dashboard cards use `dashboard-card-bg`. Windows 11 keeps native window decorations and uses `shell-bg` (`#F4F4F4`) for the titlebar with `primary` (`#171717`) text, applied in `src-tauri/src/window_chrome.rs`; Windows 10 falls back to a native light titlebar. These native colors follow the current light-only app theme.
+The ten primary views share an inset content panel in `src/App.tsx`: 6px top margin, 12px right/bottom margin, 20px corners, `bg-main-bg`, and a subtle border/edge shadow. The sidebar shares the shell background (`shell-bg`); its current item uses `main-bg` with an inset shadow. Its logo header uses 12px top and 8px bottom padding. Settings applies the same panel geometry in `SettingsLayout`, using `shell-bg` for its light navigation/frame and `main-bg` for content; its dark navigation retains `primary/2` over `main-bg`. Its navigation starts with 12px top padding. Active roast uses 24px top/side padding, 12px bottom padding and no extra header gap; its windowed chart frame has no extra horizontal padding and uses 20px vertical padding to clear the legends. The chart retains fixed height with independently scrolling control/sensor panels. Dashboard overview and supporting panels use `main-bg` with 16px corners and thin `border` dividers. Windows 11 keeps native window decorations and uses `shell-bg` (`#F4F4F4`) for the titlebar with `primary` (`#171717`) text, applied in `src-tauri/src/window_chrome.rs`; Windows 10 falls back to a native light titlebar. These native colors follow the current light-only app theme.
 
 ---
 
@@ -281,12 +281,14 @@ The ten primary views share an inset content panel in `src/App.tsx`: 6px top mar
 | **compact** | `w-8 h-8 rounded-lg bg-main-bg` | `text-muted` | 모달 옵션 행 |
 | **accent** | `w-10 h-10 rounded-xl bg-palette-blue/12 dark:bg-surface-elevated` | `text-palette-blue dark:text-primary` | 모달 헤더 강조 |
 
-### KPI Card
+### Dashboard metric panel
 
-- 위치: `src/views/dashboard/components/KpiCard.tsx`
-- `bg-main-bg rounded-lg dark:border dark:border-border`, padding `px-5 pt-5 pb-4.5`
-- 아이콘 박스 default variant; 값 `text-[26px] font-semibold text-primary tracking-[-0.5px]`; 라벨 `text-[13px] text-muted`
-- 변화 배지: `Badge` tone `good` / `bad`
+- 위치: `src/views/dashboard/components/KpiSection.tsx`, `KpiCard.tsx`
+- 하나의 `bg-main-bg rounded-2xl border border-border` 패널. 큰 화면에서 로스팅량 2열 + 배치 수 1열, 다음 행에 평균 시간·선물가·월별 배치 3칸
+- 각 셀 `p-6 lg:p-8`, 얇은 구분선. 값 `44–48px / 300 / -1.6px`, 라벨 `15px / 500`, 날짜 `12px`
+- 전월/전일 종가 비교는 중성 텍스트. 증감을 성공·실패 색으로 단정하지 않음
+- `MetricTrendChart`: 실제 기록 기반 일별/월별 선 차트. 로스팅 없는 날은 수량 0, 누락된 시간은 null; 단일 유효 관측값은 점으로 표시
+- 날짜 범위는 이번 달 1일~오늘. 월별 배치는 최근 6개월 합계와 추이. 대시보드 제목은 26px
 
 ### Form fields
 
@@ -308,7 +310,7 @@ The ten primary views share an inset content panel in `src/App.tsx`: 6px top mar
 6. 로딩: **Spinner** (`src/shared/ui/Spinner.tsx`)
 7. Body tracking 관례: `tracking-[0.14px]`
 
-**Dashboard** — KPI 그리드 + 최근 로스팅 + 월별 차트  
+**Dashboard** — 통합 지표·추이 패널 + 전체 너비 최근 로스팅 + 예정 배치/재고 알림 분할 패널
 **History** — 필터/검색/CSV/테이블/페이지네이션  
 **Active Roast** — 센서 차트(uPlot) + 이벤트 + 머신 컨트롤  
 **Bean** — 마스터-디테일 (`MasterDetailLayout`)

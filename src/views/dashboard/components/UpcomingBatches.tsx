@@ -14,7 +14,7 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
     const { t } = useTranslation();
 
     return (
-        <div className="bg-dashboard-card-bg rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
+        <section className="min-w-0 border-b border-border p-6 lg:border-r lg:border-b-0 lg:p-8">
             <div className="flex items-center justify-between mb-3.5">
                 <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">
                     {t('dashboard.upcomingBatches')}
@@ -22,6 +22,7 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                 <button
                     type="button"
                     onClick={() => onNavigate('schedule')}
+                    aria-label={t('dashboard.upcomingBatches')}
                     className="flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-primary transition-colors p-0"
                 >
                     <ChevronRight size={13} strokeWidth={2} />
@@ -63,6 +64,6 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                     </div>
                 ))
             )}
-        </div>
+        </section>
     );
 };

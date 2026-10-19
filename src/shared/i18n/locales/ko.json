@@ -841,6 +841,12 @@
         "phidgetDriverLink": "Phidget22 드라이버 다운로드"
     },
     "dashboard": {
+        "comparedToLastMonth": "전월 대비",
+        "comparedToPreviousClose": "전일 종가 대비",
+        "previousClose": "전일 종가",
+        "lastSixMonths": "최근 6개월",
+        "thisMonth": "이번 달",
+        "refresh": "선물가 새로고침",
         "greeting": {
             "morning": "Good morning",
             "afternoon": "Good afternoon",

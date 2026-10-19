@@ -841,6 +841,12 @@
         "phidgetDriverLink": "下载 Phidget22 驱动"
     },
     "dashboard": {
+        "comparedToLastMonth": "较上月",
+        "comparedToPreviousClose": "较前收盘价",
+        "previousClose": "前收盘价",
+        "lastSixMonths": "最近6个月",
+        "thisMonth": "本月",
+        "refresh": "刷新期货价格",
         "greeting": {
             "morning": "早上好",
             "afternoon": "下午好",

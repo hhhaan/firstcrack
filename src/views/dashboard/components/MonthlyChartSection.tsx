@@ -1,70 +1,38 @@
 import type { MonthlyBatch } from '@features/dashboard-summary';
-import { MonthlyBatchesChart } from '@shared/ui/MonthlyBatchesChart';
-import { Calendar } from 'lucide-react';
-import { useMemo } from 'react';
+import { MetricTrendChart } from '@shared/ui/MetricTrendChart';
 import { useTranslation } from 'react-i18next';
 import { formatMonth } from '../lib/format';
+import { KpiCard } from './KpiCard';
 
 interface MonthlyChartSectionProps {
     monthlyBatches: MonthlyBatch[];
-    batchesThisMonth: number;
-    kgRoastedThisMonth: number;
-    recentSessions: { beans?: { origin?: string | null } | null }[];
     loading: boolean;
 }
 
-export const MonthlyChartSection = ({
-    monthlyBatches,
-    batchesThisMonth,
-    kgRoastedThisMonth,
-    recentSessions,
-    loading,
-}: MonthlyChartSectionProps) => {
+export const MonthlyChartSection = ({ monthlyBatches, loading }: MonthlyChartSectionProps) => {
     const { t } = useTranslation();
-
-    const chartData = useMemo(
-        () =>
-            monthlyBatches.map(({ date, batches }) => ({
-                month: formatMonth(date),
-                batches,
-            })),
-        [monthlyBatches],
-    );
+    const total = monthlyBatches.reduce((sum, month) => sum + month.batches, 0);
 
     return (
-        <div className="bg-dashboard-card-bg rounded-lg px-6 py-5 w-full flex flex-col dark:border dark:border-[#585d61]">
-            <div className="flex items-center justify-between mb-5 shrink-0">
-                <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">
-                    {t('dashboard.monthlyBatches')}
-                </h2>
-                <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
+        <KpiCard
+            label={t('dashboard.monthlyBatches')}
+            value={loading ? '—' : String(total)}
+            change=""
+            caption={
+                monthlyBatches.length > 0
+                    ? `${formatMonth(monthlyBatches[0].date)} – ${formatMonth(monthlyBatches[monthlyBatches.length - 1].date)}`
+                    : t('dashboard.lastSixMonths')
+            }
+            comparison=""
+        >
+            <div className="h-24 lg:h-28">
+                {!loading && (
+                    <MetricTrendChart
+                        label={t('dashboard.monthlyBatches')}
+                        data={monthlyBatches.map((month) => ({ label: formatMonth(month.date), value: month.batches }))}
+                    />
+                )}
             </div>
-            <div className="flex-1 min-h-[120px]">
-                <MonthlyBatchesChart data={chartData} />
-            </div>
-
-            <div className="mt-5 pt-4 border-t border-divider shrink-0">
-                <div className="flex items-center justify-center gap-0 w-full">
-                    <div className="flex-1 text-center border-x border-divider max-w-[160px]">
-                        <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
-                            {loading ? '—' : batchesThisMonth}
-                        </div>
-                        <div className="text-xs text-muted tracking-[0.14px]">{t('dashboard.batches')}</div>
-                    </div>
-                    <div className="flex-1 text-center border-r border-divider max-w-[160px]">
-                        <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
-                            {loading ? '—' : kgRoastedThisMonth.toFixed(1)}
-                        </div>
-                        <div className="text-xs text-muted tracking-[0.14px]">{t('dashboard.kgRoasted')}</div>
-                    </div>
-                    <div className="flex-1 text-center border-r border-divider max-w-[160px]">
-                        <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
-                            {loading ? '—' : new Set(recentSessions.map((s) => s.beans?.origin).filter(Boolean)).size}
-                        </div>
-                        <div className="text-xs text-muted tracking-[0.14px]">{t('dashboard.beanOrigins')}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </KpiCard>
     );
 };
