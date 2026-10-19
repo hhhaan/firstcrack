@@ -1399,6 +1399,7 @@
         },
         "expanded": {
             "origin": "Origin",
+            "beanLocked": "Stock is already recorded for this roast, so the green bean cannot be changed.",
             "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "duration": "Duration",

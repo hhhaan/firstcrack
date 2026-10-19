@@ -7,7 +7,10 @@ import { HistoryTable } from './HistoryTable';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@widgets/profile-curve-chart/ui/ProfileCurveChart', () => ({ COMPARE_COLORS: ['#000'] }));
-vi.mock('@shared/lib/settings-store', () => ({ settingsGet: vi.fn(async () => null), settingsSet: vi.fn() }));
+vi.mock('@shared/lib/settings-store', () => ({
+    settingsGet: vi.fn(async () => null),
+    settingsSet: vi.fn(async () => undefined),
+}));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 it('shows the roast title, linked green bean and profile in distinct cells without reinterpreting unlinked names', () => {

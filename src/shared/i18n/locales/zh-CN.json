@@ -1399,6 +1399,7 @@
         },
         "expanded": {
             "origin": "产地",
+            "beanLocked": "该烘焙已记录库存，无法更改生豆。",
             "chargeTemp": "投豆温度",
             "dropTemp": "下豆温度",
             "duration": "时长",

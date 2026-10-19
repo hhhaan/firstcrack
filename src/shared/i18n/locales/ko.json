@@ -1077,6 +1077,7 @@
         },
         "expanded": {
             "origin": "산지",
+            "beanLocked": "이 로스팅에 이미 재고 기록이 있어 생두를 변경할 수 없습니다.",
             "chargeTemp": "투입 온도",
             "dropTemp": "배출 온도",
             "duration": "시간",

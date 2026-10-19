@@ -1399,6 +1399,7 @@
         },
         "expanded": {
             "origin": "産地",
+            "beanLocked": "このロースティングには在庫記録があるため、生豆を変更できません。",
             "chargeTemp": "チャージ温度",
             "dropTemp": "排気温度",
             "duration": "時間",
