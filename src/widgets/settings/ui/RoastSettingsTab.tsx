@@ -25,13 +25,14 @@ import {
     useEffectivePollIntervalMs,
     useRoastSettings,
 } from '@features/active-roast';
+import { ROR_AXIS_MAX_TICKS, resolveRorAxisInterval } from '@features/active-roast/lib/chart-option/ror-axis-interval';
 import { parseRorTicks, parseTemperatureTicks } from '@features/active-roast/lib/temperature';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { Lock, Play } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
 import { CurveStyleSection } from './CurveStyleSection';
@@ -565,6 +566,17 @@ const RorTickSection = () => {
     const suffix = rorUnitLabel(unit);
     const show = (cPerMin: number) => Number(toDisplayRoR(cPerMin, unit).toFixed(6));
     const custom = roastSettings.rorAxisMode === 'list';
+    const usesIntervalSpacing =
+        roastSettings.rorAxisMode === 'preset' ||
+        (roastSettings.rorAxisMode === 'list' && roastSettings.rorTickMode === 'interval');
+    const storedIntervalC =
+        roastSettings.rorAxisMode === 'preset' ? roastSettings.rorGridPresetInterval : roastSettings.rorGridInterval;
+    const intervalCap = useMemo(() => {
+        if (!usesIntervalSpacing) return null;
+        const minDisplay = Number(toDisplayRoR(roastSettings.rorYMin, unit).toFixed(6));
+        const maxDisplay = Number(toDisplayRoR(roastSettings.rorYMax, unit).toFixed(6));
+        return resolveRorAxisInterval(minDisplay, maxDisplay, storedIntervalC, unit);
+    }, [usesIntervalSpacing, roastSettings.rorYMin, roastSettings.rorYMax, storedIntervalC, unit]);
     const presetLabel = (cPerMin: number) => {
         const text = `${show(cPerMin)}${suffix}`;
         return cPerMin === ROR_GRID_PRESETS[0] ? t('settings.tabs.roast.axisTicksDefault', { value: text }) : text;
@@ -639,6 +651,16 @@ const RorTickSection = () => {
                 </div>
             )}
             {!(custom && roastSettings.rorTickMode === 'list') && <RorLabelEveryRow />}
+            {intervalCap?.capped && (
+                <p className={settingsOptionDescCls}>
+                    {t('settings.tabs.roast.rorGridIntervalCapped', {
+                        effective: intervalCap.displayInterval,
+                        requested: Number(intervalCap.requestedDisplayInterval.toFixed(6)),
+                        suffix,
+                        maxTicks: ROR_AXIS_MAX_TICKS,
+                    })}
+                </p>
+            )}
         </>
     );
 };

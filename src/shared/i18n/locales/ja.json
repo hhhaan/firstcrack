@@ -451,6 +451,7 @@
                 "rorAxisMin": "RoR 最小",
                 "rorAxisMax": "RoR 最大",
                 "rorGridInterval": "RoR 目盛り間隔",
+                "rorGridIntervalCapped": "軸範囲が広いため、目盛りは最大{{maxTicks}}本までです。チャートは{{effective}}{{suffix}}間隔を使い、保存した{{requested}}{{suffix}}設定は変わりません。",
                 "rorTickList": "RoR を指定",
                 "customRorTicks": "RoR 目盛りの一覧",
                 "customRorTicksDescription": "カンマで区切って入力してください。例: -5, 0, 5, 10。軸範囲内の値だけ表示し、空欄では既定の目盛りを使用します。",

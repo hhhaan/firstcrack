@@ -451,6 +451,7 @@
                 "rorAxisMin": "RoR 최소",
                 "rorAxisMax": "RoR 최대",
                 "rorGridInterval": "RoR 눈금 간격",
+                "rorGridIntervalCapped": "축 범위가 넓어 눈금은 최대 {{maxTicks}}개까지 표시됩니다. 차트에는 {{effective}}{{suffix}} 간격을 쓰고, 저장된 {{requested}}{{suffix}} 설정은 그대로입니다.",
                 "rorTickList": "특정 RoR 지정",
                 "customRorTicks": "RoR 눈금 목록",
                 "customRorTicksDescription": "쉼표로 구분한 RoR 목록(예: -5, 0, 5, 10). 축 범위 안의 값만 표시하며, 비우면 기본 눈금 사용",

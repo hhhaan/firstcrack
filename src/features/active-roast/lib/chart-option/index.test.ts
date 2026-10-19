@@ -100,10 +100,67 @@ describe('buildRoastChartOption font scale', () => {
     );
 });
 
+const isRorTickMultiple = (value: number, step: number): boolean =>
+    Math.abs(value / step - Math.round(value / step)) < 1e-6;
+
+const readRorAxisTicks = (chart: echarts.EChartsType): number[] => {
+    const axis = (chart.getOption().yAxis as { min?: number; max?: number; interval?: number }[])[1];
+    const min = Number(axis?.min);
+    const max = Number(axis?.max);
+    const interval = Number(axis?.interval);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(interval) || interval <= 0) {
+        return [];
+    }
+    const ticks: number[] = [];
+    for (let value = min; value <= max + interval * 1e-6; value += interval) {
+        ticks.push(Number(value.toFixed(6)));
+    }
+    return ticks;
+};
+
+const assertRorIntervalAxisAligned = (
+    chart: echarts.EChartsType,
+    labelEvery = 1,
+    verifyLabelPositions = true,
+): void => {
+    const axes = chart.getOption().yAxis as {
+        interval?: number;
+        axisLabel?: { formatter?: (value: number) => string };
+    }[];
+    const interval = Number(axes[1]?.interval);
+    const formatter = axes[1]?.axisLabel?.formatter;
+    const labelStep = interval * labelEvery;
+    const tickValues = readRorAxisTicks(chart);
+    type TextSpan = {
+        type: string;
+        style?: { text?: string };
+        getBoundingRect: () => { x: number; y: number; width: number; height: number };
+        transformCoordToGlobal: (x: number, y: number) => number[];
+    };
+    const elements = chart.getZr().storage.getDisplayList() as unknown as TextSpan[];
+
+    expect(tickValues.length).toBeGreaterThan(0);
+    for (const value of tickValues) {
+        expect(isRorTickMultiple(value, interval)).toBe(true);
+    }
+
+    for (const value of tickValues) {
+        if (!isRorTickMultiple(value, labelStep)) continue;
+        const expectedLabel = formatter?.(value) ?? '';
+        expect(expectedLabel).not.toBe('');
+        if (!verifyLabelPositions) continue;
+        const label = elements.find((el) => el.type === 'tspan' && el.style?.text === expectedLabel);
+        expect(label).toBeDefined();
+        if (!label) continue;
+        const box = label.getBoundingRect();
+        const center = label.transformCoordToGlobal(box.x + box.width / 2, box.y + box.height / 2);
+        expect(center[1]).toBeCloseTo(chart.convertToPixel({ yAxisIndex: 1 }, value) as number, 1);
+    }
+};
+
 describe('buildRoastChartOption', () => {
-    it.each(['C', 'F'] as const)(
-        'aligns rendered custom RoR labels with their tick coordinates in %s',
-        (temperatureUnit) => {
+    it.each(['C', 'F'] as const)('aligns RoR interval ticks and labels at default range in %s', (temperatureUnit) => {
+        for (let rorGridInterval = 1; rorGridInterval <= 5; rorGridInterval += 1) {
             const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
             try {
                 chart.setOption(
@@ -114,7 +171,59 @@ describe('buildRoastChartOption', () => {
                             tempGridInterval: 10,
                             tempLabelEvery: 5,
                             timeTickIntervalSec: 60,
-                            rorTicksC: [1, 3, 7],
+                            rorGridInterval,
+                            rorLabelEvery: 1,
+                        },
+                    }),
+                );
+                assertRorIntervalAxisAligned(chart);
+            } finally {
+                chart.dispose();
+            }
+        }
+    });
+
+    it('caps −100..300 °C RoR range at interval 1 to at most 80 tick steps', () => {
+        const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
+        try {
+            chart.setOption(
+                buildRoastChartOption({
+                    ...baseParams(),
+                    rorYMin: -100,
+                    rorYMax: 300,
+                    axisSettings: {
+                        tempGridInterval: 10,
+                        tempLabelEvery: 5,
+                        timeTickIntervalSec: 60,
+                        rorGridInterval: 1,
+                        rorLabelEvery: 1,
+                    },
+                }),
+            );
+            const interval = Number((chart.getOption().yAxis as { interval?: number }[])[1]?.interval);
+            expect((300 - -100) / interval).toBeLessThanOrEqual(80);
+            assertRorIntervalAxisAligned(chart, 1, false);
+        } finally {
+            chart.dispose();
+        }
+    });
+
+    it.each(['C', 'F'] as const)('aligns RoR list ticks for 1–5 and 1,3,7 in %s', (temperatureUnit) => {
+        for (const rorTicksC of [
+            [1, 2, 3, 4, 5],
+            [1, 3, 7],
+        ] as const) {
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
+            try {
+                chart.setOption(
+                    buildRoastChartOption({
+                        ...baseParams(),
+                        temperatureUnit,
+                        axisSettings: {
+                            tempGridInterval: 10,
+                            tempLabelEvery: 5,
+                            timeTickIntervalSec: 60,
+                            rorTicksC: [...rorTicksC],
                         },
                     }),
                 );
@@ -125,8 +234,8 @@ describe('buildRoastChartOption', () => {
                     transformCoordToGlobal: (x: number, y: number) => number[];
                 };
                 const elements = chart.getZr().storage.getDisplayList() as unknown as TextSpan[];
-                for (const celsius of [1, 3, 7]) {
-                    const value = Number((temperatureUnit === 'F' ? celsius * 1.8 : celsius).toFixed(6));
+                for (const celsius of rorTicksC) {
+                    const value = Number((temperatureUnit === 'F' ? (celsius * 9) / 5 : celsius).toFixed(6));
                     const label = elements.find((el) => el.type === 'tspan' && el.style?.text === String(value));
                     expect(label).toBeDefined();
                     if (!label) continue;
@@ -137,8 +246,8 @@ describe('buildRoastChartOption', () => {
             } finally {
                 chart.dispose();
             }
-        },
-    );
+        }
+    });
 
     it('uses native custom temperature ticks and clears them when returning to a custom interval', () => {
         for (const temperatureUnit of ['C', 'F'] as const) {

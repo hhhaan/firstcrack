@@ -17,6 +17,7 @@ import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperat
 import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
 import type { TemperatureUnit } from '../../model/settings';
+import { alignRorAxisBound, resolveRorAxisInterval } from './ror-axis-interval';
 import type { ChartOptionParams, ResolvedChartColors } from './types';
 
 export const fmtSec = (v: number) => `${v < 0 ? '-' : ''}${formatElapsed(Math.abs(v))}`;
@@ -130,8 +131,20 @@ export const applyChartAxisSettings = (
         if (customValues) {
             rorAxis.axisLabel.formatter = formatTick;
         } else if (settings.rorGridInterval && settings.rorGridInterval > 0) {
-            rorAxis.interval = toDisplayRoR(settings.rorGridInterval, temperatureUnit);
-            const step = Number(rorAxis.interval) * (settings.rorLabelEvery || 1);
+            const minDisplay = Number(rorAxis.min);
+            const maxDisplay = Number(rorAxis.max);
+            const { displayInterval } = resolveRorAxisInterval(
+                minDisplay,
+                maxDisplay,
+                settings.rorGridInterval,
+                temperatureUnit,
+            );
+            rorAxis.interval = displayInterval;
+            if (Number.isFinite(minDisplay) && Number.isFinite(maxDisplay) && displayInterval > 0) {
+                rorAxis.min = alignRorAxisBound(minDisplay, displayInterval, 'min');
+                rorAxis.max = alignRorAxisBound(maxDisplay, displayInterval, 'max');
+            }
+            const step = displayInterval * (settings.rorLabelEvery || 1);
             rorAxis.axisLabel = {
                 ...rorAxis.axisLabel,
                 formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),

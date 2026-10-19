@@ -451,6 +451,7 @@
                 "rorAxisMin": "RoR minimum",
                 "rorAxisMax": "RoR maximum",
                 "rorGridInterval": "RoR tick interval",
+                "rorGridIntervalCapped": "This range needs at most {{maxTicks}} ticks, so the chart uses {{effective}}{{suffix}} spacing. Your {{requested}}{{suffix}} setting is unchanged.",
                 "rorTickList": "Specific RoR values",
                 "customRorTicks": "RoR tick list",
                 "customRorTicksDescription": "Separate values with commas, e.g. -5, 0, 5, 10. Only values within the axis range appear. Leave empty to use default ticks.",
