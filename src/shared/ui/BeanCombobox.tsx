@@ -60,11 +60,21 @@ export const BeanCombobox = ({
     // Sync display only when selectedId changes (not when items refetches).
     useEffect(() => {
         if (selectedId === prevSelectedIdRef.current) return;
+        const previousId = prevSelectedIdRef.current;
         prevSelectedIdRef.current = selectedId;
         const name = itemsRef.current.find((i) => i.id === selectedId)?.name;
-        if (name != null) setQuery(name);
-        else if (!selectedId) setQuery('');
-    }, [selectedId]);
+        if (name != null) {
+            setQuery(name);
+            return;
+        }
+        if (selectedId) return;
+        // Clearing the link must not erase free text the operator is typing: only drop a leftover bean name.
+        const previousName = itemsRef.current
+            .find((i) => i.id === previousId)
+            ?.name?.trim()
+            .toLowerCase();
+        setQuery((current) => (previousName && current.trim().toLowerCase() !== previousName ? current : initialQuery));
+    }, [selectedId, initialQuery]);
 
     useEffect(() => {
         if (!open) return;
@@ -76,14 +86,13 @@ export const BeanCombobox = ({
     }, [open]);
 
     const selectedName = selected?.name.trim().toLowerCase() ?? '';
-    const filtered = useMemo(() => {
+    const matches = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q) return items;
-        // Unedited selection, or a saved free-text name that matches nothing: show the whole list.
-        if (q === selectedName) return items;
-        const matches = items.filter((i) => i.name.toLowerCase().includes(q));
-        return matches.length > 0 ? matches : items;
+        if (!q || q === selectedName) return items;
+        return items.filter((i) => i.name.toLowerCase().includes(q));
     }, [items, query, selectedName]);
+    // No match still lists every bean so the operator can pick one, but Enter must commit the text.
+    const filtered = matches.length > 0 ? matches : items;
 
     const commitFreeOrMatch = (raw: string) => {
         const trimmed = raw.trim();
@@ -143,9 +152,9 @@ export const BeanCombobox = ({
                             // 한글 조합 확정 Enter는 선택/커밋으로 소비하지 않는다 (#317)
                             if (e.nativeEvent.isComposing) return;
                             e.preventDefault();
-                            if (filtered.length === 1) {
-                                onSelect(filtered[0].id);
-                                setQuery(filtered[0].name);
+                            if (matches.length === 1) {
+                                onSelect(matches[0].id);
+                                setQuery(matches[0].name);
                                 setOpen(false);
                             } else {
                                 commitFreeOrMatch(query);
