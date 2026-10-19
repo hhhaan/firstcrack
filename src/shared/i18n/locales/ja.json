@@ -10,7 +10,7 @@
         "recordingHint": "新しいキーの組み合わせを押してください。Escでキャンセルできます。",
         "change": "ショートカットを変更: {{action}}",
         "fixed": "変更できないショートカット",
-        "doubleTap": "400ms以内に2回押す",
+        "globalHint": "ウィンドウが非アクティブでも動作します。ロースト中のみシステム全体のショートカットとして登録されます。",
         "noResults": "一致するショートカットはありません",
         "groups": {
             "app": "アプリ",
@@ -972,7 +972,9 @@
             "machineConnected": "マシン接続済み · 焙煎準備完了",
             "settings": "ロースト設定",
             "openSettings": "ロースト設定を開く",
-            "reconnecting": "再接続中 — 曲線が停止しています。ウィンドウを再読み込みしないでください"
+            "reconnecting": "再接続中 — 曲線が停止しています。ウィンドウを再読み込みしないでください",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "機能適用後のこの端末のChargeをワークスペース・プロファイル別に集計します。キャンセル・破棄したバッチも番号を保持します。"
         },
         "readings": {
             "beanTemp": "ベーン温度",
@@ -1018,7 +1020,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",
@@ -1100,7 +1102,9 @@
             "lossRateEstimated": "未計量 — 減量率は焙煎レベルに基づく推定値になります。",
             "sessionExpired": "ログインセッションの有効期限が切れました。再ログインすると、この記録は自動的に保存されます。",
             "workspaceLoading": "ワークスペースを読み込み中です。しばらくしてからもう一度お試しください。",
-            "batchUnavailable": "選択したスケジュールバッチは使用できなくなりました。"
+            "batchUnavailable": "選択したスケジュールバッチは使用できなくなりました。",
+            "bbpLive": "BBP · 現在の焙煎機の状態",
+            "liveUnavailable": "新しい測定値を待っています"
         },
         "planBatch": {
             "title": "次のローストを続けますか？",
@@ -1400,6 +1404,7 @@
         },
         "expanded": {
             "origin": "産地",
+            "beanLocked": "このロースティングには在庫記録があるため、生豆を変更できません。",
             "chargeTemp": "チャージ温度",
             "dropTemp": "排気温度",
             "duration": "時間",
@@ -1553,7 +1558,8 @@
         "recordText": {
             "title": "焙煎タイトル",
             "add": "ノートを追加",
-            "failed": "保存できませんでした。入力は保持されています。再試行してください。"
+            "failed": "保存できませんでした。入力は保持されています。再試行してください。",
+            "inputName": "自由入力名"
         }
     },
     "profiles": {

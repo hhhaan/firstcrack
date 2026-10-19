@@ -10,7 +10,7 @@
         "recordingHint": "请按新的组合键。按 Esc 取消。",
         "change": "修改快捷键：{{action}}",
         "fixed": "不可修改的快捷键",
-        "doubleTap": "400ms内连按两次",
+        "globalHint": "即使窗口未处于激活状态也会生效。仅在烘焙期间注册为系统级快捷键。",
         "noResults": "没有匹配的快捷键",
         "groups": {
             "app": "应用",
@@ -972,7 +972,9 @@
             "machineConnected": "设备已连接 · 可以开始烘焙",
             "settings": "烘焙设置",
             "openSettings": "打开烘焙设置",
-            "reconnecting": "正在重新连接 — 曲线已暂停。请勿刷新窗口"
+            "reconnecting": "正在重新连接 — 曲线已暂停。请勿刷新窗口",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "统计启用此功能后本设备的Charge，按工作区和曲线分别累计。取消或丢弃批次仍保留编号。"
         },
         "readings": {
             "beanTemp": "豆温",
@@ -1018,7 +1020,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",
@@ -1100,7 +1102,9 @@
             "lossRateEstimated": "未称重 — 失重率将按烘焙度估算。",
             "sessionExpired": "登录会话已过期。重新登录后，此记录将自动保存。",
             "workspaceLoading": "工作区仍在加载中，请稍后重试。",
-            "batchUnavailable": "所选的排程批次已不可用。"
+            "batchUnavailable": "所选的排程批次已不可用。",
+            "bbpLive": "BBP · 当前烘焙机状态",
+            "liveUnavailable": "正在等待新的测量值"
         },
         "planBatch": {
             "title": "继续下一次烘焙？",
@@ -1400,6 +1404,7 @@
         },
         "expanded": {
             "origin": "产地",
+            "beanLocked": "该烘焙已记录库存，无法更改生豆。",
             "chargeTemp": "投豆温度",
             "dropTemp": "下豆温度",
             "duration": "时长",
@@ -1553,7 +1558,8 @@
         "recordText": {
             "title": "烘焙标题",
             "add": "添加笔记",
-            "failed": "保存失败。输入已保留，请重试。"
+            "failed": "保存失败。输入已保留，请重试。",
+            "inputName": "自由输入名称"
         }
     },
     "beanList": {

@@ -10,7 +10,7 @@
         "recordingHint": "새 키 조합을 누르세요. Esc로 취소할 수 있습니다.",
         "change": "단축키 변경: {{action}}",
         "fixed": "변경할 수 없는 단축키",
-        "doubleTap": "400ms 안에 두 번 누르기",
+        "globalHint": "창이 활성 상태가 아니어도 동작합니다. 로스팅 중에만 시스템 전역 키로 등록됩니다.",
         "noResults": "일치하는 단축키가 없습니다",
         "groups": {
             "app": "앱",
@@ -1078,6 +1078,7 @@
         },
         "expanded": {
             "origin": "산지",
+            "beanLocked": "이 로스팅에 이미 재고 기록이 있어 생두를 변경할 수 없습니다.",
             "chargeTemp": "투입 온도",
             "dropTemp": "배출 온도",
             "duration": "시간",
@@ -1231,7 +1232,8 @@
         "recordText": {
             "title": "로스팅 제목",
             "add": "노트 추가",
-            "failed": "저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해 주세요."
+            "failed": "저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해 주세요.",
+            "inputName": "직접 입력명"
         }
     },
     "beans": {
@@ -1321,7 +1323,9 @@
             "roastComplete": "로스팅 완료",
             "settings": "로스팅 설정",
             "openSettings": "로스팅 설정 열기",
-            "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요"
+            "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "기능 적용 이후 이 기기의 Charge를 작업공간·프로파일별로 집계합니다. 취소·폐기 배치도 번호를 유지합니다."
         },
         "readings": {
             "beanTemp": "생두 온도",
@@ -1375,7 +1379,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "log": {
             "expand": "로스팅 로그 펼치기",
@@ -1466,7 +1470,9 @@
             "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다.",
             "sessionExpired": "로그인 세션이 만료되었습니다. 다시 로그인하면 이 기록이 자동으로 저장됩니다.",
             "workspaceLoading": "작업 공간을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
-            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다."
+            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다.",
+            "bbpLive": "BBP · 현재 로스터 상태",
+            "liveUnavailable": "새 측정값을 기다리는 중"
         },
         "planBatch": {
             "title": "다음 로스팅을 진행할까요?",

@@ -10,7 +10,7 @@
         "recordingHint": "Press a new key combination. Escape cancels.",
         "change": "Change shortcut: {{action}}",
         "fixed": "Fixed shortcut",
-        "doubleTap": "Press twice within 400 ms",
+        "globalHint": "Works even when the window is not focused. Held system-wide while roasting.",
         "noResults": "No matching shortcuts",
         "groups": {
             "app": "App",
@@ -972,7 +972,9 @@
             "machineConnected": "Machine connected · Ready to roast",
             "settings": "Roast settings",
             "openSettings": "Open roast settings",
-            "reconnecting": "Reconnecting — curve paused. Do not reload the window"
+            "reconnecting": "Reconnecting — curve paused. Do not reload the window",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "Counts Charges on this device since this feature was enabled, separately by workspace and profile. Canceled/discarded batches retain their number."
         },
         "readings": {
             "beanTemp": "Bean Temp",
@@ -1018,7 +1020,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",
@@ -1100,7 +1102,9 @@
             "lossRateEstimated": "Not weighed — loss rate is estimated from the roast level.",
             "sessionExpired": "Your login session has expired. Sign in again and this roast will be saved automatically.",
             "workspaceLoading": "Workspace is still loading. Please try again in a moment.",
-            "batchUnavailable": "The selected schedule batch is no longer available."
+            "batchUnavailable": "The selected schedule batch is no longer available.",
+            "bbpLive": "BBP · Current roaster readings",
+            "liveUnavailable": "Waiting for fresh readings"
         },
         "planBatch": {
             "title": "Continue with the next roast?",
@@ -1400,6 +1404,7 @@
         },
         "expanded": {
             "origin": "Origin",
+            "beanLocked": "Stock is already recorded for this roast, so the green bean cannot be changed.",
             "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
@@ -1553,7 +1558,8 @@
         "recordText": {
             "title": "Roast title",
             "add": "Add note",
-            "failed": "Could not save. Your changes are kept; please retry."
+            "failed": "Could not save. Your changes are kept; please retry.",
+            "inputName": "Free-text name"
         }
     },
     "profiles": {

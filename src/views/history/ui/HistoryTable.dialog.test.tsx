@@ -15,6 +15,9 @@ vi.mock('@widgets/profile-curve-chart/ui/ProfileCurveChart', () => ({
 vi.mock('./OutputWeightEditor', () => ({ OutputWeightEditor: () => null }));
 vi.mock('./SessionScorecard', () => ({ SessionScorecard: () => null }));
 vi.mock('./HistorySessionChart', () => ({ HistorySessionChart: () => null }));
+vi.mock('../hooks/useRoastStockRecorded', () => ({
+    useRoastStockRecorded: () => ({ data: false, isPending: false }),
+}));
 vi.mock('../hooks/useRoastRecordSave', () => ({
     useRoastRecordSave: () => ({
         canWrite: true,
@@ -33,6 +36,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     return { ...actual, useQueryClient: () => ({}) };
 });
 vi.mock('@entities/bean', () => ({
+    useBeans: () => ({ data: [] }),
     useUpdateBean: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@entities/roast-profile', () => ({

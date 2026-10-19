@@ -533,6 +533,9 @@ export const useSidecarPolling = ({
                     const store = useRoastingStore.getState();
                     store.updateRawTemperature(rawSample);
                     if (observationTick) {
+                        store.updateDisplayObservation(
+                            reduceSensorObservation(store.displayObservation, observationTick),
+                        );
                         // Replay judges raw BT; display EMA must not validate a raw spike.
                         const rawTick = { ...observationTick, bt: observationTick.bt == null ? null : rawBt };
                         const quality = reduceSensorObservation(store.observation, rawTick).quality;
