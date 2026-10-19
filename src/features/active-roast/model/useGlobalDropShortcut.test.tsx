@@ -129,3 +129,73 @@ it('stops waiting for a grab that never settles so the foreground shortcut retur
         vi.useRealTimers();
     }
 });
+
+it('releases foreground ownership before a stalled unregister and bounds the cleanup queue', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true });
+    vi.useFakeTimers();
+    native.register.mockImplementationOnce(() => new Promise<void>(() => undefined));
+    native.unregister.mockImplementation(() => new Promise<void>(() => undefined));
+    useGlobalDropShortcutStore.setState({ enabled: true });
+    let owns!: { current: boolean };
+    const Probe = () => {
+        owns = useGlobalDropShortcut(keys, true, vi.fn());
+        return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    try {
+        await act(async () => root.render(createElement(Probe)));
+        await act(async () => vi.advanceTimersByTimeAsync(3000));
+        expect(owns.current).toBe(false);
+        expect(useGlobalDropShortcutStore.getState().status).toBe('failed');
+    } finally {
+        await act(async () => {
+            root.unmount();
+            await vi.advanceTimersByTimeAsync(9000);
+        });
+        vi.useRealTimers();
+    }
+});
+
+it('does not let late cleanup remove a replacement registration of the same key', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true });
+    vi.useFakeTimers();
+    let resolveFirst!: () => void;
+    native.register
+        .mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveFirst = resolve;
+                }),
+        )
+        .mockResolvedValue(undefined);
+    native.unregister.mockResolvedValue(undefined);
+    useGlobalDropShortcutStore.setState({ enabled: true });
+    let owns!: { current: boolean };
+    const drop = vi.fn();
+    const Probe = ({ eligible }: { eligible: boolean }) => {
+        owns = useGlobalDropShortcut(keys, eligible, drop);
+        return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    try {
+        await act(async () => root.render(createElement(Probe, { eligible: true })));
+        await act(async () => vi.advanceTimersByTimeAsync(3000));
+        await act(async () => root.render(createElement(Probe, { eligible: false })));
+        await act(async () => root.render(createElement(Probe, { eligible: true })));
+        expect(owns.current).toBe(true);
+        expect(native.register).toHaveBeenCalledTimes(2);
+        native.unregister.mockClear();
+        await act(async () => resolveFirst());
+        expect(native.unregister).not.toHaveBeenCalled();
+        const send = (state: string) => native.register.mock.calls[1][1]({ shortcut: 'CommandOrControl+D', state });
+        act(() => {
+            send('Pressed');
+            send('Released');
+            send('Pressed');
+        });
+        expect(drop).toHaveBeenCalledTimes(1);
+    } finally {
+        await act(async () => root.unmount());
+        vi.useRealTimers();
+    }
+});

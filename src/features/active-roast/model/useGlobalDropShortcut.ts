@@ -12,6 +12,8 @@ const SETTLE_TIMEOUT_MS = 3000;
 
 // Registration and cleanup are ordered even when a phase/key changes before register resolves.
 let registrationQueue: Promise<void> = Promise.resolve();
+let registrationGeneration = 0;
+const keyGenerations = new Map<string, number>();
 
 const settle = (work: Promise<void>): Promise<void> =>
     new Promise((resolve, reject) => {
@@ -50,6 +52,11 @@ export function useGlobalDropShortcut(keys: string[], eligible: boolean, onDrop:
         }
         let disposed = false;
         let listening = false;
+        let generation = 0;
+        const releaseRegistered = async () => {
+            const ownedKeys = shortcuts.filter((key) => keyGenerations.get(key) === generation);
+            if (ownedKeys.length) await settle(unregister(ownedKeys)).catch(() => undefined);
+        };
         let armedAt: number | null = null;
         const held = new Set<string>();
         const onShortcut = (event: ShortcutEvent) => {
@@ -69,16 +76,24 @@ export function useGlobalDropShortcut(keys: string[], eligible: boolean, onDrop:
         ownsDrop.current = true;
         registrationQueue = registrationQueue.then(async () => {
             if (disposed) return;
+            generation = ++registrationGeneration;
+            for (const key of shortcuts) keyGenerations.set(key, generation);
             const grab = register(shortcuts, onShortcut);
             try {
                 await settle(grab);
             } catch {
-                // A grab that lands after we gave up would hold the system shortcut for good.
-                void grab.then(() => unregister(shortcuts)).catch(() => undefined);
-                await unregister(shortcuts).catch(() => undefined);
-                if (disposed) return;
-                ownsDrop.current = false;
-                useGlobalDropShortcutStore.setState({ status: 'failed' });
+                listening = false;
+                if (!disposed) {
+                    ownsDrop.current = false;
+                    useGlobalDropShortcutStore.setState({ status: 'failed' });
+                }
+                // Late cleanup is serialized and may only release keys from this attempt.
+                void grab
+                    .then(() => {
+                        registrationQueue = registrationQueue.then(releaseRegistered);
+                    })
+                    .catch(() => undefined);
+                await releaseRegistered();
                 return;
             }
             listening = true;
@@ -87,13 +102,13 @@ export function useGlobalDropShortcut(keys: string[], eligible: boolean, onDrop:
                 return;
             }
             // Registered after the phase ended: release it now that the order is known.
-            await unregister(shortcuts).catch(() => undefined);
+            await releaseRegistered();
         });
         return () => {
             disposed = true;
             listening = false;
             ownsDrop.current = false;
-            registrationQueue = registrationQueue.then(() => unregister(shortcuts).catch(() => undefined));
+            registrationQueue = registrationQueue.then(releaseRegistered);
         };
     }, [enabled, eligible, keys]);
     return ownsDrop;

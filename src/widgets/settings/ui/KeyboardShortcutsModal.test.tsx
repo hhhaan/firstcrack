@@ -56,3 +56,26 @@ it('reports an unsupported binding as soon as the option is switched on', () => 
         localStorage.clear();
     }
 });
+
+it('derives support for a restored option and refreshes it after rebinding Drop', () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true });
+    useShortcutStore.getState().setBinding('drop', 'shift+d');
+    useGlobalDropShortcutStore.setState({ enabled: true, status: 'idle' });
+    const root = createRoot(document.createElement('div'));
+    try {
+        act(() => root.render(createElement(KeyboardShortcutsModal)));
+        expect(document.querySelector('[role="status"]')?.textContent).toBe('shortcuts.globalDropStatus.unsupported');
+        act(() => useShortcutStore.getState().setBinding('drop', 'mod+4'));
+        expect(document.querySelector('[role="status"]')?.textContent).toBe('shortcuts.globalDropStatus.idle');
+        act(() => useGlobalDropShortcutStore.setState({ status: 'unsupported' }));
+        expect(document.querySelector('[role="status"]')?.textContent).toBe('shortcuts.globalDropStatus.idle');
+        act(() => useShortcutStore.getState().setBinding('drop', 'shift+d'));
+        expect(document.querySelector('[role="status"]')?.textContent).toBe('shortcuts.globalDropStatus.unsupported');
+    } finally {
+        act(() => root.unmount());
+        useShortcutStore.getState().resetBindings();
+        useGlobalDropShortcutStore.setState({ enabled: false, status: 'idle' });
+        Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+        localStorage.clear();
+    }
+});

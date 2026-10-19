@@ -25,6 +25,13 @@ export function KeyboardShortcutsModal() {
     const globalDropStatus = useGlobalDropShortcutStore((state) => state.status);
     const setGlobalDropEnabled = useGlobalDropShortcutStore((state) => state.setEnabled);
     const dropKeys = useShortcutKeys('drop');
+    const supportStatus = globalDropSupport(dropKeys);
+    const displayedGlobalDropStatus =
+        supportStatus === 'unsupported'
+            ? 'unsupported'
+            : globalDropStatus === 'unsupported'
+              ? 'idle'
+              : globalDropStatus;
     const { bindings, disabled, setEnabled, setBinding, resetBindings, setRecording, setDialogOpen } =
         useShortcutStore();
     const customEvents = useRoastSettings().eventButtons.custom;
@@ -139,7 +146,7 @@ export function KeyboardShortcutsModal() {
                     </label>
                     {globalDropEnabled && (
                         <p role="status" className="mb-4 text-xs text-muted">
-                            {t(`shortcuts.globalDropStatus.${globalDropStatus}`)}
+                            {t(`shortcuts.globalDropStatus.${displayedGlobalDropStatus}`)}
                         </p>
                     )}
                     <label className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface/50 px-3 py-2.5 text-muted">
