@@ -76,6 +76,7 @@ import {
     isReplayMachineMismatch,
     isWaitingForCharge,
     latestSampleTime,
+    liveWindowTitle,
     orEmpty,
     orNull,
     profileSelectionEpoch,
@@ -756,15 +757,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── Effect: 타이틀바에 실시간 온도 표시 ─────────────────────
     useEffect(() => {
         if (!('__TAURI_INTERNALS__' in window)) return;
-        const isActivePhase = phase === 'roasting' || phase === 'preheating' || phase === 'standby';
-        if (!isActivePhase) {
-            void getCurrentWindow().setTitle('First Crack');
-            return;
-        }
-        const bt = formatTemp(rawBT, unit);
-        const et = formatTemp(rawET, unit);
-        void getCurrentWindow().setTitle(`First Crack — BT ${bt} | ET ${et} | ${timeStr}`);
-    }, [phase, rawBT, rawET, timeStr, unit]);
+        void getCurrentWindow().setTitle(
+            liveWindowTitle({
+                bbpElapsed: bbpTimer,
+                btLabel: formatTemp(rawBT, unit),
+                etLabel: formatTemp(rawET, unit),
+                roastElapsed: timeStr,
+                activePhase: phase === 'roasting' || phase === 'preheating' || phase === 'standby',
+            }),
+        );
+    }, [phase, rawBT, rawET, timeStr, unit, bbpTimer]);
 
     // ── 단계 표시 및 파생값 ──────────────────────────────────────
     const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries, bbpChargeWait);
