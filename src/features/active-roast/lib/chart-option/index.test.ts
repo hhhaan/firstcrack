@@ -101,6 +101,58 @@ describe('buildRoastChartOption font scale', () => {
 });
 
 describe('buildRoastChartOption', () => {
+    it('draws RoR guide lines at the configured interval', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            rorYMin: -10,
+            rorYMax: 20,
+            axisSettings: {
+                tempGridInterval: 10,
+                tempLabelEvery: 5,
+                timeTickIntervalSec: 60,
+                rorGridInterval: 1,
+                rorLabelEvery: 1,
+            },
+        });
+        const ror = (
+            option.yAxis as {
+                gridIndex: number;
+                position?: string;
+                interval?: number;
+                splitLine?: { show?: boolean };
+            }[]
+        ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
+        expect(ror?.interval).toBe(1);
+        expect(ror?.splitLine?.show).toBe(true);
+
+        const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 900, height: 500 });
+        try {
+            chart.setOption(option);
+            const yOf = (value: number) => chart.convertToPixel({ yAxisIndex: 1 }, value) as number;
+            const lines = chart.getZr().storage.getDisplayList() as {
+                shape?: { x1?: number; x2?: number; y1?: number; y2?: number };
+            }[];
+            const hasHorizontalAt = (y: number) =>
+                lines.some((el) => {
+                    const { y1, y2, x1, x2 } = el.shape ?? {};
+                    return (
+                        y1 != null &&
+                        y2 != null &&
+                        x1 != null &&
+                        x2 != null &&
+                        Math.abs(y1 - y) < 1.5 &&
+                        Math.abs(y2 - y) < 1.5 &&
+                        Math.abs(x2 - x1) > 20
+                    );
+                });
+            for (const value of [1, 2, 3, 7, 19]) {
+                expect(hasHorizontalAt(yOf(value))).toBe(true);
+            }
+        } finally {
+            chart.dispose();
+        }
+    });
+
     it.each(['C', 'F'] as const)(
         'aligns rendered custom RoR labels with their tick coordinates in %s',
         (temperatureUnit) => {
@@ -225,10 +277,12 @@ describe('buildRoastChartOption', () => {
                     position?: string;
                     axisTick: { customValues?: number[] };
                     axisLabel: { formatter: (value: number) => string };
+                    splitLine?: { show?: boolean };
                 }[]
             ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
             expect(ror?.axisTick.customValues).toEqual([-9, 0, 18]);
             expect(ror?.axisLabel.formatter(18)).toBe('18');
+            expect(ror?.splitLine?.show).toBe(false);
             const restored = buildRoastChartOption({
                 ...baseParams(),
                 axisSettings: {
@@ -248,9 +302,11 @@ describe('buildRoastChartOption', () => {
                     interval?: number;
                     axisTick: { customValues?: number[] };
                     axisLabel: { formatter?: (value: number) => string };
+                    splitLine?: { show?: boolean };
                 }[]
             ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
             expect(reset?.interval).toBe(4);
+            expect(reset?.splitLine?.show).toBe(true);
             expect(reset?.axisTick.customValues).toBeUndefined();
             expect(reset?.axisLabel.formatter?.(0)).toBe('0');
             expect(reset?.axisLabel.formatter?.(4)).toBe('');
@@ -368,7 +424,11 @@ describe('buildRoastChartOption', () => {
                 expect(report.yAxis).toEqual(
                     expect.arrayContaining([
                         expect.objectContaining({ interval: 50, splitLine: expect.objectContaining({ show: true }) }),
-                        expect.objectContaining({ position: 'right', interval: temperatureUnit === 'F' ? 10 : 5 }),
+                        expect.objectContaining({
+                            position: 'right',
+                            interval: temperatureUnit === 'F' ? 10 : 5,
+                            splitLine: expect.objectContaining({ show: false }),
+                        }),
                     ]),
                 );
                 const tempAxis = (report.yAxis as { min: number; max: number }[])[0];

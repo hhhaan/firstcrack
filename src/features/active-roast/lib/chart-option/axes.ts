@@ -117,6 +117,7 @@ export const applyChartAxisSettings = (
     axes: Pick<EChartsOption, 'xAxis' | 'yAxis'>,
     settings: ChartOptionParams['axisSettings'],
     temperatureUnit: TemperatureUnit,
+    report = false,
 ) => {
     if (!settings) return;
     const rorAxis = (Array.isArray(axes.yAxis) ? axes.yAxis : []).find(
@@ -129,8 +130,10 @@ export const applyChartAxisSettings = (
         rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true, verticalAlign: 'middle' };
         if (customValues) {
             rorAxis.axisLabel.formatter = formatTick;
+            rorAxis.splitLine = { ...rorAxis.splitLine, show: false };
         } else if (settings.rorGridInterval && settings.rorGridInterval > 0) {
             rorAxis.interval = toDisplayRoR(settings.rorGridInterval, temperatureUnit);
+            rorAxis.splitLine = { ...rorAxis.splitLine, show: !report };
             const step = Number(rorAxis.interval) * (settings.rorLabelEvery || 1);
             rorAxis.axisLabel = {
                 ...rorAxis.axisLabel,
@@ -336,7 +339,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             axisTick: { show: false },
             axisLabel: rightYAxisLabel,
             axisPointer: yAxisPointer,
-            splitLine: { show: false },
+            splitLine: { show: false, lineStyle: { color: colors.gridLine, width: 0.5 } },
             min: rorYMin,
             max: rorYMax,
             interval: 20,
@@ -470,7 +473,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
             axisTick: { show: false },
             axisLabel: rightYAxisLabel,
             axisPointer: yAxisPointer,
-            splitLine: { show: false },
+            splitLine: { show: false, lineStyle: { color: colors.gridLine } },
             min: rorYMin,
             max: rorYMax,
             interval: 20,

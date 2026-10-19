@@ -120,7 +120,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         : params.axisSettings?.tempGridInterval;
     const tuneAxes = (axes: Parameters<typeof applyChartAxisSettings>[0]) => {
         if (report) applyReportAxes(axes, colors, xMax - xMin, temperatureUnit, reportGridInterval);
-        applyChartAxisSettings(axes, params.axisSettings, temperatureUnit);
+        applyChartAxisSettings(axes, params.axisSettings, temperatureUnit, report);
     };
 
     const bbpBackground = (control: boolean) => ({
