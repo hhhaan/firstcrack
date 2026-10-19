@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import concurrent.futures
 import ipaddress
 import socket
+import threading
 
 import pytest
 
@@ -56,14 +56,21 @@ async def _scan_open_local_listener_once() -> None:
 
 def test_scan_detects_open_local_listener():
     # Isolated agents can hang on asyncio.start_server; fail open with skip.
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    future = pool.submit(asyncio.run, _scan_open_local_listener_once())
-    try:
-        future.result(timeout=5)
-    except concurrent.futures.TimeoutError:
+    errors: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            asyncio.run(_scan_open_local_listener_once())
+        except BaseException as exc:  # noqa: BLE001 — propagate any test failure
+            errors.append(exc)
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    thread.join(timeout=5)
+    if thread.is_alive():
         pytest.skip("asyncio TCP server unavailable in this environment")
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
+    if errors:
+        raise errors[0]
 
 
 async def test_scan_closed_port_empty():
