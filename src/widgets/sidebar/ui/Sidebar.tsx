@@ -120,9 +120,12 @@ export const Sidebar = ({
                             type="button"
                             aria-label={t('sidebar.workspaceSelector')}
                             title={collapsed ? workspaceName : undefined}
-                            className="flex h-10 w-full cursor-pointer items-center overflow-hidden rounded-xl border border-border bg-input-bg shadow-xs"
+                            className={cn(
+                                'flex w-full cursor-pointer items-center overflow-hidden rounded-xl border border-border bg-input-bg p-0 shadow-xs',
+                                collapsed ? 'h-9' : 'h-10',
+                            )}
                         >
-                            <div className="w-9 h-9 shrink-0 flex items-center justify-center">
+                            <div className="w-[34px] h-full shrink-0 flex items-center justify-center">
                                 <div className="w-5.5 h-5.5 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary">
                                     {workspaceInitial}
                                 </div>
