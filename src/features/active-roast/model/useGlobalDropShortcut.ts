@@ -1,27 +1,32 @@
-import { parseShortcut } from '@shared/lib/shortcut-key';
 import { useGlobalDropShortcutStore } from '@shared/store/global-drop-shortcut';
-import { register, unregister } from '@tauri-apps/plugin-global-shortcut';
+import { register, type ShortcutEvent, unregister } from '@tauri-apps/plugin-global-shortcut';
 import { useEffect, useRef } from 'react';
 import { nextDropDoubleTap } from '../lib/drop-double-tap';
+import { nativeDropShortcuts } from '../lib/global-drop-native';
+
+/**
+ * A grab IPC that never settles would block every later registration and leave `ownsDrop` true,
+ * which silently kills the foreground Drop shortcut for the rest of the roast.
+ */
+const SETTLE_TIMEOUT_MS = 3000;
 
 // Registration and cleanup are ordered even when a phase/key changes before register resolves.
 let registrationQueue: Promise<void> = Promise.resolve();
-export function nativeDropShortcut(shortcut: string): string | null {
-    const parsed = parseShortcut(shortcut);
-    if (!parsed?.modifiers.some((m) => ['mod', 'ctrl', 'alt'].includes(m))) return null;
-    const modifiers: Record<string, string> = { mod: 'CommandOrControl', ctrl: 'Control', alt: 'Alt', shift: 'Shift' };
-    const names: Record<string, string> = {
-        left: 'ArrowLeft',
-        right: 'ArrowRight',
-        up: 'ArrowUp',
-        down: 'ArrowDown',
-        enter: 'Enter',
-        escape: 'Escape',
-        space: 'Space',
-        '+': 'Plus',
-    };
-    return [...parsed.modifiers.map((m) => modifiers[m]), names[parsed.key] ?? parsed.key.toUpperCase()].join('+');
-}
+
+const settle = (work: Promise<void>): Promise<void> =>
+    new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('registration timeout')), SETTLE_TIMEOUT_MS);
+        work.then(
+            () => {
+                clearTimeout(timer);
+                resolve();
+            },
+            (error: unknown) => {
+                clearTimeout(timer);
+                reject(error);
+            },
+        );
+    });
 
 export function useGlobalDropShortcut(keys: string[], eligible: boolean, onDrop: () => void) {
     const enabled = useGlobalDropShortcutStore((s) => s.enabled);
@@ -32,73 +37,63 @@ export function useGlobalDropShortcut(keys: string[], eligible: boolean, onDrop:
     }, [onDrop]);
     useEffect(() => {
         if (!enabled || !eligible || !keys.length) {
+            // A grab failure stays visible in settings; every other reason to stop is transient.
             const { status } = useGlobalDropShortcutStore.getState();
             if (!enabled || !keys.length || (status !== 'failed' && status !== 'unsupported'))
                 useGlobalDropShortcutStore.setState({ status: 'idle' });
             return;
         }
-        const nativeKeys = keys.map(nativeDropShortcut);
-        if (!('__TAURI_INTERNALS__' in window) || nativeKeys.some((key) => key === null)) {
+        const shortcuts = nativeDropShortcuts(keys);
+        if (!shortcuts) {
             useGlobalDropShortcutStore.setState({ status: 'unsupported' });
             return;
         }
-        const shortcuts = nativeKeys as string[];
         let disposed = false;
         let listening = false;
-        const registered: string[] = [];
         let armedAt: number | null = null;
         const held = new Set<string>();
+        const onShortcut = (event: ShortcutEvent) => {
+            if (disposed || !listening) return;
+            if (event.state === 'Released') {
+                held.delete(event.shortcut);
+                return;
+            }
+            const repeat = held.has(event.shortcut);
+            held.add(event.shortcut);
+            const next = nextDropDoubleTap(armedAt, Date.now(), repeat);
+            armedAt = next.armedAt;
+            if (next.fire) callback.current();
+        };
         useGlobalDropShortcutStore.setState({ status: 'registering' });
+        // Own Drop before the grab lands, so one press can never mark it twice.
         ownsDrop.current = true;
         registrationQueue = registrationQueue.then(async () => {
             if (disposed) return;
+            const grab = register(shortcuts, onShortcut);
             try {
-                for (const shortcut of shortcuts) {
-                    await register(shortcut, (event) => {
-                        if (disposed || !listening) return;
-                        if (event.state === 'Released') {
-                            held.delete(event.shortcut);
-                            return;
-                        }
-                        const repeat = held.has(event.shortcut);
-                        held.add(event.shortcut);
-                        const next = nextDropDoubleTap(armedAt, Date.now(), repeat);
-                        armedAt = next.armedAt;
-                        if (next.fire) callback.current();
-                    });
-                    registered.push(shortcut);
-                }
-                listening = true;
-                if (!disposed) useGlobalDropShortcutStore.setState({ status: 'ready' });
+                await settle(grab);
             } catch {
-                listening = false;
-                if (registered.length) {
-                    try {
-                        await unregister(registered);
-                        registered.length = 0;
-                    } catch {
-                        /* disposed guard still protects the callback */
-                    }
-                }
-                // OS conflict/unsupported platform: the normal foreground binding remains usable.
-                if (!disposed) {
-                    ownsDrop.current = false;
-                    useGlobalDropShortcutStore.setState({ status: 'failed' });
-                }
+                // A grab that lands after we gave up would hold the system shortcut for good.
+                void grab.then(() => unregister(shortcuts)).catch(() => undefined);
+                await unregister(shortcuts).catch(() => undefined);
+                if (disposed) return;
+                ownsDrop.current = false;
+                useGlobalDropShortcutStore.setState({ status: 'failed' });
+                return;
             }
+            listening = true;
+            if (!disposed) {
+                useGlobalDropShortcutStore.setState({ status: 'ready' });
+                return;
+            }
+            // Registered after the phase ended: release it now that the order is known.
+            await unregister(shortcuts).catch(() => undefined);
         });
         return () => {
             disposed = true;
+            listening = false;
             ownsDrop.current = false;
-            registrationQueue = registrationQueue.then(async () => {
-                if (registered.length) {
-                    try {
-                        await unregister(registered);
-                    } catch {
-                        /* stale handler is disabled by disposed */
-                    }
-                }
-            });
+            registrationQueue = registrationQueue.then(() => unregister(shortcuts).catch(() => undefined));
         };
     }, [enabled, eligible, keys]);
     return ownsDrop;

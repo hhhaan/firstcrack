@@ -1,8 +1,3 @@
-import { nextDropDoubleTap } from '../lib/drop-double-tap';
-import { useGlobalDropShortcut } from './useGlobalDropShortcut';
-
-export { DROP_DOUBLE_TAP_MS, nextDropDoubleTap } from '../lib/drop-double-tap';
-
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { useRoastSettings } from '@features/active-roast/model/settings';
 import { i18n } from '@shared/i18n';
@@ -18,6 +13,10 @@ import {
 import { message } from '@tauri-apps/plugin-dialog';
 import { useEffect, useMemo, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { nextDropDoubleTap } from '../lib/drop-double-tap';
+import { useGlobalDropShortcut } from './useGlobalDropShortcut';
+
+export { DROP_DOUBLE_TAP_MS, nextDropDoubleTap } from '../lib/drop-double-tap';
 
 interface UseRoastKeyboardShortcutsParams {
     isActive: boolean;
@@ -143,6 +142,8 @@ export const useRoastKeyboardShortcuts = ({
         });
     const canMark = shortcutBase && isRoastEventMarkEnabled(phase);
     const canMarkEvents = canMark || (markWhileReviewing && shortcutBase);
+    // Deliberately no `isActive`: the background grab has to answer while another view or app is
+    // up, and the roast session keeps running. The local binding stays view-gated.
     const nativeDrop = useGlobalDropShortcut(
         dropKeys,
         shortcutsEnabled && phase === 'roasting' && !showEndRoastModal && !showSummaryModal && !showContinueModal,

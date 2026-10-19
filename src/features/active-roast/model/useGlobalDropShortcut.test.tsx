@@ -12,6 +12,7 @@ const keys = ['mod+d'];
 afterEach(() => {
     useGlobalDropShortcutStore.setState({ enabled: false, status: 'idle' });
     Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+    vi.useRealTimers();
     vi.clearAllMocks();
 });
 it('owns foreground/background presses once, ignores held keys, and unregisters on phase exit', async () => {
@@ -29,7 +30,7 @@ it('owns foreground/background presses once, ignores held keys, and unregisters 
     try {
         await act(async () => root.render(createElement(Probe, { eligible: true })));
         expect(owns.current).toBe(true);
-        expect(native.register).toHaveBeenCalledWith('CommandOrControl+D', expect.any(Function));
+        expect(native.register).toHaveBeenCalledWith(['CommandOrControl+D'], expect.any(Function));
         const send = (state: string) => native.register.mock.calls[0][1]({ shortcut: 'CommandOrControl+D', state });
         act(() => {
             send('Pressed');
@@ -98,4 +99,29 @@ it('cleans up a registration that resolves after unmount', async () => {
         resolve();
     });
     expect(native.unregister).toHaveBeenCalledWith(['CommandOrControl+D']);
+});
+it('stops waiting for a grab that never settles so the foreground shortcut returns', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true });
+    vi.useFakeTimers();
+    native.register.mockImplementationOnce(() => new Promise<void>(() => undefined));
+    native.unregister.mockRejectedValue(new Error('not registered'));
+    useGlobalDropShortcutStore.setState({ enabled: true });
+    let owns!: { current: boolean };
+    const Probe = () => {
+        owns = useGlobalDropShortcut(keys, true, vi.fn());
+        return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    try {
+        await act(async () => root.render(createElement(Probe)));
+        expect(owns.current).toBe(true);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(owns.current).toBe(false);
+        expect(useGlobalDropShortcutStore.getState().status).toBe('failed');
+    } finally {
+        await act(async () => root.unmount());
+        vi.useRealTimers();
+    }
 });
