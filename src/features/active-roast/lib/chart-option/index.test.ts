@@ -121,44 +121,62 @@ describe('buildRoastChartOption', () => {
                 position?: string;
                 interval?: number;
                 splitLine?: { show?: boolean };
-                axisLabel?: { hideOverlap?: boolean };
+                axisLabel?: { hideOverlap?: boolean; interval?: number };
             }[]
         ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
         expect(ror?.interval).toBe(1);
         expect(ror?.splitLine?.show).toBe(true);
-        expect(ror?.axisLabel?.hideOverlap).toBe(false);
+        expect(ror?.axisLabel?.hideOverlap).toBe(true);
+        expect(ror?.axisLabel?.interval).toBe(0);
 
-        const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 900, height: 400 });
-        try {
-            chart.setOption(option);
-            const yOf = (value: number) => chart.convertToPixel({ yAxisIndex: 1 }, value) as number;
-            const displayList = chart.getZr().storage.getDisplayList() as {
-                type: string;
-                style?: { text?: string };
-                shape?: { x1?: number; x2?: number; y1?: number; y2?: number };
-            }[];
-            const hasHorizontalAt = (y: number) =>
-                displayList.some((el) => {
-                    const { y1, y2, x1, x2 } = el.shape ?? {};
-                    return (
-                        y1 != null &&
-                        y2 != null &&
-                        x1 != null &&
-                        x2 != null &&
-                        Math.abs(y1 - y) < 1.5 &&
-                        Math.abs(y2 - y) < 1.5 &&
-                        Math.abs(x2 - x1) > 20
-                    );
-                });
-            const labels = new Set(
-                displayList.filter((el) => el.type === 'tspan' && el.style?.text).map((el) => el.style?.text),
-            );
-            for (const value of [1, 2, 3, 7, 18, 19]) {
-                expect(hasHorizontalAt(yOf(value))).toBe(true);
-                expect(labels.has(String(value))).toBe(true);
+        const collect = (height: number) => {
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 900, height });
+            try {
+                chart.setOption(option);
+                const yOf = (value: number) => chart.convertToPixel({ yAxisIndex: 1 }, value) as number;
+                const displayList = chart.getZr().storage.getDisplayList() as {
+                    type: string;
+                    style?: { text?: string };
+                    shape?: { x1?: number; x2?: number; y1?: number; y2?: number };
+                }[];
+                const hasHorizontalAt = (y: number) =>
+                    displayList.some((el) => {
+                        const { y1, y2, x1, x2 } = el.shape ?? {};
+                        return (
+                            y1 != null &&
+                            y2 != null &&
+                            x1 != null &&
+                            x2 != null &&
+                            Math.abs(y1 - y) < 1.5 &&
+                            Math.abs(y2 - y) < 1.5 &&
+                            Math.abs(x2 - x1) > 20
+                        );
+                    });
+                const labels = new Set(
+                    displayList.filter((el) => el.type === 'tspan' && el.style?.text).map((el) => el.style?.text),
+                );
+                return { chart, yOf, hasHorizontalAt, labels };
+            } catch (error) {
+                chart.dispose();
+                throw error;
             }
+        };
+
+        const compact = collect(400);
+        const tall = collect(800);
+        try {
+            for (const value of [1, 2, 3, 7, 18, 19]) {
+                expect(compact.hasHorizontalAt(compact.yOf(value))).toBe(true);
+                expect(tall.hasHorizontalAt(tall.yOf(value))).toBe(true);
+            }
+            const rorLabels = (labels: Set<string | undefined>) =>
+                [...labels].filter(
+                    (text) => text != null && /^-?\d+$/.test(text) && Number(text) <= 20 && Number(text) >= -10,
+                );
+            expect(rorLabels(compact.labels).length).toBeLessThan(rorLabels(tall.labels).length);
         } finally {
-            chart.dispose();
+            compact.chart.dispose();
+            tall.chart.dispose();
         }
     });
 
