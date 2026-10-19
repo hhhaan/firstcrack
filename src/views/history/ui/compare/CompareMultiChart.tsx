@@ -1,11 +1,10 @@
 import { useRoastSettings } from '@features/active-roast';
-import { CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR } from '@features/active-roast/lib/chart-config';
 import {
     buildCompareChartOption,
     type CompareChartSeries,
     compareChannels,
+    compareChartRightMargin,
     compareChartXMax,
-    compareExtraAxisWidth,
 } from '@features/active-roast/lib/chart-option';
 import { useChartZoom } from '@features/active-roast/model/useChartZoom';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
@@ -20,33 +19,30 @@ export type CompareSeries = CompareChartSeries;
 interface CompareMultiChartProps {
     series: CompareSeries[];
     showRoR?: boolean;
+    focusedSessionId: string | null;
 }
 
-const CHANNEL_DASH = { bt: '', et: '6 4', ror: '2 3', rorEt: '5 2 1 2', extra: '10 3 2 3' };
-
-export const CompareMultiChart = ({ series, showRoR = true }: CompareMultiChartProps) => {
+export const CompareMultiChart = ({ series, showRoR = true, focusedSessionId }: CompareMultiChartProps) => {
     const { t } = useTranslation();
     const elRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<echarts.ECharts | null>(null);
+    const renderedFingerprintRef = useRef<string | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const temperatureUnit = useRoastSettings().temperatureUnit;
-    const [hiddenChannels, setHiddenChannels] = useState<Set<string>>(() => new Set());
+    const [selectedChannelKey, setSelectedChannelKey] = useState('bt');
     const active = useMemo(() => series.filter((s) => s.visible !== false && s.points.length > 0), [series]);
     const channels = useMemo(
         () => compareChannels(series, temperatureUnit).filter((channel) => showRoR || channel.kind !== 'ror'),
         [series, temperatureUnit, showRoR],
     );
-    const channelKeys = useMemo(
-        () => channels.filter((channel) => !hiddenChannels.has(channel.key)).map((channel) => channel.key),
-        [channels, hiddenChannels],
-    );
+    const defaultChannel = channels.length > 0 ? channels[0] : undefined;
+    const selectedChannel = channels.find((channel) => channel.key === selectedChannelKey) ?? defaultChannel;
+    const channelKeys = useMemo(() => (selectedChannel ? [selectedChannel.key] : []), [selectedChannel]);
     const plottedChannels = useMemo(
         () => compareChannels(active, temperatureUnit).filter((channel) => channelKeys.includes(channel.key)),
         [active, temperatureUnit, channelKeys],
     );
-    const hasRoR = plottedChannels.some((channel) => channel.kind === 'ror');
-    const rightMargin =
-        (hasRoR ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT) + compareExtraAxisWidth(plottedChannels);
+    const rightMargin = compareChartRightMargin(plottedChannels);
 
     const xMax = useMemo(() => compareChartXMax(active), [active]);
     const {
@@ -70,8 +66,8 @@ export const CompareMultiChart = ({ series, showRoR = true }: CompareMultiChartP
     const dataFingerprint = useMemo(() => JSON.stringify(active), [active]);
     const fingerprint = useMemo(
         () =>
-            `${dataFingerprint}|channels:${JSON.stringify(channelKeys)}|ror:${showRoR}|${resolvedTheme}|unit:${temperatureUnit}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
-        [dataFingerprint, channelKeys, showRoR, resolvedTheme, temperatureUnit, effectiveZoomRange],
+            `${dataFingerprint}|channels:${JSON.stringify(channelKeys)}|focus:${focusedSessionId}|ror:${showRoR}|${resolvedTheme}|unit:${temperatureUnit}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
+        [dataFingerprint, channelKeys, focusedSessionId, showRoR, resolvedTheme, temperatureUnit, effectiveZoomRange],
     );
 
     useEffect(() => {
@@ -79,6 +75,7 @@ export const CompareMultiChart = ({ series, showRoR = true }: CompareMultiChartP
         if (!el) return;
         const chart = echarts.init(el, undefined, { renderer: 'canvas', useDirtyRect: false });
         chartRef.current = chart;
+        renderedFingerprintRef.current = null;
 
         const lastSize = { w: 0, h: 0 };
         const ro = new ResizeObserver(() => {
@@ -98,29 +95,35 @@ export const CompareMultiChart = ({ series, showRoR = true }: CompareMultiChartP
         };
     }, []);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: fingerprint covers series content
     useEffect(() => {
         const chart = chartRef.current;
-        if (!chart) return;
+        if (!chart || renderedFingerprintRef.current === fingerprint) return;
         const xView =
             effectiveZoomRange && effectiveZoomRange.start < effectiveZoomRange.end
                 ? effectiveZoomRange
                 : { start: 0, end: xMax };
-        chart.setOption(buildCompareChartOption(active, showRoR, xView, temperatureUnit, channelKeys), {
-            notMerge: true,
-        });
-    }, [fingerprint]);
+        chart.setOption(
+            buildCompareChartOption(active, showRoR, xView, temperatureUnit, channelKeys, focusedSessionId),
+            {
+                notMerge: true,
+            },
+        );
+        renderedFingerprintRef.current = fingerprint;
+    }, [active, channelKeys, effectiveZoomRange, fingerprint, focusedSessionId, showRoR, temperatureUnit, xMax]);
 
     return (
         <div className="flex flex-col min-[900px]:flex-row">
             <div className="min-w-0 flex-1 p-3">
                 <div className="flex h-6 items-center justify-between px-2">
-                    <span className="text-[10px] text-muted">{t('history.compare.tempAndRor')}</span>
+                    <span className="text-sm font-semibold text-primary">
+                        {selectedChannel?.label}
+                        <span className="ml-2 text-xs font-normal text-secondary">{selectedChannel?.unit}</span>
+                    </span>
                     {effectiveZoomRange && (
                         <button
                             type="button"
                             onClick={() => setZoomRange(null)}
-                            className="flex items-center gap-1 text-[11px] text-secondary underline underline-offset-2 hover:text-primary"
+                            className="flex items-center gap-1 text-xs text-secondary underline underline-offset-2 hover:text-primary"
                         >
                             <RotateCcw size={11} />
                             {t('history.compare.resetZoom')}
@@ -134,24 +137,30 @@ export const CompareMultiChart = ({ series, showRoR = true }: CompareMultiChartP
                     handleChartPointerDown={handleChartPointerDown}
                     handleChartPointerMove={handleChartPointerMove}
                     endChartDrag={endChartDrag}
-                    className="h-[clamp(260px,32vh,380px)] w-full"
-                    ariaLabel={t('history.compare.tempAndRor')}
+                    className="relative h-[clamp(280px,32vh,380px)] w-full"
+                    ariaLabel={`${selectedChannel?.label ?? ''} ${selectedChannel?.unit ?? ''}`.trim()}
                 >
                     <div ref={elRef} className="h-full w-full" />
+                    {plottedChannels.length === 0 && (
+                        <div
+                            role="status"
+                            className="pointer-events-none absolute inset-0 flex items-center justify-center bg-main-bg/90 p-6 text-center text-sm text-secondary"
+                        >
+                            {t('history.compare.noSelectedSensorData')}
+                        </div>
+                    )}
                 </ChartZoomSurface>
             </div>
             <aside
-                className="shrink-0 overflow-y-auto border-t border-border bg-surface/25 p-4 min-[900px]:max-h-[calc(clamp(260px,32vh,380px)+48px)] min-[900px]:w-52 min-[900px]:border-t-0 min-[900px]:border-l"
+                className="shrink-0 overflow-y-auto border-t border-border bg-surface/25 p-4 min-[900px]:max-h-[calc(clamp(280px,32vh,380px)+48px)] min-[900px]:w-56 min-[900px]:border-t-0 min-[900px]:border-l"
                 aria-label={t('history.compare.sensors')}
             >
-                <div className="mb-4 flex items-center gap-2 text-[11px] font-medium text-secondary">
+                <div className="mb-3 flex items-center gap-2 text-sm font-medium text-primary">
                     <SlidersHorizontal size={13} strokeWidth={1.5} />
                     {t('history.compare.sensors')}
-                    <span className="ml-auto font-mono text-[10px] text-muted">
-                        {channelKeys.length}/{channels.length}
-                    </span>
+                    <span className="ml-auto font-mono text-xs text-secondary">{channels.length}</span>
                 </div>
-                <div className="flex flex-wrap gap-x-6 gap-y-4 min-[900px]:flex-col">
+                <div className="flex flex-wrap gap-x-6 gap-y-3 min-[900px]:flex-col">
                     {[
                         { kind: 'temperature', label: t('history.compare.temperatures') },
                         { kind: 'ror', label: 'RoR' },
@@ -161,54 +170,30 @@ export const CompareMultiChart = ({ series, showRoR = true }: CompareMultiChartP
                         if (groupChannels.length === 0) return null;
                         return (
                             <fieldset key={group.kind} className="min-w-36 min-[900px]:min-w-0">
-                                <legend className="mb-1.5 text-[10px] text-muted">{group.label}</legend>
+                                <legend className="mb-1.5 text-xs font-medium text-secondary">{group.label}</legend>
                                 <div className="space-y-1">
                                     {groupChannels.map((channel) => (
                                         <label
                                             key={channel.key}
-                                            className="group relative flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 transition-colors hover:bg-surface"
+                                            className={`relative flex cursor-pointer items-center gap-2 rounded-md border px-2 py-2 transition-colors ${channel.key === selectedChannel?.key ? 'border-border bg-main-bg' : 'border-transparent hover:bg-surface'}`}
                                         >
                                             <input
-                                                type="checkbox"
+                                                type="radio"
+                                                name="history-compare-sensor"
                                                 className="peer sr-only"
-                                                checked={!hiddenChannels.has(channel.key)}
-                                                onChange={() =>
-                                                    setHiddenChannels((previous) => {
-                                                        const next = new Set(previous);
-                                                        if (next.has(channel.key)) next.delete(channel.key);
-                                                        else next.add(channel.key);
-                                                        return next;
-                                                    })
-                                                }
+                                                checked={channel.key === selectedChannel?.key}
+                                                onChange={() => setSelectedChannelKey(channel.key)}
                                             />
                                             <span
                                                 aria-hidden="true"
-                                                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border border-border bg-main-bg text-transparent peer-checked:border-primary peer-checked:bg-primary peer-checked:text-main-bg peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary"
+                                                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border bg-main-bg text-transparent peer-checked:border-primary peer-checked:bg-primary peer-checked:text-main-bg peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary"
                                             >
                                                 <Check size={10} strokeWidth={2.5} />
                                             </span>
-                                            <svg
-                                                width="22"
-                                                height="10"
-                                                className="shrink-0 text-muted peer-checked:text-secondary"
-                                                aria-hidden="true"
-                                            >
-                                                <line
-                                                    x1="0"
-                                                    x2="22"
-                                                    y1="5"
-                                                    y2="5"
-                                                    stroke="currentColor"
-                                                    strokeWidth="1.5"
-                                                    strokeDasharray={CHANNEL_DASH[channel.source]}
-                                                />
-                                            </svg>
-                                            <span className="min-w-0 flex-1 text-[11px] text-muted peer-checked:text-primary">
+                                            <span className="min-w-0 flex-1 text-[13px] text-secondary peer-checked:font-medium peer-checked:text-primary">
                                                 <span className="block break-words">{channel.label}</span>
-                                                {channel.source === 'extra' && (
-                                                    <span className="block text-[9px] text-muted">{channel.unit}</span>
-                                                )}
                                             </span>
+                                            <span className="shrink-0 text-[11px] text-secondary">{channel.unit}</span>
                                         </label>
                                     ))}
                                 </div>

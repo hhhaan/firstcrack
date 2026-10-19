@@ -3,12 +3,12 @@ import { summarizeSessionEvents } from '@entities/roast-profile';
 import { computePhaseSegments, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
+import { COMPARE_COLORS, COMPARE_LINE_DASHES } from '@shared/lib/compare-style';
 import { formatDateShort } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { ChartNoAxesCombined, LoaderCircle, X } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +25,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
     const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+    const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
 
     const curveQueries = useHistoryCharts(
         sessions.map((s) => s.tsv_path ?? null),
@@ -74,9 +75,10 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 const points = curveQueries[i]?.data ?? [];
                 return {
                     id: s.id,
-                    label: sessionBeanName(s) ?? formatDateShort(s.roasted_at),
+                    label: `${String(i + 1).padStart(2, '0')} · ${sessionBeanName(s) ?? formatDateShort(s.roasted_at)}`,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     points,
+                    lineDash: COMPARE_LINE_DASHES[i % COMPARE_LINE_DASHES.length],
                     markers: eventsBySession[i]
                         .filter((e) => e.type !== 'Charge' && e.type !== 'End')
                         .map((e) => ({ timeSec: e.time_sec, event: e.type })),
@@ -106,7 +108,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                     <h2 id="session-compare-title" className="text-xl font-medium tracking-[-0.4px] text-primary">
                         {t('history.compare.title', { count: sessions.length })}
                     </h2>
-                    <p className="mt-1 text-xs text-muted">{t('history.compare.workspaceHint')}</p>
+                    <p className="mt-1 text-[13px] text-secondary">{t('history.compare.workspaceHint')}</p>
                 </div>
                 <button
                     type="button"
@@ -124,12 +126,12 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 >
                     <div className="space-y-3 border-b border-border px-4 py-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h3 id="compare-curves-title" className="text-[13px] font-medium text-primary">
+                            <h3 id="compare-curves-title" className="text-sm font-semibold text-primary">
                                 {t('history.compare.curveOverlay')}
                             </h3>
-                            <span className="text-[11px] text-muted">{t('history.compare.chartHint')}</span>
+                            <span className="text-xs text-secondary">{t('history.compare.chartHint')}</span>
                         </div>
-                        <CompareSessionLegend items={items} onToggle={onToggle} />
+                        <CompareSessionLegend items={items} onToggle={onToggle} onFocusSession={setFocusedSessionId} />
                     </div>
                     {isLoading ? (
                         <div role="status" className="flex h-80 items-center justify-center gap-2 text-xs text-muted">
@@ -137,7 +139,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                             {t('history.expanded.chartLoading')}
                         </div>
                     ) : hasAnyCurve ? (
-                        <CompareMultiChart series={chartSeries} />
+                        <CompareMultiChart series={chartSeries} focusedSessionId={focusedSessionId} />
                     ) : (
                         <div
                             role="status"

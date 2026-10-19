@@ -20,7 +20,7 @@ export const ComparePhaseBar = ({ segments, totalSec, maxSec }: ComparePhaseBarP
 
     return (
         <div
-            className="flex h-7 overflow-hidden rounded"
+            className="flex h-8 overflow-hidden rounded"
             style={{ width: `${Math.min(100, (totalSec / maxSec) * 100)}%` }}
         >
             {segments.map((segment) => {
@@ -36,7 +36,10 @@ export const ComparePhaseBar = ({ segments, totalSec, maxSec }: ComparePhaseBarP
                     >
                         <span className="sr-only">{label}</span>
                         {pct >= 18 && (
-                            <span aria-hidden="true" className="truncate px-1 font-mono text-[10px] text-secondary">
+                            <span
+                                aria-hidden="true"
+                                className="truncate px-1 font-mono text-[11px] font-medium text-secondary"
+                            >
                                 {formatElapsed(segment.durationSec)}
                             </span>
                         )}

@@ -1459,12 +1459,13 @@
             "level": "Level",
             "weight": "Weight",
             "workspaceHint": "在同一视图中比较烘焙曲线与各批次结果。",
-            "chartHint": "点击批次以显示或隐藏曲线",
+            "chartHint": "悬停以突出显示 · 点击切换显示",
             "metrics": "批次比较",
             "batch": "烘焙批次",
-            "sensors": "显示的传感器",
+            "sensors": "比较传感器",
             "temperatures": "温度",
-            "resetZoom": "重置缩放"
+            "resetZoom": "重置缩放",
+            "noSelectedSensorData": "当前显示的批次中没有此传感器的记录。"
         },
         "table": {
             "date": "日期",

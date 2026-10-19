@@ -1,6 +1,7 @@
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildCompareChartOption, type CompareChartSeries } from './compare';
+import { compareChannels } from './compare-channels';
 
 const series: CompareChartSeries[] = [
     {
@@ -89,6 +90,42 @@ describe('buildCompareChartOption display unit', () => {
         expect((option.series as { name: string }[]).map((s) => s.name)).toEqual(['bt|a', 'et|a', 'ror|a']);
     });
 
+    it('compares one sensor on its own axis with full-contrast curves and batch end labels', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
+
+        const rorOption = buildCompareChartOption(series, true, { start: 0, end: 60 }, 'F', ['ror']);
+        expect(rorOption.yAxis).toMatchObject([{ name: '°F/min', position: 'left' }]);
+        expect(rorOption.yAxis).toHaveLength(1);
+        expect(rorOption.series).toMatchObject([
+            {
+                name: 'ror|a',
+                yAxisIndex: 0,
+                lineStyle: { width: 3, type: 'solid', opacity: 1 },
+                endLabel: { show: true, fontSize: 13 },
+                data: [[0, toDisplayRoR(10, 'F')]],
+            },
+        ]);
+
+        const input: CompareChartSeries[] = [
+            {
+                ...series[0],
+                points: [
+                    {
+                        ...series[0].points[0],
+                        extraReadings: [{ id: 'pressure', label: 'Pressure', unit: 'Pa', value: 0 }],
+                    },
+                ],
+            },
+        ];
+        const pressure = compareChannels(input, 'C').find((channel) => channel.source === 'extra');
+        expect(pressure).toBeDefined();
+        const option = buildCompareChartOption(input, true, { start: 0, end: 60 }, 'C', [pressure?.key ?? '']);
+        expect(option.yAxis).toMatchObject([{ name: 'Pa', position: 'left', scale: true }]);
+        expect(option.yAxis).toHaveLength(1);
+        expect(option.series).toMatchObject([{ yAxisIndex: 0, data: [[0, 0]] }]);
+    });
+
     it('plots BT/RoR via toDisplayTemp/toDisplayRoR', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
@@ -100,6 +137,25 @@ describe('buildCompareChartOption display unit', () => {
 
         expect(bt?.data[0]?.[1]).toBe(toDisplayTemp(200, 'F'));
         expect(ror?.data[0]?.[1]).toBe(toDisplayRoR(10, 'F'));
+    });
+
+    it('keeps a batch line pattern when other batches are hidden', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
+        const batch = { ...series[0], lineDash: [10, 5] };
+        const option = buildCompareChartOption([batch], true, { start: 0, end: 60 }, 'C', ['bt']);
+        expect(option.series).toMatchObject([{ lineStyle: { type: [10, 5], opacity: 1 } }]);
+    });
+
+    it('brings the focused batch above overlapping curves without changing their data', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
+        const input = [series[0], { ...series[0], id: 'b' }];
+        const option = buildCompareChartOption(input, true, { start: 0, end: 60 }, 'C', ['bt'], 'a');
+        expect(option.series).toMatchObject([
+            { z: 5, lineStyle: { width: 4, opacity: 1 }, endLabel: { opacity: 1 }, data: [[0, 200]] },
+            { z: 2, lineStyle: { width: 3, opacity: 0.15 }, endLabel: { opacity: 0.3 }, data: [[0, 200]] },
+        ]);
     });
 
     it('keeps session curve colors while resolving read-only marker categories', () => {

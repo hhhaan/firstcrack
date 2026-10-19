@@ -2,7 +2,7 @@ import { expect, goNav, test } from '../fixtures/app';
 import { E2E_USER } from '../fixtures/constants';
 import type { MockDb } from '../fixtures/mock-db';
 
-const BATCHES = ['Ethiopia Guji', 'Colombia Huila', 'Kenya Kirinyaga'];
+const BATCHES = ['Ethiopia Guji', 'Colombia Huila', 'Kenya Kirinyaga', 'Brazil Cerrado'];
 
 function seedCompare(db: MockDb, withCurves = true) {
     BATCHES.forEach((name, index) => {
@@ -19,10 +19,14 @@ function seedCompare(db: MockDb, withCurves = true) {
                       ((112 + index * 2) * (1 - Math.exp(-(time - 70) / 260))) / (1 - Math.exp(-(duration - 70) / 260));
             const et = 190 + 45 * (1 - Math.exp(-time / 240)) + index * 3;
             const ror = time < 70 ? 0 : 25 * Math.exp(-(time - 70) / 300);
-            const extra = JSON.stringify([
-                { id: 'inlet', label: 'Inlet', unit: '°C', value: et + 15 },
-                { id: 'pressure', label: 'Pressure', unit: 'Pa', value: 80 - time * 0.04 },
-            ]);
+            const extra = JSON.stringify(
+                index === 3
+                    ? []
+                    : [
+                          { id: 'inlet', label: 'Inlet', unit: '°C', value: et + 15 },
+                          { id: 'pressure', label: 'Pressure', unit: 'Pa', value: 80 - time * 0.04 },
+                      ],
+            );
             rows.push(
                 [time, bt.toFixed(1), et.toFixed(1), ror.toFixed(1), 50, 40, 50, 50, '', '', '4', '', '', extra].join(
                     '\t',
@@ -57,8 +61,8 @@ test('history compare: batch visibility, recorded sensors, zoom and responsive t
     await goNav(page, 'history');
     await page.getByRole('button', { name: 'Compare', exact: true }).click();
     for (const name of BATCHES) await page.getByText(name, { exact: true }).first().click();
-    await page.getByRole('button', { name: 'Compare (3)' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Compare Sessions (3)' });
+    await page.getByRole('button', { name: 'Compare (4)' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Compare Sessions (4)' });
     await expect(dialog.locator('canvas').first()).toBeVisible();
 
     const row = dialog.getByRole('row').filter({ hasText: 'Ethiopia Guji' });
@@ -66,28 +70,73 @@ test('history compare: batch visibility, recorded sensors, zoom and responsive t
     await expect(row).toContainText('207.0°C');
     await expect(row).toContainText('20.0%');
     await expect(row).toContainText('16.7%');
-    await expect(dialog.getByRole('checkbox')).toHaveCount(6);
-    for (const name of ['BT', 'ET', 'BT RoR', 'ET RoR', 'Inlet °C', 'Pressure Pa']) {
-        await expect(dialog.getByRole('checkbox', { name, exact: true })).toBeChecked();
+    await expect(dialog.getByRole('radio')).toHaveCount(6);
+    const bt = dialog.getByRole('radio', { name: 'BT °C', exact: true });
+    await expect(bt).toBeChecked();
+    for (const name of ['ET °C', 'BT RoR °C/min', 'ET RoR °C/min', 'Inlet °C', 'Pressure Pa']) {
+        await expect(dialog.getByRole('radio', { name, exact: true })).not.toBeChecked();
     }
+    const ratios = await dialog
+        .getByRole('group', { name: '4 selected' })
+        .getByRole('button')
+        .evaluateAll((buttons) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 1;
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Canvas is unavailable');
+            const luminance = (color: string) => {
+                context.fillStyle = color;
+                context.fillRect(0, 0, 1, 1);
+                const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+                const linear = [r, g, b].map((value) => {
+                    const channel = value / 255;
+                    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+                });
+                return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+            };
+            const background = luminance(
+                getComputedStyle(document.documentElement).getPropertyValue('--color-main-bg'),
+            );
+            return buttons.map((button) => {
+                const foreground = luminance(getComputedStyle(button).borderLeftColor);
+                return (Math.max(background, foreground) + 0.05) / (Math.min(background, foreground) + 0.05);
+            });
+        });
+    expect(ratios).toHaveLength(4);
+    for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
     await page.screenshot({ path: testInfo.outputPath('compare-light.png'), animations: 'disabled' });
 
-    const inlet = dialog.getByRole('checkbox', { name: /^Inlet/ });
+    const inlet = dialog.getByRole('radio', { name: 'Inlet °C', exact: true });
     await inlet.focus();
     await page.keyboard.press('Space');
-    await expect(inlet).not.toBeChecked();
+    await expect(inlet).toBeChecked();
+    await expect(bt).not.toBeChecked();
+    const pressure = dialog.getByRole('radio', { name: 'Pressure Pa', exact: true });
+    await pressure.focus();
+    await page.keyboard.press('Space');
+    await expect(dialog.getByRole('region', { name: 'Pressure Pa' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('compare-pressure.png'), animations: 'disabled' });
 
     const first = dialog.getByRole('button', { name: /^Ethiopia Guji/ });
     const second = dialog.getByRole('button', { name: /^Colombia Huila/ });
     const third = dialog.getByRole('button', { name: /^Kenya Kirinyaga/ });
+    const fourth = dialog.getByRole('button', { name: /^Brazil Cerrado/ });
+    await first.focus();
+    await page.screenshot({ path: testInfo.outputPath('compare-focus.png'), animations: 'disabled' });
+    await pressure.focus();
     await first.click();
     await second.click();
+    await third.click();
     await expect(first).toHaveAttribute('aria-pressed', 'false');
-    await expect(third).toBeDisabled();
+    await expect(fourth).toBeDisabled();
+    await expect(dialog.getByRole('status')).toContainText('No recorded values for this sensor');
     await first.click();
     await second.click();
+    await third.click();
+    await bt.focus();
+    await page.keyboard.press('Space');
 
-    await dialog.getByRole('region', { name: 'Temp & RoR' }).hover();
+    await dialog.getByRole('region', { name: 'BT °C', exact: true }).hover();
     await page.mouse.wheel(0, -100);
     await dialog.getByRole('button', { name: 'Reset zoom' }).click();
     await expect(dialog.getByRole('button', { name: 'Reset zoom' })).toHaveCount(0);
@@ -96,6 +145,8 @@ test('history compare: batch visibility, recorded sensors, zoom and responsive t
     await inlet.focus();
     await page.keyboard.press('Space');
     await expect(inlet).toBeChecked();
+    await bt.focus();
+    await page.keyboard.press('Space');
     await page.screenshot({ path: testInfo.outputPath('compare-dark.png'), animations: 'disabled' });
     for (const viewport of [
         { width: 1024, height: 680 },

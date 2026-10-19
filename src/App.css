@@ -84,6 +84,11 @@
 
 /* ── Sensor & chart tokens (light) ──────────────────────────── */
 :root {
+    --color-compare-blue: oklch(0.54 0.14 250);
+    --color-compare-orange: oklch(0.58 0.15 50);
+    --color-compare-purple: oklch(0.53 0.17 300);
+    --color-compare-teal: oklch(0.52 0.09 175);
+
     --color-sensor-bt: oklch(0.6 0.18 155);
     --color-sensor-bt-target: oklch(0.6 0.18 155 / 0.55);
     --color-sensor-et: oklch(0.6 0.17 225);
@@ -148,6 +153,11 @@
 
 /* ── Dark theme ──────────────────────────────────────────────── */
 html.dark {
+    --color-compare-blue: oklch(0.78 0.1 250);
+    --color-compare-orange: oklch(0.78 0.13 50);
+    --color-compare-purple: oklch(0.78 0.13 300);
+    --color-compare-teal: oklch(0.78 0.11 175);
+
     --color-main-bg: #181d21;
     --color-roast-bg: #181d21;
     --color-surface: #181d21;

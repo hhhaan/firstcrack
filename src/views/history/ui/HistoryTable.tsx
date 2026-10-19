@@ -2,13 +2,13 @@ import { sessionBeanName } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
-import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -302,7 +302,13 @@ export const HistoryTable = ({
                                                     : { borderColor: 'var(--color-muted)' }
                                             }
                                         >
-                                            {compareIdx >= 0 && <Check size={11} strokeWidth={3} color="#fff" />}
+                                            {compareIdx >= 0 && (
+                                                <Check
+                                                    size={11}
+                                                    strokeWidth={3}
+                                                    className="text-white dark:text-palette-black"
+                                                />
+                                            )}
                                         </div>
                                     </td>
                                 )}

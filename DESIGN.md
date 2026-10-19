@@ -83,6 +83,17 @@
 
 Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
+### Compare colors
+
+비교 화면의 배치 색은 선택 목록·범례·곡선·수치표에서 동일하게 사용한다. 센서와 페이즈 색을 배치 구분에 재사용하지 않는다.
+
+| Token | Light | Dark |
+|---|---|---|
+| `--color-compare-blue` | `oklch(0.54 0.14 250)` | `oklch(0.78 0.1 250)` |
+| `--color-compare-orange` | `oklch(0.58 0.15 50)` | `oklch(0.78 0.13 50)` |
+| `--color-compare-purple` | `oklch(0.53 0.17 300)` | `oklch(0.78 0.13 300)` |
+| `--color-compare-teal` | `oklch(0.52 0.09 175)` | `oklch(0.78 0.11 175)` |
+
 ### Sensor colors
 
 | Token | Light | Dark | 의미 |

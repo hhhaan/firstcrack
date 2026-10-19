@@ -1137,12 +1137,13 @@
             "level": "Level",
             "weight": "Weight",
             "workspaceHint": "로스팅 곡선과 배치별 결과를 한눈에 비교하세요.",
-            "chartHint": "배치를 누르면 곡선을 켜고 끌 수 있습니다",
+            "chartHint": "마우스를 올려 강조 · 클릭하여 표시 전환",
             "metrics": "배치별 비교",
             "batch": "로스팅 배치",
-            "sensors": "표시할 센서",
+            "sensors": "비교할 센서",
             "temperatures": "온도",
-            "resetZoom": "전체 보기"
+            "resetZoom": "전체 보기",
+            "noSelectedSensorData": "표시 중인 배치에 해당 센서 기록이 없습니다."
         },
         "cupping": {
             "title": "커핑",

@@ -1459,12 +1459,13 @@
             "level": "Level",
             "weight": "Weight",
             "workspaceHint": "焙煎曲線とバッチごとの結果をまとめて比較できます。",
-            "chartHint": "バッチを選択して曲線の表示を切り替えます",
+            "chartHint": "ホバーで強調 · クリックで表示切替",
             "metrics": "バッチ比較",
             "batch": "焙煎バッチ",
-            "sensors": "表示するセンサー",
+            "sensors": "比較するセンサー",
             "temperatures": "温度",
-            "resetZoom": "全体を表示"
+            "resetZoom": "全体を表示",
+            "noSelectedSensorData": "表示中のバッチにはこのセンサーの記録がありません。"
         },
         "table": {
             "date": "日付",

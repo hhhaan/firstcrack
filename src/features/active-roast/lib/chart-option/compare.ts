@@ -5,6 +5,7 @@ import {
     ROR_Y_MIN,
     TEMP_CURVE_WIDTH,
     TEMP_Y_INTERVAL,
+    TEMP_Y_LABEL_INTERVAL,
 } from '@features/active-roast/lib/chart-config';
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
@@ -35,6 +36,7 @@ export type CompareChartSeries = {
     /** raw color or CSS var(--…) — resolved here for canvas */
     color: string;
     points: ComparePoint[];
+    lineDash?: number[];
     markers?: { timeSec: number; event: string }[];
     visible?: boolean;
 };
@@ -51,6 +53,13 @@ const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 export const compareChartXMax = (active: CompareChartSeries[]): number =>
     Math.ceil(Math.max(60, ...active.flatMap((s) => s.points.map((p) => p.t))) / 30) * 30;
 
+/** Shared with pointer zoom so end labels stay outside the draggable plot. */
+export const compareChartRightMargin = (channels: CompareChannel[]): number =>
+    channels.length === 1
+        ? 192
+        : computeGridMargins(channels.some((channel) => channel.kind === 'ror')).rightMargin +
+          compareExtraAxisWidth(channels);
+
 /** Multi-session overlay chart (History compare) — same visual grammar as the live roast chart. */
 export const buildCompareChartOption = (
     active: CompareChartSeries[],
@@ -58,6 +67,7 @@ export const buildCompareChartOption = (
     xView: { start: number; end: number },
     temperatureUnit: TemperatureUnit = 'C',
     channelKeys?: string[],
+    focusedSessionId: string | null = null,
 ): EChartsOption => {
     const colors = getResolvedChartColors();
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
@@ -66,10 +76,11 @@ export const buildCompareChartOption = (
         (channel) => (showRoR || channel.kind !== 'ror') && (channelKeys == null || channelKeys.includes(channel.key)),
     );
     const hasRoR = channels.some((channel) => channel.kind === 'ror');
+    const focusedChannel = channels.length === 1 ? channels[0] : undefined;
     const otherUnits = compareOtherUnits(channels);
     const margins = computeGridMargins(hasRoR);
     const leftMargin = margins.leftMargin;
-    const rightMargin = margins.rightMargin + compareExtraAxisWidth(channels);
+    const rightMargin = compareChartRightMargin(channels);
     const topMargin = margins.topMargin;
     const plotSeries = active;
     const allBt = plotSeries.flatMap((s) =>
@@ -117,8 +128,42 @@ export const buildCompareChartOption = (
     // modal chart: no phase-bar strip below the plot, so reclaim the tall bottom margin
     (grid as { bottom?: number }[])[0].bottom = 30;
 
-    const plotAxes = (yAxis as object[]).slice(0, hasRoR ? 2 : 1);
-    for (const [index, unit] of otherUnits.entries()) {
+    const baseAxes = Array.isArray(yAxis) ? yAxis : [];
+    const plotAxes = baseAxes.slice(0, hasRoR ? 2 : 1);
+    if (focusedChannel) {
+        const candidate = baseAxes.find((axis) =>
+            focusedChannel.kind === 'ror' ? axis.position === 'right' : axis.position !== 'right',
+        );
+        const base = focusedChannel.kind !== 'other' && candidate?.type === 'value' ? candidate : {};
+        plotAxes.splice(0, plotAxes.length, {
+            ...base,
+            type: 'value',
+            position: 'left',
+            name: focusedChannel.unit,
+            nameLocation: 'end',
+            nameGap: 14,
+            nameTextStyle: { ...axisNameStyle, fontSize: 12 },
+            scale: true,
+            axisLabel: axisLabelStyle,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisPointer: buildYAxisPointer(crossLineStyle),
+            splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+            splitNumber: 5,
+            interval: focusedChannel.kind === 'temperature' ? TEMP_Y_LABEL_INTERVAL : undefined,
+            ...(focusedChannel.kind === 'temperature'
+                ? {
+                      min: Math.floor(tempYMin / TEMP_Y_LABEL_INTERVAL) * TEMP_Y_LABEL_INTERVAL,
+                      max: Math.ceil(tempYMax / TEMP_Y_LABEL_INTERVAL) * TEMP_Y_LABEL_INTERVAL,
+                  }
+                : {}),
+        });
+    }
+    for (const axis of Array.isArray(xAxis) ? xAxis : []) {
+        axis.minorSplitLine = { show: false };
+        axis.axisLabel = { ...axis.axisLabel, fontSize: 12, hideOverlap: true };
+    }
+    for (const [index, unit] of (focusedChannel ? [] : otherUnits).entries()) {
         plotAxes.push({
             type: 'value',
             position: 'right',
@@ -132,12 +177,16 @@ export const buildCompareChartOption = (
             axisPointer: buildYAxisPointer(crossLineStyle),
         });
     }
+    for (const axis of plotAxes) {
+        axis.axisLabel = { ...axis.axisLabel, fontSize: 12 };
+    }
     const resolved = new Map(plotSeries.map((s) => [s.id, resolveCssColor(s.color)]));
     const series: object[] = [];
     const legend = new Map<string, { session: CompareChartSeries; channel: CompareChannel }>();
 
     for (const s of plotSeries) {
         const color = resolved.get(s.id) as string;
+        const dimmed = focusedSessionId !== null && focusedSessionId !== s.id;
         for (const channel of channels) {
             const data = s.points.map((p) => [p.t, compareChannelValue(p, channel, temperatureUnit)]);
             if (!data.some((point) => point[1] !== null)) continue;
@@ -153,26 +202,45 @@ export const buildCompareChartOption = (
                 name,
                 type: 'line',
                 xAxisIndex: 0,
-                yAxisIndex: axisIndex,
-                z: channel.kind === 'ror' ? 1 : 2,
+                yAxisIndex: focusedChannel ? 0 : axisIndex,
+                z: focusedSessionId === s.id ? 5 : channel.kind === 'ror' ? 1 : 2,
                 data,
                 lineStyle: {
                     color,
-                    width: TEMP_CURVE_WIDTH,
-                    type:
-                        channel.source === 'bt'
-                            ? 'solid'
-                            : channel.source === 'et'
-                              ? 'dashed'
-                              : channel.source === 'ror'
-                                ? 'dotted'
-                                : channel.source === 'rorEt'
-                                  ? [5, 2, 1, 2]
-                                  : [10, 3, 2, 3],
-                    opacity: channel.kind === 'ror' ? 0.65 : 1,
+                    width: focusedSessionId === s.id ? 4 : focusedChannel ? 3 : TEMP_CURVE_WIDTH,
+                    type: focusedChannel
+                        ? s.lineDash?.length
+                            ? s.lineDash
+                            : 'solid'
+                        : channel.source === 'bt'
+                          ? 'solid'
+                          : channel.source === 'et'
+                            ? 'dashed'
+                            : channel.source === 'ror'
+                              ? 'dotted'
+                              : channel.source === 'rorEt'
+                                ? [5, 2, 1, 2]
+                                : [10, 3, 2, 3],
+                    opacity: dimmed ? 0.15 : !focusedChannel && channel.kind === 'ror' ? 0.65 : 1,
                 },
                 itemStyle: { color },
                 ...lineSeriesBase,
+                endLabel: {
+                    show: !!focusedChannel,
+                    formatter: () => s.label,
+                    color: colors.markerLabelColor,
+                    backgroundColor: colors.tooltipBg,
+                    borderColor: color,
+                    borderWidth: 1,
+                    padding: [4, 6],
+                    fontSize: 13,
+                    fontWeight: 500,
+                    width: 148,
+                    overflow: 'truncate',
+                    distance: 10,
+                    opacity: dimmed ? 0.3 : 1,
+                },
+                labelLayout: { moveOverlap: 'shiftY' },
                 markPoint:
                     channel.source === 'bt' && s.markers?.length
                         ? {
@@ -210,14 +278,14 @@ export const buildCompareChartOption = (
         }[];
         const t = list[0]?.axisValue;
         if (t == null || !Number.isFinite(t)) return '';
-        let html = `<div style="font-weight:500;color:${colors.tooltipTimeColor};margin-bottom:6px;font-family:monospace">${fmtSec(Number(t))}</div>`;
+        let html = `<div style="font-weight:500;color:${colors.axisLabel};margin-bottom:8px;font-family:monospace">${fmtSec(Number(t))}</div>`;
         for (const p of list) {
             const item = legend.get(p.seriesName ?? '');
             const value = Array.isArray(p.value) ? p.value[1] : p.value;
             if (!item || value == null || !Number.isFinite(value)) continue;
-            html += `<div style="display:flex;align-items:center;gap:6px;margin-top:3px">
-                <span style="width:8px;height:8px;border-radius:2px;background:${resolved.get(item.session.id)}"></span>
-                <span style="color:${colors.tooltipTimeColor}">${escapeHtml(item.session.label)} · ${escapeHtml(item.channel.label)}</span>
+            html += `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                <span style="width:16px;height:3px;border-radius:2px;background:${resolved.get(item.session.id)}"></span>
+                <span style="color:${colors.markerLabelColor}">${escapeHtml(item.session.label)} · ${escapeHtml(item.channel.label)}</span>
                 <span style="font-weight:600">${value.toFixed(1)}${escapeHtml(item.channel.unit)}</span>
             </div>`;
         }
@@ -236,7 +304,7 @@ export const buildCompareChartOption = (
             borderWidth: 1,
             borderColor: colors.tooltipBorder,
             extraCssText: 'box-shadow: none;',
-            textStyle: { fontSize: 12 },
+            textStyle: { fontSize: 14, color: colors.markerLabelColor },
             axisPointer: buildTooltipCrossPointer(crossLineStyle),
             formatter,
         },

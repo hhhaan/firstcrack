@@ -29,17 +29,17 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
     return (
         <section aria-labelledby="compare-metrics-title">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h3 id="compare-metrics-title" className="text-[13px] font-medium text-primary">
+                <h3 id="compare-metrics-title" className="text-sm font-semibold text-primary">
                     {t('history.compare.metrics')}
                 </h3>
-                <div className="flex gap-4 text-[10px] text-muted">
+                <div className="flex gap-4 text-xs text-secondary">
                     {[
                         ['Drying', 'bg-(--color-phase-drying)'],
                         ['Maillard', 'bg-(--color-phase-maillard)'],
                         ['Development', 'bg-(--color-phase-development)'],
                     ].map(([name, color]) => (
                         <span key={name} className="flex items-center gap-1.5">
-                            <span className={`h-1.5 w-1.5 rounded-sm ${color}`} />
+                            <span className={`h-2.5 w-2.5 rounded-sm ${color}`} />
                             {t(`history.compare.phase${name}`)}
                         </span>
                     ))}
@@ -47,7 +47,7 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
             </div>
             <div className="overflow-x-auto rounded-xl border border-border">
                 <table className="w-full min-w-[1000px] border-collapse text-left">
-                    <thead className="bg-surface/45 text-[11px] font-medium text-muted">
+                    <thead className="bg-surface/45 text-[13px] font-medium text-secondary">
                         <tr className="border-b border-border">
                             <th scope="col" className="w-[24%] px-4 py-3 font-medium">
                                 {t('history.compare.batch')}
@@ -76,20 +76,23 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
                         {items.map((item, index) => {
                             const { session, metrics } = item;
                             return (
-                                <tr
-                                    key={session.id}
-                                    className={`border-b border-border-subtle last:border-b-0 ${item.visible ? '' : 'opacity-45'}`}
-                                >
+                                <tr key={session.id} className="border-b border-border-subtle last:border-b-0">
                                     <th scope="row" className="px-4 py-4 font-normal">
                                         <div className="flex items-start gap-3">
-                                            <span className="mt-0.5 font-mono text-xs" style={{ color: item.color }}>
+                                            <span
+                                                className="flex h-8 w-10 shrink-0 items-center justify-center rounded border-l-4 font-mono text-sm font-semibold text-primary"
+                                                style={{
+                                                    borderColor: item.color,
+                                                    backgroundColor: `color-mix(in srgb, ${item.color} 12%, transparent)`,
+                                                }}
+                                            >
                                                 {String(index + 1).padStart(2, '0')}
                                             </span>
                                             <div className="min-w-0">
-                                                <div className="text-xs font-medium text-primary">
+                                                <div className="text-sm font-semibold text-primary">
                                                     {sessionBeanName(session) ?? '—'}
                                                 </div>
-                                                <div className="mt-1 text-[10px] text-muted">
+                                                <div className="mt-1 text-xs text-secondary">
                                                     {formatDateShort(session.roasted_at)}
                                                     {session.roast_profiles?.name &&
                                                         ` · ${session.roast_profiles.name}`}
@@ -97,27 +100,27 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
                                             </div>
                                         </div>
                                     </th>
-                                    <td className="px-3 py-4 font-mono text-[13px] text-primary">
+                                    <td className="px-3 py-4 font-mono text-[15px] font-semibold text-primary">
                                         {formatDuration(metrics.roastDurationSec)}
                                     </td>
-                                    <td className="px-3 py-4 font-mono text-[13px] text-primary">
+                                    <td className="px-3 py-4 font-mono text-[15px] font-semibold text-primary">
                                         {formatTemp(item.chargeBt, unit)}
                                     </td>
                                     <td className="px-3 py-4">
-                                        <div className="font-mono text-[13px] text-primary">
+                                        <div className="font-mono text-[15px] font-semibold text-primary">
                                             {formatTemp(item.dropBt, unit)}
                                         </div>
-                                        <div className="mt-1 whitespace-nowrap text-[10px] text-muted">
+                                        <div className="mt-1 whitespace-nowrap text-xs text-secondary">
                                             ET <span className="font-mono">{formatTemp(item.dropEt, unit)}</span>
                                         </div>
                                     </td>
                                     <td className="px-3 py-4">
-                                        <div className="font-mono text-[13px] text-primary">
+                                        <div className="font-mono text-[15px] font-semibold text-primary">
                                             {metrics.dtrPct != null ? `${metrics.dtrPct.toFixed(1)}%` : '—'}
                                         </div>
                                         {metrics.rollingDevPct != null && (
                                             <div
-                                                className="mt-1 whitespace-nowrap text-[10px] text-muted"
+                                                className="mt-1 whitespace-nowrap text-xs text-secondary"
                                                 title={t('history.compare.dtrRolling')}
                                             >
                                                 Rolling{' '}
@@ -131,7 +134,7 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
                                             totalSec={metrics.roastDurationSec ?? 0}
                                             maxSec={maxSec}
                                         />
-                                        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted">
+                                        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-secondary">
                                             {['FC Start', 'Drop'].map((type) => {
                                                 const event = item.events.find((entry) => entry.type === type);
                                                 return (
@@ -146,10 +149,10 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
                                         </div>
                                     </td>
                                     <td className="px-4 py-4 text-right">
-                                        <div className="whitespace-nowrap font-mono text-[13px] text-primary">
+                                        <div className="whitespace-nowrap font-mono text-[15px] font-semibold text-primary">
                                             {session.weight_grams.toLocaleString()} g
                                         </div>
-                                        <div className="mt-1 text-[10px] text-muted" title={t('history.compare.level')}>
+                                        <div className="mt-1 text-xs text-secondary" title={t('history.compare.level')}>
                                             {session.roast_level ?? '—'}
                                         </div>
                                     </td>
