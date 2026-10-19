@@ -22,11 +22,9 @@ export const DashboardHeader = ({ onNavigate }: DashboardHeaderProps) => {
                     data-testid="dashboard-greeting"
                     className="mb-2 font-(--font-display) text-2xl font-medium leading-8 tracking-[0.24px] text-primary"
                 >
-                    {t('sidebar.nav.dashboard')}
+                    {t(`dashboard.greeting.${getGreeting()}`)}
                 </h1>
                 <p className="flex flex-wrap items-center gap-2 text-xs font-normal text-muted">
-                    {t(`dashboard.greeting.${getGreeting()}`)}
-                    <span aria-hidden="true">·</span>
                     {new Date().toLocaleDateString(localeForDate(), {
                         weekday: 'long',
                         month: 'long',
