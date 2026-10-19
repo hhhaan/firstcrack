@@ -125,8 +125,8 @@ export const applyChartAxisSettings = (
     if (rorAxis?.type === 'value') {
         const ticks = settings.rorTicksC?.map((value) => Number(toDisplayRoR(value, temperatureUnit).toFixed(6)));
         const customValues = ticks?.length ? ticks : undefined;
-        rorAxis.axisTick = { ...rorAxis.axisTick, customValues };
-        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true };
+        rorAxis.axisTick = { ...rorAxis.axisTick, customValues, show: Boolean(customValues) };
+        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true, verticalAlign: 'middle' };
         if (customValues) {
             rorAxis.axisLabel.formatter = formatTick;
         } else if (settings.rorGridInterval && settings.rorGridInterval > 0) {

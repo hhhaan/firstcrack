@@ -209,17 +209,14 @@ it('uses fixed axis defaults, validates intervals, and restores persisted choice
         rorTickMode: 'interval',
         rorGridInterval: 15,
     });
-    expect(normalizeRoastSettings({ rorGridInterval: 6 }).rorGridInterval).toBe(5);
-    expect(normalizeRoastSettings({ rorGridInterval: 8 }).rorGridInterval).toBe(10);
-    expect(normalizeRoastSettings({ rorGridInterval: 4 }).rorGridInterval).toBe(5);
-    expect(normalizeRoastSettings({ rorGridInterval: 0.1 }).rorGridInterval).toBe(5);
-    expect(normalizeRoastSettings({ rorGridInterval: 1 }).rorGridInterval).toBe(5);
+    for (const interval of [1, 2, 3, 4, 5, 6, 8]) {
+        expect(normalizeRoastSettings({ rorGridInterval: interval }).rorGridInterval).toBe(interval);
+    }
+    expect(normalizeRoastSettings({ rorGridInterval: 0.1 }).rorGridInterval).toBe(1);
     expect(normalizeRoastSettings({ rorGridPresetInterval: 1 }).rorGridPresetInterval).toBe(5);
     expect(normalizeRoastSettings({ rorGridPresetInterval: 2 }).rorGridPresetInterval).toBe(5);
     expect(normalizeRoastSettings({ rorGridInterval: 250 }).rorGridInterval).toBe(100);
-    expect(normalizeRoastSettings({ temperatureUnit: 'F', rorGridInterval: 0.1 }).rorGridInterval).toBeCloseTo(
-        (5 * 5) / 9,
-    );
+    expect(normalizeRoastSettings({ temperatureUnit: 'F', rorGridInterval: 0.1 }).rorGridInterval).toBeCloseTo(5 / 9);
     expect(normalizeRoastSettings({ temperatureUnit: 'F', rorGridInterval: (10 * 5) / 9 }).rorGridInterval).toBeCloseTo(
         (10 * 5) / 9,
     );
