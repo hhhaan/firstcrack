@@ -20,6 +20,7 @@ vi.mock('@shared/store/toast', () => ({
     useToastStore: { getState: () => ({ show: vi.fn() }) },
 }));
 
+import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { type MachineControlCompositionInput, useMachineControlComposition } from './useMachineControlComposition';
 import {
@@ -57,6 +58,7 @@ describe('useMachineControlComposition', () => {
         getStatus.mockReset();
         setControl.mockReset();
         pidOff.mockReset();
+        vi.mocked(logger.capture).mockClear();
         getStatus.mockResolvedValue(writableHeaterStatus);
         setControl.mockImplementation(applyControl);
         pidOff.mockResolvedValue(offPidResponse);
@@ -139,5 +141,59 @@ describe('useMachineControlComposition', () => {
         expect(hook.get().replay.stopReason).toBe('disconnected');
         expect(setControl.mock.calls.length).toBe(callsBefore);
         await hook.unmount();
+    });
+
+    it('reports acknowledged gas-off with nonzero feedback while Replay stays on and sends no extra commands', async () => {
+        getStatus.mockResolvedValue({ ...writableHeaterStatus, capabilities: ['heater'] });
+        const input: MachineControlCompositionInput = {
+            ...base(),
+            elapsed: 0,
+            replayHeaterEvents: [{ t: 0, bt: 180, heater: 0, trigger: 'time' }],
+            diagnostics: {
+                sessionId: 'batch-1',
+                receivedAtMs: Date.now(),
+                sample: { heater: 19, timestamp: 100, sensor_clock: 'clock-1' },
+            },
+        };
+        const hook = await renderComposition(input);
+        await act(async () => hook.get().replay.toggle());
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ heater: 0 });
+        for (let second = 1; second <= 5; second++) {
+            await act(async () => vi.advanceTimersByTimeAsync(1000));
+            await hook.rerender({
+                ...input,
+                elapsed: second,
+                diagnostics: {
+                    sessionId: 'batch-1',
+                    receivedAtMs: Date.now(),
+                    sample: { heater: 19, timestamp: 100 + second, sensor_clock: 'clock-1' },
+                },
+            });
+        }
+        expect(logger.capture).toHaveBeenCalledExactlyOnceWith(
+            expect.any(Error),
+            expect.objectContaining({
+                extra: expect.objectContaining({ sessionId: 'batch-1', origins: ['replay'], requested: 0, applied: 0 }),
+            }),
+        );
+        expect(hook.get().replay.active).toBe(true);
+        expect(hook.get().replay.stopReason).toBeNull();
+        expect(setControl).toHaveBeenCalledTimes(1);
+        await hook.unmount();
+    });
+
+    it('clears an outstanding zero diagnostic when the composition unmounts', async () => {
+        getStatus.mockResolvedValue({ ...writableHeaterStatus, capabilities: ['heater'] });
+        const hook = await renderComposition({
+            ...base(),
+            diagnostics: { sessionId: 'batch-1', receivedAtMs: Date.now(), sample: { heater: 19, timestamp: 100 } },
+        });
+        await act(async () => {
+            hook.get().changeManual('heater', 0);
+            hook.get().commitManual();
+        });
+        await hook.unmount();
+        await act(async () => vi.advanceTimersByTimeAsync(10000));
+        expect(logger.capture).not.toHaveBeenCalled();
     });
 });

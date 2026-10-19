@@ -42,6 +42,14 @@ Import `logger` from `@shared/lib/logger`. Keys other than `feature`, `rpc`, and
 
 No second call when the same error already reports: React Query `onError`, React root handler, or sidecar HTTP with `sentryReported` (502/400 included).
 
+Active Roast gas-off diagnostics: search `feature:machine-control "Gas-off feedback was not observed"`.
+After an acknowledged heater-zero write, a five-second window without fresh zero Heat feedback
+produces one warning and an operator toast. This is an observation window, not a machine failure deadline.
+`reason` distinguishes `nonzero_feedback` from `feedback_unavailable`; extra includes the batch,
+command ID/sequence, origins, attempt count, acknowledgement latency, and at most 20 feedback samples.
+Retries share the window. Session/connection changes and superseding heater writes clear it.
+This monitor neither retries commands nor stops Replay. It does not read the PLC target register or prove flame state.
+
 ## Edge
 
 ```ts

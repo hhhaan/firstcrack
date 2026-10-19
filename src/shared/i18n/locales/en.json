@@ -782,6 +782,7 @@
         "enterpriseOnly": "This model can only be connected from an Enterprise account.",
         "sidecarStarting": "Preparing to connect...",
         "linkUnstable": "Machine connection is unstable. Check the cable and network.",
+        "gasOffUnconfirmed": "Zero heat feedback has not been confirmed after the gas-off command. Check the actual heat and use the machine controls if needed.",
         "startRoasting": "Start Roasting",
         "selectMachine": "Select a machine",
         "limit": {

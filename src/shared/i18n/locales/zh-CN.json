@@ -782,6 +782,7 @@
         "enterpriseOnly": "此机型仅限 Enterprise 账户连接。",
         "sidecarStarting": "正在准备连接...",
         "linkUnstable": "设备连接不稳定。请检查线缆和网络状态。",
+        "gasOffUnconfirmed": "发送火力0指令后，尚未确认设备反馈为0。请检查实际火力，必要时直接操作设备。",
         "startRoasting": "开始烘焙",
         "selectMachine": "请选择设备",
         "limit": {

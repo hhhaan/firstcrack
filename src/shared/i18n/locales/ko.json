@@ -782,6 +782,7 @@
         "enterpriseOnly": "이 모델은 Enterprise 계정에서만 연결할 수 있습니다.",
         "sidecarStarting": "연결 준비 중...",
         "linkUnstable": "머신 연결이 불안정합니다. 케이블과 네트워크 상태를 확인해 주세요.",
+        "gasOffUnconfirmed": "화력 0 명령 후 기기 피드백이 0인지 확인되지 않았습니다. 실제 화력을 확인하고 필요하면 기기에서 직접 조작해 주세요.",
         "startRoasting": "로스팅 시작",
         "selectMachine": "머신을 선택하세요",
         "limit": {
