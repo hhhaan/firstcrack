@@ -782,6 +782,7 @@
         "enterpriseOnly": "このモデルは Enterprise アカウントでのみ接続できます。",
         "sidecarStarting": "接続の準備中...",
         "linkUnstable": "マシンの接続が不安定です。ケーブルとネットワークの状態を確認してください。",
+        "gasOffUnconfirmed": "火力0の指令後、機器のフィードバックが0であることを確認できていません。実際の火力を確認し、必要に応じて機器で直接操作してください。",
         "startRoasting": "ローストを開始",
         "selectMachine": "マシンを選択してください",
         "limit": {

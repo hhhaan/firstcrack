@@ -169,6 +169,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayBt,
         observationQuality,
         lastValidReceivedAtMs,
+        feedbackReceivedAtMs,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -182,6 +183,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             replayBt: s.rawTemperature?.bt ?? null,
             observationQuality: s.observation?.quality ?? null,
             lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
+            feedbackReceivedAtMs: s.displayObservation?.receivedAtMs ?? null,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -1084,6 +1086,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
         onApplied: handleControlApplied,
+        diagnostics: { sessionId: charged ? sessionId : null, receivedAtMs: feedbackReceivedAtMs, sample: liveData },
     });
     useEffect(() => {
         if (reviewing) machineControl.replay.stop();

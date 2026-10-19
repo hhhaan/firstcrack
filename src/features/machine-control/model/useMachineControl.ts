@@ -8,6 +8,7 @@ import {
     type ControlCommand,
     type ControlOrigin,
     type ControlRole,
+    type ControlSendObserver,
     createControlSender,
     settledRoles,
 } from '../lib/controlSender';
@@ -43,6 +44,7 @@ export const useMachineControl = (
     feedback: MachineFeedback,
     onCommitted?: (committed: ControlCommand) => void,
     onApplied?: (applied: ControlCommand) => void,
+    observer?: ControlSendObserver,
 ) => {
     const [connectionStatus, setConnectionStatus] = useState<SidecarStatus | null>(null);
     const capability = connectionStatus?.control;
@@ -71,6 +73,7 @@ export const useMachineControl = (
     );
 
     useEffect(() => sender.setOnCommitted(onCommitted), [onCommitted, sender]);
+    useEffect(() => sender.setObserver(observer), [observer, sender]);
     const handleApplied = useCallback(
         (applied: ControlCommand) => {
             setTracking((t) => ({ ...t, desired: { ...t.desired, ...applied } }));

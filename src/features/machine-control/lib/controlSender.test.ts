@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type ControlCommand, createControlSender, settledRoles } from './controlSender';
+import { type ControlCommand, type ControlSendObserver, createControlSender, settledRoles } from './controlSender';
 
 /** 수동으로 resolve하는 send — in-flight 구간을 정확히 제어하기 위해 */
 const deferredSend = () => {
@@ -70,6 +70,57 @@ describe('settledRoles', () => {
 describe('createControlSender', () => {
     beforeEach(() => {
         vi.useFakeTimers();
+    });
+
+    it('observes only dispatched commands with the origin of each merged role', async () => {
+        const d = deferredSend();
+        const observer = { dispatched: vi.fn(), applied: vi.fn(), failed: vi.fn() } satisfies ControlSendObserver;
+        const sender = createControlSender({ send: d.send, observer });
+        sender.queue('heater', 50);
+        const first = sender.commitNow('manual');
+        sender.queue('heater', 0);
+        const second = sender.commitNow('replay');
+        sender.queue('fan', 70);
+        const third = sender.commitNow('manual');
+        expect(observer.dispatched).toHaveBeenCalledExactlyOnceWith({ heater: 50 }, { heater: 'manual' });
+        d.resolve();
+        await first;
+        expect(observer.dispatched).toHaveBeenLastCalledWith(
+            { heater: 0, fan: 70 },
+            { heater: 'replay', fan: 'manual' },
+        );
+        expect(observer.applied).toHaveBeenCalledWith({ heater: 50 }, { heater: 50 });
+        d.resolve();
+        await Promise.all([second, third]);
+        expect(observer.applied).toHaveBeenLastCalledWith({ heater: 0, fan: 70 }, { heater: 0, fan: 70 });
+    });
+
+    it('never observes cancelled queued commands or acknowledges an obsolete generation', async () => {
+        const d = deferredSend();
+        const observer = { dispatched: vi.fn(), applied: vi.fn(), failed: vi.fn() } satisfies ControlSendObserver;
+        const sender = createControlSender({ send: d.send, observer });
+        sender.queue('heater', 50);
+        const first = sender.commitNow();
+        sender.queue('heater', 0);
+        const queued = sender.commitNow('replay');
+        sender.cancelUnsent({ origin: 'replay', role: 'heater' });
+        sender.dispose();
+        d.resolve();
+        await Promise.all([first, queued]);
+        expect(observer.dispatched).toHaveBeenCalledTimes(1);
+        expect(observer.applied).not.toHaveBeenCalled();
+    });
+
+    it('isolates diagnostic observer failures from the command and its acknowledgement', async () => {
+        const fail = () => {
+            throw new Error('observer failure');
+        };
+        const sender = createControlSender({
+            send: async (cmd) => cmd,
+            observer: { dispatched: fail, applied: fail, failed: fail },
+        });
+        sender.queue('heater', 0);
+        await expect(sender.commitNow('replay')).resolves.toEqual({ heater: 0 });
     });
 
     it('드래그 중간값은 기기로 나가지 않는다 — 손을 뗄 때 마지막 값 하나만', async () => {
