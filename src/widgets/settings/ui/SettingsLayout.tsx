@@ -65,7 +65,7 @@ export function SettingsLayout({
                 <main
                     key={`${activeTab}:${roastGroup}`}
                     aria-labelledby="settings-page-title"
-                    className="@container mt-2 mr-2 mb-2 min-h-0 min-w-0 flex-1 overflow-y-auto rounded-2xl border border-border-subtle bg-main-bg px-6 py-8 shadow-xs sm:px-8"
+                    className="@container mr-2 mb-2 min-h-0 min-w-0 flex-1 overflow-y-auto rounded-2xl border border-border-subtle bg-main-bg px-6 py-8 shadow-xs sm:px-8"
                 >
                     <div className="mx-auto w-full max-w-[760px]">
                         <header className="mb-6">

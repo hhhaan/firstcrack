@@ -284,7 +284,7 @@ export const App = () => {
                         className={cn(
                             'flex min-h-0 min-w-0 flex-1 flex-col bg-main-bg',
                             view === 'roast' || view === 'settings' ? 'overflow-hidden' : 'overflow-auto',
-                            view !== 'settings' && 'mt-2 mr-2 mb-2 rounded-2xl border border-border-subtle shadow-xs',
+                            view !== 'settings' && 'mr-2 mb-2 rounded-2xl border border-border-subtle shadow-xs',
                         )}
                     >
                         {view !== 'settings' && (

@@ -77,7 +77,7 @@ test.describe('2a authenticated shell', () => {
                     const nav = await sidebar.boundingBox();
                     if (!panel || !nav) throw new Error(`Missing shell for ${view}`);
                     expect(panel.x).toBeCloseTo(nav.x + nav.width, 0);
-                    expect(panel.y).toBeGreaterThan(0);
+                    expect(panel.y).toBe(0);
                     expect(panel.x + panel.width).toBeLessThan(viewport.width);
                     expect(panel.y + panel.height).toBeLessThan(viewport.height);
                     expect(panel.width).toBeGreaterThan(0);
