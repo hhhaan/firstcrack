@@ -51,7 +51,6 @@ export const applyUpdatedRoastProfileCache = (qc: QueryClient, userId: string, u
     qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(ownerId), (old) =>
         old?.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)),
     );
-    qc.setQueryData<RoastProfile>(roastProfileKeys.detail(updated.id), updated);
     void qc.invalidateQueries({ queryKey: roastProfileKeys.all(ownerId) });
 };
 
