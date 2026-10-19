@@ -19,6 +19,7 @@ import { FormSelect } from '@shared/ui/FormSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRoastStockRecorded } from '../hooks/useRoastStockRecorded';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
@@ -26,6 +27,13 @@ const labelCls = 'mb-1 block text-[11px] font-medium tracking-[0.3px] text-muted
 
 const isKnownLevel = (level: string): level is (typeof ROAST_LEVELS)[number] =>
     (ROAST_LEVELS as readonly string[]).includes(level);
+
+/**
+ * Rows saved before titles were snapshotted still derive their title from the linked bean.
+ * Freeze what is shown now so changing the bean source cannot rename the roast.
+ */
+const frozenTitleFor = (session: RoastSessionWithRelations): string | null =>
+    session.batch_name?.trim() ? null : session.bean_label?.trim() || session.beans?.name?.trim() || null;
 
 /** History edit of the linked green bean, its origin, linked profile, and roast level. */
 export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelations }) => {
@@ -40,6 +48,12 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     const { mutateAsync: updateSession, isPending: sessionPending } = useUpdateRoastSession(workspaceOwnerId);
     const { mutateAsync: setOutputWeight, isPending: weightPending } = useSetOutputWeight(workspaceOwnerId);
     const canWrite = isWorkspaceReady && !!workspaceOwnerId;
+    // Stock that already moved stays booked to the original bean — relinking would desync the ledgers.
+    const { data: stockRecorded = false, isPending: stockCheckPending } = useRoastStockRecorded(
+        session.id,
+        session.plan_batch_id,
+    );
+    const beanLocked = stockRecorded || stockCheckPending;
     const storedOrigin = session.beans?.origin ?? '';
     const [origin, setOrigin] = useState(storedOrigin);
     const [profileId, setProfileId] = useState(session.profile_id ?? '');
@@ -89,13 +103,10 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     };
 
     const commitBean = async (raw: string) => {
+        if (beanLocked) return;
         const next = raw === '' ? null : raw;
         if (next === session.bean_id || !canWrite) return;
-        // Rows saved before titles were snapshotted still derive the title from the bean.
-        // Freeze what is shown now so relinking the green bean cannot rename the roast.
-        const frozenTitle = session.batch_name?.trim()
-            ? null
-            : session.bean_label?.trim() || session.beans?.name?.trim() || null;
+        const frozenTitle = frozenTitleFor(session);
         try {
             // A linked inventory bean supersedes the free-text label in the same write.
             await updateSession({
@@ -111,11 +122,18 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
 
     /** Free-text commit (blur/Enter): no inventory bean, the typed name is the label. */
     const commitBeanLabel = async (raw: string) => {
+        if (beanLocked) return;
         const next = raw.trim() || null;
         if (!canWrite) return;
         if (next === (session.bean_label?.trim() || null) && !session.bean_id) return;
+        const frozenTitle = frozenTitleFor(session);
         try {
-            await updateSession({ id: session.id, bean_id: null, bean_label: next });
+            await updateSession({
+                id: session.id,
+                bean_id: null,
+                bean_label: next,
+                ...(frozenTitle ? { batch_name: frozenTitle } : {}),
+            });
         } catch {
             // Keep the typed text; the next refetch restores the stored label.
         }
@@ -181,7 +199,7 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                     selectedId={session.bean_id ?? ''}
                     initialQuery={session.bean_label ?? ''}
                     compact
-                    disabled={sessionPending || !canWrite}
+                    disabled={sessionPending || !canWrite || beanLocked}
                     placeholder={t('activeRoast.summary.beanComboboxPlaceholder')}
                     emptyLabel={t('activeRoast.summary.beanComboboxEmpty')}
                     listToggleLabel={t('activeRoast.summary.beanComboboxToggle')}
@@ -192,6 +210,9 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                         void commitBeanLabel(name);
                     }}
                 />
+                {stockRecorded && (
+                    <p className="mt-1 mb-0 text-[11px] text-muted">{t('history.expanded.beanLocked')}</p>
+                )}
             </div>
             <div>
                 <label htmlFor={`history-origin-${session.id}`} className={labelCls}>

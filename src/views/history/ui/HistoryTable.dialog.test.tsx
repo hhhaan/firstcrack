@@ -15,6 +15,9 @@ vi.mock('@widgets/profile-curve-chart/ui/ProfileCurveChart', () => ({
 vi.mock('./OutputWeightEditor', () => ({ OutputWeightEditor: () => null }));
 vi.mock('./SessionScorecard', () => ({ SessionScorecard: () => null }));
 vi.mock('./HistorySessionChart', () => ({ HistorySessionChart: () => null }));
+vi.mock('../hooks/useRoastStockRecorded', () => ({
+    useRoastStockRecorded: () => ({ data: false, isPending: false }),
+}));
 vi.mock('../hooks/useRoastRecordSave', () => ({
     useRoastRecordSave: () => ({
         canWrite: true,

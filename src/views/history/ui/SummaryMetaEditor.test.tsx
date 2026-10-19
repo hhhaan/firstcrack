@@ -8,20 +8,31 @@ import { SummaryMetaEditor } from './SummaryMetaEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { updateBean, updateSession, setOutputWeight, invalidate, queryClient, patchOrigin, restoreCaches } = vi.hoisted(
-    () => ({
-        updateBean: vi.fn(async () => ({ id: 'bean-1' })),
-        updateSession: vi.fn(async () => ({ id: 's1' })),
-        setOutputWeight: vi.fn(async () => undefined),
-        invalidate: vi.fn(async () => undefined),
-        queryClient: { cancelQueries: vi.fn(async () => undefined) },
-        patchOrigin: vi.fn(),
-        restoreCaches: vi.fn(),
-    }),
-);
+const {
+    updateBean,
+    updateSession,
+    setOutputWeight,
+    invalidate,
+    queryClient,
+    patchOrigin,
+    restoreCaches,
+    stockRecorded,
+} = vi.hoisted(() => ({
+    updateBean: vi.fn(async () => ({ id: 'bean-1' })),
+    updateSession: vi.fn(async () => ({ id: 's1' })),
+    setOutputWeight: vi.fn(async () => undefined),
+    invalidate: vi.fn(async () => undefined),
+    queryClient: { cancelQueries: vi.fn(async () => undefined) },
+    patchOrigin: vi.fn(),
+    restoreCaches: vi.fn(),
+    stockRecorded: { value: false },
+}));
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => queryClient }));
+vi.mock('../hooks/useRoastStockRecorded', () => ({
+    useRoastStockRecorded: () => ({ data: stockRecorded.value, isPending: false }),
+}));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: true }),
 }));
@@ -71,6 +82,7 @@ describe('SummaryMetaEditor', () => {
     afterEach(() => {
         act(() => root?.unmount());
         host?.remove();
+        stockRecorded.value = false;
         updateBean.mockClear();
         updateSession.mockClear();
         setOutputWeight.mockClear();
@@ -189,16 +201,35 @@ describe('SummaryMetaEditor', () => {
         expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
     });
 
-    it('keeps a typed custom name as the bean label with no inventory link', async () => {
+    it('keeps a typed custom name as the bean label with no inventory link, freezing the old title', async () => {
         await render();
         await typeBean('Sample bag');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: null, bean_label: 'Sample bag' });
+        expect(updateSession).toHaveBeenCalledWith({
+            id: 's1',
+            bean_id: null,
+            bean_label: 'Sample bag',
+            batch_name: 'Aricha',
+        });
     });
 
     it('clears the green bean and the label when the text is emptied', async () => {
         await render();
         await typeBean('');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: null, bean_label: null });
+        expect(updateSession).toHaveBeenCalledWith({
+            id: 's1',
+            bean_id: null,
+            bean_label: null,
+            batch_name: 'Aricha',
+        });
+    });
+
+    it('blocks every bean edit once stock has been recorded for the roast', async () => {
+        stockRecorded.value = true;
+        await render();
+        expect(beanInput().disabled).toBe(true);
+        expect(host.textContent).toContain('history.expanded.beanLocked');
+        await typeBean('Sample bag');
+        expect(updateSession).not.toHaveBeenCalled();
     });
 
     it('can link a green bean to a roast saved without one', async () => {
