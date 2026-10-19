@@ -1,4 +1,4 @@
-import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-config';
+import { chartFontScale, scaleChartPx, TEMP_Y_INTERVAL } from '@features/active-roast/lib/chart-config';
 import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
@@ -80,12 +80,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const fontScale = chartFontScale(fontScaleRaw);
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
-    const { tempYMin, tempYMax } = computeTempYRange(
-        tempMinC,
-        tempMaxC,
-        temperatureUnit,
-        params.axisSettings?.tempTicksC?.length ? undefined : params.axisSettings?.tempGridInterval || undefined,
-    );
+    const { tempYMin, tempYMax } = computeTempYRange(tempMinC, tempMaxC, temperatureUnit);
     const rorYMinDisp = toDisplayRoR(rorYMin, temperatureUnit);
     const rorYMaxDisp = toDisplayRoR(rorYMax, temperatureUnit);
 
@@ -115,12 +110,10 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const xMin = xViewMin ?? xs[0] ?? 0;
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
-    const reportGridInterval = params.axisSettings?.tempTicksC?.length
-        ? undefined
-        : params.axisSettings?.tempGridInterval;
+    const reportGridInterval = params.axisSettings ? TEMP_Y_INTERVAL : undefined;
     const tuneAxes = (axes: Parameters<typeof applyChartAxisSettings>[0]) => {
         if (report) applyReportAxes(axes, colors, xMax - xMin, temperatureUnit, reportGridInterval);
-        applyChartAxisSettings(axes, params.axisSettings, temperatureUnit, report, showRoR || showRoRET);
+        applyChartAxisSettings(axes, params.axisSettings, temperatureUnit);
     };
 
     const bbpBackground = (control: boolean) => ({
