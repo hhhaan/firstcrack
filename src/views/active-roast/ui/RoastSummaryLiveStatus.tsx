@@ -1,18 +1,33 @@
 import { formatTemp, useBbpTimer, useRoastSettings } from '@features/active-roast';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /** Current roaster readings, independent of the completed batch's snapshot and form. */
 export const RoastSummaryLiveStatus = () => {
     const { t } = useTranslation();
     const elapsed = useBbpTimer();
-    const unit = useRoastSettings().temperatureUnit;
+    const { temperatureUnit: unit, pollIntervalMs } = useRoastSettings();
     const bt = useRoastingStore((s) => s.liveData?.bt ?? null);
     const et = useRoastingStore((s) => s.liveData?.et ?? null);
     const connected = useRoastingStore((s) => s.sidecarConnected && !s.reconnecting);
-    const valid = useRoastingStore((s) => s.observation?.quality === 'valid');
+    const observation = useRoastingStore((s) => s.displayObservation);
+    const [expired, setExpired] = useState(true);
+    const bbpActive = elapsed !== null;
+    const maxAgeMs = Math.max(3000, pollIntervalMs * 3);
+    useEffect(() => {
+        if (!bbpActive || observation?.quality !== 'valid') {
+            setExpired(true);
+            return;
+        }
+        const remainingMs = Math.max(0, maxAgeMs - Math.max(0, Date.now() - observation.receivedAtMs));
+        setExpired(remainingMs === 0);
+        if (remainingMs === 0) return;
+        const timeout = setTimeout(() => setExpired(true), remainingMs);
+        return () => clearTimeout(timeout);
+    }, [bbpActive, observation, maxAgeMs]);
     if (elapsed === null) return null;
-    const fresh = connected && valid;
+    const fresh = connected && observation?.quality === 'valid' && !expired;
 
     return (
         <section

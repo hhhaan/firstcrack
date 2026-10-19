@@ -19,7 +19,8 @@ it('keeps the BBP clock running with live readings and hides stale values on dis
     useRoastingStore.setState({
         sidecarConnected: true,
         reconnecting: false,
-        observation: reduceSensorObservation(null, sensorObservationTick(now, { bt: 180, deviceTimestamp: 1 })),
+        observation: reduceSensorObservation(null, sensorObservationTick(now, { bt: null, deviceTimestamp: 1 })),
+        displayObservation: reduceSensorObservation(null, sensorObservationTick(now, { bt: 180, deviceTimestamp: 1 })),
         liveData: { bt: 180, et: 200, ror: 0, ror_et: 0, heater: 0, fan: 0, drum: 0 },
     });
     const host = document.createElement('div');
@@ -29,6 +30,7 @@ it('keeps the BBP clock running with live readings and hides stale values on dis
         act(() => root.render(createElement(RoastSummaryLiveStatus)));
         expect(host.textContent).toContain('1:00');
         expect(host.textContent).toContain('180.0°C');
+        expect(useRoastingStore.getState().observation?.quality).toBe('null');
         act(() => {
             vi.advanceTimersByTime(2_000);
             useRoastingStore.setState({
@@ -38,6 +40,24 @@ it('keeps the BBP clock running with live readings and hides stale values on dis
         expect(host.textContent).toContain('1:02');
         expect(host.textContent).toContain('181.0°C');
         expect(host.textContent).not.toContain('200.0°C');
+        act(() => vi.advanceTimersByTime(2_000));
+        expect(host.textContent).toContain('liveUnavailable');
+        expect(host.textContent).not.toContain('181.0°C');
+        const fresh = reduceSensorObservation(null, sensorObservationTick(Date.now(), { bt: 181, deviceTimestamp: 2 }));
+        act(() => useRoastingStore.getState().updateDisplayObservation(fresh));
+        expect(host.textContent).toContain('181.0°C');
+        act(() =>
+            useRoastingStore
+                .getState()
+                .updateDisplayObservation(
+                    reduceSensorObservation(
+                        fresh,
+                        sensorObservationTick(Date.now(), { bt: 181, deviceTimestamp: 3, stale: true }),
+                    ),
+                ),
+        );
+        expect(host.textContent).not.toContain('181.0°C');
+        act(() => useRoastingStore.getState().updateDisplayObservation(fresh));
         act(() => useRoastingStore.setState({ sidecarConnected: false }));
         expect(host.textContent).toContain('liveUnavailable');
         expect(host.textContent).not.toContain('181.0°C');

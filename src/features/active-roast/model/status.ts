@@ -45,6 +45,9 @@ export interface RoastingState extends BatchState, BatchActions {
     /** Raw BT control-path quality/freshness. Display consumers keep selecting `liveData`. */
     observation: SensorObservation | null;
     updateSensorObservation: (observation: SensorObservation | null) => void;
+    /** Display-stream quality, independent of optional raw BT used for machine control. */
+    displayObservation: SensorObservation | null;
+    updateDisplayObservation: (observation: SensorObservation | null) => void;
     /** 사이드카 PID 런타임 상태 (/temperatures에 실려 온다). PID 미사용이면 null. */
     pid: PidRuntime | null;
     reconnecting: boolean;
@@ -76,6 +79,7 @@ const initialState = {
     liveData: null as LiveData | null,
     rawTemperature: null as RawTemperatureSample | null,
     observation: null as SensorObservation | null,
+    displayObservation: null as SensorObservation | null,
     pid: null as PidRuntime | null,
     pendingBeanId: null as string | null,
     pendingBeanName: null as string | null,
@@ -169,7 +173,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current?.machine_protocol === snapshot.machine_protocol
         )
             return;
-        set({ machineSnapshot: snapshot, rawTemperature: null, observation: null });
+        set({ machineSnapshot: snapshot, rawTemperature: null, observation: null, displayObservation: null });
     },
 
     updateRawTemperature: (rawTemperature) => set({ rawTemperature }),
@@ -177,6 +181,10 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     updateSensorObservation: (observation) => {
         if (get().observation === observation) return;
         set({ observation });
+    },
+    updateDisplayObservation: (displayObservation) => {
+        if (get().displayObservation === displayObservation) return;
+        set({ displayObservation });
     },
 
     updateLiveData: (data) => {
