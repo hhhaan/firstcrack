@@ -4,6 +4,7 @@ import { useProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
+import { useBatchNumber } from '@features/active-roast/model/useBatchNumber';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown, Settings2 } from 'lucide-react';
@@ -52,6 +53,7 @@ export const RoastHeader = ({
 }) => {
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
+    const batchNumber = useBatchNumber();
     const charged = useRoastingStore((s) => isChargedPhase(s.phase));
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
@@ -152,6 +154,11 @@ export const RoastHeader = ({
                         onProfileChange={handleProfileChange}
                         onChooseHistory={onChooseHistoryReference}
                     />
+                    {batchNumber != null && (
+                        <span className="text-[13px] text-muted" title={t('activeRoast.header.batchNumberHint')}>
+                            {t('activeRoast.header.batchNumber', { number: batchNumber })}
+                        </span>
+                    )}
                     {historyReferenceFailed && (
                         <span role="alert" className="text-[13px] text-red-400">
                             {t('activeRoast.reference.failed')}
