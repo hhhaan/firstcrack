@@ -99,6 +99,25 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
 }
 
 describe('saveRoastCore', () => {
+    it('persists an independent batch title without changing the inventory/profile links', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            targetProfileId: 'profile-a',
+            formData: { ...baseParams.formData, batchName: '  Batch C  ' },
+        });
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({
+                session: expect.objectContaining({
+                    batch_name: 'Batch C',
+                    bean_id: 'bean-1',
+                    bean_label: null,
+                    profile_id: 'profile-a',
+                }),
+            }),
+        );
+    });
+
     beforeEach(() => vi.clearAllMocks());
 
     it('월 배치 캡 도달 → BatchLimitError, saveOp 없음', async () => {

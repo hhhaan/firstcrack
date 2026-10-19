@@ -1552,7 +1552,8 @@
         "recordText": {
             "title": "烘焙标题",
             "add": "添加笔记",
-            "failed": "保存失败。输入已保留，请重试。"
+            "failed": "保存失败。输入已保留，请重试。",
+            "inputName": "自由输入名称"
         }
     },
     "beanList": {

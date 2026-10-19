@@ -225,6 +225,20 @@ export const RoastSummaryModal = ({
                     </div>
                 </div>
 
+                <label className="mb-3.5 block">
+                    <span className={sectionLabelClass}>{t('history.recordText.title')}</span>
+                    <input
+                        {...register('batchName')}
+                        maxLength={120}
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary"
+                    />
+                    {errors.batchName && (
+                        <span role="alert" className={formErrorCls}>
+                            {errors.batchName.message}
+                        </span>
+                    )}
+                </label>
+
                 {/* ── Link: schedule batch or ad-hoc ── */}
                 <div className="mb-3.5">
                     <div className={sectionLabelClass}>{t('activeRoast.summary.link')}</div>

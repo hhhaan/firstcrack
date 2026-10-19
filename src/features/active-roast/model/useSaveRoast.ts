@@ -148,6 +148,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         ambient_humidity_pct: payloadParams.ambientHumidity ?? null,
         bean_id: resolvedBeanId,
         bean_label: beanLabel,
+        batch_name: formData.batchName?.trim() || null,
         profile_id: payloadParams.targetProfileId,
         tsv_path: null,
         bbp_tsv_path: null,

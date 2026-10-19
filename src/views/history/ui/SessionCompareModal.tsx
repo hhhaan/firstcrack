@@ -71,7 +71,11 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 const points = curveQueries[i]?.data ?? [];
                 return {
                     id: s.id,
-                    label: sessionBeanName(s) ?? formatDateShort(s.roasted_at),
+                    label:
+                        s.batch_name?.trim() ||
+                        s.bean_label?.trim() ||
+                        sessionBeanName(s) ||
+                        formatDateShort(s.roasted_at),
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     points,
                     markers: eventsBySession[i]
@@ -93,7 +97,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 return {
                     id: s.id,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
-                    label: sessionBeanName(s) ?? '—',
+                    label: s.batch_name?.trim() || s.bean_label?.trim() || sessionBeanName(s) || '—',
                     segments: computePhaseSegments(logs, roastDuration, roastDuration > 0),
                     totalSec: roastDuration,
                     visible: !hiddenIds.has(s.id),
@@ -206,7 +210,10 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                                     style={{ backgroundColor: item.color }}
                                                 />
                                                 <span className="truncate text-[11px] font-semibold text-primary">
-                                                    {sessionBeanName(item.session) ?? '—'}
+                                                    {item.session.batch_name?.trim() ||
+                                                        item.session.bean_label?.trim() ||
+                                                        sessionBeanName(item.session) ||
+                                                        '—'}
                                                 </span>
                                             </div>
                                         </th>

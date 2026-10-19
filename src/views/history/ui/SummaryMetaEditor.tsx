@@ -122,6 +122,16 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     return (
         <div className="space-y-4">
             <div>
+                <span className={labelCls}>{t('activeRoast.summary.bean')}</span>
+                <p className="m-0 break-words text-[13px] text-secondary">{session.beans?.name?.trim() || '—'}</p>
+            </div>
+            {session.bean_label?.trim() && (
+                <div>
+                    <span className={labelCls}>{t('history.recordText.inputName')}</span>
+                    <p className="m-0 break-words text-[13px] text-secondary">{session.bean_label}</p>
+                </div>
+            )}
+            <div>
                 <label htmlFor={`history-origin-${session.id}`} className={labelCls}>
                     {t('history.expanded.origin')}
                 </label>

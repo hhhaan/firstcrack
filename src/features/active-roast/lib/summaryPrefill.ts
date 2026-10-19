@@ -25,6 +25,7 @@ export const summaryFormInitialValues = (
     const prefill = summaryPrefill(handoff, lastAdhoc, selectedBeanId);
     return {
         notes: '',
+        batchName: '',
         weightGrams: prefill.weightGrams,
         outputWeightKg: undefined,
         roastLevel: prefill.roastLevel,

@@ -44,7 +44,12 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
                 {items.map((item) => {
                     const { session: s, color, hasCurve, events, visible } = item;
-                    const name = sessionBeanName(s) ?? s.roast_profiles?.name ?? '—';
+                    const name =
+                        s.batch_name?.trim() ||
+                        s.bean_label?.trim() ||
+                        sessionBeanName(s) ||
+                        s.roast_profiles?.name ||
+                        '—';
                     return (
                         <button
                             key={s.id}

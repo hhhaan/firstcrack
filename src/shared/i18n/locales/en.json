@@ -1552,7 +1552,8 @@
         "recordText": {
             "title": "Roast title",
             "add": "Add note",
-            "failed": "Could not save. Your changes are kept; please retry."
+            "failed": "Could not save. Your changes are kept; please retry.",
+            "inputName": "Free-text name"
         }
     },
     "profiles": {

@@ -56,10 +56,17 @@ type Column = {
 const columnsFor = (unit: TemperatureUnit): Column[] => [
     { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
     {
+        key: null,
+        label: 'roastTitle',
+        width: '180px',
+        sortable: false,
+        render: (s) => s.batch_name?.trim() || s.bean_label?.trim() || sessionBeanName(s) || '—',
+    },
+    {
         key: 'bean',
         label: 'Bean',
         sortable: true,
-        render: (s) => s.bean_label?.trim() || sessionBeanName(s) || '—',
+        render: (s) => s.beans?.name?.trim() || '—',
     },
     {
         key: 'profile',
@@ -217,7 +224,8 @@ export const HistoryTable = ({
     const colLabel = (key: string) => {
         const map: Record<string, string> = {
             date: t('history.table.date'),
-            bean: t('history.table.bean'),
+            bean: t('activeRoast.summary.bean'),
+            roastTitle: t('history.recordText.title'),
             profile: t('history.table.profile'),
             weight: t('history.table.weight'),
             charge: t('history.table.chargeTemp'),
