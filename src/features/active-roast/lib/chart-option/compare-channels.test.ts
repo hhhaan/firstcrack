@@ -1,5 +1,5 @@
 import { assert, describe, expect, it } from 'vitest';
-import { type ComparePoint, compareChannels, compareChannelValue } from './compare-channels';
+import { type ComparePoint, compareChannels, compareChannelValue, comparePointAtTime } from './compare-channels';
 
 const point = (label: string, unit: string, value: number): ComparePoint => ({
     t: 0,
@@ -7,6 +7,36 @@ const point = (label: string, unit: string, value: number): ComparePoint => ({
     et: null,
     ror: null,
     extraReadings: [{ id: 'extra_0', label, unit, value }],
+});
+
+describe('recorded Gas commands and cursor', () => {
+    it('keeps command units separate, including zero, without using heater feedback', () => {
+        const percent = { ...point('Inlet', 'C', 100), heaterSet: 0, heaterUnit: '%' };
+        const pressure = { ...percent, heaterSet: 12, heaterUnit: 'Pa' };
+        const legacy = { ...point('Inlet', 'C', 100), heater: 50 };
+        const channels = compareChannels([{ points: [percent, pressure, legacy] }], 'F').filter(
+            (c) => c.source === 'heaterSet',
+        );
+        expect(channels.map((c) => c.unit)).toEqual(['%', 'Pa']);
+        expect(channels.map((c) => compareChannelValue(percent, c, 'F'))).toEqual([0, null]);
+        expect(channels.map((c) => compareChannelValue(pressure, c, 'F'))).toEqual([null, 12]);
+        expect(channels.map((c) => compareChannelValue(legacy, c, 'F'))).toEqual([null, null]);
+        expect(compareChannels([{ points: [legacy] }], 'C').some((c) => c.source === 'heaterSet')).toBe(false);
+    });
+
+    it('reads the last recorded sample without interpolating steps, filling gaps or extending a batch', () => {
+        const points = [
+            { ...point('Inlet', 'C', 100), t: 0, heaterSet: 70 },
+            { ...point('Inlet', 'C', 100), t: 5, heaterSet: null, et: null },
+            { ...point('Inlet', 'C', 100), t: 10, heaterSet: 45 },
+        ];
+        expect(comparePointAtTime(points, 4)?.heaterSet).toBe(70);
+        expect(comparePointAtTime(points, 9)).toBe(points[1]);
+        expect(comparePointAtTime(points, 10)?.heaterSet).toBe(45);
+        expect(comparePointAtTime(points, -1)).toBeUndefined();
+        expect(comparePointAtTime(points, 11)).toBeUndefined();
+        expect(comparePointAtTime([], 0)).toBeUndefined();
+    });
 });
 
 describe('recorded extra sensor channels', () => {

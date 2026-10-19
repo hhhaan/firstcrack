@@ -1,9 +1,10 @@
+import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { sessionBeanName, useHistoryCharts } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { computePhaseSegments, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
-import { withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
-import { COMPARE_COLORS, COMPARE_LINE_DASHES } from '@shared/lib/compare-style';
+import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
+import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDateShort } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -12,8 +13,8 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { ChartNoAxesCombined, LoaderCircle, X } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { sessionDropTime } from '../lib/record-heat';
 import { CompareMultiChart, type CompareSeries } from './compare/CompareMultiChart';
-import { CompareSessionLegend } from './compare/CompareSessionLegend';
 import { type CompareSessionItem, CompareSessionTable } from './compare/CompareSessionTable';
 
 interface SessionCompareModalProps {
@@ -24,6 +25,7 @@ interface SessionCompareModalProps {
 export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalProps): ReactNode => {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
+    const machines = useMachines((s) => s.machines);
     const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
     const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
 
@@ -73,19 +75,24 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
         () =>
             sessions.map((s, i) => {
                 const points = curveQueries[i]?.data ?? [];
+                const heatSet = editedHeatSet(points, sessionDropTime(s), s.heater_events);
+                const heaterUnit = profileHeaterBounds(s, machines, ROASTER_REGISTRY).unit;
                 return {
                     id: s.id,
                     label: `${String(i + 1).padStart(2, '0')} · ${sessionBeanName(s) ?? formatDateShort(s.roasted_at)}`,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
-                    points,
-                    lineDash: COMPARE_LINE_DASHES[i % COMPARE_LINE_DASHES.length],
+                    points: points.map((point, index) => ({
+                        ...point,
+                        heaterSet: heatSet ? heatSet[index] : (point.heaterSet ?? null),
+                        heaterUnit,
+                    })),
                     markers: eventsBySession[i]
                         .filter((e) => e.type !== 'Charge' && e.type !== 'End')
                         .map((e) => ({ timeSec: e.time_sec, event: e.type })),
                     visible: !hiddenIds.has(s.id),
                 };
             }),
-        [sessions, curveQueries, eventsBySession, hiddenIds],
+        [sessions, curveQueries, eventsBySession, hiddenIds, machines],
     );
 
     const hasAnyCurve = chartSeries.some((s) => s.points.length > 0);
@@ -108,7 +115,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                     <h2 id="session-compare-title" className="text-xl font-medium tracking-[-0.4px] text-primary">
                         {t('history.compare.title', { count: sessions.length })}
                     </h2>
-                    <p className="mt-1 text-[13px] text-secondary">{t('history.compare.workspaceHint')}</p>
+                    <p className="mt-1 text-[13px] text-secondary">{t('history.compare.chartHint')}</p>
                 </div>
                 <button
                     type="button"
@@ -121,25 +128,22 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
             </header>
             <div className="min-h-0 space-y-6 overflow-y-auto p-6">
                 <section
-                    aria-labelledby="compare-curves-title"
+                    aria-label={t('history.compare.curveOverlay')}
                     className="overflow-hidden rounded-xl border border-border"
                 >
-                    <div className="space-y-3 border-b border-border px-4 py-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h3 id="compare-curves-title" className="text-sm font-semibold text-primary">
-                                {t('history.compare.curveOverlay')}
-                            </h3>
-                            <span className="text-xs text-secondary">{t('history.compare.chartHint')}</span>
-                        </div>
-                        <CompareSessionLegend items={items} onToggle={onToggle} onFocusSession={setFocusedSessionId} />
-                    </div>
                     {isLoading ? (
                         <div role="status" className="flex h-80 items-center justify-center gap-2 text-xs text-muted">
                             <LoaderCircle size={16} className="motion-safe:animate-spin" />
                             {t('history.expanded.chartLoading')}
                         </div>
                     ) : hasAnyCurve ? (
-                        <CompareMultiChart series={chartSeries} focusedSessionId={focusedSessionId} />
+                        <CompareMultiChart
+                            series={chartSeries}
+                            items={items}
+                            focusedSessionId={focusedSessionId}
+                            onToggle={onToggle}
+                            onFocusSession={setFocusedSessionId}
+                        />
                     ) : (
                         <div
                             role="status"

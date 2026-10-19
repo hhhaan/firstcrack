@@ -48,7 +48,7 @@ describe('buildCompareChartOption display unit', () => {
                 ],
             },
         ];
-        const option = buildCompareChartOption(input, true, { start: 0, end: 60 }, 'F');
+        const option = buildCompareChartOption(input, { xView: { start: 0, end: 60 }, temperatureUnit: 'F' });
         const curves = option.series as { name: string; yAxisIndex: number; data: [number, number | null][] }[];
         expect(curves.find((s) => s.name === 'et|a')?.data).toEqual([
             [0, 410],
@@ -78,7 +78,7 @@ describe('buildCompareChartOption display unit', () => {
         expect(tooltip).toContain('&lt;batch&gt;');
         expect(tooltip).toContain('&lt;pressure&gt;');
         expect(tooltip).toContain('0.0Pa');
-        const selected = buildCompareChartOption(input, true, { start: 0, end: 60 }, 'C', ['bt']);
+        const selected = buildCompareChartOption(input, { xView: { start: 0, end: 60 }, channelKeys: ['bt'] });
         expect((selected.series as { name: string }[]).map((s) => s.name)).toEqual(['bt|a']);
         expect(selected.yAxis).toHaveLength(1);
     });
@@ -86,23 +86,26 @@ describe('buildCompareChartOption display unit', () => {
     it('does not synthesize ET RoR or missing extra sensor data for legacy sessions', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
-        const option = buildCompareChartOption(series, true, { start: 0, end: 60 });
+        const option = buildCompareChartOption(series, { xView: { start: 0, end: 60 } });
         expect((option.series as { name: string }[]).map((s) => s.name)).toEqual(['bt|a', 'et|a', 'ror|a']);
     });
 
-    it('compares one sensor on its own axis with full-contrast curves and batch end labels', () => {
+    it('compares one sensor on its own axis with full-contrast curves', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
 
-        const rorOption = buildCompareChartOption(series, true, { start: 0, end: 60 }, 'F', ['ror']);
+        const rorOption = buildCompareChartOption(series, {
+            xView: { start: 0, end: 60 },
+            temperatureUnit: 'F',
+            channelKeys: ['ror'],
+        });
         expect(rorOption.yAxis).toMatchObject([{ name: '°F/min', position: 'left' }]);
         expect(rorOption.yAxis).toHaveLength(1);
         expect(rorOption.series).toMatchObject([
             {
                 name: 'ror|a',
                 yAxisIndex: 0,
-                lineStyle: { width: 3, type: 'solid', opacity: 1 },
-                endLabel: { show: true, fontSize: 13 },
+                lineStyle: { width: 3, type: 'dotted', opacity: 1 },
                 data: [[0, toDisplayRoR(10, 'F')]],
             },
         ]);
@@ -120,7 +123,10 @@ describe('buildCompareChartOption display unit', () => {
         ];
         const pressure = compareChannels(input, 'C').find((channel) => channel.source === 'extra');
         expect(pressure).toBeDefined();
-        const option = buildCompareChartOption(input, true, { start: 0, end: 60 }, 'C', [pressure?.key ?? '']);
+        const option = buildCompareChartOption(input, {
+            xView: { start: 0, end: 60 },
+            channelKeys: [pressure?.key ?? ''],
+        });
         expect(option.yAxis).toMatchObject([{ name: 'Pa', position: 'left', scale: true }]);
         expect(option.yAxis).toHaveLength(1);
         expect(option.series).toMatchObject([{ yAxisIndex: 0, data: [[0, 0]] }]);
@@ -130,7 +136,7 @@ describe('buildCompareChartOption display unit', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
 
-        const option = buildCompareChartOption(series, true, { start: 0, end: 60 }, 'F');
+        const option = buildCompareChartOption(series, { xView: { start: 0, end: 60 }, temperatureUnit: 'F' });
         const seriesOpt = option.series as { name?: string; data: [number, number][] }[];
         const bt = seriesOpt.find((s) => s.name?.startsWith('bt|'));
         const ror = seriesOpt.find((s) => s.name?.startsWith('ror|'));
@@ -139,23 +145,55 @@ describe('buildCompareChartOption display unit', () => {
         expect(ror?.data[0]?.[1]).toBe(toDisplayRoR(10, 'F'));
     });
 
-    it('keeps a batch line pattern when other batches are hidden', () => {
+    it('uses one rate axis when only BT and ET RoR are selected, retaining their line patterns', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
-        const batch = { ...series[0], lineDash: [10, 5] };
-        const option = buildCompareChartOption([batch], true, { start: 0, end: 60 }, 'C', ['bt']);
-        expect(option.series).toMatchObject([{ lineStyle: { type: [10, 5], opacity: 1 } }]);
+        const input = [{ ...series[0], points: [{ ...series[0].points[0], rorEt: 4 }] }];
+        const option = buildCompareChartOption(input, {
+            xView: { start: 0, end: 60 },
+            temperatureUnit: 'F',
+            channelKeys: ['ror', 'rorEt'],
+        });
+        expect(option.yAxis).toHaveLength(1);
+        expect(option.grid).toMatchObject([{ right: 8 }]);
+        expect(option.yAxis).toMatchObject([{ name: '°F/min', position: 'left' }]);
+        expect(option.series).toMatchObject([
+            { name: 'ror|a', yAxisIndex: 0, lineStyle: { type: 'dotted' }, data: [[0, 18]] },
+            { name: 'rorEt|a', yAxisIndex: 0, lineStyle: { type: [5, 2, 1, 2] }, data: [[0, 7.2]] },
+        ]);
     });
 
     it('brings the focused batch above overlapping curves without changing their data', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
         const input = [series[0], { ...series[0], id: 'b' }];
-        const option = buildCompareChartOption(input, true, { start: 0, end: 60 }, 'C', ['bt'], 'a');
+        const option = buildCompareChartOption(input, {
+            xView: { start: 0, end: 60 },
+            channelKeys: ['bt'],
+            focusedSessionId: 'a',
+        });
         expect(option.series).toMatchObject([
-            { z: 5, lineStyle: { width: 4, opacity: 1 }, endLabel: { opacity: 1 }, data: [[0, 200]] },
-            { z: 2, lineStyle: { width: 3, opacity: 0.15 }, endLabel: { opacity: 0.3 }, data: [[0, 200]] },
+            { z: 5, lineStyle: { width: 4, opacity: 1 }, data: [[0, 200]] },
+            { z: 2, lineStyle: { width: 3, opacity: 0.15 }, data: [[0, 200]] },
         ]);
+    });
+
+    it('aligns the Gas step plot with the temperature plot without normalizing physical commands', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
+        for (const unit of ['%', 'Pa']) {
+            const input = [{ ...series[0], points: [{ ...series[0].points[0], heaterSet: 0, heaterUnit: unit }] }];
+            const channel = compareChannels(input, 'C').find((c) => c.source === 'heaterSet');
+            const option = buildCompareChartOption(input, {
+                xView: { start: 0, end: 60 },
+                channelKeys: [channel?.key ?? ''],
+                rightMargin: 32,
+            });
+            expect(option.grid).toMatchObject([{ right: 32 }]);
+            expect(option.series).toMatchObject([{ step: 'end', yAxisIndex: 0, data: [[0, 0]] }]);
+            expect(option.yAxis).toMatchObject([{ name: unit, ...(unit === '%' ? { min: 0, max: 100 } : {}) }]);
+            if (unit === 'Pa') expect((option.yAxis as { max?: number }[])[0].max).toBeUndefined();
+        }
     });
 
     it('keeps session curve colors while resolving read-only marker categories', () => {
@@ -175,8 +213,7 @@ describe('buildCompareChartOption display unit', () => {
                     ],
                 },
             ],
-            false,
-            { start: 0, end: 60 },
+            { xView: { start: 0, end: 60 }, channelKeys: ['bt', 'et'] },
         );
         const [bt] = option.series as {
             lineStyle: { color: string };

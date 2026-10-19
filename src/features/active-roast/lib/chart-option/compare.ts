@@ -36,7 +36,6 @@ export type CompareChartSeries = {
     /** raw color or CSS var(--…) — resolved here for canvas */
     color: string;
     points: ComparePoint[];
-    lineDash?: number[];
     markers?: { timeSec: number; event: string }[];
     visible?: boolean;
 };
@@ -53,34 +52,50 @@ const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 export const compareChartXMax = (active: CompareChartSeries[]): number =>
     Math.ceil(Math.max(60, ...active.flatMap((s) => s.points.map((p) => p.t))) / 30) * 30;
 
-/** Shared with pointer zoom so end labels stay outside the draggable plot. */
+const compareSingleAxisChannel = (channels: CompareChannel[]): CompareChannel | undefined => {
+    const first = channels[0];
+    return first && channels.every((channel) => channel.kind === first.kind && channel.unit === first.unit)
+        ? first
+        : undefined;
+};
+
+/** Shared with zoom and the aligned phase/control plots. */
 export const compareChartRightMargin = (channels: CompareChannel[]): number =>
-    channels.length === 1
-        ? 192
+    compareSingleAxisChannel(channels)
+        ? computeGridMargins(false).rightMargin
         : computeGridMargins(channels.some((channel) => channel.kind === 'ror')).rightMargin +
           compareExtraAxisWidth(channels);
 
 /** Multi-session overlay chart (History compare) — same visual grammar as the live roast chart. */
 export const buildCompareChartOption = (
     active: CompareChartSeries[],
-    showRoR: boolean,
-    xView: { start: number; end: number },
-    temperatureUnit: TemperatureUnit = 'C',
-    channelKeys?: string[],
-    focusedSessionId: string | null = null,
+    {
+        xView,
+        temperatureUnit = 'C',
+        channelKeys,
+        focusedSessionId = null,
+        rightMargin: sharedRightMargin,
+    }: {
+        xView: { start: number; end: number };
+        temperatureUnit?: TemperatureUnit;
+        channelKeys?: string[];
+        focusedSessionId?: string | null;
+        rightMargin?: number;
+    },
 ): EChartsOption => {
     const colors = getResolvedChartColors();
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
     const crossLineStyle = buildCrossLineStyle(colors);
+    const selectedKeys = channelKeys ? new Set(channelKeys) : null;
     const channels = compareChannels(active, temperatureUnit).filter(
-        (channel) => (showRoR || channel.kind !== 'ror') && (channelKeys == null || channelKeys.includes(channel.key)),
+        (channel) => selectedKeys == null || selectedKeys.has(channel.key),
     );
     const hasRoR = channels.some((channel) => channel.kind === 'ror');
-    const focusedChannel = channels.length === 1 ? channels[0] : undefined;
+    const singleAxisChannel = compareSingleAxisChannel(channels);
     const otherUnits = compareOtherUnits(channels);
     const margins = computeGridMargins(hasRoR);
     const leftMargin = margins.leftMargin;
-    const rightMargin = compareChartRightMargin(channels);
+    const rightMargin = sharedRightMargin ?? compareChartRightMargin(channels);
     const topMargin = margins.topMargin;
     const plotSeries = active;
     const allBt = plotSeries.flatMap((s) =>
@@ -125,21 +140,20 @@ export const buildCompareChartOption = (
         xAxisPointer: buildXAxisPointer(crossLineStyle),
         yAxisPointer: buildYAxisPointer(crossLineStyle),
     });
-    // modal chart: no phase-bar strip below the plot, so reclaim the tall bottom margin
     (grid as { bottom?: number }[])[0].bottom = 30;
 
     const baseAxes = Array.isArray(yAxis) ? yAxis : [];
     const plotAxes = baseAxes.slice(0, hasRoR ? 2 : 1);
-    if (focusedChannel) {
+    if (singleAxisChannel) {
         const candidate = baseAxes.find((axis) =>
-            focusedChannel.kind === 'ror' ? axis.position === 'right' : axis.position !== 'right',
+            singleAxisChannel.kind === 'ror' ? axis.position === 'right' : axis.position !== 'right',
         );
-        const base = focusedChannel.kind !== 'other' && candidate?.type === 'value' ? candidate : {};
+        const base = singleAxisChannel.kind !== 'other' && candidate?.type === 'value' ? candidate : {};
         plotAxes.splice(0, plotAxes.length, {
             ...base,
             type: 'value',
             position: 'left',
-            name: focusedChannel.unit,
+            name: singleAxisChannel.unit,
             nameLocation: 'end',
             nameGap: 14,
             nameTextStyle: { ...axisNameStyle, fontSize: 12 },
@@ -150,20 +164,21 @@ export const buildCompareChartOption = (
             axisPointer: buildYAxisPointer(crossLineStyle),
             splitLine: { show: true, lineStyle: { color: colors.gridLine } },
             splitNumber: 5,
-            interval: focusedChannel.kind === 'temperature' ? TEMP_Y_LABEL_INTERVAL : undefined,
-            ...(focusedChannel.kind === 'temperature'
+            interval: singleAxisChannel.kind === 'temperature' ? TEMP_Y_LABEL_INTERVAL : undefined,
+            ...(singleAxisChannel.kind === 'temperature'
                 ? {
                       min: Math.floor(tempYMin / TEMP_Y_LABEL_INTERVAL) * TEMP_Y_LABEL_INTERVAL,
                       max: Math.ceil(tempYMax / TEMP_Y_LABEL_INTERVAL) * TEMP_Y_LABEL_INTERVAL,
                   }
                 : {}),
+            ...(singleAxisChannel.source === 'heaterSet' && singleAxisChannel.unit === '%' ? { min: 0, max: 100 } : {}),
         });
     }
     for (const axis of Array.isArray(xAxis) ? xAxis : []) {
         axis.minorSplitLine = { show: false };
         axis.axisLabel = { ...axis.axisLabel, fontSize: 12, hideOverlap: true };
     }
-    for (const [index, unit] of (focusedChannel ? [] : otherUnits).entries()) {
+    for (const [index, unit] of (singleAxisChannel ? [] : otherUnits).entries()) {
         plotAxes.push({
             type: 'value',
             position: 'right',
@@ -202,45 +217,27 @@ export const buildCompareChartOption = (
                 name,
                 type: 'line',
                 xAxisIndex: 0,
-                yAxisIndex: focusedChannel ? 0 : axisIndex,
+                yAxisIndex: singleAxisChannel ? 0 : axisIndex,
                 z: focusedSessionId === s.id ? 5 : channel.kind === 'ror' ? 1 : 2,
                 data,
+                step: channel.source === 'heaterSet' ? 'end' : false,
                 lineStyle: {
                     color,
-                    width: focusedSessionId === s.id ? 4 : focusedChannel ? 3 : TEMP_CURVE_WIDTH,
-                    type: focusedChannel
-                        ? s.lineDash?.length
-                            ? s.lineDash
-                            : 'solid'
-                        : channel.source === 'bt'
-                          ? 'solid'
-                          : channel.source === 'et'
-                            ? 'dashed'
-                            : channel.source === 'ror'
-                              ? 'dotted'
-                              : channel.source === 'rorEt'
-                                ? [5, 2, 1, 2]
-                                : [10, 3, 2, 3],
-                    opacity: dimmed ? 0.15 : !focusedChannel && channel.kind === 'ror' ? 0.65 : 1,
+                    width: focusedSessionId === s.id ? 4 : singleAxisChannel ? 3 : TEMP_CURVE_WIDTH,
+                    type:
+                        channel.source === 'bt' || channel.source === 'heaterSet'
+                            ? 'solid'
+                            : channel.source === 'et'
+                              ? 'dashed'
+                              : channel.source === 'ror'
+                                ? 'dotted'
+                                : channel.source === 'rorEt'
+                                  ? [5, 2, 1, 2]
+                                  : [10, 3, 2, 3],
+                    opacity: dimmed ? 0.15 : 1,
                 },
                 itemStyle: { color },
                 ...lineSeriesBase,
-                endLabel: {
-                    show: !!focusedChannel,
-                    formatter: () => s.label,
-                    color: colors.markerLabelColor,
-                    backgroundColor: colors.tooltipBg,
-                    borderColor: color,
-                    borderWidth: 1,
-                    padding: [4, 6],
-                    fontSize: 13,
-                    fontWeight: 500,
-                    width: 148,
-                    overflow: 'truncate',
-                    distance: 10,
-                    opacity: dimmed ? 0.3 : 1,
-                },
-                labelLayout: { moveOverlap: 'shiftY' },
                 markPoint:
                     channel.source === 'bt' && s.markers?.length
                         ? {

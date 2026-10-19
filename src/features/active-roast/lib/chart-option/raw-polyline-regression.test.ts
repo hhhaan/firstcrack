@@ -101,7 +101,7 @@ describe('history compare chart raw polyline', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
 
-        const option = buildCompareChartOption(twoSessionSeries, true, { start: 0, end: 120 }, 'C');
+        const option = buildCompareChartOption(twoSessionSeries, { xView: { start: 0, end: 120 } });
         for (const id of ['session-a', 'session-b']) {
             expectRawPolyline(findCompareSeries(option, 'bt', id), `bt|${id}`);
             expectRawPolyline(findCompareSeries(option, 'ror', id), `ror|${id}`);

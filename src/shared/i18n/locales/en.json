@@ -1459,12 +1459,13 @@
             "level": "Level",
             "weight": "Weight",
             "workspaceHint": "Compare roast curves and batch results in one place.",
-            "chartHint": "Hover to highlight · Click to show or hide",
+            "chartHint": "Move cursor · Scroll to zoom · Hover a batch to highlight",
             "metrics": "Batch comparison",
             "batch": "Roast batch",
-            "sensors": "Compare sensor",
+            "sensors": "Sensors",
             "temperatures": "Temperature",
             "resetZoom": "Reset zoom",
+            "cursorTime": "Cursor time",
             "noSelectedSensorData": "No recorded values for this sensor in the visible batches."
         },
         "cupping": {

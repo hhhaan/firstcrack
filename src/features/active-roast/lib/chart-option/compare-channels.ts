@@ -8,6 +8,8 @@ export type ComparePoint = {
     et: number | null;
     ror: number | null;
     rorEt?: number | null;
+    heaterSet?: number | null;
+    heaterUnit?: string;
     extraReadings?: ExtraSensorReading[];
 };
 
@@ -16,7 +18,7 @@ export type CompareChannel = {
     label: string;
     unit: string;
     kind: 'temperature' | 'ror' | 'other';
-    source: 'bt' | 'et' | 'ror' | 'rorEt' | 'extra';
+    source: 'bt' | 'et' | 'ror' | 'rorEt' | 'heaterSet' | 'extra';
     sensorId?: string;
     sensorUnit?: string;
 };
@@ -42,6 +44,14 @@ export const compareChannels = (series: { points: ComparePoint[] }[], unit: Temp
     const channels: CompareChannel[] = builtins.filter((channel) => points.some((p) => finite(p[channel.source])));
     const seen = new Set<string>();
     for (const point of points) {
+        if (finite(point.heaterSet)) {
+            const unit = point.heaterUnit?.trim() || '%';
+            const key = JSON.stringify(['gas', unit]);
+            if (!seen.has(key)) {
+                seen.add(key);
+                channels.push({ key, label: 'Gas', unit, kind: 'other', source: 'heaterSet' });
+            }
+        }
         for (const sensor of point.extraReadings ?? []) {
             const sensorUnit = normalizeExtraUnit(sensor.unit);
             const key = JSON.stringify(['extra', sensor.id, sensor.label, sensorUnit]);
@@ -75,13 +85,30 @@ export const compareChannelValue = (
                       s.label === channel.label &&
                       normalizeExtraUnit(s.unit) === channel.sensorUnit,
               )?.value
-            : point[channel.source];
+            : channel.source === 'heaterSet'
+              ? (point.heaterUnit?.trim() || '%') === channel.unit
+                  ? point.heaterSet
+                  : null
+              : point[channel.source];
     if (!finite(value)) return null;
     return channel.kind === 'temperature'
         ? toDisplayTemp(value, unit)
         : channel.kind === 'ror'
           ? toDisplayRoR(value, unit)
           : value;
+};
+
+/** Recorded samples are chronological; never interpolate commands or carry values beyond the recording. */
+export const comparePointAtTime = (points: ComparePoint[], timeSec: number): ComparePoint | undefined => {
+    if (!points.length || timeSec < points[0].t || timeSec > points[points.length - 1].t) return undefined;
+    let low = 0;
+    let high = points.length - 1;
+    while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        if (points[mid].t <= timeSec) low = mid;
+        else high = mid - 1;
+    }
+    return points[low];
 };
 
 export const compareOtherUnits = (channels: CompareChannel[]): string[] => [
