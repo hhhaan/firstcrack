@@ -74,7 +74,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                 <button
                     type="button"
                     onClick={() => setConfirmId(blend.id)}
-                    className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-border bg-white dark:bg-surface-elevated flex items-center justify-center cursor-pointer transition-[color,background-color,box-shadow,opacity] duration-200 text-red-600 dark:text-red-400"
+                    className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-border bg-white dark:bg-surface-elevated flex items-center justify-center cursor-pointer transition-[color,background-color,box-shadow,opacity] duration-200 text-muted hover:text-red-600 dark:hover:text-red-400"
                     title={t('beans.blend.delete')}
                 >
                     <Trash2 size={16} />
@@ -97,7 +97,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                             {t('beans.blend.roastableKg', { kg: roastableKg })}
                         </Badge>
                     ) : (
-                        <Badge tone="bad" className="text-xs px-2.25">
+                        <Badge tone="neutral" className="text-xs px-2.25">
                             {t('beans.blend.noStock')}
                         </Badge>
                     )}

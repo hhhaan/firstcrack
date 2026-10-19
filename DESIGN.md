@@ -302,6 +302,7 @@ The ten primary views share an inset content panel in `src/App.tsx`: 0px top and
 
 ### Navigation / segmented controls
 
+- 블렌드 구성 비율은 기존 색상 55%와 `main-bg` 45%를 섞은 부드러운 색상으로 구분한다. 목록·상세·원가 계산기에 같은 팔레트를 쓰고, 재고 부족 안내는 중성 톤으로 표시한다.
 - 서비스 전체에서 스크롤바를 숨긴다. 휠·트랙패드·키보드 스크롤은 유지한다.
 - Sidebar: 큰 화면 224px, 좌우 16px, 메뉴 192px. 항목 높이 32px, 반경 7.6px, 간격 4px. 글자 14px / 450, 선택 500 + `border-border bg-main-bg shadow-xs`
 - 기간·타입 선택: `bg-surface-elevated` 36px track (p4/gap4), 28px pill (6px 12px). 선택 `bg-main-bg text-action shadow-selected`, 다크 `bg-surface`

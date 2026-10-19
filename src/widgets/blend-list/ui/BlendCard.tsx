@@ -29,7 +29,7 @@ export const BlendCard = ({ blend, roastableKg, onSelect }: BlendCardProps) => {
                         {t('beans.blend.roastableKg', { kg: roastableKg.toFixed(2) })}
                     </span>
                 ) : (
-                    <span className="text-[11px] font-medium text-palette-violet shrink-0 tracking-[0.14px]">
+                    <span className="text-[11px] font-medium text-muted shrink-0 tracking-[0.14px]">
                         {t('beans.blend.noStock')}
                     </span>
                 )}
