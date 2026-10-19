@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import en from '@shared/i18n/locales/en.json';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -6,7 +7,18 @@ import { expect, it, vi } from 'vitest';
 import { useHistoryPdfExport } from './useHistoryPdfExport';
 
 const mocks = vi.hoisted(() => ({ exportPdf: vi.fn(async () => true) }));
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key: string) =>
+            key
+                .split('.')
+                .reduce<unknown>(
+                    (value, part) =>
+                        value && typeof value === 'object' ? (value as Record<string, unknown>)[part] : undefined,
+                    en,
+                ) ?? key,
+    }),
+}));
 vi.mock('@features/active-roast', () => ({ formatTemp: (value: unknown) => String(value) }));
 vi.mock('@features/export-history-pdf', async () => ({
     historyPdfFilename: (await import('@features/export-history-pdf/lib/filename')).historyPdfFilename,
@@ -36,7 +48,11 @@ it('exports the selected batch title in the filename and PDF header while retain
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 filename: expect.stringContaining('batch-a'),
-                header: expect.objectContaining({ roastTitle: 'Batch A', bean: 'Green B' }),
+                header: expect.objectContaining({
+                    roastTitle: 'Batch A',
+                    bean: 'Green B',
+                    labels: expect.objectContaining({ roastTitle: en.history.recordText.title }),
+                }),
             }),
         );
         await act(async () => root.render(createElement(Probe, { value: { ...session, batch_name: 'Batch B' } })));

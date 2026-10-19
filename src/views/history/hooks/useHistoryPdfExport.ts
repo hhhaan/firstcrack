@@ -45,7 +45,7 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
                     drop: formatTemp(session.drop_temp_celsius, unit),
                     labels: {
                         bean: t('history.table.bean'),
-                        roastTitle: t('history.table.roastTitle'),
+                        roastTitle: t('history.recordText.title'),
                         date: t('history.table.date'),
                         duration: t('history.table.duration'),
                         charge: t('history.compare.charge'),
