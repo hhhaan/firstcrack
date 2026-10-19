@@ -20,7 +20,7 @@ const skeletonCols = [
 ];
 
 const ghostBtn =
-    'inline-flex items-center justify-center gap-1 rounded-full border border-border-subtle bg-transparent px-2.5 py-1 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer';
+    'inline-flex items-center justify-center gap-1 rounded-full border border-border-subtle bg-transparent px-2.5 py-1 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary dark:border-border dark:hover:bg-surface-elevated cursor-pointer';
 
 export const RoastedInventoryTab = () => {
     const { t } = useTranslation();
@@ -67,13 +67,13 @@ export const RoastedInventoryTab = () => {
     return (
         <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-surface px-3 py-2.5 dark:bg-surface-elevated sm:max-w-xs">
+                <div className="flex min-w-0 flex-1 items-center gap-2 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs sm:max-w-xs">
                     <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder={t('inventory.roasted.searchPlaceholder')}
-                        className="w-full border-none bg-transparent font-body text-[13px] tracking-[0.14px] text-primary outline-none"
+                        className="w-full border-none bg-transparent font-body text-sm tracking-[0.14px] text-primary outline-none"
                     />
                 </div>
                 {!isLoading && hasAnyStock && (
@@ -86,26 +86,23 @@ export const RoastedInventoryTab = () => {
             {isLoading ? (
                 <TableSkeleton cols={skeletonCols} rows={5} minWidth="560px" />
             ) : !hasAnyStock ? (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
+                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-16 text-center dark:border-border">
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-muted dark:bg-surface-elevated">
                         <Coffee size={20} strokeWidth={1.5} />
                     </div>
-                    <p className="max-w-sm text-[13px] leading-relaxed tracking-[0.14px] text-muted">
+                    <p className="max-w-sm text-sm leading-relaxed tracking-[0.14px] text-muted">
                         {t('inventory.roasted.empty')}
                     </p>
                 </div>
             ) : rows.length === 0 ? (
-                <div className="py-16 text-center text-[13px] text-muted">{t('inventory.roasted.noMatch')}</div>
+                <div className="py-16 text-center text-sm text-muted">{t('inventory.roasted.noMatch')}</div>
             ) : (
-                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-border">
                     <table className="w-full min-w-[560px] border-collapse text-left">
                         <thead>
-                            <tr className="border-b border-divider dark:border-[#585d61]">
+                            <tr className="border-b border-divider dark:border-border">
                                 {(['name', 'type', 'stock', 'status'] as const).map((c) => (
-                                    <th
-                                        key={c}
-                                        className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted"
-                                    >
+                                    <th key={c} className="h-12 px-4 py-0 text-sm font-medium leading-5 text-muted">
                                         {t(`inventory.roasted.col.${c}`)}
                                     </th>
                                 ))}
@@ -119,8 +116,8 @@ export const RoastedInventoryTab = () => {
                                 );
                                 return (
                                     <Fragment key={r.key}>
-                                        <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
-                                            <td className="px-4 py-3.5 text-[13px] font-medium tracking-[0.14px] text-primary">
+                                        <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface-elevated dark:border-border dark:hover:bg-surface-elevated/40">
+                                            <td className="px-4 py-4 text-sm font-medium tracking-[0.14px] text-primary">
                                                 <button
                                                     type="button"
                                                     className="text-left hover:underline"
@@ -129,7 +126,7 @@ export const RoastedInventoryTab = () => {
                                                     {r.name}
                                                 </button>
                                             </td>
-                                            <td className="px-4 py-3.5">
+                                            <td className="px-4 py-4">
                                                 <Badge tone={r.kind === 'blend' ? 'lavenderSoft' : 'soft'} size="sm">
                                                     {r.kind === 'blend'
                                                         ? t('inventory.roasted.blendBadge')
@@ -137,13 +134,13 @@ export const RoastedInventoryTab = () => {
                                                 </Badge>
                                             </td>
                                             <td
-                                                className={`px-4 py-3.5 font-mono text-[13px] font-medium ${
+                                                className={`px-4 py-4 font-mono text-sm font-medium ${
                                                     r.grams < 0 ? 'text-red-500' : 'text-primary'
                                                 }`}
                                             >
                                                 {fmtKg(r.grams)}
                                             </td>
-                                            <td className="px-4 py-3.5">
+                                            <td className="px-4 py-4">
                                                 {r.hasEstimate ? (
                                                     <Badge tone="warn" size="sm">
                                                         {t('inventory.roasted.estimateBadge')}
@@ -152,7 +149,7 @@ export const RoastedInventoryTab = () => {
                                                     <span className="text-[12px] text-muted">—</span>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3.5 text-right">
+                                            <td className="px-4 py-4 text-right">
                                                 <button
                                                     type="button"
                                                     className={ghostBtn}
@@ -172,12 +169,12 @@ export const RoastedInventoryTab = () => {
                                             </td>
                                         </tr>
                                         {expandedKey === r.key && (
-                                            <tr className="border-b border-divider dark:border-[#585d61]">
+                                            <tr className="border-b border-divider dark:border-border">
                                                 <td
                                                     colSpan={5}
                                                     className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20"
                                                 >
-                                                    <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                                    <p className="mb-2 text-sm font-medium leading-5 text-muted">
                                                         {t('inventory.event.history')}
                                                     </p>
                                                     {history.length === 0 ? (

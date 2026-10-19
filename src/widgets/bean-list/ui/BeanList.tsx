@@ -42,6 +42,7 @@ const Skeleton = () => (
 export const BeanList = ({
     beans,
     isLoading,
+    selectedId,
     onSelect,
     search,
     onSearchChange,
@@ -59,13 +60,13 @@ export const BeanList = ({
 
     return (
         <div>
-            <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-surface px-3 py-2.5 dark:bg-surface-elevated">
+            <div className="mb-2.5 flex items-center gap-2 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
                     onChange={(e) => onSearchChange(e.target.value)}
                     placeholder={t('beanList.searchPlaceholder')}
-                    className="w-full border-none bg-transparent font-body text-[13px] tracking-[0.14px] text-primary outline-none"
+                    className="w-full border-none bg-transparent font-body text-sm font-[450] leading-5 tracking-[0.24px] text-primary outline-none"
                 />
             </div>
 
@@ -87,12 +88,13 @@ export const BeanList = ({
                                 key={bean.id}
                                 data-testid={`bean-list-item-${bean.id}`}
                                 data-stock-kg={(currentGrams / 1000).toFixed(2)}
+                                data-selected={selectedId === bean.id}
                                 onClick={() => onSelect(bean.id)}
-                                className="cursor-pointer rounded-2xl border border-border bg-main-bg px-4 py-3.5 transition-colors duration-150"
+                                className="cursor-pointer rounded-2xl border border-border bg-main-bg px-4 py-4 transition-colors duration-150 hover:border-strong-border data-[selected=true]:border-strong-border data-[selected=true]:shadow-xs"
                             >
                                 <div className="mb-2 flex items-start justify-between">
                                     <div>
-                                        <div className="mb-0.5 text-[13px] font-medium tracking-[0.14px] text-primary">
+                                        <div className="mb-0.5 text-sm font-medium leading-5 tracking-[0.24px] text-primary">
                                             {bean.name}
                                         </div>
                                         <div className="text-xs tracking-[0.14px] text-muted">

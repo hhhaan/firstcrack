@@ -16,7 +16,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const ghostBtn =
-    'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border-subtle bg-transparent px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer';
+    'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border-subtle bg-transparent px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:border-border dark:hover:bg-surface-elevated cursor-pointer';
 
 const iconBtn =
     'inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-surface-elevated cursor-pointer';
@@ -114,24 +114,24 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                 </div>
             )}
 
-            <div className="flex min-w-0 max-w-xs items-center gap-2 rounded-xl bg-surface px-3 py-2.5 dark:bg-surface-elevated">
+            <div className="flex min-w-0 max-w-xs items-center gap-2 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={t('inventory.products.searchPlaceholder')}
-                    className="w-full border-none bg-transparent font-body text-[13px] tracking-[0.14px] text-primary outline-none"
+                    className="w-full border-none bg-transparent font-body text-sm tracking-[0.14px] text-primary outline-none"
                 />
             </div>
 
             {isLoading ? (
                 <TableSkeleton cols={skeletonCols} rows={5} minWidth="640px" />
             ) : !hasActive ? (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
+                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-16 text-center dark:border-border">
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-muted dark:bg-surface-elevated">
                         <Package size={20} strokeWidth={1.5} />
                     </div>
-                    <p className="max-w-sm text-[13px] leading-relaxed tracking-[0.14px] text-muted">
+                    <p className="max-w-sm text-sm leading-relaxed tracking-[0.14px] text-muted">
                         {t('inventory.products.empty')}
                     </p>
                     <SurfaceButton onClick={openNew} icon={<Plus size={14} strokeWidth={2} />} className="px-4 py-2">
@@ -139,17 +139,14 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                     </SurfaceButton>
                 </div>
             ) : activeProducts.length === 0 ? (
-                <div className="py-16 text-center text-[13px] text-muted">{t('inventory.products.noMatch')}</div>
+                <div className="py-16 text-center text-sm text-muted">{t('inventory.products.noMatch')}</div>
             ) : (
-                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-border">
                     <table className="w-full min-w-[640px] border-collapse text-left">
                         <thead>
-                            <tr className="border-b border-divider dark:border-[#585d61]">
+                            <tr className="border-b border-divider dark:border-border">
                                 {(['name', 'sku', 'source', 'weight', 'stock'] as const).map((c) => (
-                                    <th
-                                        key={c}
-                                        className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted"
-                                    >
+                                    <th key={c} className="h-12 px-4 py-0 text-sm font-medium leading-5 text-muted">
                                         {t(`inventory.products.col.${c}`)}
                                     </th>
                                 ))}
@@ -163,8 +160,8 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                                 const expanded = expandedId === p.id;
                                 return (
                                     <Fragment key={p.id}>
-                                        <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
-                                            <td className="px-4 py-3.5 text-[13px] font-medium tracking-[0.14px] text-primary">
+                                        <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface-elevated dark:border-border dark:hover:bg-surface-elevated/40">
+                                            <td className="px-4 py-4 text-sm font-medium tracking-[0.14px] text-primary">
                                                 <button
                                                     type="button"
                                                     className="text-left hover:underline"
@@ -173,21 +170,21 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                                                     {p.name}
                                                 </button>
                                             </td>
-                                            <td className="px-4 py-3.5 font-mono text-[12px] text-muted">
+                                            <td className="px-4 py-4 font-mono text-[12px] text-muted">
                                                 {p.sku ?? '—'}
                                             </td>
-                                            <td className="px-4 py-3.5 text-[12px] tracking-[0.14px] text-secondary">
+                                            <td className="px-4 py-4 text-[12px] tracking-[0.14px] text-secondary">
                                                 {resolveSource(p)}
                                             </td>
-                                            <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
+                                            <td className="px-4 py-4 font-mono text-sm text-secondary">
                                                 {p.net_weight_grams} g
                                             </td>
-                                            <td className="px-4 py-3.5">
+                                            <td className="px-4 py-4">
                                                 <Badge tone={low ? 'bad' : 'good'} size="sm">
                                                     {units} {t('inventory.products.unitSuffix')}
                                                 </Badge>
                                             </td>
-                                            <td className="whitespace-nowrap px-4 py-3.5">
+                                            <td className="whitespace-nowrap px-4 py-4">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <input
                                                         type="number"
@@ -197,7 +194,7 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                                                             setUnitsDraft((d) => ({ ...d, [p.id]: e.target.value }))
                                                         }
                                                         placeholder="+"
-                                                        className="w-14 rounded border border-border-subtle bg-transparent px-1.5 py-1 text-right font-mono text-[12px] text-primary outline-none focus:border-border dark:border-[#585d61]"
+                                                        className="w-14 rounded border border-border-subtle bg-transparent px-1.5 py-1 text-right font-mono text-[12px] text-primary outline-none focus:border-border dark:border-border"
                                                     />
                                                     <button
                                                         type="button"
@@ -295,11 +292,9 @@ function ProductHistoryRow({ userId, productId }: { userId: string; productId: s
     const { data: events = [], isLoading } = useProductStockEvents(userId, productId, true);
 
     return (
-        <tr className="border-b border-divider dark:border-[#585d61]">
+        <tr className="border-b border-divider dark:border-border">
             <td colSpan={6} className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20">
-                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                    {t('inventory.event.history')}
-                </p>
+                <p className="mb-2 text-sm font-medium leading-5 text-muted">{t('inventory.event.history')}</p>
                 {isLoading ? (
                     <p className="text-[12px] text-muted">…</p>
                 ) : events.length === 0 ? (

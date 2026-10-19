@@ -51,7 +51,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                     className="gap-4 px-6 py-4"
                     titleClassName="font-(--font-display) text-[22px] font-normal tracking-[-0.04em] text-primary m-0"
                     leading={
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white dark:bg-black">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-action text-on-action">
                             <Cpu size={18} strokeWidth={1.8} />
                         </div>
                     }

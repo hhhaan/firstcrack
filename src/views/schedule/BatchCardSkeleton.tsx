@@ -1,7 +1,7 @@
 import { Skeleton } from '@shared/ui/Skeleton';
 
 export const BatchCardSkeleton = () => (
-    <div className="rounded-2xl border border-border p-4 bg-main-bg dark:bg-[#262b31]">
+    <div className="rounded-2xl border border-border p-4 bg-main-bg dark:bg-surface-elevated">
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">

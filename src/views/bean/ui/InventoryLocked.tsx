@@ -14,7 +14,7 @@ export const InventoryLocked = ({ tab, onUpgrade }: Props) => {
     const descKey = tab === 'roasted' ? 'inventory.locked.roastedDescription' : 'inventory.locked.productsDescription';
 
     return (
-        <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-border bg-main-bg px-6 py-20 text-center dark:border-[#585d61]">
+        <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-border bg-main-bg px-6 py-20 text-center dark:border-border">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-muted dark:bg-surface-elevated">
                 <Lock size={22} strokeWidth={1.5} />
             </div>

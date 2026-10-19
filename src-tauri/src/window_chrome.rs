@@ -1,6 +1,6 @@
 // COLORREF stores 0x00BBGGRR. Keep these in sync with App.css's light theme.
-const CAPTION_COLOR: u32 = 0x00f4f4f4;
-const TEXT_COLOR: u32 = 0x00171717;
+const CAPTION_COLOR: u32 = 0x00f6f4f3;
+const TEXT_COLOR: u32 = 0x00281810;
 
 #[cfg(target_os = "windows")]
 pub fn match_shell(window: &tauri::WebviewWindow) {

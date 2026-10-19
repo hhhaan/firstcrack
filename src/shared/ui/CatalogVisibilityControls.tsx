@@ -11,7 +11,12 @@ export const CatalogVisibilityFilter = ({
     const { t } = useTranslation();
     return (
         <label className="mb-3 flex items-center gap-2 text-xs text-muted">
-            <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+            <input
+                className="size-4 cursor-pointer accent-action focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong-border"
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => onChange(event.target.checked)}
+            />
             {t('catalog.showHidden')}
         </label>
     );

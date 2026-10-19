@@ -4,14 +4,16 @@
 
 **Token SSoT:** `src/App.css` (`@theme` + `:root` + `html.dark`). 이 문서의 값은 해당 파일과 동기화한다. UI 프리미티브는 `src/shared/ui/`.
 
+레퍼런스: 제공된 **Polar 디자인 레퍼런스 HTML** (2026-10-19 CSSOM audit). PP Neue Montreal 파일은 포함되지 않았으므로 기존 Inter/SUIT를 사용한다. 로스팅 센서·단계·제어 채널의 색과 보정 로직은 별도 도메인 규칙을 유지한다.
+
 ---
 
 ## Design Philosophy
 
-미니멀하고 차분한 엔터프라이즈 감성. 높은 가독성과 정확한 수치 표현이 핵심. 장시간 사용하는 도구이므로 눈의 피로를 최소화하고, 데이터에 집중할 수 있도록 장식은 배제한다.
+제공된 Polar 디자인 레퍼런스의 CSSOM 실측값을 기준으로 하는 차분한 엔터프라이즈 UI. 높은 가독성과 정확한 수치 표현이 핵심. 장시간 사용하는 도구이므로 눈의 피로를 최소화하고, 데이터에 집중할 수 있도록 장식은 배제한다.
 
 - **분위기:** 조용하고 정확한, 장인적인
-- **키워드:** 미니멀, 저대비, 따뜻한 중성톤, 정밀함
+- **키워드:** 미니멀, 중성 회색, 명확한 상태 구분, 정밀함
 - **No emoji** — 모든 아이콘은 Lucide (`lucide-react`) 사용
 - **Affordance** — 조작 가능함은 아이콘을 더하지 않고 시그니파이어로 보여 준다. 밑줄, 커서, 테두리처럼 이미 있는 형태가 단서가 된다. 호버에만 숨기지 않는다.
 - **No gradients** — 단색 + 미세한 그림자 레이어로 깊이감 표현
@@ -51,20 +53,25 @@
 
 | Token | Light | Dark | 용도 |
 |---|---|---|---|
-| `--color-main-bg` | `#ffffff` | `#181d21` | 페이지/카드 배경 |
-| `--color-roast-bg` | `#ffffff` | `#181d21` | 로스팅 화면 전용 배경 |
-| `--color-shell-bg` | `#f4f4f4` | `#262b30` | 앱 헤더·사이드바 배경 |
-| `--color-dashboard-card-bg` | `#f4f4f4` | `#262b30` | 대시보드 카드 배경 |
-| `--color-surface` | `#f3f4f7` | `#181d21` | 버튼/인풋/서피스 배경 |
-| `--color-surface-elevated` | `#f3f4f7` | `#262b30` | 카드·모달 내 상승 서피스 |
-| `--color-surface-warm` | `rgba(245, 242, 239, 0.8)` | `rgba(30, 28, 26, 0.8)` | 따뜻한 톤 서피스 (호버 등) |
-| `--color-surface-warm-solid` | `#f5f2ef` | `#272b30` | 따뜻한 톤 서피스 (불투명) |
-| `--color-primary` | `#171717` | `#e5e5e5` | 주요 텍스트 |
-| `--color-secondary` | `#4e4e4e` | `#a3a3a3` | 보조 텍스트 |
-| `--color-muted` | `#777169` | `#8a8580` | 덜 중요한 텍스트, 플레이스홀더 |
-| `--color-border` | `#e5e5e5` | `#585d61` | 테두리 |
-| `--color-border-subtle` | `rgba(0, 0, 0, 0.05)` | `rgba(255, 255, 255, 0.08)` | 매우 미세한 테두리 |
-| `--color-divider` | `#efeff0` | `#585d61` | 구분선 |
+| `--color-main-bg` | `#ffffff` | `#111111` | 페이지/카드 배경 |
+| `--color-roast-bg` | `#ffffff` | `#111111` | 로스팅 화면 전용 배경 |
+| `--color-shell-bg` | `#f3f4f6` | `#090909` | 앱 헤더·사이드바 배경 |
+| `--color-dashboard-card-bg` | `#ffffff` | `#111111` | 대시보드 카드 배경 |
+| `--color-surface` | `#f3f4f6` | `#212121` | 버튼/인풋/서피스 배경 |
+| `--color-surface-elevated` | `#f9fafb` | `#181818` | 카드·모달 내 상승 서피스 |
+| `--color-surface-warm` | `rgba(249, 250, 251, 0.8)` | `rgba(24, 24, 24, 0.8)` | 따뜻한 톤 서피스 (호버 등) |
+| `--color-surface-warm-solid` | `#f9fafb` | `#181818` | 따뜻한 톤 서피스 (불투명) |
+| `--color-primary` | `#101828` | `#ffffff` | 주요 텍스트 |
+| `--color-secondary` | `#4a5565` | `#c9c9c9` | 보조 텍스트 |
+| `--color-muted` | `#6a7282` | `#9e9e9e` | 덜 중요한 텍스트, 플레이스홀더 |
+| `--color-border` | `#e5e7eb` | `#212121` | 테두리 |
+| `--color-border-subtle` | `#e5e7eb` | `#181818` | 매우 미세한 테두리 |
+| `--color-divider` | `#e5e7eb` | `#212121` | 구분선 |
+| `--color-action` | `#000000` | `#ffffff` | 주요 버튼 배경·강한 액센트 |
+| `--color-on-action` | `#ffffff` | `#000000` | 주요 버튼 텍스트 |
+| `--color-input-bg` | `#ffffff` | `#181818` | 입력·선택 필드 |
+| `--color-surface-hover` | `#e5e7eb` | `#292929` | 보조 버튼 hover |
+| `--color-strong-border` | `#d1d5dc` | `#757575` | 포커스·선택 테두리 |
 
 ### Palette (`--color-palette-*`)
 
@@ -171,6 +178,8 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
 | Token | Light | Dark |
 |---|---|---|
+| `--shadow-xs` | `0 1px 2px rgba(0, 0, 0, 0.05)` | 동일 |
+| `--shadow-selected` | `0 0 20px rgba(0, 0, 0, 0.04), 0 0 5px rgba(0, 0, 0, 0.06)` | 동일 |
 | `--shadow-inset` | `rgba(0, 0, 0, 0.075) 0px 0px 0px 0.5px inset` | `rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px inset` |
 | `--shadow-outline` | `rgba(0, 0, 0, 0.06) 0px 0px 0px 1px` | `rgba(0, 0, 0, 0.3) 0px 0px 0px 1px` |
 | `--shadow-elevation` | `rgba(0, 0, 0, 0.04) 0px 4px 4px` | `rgba(0, 0, 0, 0.3) 0px 4px 4px` |
@@ -196,15 +205,15 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 - **`font-variant-numeric: tabular-nums lining-nums`** — `body` + 전역 `*`. **컴포넌트에서 재선언 금지.**
 - `font-kerning: normal`; `font-feature-settings: "kern" 1, "tnum" 1, "lnum" 1, "zero" 1`
 - 로스팅 우측 패널 숫자: Inconsolata, `letter-spacing: -0.03em`.
-- body: `16px` / `line-height: 1.5` / `color: var(--color-primary)` / `background: var(--color-shell-bg)`
+- body: `16px` / `font-weight: 450` / `line-height: 1.5` / `letter-spacing: 0.24px` / `color: var(--color-primary)` / `background: var(--color-shell-bg)`
 
 #### Type scale (구현 관례)
 
 | 요소 | Size | Weight | Tracking | 기타 |
 |---|---|---|---|---|
-| Page Title (h1) | `26px` | — | `-0.5px` | `font-(--font-display)`, `leading-[1.2]` |
-| 패널 타이틀 | `15px` | Medium (`500`) | `-0.15px` | 카드·테이블·원가 섹션 |
-| Dashboard KPI Value | `44–48px` | Light (`300`) | `-1.6px` | `leading-[1.15]` |
+| Page Title (h1) | `24px` | Medium (`500`) | `0.24px` | `line-height: 32px` |
+| 패널 타이틀 | `18px` | `450` | `0.24px` | `line-height: 28px` |
+| Dashboard KPI Value | `30px`, xl `48px` | `450`, xl `350` | `0.24px` | `36px`, xl `48px` line-height |
 | 본문 | `14–16px` | Regular/Medium | `+0.14px` | |
 | 작은 텍스트 | `13px` | Medium | `+0.14px` | 버튼, 테이블 셀 |
 | 캡션/라벨 | `12px` / `11px` | Medium/Semi | `+0.14px` / uppercase | form labels |
@@ -214,14 +223,14 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 | 토큰 | 값 |
 |---|---|
 | Base unit | `4px` (Tailwind spacing) |
-| Page padding (X) | `24px`, 640px 이상 `40px` (`px-6 sm:px-10`) |
+| Page padding (X) | `24px`, 640px 이상 `32px` (`px-6 sm:px-8`) |
 | Page padding (Y) | `32px` (`py-8`) |
 | Page max-width | `1280px` (`PageLayout` 기본) |
-| 제목 아래 여백 | `28px` (`mb-7`, PageHeader) |
+| 제목 아래 여백 | `32px` (`mb-8`, PageHeader) |
 | 섹션 간격 | `24–32px` |
 | 그리드 갭 | `24px` (`gap-6`) |
 
-The ten primary views share an inset content panel in `src/App.tsx`: 6px top margin, 12px right/bottom margin, 20px corners, `bg-main-bg`, and a subtle border/edge shadow. The sidebar shares the shell background (`shell-bg`); its current item uses `main-bg` with an inset shadow. Its logo header uses 12px top and 8px bottom padding. Settings applies the same panel geometry in `SettingsLayout`, using `shell-bg` for its light navigation/frame and `main-bg` for content; its dark navigation retains `primary/2` over `main-bg`. Its navigation starts with 12px top padding. Active roast uses 24px top/side padding, 12px bottom padding and no extra header gap; its windowed chart frame has no extra horizontal padding and uses 20px vertical padding to clear the legends. The chart retains fixed height with independently scrolling control/sensor panels. Dashboard overview and supporting panels use `main-bg` with 16px corners and thin `border` dividers. Windows 11 keeps native window decorations and uses `shell-bg` (`#F4F4F4`) for the titlebar with `primary` (`#171717`) text, applied in `src-tauri/src/window_chrome.rs`; Windows 10 falls back to a native light titlebar. These native colors follow the current light-only app theme.
+The ten primary views share an inset content panel in `src/App.tsx`: 8px top/right/bottom margin, 16px corners, `bg-main-bg`, and a 1px border and `shadow-xs`. The sidebar shares the shell background (`shell-bg`); its current item uses `main-bg` with a border and `shadow-xs`. Its logo header uses 12px top and 8px bottom padding. Settings applies the same panel geometry in `SettingsLayout`, using `shell-bg` for its light navigation/frame and `main-bg` for content; its dark navigation uses the same `shell-bg` frame. Its navigation starts with 12px top padding. Active roast uses 24px top/side padding, 12px bottom padding and no extra header gap; its windowed chart frame has no extra horizontal padding and uses 20px vertical padding to clear the legends. The chart retains fixed height with independently scrolling control/sensor panels. Dashboard overview and supporting panels use `main-bg` with 16px corners and thin `border` dividers. Windows 11 keeps native window decorations and uses `shell-bg` (`#F3F4F6`) for the titlebar with `primary` (`#101828`) text, applied in `src-tauri/src/window_chrome.rs`; Windows 10 falls back to a native light titlebar. These native colors follow the current light-only app theme.
 
 ---
 
@@ -238,23 +247,23 @@ The ten primary views share an inset content panel in `src/App.tsx`: 6px top mar
 </PageLayout>
 ```
 
-- **PageLayout:** `mx-auto w-full px-6 py-8 sm:px-10`, maxWidth 기본 `1280` (inline style — 동적 값 예외)
-- **PageHeader:** `mb-7 flex flex-wrap items-end justify-between gap-5`
-  - h1: `mb-2 font-(--font-display) text-[26px] leading-[1.2] tracking-[-0.5px] text-primary`
-  - subtitle: `text-xs leading-relaxed text-muted`
+- **PageLayout:** `mx-auto w-full px-6 py-8 sm:px-8`, maxWidth 기본 `1280` (inline style — 동적 값 예외)
+- **PageHeader:** `mb-8 flex flex-wrap items-end justify-between gap-4`
+  - h1: `mb-2 font-(--font-display) text-2xl font-medium leading-8 tracking-[0.24px] text-primary`
+  - subtitle: `text-sm font-[450] leading-5 text-muted`
   - actions: `flex flex-wrap items-center gap-2`
 
 ### PillButton (primary CTA)
 
-- Shape: `rounded-full`, `px-4.5 py-2.5`, `text-sm font-medium tracking-[0.14px]`
-- Light: `bg-primary text-white border-none`
-- Dark: `dark:bg-[#0d0d0d] dark:border-white` (컴포넌트 고정 예외)
+- Shape: `h-10 rounded-full px-5 py-3 text-sm font-[550] leading-5 tracking-[0.14px]`
+- Light: `bg-action text-on-action border-0` — 검정 배경·흰 글자
+- Dark: `action`/`on-action` 토큰으로 흰 배경·검정 글자 반전
 - Optional leading icon, `gap-2`
-- Hover: `hover:-translate-y-px`
+- Hover: `hover:opacity-85`, 100ms opacity transition. 포커스 outline, disabled 50% opacity
 
 ### SurfaceButton (secondary soft CTA)
 
-- `rounded-lg bg-surface dark:bg-surface-elevated`, `text-[13px] font-medium text-primary`
+- `h-8 rounded-full bg-surface px-3 py-1.5 text-xs font-[550] leading-4 text-action`, 4% 검정 테두리(다크 5% 흰색), `hover:bg-surface-hover`
 - 스케줄 “배치 추가”, empty-state 등 — primary 검정 알약이 아닌 경우
 
 ### ModalShell
@@ -285,17 +294,24 @@ The ten primary views share an inset content panel in `src/App.tsx`: 6px top mar
 
 - 위치: `src/views/dashboard/components/KpiSection.tsx`, `KpiCard.tsx`
 - 하나의 `bg-main-bg rounded-2xl border border-border` 패널. 큰 화면에서 로스팅량 2열 + 배치 수 1열, 다음 행에 평균 시간·선물가·월별 배치 3칸
-- 각 셀 `p-6 lg:p-8`, 얇은 구분선. 값 `44–48px / 300 / -1.6px`, 라벨 `15px / 500`, 날짜 `12px`
+- 각 셀 `p-6 lg:p-8`, 얇은 구분선. 값 `30px / 450 / 36px`, xl `48px / 350 / 48px`, 라벨 `18px / 450 / 28px`, 날짜 `12px`
 - 전월/전일 종가 비교는 중성 텍스트. 증감을 성공·실패 색으로 단정하지 않음
 - `MetricTrendChart`: 실제 기록 기반 일별/월별 선 차트. 로스팅 없는 날은 수량 0, 누락된 시간은 null; 단일 유효 관측값은 점으로 표시
-- 날짜 범위는 이번 달 1일~오늘. 월별 배치는 최근 6개월 합계와 추이. 대시보드 제목은 26px
+- 날짜 범위는 이번 달 1일~오늘. 월별 배치는 최근 6개월 합계와 추이. 대시보드 제목은 24px / 500 / 32px
+
+### Navigation / segmented controls
+
+- Sidebar: 큰 화면 224px, 좌우 16px, 메뉴 192px. 항목 높이 32px, 반경 7.6px, 간격 4px. 글자 14px / 450, 선택 500 + `border-border bg-main-bg shadow-xs`
+- 기간·타입 선택: `bg-surface-elevated` 36px track (p4/gap4), 28px pill (6px 12px). 선택 `bg-main-bg text-action shadow-selected`, 다크 `bg-surface`
+- 테이블: 헤더 48px / 14px·500, 본문 14px·450 / py16, `border-divider`, hover `surface-elevated`
+- `primary`는 본문 foreground이다. 주요 버튼의 검정/흰색은 `action`/`on-action`을 사용한다
 
 ### Form fields
 
 - Shared: `src/shared/ui/form-styles.ts` — `inputCls`, `labelCls`, `selectCls`, `chipCls`, `tabCls`
-- Label: small uppercase muted (`text-[11px] font-semibold text-muted`)
-- Input: `rounded-xl`, inset shadow, surface/elevated backgrounds
-- Select: Radix `src/shared/ui/select/Select.tsx` — `text-[13px] tracking-[0.14px]`, content `shadow-ring`
+- Label: `text-sm font-medium leading-5 text-primary`, 아래 여백 8px. 원래 대소문자 유지
+- Input: 최소 40px, `rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs`, 14px / 450 / 20px. 포커스 `strong-border` outline/ring
+- Select: Radix `src/shared/ui/select/Select.tsx` — `h-10 rounded-xl border border-border bg-input-bg text-sm font-[450] shadow-xs`, content `shadow-ring`
 - Calendar: `src/shared/ui/calendar/Calendar.tsx` — day `w-9 h-9 rounded-lg text-[13px]`
 
 ---
@@ -304,18 +320,18 @@ The ten primary views share an inset content panel in `src/App.tsx`: 6px top mar
 
 1. **PageLayout**으로 페이지 감싸기
 2. **PageHeader**로 제목 + 액션
-3. 페이지 패널·카드·로딩/빈 상태: `rounded-2xl border border-border bg-main-bg`. 검색 필드: `rounded-xl bg-surface`
+3. 페이지 패널·카드·로딩/빈 상태: `rounded-2xl border border-border bg-main-bg`. 검색 필드: `h-10 rounded-xl border border-border bg-input-bg shadow-xs`
 4. Primary CTA: **PillButton**; soft secondary: **SurfaceButton**; dashed “추가” 패턴은 로컬 dashed border
 5. 아이콘: **Lucide** only, `strokeWidth={1.5}`
 6. 로딩: **Spinner** (`src/shared/ui/Spinner.tsx`)
-7. Body tracking 관례: `tracking-[0.14px]`
+7. Body tracking 기본: `0.24px`. 버튼은 레퍼런스의 `0.14px`
 
 **Dashboard** — 통합 지표·추이 패널 + 전체 너비 최근 로스팅 + 예정 배치/재고 알림 분할 패널
 **History** — 필터/검색/CSV/테이블/페이지네이션  
 **Active Roast** — 센서 차트(uPlot) + 이벤트 + 머신 컨트롤  
 **Bean / Profiles / Machines** — 마스터-디테일 (`MasterDetailLayout`): 1024px 미만 한 열, 이후 300px 목록 + 유동 상세, 1280px 이상 목록 350px. 상세는 큰 화면에서만 sticky
 **Schedule** — 공통 페이지 제목 + 일·주·월 토글, 테두리 패널 안 날짜 탐색·캘린더. 배치 목록은 패널 안에서 독립 스크롤
-**Pricing** — 15px 패널 제목·44px 결과 수치. 1280px 이상 원가/판매가 2열, 작은 화면 한 열
+**Pricing** — 18px 패널 제목·30px/48px 결과 수치. 1280px 이상 원가/판매가 2열, 작은 화면 한 열
 
 ---
 

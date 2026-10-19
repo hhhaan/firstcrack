@@ -103,11 +103,11 @@ export function OrdersTab() {
         <div className="space-y-5">
             <RoastingRequirementsCard />
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-main-bg p-4 lg:flex-row lg:items-center">
-                <div className="flex flex-1 items-center gap-2 rounded-xl bg-surface px-3 py-2.5 dark:bg-surface-elevated">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-64 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
                     <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                     <input
-                        className="w-full border-none bg-transparent font-body text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted"
+                        className="w-full border-none bg-transparent font-body text-sm tracking-[0.14px] text-primary outline-none placeholder:text-muted"
                         value={f.search}
                         onChange={(e) => f.setSearch(e.target.value)}
                         placeholder={t('orders.order.searchPlaceholder')}
@@ -180,15 +180,12 @@ export function OrdersTab() {
                     action={<GhostButton onClick={f.reset}>{t('orders.order.clearFilters')}</GhostButton>}
                 />
             ) : (
-                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-border">
                     <table className="w-full min-w-[560px] border-collapse text-left">
                         <thead>
-                            <tr className="border-b border-divider dark:border-[#585d61]">
+                            <tr className="border-b border-divider dark:border-border">
                                 {['date', 'platform', 'buyer', 'items', 'status', 'action'].map((c) => (
-                                    <th
-                                        key={c}
-                                        className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted"
-                                    >
+                                    <th key={c} className="h-12 px-4 py-0 text-sm font-medium leading-5 text-muted">
                                         {c === 'action' ? '' : t(`orders.order.col.${c}`)}
                                     </th>
                                 ))}
@@ -216,7 +213,7 @@ export function OrdersTab() {
                         </tbody>
                     </table>
 
-                    <div className="flex flex-col gap-3 border-t border-border-subtle px-5 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-[#585d61]">
+                    <div className="flex flex-col gap-3 border-t border-border-subtle px-5 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-border">
                         <span className="text-xs tracking-[0.14px] text-muted">
                             {t('orders.order.pagination', { start, end, total })}
                         </span>
@@ -285,17 +282,15 @@ function OrderRow({
 
     return (
         <Fragment>
-            <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
-                <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
-                    {formatDateShort(order.ordered_at)}
-                </td>
-                <td className="px-4 py-3.5">
+            <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface-elevated dark:border-border dark:hover:bg-surface-elevated/40">
+                <td className="px-4 py-4 font-mono text-sm text-secondary">{formatDateShort(order.ordered_at)}</td>
+                <td className="px-4 py-4">
                     <Badge tone="soft" size="sm">
                         {t(`orders.channel.platform.${order.platform}`, { defaultValue: order.platform })}
                     </Badge>
                 </td>
-                <td className="px-4 py-3.5 text-[13px] text-primary tracking-[0.14px]">{order.buyer_name ?? '—'}</td>
-                <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
+                <td className="px-4 py-4 text-sm text-primary tracking-[0.14px]">{order.buyer_name ?? '—'}</td>
+                <td className="px-4 py-4 font-mono text-sm text-secondary">
                     <div className="flex flex-wrap items-center gap-1.5">
                         {/* Toggle lives on the quantity, away from the action buttons in the last cell —
                             a whole-row click target would force stopPropagation on every one of them. */}
@@ -303,7 +298,7 @@ function OrderRow({
                             type="button"
                             onClick={onToggle}
                             aria-expanded={expanded}
-                            className="inline-flex cursor-pointer items-center gap-1 rounded border-none bg-transparent p-0 font-mono text-[13px] text-secondary hover:text-primary"
+                            className="inline-flex cursor-pointer items-center gap-1 rounded border-none bg-transparent p-0 font-mono text-sm text-secondary hover:text-primary"
                         >
                             {expanded ? (
                                 <ChevronDown size={13} strokeWidth={1.75} />
@@ -324,7 +319,7 @@ function OrderRow({
                         ) : null}
                     </div>
                 </td>
-                <td className="px-4 py-3.5">
+                <td className="px-4 py-4">
                     <div className="flex flex-wrap items-center gap-1.5">
                         <Badge tone={orderStatusTone(order.status, fulfilled)} size="sm">
                             {statusLabel}
@@ -345,13 +340,13 @@ function OrderRow({
                         </p>
                     ) : null}
                 </td>
-                <td className="px-4 py-3.5">
+                <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-1.5">
                         {canFulfill ? (
                             <GhostButton
                                 onClick={onFulfill}
                                 disabled={fulfillPending}
-                                className="text-primary border-primary/15 hover:bg-primary hover:text-white dark:hover:bg-black dark:hover:text-white dark:hover:border-white"
+                                className="text-primary border-primary/15 hover:bg-action hover:text-on-action"
                             >
                                 {t('orders.order.fulfill')}
                             </GhostButton>
@@ -367,11 +362,9 @@ function OrderRow({
                 </td>
             </tr>
             {expanded ? (
-                <tr className="border-b border-divider dark:border-[#585d61]">
+                <tr className="border-b border-divider dark:border-border">
                     <td colSpan={6} className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20">
-                        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                            {t('orders.order.lines')}
-                        </p>
+                        <p className="mb-2 text-sm font-medium leading-5 text-muted">{t('orders.order.lines')}</p>
                         {activeLines.length === 0 ? (
                             <p className="text-[12px] text-muted">—</p>
                         ) : (

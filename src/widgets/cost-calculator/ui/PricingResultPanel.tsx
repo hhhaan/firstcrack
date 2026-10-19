@@ -41,7 +41,7 @@ export const PricingResultPanel = ({
                     <span className="text-[11px] font-medium uppercase tracking-[0.5px] text-muted mb-2 block">
                         {t('pricing.selling.price')}
                     </span>
-                    <div className="text-[44px] font-light leading-[1.15] tracking-[-1.6px] text-primary">
+                    <div className="text-3xl font-[450] leading-9 tracking-[0.24px] xl:text-5xl xl:font-[350] xl:leading-12 text-primary">
                         {formatKrw(sellingPricePerKg, lang)}
                     </div>
                     <span className="text-[13px] text-muted tracking-[0.14px]">{perKg}</span>

@@ -30,7 +30,7 @@ export const ProfileDefaultSourceFields = ({
     const { t } = useTranslation();
 
     return (
-        <div className="border-t border-black/4 dark:border-[#585d61] pt-6">
+        <div className="border-t border-black/4 dark:border-border pt-6">
             <label className={labelCls}>{t('newProfileModal.defaultBean')}</label>
             <div className="flex gap-2 mt-2">
                 {(

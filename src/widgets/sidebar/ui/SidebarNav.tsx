@@ -78,7 +78,7 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                         <div key={group.labelKey}>
                             <div
                                 className={cn(
-                                    'px-2.5 text-xs leading-4 font-medium text-muted transition-[height,margin,opacity] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden whitespace-nowrap motion-reduce:transition-none',
+                                    'px-2 text-xs leading-4 font-medium text-muted transition-[height,margin,opacity] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden whitespace-nowrap motion-reduce:transition-none',
                                     collapsed ? 'h-0 mb-0 opacity-0' : 'h-4 mb-1.5 opacity-100',
                                 )}
                             >
@@ -102,14 +102,19 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         aria-current={isActive ? 'page' : undefined}
                                         title={collapsed ? label : undefined}
                                         className={cn(
-                                            'flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-lg border-none mb-0.5 transition-[padding,background-color] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                                            'mb-1 flex h-8 w-full cursor-pointer items-center gap-2 overflow-hidden rounded-[7.6px] border border-transparent text-sm leading-5 transition-[padding,background-color] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong-border motion-reduce:transition-none',
                                             isActive
-                                                ? 'bg-main-bg shadow-(--shadow-inset)'
-                                                : 'bg-transparent hover:bg-primary/5',
+                                                ? 'border-border bg-main-bg font-medium shadow-xs dark:border-transparent'
+                                                : 'bg-transparent font-[450] hover:bg-surface-elevated',
                                             collapsed || rail ? 'pl-0' : 'pl-2',
                                         )}
                                     >
-                                        <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
+                                        <div
+                                            className={cn(
+                                                'relative flex shrink-0 items-center justify-center',
+                                                collapsed || rail ? 'size-8' : 'size-4',
+                                            )}
+                                        >
                                             <Icon
                                                 size={16}
                                                 strokeWidth={2}
@@ -134,10 +139,8 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         >
                                             <span
                                                 className={cn(
-                                                    'text-[13px]',
-                                                    isActive
-                                                        ? 'font-medium text-primary'
-                                                        : 'font-normal text-secondary',
+                                                    'text-sm leading-5 tracking-[0.24px]',
+                                                    isActive ? 'font-medium text-primary' : 'font-[450] text-muted',
                                                 )}
                                             >
                                                 {label}

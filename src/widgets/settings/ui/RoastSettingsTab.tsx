@@ -247,9 +247,9 @@ const NumberInput = ({
                     setLocal(String(next));
                     if (next !== value) onChange(next);
                 }}
-                className="w-14 bg-transparent text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-14 bg-transparent text-[13px] font-medium text-[#111827] dark:text-primary text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
             />
-            {suffix && <span className="text-[12px] text-[#6B7280] dark:text-[#999]">{suffix}</span>}
+            {suffix && <span className="text-[12px] text-[#6B7280] dark:text-muted">{suffix}</span>}
         </div>
     );
 };

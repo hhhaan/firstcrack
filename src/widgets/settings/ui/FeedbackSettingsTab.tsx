@@ -9,7 +9,7 @@ const SUPPORT_EMAIL = 'support@firstcrackiscoming.com';
 const WEBSITE_URL = 'https://firstcrackiscoming.com';
 
 const actionBtnCls =
-    'flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262B31] text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] hover:bg-[#F9FAFB] dark:hover:bg-[#181d21] active:opacity-90 transition-all cursor-pointer';
+    'flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-border bg-white dark:bg-[#262B31] text-[13px] font-medium text-[#111827] dark:text-primary hover:bg-[#F9FAFB] dark:hover:bg-[#181d21] active:opacity-90 transition-all cursor-pointer';
 
 async function openExternal(url: string, context: string) {
     try {

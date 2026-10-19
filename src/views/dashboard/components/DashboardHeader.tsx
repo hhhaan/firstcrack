@@ -16,11 +16,11 @@ export const DashboardHeader = ({ onNavigate }: DashboardHeaderProps) => {
     const { t } = useTranslation();
 
     return (
-        <div className="mb-7 flex flex-wrap items-end justify-between gap-5" data-testid="dashboard-header">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4" data-testid="dashboard-header">
             <div>
                 <h1
                     data-testid="dashboard-greeting"
-                    className="mb-2 font-(--font-display) text-[26px] leading-[1.2] tracking-[-0.5px] text-primary"
+                    className="mb-2 font-(--font-display) text-2xl font-medium leading-8 tracking-[0.24px] text-primary"
                 >
                     {t('sidebar.nav.dashboard')}
                 </h1>
@@ -48,13 +48,13 @@ export const DashboardHeader = ({ onNavigate }: DashboardHeaderProps) => {
                 </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-2 text-xs text-secondary">
+                <span className="inline-flex items-center gap-2 rounded-full bg-surface-elevated px-3 py-2 text-xs text-secondary">
                     <CalendarDays size={13} strokeWidth={1.5} />
                     {t('dashboard.thisMonth')}
                 </span>
                 <PillButton onClick={() => onNavigate('roast')}>
                     <span
-                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-palette-green animate-pulse' : 'bg-white/40'}`}
+                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-palette-green animate-pulse' : 'bg-current opacity-40'}`}
                     />
                     {t('dashboard.viewActiveRoast')}
                     <ArrowRight size={14} strokeWidth={2} />

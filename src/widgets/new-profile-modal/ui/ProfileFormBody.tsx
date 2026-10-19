@@ -98,7 +98,7 @@ export const ProfileFormBody = ({
 
                 {selectedSession ? (
                     <div className="px-8 pb-4">
-                        <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface/60 dark:bg-surface-elevated border border-transparent dark:border-[#585d61] text-[12px] text-secondary shadow-(--shadow-inset)">
+                        <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface/60 dark:bg-surface-elevated border border-transparent dark:border-border text-[12px] text-secondary shadow-(--shadow-inset)">
                             <History size={14} strokeWidth={2} className="text-muted flex-shrink-0" />
                             <span>
                                 {t('newProfileModal.basedOn')}{' '}

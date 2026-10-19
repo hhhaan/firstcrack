@@ -169,7 +169,7 @@ export const RoastHeader = ({
                         onClick={onOpenRoastSettings}
                         aria-label="Open roast settings"
                         title="Roast settings"
-                        className="w-8.5 h-8.5 rounded-md border border-transparent bg-main-bg dark:bg-[#262b31] text-secondary dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer shrink-0 mt-1.5 hover:-translate-y-px transition"
+                        className="w-8.5 h-8.5 rounded-md border border-transparent bg-main-bg dark:bg-surface-elevated text-secondary dark:text-primary flex items-center justify-center cursor-pointer shrink-0 mt-1.5 hover:bg-surface-hover transition"
                     >
                         <Settings2 size={15} strokeWidth={1.9} />
                     </button>

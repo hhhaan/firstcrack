@@ -1,3 +1,4 @@
+import { cn } from '@shared/lib/cn';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 interface SurfaceButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -6,14 +7,14 @@ interface SurfaceButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     icon?: ReactNode;
 }
 
-/**
- * Soft surface CTA — schedule “add batch”, empty-state actions, secondary page adds.
- * rounded-lg + bg-surface (not primary black PillButton).
- */
+/** Compact secondary action: 32px pill with a faint border. */
 export const SurfaceButton = ({ children, icon, className = '', type = 'button', ...props }: SurfaceButtonProps) => (
     <button
         type={type}
-        className={`inline-flex items-center gap-1.5 rounded-lg bg-surface px-3 py-1.5 text-[13px] font-medium text-primary transition-colors hover:bg-surface-raised disabled:cursor-not-allowed disabled:opacity-40 dark:bg-surface-elevated cursor-pointer ${className}`}
+        className={cn(
+            'inline-flex h-8 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border border-action/4 bg-surface px-3 py-1.5 font-(--font-display) text-xs font-[550] leading-4 text-action transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong-border disabled:pointer-events-none disabled:opacity-50 dark:border-action/5',
+            className,
+        )}
         {...props}
     >
         {icon != null ? <span className="flex items-center">{icon}</span> : null}

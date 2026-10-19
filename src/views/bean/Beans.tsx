@@ -182,7 +182,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
     const greenBody = (
         <>
-            <div className="mb-4 flex items-end justify-between gap-3 border-b border-(--color-border) dark:border-[#585d61]">
+            <div className="mb-4 flex items-end justify-between gap-3 border-b border-(--color-border) dark:border-border">
                 <div className="flex min-w-0">
                     <button
                         type="button"

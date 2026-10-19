@@ -112,14 +112,14 @@ export const Machines = ({
             />
 
             {!allowAddMachine && maxMachines != null ? (
-                <div className="mb-3 rounded-lg border border-border-subtle bg-surface/60 px-4 py-2.5 text-[12px] text-secondary dark:border-[#585d61]">
+                <div className="mb-3 rounded-lg border border-border-subtle bg-surface/60 px-4 py-2.5 text-[12px] text-secondary dark:border-border">
                     {t('machines.limit.banner', { max: maxMachines, used: realMachineCount })}
                 </div>
             ) : null}
 
             {limitBlocked ? (
                 <ModalShell onClose={dismissLimitBlocked} labelledBy="machine-limit-title">
-                    <div className="w-full max-w-md rounded-xl bg-main-bg p-6 shadow-lg dark:border dark:border-[#585d61]">
+                    <div className="w-full max-w-md rounded-xl bg-main-bg p-6 shadow-lg dark:border dark:border-border">
                         <h2 id="machine-limit-title" className="mb-2 text-base font-semibold text-primary">
                             {t('machines.limit.title')}
                         </h2>
@@ -130,7 +130,7 @@ export const Machines = ({
                             <button
                                 type="button"
                                 onClick={dismissLimitBlocked}
-                                className="rounded-full border border-border-subtle px-4 py-2 text-xs dark:border-[#585d61]"
+                                className="rounded-full border border-border-subtle px-4 py-2 text-xs dark:border-border"
                             >
                                 {t('common.close', { defaultValue: 'Close' })}
                             </button>
@@ -143,13 +143,9 @@ export const Machines = ({
                 <div className="rounded-2xl border border-border bg-main-bg py-16 px-8 text-center">
                     <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
-                    <button
-                        type="button"
-                        onClick={openAddModal}
-                        className="px-5 py-2.5 rounded-[10px] border-none bg-primary dark:bg-[#0d0d0d] text-white text-[13px] font-medium cursor-pointer"
-                    >
+                    <PillButton onClick={openAddModal} className="mx-auto">
                         {t('machines.addFirst')}
-                    </button>
+                    </PillButton>
                 </div>
             ) : (
                 <MasterDetailLayout
@@ -160,8 +156,9 @@ export const Machines = ({
                                 return (
                                     <div
                                         key={machine.id}
+                                        data-selected={selected?.id === machine.id}
                                         onClick={() => setSelectedId(machine.id)}
-                                        className={`rounded-2xl border border-border bg-main-bg px-4 py-3.5 cursor-pointer transition-colors duration-150`}
+                                        className="cursor-pointer rounded-2xl border border-border bg-main-bg px-4 py-4 transition-colors duration-150 hover:border-strong-border data-[selected=true]:border-strong-border data-[selected=true]:shadow-xs"
                                     >
                                         <div className="flex items-start justify-between mb-2">
                                             <div>
@@ -195,7 +192,7 @@ export const Machines = ({
                             <div className="rounded-2xl border border-border bg-main-bg px-8 py-7 h-fit">
                                 <div className="flex items-start justify-between mb-6">
                                     <div>
-                                        <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-2">
+                                        <h2 className="font-display text-2xl font-medium leading-[1.2] text-primary tracking-[0.24px] mb-2">
                                             {selected.name}
                                         </h2>
                                         <div className="flex gap-2.5 flex-wrap">
@@ -265,7 +262,7 @@ export const Machines = ({
                                             <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
                                                 {s.label}
                                             </div>
-                                            <div className="text-[22px] font-light text-primary tracking-[-0.3px] whitespace-nowrap tabular-nums">
+                                            <div className="text-[22px] font-light text-primary tracking-[0.24px] whitespace-nowrap tabular-nums">
                                                 {s.value}
                                             </div>
                                             <div className="text-[11px] text-muted mt-0.5">{s.sub}</div>
@@ -309,7 +306,7 @@ export const Machines = ({
                                             type="button"
                                             onClick={() => handleConnect(selected)}
                                             disabled={connecting || !sidecarReady}
-                                            className={`flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium flex items-center justify-center gap-2 ${
+                                            className={`flex-1 py-3 rounded-lg border-none bg-action text-on-action text-sm font-medium flex items-center justify-center gap-2 ${
                                                 connecting || !sidecarReady
                                                     ? 'opacity-70 cursor-default'
                                                     : 'cursor-pointer'
@@ -334,7 +331,7 @@ export const Machines = ({
                                         <button
                                             type="button"
                                             onClick={() => onNavigate('roast')}
-                                            className="flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#0d0d0d] text-white text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
+                                            className="flex-1 py-3 rounded-lg border-none bg-action text-on-action text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
                                         >
                                             <Flame size={15} strokeWidth={2} />
                                             {t('machines.startRoasting')}

@@ -60,7 +60,7 @@ const WeekDayColumn = ({
         <div
             onClick={onSelect}
             className={`
-                flex-1 basis-0 min-w-0 flex flex-col rounded-xl cursor-pointer dark:border dark:border-[#585d61] transition-colors duration-100
+                flex-1 basis-0 min-w-0 flex flex-col rounded-xl cursor-pointer dark:border dark:border-border transition-colors duration-100
                 ${isSelected ? 'bg-primary/5' : 'bg-main-bg'}
             `}
         >
@@ -69,7 +69,7 @@ const WeekDayColumn = ({
                     <span
                         className={`
                         text-[11px] font-medium w-5 h-5 flex items-center justify-center rounded-full shrink-0
-                        ${today ? 'bg-primary text-white dark:text-[#181d21]' : 'text-muted'}
+                        ${today ? 'bg-action text-on-action dark:text-[#181d21]' : 'text-muted'}
                     `}
                     >
                         {format(day, 'd')}

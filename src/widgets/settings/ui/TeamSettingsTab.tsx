@@ -9,7 +9,7 @@ import { SettingsOptionRow, settingsOptionLabelCls } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 
 const actionBtnCls =
-    'flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262B31] text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] hover:bg-[#F9FAFB] dark:hover:bg-[#181d21] active:opacity-90 transition-all cursor-pointer disabled:opacity-50';
+    'flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-border bg-white dark:bg-[#262B31] text-[13px] font-medium text-[#111827] dark:text-primary hover:bg-[#F9FAFB] dark:hover:bg-[#181d21] active:opacity-90 transition-all cursor-pointer disabled:opacity-50';
 
 const primaryBtnCls =
     'flex items-center gap-2 px-4 py-2.5 rounded-lg bg-palette-teal/15 text-palette-teal border border-palette-teal/30 text-[13px] font-semibold hover:bg-palette-teal/25 active:bg-palette-teal/30 disabled:opacity-50 transition-all cursor-pointer';
@@ -103,7 +103,7 @@ export function TeamSettingsTab() {
     return (
         <div className="grid gap-6">
             {isForeignWorkspace && (
-                <div className="text-[13px] px-3 py-2 rounded-lg bg-[#F3F4F6] dark:bg-[#262b31] text-[#6B7280] dark:text-[#999]">
+                <div className="text-[13px] px-3 py-2 rounded-lg bg-[#F3F4F6] dark:bg-surface-elevated text-[#6B7280] dark:text-muted">
                     {t('settings.tabs.team.ownOrgNote')}
                 </div>
             )}
@@ -129,9 +129,9 @@ export function TeamSettingsTab() {
                     })}
                 />
                 <SettingsSection.Body className="flex flex-col gap-2">
-                    {isLoading && <p className="text-[13px] text-[#6B7280] dark:text-[#999]">{t('common.loading')}</p>}
+                    {isLoading && <p className="text-[13px] text-[#6B7280] dark:text-muted">{t('common.loading')}</p>}
                     {!isLoading && members.length === 0 && (
-                        <p className="text-[13px] text-[#6B7280] dark:text-[#999]">
+                        <p className="text-[13px] text-[#6B7280] dark:text-muted">
                             {t('settings.tabs.team.noMembers')}
                         </p>
                     )}
@@ -163,7 +163,7 @@ export function TeamSettingsTab() {
                                             </span>
                                         </div>
                                         {showEmailSub && (
-                                            <p className="text-[12px] text-[#6B7280] dark:text-[#999] m-0 truncate">
+                                            <p className="text-[12px] text-[#6B7280] dark:text-muted m-0 truncate">
                                                 {m.email}
                                             </p>
                                         )}
@@ -194,13 +194,13 @@ export function TeamSettingsTab() {
                 />
                 <SettingsSection.Body className="flex flex-col gap-3">
                     {!canHostTeam ? (
-                        <div className="flex items-start gap-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#181d21] px-3 py-3">
+                        <div className="flex items-start gap-2.5 rounded-lg border border-[#E5E7EB] dark:border-border bg-[#F9FAFB] dark:bg-main-bg px-3 py-3">
                             <Lock size={14} className="mt-0.5 shrink-0 text-[#9CA3AF]" aria-hidden />
                             <div>
-                                <p className="text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] m-0">
+                                <p className="text-[13px] font-medium text-[#111827] dark:text-primary m-0">
                                     {t('settings.tabs.team.locked.title')}
                                 </p>
-                                <p className="mt-1 text-[12px] leading-relaxed text-[#6B7280] dark:text-[#999] m-0">
+                                <p className="mt-1 text-[12px] leading-relaxed text-[#6B7280] dark:text-muted m-0">
                                     {t('settings.tabs.team.locked.description')}
                                 </p>
                             </div>
@@ -217,7 +217,7 @@ export function TeamSettingsTab() {
                                 {creating ? t('common.loading') : t('settings.tabs.team.createInvite')}
                             </button>
                             {seatsFull && (
-                                <p className="text-[12px] text-[#6B7280] dark:text-[#999] m-0">
+                                <p className="text-[12px] text-[#6B7280] dark:text-muted m-0">
                                     {t('settings.tabs.team.errors.seat_limit')}
                                 </p>
                             )}
@@ -238,7 +238,7 @@ export function TeamSettingsTab() {
                             )}
                             {activeInvites.length > 0 && (
                                 <div className="flex flex-col gap-2 mt-1">
-                                    <span className="text-[12px] font-medium text-[#6B7280] dark:text-[#999]">
+                                    <span className="text-[12px] font-medium text-[#6B7280] dark:text-muted">
                                         {t('settings.tabs.team.activeInvites')}
                                     </span>
                                     {activeInvites.map((inv) => (
@@ -285,7 +285,7 @@ export function TeamSettingsTab() {
                         value={redeemCode}
                         onChange={(e) => setRedeemCode(e.target.value)}
                         placeholder={t('settings.tabs.team.redeemPlaceholder')}
-                        className="w-full px-3 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-[13px] text-[#111827] dark:text-[#e5e5e5] outline-none focus:border-palette-teal/50"
+                        className="w-full px-3 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-border bg-white dark:bg-main-bg text-[13px] text-[#111827] dark:text-primary outline-none focus:border-palette-teal/50"
                     />
                     <button
                         type="button"

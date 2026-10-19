@@ -112,7 +112,7 @@ export const ProfileDetail = ({
         <div className="min-w-0 rounded-2xl border border-border bg-main-bg px-8 py-7">
             <div className="mb-5 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                    <h2 className="mb-1 break-words font-display text-[26px] font-light leading-[1.2] tracking-[-0.3px] text-primary">
+                    <h2 className="mb-1 break-words font-display text-2xl font-medium leading-[1.2] tracking-[0.24px] text-primary">
                         {selected.name}
                     </h2>
                     {selected.description && (
@@ -269,7 +269,7 @@ export const ProfileDetail = ({
                         {beanHistory.map((item) => (
                             <div
                                 key={item.name}
-                                className="flex justify-between items-center text-xs py-1 border-b border-black/4 dark:border-[#585d61] last:border-0"
+                                className="flex justify-between items-center text-xs py-1 border-b border-black/4 dark:border-border last:border-0"
                             >
                                 <span className="text-primary font-medium">{item.name}</span>
                                 <span className="text-muted">
@@ -290,7 +290,7 @@ export const ProfileDetail = ({
                         useRoastingStore.getState().setPendingProfile(selected.id);
                         onNavigate('roast');
                     }}
-                    className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
+                    className="flex-1 py-2.5 rounded-full border-none bg-action text-on-action text-sm font-medium cursor-pointer tracking-[0.14px] "
                 >
                     {t('profiles.detail.startWith')}
                 </button>

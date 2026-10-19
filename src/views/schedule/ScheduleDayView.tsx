@@ -82,7 +82,7 @@ export const ScheduleDayView = ({
                         <BatchCardSkeleton />
                     </div>
                 ) : hooks.batches.length === 0 ? (
-                    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
+                    <div className="bg-main-bg dark:border dark:border-border rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
                         <div className="text-[13px] text-muted text-center leading-relaxed">
                             {t('schedule.emptyState.title')}
                         </div>

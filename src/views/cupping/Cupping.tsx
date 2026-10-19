@@ -30,7 +30,7 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
         return (
             <PageLayout>
                 <PageHeader title={t('cupping.title')} subtitle={t('cupping.locked.subtitle')} />
-                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-20 text-center dark:border-[#585d61]">
+                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-20 text-center dark:border-border">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface">
                         <Lock size={22} className="text-muted" />
                     </div>

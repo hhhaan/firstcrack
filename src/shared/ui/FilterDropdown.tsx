@@ -35,10 +35,10 @@ export const FilterDropdown = ({
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
+                className={`inline-flex items-center gap-1 whitespace-nowrap h-10 rounded-xl border border-border bg-input-bg px-3 py-2 text-sm shadow-xs font-medium tracking-[0.14px] transition ${
                     isActive
-                        ? 'bg-surface-warm-solid text-primary'
-                        : 'bg-surface dark:bg-surface-elevated text-secondary hover:-translate-y-px hover:text-primary'
+                        ? 'border-strong-border text-primary'
+                        : 'text-secondary hover:border-strong-border hover:text-primary'
                 }`}
             >
                 <Filter size={12} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
@@ -47,7 +47,7 @@ export const FilterDropdown = ({
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg dark:bg-surface-elevated py-1 shadow-lg">
+                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg dark:bg-surface-elevated py-1 shadow-xs">
                     <button
                         type="button"
                         onClick={() => {

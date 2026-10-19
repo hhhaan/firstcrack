@@ -12,7 +12,7 @@ import { WeekView } from './WeekView';
 const ViewToggle = ({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) => {
     const { t } = useTranslation();
     return (
-        <div className="flex items-center gap-1 rounded-full bg-surface p-1">
+        <div className="flex items-center gap-1 rounded-full bg-surface-elevated p-1">
             {(['day', 'week', 'month'] as ViewMode[]).map((v) => {
                 const label = t(`schedule.viewToggle.${v}`);
                 return (
@@ -23,7 +23,7 @@ const ViewToggle = ({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
                         aria-pressed={view === v}
                         className={`cursor-pointer rounded-full border-none px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
                             view === v
-                                ? 'bg-main-bg dark:bg-surface-elevated text-primary'
+                                ? 'bg-main-bg text-action shadow-selected dark:bg-surface'
                                 : 'bg-transparent text-muted hover:text-secondary'
                         }`}
                     >
@@ -46,7 +46,7 @@ export const Schedule = ({ onStartBatch }: ScheduleProps) => {
     const { t } = useTranslation();
 
     return (
-        <div className="mx-auto flex min-h-0 w-full max-w-[1280px] flex-1 flex-col overflow-hidden px-6 py-8 sm:px-10">
+        <div className="mx-auto flex min-h-0 w-full max-w-[1280px] flex-1 flex-col overflow-hidden px-6 py-8 sm:px-8">
             <PageHeader title={t('sidebar.nav.schedule')} actions={<ViewToggle view={view} onChange={setView} />} />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-main-bg">
                 <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-divider px-6 py-4">

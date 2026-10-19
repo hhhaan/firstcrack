@@ -49,14 +49,14 @@ export const Sidebar = ({
             ? myName
             : activeMembership?.owner_business_name || activeMembership?.org_name || t('sidebar.workspace');
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
-    const edgePad = collapsed ? 'px-[8.5px]' : 'px-3';
+    const edgePad = collapsed ? 'px-[8.5px]' : 'px-4';
 
     return (
         <aside
             data-testid="app-sidebar"
             className={cn(
                 'shrink-0 h-full bg-transparent flex flex-col overflow-hidden transition-[width] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
-                rail ? 'w-[60px]' : collapsed ? 'w-[53px]' : 'w-[170px] sm:w-[200px] lg:w-[220px]',
+                rail ? 'w-[60px]' : collapsed ? 'w-[53px]' : 'w-[170px] sm:w-[200px] lg:w-[224px]',
             )}
         >
             {/* Header */}
@@ -120,7 +120,7 @@ export const Sidebar = ({
                             type="button"
                             aria-label={t('sidebar.workspaceSelector')}
                             title={collapsed ? workspaceName : undefined}
-                            className="w-full flex items-center rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset) h-9 overflow-hidden"
+                            className="flex h-10 w-full cursor-pointer items-center overflow-hidden rounded-xl border border-border bg-input-bg shadow-xs"
                         >
                             <div className="w-9 h-9 shrink-0 flex items-center justify-center">
                                 <div className="w-5.5 h-5.5 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary">
@@ -135,7 +135,7 @@ export const Sidebar = ({
                                         : 'opacity-100 translate-x-0 delay-75 motion-reduce:delay-0',
                                 )}
                             >
-                                <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                                <span className="truncate text-sm font-medium leading-5 text-primary">
                                     {workspaceName}
                                 </span>
                                 <ChevronDown size={14} className="shrink-0 ml-1 text-muted" />
@@ -233,7 +233,7 @@ export const Sidebar = ({
                                 : 'opacity-100 translate-x-0 delay-75 motion-reduce:delay-0',
                         )}
                     >
-                        <span className="flex-1 text-left text-[13px]">{t('sidebar.settings')}</span>
+                        <span className="flex-1 text-left text-sm font-[450]">{t('sidebar.settings')}</span>
                         <kbd className="pr-2 whitespace-nowrap font-sans text-xs text-muted opacity-60">
                             {formatShortcut(settingsKeys)}
                         </kbd>

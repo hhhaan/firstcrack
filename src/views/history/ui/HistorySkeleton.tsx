@@ -17,11 +17,11 @@ export const HistorySkeleton = () => (
     <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg">
         <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
             <thead>
-                <tr className="border-b border-divider dark:border-[#585d61]">
+                <tr className="border-b border-divider dark:border-border">
                     {skeletonCols.map((col, i) => (
                         <th
                             key={i}
-                            className={`px-3 py-3 text-left ${col.hideOnMd ? 'md:hidden lg:table-cell' : ''}`}
+                            className={`h-12 px-4 py-0 text-left ${col.hideOnMd ? 'md:hidden lg:table-cell' : ''}`}
                             style={{ width: col.width }}
                         >
                             <Skeleton width={col.width} height={10} borderRadius="4px" />
@@ -31,7 +31,7 @@ export const HistorySkeleton = () => (
             </thead>
             <tbody>
                 {Array.from({ length: ROW_COUNT }, (_, rowIdx) => (
-                    <tr key={rowIdx} className="border-b border-divider dark:border-[#585d61]">
+                    <tr key={rowIdx} className="border-b border-divider dark:border-border">
                         {skeletonCols.map((col, colIdx) => (
                             <td
                                 key={colIdx}

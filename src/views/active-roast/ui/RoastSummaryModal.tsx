@@ -263,7 +263,7 @@ export const RoastSummaryModal = ({
                                         }}
                                         className={`flex-1 px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
                                             linkMode === value
-                                                ? 'bg-primary text-white'
+                                                ? 'bg-action text-on-action'
                                                 : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
                                         }`}
                                     >
@@ -447,7 +447,7 @@ export const RoastSummaryModal = ({
                                 onClick={() => setValue('roastLevel', roastLevel === value ? null : value)}
                                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
                                     roastLevel === value
-                                        ? 'bg-primary text-white'
+                                        ? 'bg-action text-on-action'
                                         : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
                                 }`}
                             >
@@ -488,7 +488,7 @@ export const RoastSummaryModal = ({
                 </label>
             </ModalScrollBody>
 
-            <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-[#585d61] flex flex-col gap-2 bg-main-bg dark:bg-[#181d21]">
+            <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border flex flex-col gap-2 bg-main-bg dark:bg-main-bg">
                 <button
                     type="button"
                     data-testid="roast-summary-save"
