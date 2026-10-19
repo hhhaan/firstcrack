@@ -116,7 +116,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | `--color-phase-development` | `oklch(0.6 0.18 155)` | `#81fba5` | Development |
 | `--color-phase-development-fill` | `oklch(0.6 0.18 155 / 0.26)` | `rgba(129, 251, 165, 0.18)` | Development fill |
 | `--color-fc-band-fill` | `oklch(0.6 0.18 155 / 0.1)` | `rgba(129, 251, 165, 0.08)` | FC band fill |
-| `--color-bbp-fill` | `oklch(0.55 0 0 / 0.07)` | `oklch(1 0 0 / 0.07)` | BBP 구간 배경 (격자 유지) |
+| `--color-bbp-fill` | `oklch(0.55 0 0 / 0.055)` | `oklch(1 0 0 / 0.07)` | BBP 구간 배경 (격자 유지) |
 | `--color-phase-danger` | `#dc2626` | `#ffffff` | Danger / 임계 (light red, dark white) |
 | `--color-phase-danger-bg` | `rgba(220, 38, 38, 0.1)` | `rgba(255, 255, 255, 0.12)` | Danger 배경 |
 
@@ -278,7 +278,8 @@ The ten primary views share an inset content panel in `src/App.tsx`: 0px top and
 
 - `src/shared/ui/Badge.tsx` — read-only status pill (`rounded-full`)
 - Tones: `neutral`, `soft`, `good`, `bad`, `warn`, `amber`, `lavender`, `lavenderSoft`, `blue`, `green`, `yellow`, `muted`
-- 시맨틱: `text-palette-*` / `bg-palette-*/12|15` 우선; 동적 색만 `color`/`bg` style 예외
+- 초록(`good`, `green`): 20px pill, 12px/500, `px-1.5 py-0.5`, `bg-emerald-100 text-emerald-600` (`#D0FAE5` / `#009966`). 다크 `dark:bg-emerald-900 dark:text-emerald-300`. 테두리·그림자 없음
+- 그 외 시맨틱: `text-palette-*` / `bg-palette-*/12|15` 우선; 동적 색만 `color`/`bg` style 예외
 
 ### Icons (Lucide)
 
@@ -301,6 +302,7 @@ The ten primary views share an inset content panel in `src/App.tsx`: 0px top and
 
 ### Navigation / segmented controls
 
+- 서비스 전체에서 스크롤바를 숨긴다. 휠·트랙패드·키보드 스크롤은 유지한다.
 - Sidebar: 큰 화면 224px, 좌우 16px, 메뉴 192px. 항목 높이 32px, 반경 7.6px, 간격 4px. 글자 14px / 450, 선택 500 + `border-border bg-main-bg shadow-xs`
 - 기간·타입 선택: `bg-surface-elevated` 36px track (p4/gap4), 28px pill (6px 12px). 선택 `bg-main-bg text-action shadow-selected`, 다크 `bg-surface`
 - 테이블: 헤더 48px / 14px·500, 본문 14px·450 / py16, `border-divider`, hover `surface-elevated`

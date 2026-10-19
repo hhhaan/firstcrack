@@ -1,6 +1,6 @@
 import type { DailyRoastMetric, MonthlyBatch } from '@features/dashboard-summary';
 import type { CoffeeFuturesData } from '@shared/api/coffee-futures';
-import { durationDiff, formatDuration, pctChange } from '@shared/lib/format';
+import { pctChange } from '@shared/lib/format';
 import { MetricTrendChart } from '@shared/ui/MetricTrendChart';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '../lib/format';
@@ -12,8 +12,6 @@ interface KpiSectionProps {
     batchesLastMonth: number;
     kgRoastedThisMonth: number;
     kgRoastedLastMonth: number;
-    avgDurationSeconds: number;
-    avgDurationLastMonthSeconds: number;
     dailyMetrics: DailyRoastMetric[];
     monthlyBatches: MonthlyBatch[];
     loading: boolean;
@@ -30,8 +28,6 @@ export const KpiSection = ({
     batchesLastMonth,
     kgRoastedThisMonth,
     kgRoastedLastMonth,
-    avgDurationSeconds,
-    avgDurationLastMonthSeconds,
     dailyMetrics,
     monthlyBatches,
     loading,
@@ -56,7 +52,7 @@ export const KpiSection = ({
 
     return (
         <div
-            className="mb-8 grid overflow-hidden rounded-2xl border border-border bg-main-bg lg:grid-cols-3"
+            className="mb-8 grid overflow-hidden rounded-2xl border border-border bg-main-bg lg:grid-cols-6"
             data-testid="dashboard-metrics"
             aria-busy={loading}
         >
@@ -67,7 +63,7 @@ export const KpiSection = ({
                 change={loading ? '' : pctChange(kgRoastedThisMonth, kgRoastedLastMonth)}
                 caption={range}
                 comparison={comparison}
-                className="border-b border-border lg:col-span-2 lg:border-r"
+                className="border-b border-border lg:col-span-4 lg:border-r"
             >
                 <div className="h-32 lg:h-36">
                     {!loading && (
@@ -85,7 +81,7 @@ export const KpiSection = ({
                 change={loading ? '' : pctChange(batchesThisMonth, batchesLastMonth)}
                 caption={range}
                 comparison={comparison}
-                className="border-b border-border"
+                className="border-b border-border lg:col-span-2"
             >
                 <div className="h-32 lg:h-36">
                     {!loading && (
@@ -97,31 +93,13 @@ export const KpiSection = ({
                 </div>
             </KpiCard>
             <KpiCard
-                label={t('dashboard.kpi.avgRoastTime')}
-                value={loading ? '—' : formatDuration(avgDurationSeconds)}
-                change={loading ? '' : durationDiff(avgDurationSeconds, avgDurationLastMonthSeconds)}
-                caption={range}
-                comparison={comparison}
-                className="border-b border-border lg:border-r lg:border-b-0"
-            >
-                <div className="h-24 lg:h-28">
-                    {!loading && (
-                        <MetricTrendChart
-                            label={t('dashboard.kpi.avgRoastTime')}
-                            data={daily.map((day) => ({ label: day.label, value: day.avgDurationSeconds }))}
-                            formatValue={formatDuration}
-                        />
-                    )}
-                </div>
-            </KpiCard>
-            <KpiCard
                 label={t('dashboard.kpi.coffeeFutures')}
                 value={coffeeFuturesLoading ? '—' : coffeePrice}
                 unit="US ¢/lb"
                 change={coffeeFuturesLoading ? '' : coffeeChange}
                 caption="ICE · Coffee C"
                 comparison={t('dashboard.comparedToPreviousClose')}
-                className="border-b border-border lg:border-r lg:border-b-0"
+                className="border-b border-border lg:col-span-3 lg:border-r lg:border-b-0"
                 onRefresh={onRefreshCoffeeFutures}
                 refreshing={coffeeFuturesRefreshing}
             >

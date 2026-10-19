@@ -27,8 +27,6 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 batchesLastMonth={db.batchesLastMonth}
                 kgRoastedThisMonth={db.kgRoastedThisMonth}
                 kgRoastedLastMonth={db.kgRoastedLastMonth}
-                avgDurationSeconds={db.avgDurationSeconds}
-                avgDurationLastMonthSeconds={db.avgDurationLastMonthSeconds}
                 dailyMetrics={db.dailyMetrics}
                 monthlyBatches={db.monthlyBatches}
                 loading={db.loading}

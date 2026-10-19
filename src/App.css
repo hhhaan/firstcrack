@@ -121,7 +121,7 @@
     --color-phase-development: oklch(0.6 0.18 155);
     --color-phase-development-fill: oklch(0.6 0.18 155 / 0.26);
     --color-fc-band-fill: oklch(0.6 0.18 155 / 0.1);
-    --color-bbp-fill: oklch(0.55 0 0 / 0.07);
+    --color-bbp-fill: oklch(0.55 0 0 / 0.055);
     --color-phase-danger: #dc2626;
     --color-phase-danger-bg: rgba(220, 38, 38, 0.1);
 
@@ -279,18 +279,14 @@ html[lang="en"] {
     --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+* {
+    scrollbar-width: none;
+}
+
 ::-webkit-scrollbar {
-    width: 5px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: var(--color-scrollbar-thumb);
-    border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: var(--color-scrollbar-thumb-hover);
+    display: none;
+    width: 0;
+    height: 0;
 }
 
 *,

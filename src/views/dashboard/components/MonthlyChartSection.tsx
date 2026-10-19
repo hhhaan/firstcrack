@@ -24,6 +24,7 @@ export const MonthlyChartSection = ({ monthlyBatches, loading }: MonthlyChartSec
                     : t('dashboard.lastSixMonths')
             }
             comparison=""
+            className="lg:col-span-3"
         >
             <div className="h-24 lg:h-28">
                 {!loading && (

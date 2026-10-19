@@ -10,12 +10,7 @@ import { formatDateLocal } from '@shared/lib/rrule';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
-import {
-    averageRoastDurationSec,
-    type DailyRoastMetric,
-    dailyRoastMetrics,
-    splitDashboardMonths,
-} from '../lib/dashboard-roast-stats';
+import { type DailyRoastMetric, dailyRoastMetrics, splitDashboardMonths } from '../lib/dashboard-roast-stats';
 
 /** Recent-row view model. `roastDurationSec` is History 시간 (Charge→Drop), not record End. */
 export type DashboardRecentSession = {
@@ -62,8 +57,6 @@ export interface DashboardData {
     batchesLastMonth: number;
     kgRoastedThisMonth: number;
     kgRoastedLastMonth: number;
-    avgDurationSeconds: number;
-    avgDurationLastMonthSeconds: number;
     recentSessions: DashboardRecentSession[];
     upcomingBatches: UpcomingBatch[];
     inventoryAlerts: DashboardInventoryAlert[];
@@ -179,8 +172,6 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         batchesLastMonth: lastMonth.length,
         kgRoastedThisMonth: sumKg(thisMonth),
         kgRoastedLastMonth: sumKg(lastMonth),
-        avgDurationSeconds: averageRoastDurationSec(thisMonth),
-        avgDurationLastMonthSeconds: averageRoastDurationSec(lastMonth),
         recentSessions: completed.slice(0, 5).map(toRecent),
         upcomingBatches,
         inventoryAlerts,
@@ -194,8 +185,6 @@ const EMPTY: Omit<DashboardData, 'loading' | 'error'> = {
     batchesLastMonth: 0,
     kgRoastedThisMonth: 0,
     kgRoastedLastMonth: 0,
-    avgDurationSeconds: 0,
-    avgDurationLastMonthSeconds: 0,
     recentSessions: [],
     upcomingBatches: [],
     inventoryAlerts: [],

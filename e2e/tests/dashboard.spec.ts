@@ -40,12 +40,9 @@ test('dashboard metrics use saved roasts and remain readable at desktop sizes', 
     const weight = metrics
         .locator('section')
         .filter({ has: page.getByRole('heading', { name: en.dashboard.kpi.beansRoasted, exact: true }) });
-    const duration = metrics
-        .locator('section')
-        .filter({ has: page.getByRole('heading', { name: en.dashboard.kpi.avgRoastTime, exact: true }) });
     await expect(weight.getByText('10.0', { exact: true })).toBeVisible();
-    await expect(duration.getByText('9:00', { exact: true })).toBeVisible();
-    await expect(metrics.getByRole('img')).toHaveCount(4);
+    await expect(metrics.getByRole('heading', { name: en.dashboard.kpi.avgRoastTime, exact: true })).toHaveCount(0);
+    await expect(metrics.getByRole('img')).toHaveCount(3);
     await expect(metrics.getByText('350.00', { exact: true })).toBeVisible();
     await metrics.getByRole('button', { name: en.dashboard.refresh }).click();
     await expect(metrics.getByText('351.00', { exact: true })).toBeVisible();
@@ -54,7 +51,7 @@ test('dashboard metrics use saved roasts and remain readable at desktop sizes', 
         await page.setViewportSize({ width, height: 1100 });
         const content = page.getByTestId('app-content');
         await expect.poll(() => content.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-        await expect(metrics.getByRole('heading')).toHaveCount(5);
+        await expect(metrics.getByRole('heading')).toHaveCount(4);
         await page.screenshot({ path: testInfo.outputPath(`dashboard-${width}.png`), animations: 'disabled' });
     }
     await page.getByRole('button', { name: en.dashboard.viewAll, exact: true }).click();
