@@ -77,14 +77,12 @@ export function SettingsLayout({
                                 ref={focusHeading}
                                 id="settings-page-title"
                                 tabIndex={-1}
-                                className="m-0 font-(--font-display) text-2xl font-semibold leading-tight tracking-[-0.4px] text-primary outline-none"
+                                className="m-0 font-(--font-display) text-[26px] leading-[1.2] tracking-[-0.5px] text-primary outline-none"
                             >
                                 {groupLabel ?? tab?.label}
                             </h1>
                             {!groupLabel && (
-                                <p className="m-0 mt-2 text-[13px] leading-relaxed text-secondary">
-                                    {tab?.description}
-                                </p>
+                                <p className="m-0 mt-2 text-xs leading-relaxed text-muted">{tab?.description}</p>
                             )}
                         </header>
                         <div ref={contentRef}>{children}</div>

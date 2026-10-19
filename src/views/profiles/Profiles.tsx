@@ -36,7 +36,7 @@ import { useTranslation } from 'react-i18next';
 const PROFILE_SKELETON_COUNT = 5;
 
 const ProfileCardSkeleton = () => (
-    <div className="rounded-lg border border-[#E5E5E5] bg-main-bg px-4 pt-4 pb-2 dark:border-[#585d61]">
+    <div className="rounded-2xl border border-border bg-main-bg px-4 pt-4 pb-2 dark:border-[#585d61]">
         <Skeleton width="100%" height={44} borderRadius="6px" />
         <div className="mt-3 flex flex-col gap-1.5">
             <Skeleton width={132} height={13} borderRadius="4px" />
@@ -54,7 +54,11 @@ const ProfileListSkeleton = ({ label }: { label: string }) => (
 );
 
 const ProfileDetailSkeleton = () => (
-    <div aria-hidden className="min-w-0 rounded-lg bg-main-bg px-8 py-7 dark:border dark:border-[#585d61]">
+    <div
+        aria-hidden
+        data-testid="profile-detail-skeleton"
+        className="min-w-0 rounded-2xl border border-border bg-main-bg px-8 py-7"
+    >
         <div className="mb-5 flex items-start justify-between gap-3">
             <Skeleton width={220} height={28} borderRadius="6px" />
             <div className="flex shrink-0 gap-1.5">
@@ -278,7 +282,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const profileList = (
         <div>
             <CatalogVisibilityFilter checked={showHidden} onChange={setShowHidden} />
-            <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
+            <div className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2.5 mb-2.5 dark:bg-surface-elevated">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
@@ -315,7 +319,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             <div
                                 key={profile.id}
                                 onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
-                                className={`bg-main-bg rounded-lg px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
+                                className={`bg-main-bg rounded-2xl px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
                             >
                                 {compareMode && (
                                     <div className="flex justify-end -mt-1 mb-1">
@@ -409,12 +413,12 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             {listFailed ? (
                 <div
                     role="alert"
-                    className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted dark:border dark:border-[#585d61]"
+                    className="rounded-2xl border border-border bg-main-bg p-8 text-center text-sm text-muted"
                 >
                     {t('profiles.loadError')}
                 </div>
             ) : !isLoading && profiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
+                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-2xl border border-border bg-main-bg">
                     <p className="text-sm text-muted tracking-[0.14px]">{t('profiles.empty')}</p>
                     <PillButton onClick={() => setShowNewModal(true)}>
                         <Plus size={14} strokeWidth={2.5} />

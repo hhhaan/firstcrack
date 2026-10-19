@@ -103,8 +103,8 @@ export function OrdersTab() {
         <div className="space-y-5">
             <RoastingRequirementsCard />
 
-            <div className="flex flex-col gap-3 rounded-lg bg-main-bg p-4 lg:flex-row lg:items-center dark:border dark:border-[#585d61]">
-                <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2 dark:bg-surface-elevated">
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-main-bg p-4 lg:flex-row lg:items-center">
+                <div className="flex flex-1 items-center gap-2 rounded-xl bg-surface px-3 py-2.5 dark:bg-surface-elevated">
                     <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                     <input
                         className="w-full border-none bg-transparent font-body text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted"
@@ -180,10 +180,10 @@ export function OrdersTab() {
                     action={<GhostButton onClick={f.reset}>{t('orders.order.clearFilters')}</GhostButton>}
                 />
             ) : (
-                <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
                     <table className="w-full min-w-[560px] border-collapse text-left">
                         <thead>
-                            <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                            <tr className="border-b border-divider dark:border-[#585d61]">
                                 {['date', 'platform', 'buyer', 'items', 'status', 'action'].map((c) => (
                                     <th
                                         key={c}
@@ -285,7 +285,7 @@ function OrderRow({
 
     return (
         <Fragment>
-            <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
+            <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
                 <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
                     {formatDateShort(order.ordered_at)}
                 </td>
@@ -367,7 +367,7 @@ function OrderRow({
                 </td>
             </tr>
             {expanded ? (
-                <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                <tr className="border-b border-divider dark:border-[#585d61]">
                     <td colSpan={6} className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20">
                         <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                             {t('orders.order.lines')}

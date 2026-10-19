@@ -13,9 +13,7 @@ type SectionCardProps = {
  */
 export function SectionCard({ children, className = '' }: SectionCardProps) {
     return (
-        <section
-            className={cn('flex min-w-0 flex-col rounded-xl border border-border-subtle bg-main-bg p-4', className)}
-        >
+        <section className={cn('flex min-w-0 flex-col rounded-2xl border border-border bg-main-bg p-4', className)}>
             {children}
         </section>
     );
@@ -32,16 +30,12 @@ function SectionCardHeader({ title, description, icon }: SectionCardHeaderProps)
     return (
         <header className="flex items-start gap-2.5 shrink-0 min-w-0">
             {icon !== undefined && icon !== null && (
-                <span className="mt-0.5 text-[#6B7280] dark:text-[#999] shrink-0 [&>svg]:block">{icon}</span>
+                <span className="mt-0.5 text-muted shrink-0 [&>svg]:block">{icon}</span>
             )}
             <div className="min-w-0 flex-1">
-                <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 leading-snug">
-                    {title}
-                </h4>
+                <h4 className="text-[15px] font-medium text-primary m-0 leading-snug">{title}</h4>
                 {description !== undefined && description !== null && (
-                    <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0 mt-1 leading-relaxed">
-                        {description}
-                    </p>
+                    <p className="text-[13px] text-muted m-0 mt-1 leading-relaxed">{description}</p>
                 )}
             </div>
         </header>

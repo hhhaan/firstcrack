@@ -67,7 +67,7 @@ export const RoastedInventoryTab = () => {
     return (
         <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-main-bg px-3 py-[9px] dark:border dark:border-[#585d61] sm:max-w-xs">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-surface px-3 py-2.5 dark:bg-surface-elevated sm:max-w-xs">
                     <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                     <input
                         value={search}
@@ -86,7 +86,7 @@ export const RoastedInventoryTab = () => {
             {isLoading ? (
                 <TableSkeleton cols={skeletonCols} rows={5} minWidth="560px" />
             ) : !hasAnyStock ? (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
+                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-muted dark:bg-surface-elevated">
                         <Coffee size={20} strokeWidth={1.5} />
                     </div>
@@ -97,10 +97,10 @@ export const RoastedInventoryTab = () => {
             ) : rows.length === 0 ? (
                 <div className="py-16 text-center text-[13px] text-muted">{t('inventory.roasted.noMatch')}</div>
             ) : (
-                <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
                     <table className="w-full min-w-[560px] border-collapse text-left">
                         <thead>
-                            <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                            <tr className="border-b border-divider dark:border-[#585d61]">
                                 {(['name', 'type', 'stock', 'status'] as const).map((c) => (
                                     <th
                                         key={c}
@@ -119,7 +119,7 @@ export const RoastedInventoryTab = () => {
                                 );
                                 return (
                                     <Fragment key={r.key}>
-                                        <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
+                                        <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
                                             <td className="px-4 py-3.5 text-[13px] font-medium tracking-[0.14px] text-primary">
                                                 <button
                                                     type="button"
@@ -172,7 +172,7 @@ export const RoastedInventoryTab = () => {
                                             </td>
                                         </tr>
                                         {expandedKey === r.key && (
-                                            <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                                            <tr className="border-b border-divider dark:border-[#585d61]">
                                                 <td
                                                     colSpan={5}
                                                     className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20"

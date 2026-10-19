@@ -117,7 +117,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
 
             {isEnded ? (
                 <>
-                    <div className="mb-5 rounded-xl border border-border-subtle bg-surface/60 px-4 py-3 text-[12px] leading-relaxed text-muted dark:border-[#585d61]">
+                    <div className="mb-5 rounded-2xl border border-border bg-surface/60 px-4 py-3 text-[12px] leading-relaxed text-muted dark:border-[#585d61]">
                         {t('cupping.sessionEndedHint')}
                     </div>
                     <CuppingResultsShare eventId={eventId} userId={userId} listEvent={event} />
@@ -132,7 +132,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                 />
             )}
 
-            <div className="mb-5 rounded-xl border border-border-subtle bg-main-bg p-4 dark:border-[#585d61]">
+            <div className="mb-5 rounded-2xl border border-border bg-main-bg p-4 dark:border-[#585d61]">
                 <div className="mb-2 flex items-center gap-2">
                     <Users size={14} strokeWidth={1.75} className="text-muted" />
                     <p className="text-[13px] font-semibold tracking-[0.14px] text-primary">

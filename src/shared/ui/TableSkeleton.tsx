@@ -19,13 +19,13 @@ type Props = {
 /** Generic table loading shell — matches History/Orders/Cupping list tables. */
 export const TableSkeleton = ({ cols, rows = 6, className = '', minWidth }: Props) => (
     <div
-        className={`overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61] ${className}`}
+        className={`overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-[#585d61] ${className}`}
         role="status"
         aria-busy="true"
     >
         <table className="w-full border-collapse text-left" style={minWidth ? { minWidth } : undefined}>
             <thead>
-                <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                <tr className="border-b border-divider dark:border-[#585d61]">
                     {cols.map((col, i) => (
                         <th key={i} className="px-4 py-3" style={{ width: col.width }}>
                             <Skeleton width={col.bar ?? '50%'} height={10} borderRadius="4px" />
@@ -35,7 +35,7 @@ export const TableSkeleton = ({ cols, rows = 6, className = '', minWidth }: Prop
             </thead>
             <tbody>
                 {Array.from({ length: rows }, (_, rowIdx) => (
-                    <tr key={rowIdx} className="border-b border-border-subtle last:border-0 dark:border-[#585d61]">
+                    <tr key={rowIdx} className="border-b border-divider last:border-0 dark:border-[#585d61]">
                         {cols.map((col, colIdx) => (
                             <td key={colIdx} className="px-4 py-3.5" style={{ width: col.width }}>
                                 <Skeleton

@@ -114,7 +114,7 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                 </div>
             )}
 
-            <div className="flex min-w-0 max-w-xs items-center gap-2 rounded-lg bg-main-bg px-3 py-[9px] dark:border dark:border-[#585d61]">
+            <div className="flex min-w-0 max-w-xs items-center gap-2 rounded-xl bg-surface px-3 py-2.5 dark:bg-surface-elevated">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
@@ -127,7 +127,7 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
             {isLoading ? (
                 <TableSkeleton cols={skeletonCols} rows={5} minWidth="640px" />
             ) : !hasActive ? (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
+                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-muted dark:bg-surface-elevated">
                         <Package size={20} strokeWidth={1.5} />
                     </div>
@@ -141,10 +141,10 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
             ) : activeProducts.length === 0 ? (
                 <div className="py-16 text-center text-[13px] text-muted">{t('inventory.products.noMatch')}</div>
             ) : (
-                <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
                     <table className="w-full min-w-[640px] border-collapse text-left">
                         <thead>
-                            <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                            <tr className="border-b border-divider dark:border-[#585d61]">
                                 {(['name', 'sku', 'source', 'weight', 'stock'] as const).map((c) => (
                                     <th
                                         key={c}
@@ -163,7 +163,7 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                                 const expanded = expandedId === p.id;
                                 return (
                                     <Fragment key={p.id}>
-                                        <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
+                                        <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
                                             <td className="px-4 py-3.5 text-[13px] font-medium tracking-[0.14px] text-primary">
                                                 <button
                                                     type="button"
@@ -295,7 +295,7 @@ function ProductHistoryRow({ userId, productId }: { userId: string; productId: s
     const { data: events = [], isLoading } = useProductStockEvents(userId, productId, true);
 
     return (
-        <tr className="border-b border-border-subtle dark:border-[#585d61]">
+        <tr className="border-b border-divider dark:border-[#585d61]">
             <td colSpan={6} className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20">
                 <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                     {t('inventory.event.history')}

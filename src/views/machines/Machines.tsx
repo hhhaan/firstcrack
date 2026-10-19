@@ -140,7 +140,7 @@ export const Machines = ({
             ) : null}
 
             {machines.length === 0 ? (
-                <div className="bg-main-bg rounded-lg py-16 px-8 text-center dark:border dark:border-[#585d61]">
+                <div className="rounded-2xl border border-border bg-main-bg py-16 px-8 text-center">
                     <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
@@ -161,7 +161,7 @@ export const Machines = ({
                                     <div
                                         key={machine.id}
                                         onClick={() => setSelectedId(machine.id)}
-                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 dark:border dark:border-[#585d61]`}
+                                        className={`rounded-2xl border border-border bg-main-bg px-4 py-3.5 cursor-pointer transition-colors duration-150`}
                                     >
                                         <div className="flex items-start justify-between mb-2">
                                             <div>
@@ -192,7 +192,7 @@ export const Machines = ({
                     }
                     detail={
                         selected ? (
-                            <div className="bg-main-bg rounded-lg px-8 py-7 h-fit dark:border dark:border-[#585d61]">
+                            <div className="rounded-2xl border border-border bg-main-bg px-8 py-7 h-fit">
                                 <div className="flex items-start justify-between mb-6">
                                     <div>
                                         <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-2">

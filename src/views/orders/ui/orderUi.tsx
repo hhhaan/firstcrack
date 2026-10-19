@@ -19,7 +19,7 @@ export function GhostButton({
 
 export function EmptyState({ icon, message, action }: { icon: ReactNode; message: string; action?: ReactNode }) {
     return (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-muted dark:bg-surface-elevated">
                 {icon}
             </div>

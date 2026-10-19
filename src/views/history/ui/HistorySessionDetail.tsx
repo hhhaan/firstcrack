@@ -72,7 +72,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
             </header>
             <section
                 aria-label={t('history.expanded.summary')}
-                className="mb-5 rounded-xl border border-border-subtle bg-main-bg"
+                className="mb-5 rounded-2xl border border-border bg-main-bg"
             >
                 <dl className="m-0 grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-3.5 @min-[640px]:grid-cols-4">
                     {results.map(({ label, value }) => (
@@ -92,7 +92,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                     <RecordSections session={session} />
                 </div>
                 <aside className="grid min-w-0 gap-5 @min-[640px]:grid-cols-2 @min-[1000px]:grid-cols-1">
-                    <section className="min-w-0 rounded-xl border border-border-subtle bg-surface-warm p-5">
+                    <section className="min-w-0 rounded-2xl border border-border bg-surface-warm p-5">
                         <h2 className="m-0 mb-5 flex items-center gap-2 text-[13px] font-semibold text-primary">
                             <Package size={15} strokeWidth={1.5} className="text-muted" />
                             {t('history.expanded.summary')}
@@ -107,7 +107,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                             <QcMeasurementEditor key={session.id} session={session} />
                         </div>
                     </section>
-                    <section className="min-w-0 rounded-xl border border-border-subtle bg-main-bg p-5">
+                    <section className="min-w-0 rounded-2xl border border-border bg-main-bg p-5">
                         <h2 className="m-0 mb-4 flex items-center gap-2 text-[13px] font-semibold text-primary">
                             <FileText size={15} strokeWidth={1.5} className="text-muted" />
                             {t('history.expanded.notes')}

@@ -50,7 +50,7 @@ function SettingsSectionBody({ children, className }: SettingsSectionProps) {
     return (
         <SectionCard
             className={cn(
-                'rounded-xl border-border-subtle p-4 in-[.settings-compact]:rounded-none in-[.settings-compact]:border-0 in-[.settings-compact]:p-0',
+                'rounded-2xl border-border p-4 in-[.settings-compact]:rounded-none in-[.settings-compact]:border-0 in-[.settings-compact]:p-0',
                 className,
             )}
         >

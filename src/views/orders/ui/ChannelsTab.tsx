@@ -126,7 +126,7 @@ function ChannelCard({
 }) {
     const { t } = useTranslation();
     return (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle bg-main-bg px-4 py-3.5 transition-colors hover:border-black/10 dark:border-[#585d61] dark:hover:border-[#6c6a6b]">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-main-bg px-4 py-3.5 transition-colors hover:border-black/10 dark:border-[#585d61] dark:hover:border-[#6c6a6b]">
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                     <p className="truncate text-[14px] font-medium text-primary tracking-[0.14px]">

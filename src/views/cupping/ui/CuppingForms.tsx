@@ -155,7 +155,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                         className="rounded-md border border-border-subtle bg-main-bg px-3 py-2 text-[13px] text-primary dark:border-[#585d61]"
                     />
                 </label>
-                <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
                     <div className="flex shrink-0 items-center justify-between border-b border-border-subtle px-4 py-3 dark:border-[#585d61]">
                         <p className="text-[13px] font-semibold text-primary">{t('cupping.formFields')}</p>
                         <button
@@ -361,11 +361,11 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                 {isLoading ? (
                     <p className="text-[12px] text-muted">{t('cupping.loading')}</p>
                 ) : templates.length === 0 ? (
-                    <p className="rounded-xl border border-border-subtle px-4 py-8 text-center text-[13px] text-muted dark:border-[#585d61]">
+                    <p className="rounded-2xl border border-border px-4 py-8 text-center text-[13px] text-muted dark:border-[#585d61]">
                         {t('cupping.formsEmpty')}
                     </p>
                 ) : (
-                    <div className="overflow-hidden rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                    <div className="overflow-hidden rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
                         {templates.map((row) => {
                             const schema = formSchemaOrSca(row.schema);
                             return (
@@ -405,7 +405,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                 <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                     {t('cupping.systemPreset')}
                 </p>
-                <div className="overflow-hidden rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-hidden rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
                     {[SCA_V1_FORM, SIMPLE_5_FORM].map((preset) => (
                         <div
                             key={preset.key}

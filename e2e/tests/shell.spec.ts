@@ -12,7 +12,36 @@ test.describe('2a authenticated shell', () => {
     });
 
     for (const dark of [false, true]) {
-        test(`keeps all ten views inside the content panel (dark=${dark})`, async ({ authedPage: page }, testInfo) => {
+        test(`keeps all ten views inside the content panel (dark=${dark})`, async ({
+            authedPage: page,
+            db,
+        }, testInfo) => {
+            const bean = db.seedBean({ name: 'Ethiopia Guji Hambela washed harvest', stockGrams: 8000 });
+            db.seedCompletedSession({
+                bean_id: bean.id,
+                beans: { name: bean.name, origin: bean.origin, region: null, variety: null, process: null, farm: null },
+                duration_seconds: 620,
+                drop_temp_celsius: 210,
+                events: [{ type: 'Drop', time_sec: 600 }],
+            });
+            await page.route('**/rest/v1/roast_profiles*', (route) =>
+                route.fulfill({
+                    json: [
+                        {
+                            id: 'layout-profile',
+                            user_id: E2E_USER.id,
+                            name: 'Washed Ethiopia filter roast',
+                            target_level: 'Medium',
+                            duration_sec: 600,
+                            drop_temp_celsius: 210,
+                            source_session: null,
+                            source_session_id: null,
+                            default_bean: null,
+                            default_blend: null,
+                        },
+                    ],
+                }),
+            );
             await page.route('**/rest/v1/profiles?*', (route) =>
                 route.fulfill({ json: { id: E2E_USER.id, plan: 'pro_plus', business_name: 'E2E Roastery' } }),
             );
@@ -42,7 +71,7 @@ test.describe('2a authenticated shell', () => {
                     await goNav(page, view);
                     await expect(page.getByTestId(`nav-${view}`)).toHaveAttribute('aria-current', 'page');
                     await expect(content.getByRole('button', { name: '다시 시도', exact: true })).toHaveCount(0);
-                    if (view === 'roast') await expect(sidebar).toHaveCSS('width', '68px');
+                    if (view === 'roast') await expect(sidebar).toHaveCSS('width', '53px');
 
                     const panel = await content.boundingBox();
                     const nav = await sidebar.boundingBox();
@@ -53,6 +82,9 @@ test.describe('2a authenticated shell', () => {
                     expect(panel.y + panel.height).toBeLessThan(viewport.height);
                     expect(panel.width).toBeGreaterThan(0);
                     expect(panel.height).toBeGreaterThan(0);
+                    await expect
+                        .poll(() => content.evaluate((element) => element.scrollWidth <= element.clientWidth))
+                        .toBe(true);
 
                     if (view === 'roast') {
                         await expect.poll(() => content.evaluate((element) => element.scrollTop)).toBe(0);
@@ -70,6 +102,22 @@ test.describe('2a authenticated shell', () => {
                         path: testInfo.outputPath(`${view}-${viewport.width}.png`),
                         animations: 'disabled',
                     });
+                    if (view === 'schedule') {
+                        for (const mode of ['Week', 'Month', 'Day']) {
+                            await content.getByRole('button', { name: mode, exact: true }).click();
+                            await expect(content.getByRole('button', { name: mode, exact: true })).toHaveAttribute(
+                                'aria-pressed',
+                                'true',
+                            );
+                            expect(
+                                await content.evaluate((element) => element.scrollWidth <= element.clientWidth),
+                            ).toBe(true);
+                            await page.screenshot({
+                                path: testInfo.outputPath(`schedule-${mode}-${viewport.width}.png`),
+                                animations: 'disabled',
+                            });
+                        }
+                    }
                 }
             }
         });

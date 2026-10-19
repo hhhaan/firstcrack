@@ -239,7 +239,7 @@ export const HistoryTable = ({
     };
 
     return (
-        <div className="@container overflow-x-auto rounded-lg bg-main-bg dark:border dark:border-[#585d61] [-webkit-overflow-scrolling:touch]">
+        <div className="@container overflow-x-auto rounded-2xl border border-border bg-main-bg [-webkit-overflow-scrolling:touch]">
             <table className="w-full table-fixed border-collapse" style={{ minWidth: tableMinPx }}>
                 <colgroup>
                     {compareMode && <col style={{ width: '40px' }} />}
@@ -248,7 +248,7 @@ export const HistoryTable = ({
                     ))}
                 </colgroup>
                 <thead>
-                    <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                    <tr className="border-b border-divider dark:border-[#585d61]">
                         {compareMode && <th style={{ width: '40px' }} />}
                         {columns.map((col, colIdx) => {
                             const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
@@ -285,7 +285,7 @@ export const HistoryTable = ({
                                     event.preventDefault();
                                     onRowClick(session.id);
                                 }}
-                                className="group cursor-pointer border-b border-border-subtle transition hover:bg-[rgba(245,242,239,0.45)] focus-visible:outline-2 focus-visible:outline-(--color-primary) dark:border-[#585d61] dark:hover:bg-[rgba(38,43,48,0.45)]"
+                                className="group cursor-pointer border-b border-divider transition hover:bg-[rgba(245,242,239,0.45)] focus-visible:outline-2 focus-visible:outline-(--color-primary) dark:border-[#585d61] dark:hover:bg-[rgba(38,43,48,0.45)]"
                             >
                                 {compareMode && (
                                     <td className="px-3 py-3" style={{ width: '40px' }}>
@@ -351,7 +351,7 @@ export const HistoryTable = ({
                 </tbody>
             </table>
 
-            <div className="flex flex-col gap-3 border-t border-border-subtle dark:border-[#585d61] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-divider dark:border-[#585d61] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-xs tracking-[0.14px] text-muted">
                     {filteredTotal === 0
                         ? t('history.noSessionsFound')

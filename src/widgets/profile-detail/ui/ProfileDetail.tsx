@@ -109,7 +109,7 @@ export const ProfileDetail = ({
         'flex w-full cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-2.5 py-2 text-left text-[13px] tracking-[0.14px]';
 
     return (
-        <div className="min-w-0 bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
+        <div className="min-w-0 rounded-2xl border border-border bg-main-bg px-8 py-7">
             <div className="mb-5 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                     <h2 className="mb-1 break-words font-display text-[26px] font-light leading-[1.2] tracking-[-0.3px] text-primary">

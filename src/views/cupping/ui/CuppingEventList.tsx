@@ -82,7 +82,7 @@ export const CuppingEventList = ({
                         <button
                             type="button"
                             onClick={onOpenForms}
-                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]"
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent bg-surface px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]"
                         >
                             {t('cupping.forms')}
                         </button>
@@ -113,7 +113,7 @@ export const CuppingEventList = ({
             ) : isLoading ? (
                 <CuppingEventListSkeleton />
             ) : events.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-20 dark:border-[#585d61]">
+                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-20 dark:border-[#585d61]">
                     <p className="max-w-md text-center text-[13px] leading-relaxed text-muted tracking-[0.14px]">
                         {t('cupping.empty.title')}
                         <br />
@@ -128,10 +128,10 @@ export const CuppingEventList = ({
                     </SurfaceButton>
                 </div>
             ) : (
-                <div className="overflow-hidden rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
-                    <table className="w-full border-collapse text-left">
+                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-[#585d61]">
+                    <table className="w-full min-w-[640px] border-collapse text-left">
                         <thead>
-                            <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                            <tr className="border-b border-divider dark:border-[#585d61]">
                                 <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                     {t('cupping.colTitle')}
                                 </th>
@@ -160,7 +160,7 @@ export const CuppingEventList = ({
                             {events.map((ev) => (
                                 <tr
                                     key={ev.id}
-                                    className="cursor-pointer border-b border-border-subtle transition hover:bg-surface/50 dark:border-[#585d61]"
+                                    className="cursor-pointer border-b border-divider transition hover:bg-surface/50 dark:border-[#585d61]"
                                     onClick={() => onSelect(ev.id)}
                                 >
                                     <td className="px-4 py-3 text-[13px] font-medium text-primary">{ev.title}</td>

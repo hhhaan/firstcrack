@@ -202,8 +202,8 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 
 | 요소 | Size | Weight | Tracking | 기타 |
 |---|---|---|---|---|
-| Page Title (h1) | `32px` | — | `-0.4px` | `font-(--font-display)`, `leading-[1.13]` |
-| 섹션 타이틀 | `26px` | Light (`300`) | `-0.3px` | |
+| Page Title (h1) | `26px` | — | `-0.5px` | `font-(--font-display)`, `leading-[1.2]` |
+| 패널 타이틀 | `15px` | Medium (`500`) | `-0.15px` | 카드·테이블·원가 섹션 |
 | Dashboard KPI Value | `44–48px` | Light (`300`) | `-1.6px` | `leading-[1.15]` |
 | 본문 | `14–16px` | Regular/Medium | `+0.14px` | |
 | 작은 텍스트 | `13px` | Medium | `+0.14px` | 버튼, 테이블 셀 |
@@ -214,7 +214,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 | 토큰 | 값 |
 |---|---|
 | Base unit | `4px` (Tailwind spacing) |
-| Page padding (X) | `40px` (`px-10`) |
+| Page padding (X) | `24px`, 640px 이상 `40px` (`px-6 sm:px-10`) |
 | Page padding (Y) | `32px` (`py-8`) |
 | Page max-width | `1280px` (`PageLayout` 기본) |
 | 제목 아래 여백 | `28px` (`mb-7`, PageHeader) |
@@ -238,11 +238,11 @@ The ten primary views share an inset content panel in `src/App.tsx`: 6px top mar
 </PageLayout>
 ```
 
-- **PageLayout:** `px-10 py-8 w-full mx-auto`, maxWidth 기본 `1280` (inline style — 동적 값 예외)
-- **PageHeader:** `flex items-end justify-between mb-7`
-  - h1: `font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px]`
-  - subtitle: `text-sm text-muted tracking-[0.14px]`
-  - actions: `flex shrink-0 items-center gap-2`
+- **PageLayout:** `mx-auto w-full px-6 py-8 sm:px-10`, maxWidth 기본 `1280` (inline style — 동적 값 예외)
+- **PageHeader:** `mb-7 flex flex-wrap items-end justify-between gap-5`
+  - h1: `mb-2 font-(--font-display) text-[26px] leading-[1.2] tracking-[-0.5px] text-primary`
+  - subtitle: `text-xs leading-relaxed text-muted`
+  - actions: `flex flex-wrap items-center gap-2`
 
 ### PillButton (primary CTA)
 
@@ -304,7 +304,7 @@ The ten primary views share an inset content panel in `src/App.tsx`: 6px top mar
 
 1. **PageLayout**으로 페이지 감싸기
 2. **PageHeader**로 제목 + 액션
-3. 카드: `bg-main-bg rounded-lg` (+ dark border when needed)
+3. 페이지 패널·카드·로딩/빈 상태: `rounded-2xl border border-border bg-main-bg`. 검색 필드: `rounded-xl bg-surface`
 4. Primary CTA: **PillButton**; soft secondary: **SurfaceButton**; dashed “추가” 패턴은 로컬 dashed border
 5. 아이콘: **Lucide** only, `strokeWidth={1.5}`
 6. 로딩: **Spinner** (`src/shared/ui/Spinner.tsx`)
@@ -313,7 +313,9 @@ The ten primary views share an inset content panel in `src/App.tsx`: 6px top mar
 **Dashboard** — 통합 지표·추이 패널 + 전체 너비 최근 로스팅 + 예정 배치/재고 알림 분할 패널
 **History** — 필터/검색/CSV/테이블/페이지네이션  
 **Active Roast** — 센서 차트(uPlot) + 이벤트 + 머신 컨트롤  
-**Bean** — 마스터-디테일 (`MasterDetailLayout`)
+**Bean / Profiles / Machines** — 마스터-디테일 (`MasterDetailLayout`): 1024px 미만 한 열, 이후 300px 목록 + 유동 상세, 1280px 이상 목록 350px. 상세는 큰 화면에서만 sticky
+**Schedule** — 공통 페이지 제목 + 일·주·월 토글, 테두리 패널 안 날짜 탐색·캘린더. 배치 목록은 패널 안에서 독립 스크롤
+**Pricing** — 15px 패널 제목·44px 결과 수치. 1280px 이상 원가/판매가 2열, 작은 화면 한 열
 
 ---
 

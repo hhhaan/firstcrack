@@ -257,7 +257,11 @@ export const History = () => {
 
     const renderContent = (): React.ReactNode => {
         if (isError) {
-            return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.error')}</div>;
+            return (
+                <div className="rounded-2xl border border-border bg-main-bg p-8 text-center text-sm text-muted">
+                    {t('history.error')}
+                </div>
+            );
         }
         if (isLoading) {
             return <HistorySkeleton />;
@@ -307,7 +311,7 @@ export const History = () => {
                                         <button
                                             type="button"
                                             onClick={handleToggleCompareMode}
-                                            className={`inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] transition hover:-translate-y-px ${compareMode ? 'bg-primary text-white dark:bg-[#0d0d0d]' : 'bg-main-bg text-secondary hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]'}`}
+                                            className={`inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] transition hover:-translate-y-px ${compareMode ? 'bg-primary text-white dark:bg-[#0d0d0d]' : 'bg-surface text-secondary hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]'}`}
                                         >
                                             <GitCompare size={14} strokeWidth={2} />
                                             {compareMode ? t('history.compare.cancel') : t('history.compare.button')}
@@ -335,8 +339,8 @@ export const History = () => {
                             }
                         />
 
-                        <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg dark:border dark:border-[#585d61] p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
-                            <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface dark:bg-surface-elevated px-3 py-2">
+                        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-border bg-main-bg p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
+                            <div className="flex flex-1 items-center gap-2 rounded-xl bg-surface dark:bg-surface-elevated px-3 py-2.5">
                                 <Search size={14} strokeWidth={2} className="text-muted" />
                                 <input
                                     className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
