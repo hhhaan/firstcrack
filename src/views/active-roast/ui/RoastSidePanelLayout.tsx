@@ -94,7 +94,7 @@ export const RoastSidePanelLayout = ({
                     <div className="min-h-0 overflow-y-auto">
                         <RoastLog
                             variant="panel"
-                            entries={[...roastLogDisplayEntries].reverse()}
+                            entries={roastLogDisplayEntries}
                             onRemoveEntry={onRemoveLogEntry}
                             editOptions={logEditOptions}
                             deletableEvent={deletableEvent}
