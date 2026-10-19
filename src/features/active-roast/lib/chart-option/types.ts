@@ -45,7 +45,7 @@ export interface ChartOptionParams {
         Partial<
             Pick<
                 RoastSettings,
-                'tempTicksC' | 'timeMinorTickIntervalSec' | 'rorGridInterval' | 'rorTicksC' | 'rorLabelEvery'
+                'tempTicksC' | 'timeMinorTickIntervalSec' | 'horizontalGridInterval' | 'rorTicksC' | 'rorLabelEvery'
             >
         >;
     /** Saved-record presentation: sparse grid, no instrument frame. */

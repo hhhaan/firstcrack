@@ -101,17 +101,17 @@ describe('buildRoastChartOption font scale', () => {
 });
 
 describe('buildRoastChartOption', () => {
-    it('draws RoR guide lines at the configured interval', () => {
+    it.each([false, true])('draws only the shared horizontal grid (controls: %s)', (controls) => {
         const option = buildRoastChartOption({
             ...baseParams(),
             rorYMin: -10,
             rorYMax: 20,
-            controlData: { xs: [], drumTemp: [], heatPower: [], fanSpeed: [] },
+            controlData: controls ? { xs: [], drumTemp: [], heatPower: [], fanSpeed: [] } : undefined,
             axisSettings: {
                 tempGridInterval: 10,
                 tempLabelEvery: 5,
                 timeTickIntervalSec: 60,
-                rorGridInterval: 1,
+                horizontalGridInterval: 1,
                 rorLabelEvery: 1,
             },
         });
@@ -141,6 +141,23 @@ describe('buildRoastChartOption', () => {
                     style?: { text?: string };
                     shape?: { x1?: number; x2?: number; y1?: number; y2?: number };
                 }[];
+                const top = yOf(20);
+                const bottom = yOf(-10);
+                const horizontalYs = displayList.flatMap((el) => {
+                    const { y1, y2, x1, x2 } = el.shape ?? {};
+                    return y1 != null &&
+                        y2 === y1 &&
+                        x1 != null &&
+                        x2 != null &&
+                        Math.abs(x2 - x1) > 20 &&
+                        y1 > top + 1 &&
+                        y1 < bottom - 1
+                        ? [y1]
+                        : [];
+                });
+                const gridYs = Array.from({ length: 31 }, (_, index) => yOf(index - 10));
+                expect(horizontalYs.length).toBeGreaterThan(0);
+                expect(horizontalYs.every((y) => gridYs.some((gridY) => Math.abs(gridY - y) < 1.5))).toBe(true);
                 const hasHorizontalAt = (y: number) =>
                     displayList.some((el) => {
                         const { y1, y2, x1, x2 } = el.shape ?? {};
@@ -299,6 +316,42 @@ describe('buildRoastChartOption', () => {
         }
     });
 
+    it.each(['C', 'F'] as const)('keeps shared grid spacing independent of number lists (%s)', (temperatureUnit) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            temperatureUnit,
+            axisSettings: {
+                tempGridInterval: 10,
+                tempLabelEvery: 5,
+                timeTickIntervalSec: 60,
+                horizontalGridInterval: 1,
+                rorTicksC: [-5, 0, 10],
+            },
+        });
+        expect(option.yAxis).toMatchObject([
+            { splitLine: { show: false } },
+            { interval: temperatureUnit === 'F' ? 1.8 : 1, splitLine: { show: true } },
+        ]);
+    });
+
+    it.each([
+        { showRoR: false, showRoRET: false, report: false, rorGrid: false },
+        { showRoR: false, showRoRET: true, report: false, rorGrid: true },
+        { showRoR: true, showRoRET: false, report: true, rorGrid: false },
+    ])('uses one horizontal grid for visibility and reports: %o', ({ rorGrid, ...presentation }) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            ...presentation,
+            axisSettings: {
+                tempGridInterval: 10,
+                tempLabelEvery: 5,
+                timeTickIntervalSec: 60,
+                horizontalGridInterval: 1,
+            },
+        });
+        expect(option.yAxis).toMatchObject([{ splitLine: { show: !rorGrid } }, { splitLine: { show: rorGrid } }]);
+    });
+
     it('uses a RoR tick list and restores interval labels', () => {
         const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
         try {
@@ -310,7 +363,7 @@ describe('buildRoastChartOption', () => {
                     tempLabelEvery: 5,
                     timeTickIntervalSec: 60,
                     rorTicksC: [-5, 0, 10],
-                    rorGridInterval: 5,
+                    horizontalGridInterval: 5,
                 },
             });
             chart.setOption(listed);
@@ -325,7 +378,7 @@ describe('buildRoastChartOption', () => {
             ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
             expect(ror?.axisTick.customValues).toEqual([-9, 0, 18]);
             expect(ror?.axisLabel.formatter(18)).toBe('18');
-            expect(ror?.splitLine?.show).toBe(false);
+            expect(ror?.splitLine?.show).toBe(true);
             const restored = buildRoastChartOption({
                 ...baseParams(),
                 axisSettings: {
@@ -333,7 +386,7 @@ describe('buildRoastChartOption', () => {
                     tempLabelEvery: 5,
                     timeTickIntervalSec: 60,
                     rorTicksC: [],
-                    rorGridInterval: 4,
+                    horizontalGridInterval: 4,
                     rorLabelEvery: 2,
                 },
             });

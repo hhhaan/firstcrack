@@ -130,33 +130,22 @@ export const applyChartAxisSettings = (
     settings: ChartOptionParams['axisSettings'],
     temperatureUnit: TemperatureUnit,
     report = false,
+    showRoR = true,
 ) => {
     if (!settings) return;
     const rorAxis = (Array.isArray(axes.yAxis) ? axes.yAxis : []).find(
         (axis) => axis.gridIndex === 0 && axis.position === 'right',
     );
+    const gridInterval = settings.horizontalGridInterval
+        ? toDisplayRoR(settings.horizontalGridInterval, temperatureUnit)
+        : 0;
+    const useRorGrid = !report && showRoR && rorAxis?.type === 'value' && gridInterval > 0;
     if (rorAxis?.type === 'value') {
-        const ticks = settings.rorTicksC?.map((value) => Number(toDisplayRoR(value, temperatureUnit).toFixed(6)));
-        const customValues = ticks?.length ? ticks : undefined;
-        rorAxis.axisTick = { ...rorAxis.axisTick, customValues, show: Boolean(customValues) };
-        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true, verticalAlign: 'middle' };
-        if (customValues) {
-            rorAxis.axisLabel.formatter = formatTick;
-            rorAxis.splitLine = { ...rorAxis.splitLine, show: false };
-        } else if (settings.rorGridInterval && settings.rorGridInterval > 0) {
-            const interval = toDisplayRoR(settings.rorGridInterval, temperatureUnit);
-            const step = interval * (settings.rorLabelEvery || 1);
-            rorAxis.interval = interval;
-            rorAxis.minInterval = interval;
-            rorAxis.maxInterval = interval;
-            rorAxis.splitLine = { ...rorAxis.splitLine, show: !report };
-            rorAxis.axisLabel = {
-                ...rorAxis.axisLabel,
-                customValues: ticksFromInterval(Number(rorAxis.min), Number(rorAxis.max), step),
-                hideOverlap: true,
-                verticalAlign: 'middle',
-                formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
-            };
+        rorAxis.splitLine = { ...rorAxis.splitLine, show: useRorGrid };
+        if (gridInterval > 0) {
+            rorAxis.interval = gridInterval;
+            rorAxis.minInterval = gridInterval;
+            rorAxis.maxInterval = gridInterval;
             const pointer = rorAxis.axisPointer;
             if (pointer && typeof pointer === 'object') {
                 pointer.label = {
@@ -164,10 +153,27 @@ export const applyChartAxisSettings = (
                     formatter: (p: { value: unknown }) => {
                         const n = Number(p.value);
                         if (!Number.isFinite(n)) return '';
-                        return formatTick(Math.round(n / interval) * interval);
+                        return formatTick(Math.round(n / gridInterval) * gridInterval);
                     },
                 };
             }
+        }
+        const ticks = settings.rorTicksC?.map((value) => Number(toDisplayRoR(value, temperatureUnit).toFixed(6)));
+        const customValues = ticks?.length ? ticks : undefined;
+        rorAxis.axisTick = { ...rorAxis.axisTick, customValues, show: Boolean(customValues) };
+        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true, verticalAlign: 'middle' };
+        if (customValues) {
+            rorAxis.axisLabel.formatter = formatTick;
+        } else if (gridInterval > 0) {
+            const interval = gridInterval;
+            const step = interval * (settings.rorLabelEvery || 1);
+            rorAxis.axisLabel = {
+                ...rorAxis.axisLabel,
+                customValues: ticksFromInterval(Number(rorAxis.min), Number(rorAxis.max), step),
+                hideOverlap: true,
+                verticalAlign: 'middle',
+                formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
+            };
         }
     }
     for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
@@ -189,6 +195,7 @@ export const applyChartAxisSettings = (
         (axis) => axis.gridIndex === 0 && axis.position !== 'right',
     );
     if (temperatureAxis?.type !== 'value') return;
+    temperatureAxis.splitLine = { ...temperatureAxis.splitLine, show: !useRorGrid };
     const ticks = settings.tempTicksC?.map((value) => toDisplayTemp(value, temperatureUnit));
     const customValues = ticks?.length ? ticks : undefined;
     temperatureAxis.axisTick = { ...temperatureAxis.axisTick, customValues };

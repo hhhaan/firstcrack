@@ -85,11 +85,10 @@ export type RoastSettings = {
     timeRangePresetMin: number;
     timeRangeCustom: boolean;
     timeRangeMin: number;
-    /** Stored °C/min. A multiple of 5 in the active unit. Preset mode uses `rorGridPresetInterval` instead. */
-    rorGridInterval: number;
-    rorGridPresetInterval: number;
-    /** `list` is the custom block, same naming as the temperature axis. */
-    rorAxisMode: 'preset' | 'list';
+    /** Shared horizontal grid spacing, stored in °C/min; an integer in the displayed unit. */
+    horizontalGridInterval: number;
+    horizontalGridPresetInterval: number;
+    horizontalGridMode: 'preset' | 'custom';
     rorTickMode: 'interval' | 'list';
     rorTicksC: number[];
     rorLabelEvery: number;

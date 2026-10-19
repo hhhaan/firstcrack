@@ -184,6 +184,37 @@ describe('RoastTempChart Heat set lifecycle', () => {
         }
     });
 
+    it('changes shared grid spacing independently of RoR number lists', () => {
+        const original = getRoastSettings();
+        try {
+            act(() =>
+                updateRoastSettings({
+                    temperatureUnit: 'C',
+                    horizontalGridMode: 'custom',
+                    horizontalGridInterval: 1,
+                    horizontalGridPresetInterval: 10,
+                    rorTickMode: 'list',
+                    rorTicksC: [-5, 0, 5],
+                }),
+            );
+            renderChart([null, null], { showRoR: true });
+            const check = (interval: number) => {
+                const option = setOption.mock.lastCall?.[0];
+                expect(option.yAxis[0].splitLine.show).toBe(false);
+                expect(option.yAxis[1].splitLine.show).toBe(true);
+                expect(option.yAxis[1].interval).toBe(interval);
+                expect(option.yAxis[1].axisLabel.customValues).toEqual([-5, 0, 5]);
+            };
+            check(1);
+            act(() => updateRoastSettings({ horizontalGridMode: 'preset' }));
+            check(10);
+            act(() => updateRoastSettings({ horizontalGridMode: 'custom' }));
+            check(1);
+        } finally {
+            act(() => updateRoastSettings(original));
+        }
+    });
+
     it('rebuilds the option when Heat set appears and disappears', () => {
         renderChart([null, null]);
         const initial = setOption.mock.calls[setOption.mock.calls.length - 1];

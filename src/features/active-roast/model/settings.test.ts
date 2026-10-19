@@ -23,6 +23,37 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
+it('migrates RoR grid settings into the shared grid without activating an inactive number list', () => {
+    const migrated = normalizeRoastSettings({
+        rorGridInterval: 1,
+        rorGridPresetInterval: 10,
+        rorAxisMode: 'list',
+        rorTickMode: 'list',
+        rorTicksC: [-5, 0, 5],
+    });
+    expect(migrated).toMatchObject({
+        horizontalGridInterval: 1,
+        horizontalGridPresetInterval: 10,
+        horizontalGridMode: 'custom',
+        rorTickMode: 'list',
+        rorTicksC: [-5, 0, 5],
+    });
+    expect(migrated).not.toHaveProperty('rorGridInterval');
+    expect(migrated).not.toHaveProperty('rorGridPresetInterval');
+    expect(migrated).not.toHaveProperty('rorAxisMode');
+    expect(normalizeRoastSettings({ ...migrated, horizontalGridMode: 'preset' })).toMatchObject({
+        horizontalGridMode: 'preset',
+        rorTickMode: 'list',
+    });
+    expect(
+        normalizeRoastSettings({ rorAxisMode: 'preset', rorGridPresetInterval: 10, rorTickMode: 'list' }),
+    ).toMatchObject({
+        horizontalGridMode: 'preset',
+        horizontalGridPresetInterval: 10,
+        rorTickMode: 'interval',
+    });
+});
+
 const firescopeSnapshot: FirescopeSettingsSnapshot = {
     status: 'found',
     source: { product: 'Firescope', version: null },
@@ -203,23 +234,25 @@ it('uses fixed axis defaults, validates intervals, and restores persisted choice
         timeRangeMin: 13,
         timeRangeCustom: false,
     });
-    expect(normalizeRoastSettings({}).rorAxisMode).toBe('preset');
-    expect(normalizeRoastSettings({ rorGridInterval: 15 })).toMatchObject({
-        rorAxisMode: 'list',
+    expect(normalizeRoastSettings({}).horizontalGridMode).toBe('preset');
+    expect(normalizeRoastSettings({ horizontalGridInterval: 15 })).toMatchObject({
+        horizontalGridMode: 'custom',
         rorTickMode: 'interval',
-        rorGridInterval: 15,
+        horizontalGridInterval: 15,
     });
     for (const interval of [1, 2, 3, 4, 5, 6, 8]) {
-        expect(normalizeRoastSettings({ rorGridInterval: interval }).rorGridInterval).toBe(interval);
+        expect(normalizeRoastSettings({ horizontalGridInterval: interval }).horizontalGridInterval).toBe(interval);
     }
-    expect(normalizeRoastSettings({ rorGridInterval: 0.1 }).rorGridInterval).toBe(1);
-    expect(normalizeRoastSettings({ rorGridPresetInterval: 1 }).rorGridPresetInterval).toBe(5);
-    expect(normalizeRoastSettings({ rorGridPresetInterval: 2 }).rorGridPresetInterval).toBe(5);
-    expect(normalizeRoastSettings({ rorGridInterval: 250 }).rorGridInterval).toBe(100);
-    expect(normalizeRoastSettings({ temperatureUnit: 'F', rorGridInterval: 0.1 }).rorGridInterval).toBeCloseTo(5 / 9);
-    expect(normalizeRoastSettings({ temperatureUnit: 'F', rorGridInterval: (10 * 5) / 9 }).rorGridInterval).toBeCloseTo(
-        (10 * 5) / 9,
-    );
+    expect(normalizeRoastSettings({ horizontalGridInterval: 0.1 }).horizontalGridInterval).toBe(1);
+    expect(normalizeRoastSettings({ horizontalGridPresetInterval: 1 }).horizontalGridPresetInterval).toBe(5);
+    expect(normalizeRoastSettings({ horizontalGridPresetInterval: 2 }).horizontalGridPresetInterval).toBe(5);
+    expect(normalizeRoastSettings({ horizontalGridInterval: 250 }).horizontalGridInterval).toBe(100);
+    expect(
+        normalizeRoastSettings({ temperatureUnit: 'F', horizontalGridInterval: 0.1 }).horizontalGridInterval,
+    ).toBeCloseTo(5 / 9);
+    expect(
+        normalizeRoastSettings({ temperatureUnit: 'F', horizontalGridInterval: (10 * 5) / 9 }).horizontalGridInterval,
+    ).toBeCloseTo((10 * 5) / 9);
     expect(normalizeRoastSettings({ rorTicksC: [10, -5, 0, 0] }).rorTicksC).toEqual([-5, 0, 10]);
     expect(normalizeRoastSettings({ rorTicksC: [301] }).rorTicksC).toEqual([]);
     expect(normalizeRoastSettings({ tempGridInterval: 15 }).tempAxisMode).toBe('preset');

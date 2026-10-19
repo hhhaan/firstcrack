@@ -138,9 +138,9 @@ const DEFAULT_SETTINGS: RoastSettings = {
     timeRangePresetMin: TIME_RANGE_MIN_DEFAULT,
     timeRangeCustom: false,
     timeRangeMin: TIME_RANGE_MIN_DEFAULT,
-    rorGridInterval: 5,
-    rorGridPresetInterval: 5,
-    rorAxisMode: 'preset',
+    horizontalGridInterval: 5,
+    horizontalGridPresetInterval: 5,
+    horizontalGridMode: 'preset',
     rorTickMode: 'interval',
     rorTicksC: [],
     rorLabelEvery: 1,
@@ -178,29 +178,23 @@ const clampNum = (value: unknown, min: number, max: number, fallback: number) =>
     return Math.min(max, Math.max(min, n));
 };
 
-/** Integer RoR grid spacing in the active unit; keep sub-unit tick explosions bounded. */
-const ROR_GRID_INTERVAL_STEP = 1;
+/** Integer horizontal grid spacing in the active unit; keep sub-unit tick explosions bounded. */
+const HORIZONTAL_GRID_INTERVAL_STEP = 1;
 
-const normalizeRorGridInterval = (value: unknown, unit: TemperatureUnit, fallback: number): number => {
+const normalizeHorizontalGridInterval = (value: unknown, unit: TemperatureUnit, fallback: number): number => {
     const source = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
     const display = toDisplayRoR(source, unit);
     const maxDisplay = Math.round(toDisplayRoR(100, unit));
     const rounded = Number.isFinite(display)
-        ? Math.round(display / ROR_GRID_INTERVAL_STEP) * ROR_GRID_INTERVAL_STEP
-        : ROR_GRID_INTERVAL_STEP;
-    return fromDisplayRoR(Math.min(maxDisplay, Math.max(ROR_GRID_INTERVAL_STEP, rounded)), unit);
+        ? Math.round(display / HORIZONTAL_GRID_INTERVAL_STEP) * HORIZONTAL_GRID_INTERVAL_STEP
+        : HORIZONTAL_GRID_INTERVAL_STEP;
+    return fromDisplayRoR(Math.min(maxDisplay, Math.max(HORIZONTAL_GRID_INTERVAL_STEP, rounded)), unit);
 };
 
 const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback);
 
-const pickPreset = (value: number, allowed: readonly number[], fallback: number): number =>
-    allowed.includes(value) ? value : fallback;
-
-const axisModeOf = (mode: unknown, previous: 'preset' | 'list' | undefined, custom: boolean): 'preset' | 'list' => {
-    if (mode === 'preset' || mode === 'list') return mode;
-    if (previous) return previous;
-    return custom ? 'list' : 'preset';
-};
+const pickPreset = (value: unknown, allowed: readonly number[], fallback: number): number =>
+    typeof value === 'number' && allowed.includes(value) ? value : fallback;
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
@@ -236,7 +230,14 @@ export const coercePollIntervalForPlan = (ms: PollIntervalMs, canFastPoll: boole
     ms === 500 && !canFastPoll ? 1000 : ms;
 
 export const normalizeRoastSettings = (
-    raw: Partial<RoastSettings> | null | undefined,
+    raw:
+        | (Partial<RoastSettings> & {
+              rorGridInterval?: unknown;
+              rorGridPresetInterval?: unknown;
+              rorAxisMode?: unknown;
+          })
+        | null
+        | undefined,
     previous?: RoastSettings,
 ): RoastSettings => {
     const {
@@ -245,6 +246,9 @@ export const normalizeRoastSettings = (
         autoChargeConfirmC: _legacyChargeConfirm,
         autoDropConfirmC: _legacyDropConfirm,
         bbpWindowMinutes: _legacyBbpWindow,
+        rorGridInterval: legacyGridInterval,
+        rorGridPresetInterval: legacyGridPresetInterval,
+        rorAxisMode: legacyRorAxisMode,
         ...rest
     } = {
         ...(raw ?? {}),
@@ -255,8 +259,20 @@ export const normalizeRoastSettings = (
         autoDropConfirmC?: unknown;
         /** Removed setting. Old stores may still contain it; it must not affect the cap. */
         bbpWindowMinutes?: unknown;
+        rorGridInterval?: unknown;
+        rorGridPresetInterval?: unknown;
+        rorAxisMode?: unknown;
     };
-    const merged = { ...DEFAULT_SETTINGS, ...rest };
+    const merged = {
+        ...DEFAULT_SETTINGS,
+        ...rest,
+        horizontalGridInterval:
+            rest.horizontalGridInterval ?? legacyGridInterval ?? DEFAULT_SETTINGS.horizontalGridInterval,
+        horizontalGridPresetInterval:
+            rest.horizontalGridPresetInterval ??
+            legacyGridPresetInterval ??
+            DEFAULT_SETTINGS.horizontalGridPresetInterval,
+    };
     let controlYMin = clampNum(merged.controlYMin, -50, 500, DEFAULT_SETTINGS.controlYMin);
     let controlYMax = clampNum(merged.controlYMax, -50, 500, DEFAULT_SETTINGS.controlYMax);
     if (controlYMax <= controlYMin) {
@@ -363,24 +379,30 @@ export const normalizeRoastSettings = (
         controlYMax,
         rorYMin,
         rorYMax,
-        rorGridInterval: normalizeRorGridInterval(
-            merged.rorGridInterval,
+        horizontalGridInterval: normalizeHorizontalGridInterval(
+            merged.horizontalGridInterval,
             merged.temperatureUnit === 'F' ? 'F' : 'C',
-            previous?.rorGridInterval ?? DEFAULT_SETTINGS.rorGridInterval,
+            previous?.horizontalGridInterval ?? DEFAULT_SETTINGS.horizontalGridInterval,
         ),
-        rorGridPresetInterval: pickPreset(
-            merged.rorGridPresetInterval,
+        horizontalGridPresetInterval: pickPreset(
+            merged.horizontalGridPresetInterval,
             [5, 10],
-            previous?.rorGridPresetInterval ?? DEFAULT_SETTINGS.rorGridPresetInterval,
+            previous?.horizontalGridPresetInterval ?? DEFAULT_SETTINGS.horizontalGridPresetInterval,
         ),
-        rorAxisMode: axisModeOf(
-            rest.rorAxisMode,
-            previous?.rorAxisMode,
-            merged.rorGridInterval !== DEFAULT_SETTINGS.rorGridInterval,
-        ),
+        horizontalGridMode:
+            rest.horizontalGridMode === 'preset' || rest.horizontalGridMode === 'custom'
+                ? rest.horizontalGridMode
+                : (previous?.horizontalGridMode ??
+                  (legacyRorAxisMode === 'list' ||
+                  (legacyRorAxisMode !== 'preset' &&
+                      merged.horizontalGridInterval !== DEFAULT_SETTINGS.horizontalGridInterval)
+                      ? 'custom'
+                      : 'preset')),
         rorTickMode:
             rest.rorTickMode === 'interval' || rest.rorTickMode === 'list'
-                ? rest.rorTickMode
+                ? legacyRorAxisMode === 'preset' && rest.horizontalGridMode == null
+                    ? 'interval'
+                    : rest.rorTickMode
                 : (previous?.rorTickMode ?? 'interval'),
         rorTicksC: normalizeRorTicks(merged.rorTicksC) ?? previous?.rorTicksC ?? DEFAULT_SETTINGS.rorTicksC,
         rorLabelCustom: asBool(rest.rorLabelCustom, previous?.rorLabelCustom ?? false),
