@@ -971,7 +971,9 @@
             "machineConnected": "Machine connected · Ready to roast",
             "settings": "Roast settings",
             "openSettings": "Open roast settings",
-            "reconnecting": "Reconnecting — curve paused. Do not reload the window"
+            "reconnecting": "Reconnecting — curve paused. Do not reload the window",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "Counts Charges on this device since this feature was enabled, separately by workspace and profile. Canceled/discarded batches retain their number."
         },
         "readings": {
             "beanTemp": "Bean Temp",
