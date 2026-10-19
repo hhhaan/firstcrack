@@ -6,7 +6,7 @@ import {
     TEMP_CURVE_WIDTH,
     TEMP_Y_INTERVAL,
 } from '@features/active-roast/lib/chart-config';
-import { rorUnitLabel, tempUnitLabel, toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import type { EChartsOption } from 'echarts';
 import {
@@ -19,6 +19,14 @@ import {
     computeGridMargins,
     fmtSec,
 } from './axes';
+import {
+    type CompareChannel,
+    type ComparePoint,
+    compareChannels,
+    compareChannelValue,
+    compareExtraAxisWidth,
+    compareOtherUnits,
+} from './compare-channels';
 import { lineSeriesBase } from './series';
 
 export type CompareChartSeries = {
@@ -26,7 +34,7 @@ export type CompareChartSeries = {
     label: string;
     /** raw color or CSS var(--…) — resolved here for canvas */
     color: string;
-    points: { t: number; bt: number; et: number | null; ror: number | null }[];
+    points: ComparePoint[];
     markers?: { timeSec: number; event: string }[];
     visible?: boolean;
 };
@@ -49,27 +57,39 @@ export const buildCompareChartOption = (
     showRoR: boolean,
     xView: { start: number; end: number },
     temperatureUnit: TemperatureUnit = 'C',
+    channelKeys?: string[],
 ): EChartsOption => {
     const colors = getResolvedChartColors();
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
     const crossLineStyle = buildCrossLineStyle(colors);
-    const { leftMargin, rightMargin, topMargin } = computeGridMargins(showRoR);
-    const unitLabel = tempUnitLabel(temperatureUnit);
-    const rorLabel = rorUnitLabel(temperatureUnit);
-
-    const plotSeries = active.map((s) => ({
-        ...s,
-        points: s.points.map((p) => ({
-            ...p,
-            bt: toDisplayTemp(p.bt, temperatureUnit),
-            et: p.et != null ? toDisplayTemp(p.et, temperatureUnit) : null,
-            ror: p.ror != null ? toDisplayRoR(p.ror, temperatureUnit) : null,
-        })),
-    }));
-
-    const allBt = plotSeries.flatMap((s) => s.points.map((p) => p.bt)).filter(Number.isFinite);
+    const channels = compareChannels(active, temperatureUnit).filter(
+        (channel) => (showRoR || channel.kind !== 'ror') && (channelKeys == null || channelKeys.includes(channel.key)),
+    );
+    const hasRoR = channels.some((channel) => channel.kind === 'ror');
+    const otherUnits = compareOtherUnits(channels);
+    const margins = computeGridMargins(hasRoR);
+    const leftMargin = margins.leftMargin;
+    const rightMargin = margins.rightMargin + compareExtraAxisWidth(channels);
+    const topMargin = margins.topMargin;
+    const plotSeries = active;
+    const allBt = plotSeries.flatMap((s) =>
+        s.points.flatMap((point) =>
+            channels
+                .filter((channel) => channel.kind === 'temperature')
+                .map((channel) => compareChannelValue(point, channel, temperatureUnit))
+                .filter((value): value is number => value !== null),
+        ),
+    );
     const defaultMin = toDisplayTemp(100, temperatureUnit);
     const defaultMax = toDisplayTemp(220, temperatureUnit);
+    const allRoR = plotSeries.flatMap((s) =>
+        s.points.flatMap((point) =>
+            channels
+                .filter((channel) => channel.kind === 'ror')
+                .map((channel) => compareChannelValue(point, channel, temperatureUnit))
+                .filter((value): value is number => value !== null),
+        ),
+    );
     const tempYMin = allBt.length
         ? Math.min(defaultMin, Math.floor((Math.min(...allBt) - 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL)
         : defaultMin;
@@ -85,8 +105,8 @@ export const buildCompareChartOption = (
         xMax: xView.end,
         tempYMin,
         tempYMax,
-        rorYMin: toDisplayRoR(ROR_Y_MIN, temperatureUnit),
-        rorYMax: toDisplayRoR(ROR_Y_MAX, temperatureUnit),
+        rorYMin: Math.min(toDisplayRoR(ROR_Y_MIN, temperatureUnit), ...allRoR),
+        rorYMax: Math.max(toDisplayRoR(ROR_Y_MAX, temperatureUnit), ...allRoR),
         colors,
         axisLabelStyle,
         axisNameStyle,
@@ -97,64 +117,87 @@ export const buildCompareChartOption = (
     // modal chart: no phase-bar strip below the plot, so reclaim the tall bottom margin
     (grid as { bottom?: number }[])[0].bottom = 30;
 
+    const plotAxes = (yAxis as object[]).slice(0, hasRoR ? 2 : 1);
+    for (const [index, unit] of otherUnits.entries()) {
+        plotAxes.push({
+            type: 'value',
+            position: 'right',
+            offset: (hasRoR ? 48 : 0) + index * 48,
+            name: unit,
+            axisLine: { onZero: false },
+            scale: true,
+            axisLabel: rightYAxisLabel,
+            splitNumber: 4,
+            splitLine: { show: false },
+            axisPointer: buildYAxisPointer(crossLineStyle),
+        });
+    }
     const resolved = new Map(plotSeries.map((s) => [s.id, resolveCssColor(s.color)]));
     const series: object[] = [];
+    const legend = new Map<string, { session: CompareChartSeries; channel: CompareChannel }>();
 
     for (const s of plotSeries) {
         const color = resolved.get(s.id) as string;
-        series.push({
-            name: `bt|${s.id}`,
-            type: 'line',
-            xAxisIndex: 0,
-            yAxisIndex: 0,
-            z: 2,
-            data: s.points.map((p) => [p.t, p.bt]),
-            lineStyle: { color, width: TEMP_CURVE_WIDTH },
-            itemStyle: { color },
-            ...lineSeriesBase,
-            markPoint:
-                s.markers && s.markers.length > 0
-                    ? {
-                          silent: true,
-                          animation: false,
-                          symbol: 'circle',
-                          symbolSize: 6,
-                          label: { show: false },
-                          data: s.markers
-                              .map((m) => {
+        for (const channel of channels) {
+            const data = s.points.map((p) => [p.t, compareChannelValue(p, channel, temperatureUnit)]);
+            if (!data.some((point) => point[1] !== null)) continue;
+            const name = `${channel.key}|${s.id}`;
+            legend.set(name, { session: s, channel });
+            const axisIndex =
+                channel.kind === 'temperature'
+                    ? 0
+                    : channel.kind === 'ror'
+                      ? 1
+                      : (hasRoR ? 2 : 1) + otherUnits.indexOf(channel.unit);
+            series.push({
+                name,
+                type: 'line',
+                xAxisIndex: 0,
+                yAxisIndex: axisIndex,
+                z: channel.kind === 'ror' ? 1 : 2,
+                data,
+                lineStyle: {
+                    color,
+                    width: TEMP_CURVE_WIDTH,
+                    type:
+                        channel.source === 'bt'
+                            ? 'solid'
+                            : channel.source === 'et'
+                              ? 'dashed'
+                              : channel.source === 'ror'
+                                ? 'dotted'
+                                : channel.source === 'rorEt'
+                                  ? [5, 2, 1, 2]
+                                  : [10, 3, 2, 3],
+                    opacity: channel.kind === 'ror' ? 0.65 : 1,
+                },
+                itemStyle: { color },
+                ...lineSeriesBase,
+                markPoint:
+                    channel.source === 'bt' && s.markers?.length
+                        ? {
+                              silent: true,
+                              animation: false,
+                              symbol: 'circle',
+                              symbolSize: 6,
+                              label: { show: false },
+                              data: s.markers.map((m) => {
                                   const nearest = s.points.reduce(
                                       (best, p) =>
                                           Math.abs(p.t - m.timeSec) < Math.abs(best.t - m.timeSec) ? p : best,
                                       s.points[0],
                                   );
-                                  if (!nearest) return null;
                                   return {
-                                      coord: [nearest.t, nearest.bt],
+                                      coord: [nearest.t, toDisplayTemp(nearest.bt, temperatureUnit)],
                                       itemStyle: {
                                           color: getResolvedEventColor(m.event),
                                           borderColor: colors.tooltipBg,
                                           borderWidth: 1,
                                       },
                                   };
-                              })
-                              .filter(Boolean),
-                      }
-                    : undefined,
-        });
-
-        if (showRoR) {
-            series.push({
-                name: `ror|${s.id}`,
-                type: 'line',
-                xAxisIndex: 0,
-                yAxisIndex: 1,
-                z: 1,
-                data: s.points
-                    .filter((p) => p.ror != null && Number.isFinite(p.ror))
-                    .map((p) => [p.t, p.ror as number]),
-                lineStyle: { color, width: TEMP_CURVE_WIDTH, opacity: 0.6 },
-                itemStyle: { color },
-                ...lineSeriesBase,
+                              }),
+                          }
+                        : undefined,
             });
         }
     }
@@ -167,25 +210,15 @@ export const buildCompareChartOption = (
         }[];
         const t = list[0]?.axisValue;
         if (t == null || !Number.isFinite(t)) return '';
-        const rows = new Map<string, { bt?: number; ror?: number }>();
-        for (const p of list) {
-            const [kind, id] = (p.seriesName ?? '').split('|');
-            const v = Array.isArray(p.value) ? p.value[1] : p.value;
-            if (id == null || v == null || !Number.isFinite(v)) continue;
-            const row = rows.get(id) ?? {};
-            if (kind === 'bt') row.bt = v;
-            else if (kind === 'ror') row.ror = v;
-            rows.set(id, row);
-        }
         let html = `<div style="font-weight:500;color:${colors.tooltipTimeColor};margin-bottom:6px;font-family:monospace">${fmtSec(Number(t))}</div>`;
-        for (const s of plotSeries) {
-            const row = rows.get(s.id);
-            if (row?.bt == null) continue;
+        for (const p of list) {
+            const item = legend.get(p.seriesName ?? '');
+            const value = Array.isArray(p.value) ? p.value[1] : p.value;
+            if (!item || value == null || !Number.isFinite(value)) continue;
             html += `<div style="display:flex;align-items:center;gap:6px;margin-top:3px">
-                <span style="width:8px;height:8px;border-radius:2px;background:${resolved.get(s.id)}"></span>
-                <span style="color:${colors.tooltipTimeColor};max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.label)}</span>
-                <span style="font-weight:600;font-variant-numeric:tabular-nums">${row.bt.toFixed(1)}${unitLabel}</span>
-                ${row.ror != null ? `<span style="color:${colors.tooltipTimeColor};font-variant-numeric:tabular-nums">${row.ror.toFixed(1)}${rorLabel}</span>` : ''}
+                <span style="width:8px;height:8px;border-radius:2px;background:${resolved.get(item.session.id)}"></span>
+                <span style="color:${colors.tooltipTimeColor}">${escapeHtml(item.session.label)} · ${escapeHtml(item.channel.label)}</span>
+                <span style="font-weight:600">${value.toFixed(1)}${escapeHtml(item.channel.unit)}</span>
             </div>`;
         }
         return html;
@@ -196,7 +229,7 @@ export const buildCompareChartOption = (
         animation: false,
         grid,
         xAxis,
-        yAxis: showRoR ? yAxis : ([(yAxis as object[])[0]] as EChartsOption['yAxis']),
+        yAxis: plotAxes,
         tooltip: {
             trigger: 'axis',
             backgroundColor: colors.tooltipBg,
@@ -208,6 +241,6 @@ export const buildCompareChartOption = (
             formatter,
         },
         dataZoom: [],
-        series: series as EChartsOption['series'],
+        series,
     };
 };

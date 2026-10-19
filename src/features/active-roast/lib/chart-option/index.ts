@@ -22,6 +22,7 @@ import type { ChartOptionParams } from './types';
 
 export { fmtSec } from './axes';
 export { buildCompareChartOption, type CompareChartSeries, compareChartXMax } from './compare';
+export { compareChannels, compareExtraAxisWidth } from './compare-channels';
 export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMarker } from './types';
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {

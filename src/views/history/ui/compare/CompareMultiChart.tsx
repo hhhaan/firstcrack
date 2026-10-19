@@ -3,13 +3,15 @@ import { CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR } from '@features/active-ro
 import {
     buildCompareChartOption,
     type CompareChartSeries,
+    compareChannels,
     compareChartXMax,
+    compareExtraAxisWidth,
 } from '@features/active-roast/lib/chart-option';
 import { useChartZoom } from '@features/active-roast/model/useChartZoom';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type CompareSeries = CompareChartSeries;
 
@@ -24,8 +26,22 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
     const chartRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const temperatureUnit = useRoastSettings().temperatureUnit;
-
+    const [hiddenChannels, setHiddenChannels] = useState<Set<string>>(() => new Set());
     const active = useMemo(() => series.filter((s) => s.visible !== false && s.points.length > 0), [series]);
+    const channels = useMemo(
+        () => compareChannels(series, temperatureUnit).filter((channel) => showRoR || channel.kind !== 'ror'),
+        [series, temperatureUnit, showRoR],
+    );
+    const channelKeys = useMemo(
+        () => channels.filter((channel) => !hiddenChannels.has(channel.key)).map((channel) => channel.key),
+        [channels, hiddenChannels],
+    );
+    const plottedChannels = compareChannels(active, temperatureUnit).filter((channel) =>
+        channelKeys.includes(channel.key),
+    );
+    const hasRoR = plottedChannels.some((channel) => channel.kind === 'ror');
+    const rightMargin =
+        (hasRoR ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT) + compareExtraAxisWidth(plottedChannels);
 
     const xMax = useMemo(() => compareChartXMax(active), [active]);
     const {
@@ -36,7 +52,7 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,
-    } = useChartZoom(xMax, 0, showRoR ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT);
+    } = useChartZoom(xMax, 0, rightMargin);
 
     // 세션 토글로 전체 범위가 바뀌면 이전 줌이 무효 — 리셋
     // biome-ignore lint/correctness/useExhaustiveDependencies: xMax 변경 시에만 리셋
@@ -48,15 +64,8 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
     // content so setOption only runs when the data actually changed.
     const fingerprint = useMemo(
         () =>
-            `${active
-                .map((s) => {
-                    const last = s.points[s.points.length - 1];
-                    return `${s.id}:${s.points.length}:${last?.t ?? 0}:${last?.bt ?? 0}:${s.color}`;
-                })
-                .join(
-                    '|',
-                )}|ror:${showRoR}|${resolvedTheme}|unit:${temperatureUnit}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
-        [active, showRoR, resolvedTheme, temperatureUnit, effectiveZoomRange],
+            `${JSON.stringify(active)}|channels:${JSON.stringify(channelKeys)}|ror:${showRoR}|${resolvedTheme}|unit:${temperatureUnit}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
+        [active, channelKeys, showRoR, resolvedTheme, temperatureUnit, effectiveZoomRange],
     );
 
     useEffect(() => {
@@ -91,21 +100,44 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
             effectiveZoomRange && effectiveZoomRange.start < effectiveZoomRange.end
                 ? effectiveZoomRange
                 : { start: 0, end: xMax };
-        chart.setOption(buildCompareChartOption(active, showRoR, xView, temperatureUnit), { notMerge: true });
+        chart.setOption(buildCompareChartOption(active, showRoR, xView, temperatureUnit, channelKeys), {
+            notMerge: true,
+        });
     }, [fingerprint]);
 
     return (
-        <ChartZoomSurface
-            chartAreaRef={chartAreaRef}
-            effectiveZoomRange={effectiveZoomRange}
-            isChartDragging={isChartDragging}
-            handleChartPointerDown={handleChartPointerDown}
-            handleChartPointerMove={handleChartPointerMove}
-            endChartDrag={endChartDrag}
-            className="w-full"
-            style={{ height }}
-        >
-            <div ref={elRef} className="h-full w-full" />
-        </ChartZoomSurface>
+        <div>
+            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-secondary">
+                {channels.map((channel) => (
+                    <label key={channel.key} className="inline-flex cursor-pointer items-center gap-1">
+                        <input
+                            type="checkbox"
+                            checked={!hiddenChannels.has(channel.key)}
+                            onChange={() =>
+                                setHiddenChannels((previous) => {
+                                    const next = new Set(previous);
+                                    if (next.has(channel.key)) next.delete(channel.key);
+                                    else next.add(channel.key);
+                                    return next;
+                                })
+                            }
+                        />
+                        {channel.label} {channel.unit && `(${channel.unit})`}
+                    </label>
+                ))}
+            </div>
+            <ChartZoomSurface
+                chartAreaRef={chartAreaRef}
+                effectiveZoomRange={effectiveZoomRange}
+                isChartDragging={isChartDragging}
+                handleChartPointerDown={handleChartPointerDown}
+                handleChartPointerMove={handleChartPointerMove}
+                endChartDrag={endChartDrag}
+                className="w-full"
+                style={{ height }}
+            >
+                <div ref={elRef} className="h-full w-full" />
+            </ChartZoomSurface>
+        </div>
     );
 };
