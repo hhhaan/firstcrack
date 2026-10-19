@@ -3,7 +3,7 @@ import { formatTemp, type TemperatureUnit } from '@features/active-roast';
 import type { RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { historyPdfChartBox, historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
-import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
+import { sessionDistinctTitle, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { type RefObject, useCallback, useState } from 'react';
@@ -33,9 +33,7 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
         setExporting(true);
         try {
             const beanName = sessionBeanName(session)?.trim() || '—';
-            const batchTitle = session.batch_name?.trim();
-            const legacyTitle = session.bean_label?.trim();
-            const distinctTitle = batchTitle || (legacyTitle !== beanName ? legacyTitle : undefined);
+            const distinctTitle = sessionDistinctTitle(session);
             await exportPdf({
                 title: t('history.title'),
                 filename: historyPdfFilename(sessionRoastTitle(session), session.roasted_at),

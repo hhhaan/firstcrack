@@ -97,7 +97,7 @@ it('exports the selected batch title in the filename and PDF header while retain
         await act(async () => latest.onExportPdf());
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                header: expect.objectContaining({ bean: 'Green B', roastTitle: 'Green B' }),
+                header: expect.not.objectContaining({ roastTitle: expect.anything() }),
             }),
         );
     } finally {

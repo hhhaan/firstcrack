@@ -3,7 +3,7 @@ import { formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
-import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
+import { sessionDistinctTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 
 export interface CsvRow {
@@ -79,7 +79,7 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
         dropTemp: s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '',
         duration: roastSec != null ? formatDuration(roastSec) : '',
         notes: s.notes ?? '',
-        title: sessionRoastTitle(s) ?? '',
+        title: sessionDistinctTitle(s) ?? '',
     };
 };
 

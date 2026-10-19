@@ -23,6 +23,8 @@ describe('sessionsToCsv', () => {
             session({ batch_name: 'Batch A', bean_label: 'Legacy title' }),
             session({ batch_name: 'Batch, "B"', bean_label: 'Legacy title' }),
             session({ batch_name: null, bean_label: 'Legacy title' }),
+            // Title that only repeats the bean column is noise — the bean already says it.
+            session({ batch_name: 'Ethiopia' }),
         ]);
         const lines = csv.trim().split('\n');
         expect(lines[0]).toMatch(/,Roast Title$/);
@@ -30,6 +32,8 @@ describe('sessionsToCsv', () => {
         expect(lines[1]).toMatch(/,Batch A$/);
         expect(lines[2]).toMatch(/,"Batch, ""B"""$/);
         expect(lines[3]).toMatch(/,Legacy title$/);
+        expect(lines[4]).toMatch(/,Ethiopia,Yirgacheffe,City\+,/);
+        expect(lines[4]).toMatch(/,$/);
     });
     it('prefixes UTF-8 BOM and header row', () => {
         const csv = sessionsToCsv([session()]);
