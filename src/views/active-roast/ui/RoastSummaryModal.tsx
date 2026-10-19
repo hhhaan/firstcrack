@@ -18,6 +18,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
+import { RoastSummaryLiveStatus } from './RoastSummaryLiveStatus';
 
 export type { RoastSummaryData };
 
@@ -30,6 +31,7 @@ interface RoastSummaryModalProps {
     canCancelDrop: boolean;
     onSave: (data: RoastSummaryForm) => Promise<void>;
     isSaving?: boolean;
+    bbpEnabled?: boolean;
     ambientTemp?: number | null;
     ambientHumidity?: number | null;
     /** Pre-selected bean from roast header / handoff */
@@ -65,6 +67,7 @@ export const RoastSummaryModal = ({
     canCancelDrop,
     onSave,
     isSaving = false,
+    bbpEnabled = true,
     ambientTemp,
     ambientHumidity,
     selectedBeanId = null,
@@ -198,6 +201,8 @@ export const RoastSummaryModal = ({
                         </div>
                     ))}
                 </div>
+
+                {bbpEnabled && <RoastSummaryLiveStatus />}
 
                 {ambientLine ? (
                     <p className="text-[11px] text-muted font-(--font-mono) tracking-[0.14px] mb-3.5">{ambientLine}</p>

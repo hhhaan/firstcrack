@@ -1408,6 +1408,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onConfirm={confirmEndRoast}
             />
             <RoastSummaryModal
+                bbpEnabled={bbpEnabled}
                 open={saveFlow.flow.summaryModal}
                 summaryData={saveFlow.flow.summaryData}
                 isSaving={saveFlow.isSaving}

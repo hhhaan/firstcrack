@@ -1465,7 +1465,9 @@
             "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다.",
             "sessionExpired": "로그인 세션이 만료되었습니다. 다시 로그인하면 이 기록이 자동으로 저장됩니다.",
             "workspaceLoading": "작업 공간을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
-            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다."
+            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다.",
+            "bbpLive": "BBP · 현재 로스터 상태",
+            "liveUnavailable": "새 측정값을 기다리는 중"
         },
         "planBatch": {
             "title": "다음 로스팅을 진행할까요?",

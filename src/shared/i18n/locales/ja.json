@@ -1099,7 +1099,9 @@
             "lossRateEstimated": "未計量 — 減量率は焙煎レベルに基づく推定値になります。",
             "sessionExpired": "ログインセッションの有効期限が切れました。再ログインすると、この記録は自動的に保存されます。",
             "workspaceLoading": "ワークスペースを読み込み中です。しばらくしてからもう一度お試しください。",
-            "batchUnavailable": "選択したスケジュールバッチは使用できなくなりました。"
+            "batchUnavailable": "選択したスケジュールバッチは使用できなくなりました。",
+            "bbpLive": "BBP · 現在の焙煎機の状態",
+            "liveUnavailable": "新しい測定値を待っています"
         },
         "planBatch": {
             "title": "次のローストを続けますか？",
