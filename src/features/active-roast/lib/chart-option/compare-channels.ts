@@ -22,6 +22,13 @@ export type CompareChannel = {
 };
 
 const finite = (value: number | null | undefined): value is number => value != null && Number.isFinite(value);
+const normalizeExtraUnit = (unit: string): string => {
+    const trimmed = unit.trim();
+    const normalized = trimmed.replace(/^°/, '').toUpperCase();
+    if (normalized === 'C') return '°C';
+    if (normalized === 'C/MIN') return '°C/min';
+    return trimmed;
+};
 
 /** Only channels actually recorded in at least one session are offered. */
 export const compareChannels = (series: { points: ComparePoint[] }[], unit: TemperatureUnit): CompareChannel[] => {
@@ -36,18 +43,19 @@ export const compareChannels = (series: { points: ComparePoint[] }[], unit: Temp
     const seen = new Set<string>();
     for (const point of points) {
         for (const sensor of point.extraReadings ?? []) {
-            const key = JSON.stringify(['extra', sensor.id, sensor.unit]);
+            const sensorUnit = normalizeExtraUnit(sensor.unit);
+            const key = JSON.stringify(['extra', sensor.id, sensor.label, sensorUnit]);
             if (seen.has(key) || !finite(sensor.value)) continue;
             seen.add(key);
-            const kind = sensor.unit === '°C' ? 'temperature' : sensor.unit === '°C/min' ? 'ror' : 'other';
+            const kind = sensorUnit === '°C' ? 'temperature' : sensorUnit === '°C/min' ? 'ror' : 'other';
             channels.push({
                 key,
                 label: sensor.label,
-                unit: kind === 'temperature' ? tempUnitLabel(unit) : kind === 'ror' ? rorUnitLabel(unit) : sensor.unit,
+                unit: kind === 'temperature' ? tempUnitLabel(unit) : kind === 'ror' ? rorUnitLabel(unit) : sensorUnit,
                 kind,
                 source: 'extra',
                 sensorId: sensor.id,
-                sensorUnit: sensor.unit,
+                sensorUnit,
             });
         }
     }
@@ -61,7 +69,12 @@ export const compareChannelValue = (
 ): number | null => {
     const value =
         channel.source === 'extra'
-            ? point.extraReadings?.find((s) => s.id === channel.sensorId && s.unit === channel.sensorUnit)?.value
+            ? point.extraReadings?.find(
+                  (s) =>
+                      s.id === channel.sensorId &&
+                      s.label === channel.label &&
+                      normalizeExtraUnit(s.unit) === channel.sensorUnit,
+              )?.value
             : point[channel.source];
     if (!finite(value)) return null;
     return channel.kind === 'temperature'

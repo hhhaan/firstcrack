@@ -36,8 +36,9 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
         () => channels.filter((channel) => !hiddenChannels.has(channel.key)).map((channel) => channel.key),
         [channels, hiddenChannels],
     );
-    const plottedChannels = compareChannels(active, temperatureUnit).filter((channel) =>
-        channelKeys.includes(channel.key),
+    const plottedChannels = useMemo(
+        () => compareChannels(active, temperatureUnit).filter((channel) => channelKeys.includes(channel.key)),
+        [active, temperatureUnit, channelKeys],
     );
     const hasRoR = plottedChannels.some((channel) => channel.kind === 'ror');
     const rightMargin =
@@ -62,10 +63,11 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
 
     // useQueries returns fresh array identities every render — fingerprint the
     // content so setOption only runs when the data actually changed.
+    const dataFingerprint = useMemo(() => JSON.stringify(active), [active]);
     const fingerprint = useMemo(
         () =>
-            `${JSON.stringify(active)}|channels:${JSON.stringify(channelKeys)}|ror:${showRoR}|${resolvedTheme}|unit:${temperatureUnit}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
-        [active, channelKeys, showRoR, resolvedTheme, temperatureUnit, effectiveZoomRange],
+            `${dataFingerprint}|channels:${JSON.stringify(channelKeys)}|ror:${showRoR}|${resolvedTheme}|unit:${temperatureUnit}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
+        [dataFingerprint, channelKeys, showRoR, resolvedTheme, temperatureUnit, effectiveZoomRange],
     );
 
     useEffect(() => {

@@ -31,7 +31,7 @@ describe('buildCompareChartOption display unit', () => {
                         ror: 5,
                         rorEt: 3,
                         extraReadings: [
-                            { id: 'inlet', label: 'Inlet', unit: '°C', value: 220 },
+                            { id: 'inlet', label: 'Inlet', unit: 'C', value: 220 },
                             { id: 'pressure', label: '<pressure>', unit: 'Pa', value: 0 },
                         ],
                     },
