@@ -1099,7 +1099,9 @@
             "lossRateEstimated": "Not weighed — loss rate is estimated from the roast level.",
             "sessionExpired": "Your login session has expired. Sign in again and this roast will be saved automatically.",
             "workspaceLoading": "Workspace is still loading. Please try again in a moment.",
-            "batchUnavailable": "The selected schedule batch is no longer available."
+            "batchUnavailable": "The selected schedule batch is no longer available.",
+            "bbpLive": "BBP · Current roaster readings",
+            "liveUnavailable": "Waiting for fresh readings"
         },
         "planBatch": {
             "title": "Continue with the next roast?",
