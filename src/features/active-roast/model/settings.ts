@@ -178,8 +178,8 @@ const clampNum = (value: unknown, min: number, max: number, fallback: number) =>
     return Math.min(max, Math.max(min, n));
 };
 
-/** RoR grid step in the active unit. 6 and 8 land on 5 and 10. */
-const ROR_GRID_INTERVAL_STEP = 5;
+/** Integer RoR grid spacing in the active unit; keep sub-unit tick explosions bounded. */
+const ROR_GRID_INTERVAL_STEP = 1;
 
 const normalizeRorGridInterval = (value: unknown, unit: TemperatureUnit, fallback: number): number => {
     const source = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
