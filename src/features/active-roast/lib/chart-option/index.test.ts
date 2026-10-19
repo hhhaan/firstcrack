@@ -467,10 +467,12 @@ describe('buildRoastChartOption', () => {
                     const baseline = buildRoastChartOption({
                         ...params,
                         axisSettings: { tempLabelInterval: 25, timeTickIntervalSec: 60 },
-                    }).yAxis as typeof configured.yAxis;
-                    expect([axis.min, axis.max, axis.interval]).toEqual(
-                        Array.isArray(baseline) ? [baseline[0].min, baseline[0].max, baseline[0].interval] : [],
-                    );
+                    }).yAxis as { interval: number; min: number; max: number }[];
+                    expect([axis.min, axis.max, axis.interval]).toEqual([
+                        baseline[0].min,
+                        baseline[0].max,
+                        baseline[0].interval,
+                    ]);
                     expect(axis.axisLabel.formatter(100)).toBe('100');
                     expect(axis.axisLabel.formatter(125)).toBe('');
                     expect(axis.axisLabel.hideOverlap).toBe(true);
