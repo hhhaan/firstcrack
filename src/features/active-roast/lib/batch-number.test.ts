@@ -1,7 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { allocateBatchNumber, emptyBatchNumberLedger, parseBatchNumberLedger } from './batch-number';
+import {
+    allocateBatchNumber,
+    emptyBatchNumberLedger,
+    mergeBatchNumberLedgers,
+    parseBatchNumberLedger,
+} from './batch-number';
 
 describe('device profile Charge numbering', () => {
+    it.each([false, true])('keeps the newest counter when local storage is newer=%s', (localIsNewer) => {
+        const first = allocateBatchNumber(emptyBatchNumberLedger(), 'owner', 'p', 'a');
+        const second = allocateBatchNumber(first.ledger, 'owner', 'p', 'b');
+        const merged = localIsNewer
+            ? mergeBatchNumberLedgers(first.ledger, second.ledger)
+            : mergeBatchNumberLedgers(second.ledger, first.ledger);
+        expect(allocateBatchNumber(merged, 'owner', 'p', 'c').number).toBe(3);
+        expect(allocateBatchNumber(merged, 'owner', 'changed', 'b').number).toBe(2);
+    });
+    it.each([null, { counters: [], sessions: [] }, { counters: { bad: 'value' }, sessions: {} }])(
+        'does not let malformed storage mask a valid allocation',
+        (invalid) => {
+            const first = allocateBatchNumber(emptyBatchNumberLedger(), 'owner', 'p', 'a');
+            for (const merged of [
+                mergeBatchNumberLedgers(first.ledger, invalid),
+                mergeBatchNumberLedgers(invalid, first.ledger),
+            ])
+                expect(allocateBatchNumber(merged, 'owner', 'p', 'b').number).toBe(2);
+        },
+    );
+    it('preserves durable session identities and covers every recovered allocation', () => {
+        const scope = JSON.stringify(['owner', 'p']);
+        const id = JSON.stringify(['owner', 'a']);
+        const merged = mergeBatchNumberLedgers(
+            { counters: {}, sessions: { [id]: { scope, number: 7 } } },
+            { counters: {}, sessions: { [id]: { scope, number: 8 } } },
+        );
+        expect(allocateBatchNumber(merged, 'owner', 'p', 'a').number).toBe(7);
+        expect(allocateBatchNumber(merged, 'owner', 'p', 'b').number).toBe(9);
+    });
     it('preserves the same session across reopening, Drop cancel, and reference changes', () => {
         const first = allocateBatchNumber(emptyBatchNumberLedger(), 'owner', 'profile', 'a');
         const restored = parseBatchNumberLedger(JSON.parse(JSON.stringify(first.ledger)));

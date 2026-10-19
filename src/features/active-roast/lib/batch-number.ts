@@ -4,13 +4,15 @@ export interface BatchNumberLedger {
 }
 export const emptyBatchNumberLedger = (): BatchNumberLedger => ({ counters: {}, sessions: {} });
 export function parseBatchNumberLedger(value: unknown): BatchNumberLedger {
-    if (!value || typeof value !== 'object') return emptyBatchNumberLedger();
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return emptyBatchNumberLedger();
     const ledger = value as BatchNumberLedger;
     if (
         !ledger.counters ||
         !ledger.sessions ||
         typeof ledger.counters !== 'object' ||
-        typeof ledger.sessions !== 'object'
+        typeof ledger.sessions !== 'object' ||
+        Array.isArray(ledger.counters) ||
+        Array.isArray(ledger.sessions)
     )
         return emptyBatchNumberLedger();
     if (
@@ -21,6 +23,17 @@ export function parseBatchNumberLedger(value: unknown): BatchNumberLedger {
     )
         return emptyBatchNumberLedger();
     return ledger;
+}
+/** Either storage target can be newer after a partial write failure. Never decrease a counter. */
+export function mergeBatchNumberLedgers(stored: unknown, fallback: unknown): BatchNumberLedger {
+    const durable = parseBatchNumberLedger(stored);
+    const local = parseBatchNumberLedger(fallback);
+    const counters = { ...local.counters };
+    for (const [scope, number] of Object.entries(durable.counters))
+        counters[scope] = Math.max(counters[scope] ?? 0, number);
+    for (const { scope, number } of [...Object.values(local.sessions), ...Object.values(durable.sessions)])
+        counters[scope] = Math.max(counters[scope] ?? 0, number);
+    return { counters, sessions: { ...local.sessions, ...durable.sessions } };
 }
 /** Profile at Charge owns the number. A later reference edit cannot reassign it. */
 export function allocateBatchNumber(

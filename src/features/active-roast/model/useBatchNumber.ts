@@ -1,7 +1,8 @@
+import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { allocateBatchNumber, parseBatchNumberLedger } from '../lib/batch-number';
+import { allocateBatchNumber, mergeBatchNumberLedgers } from '../lib/batch-number';
 import { useRoastingStore } from './status';
 
 const KEY = 'roast.batchNumbers';
@@ -19,7 +20,7 @@ function reserve(sessionId: string | null, ownerId: string | null, profileId: st
                 /* no local ledger */
             }
             const result = allocateBatchNumber(
-                parseBatchNumberLedger(fallback ?? stored),
+                mergeBatchNumberLedgers(stored, fallback),
                 ownerId,
                 profileId,
                 sessionId,
@@ -33,16 +34,17 @@ function reserve(sessionId: string | null, ownerId: string | null, profileId: st
             }
             try {
                 await settingsSet(KEY, result.ledger, { throwOnError: true });
-            } catch (error) {
-                if (!localSaved) throw error;
+            } catch {
+                // settingsSet already reports persistence failures through the shared logger.
+                if (!localSaved) return;
             }
             useNumbers.setState(
                 Object.fromEntries(Object.entries(result.ledger.sessions).map(([id, value]) => [id, value.number])),
                 true,
             );
         })
-        .catch(() => {
-            /* An unavailable ledger leaves the number undisplayed. */
+        .catch((error) => {
+            logger.capture(error, { feature: 'batch-number' });
         });
 }
 
