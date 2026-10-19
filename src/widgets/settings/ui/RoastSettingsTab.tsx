@@ -620,14 +620,14 @@ const RorTickSection = () => {
                                 <NumberInput
                                     id="roast-ror-interval"
                                     integer
-                                    step={5}
+                                    step={1}
                                     value={Math.round(show(roastSettings.rorGridInterval))}
                                     onChange={(value) =>
                                         updateRoastSettings({
-                                            rorGridInterval: fromDisplayRoR(Math.round(value / 5) * 5, unit),
+                                            rorGridInterval: fromDisplayRoR(Math.round(value), unit),
                                         })
                                     }
-                                    min={5}
+                                    min={1}
                                     max={Math.round(show(100))}
                                     suffix={suffix}
                                 />

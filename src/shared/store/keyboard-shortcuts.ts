@@ -25,7 +25,7 @@ export const SHORTCUTS = [
     { id: 'yellow', defaultKeys: ['mod+1'], group: 'roast', editable: true },
     { id: 'fcStart', defaultKeys: ['mod+2'], group: 'roast', editable: true },
     { id: 'fcEnd', defaultKeys: ['mod+3'], group: 'roast', editable: true },
-    { id: 'drop', defaultKeys: ['mod+d'], group: 'roast', editable: true },
+    { id: 'drop', defaultKeys: ['mod+shift+d'], group: 'roast', editable: true },
     { id: 'toggleControl', defaultKeys: ['t'], group: 'roast', editable: true },
     { id: 'zoomIn', defaultKeys: ['+', '='], group: 'chart', editable: true },
     { id: 'zoomOut', defaultKeys: ['-', '_'], group: 'chart', editable: true },
@@ -44,6 +44,9 @@ export type ShortcutBindings = Record<ShortcutId, string[]>;
 
 const STORE_KEY = 'keyboard.bindings';
 const DISABLED_STORE_KEY = 'keyboard.disabled';
+const VERSION_STORE_KEY = 'keyboard.bindingsVersion';
+/** 2: Drop moved to `mod+shift+d` and became an OS-level shortcut (#936). */
+const BINDINGS_VERSION = 2;
 const EMPTY_KEYS: string[] = [];
 const DEFAULT_BINDINGS = Object.fromEntries(
     SHORTCUTS.map(({ id, defaultKeys }) => [id, [...defaultKeys]]),
@@ -87,6 +90,30 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
     return Object.fromEntries([...customized].map((id) => [id, candidate[id]])) as Partial<ShortcutBindings>;
 }
 
+/**
+ * Defaults the app shipped earlier. Every edit persists the whole map, so these stay in storage as
+ * if the user had chosen them — dropping them lets the current default apply. A stale `mod+d`
+ * matters beyond ergonomics: the Drop binding is what gets held globally while roasting.
+ */
+const SUPERSEDED_DEFAULTS: Partial<Record<ShortcutId, readonly string[]>> = {
+    drop: ['mod+d'],
+};
+
+/** Stored bindings that still equal a superseded default fall back to the current one. */
+export function upgradeShortcutBindings(bindings: ShortcutBindings): {
+    bindings: ShortcutBindings;
+    changed: boolean;
+} {
+    let changed = false;
+    const next = { ...bindings };
+    for (const [id, previous] of Object.entries(SUPERSEDED_DEFAULTS) as [ShortcutId, readonly string[]][]) {
+        if (previous.join('|') !== next[id].join('|')) continue;
+        next[id] = [...DEFAULT_BINDINGS[id]];
+        changed = true;
+    }
+    return { bindings: next, changed };
+}
+
 interface ShortcutState {
     bindings: ShortcutBindings;
     disabled: ShortcutId[];
@@ -102,7 +129,7 @@ interface ShortcutState {
 
 let editVersion = 0;
 
-const persistSetting = (key: string, value: ShortcutBindings | ShortcutId[]) => {
+const persistSetting = (key: string, value: ShortcutBindings | ShortcutId[] | number) => {
     editVersion += 1;
     try {
         localStorage.setItem(key, JSON.stringify(value));
@@ -146,31 +173,40 @@ export const useShortcutStore = create<ShortcutState>((set, get) => ({
 
 export async function hydrateShortcutBindings(): Promise<void> {
     const startedAtVersion = editVersion;
-    const [stored, disabled] = await Promise.all(
-        [STORE_KEY, DISABLED_STORE_KEY].map(async (key) => {
+    const readStored = async (key: string): Promise<unknown> => {
+        try {
+            const value = await settingsGet<unknown>(key);
+            return value ?? JSON.parse(localStorage.getItem(key) ?? 'null');
+        } catch {
             try {
-                const value = await settingsGet<unknown>(key);
-                return value ?? JSON.parse(localStorage.getItem(key) ?? 'null');
+                return JSON.parse(localStorage.getItem(key) ?? 'null');
             } catch {
-                try {
-                    return JSON.parse(localStorage.getItem(key) ?? 'null');
-                } catch {
-                    return undefined;
-                }
+                return undefined;
             }
-        }),
-    );
-    if (startedAtVersion === editVersion) {
-        useShortcutStore.setState((state) => ({
-            bindings: { ...state.bindings, ...parseShortcutBindings(stored) },
-            disabled: SHORTCUTS.filter(({ id }) => Array.isArray(disabled) && disabled.includes(id)).map(
-                ({ id }) => id,
-            ),
-            hydrated: true,
-        }));
-    } else {
+        }
+    };
+    const [stored, disabled, storedVersion] = await Promise.all([
+        readStored(STORE_KEY),
+        readStored(DISABLED_STORE_KEY),
+        readStored(VERSION_STORE_KEY),
+    ]);
+    if (startedAtVersion !== editVersion) {
         useShortcutStore.setState({ hydrated: true });
+        return;
     }
+
+    const merged = { ...useShortcutStore.getState().bindings, ...parseShortcutBindings(stored) };
+    // Bindings persisted by an older app version still carry that version's defaults.
+    const migrated = typeof storedVersion === 'number' && storedVersion >= BINDINGS_VERSION;
+    const { bindings, changed } = migrated ? { bindings: merged, changed: false } : upgradeShortcutBindings(merged);
+    if (changed) persistSetting(STORE_KEY, bindings);
+    if (!migrated) persistSetting(VERSION_STORE_KEY, BINDINGS_VERSION);
+
+    useShortcutStore.setState({
+        bindings,
+        disabled: SHORTCUTS.filter(({ id }) => Array.isArray(disabled) && disabled.includes(id)).map(({ id }) => id),
+        hydrated: true,
+    });
 }
 
 void hydrateShortcutBindings();

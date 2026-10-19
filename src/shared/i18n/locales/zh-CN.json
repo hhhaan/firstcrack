@@ -10,7 +10,7 @@
         "recordingHint": "请按新的组合键。按 Esc 取消。",
         "change": "修改快捷键：{{action}}",
         "fixed": "不可修改的快捷键",
-        "doubleTap": "400ms内连按两次",
+        "globalHint": "即使窗口未处于激活状态也会生效。仅在烘焙期间注册为系统级快捷键。",
         "noResults": "没有匹配的快捷键",
         "groups": {
             "app": "应用",
@@ -1017,7 +1017,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",

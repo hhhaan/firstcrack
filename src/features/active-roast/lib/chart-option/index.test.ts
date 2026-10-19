@@ -101,6 +101,45 @@ describe('buildRoastChartOption font scale', () => {
 });
 
 describe('buildRoastChartOption', () => {
+    it.each(['C', 'F'] as const)(
+        'aligns rendered custom RoR labels with their tick coordinates in %s',
+        (temperatureUnit) => {
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
+            try {
+                chart.setOption(
+                    buildRoastChartOption({
+                        ...baseParams(),
+                        temperatureUnit,
+                        axisSettings: {
+                            tempGridInterval: 10,
+                            tempLabelEvery: 5,
+                            timeTickIntervalSec: 60,
+                            rorTicksC: [1, 3, 7],
+                        },
+                    }),
+                );
+                type TextSpan = {
+                    type: string;
+                    style?: { text?: string };
+                    getBoundingRect: () => { x: number; y: number; width: number; height: number };
+                    transformCoordToGlobal: (x: number, y: number) => number[];
+                };
+                const elements = chart.getZr().storage.getDisplayList() as unknown as TextSpan[];
+                for (const celsius of [1, 3, 7]) {
+                    const value = Number((temperatureUnit === 'F' ? celsius * 1.8 : celsius).toFixed(6));
+                    const label = elements.find((el) => el.type === 'tspan' && el.style?.text === String(value));
+                    expect(label).toBeDefined();
+                    if (!label) continue;
+                    const box = label.getBoundingRect();
+                    const center = label.transformCoordToGlobal(box.x + box.width / 2, box.y + box.height / 2);
+                    expect(center[1]).toBeCloseTo(chart.convertToPixel({ yAxisIndex: 1 }, value) as number, 1);
+                }
+            } finally {
+                chart.dispose();
+            }
+        },
+    );
+
     it('uses native custom temperature ticks and clears them when returning to a custom interval', () => {
         for (const temperatureUnit of ['C', 'F'] as const) {
             for (const controls of [false, true]) {
