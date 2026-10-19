@@ -30,6 +30,7 @@ export function KeyboardShortcutsModal() {
     const contentRef = useRef<HTMLDivElement>(null);
     const recordingButtonRef = useRef<HTMLButtonElement | null>(null);
     const changed =
+        globalDrop.enabled ||
         disabled.length > 0 ||
         SHORTCUTS.some(({ id, defaultKeys }) => bindings[id].join('|') !== defaultKeys.join('|'));
     const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -237,6 +238,7 @@ export function KeyboardShortcutsModal() {
                         disabled={!changed || editingId !== null}
                         onClick={() => {
                             resetBindings();
+                            globalDrop.setEnabled(false);
                             setError(null);
                         }}
                         className="flex items-center gap-2 bg-transparent text-[13px] text-secondary hover:text-primary disabled:cursor-default disabled:opacity-40 cursor-pointer"
