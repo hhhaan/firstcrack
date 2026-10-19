@@ -121,13 +121,15 @@ describe('buildRoastChartOption', () => {
                 position?: string;
                 interval?: number;
                 splitLine?: { show?: boolean };
-                axisLabel?: { hideOverlap?: boolean; interval?: number };
+                axisLabel?: { hideOverlap?: boolean; customValues?: number[]; formatter?: (value: number) => string };
             }[]
         ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
         expect(ror?.interval).toBe(1);
         expect(ror?.splitLine?.show).toBe(true);
         expect(ror?.axisLabel?.hideOverlap).toBe(true);
-        expect(ror?.axisLabel?.interval).toBe(0);
+        expect(ror?.axisLabel?.customValues).toEqual(Array.from({ length: 31 }, (_, index) => index - 10));
+        expect(ror?.axisLabel?.formatter?.(5.5)).toBe('');
+        expect(ror?.axisLabel?.formatter?.(5)).toBe('5');
 
         const collect = (height: number) => {
             const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 900, height });
@@ -174,6 +176,20 @@ describe('buildRoastChartOption', () => {
                     (text) => text != null && /^-?\d+$/.test(text) && Number(text) <= 20 && Number(text) >= -10,
                 );
             expect(rorLabels(compact.labels).length).toBeLessThan(rorLabels(tall.labels).length);
+            expect(
+                [...compact.labels, ...tall.labels].filter(
+                    (text) => text != null && /^-?\d+\.\d+$/.test(text) && Number(text) <= 20 && Number(text) >= -10,
+                ),
+            ).toEqual([]);
+            expect(tall.labels.has('19')).toBe(true);
+            expect(tall.labels.has('18')).toBe(true);
+            const mid = collect(520);
+            try {
+                expect(mid.labels.has('19')).toBe(true);
+                expect(mid.labels.has('18')).toBe(true);
+            } finally {
+                mid.chart.dispose();
+            }
         } finally {
             compact.chart.dispose();
             tall.chart.dispose();

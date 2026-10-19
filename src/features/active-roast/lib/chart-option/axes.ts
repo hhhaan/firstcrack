@@ -100,6 +100,18 @@ const formatTick = (value: number): string => String(Number(value.toFixed(6)));
 const matchesTick = (value: number, interval: number): boolean =>
     Math.abs(value / interval - Math.round(value / interval)) < 1e-6;
 
+const ticksFromInterval = (min: number, max: number, interval: number): number[] => {
+    if (!(interval > 0) || !Number.isFinite(min) || !Number.isFinite(max) || max < min) return [];
+    const start = Math.ceil(min / interval - 1e-9) * interval;
+    const ticks: number[] = [];
+    for (let i = 0; i < 500; i += 1) {
+        const value = Number((start + i * interval).toFixed(6));
+        if (value > max + 1e-9) break;
+        ticks.push(value);
+    }
+    return ticks;
+};
+
 const reportTimeIntervalSec = (durationSec: number): number => {
     if (durationSec <= 60) return 5;
     if (durationSec <= 180) return 15;
@@ -132,15 +144,30 @@ export const applyChartAxisSettings = (
             rorAxis.axisLabel.formatter = formatTick;
             rorAxis.splitLine = { ...rorAxis.splitLine, show: false };
         } else if (settings.rorGridInterval && settings.rorGridInterval > 0) {
-            rorAxis.interval = toDisplayRoR(settings.rorGridInterval, temperatureUnit);
+            const interval = toDisplayRoR(settings.rorGridInterval, temperatureUnit);
+            const step = interval * (settings.rorLabelEvery || 1);
+            rorAxis.interval = interval;
+            rorAxis.minInterval = interval;
+            rorAxis.maxInterval = interval;
             rorAxis.splitLine = { ...rorAxis.splitLine, show: !report };
-            const step = Number(rorAxis.interval) * (settings.rorLabelEvery || 1);
             rorAxis.axisLabel = {
                 ...rorAxis.axisLabel,
+                customValues: ticksFromInterval(Number(rorAxis.min), Number(rorAxis.max), step),
                 hideOverlap: true,
-                interval: 0,
+                verticalAlign: 'middle',
                 formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
             };
+            const pointer = rorAxis.axisPointer;
+            if (pointer && typeof pointer === 'object') {
+                pointer.label = {
+                    ...pointer.label,
+                    formatter: (p: { value: unknown }) => {
+                        const n = Number(p.value);
+                        if (!Number.isFinite(n)) return '';
+                        return formatTick(Math.round(n / interval) * interval);
+                    },
+                };
+            }
         }
     }
     for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
