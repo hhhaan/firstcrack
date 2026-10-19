@@ -9,6 +9,7 @@ export const MAX_BATCH_WEIGHT_KG = 500;
 
 /** Shape only — the live schema comes from {@link buildRoastSummarySchema} (needs `t`). */
 const roastSummaryShape = z.object({
+    batchName: z.string().trim().max(120).optional(),
     notes: z.string().max(2000, 'Notes are too long'),
     /**
      * Green charge weight in **kg** despite the `Grams` name — `saveRoastCore`

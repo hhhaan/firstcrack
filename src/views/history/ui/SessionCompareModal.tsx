@@ -1,10 +1,11 @@
-import { sessionBeanName, useHistoryCharts } from '@entities/roast';
+import { useHistoryCharts } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { computePhaseSegments, formatTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -71,7 +72,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 const points = curveQueries[i]?.data ?? [];
                 return {
                     id: s.id,
-                    label: sessionBeanName(s) ?? formatDateShort(s.roasted_at),
+                    label: sessionRoastTitle(s) || formatDateShort(s.roasted_at),
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     points,
                     markers: eventsBySession[i]
@@ -93,7 +94,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 return {
                     id: s.id,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
-                    label: sessionBeanName(s) ?? '—',
+                    label: sessionRoastTitle(s) || '—',
                     segments: computePhaseSegments(logs, roastDuration, roastDuration > 0),
                     totalSec: roastDuration,
                     visible: !hiddenIds.has(s.id),
@@ -206,7 +207,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                                     style={{ backgroundColor: item.color }}
                                                 />
                                                 <span className="truncate text-[11px] font-semibold text-primary">
-                                                    {sessionBeanName(item.session) ?? '—'}
+                                                    {sessionRoastTitle(item.session) || '—'}
                                                 </span>
                                             </div>
                                         </th>

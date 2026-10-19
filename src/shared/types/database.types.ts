@@ -1681,6 +1681,7 @@ export type Database = {
             };
             roast_sessions: {
                 Row: {
+                    batch_name: string | null;
                     ambient_humidity_pct: number | null;
                     ambient_temp_celsius: number | null;
                     bbp_seconds: number | null;
@@ -1723,6 +1724,7 @@ export type Database = {
                     weight_grams: number;
                 };
                 Insert: {
+                    batch_name?: string | null;
                     ambient_humidity_pct?: number | null;
                     ambient_temp_celsius?: number | null;
                     bbp_seconds?: number | null;
@@ -1760,6 +1762,7 @@ export type Database = {
                     weight_grams: number;
                 };
                 Update: {
+                    batch_name?: string | null;
                     ambient_humidity_pct?: number | null;
                     ambient_temp_celsius?: number | null;
                     bbp_seconds?: number | null;
@@ -2284,6 +2287,7 @@ export type Database = {
                 Returns: {
                     ambient_humidity_pct: number | null;
                     ambient_temp_celsius: number | null;
+                    batch_name: string | null;
                     bbp_seconds: number | null;
                     bbp_tsv_path: string | null;
                     bean_id: string | null;

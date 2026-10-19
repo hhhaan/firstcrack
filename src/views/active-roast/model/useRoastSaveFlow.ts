@@ -161,6 +161,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 // Recovered (auto-saved) by PendingRoastRecovery on next launch.
                 const formPatch: SaveRoastFormData = {
                     notes: formData.notes,
+                    batchName: formData.batchName,
                     weightGrams: formData.weightGrams,
                     outputWeightKg: formData.outputWeightKg,
                     roastLevel: formData.roastLevel,

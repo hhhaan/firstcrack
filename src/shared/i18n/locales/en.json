@@ -1401,6 +1401,7 @@
         },
         "expanded": {
             "origin": "Origin",
+            "beanLocked": "Stock is already recorded for this roast, so the green bean cannot be changed.",
             "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
@@ -1554,7 +1555,8 @@
         "recordText": {
             "title": "Roast title",
             "add": "Add note",
-            "failed": "Could not save. Your changes are kept; please retry."
+            "failed": "Could not save. Your changes are kept; please retry.",
+            "inputName": "Free-text name"
         }
     },
     "profiles": {

@@ -15,6 +15,7 @@ export type SyncRoastCurve = (input: {
 /** Form fields required to persist a completed roast (matches summary modal). */
 export type SaveRoastFormData = {
     notes: string;
+    batchName?: string | null;
     /** Green input, in kg — prefilled from batch size, drives stock deduction. */
     weightGrams: number;
     /** Measured roasted output, in kg. 0/undefined = not weighed. */
