@@ -39,6 +39,14 @@
             "resetZoom": "차트 확대 초기화",
             "panLeft": "차트 왼쪽 이동",
             "panRight": "차트 오른쪽 이동"
+        },
+        "globalDrop": "다른 앱에서도 Drop 단축키 사용",
+        "globalDropStatus": {
+            "idle": "로스팅 중에만 활성화됩니다. 400ms 안에 두 번 누르세요.",
+            "registering": "백그라운드 Drop 단축키 등록 중…",
+            "ready": "백그라운드 Drop 단축키 활성화됨. 400ms 안에 두 번 누르세요.",
+            "failed": "단축키를 등록하지 못했습니다(다른 앱의 사용 등). 앱 안에서는 기존 단축키를 사용할 수 있습니다.",
+            "unsupported": "데스크톱 지원 및 Control/Command/Alt 조합이 필요합니다. 앱 안에서는 기존 단축키를 사용할 수 있습니다."
         }
     },
     "bbp": {

@@ -39,6 +39,14 @@
             "resetZoom": "Reset chart zoom",
             "panLeft": "Pan chart left",
             "panRight": "Pan chart right"
+        },
+        "globalDrop": "Use Drop shortcut in other apps",
+        "globalDropStatus": {
+            "idle": "Active only during roasting. Press twice within 400 ms.",
+            "registering": "Registering background Drop shortcut…",
+            "ready": "Background Drop shortcut is active. Press twice within 400 ms.",
+            "failed": "Could not register (for example, another app owns this shortcut). Foreground shortcut remains available.",
+            "unsupported": "Background shortcut requires desktop support and a Control/Command/Alt combination. Foreground shortcut remains available."
         }
     },
     "bbp": {

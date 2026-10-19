@@ -39,6 +39,14 @@
             "resetZoom": "重置图表缩放",
             "panLeft": "向左移动图表",
             "panRight": "向右移动图表"
+        },
+        "globalDrop": "在其他应用中使用Drop快捷键",
+        "globalDropStatus": {
+            "idle": "仅在烘焙时启用。请在400毫秒内按两次。",
+            "registering": "正在注册后台Drop快捷键…",
+            "ready": "后台Drop快捷键已启用。请在400毫秒内按两次。",
+            "failed": "无法注册（例如已被其他应用占用）。仍可使用应用内快捷键。",
+            "unsupported": "需要桌面支持及Control/Command/Alt组合键。仍可使用应用内快捷键。"
         }
     },
     "bbp": {

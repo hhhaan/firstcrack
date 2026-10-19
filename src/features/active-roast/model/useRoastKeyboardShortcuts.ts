@@ -1,3 +1,8 @@
+import { nextDropDoubleTap } from '../lib/drop-double-tap';
+import { useGlobalDropShortcut } from './useGlobalDropShortcut';
+
+export { DROP_DOUBLE_TAP_MS, nextDropDoubleTap } from '../lib/drop-double-tap';
+
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { useRoastSettings } from '@features/active-roast/model/settings';
 import { i18n } from '@shared/i18n';
@@ -63,21 +68,6 @@ export function isRoastChargeShortcutEnabled(p: {
 /** Event-mark buttons + hotkeys: Yellow / FC / Drop only while roasting. */
 export function isRoastEventMarkEnabled(phase: string): boolean {
     return phase === 'roasting';
-}
-
-/** Second mod+D inside this window marks Drop. A held key does not. */
-export const DROP_DOUBLE_TAP_MS = 400;
-
-export function nextDropDoubleTap(
-    armedAt: number | null,
-    now: number,
-    repeat: boolean,
-): { armedAt: number | null; fire: boolean } {
-    if (repeat) return { armedAt, fire: false };
-    if (armedAt != null && now - armedAt <= DROP_DOUBLE_TAP_MS) {
-        return { armedAt: null, fire: true };
-    }
-    return { armedAt: now, fire: false };
 }
 
 /** In-memory roast that a webview reload would drop. Preheat and standby stay refreshable. */
@@ -153,11 +143,31 @@ export const useRoastKeyboardShortcuts = ({
         });
     const canMark = shortcutBase && isRoastEventMarkEnabled(phase);
     const canMarkEvents = canMark || (markWhileReviewing && shortcutBase);
+    const nativeDrop = useGlobalDropShortcut(
+        dropKeys,
+        shortcutsEnabled && phase === 'roasting' && !showEndRoastModal && !showSummaryModal && !showContinueModal,
+        onMarkDrop,
+    );
     const dropArmRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!canMark) dropArmRef.current = null;
     }, [canMark]);
+
+    useEffect(() => {
+        const disarm = () => {
+            dropArmRef.current = null;
+        };
+        const onVisibilityChange = () => {
+            if (document.hidden) disarm();
+        };
+        window.addEventListener('blur', disarm);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            window.removeEventListener('blur', disarm);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, []);
 
     useEffect(() => {
         // `pnpm dev` in a browser keeps F5. Only the desktop webview drops the roast on reload.
@@ -259,6 +269,7 @@ export const useRoastKeyboardShortcuts = ({
         shortcutHotkeys(dropKeys),
         (e) => {
             e.preventDefault();
+            if (nativeDrop.current) return;
             const next = nextDropDoubleTap(dropArmRef.current, Date.now(), e.repeat);
             dropArmRef.current = next.armedAt;
             if (next.fire) onMarkDrop();

@@ -44,6 +44,7 @@ tauri-plugin-single-instance = { version = "2.5", features = ["deep-link"] }
 # Tilde: 2.11+ is a minor ahead of @tauri-apps/plugin-updater.
 tauri-plugin-updater = "~2.10.1"
 tauri-plugin-process = "2.4"
+tauri-plugin-global-shortcut = "~2.4.1"
 tokio = { version = "1", features = ["time", "sync"] }
 
 # App Nap 억제 (#308). beginActivity 토큰을 프로세스 수명 동안 보유.

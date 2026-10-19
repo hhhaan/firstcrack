@@ -1,5 +1,6 @@
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { useRoastSettings } from '@features/active-roast/model/settings';
+import { useGlobalDropShortcutStore } from '@shared/store/global-drop-shortcut';
 import {
     eventToShortcut,
     formatShortcut,
@@ -18,6 +19,7 @@ import { settingsOptionSwitchCls } from './SettingsOptionRow';
 
 export function KeyboardShortcutsModal() {
     const { t } = useTranslation();
+    const globalDrop = useGlobalDropShortcutStore();
     const { bindings, disabled, setEnabled, setBinding, resetBindings, setRecording, setDialogOpen } =
         useShortcutStore();
     const customEvents = useRoastSettings().eventButtons.custom;
@@ -116,6 +118,19 @@ export function KeyboardShortcutsModal() {
                 />
                 <div className="px-6 pb-6 sm:px-8">
                     <p className="m-0 mb-5 text-[13px] leading-relaxed text-secondary">{t('shortcuts.editHint')}</p>
+                    <label className="mb-4 flex items-center gap-2 text-sm text-primary">
+                        <input
+                            type="checkbox"
+                            checked={globalDrop.enabled}
+                            onChange={(e) => globalDrop.setEnabled(e.currentTarget.checked)}
+                        />
+                        {t('shortcuts.globalDrop')}
+                    </label>
+                    {globalDrop.enabled && (
+                        <p role="status" className="mb-4 text-xs text-muted">
+                            {t(`shortcuts.globalDropStatus.${globalDrop.status}`)}
+                        </p>
+                    )}
                     <label className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface/50 px-3 py-2.5 text-muted">
                         <Search size={17} strokeWidth={1.5} aria-hidden />
                         <input
