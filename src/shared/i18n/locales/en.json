@@ -10,7 +10,7 @@
         "recordingHint": "Press a new key combination. Escape cancels.",
         "change": "Change shortcut: {{action}}",
         "fixed": "Fixed shortcut",
-        "doubleTap": "Press twice within 400 ms",
+        "globalHint": "Works even when the window is not focused. Held system-wide while roasting.",
         "noResults": "No matching shortcuts",
         "groups": {
             "app": "App",
@@ -1017,7 +1017,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",
