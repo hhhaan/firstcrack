@@ -16,7 +16,7 @@ export type HistoryReference = {
 };
 
 export const historyReferenceTitle = (session: RoastSessionWithRelations) =>
-    `${session.bean_label?.trim() || sessionBeanName(session) || '—'} · ${formatDateShort(session.roasted_at)}`;
+    `${session.batch_name?.trim() || session.bean_label?.trim() || sessionBeanName(session) || '—'} · ${formatDateShort(session.roasted_at)}`;
 
 export const toHistoryReference = (session: RoastSessionWithRelations, ownerId: string): HistoryReference | null => {
     if (!session.tsv_path || session.user_id !== ownerId) return null;
