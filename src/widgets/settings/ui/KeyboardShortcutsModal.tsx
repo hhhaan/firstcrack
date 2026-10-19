@@ -1,4 +1,5 @@
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
+import { globalDropSupport } from '@features/active-roast/lib/global-drop-native';
 import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useGlobalDropShortcutStore } from '@shared/store/global-drop-shortcut';
 import {
@@ -7,6 +8,7 @@ import {
     SHORTCUTS,
     type ShortcutId,
     shortcutBindingError,
+    useShortcutKeys,
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -19,7 +21,10 @@ import { settingsOptionSwitchCls } from './SettingsOptionRow';
 
 export function KeyboardShortcutsModal() {
     const { t } = useTranslation();
-    const globalDrop = useGlobalDropShortcutStore();
+    const globalDropEnabled = useGlobalDropShortcutStore((state) => state.enabled);
+    const globalDropStatus = useGlobalDropShortcutStore((state) => state.status);
+    const setGlobalDropEnabled = useGlobalDropShortcutStore((state) => state.setEnabled);
+    const dropKeys = useShortcutKeys('drop');
     const { bindings, disabled, setEnabled, setBinding, resetBindings, setRecording, setDialogOpen } =
         useShortcutStore();
     const customEvents = useRoastSettings().eventButtons.custom;
@@ -30,7 +35,7 @@ export function KeyboardShortcutsModal() {
     const contentRef = useRef<HTMLDivElement>(null);
     const recordingButtonRef = useRef<HTMLButtonElement | null>(null);
     const changed =
-        globalDrop.enabled ||
+        globalDropEnabled ||
         disabled.length > 0 ||
         SHORTCUTS.some(({ id, defaultKeys }) => bindings[id].join('|') !== defaultKeys.join('|'));
     const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -122,14 +127,19 @@ export function KeyboardShortcutsModal() {
                     <label className="mb-4 flex items-center gap-2 text-sm text-primary">
                         <input
                             type="checkbox"
-                            checked={globalDrop.enabled}
-                            onChange={(e) => globalDrop.setEnabled(e.currentTarget.checked)}
+                            checked={globalDropEnabled}
+                            onChange={(e) => {
+                                const next = e.currentTarget.checked;
+                                setGlobalDropEnabled(next);
+                                // The unsupported reason has to show here, not only during a roast.
+                                if (next) useGlobalDropShortcutStore.setState({ status: globalDropSupport(dropKeys) });
+                            }}
                         />
                         {t('shortcuts.globalDrop')}
                     </label>
-                    {globalDrop.enabled && (
+                    {globalDropEnabled && (
                         <p role="status" className="mb-4 text-xs text-muted">
-                            {t(`shortcuts.globalDropStatus.${globalDrop.status}`)}
+                            {t(`shortcuts.globalDropStatus.${globalDropStatus}`)}
                         </p>
                     )}
                     <label className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface/50 px-3 py-2.5 text-muted">
@@ -238,7 +248,7 @@ export function KeyboardShortcutsModal() {
                         disabled={!changed || editingId !== null}
                         onClick={() => {
                             resetBindings();
-                            globalDrop.setEnabled(false);
+                            setGlobalDropEnabled(false);
                             setError(null);
                         }}
                         className="flex items-center gap-2 bg-transparent text-[13px] text-secondary hover:text-primary disabled:cursor-default disabled:opacity-40 cursor-pointer"

@@ -36,3 +36,23 @@ it.each([false, true])('restores global Drop and shortcut defaults with other bi
         localStorage.clear();
     }
 });
+it('reports an unsupported binding as soon as the option is switched on', () => {
+    useGlobalDropShortcutStore.getState().setEnabled(false);
+    const root = createRoot(document.createElement('div'));
+    try {
+        act(() => root.render(createElement(KeyboardShortcutsModal)));
+        const label = [...document.querySelectorAll('label')].find(
+            (element) => element.textContent === 'shortcuts.globalDrop',
+        );
+        const toggle = label?.querySelector('input');
+        assert(toggle);
+        act(() => toggle.click());
+        expect(useGlobalDropShortcutStore.getState().enabled).toBe(true);
+        expect(useGlobalDropShortcutStore.getState().status).toBe('unsupported');
+        expect(document.querySelector('[role="status"]')?.textContent).toBe('shortcuts.globalDropStatus.unsupported');
+    } finally {
+        act(() => root.unmount());
+        useGlobalDropShortcutStore.getState().setEnabled(false);
+        localStorage.clear();
+    }
+});
