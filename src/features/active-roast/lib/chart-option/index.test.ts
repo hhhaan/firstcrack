@@ -106,6 +106,7 @@ describe('buildRoastChartOption', () => {
             ...baseParams(),
             rorYMin: -10,
             rorYMax: 20,
+            controlData: { xs: [], drumTemp: [], heatPower: [], fanSpeed: [] },
             axisSettings: {
                 tempGridInterval: 10,
                 tempLabelEvery: 5,
@@ -120,20 +121,24 @@ describe('buildRoastChartOption', () => {
                 position?: string;
                 interval?: number;
                 splitLine?: { show?: boolean };
+                axisLabel?: { hideOverlap?: boolean };
             }[]
         ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
         expect(ror?.interval).toBe(1);
         expect(ror?.splitLine?.show).toBe(true);
+        expect(ror?.axisLabel?.hideOverlap).toBe(false);
 
-        const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 900, height: 500 });
+        const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 900, height: 400 });
         try {
             chart.setOption(option);
             const yOf = (value: number) => chart.convertToPixel({ yAxisIndex: 1 }, value) as number;
-            const lines = chart.getZr().storage.getDisplayList() as {
+            const displayList = chart.getZr().storage.getDisplayList() as {
+                type: string;
+                style?: { text?: string };
                 shape?: { x1?: number; x2?: number; y1?: number; y2?: number };
             }[];
             const hasHorizontalAt = (y: number) =>
-                lines.some((el) => {
+                displayList.some((el) => {
                     const { y1, y2, x1, x2 } = el.shape ?? {};
                     return (
                         y1 != null &&
@@ -145,8 +150,12 @@ describe('buildRoastChartOption', () => {
                         Math.abs(x2 - x1) > 20
                     );
                 });
-            for (const value of [1, 2, 3, 7, 19]) {
+            const labels = new Set(
+                displayList.filter((el) => el.type === 'tspan' && el.style?.text).map((el) => el.style?.text),
+            );
+            for (const value of [1, 2, 3, 7, 18, 19]) {
                 expect(hasHorizontalAt(yOf(value))).toBe(true);
+                expect(labels.has(String(value))).toBe(true);
             }
         } finally {
             chart.dispose();

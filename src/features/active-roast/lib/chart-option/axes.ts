@@ -137,6 +137,8 @@ export const applyChartAxisSettings = (
             const step = Number(rorAxis.interval) * (settings.rorLabelEvery || 1);
             rorAxis.axisLabel = {
                 ...rorAxis.axisLabel,
+                hideOverlap: false,
+                interval: 0,
                 formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
             };
         }
