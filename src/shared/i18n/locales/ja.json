@@ -972,7 +972,7 @@
             "settings": "ロースト設定",
             "openSettings": "ロースト設定を開く",
             "reconnecting": "再接続中 — 曲線が停止しています。ウィンドウを再読み込みしないでください",
-            "batchNumber": "端末・プロファイル累計 #{{number}}",
+            "batchNumber": "#{{number}}",
             "batchNumberHint": "機能適用後のこの端末のChargeをワークスペース・プロファイル別に集計します。キャンセル・破棄したバッチも番号を保持します。"
         },
         "readings": {
