@@ -11,17 +11,21 @@ import { useChartZoom } from '@features/active-roast/model/useChartZoom';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
+import { Check, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type CompareSeries = CompareChartSeries;
 
 interface CompareMultiChartProps {
     series: CompareSeries[];
-    height?: number;
     showRoR?: boolean;
 }
 
-export const CompareMultiChart = ({ series, height = 320, showRoR = true }: CompareMultiChartProps) => {
+const CHANNEL_DASH = { bt: '', et: '6 4', ror: '2 3', rorEt: '5 2 1 2', extra: '10 3 2 3' };
+
+export const CompareMultiChart = ({ series, showRoR = true }: CompareMultiChartProps) => {
+    const { t } = useTranslation();
     const elRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
@@ -108,38 +112,111 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
     }, [fingerprint]);
 
     return (
-        <div>
-            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-secondary">
-                {channels.map((channel) => (
-                    <label key={channel.key} className="inline-flex cursor-pointer items-center gap-1">
-                        <input
-                            type="checkbox"
-                            checked={!hiddenChannels.has(channel.key)}
-                            onChange={() =>
-                                setHiddenChannels((previous) => {
-                                    const next = new Set(previous);
-                                    if (next.has(channel.key)) next.delete(channel.key);
-                                    else next.add(channel.key);
-                                    return next;
-                                })
-                            }
-                        />
-                        {channel.label} {channel.unit && `(${channel.unit})`}
-                    </label>
-                ))}
+        <div className="flex flex-col min-[900px]:flex-row">
+            <div className="min-w-0 flex-1 p-3">
+                <div className="flex h-6 items-center justify-between px-2">
+                    <span className="text-[10px] text-muted">{t('history.compare.tempAndRor')}</span>
+                    {effectiveZoomRange && (
+                        <button
+                            type="button"
+                            onClick={() => setZoomRange(null)}
+                            className="flex items-center gap-1 text-[11px] text-secondary underline underline-offset-2 hover:text-primary"
+                        >
+                            <RotateCcw size={11} />
+                            {t('history.compare.resetZoom')}
+                        </button>
+                    )}
+                </div>
+                <ChartZoomSurface
+                    chartAreaRef={chartAreaRef}
+                    effectiveZoomRange={effectiveZoomRange}
+                    isChartDragging={isChartDragging}
+                    handleChartPointerDown={handleChartPointerDown}
+                    handleChartPointerMove={handleChartPointerMove}
+                    endChartDrag={endChartDrag}
+                    className="h-[clamp(260px,32vh,380px)] w-full"
+                    ariaLabel={t('history.compare.tempAndRor')}
+                >
+                    <div ref={elRef} className="h-full w-full" />
+                </ChartZoomSurface>
             </div>
-            <ChartZoomSurface
-                chartAreaRef={chartAreaRef}
-                effectiveZoomRange={effectiveZoomRange}
-                isChartDragging={isChartDragging}
-                handleChartPointerDown={handleChartPointerDown}
-                handleChartPointerMove={handleChartPointerMove}
-                endChartDrag={endChartDrag}
-                className="w-full"
-                style={{ height }}
+            <aside
+                className="shrink-0 overflow-y-auto border-t border-border bg-surface/25 p-4 min-[900px]:max-h-[calc(clamp(260px,32vh,380px)+48px)] min-[900px]:w-52 min-[900px]:border-t-0 min-[900px]:border-l"
+                aria-label={t('history.compare.sensors')}
             >
-                <div ref={elRef} className="h-full w-full" />
-            </ChartZoomSurface>
+                <div className="mb-4 flex items-center gap-2 text-[11px] font-medium text-secondary">
+                    <SlidersHorizontal size={13} strokeWidth={1.5} />
+                    {t('history.compare.sensors')}
+                    <span className="ml-auto font-mono text-[10px] text-muted">
+                        {channelKeys.length}/{channels.length}
+                    </span>
+                </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-4 min-[900px]:flex-col">
+                    {[
+                        { kind: 'temperature', label: t('history.compare.temperatures') },
+                        { kind: 'ror', label: 'RoR' },
+                        { kind: 'other', label: t('profiles.detail.extraSensors') },
+                    ].map((group) => {
+                        const groupChannels = channels.filter((channel) => channel.kind === group.kind);
+                        if (groupChannels.length === 0) return null;
+                        return (
+                            <fieldset key={group.kind} className="min-w-36 min-[900px]:min-w-0">
+                                <legend className="mb-1.5 text-[10px] text-muted">{group.label}</legend>
+                                <div className="space-y-1">
+                                    {groupChannels.map((channel) => (
+                                        <label
+                                            key={channel.key}
+                                            className="group relative flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 transition-colors hover:bg-surface"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="peer sr-only"
+                                                checked={!hiddenChannels.has(channel.key)}
+                                                onChange={() =>
+                                                    setHiddenChannels((previous) => {
+                                                        const next = new Set(previous);
+                                                        if (next.has(channel.key)) next.delete(channel.key);
+                                                        else next.add(channel.key);
+                                                        return next;
+                                                    })
+                                                }
+                                            />
+                                            <span
+                                                aria-hidden="true"
+                                                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border border-border bg-main-bg text-transparent peer-checked:border-primary peer-checked:bg-primary peer-checked:text-main-bg peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary"
+                                            >
+                                                <Check size={10} strokeWidth={2.5} />
+                                            </span>
+                                            <svg
+                                                width="22"
+                                                height="10"
+                                                className="shrink-0 text-muted peer-checked:text-secondary"
+                                                aria-hidden="true"
+                                            >
+                                                <line
+                                                    x1="0"
+                                                    x2="22"
+                                                    y1="5"
+                                                    y2="5"
+                                                    stroke="currentColor"
+                                                    strokeWidth="1.5"
+                                                    strokeDasharray={CHANNEL_DASH[channel.source]}
+                                                />
+                                            </svg>
+                                            <span className="min-w-0 flex-1 text-[11px] text-muted peer-checked:text-primary">
+                                                <span className="block break-words">{channel.label}</span>
+                                                {channel.source === 'extra' && (
+                                                    <span className="block text-[9px] text-muted">{channel.unit}</span>
+                                                )}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </fieldset>
+                        );
+                    })}
+                </div>
+            </aside>
         </div>
     );
 };
