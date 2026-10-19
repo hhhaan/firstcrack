@@ -141,7 +141,7 @@ export const RoastHeader = ({
                 {/* ─── Bean secondary info: farm · variety · process ───── */}
 
                 {/* ─── Target profile selector ───────────────────────────── */}
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1">
                     {beanSecondary && (
                         <p className="text-[13px] text-muted tracking-[-0.1px] mb-0.5">{beanSecondary} / </p>
                     )}
