@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { logger } from '@shared/lib/logger';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
@@ -7,6 +8,7 @@ import type { ReplayPoint } from '../lib/replay';
 import { type ReplayControlInputs, useReplayControl } from './useReplayControl';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
 
 // TP: t=60/bt=95. 이벤트: t=0 h=80(시간), t=120 bt=110 h=60(BT), t=300 bt=155 h=40(BT)
 const POINTS: ReplayPoint[] = [
@@ -76,22 +78,31 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
 };
 
 describe('192°C gas cutoff across batches', () => {
-    it('stops without consuming gas-off when the writer acknowledges a nonzero setting', async () => {
+    it.each([1, null])('stops gas-off on acknowledgement %s and only captures a new mismatch', async (applied) => {
+        vi.mocked(logger.capture).mockClear();
         const h = await renderReplay({
             referencePoints: [],
             profileHeaterEvents: [{ t: 0, bt: 192, heater: 0, trigger: 'time' }],
         });
         try {
-            h.writeHeater.mockResolvedValue(1);
+            h.writeHeater.mockResolvedValue(applied);
             await act(async () => h.get().toggle());
             expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(0);
             expect(h.get().active).toBe(false);
             expect(h.get().stopReason).toBe('writeFailed');
             expect(h.get().firedCount).toBe(0);
+            expect(logger.capture).toHaveBeenCalledTimes(applied === null ? 0 : 1);
+            if (applied !== null)
+                expect(logger.capture).toHaveBeenCalledWith(expect.any(Error), {
+                    feature: 'replay',
+                    requested: 0,
+                    applied,
+                });
             h.writeHeater.mockClear().mockResolvedValue(0);
             await act(async () => h.get().toggle());
             expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(0);
             expect(h.get().firedCount).toBe(1);
+            expect(logger.capture).toHaveBeenCalledTimes(applied === null ? 0 : 1);
         } finally {
             h.unmount();
         }

@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlOrigin } from '../lib/controlSender';
 import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
@@ -552,6 +553,13 @@ export const useReplayControl = ({
                 const current = labeledEventsRef.current;
                 setIndex(current ? remapReplayIndex(pending.oldEvents, pending.nextIndex, current) : result.nextIndex);
                 return;
+            }
+            if (heater === 0 && applied != null) {
+                logger.capture(new Error('Replay gas-off acknowledgement was nonzero'), {
+                    feature: 'replay',
+                    requested: heater,
+                    applied,
+                });
             }
             setActive(false);
             setStopReason('writeFailed');
