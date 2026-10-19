@@ -1,7 +1,7 @@
 import type { UpcomingBatch } from '@features/dashboard-summary';
 import { formatDateLocal } from '@shared/lib/rrule';
 import type { View } from '@shared/types/view';
-import { Calendar, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface UpcomingBatchesProps {
@@ -38,9 +38,6 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                         key={item.id}
                         className={`flex items-center gap-3 py-2.5 ${i < data.length - 1 ? 'border-b border-divider' : ''}`}
                     >
-                        <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0">
-                            <Calendar size={14} strokeWidth={1.5} className="text-secondary" />
-                        </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
@@ -55,7 +52,7 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                                 {item.date === formatDateLocal(new Date()) ? t('dashboard.today') : item.date} ·{' '}
                                 {item.status}
                                 {item.stockShort && (
-                                    <span className="ml-1.5 text-amber-600 font-medium">
+                                    <span className="ml-1.5 text-palette-green font-medium">
                                         · {t('dashboard.upcomingStockShort')}
                                     </span>
                                 )}

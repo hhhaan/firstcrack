@@ -1,6 +1,5 @@
 import type { DashboardInventoryAlert } from '@features/dashboard-summary';
 import { Badge } from '@shared/ui/Badge';
-import { Coffee } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { alertBg, alertColor, alertReasonLabels } from '../lib/constants';
 
@@ -23,20 +22,21 @@ export const InventoryAlerts = ({ data, loading }: InventoryAlertsProps) => {
                 <p className="text-[13px] text-muted py-2">{t('dashboard.allStockOk')}</p>
             ) : (
                 data.map((item, i) => {
-                    const color = alertColor[item.reason] ?? '#FFFF54';
-                    const bg = alertBg[item.reason] ?? 'rgba(255,255,84,0.2)';
+                    const color =
+                        item.reason === 'schedule'
+                            ? 'var(--color-palette-green)'
+                            : (alertColor[item.reason] ?? 'var(--color-palette-yellow)');
+                    const bg =
+                        item.reason === 'schedule'
+                            ? 'color-mix(in srgb, var(--color-palette-green) 12%, transparent)'
+                            : (alertBg[item.reason] ??
+                              'color-mix(in srgb, var(--color-palette-yellow) 20%, transparent)');
                     const status = t(alertReasonLabels[item.reason]);
                     return (
                         <div
                             key={item.id}
                             className={`flex items-center gap-3 py-2.5 ${i < data.length - 1 ? 'border-b border-divider' : ''}`}
                         >
-                            <div
-                                className="w-8.5 h-8.5 rounded-lg flex items-center justify-center shrink-0"
-                                style={{ background: bg }}
-                            >
-                                <Coffee size={14} strokeWidth={1.5} color={color} />
-                            </div>
                             <div className="flex-1">
                                 <div className="text-[13px] font-medium text-primary tracking-[0.14px]">
                                     {item.name}
@@ -46,14 +46,14 @@ export const InventoryAlerts = ({ data, loading }: InventoryAlertsProps) => {
                                         kg: (item.effectiveGrams / 1000).toFixed(2),
                                     })}
                                     {item.effectiveGrams < 0 && (
-                                        <span className="block text-amber-600 mt-0.5">
+                                        <span className="block text-palette-green mt-0.5">
                                             {t('dashboard.scheduleReservedShortfall', {
                                                 kg: (Math.abs(item.effectiveGrams) / 1000).toFixed(2),
                                             })}
                                         </span>
                                     )}
                                     {item.reason === 'schedule' && item.effectiveGrams >= 0 && (
-                                        <span className="block text-amber-600 mt-0.5">
+                                        <span className="block text-palette-green mt-0.5">
                                             {t('dashboard.upcomingStockShort')}
                                         </span>
                                     )}
