@@ -71,6 +71,8 @@ test('history compare: batch visibility, recorded sensors, zoom and responsive t
     await page.getByRole('button', { name: 'Compare (4)' }).click();
     const dialog = page.getByRole('dialog', { name: 'Compare Sessions (4)' });
     await expect(dialog.locator('canvas').first()).toBeVisible();
+    await expect(dialog.locator('fieldset svg line[stroke-dasharray]')).toHaveCount(0);
+    await expect(dialog.getByTestId('compare-shared-cursor')).toHaveCSS('border-left-style', 'solid');
 
     const row = dialog.getByRole('row').filter({ hasText: 'Ethiopia Guji' });
     await expect(row).toContainText('10:00');

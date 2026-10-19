@@ -49,7 +49,20 @@ describe('buildCompareChartOption display unit', () => {
             },
         ];
         const option = buildCompareChartOption(input, { xView: { start: 0, end: 60 }, temperatureUnit: 'F' });
-        const curves = option.series as { name: string; yAxisIndex: number; data: [number, number | null][] }[];
+        const curves = option.series as {
+            name: string;
+            yAxisIndex: number;
+            data: [number, number | null][];
+            lineStyle: { type: string };
+        }[];
+        expect(curves.map((curve) => curve.lineStyle.type)).toEqual([
+            'solid',
+            'solid',
+            'solid',
+            'solid',
+            'solid',
+            'solid',
+        ]);
         expect(curves.find((s) => s.name === 'et|a')?.data).toEqual([
             [0, 410],
             [1, null],
@@ -105,7 +118,7 @@ describe('buildCompareChartOption display unit', () => {
             {
                 name: 'ror|a',
                 yAxisIndex: 0,
-                lineStyle: { width: 3, type: 'dotted', opacity: 1 },
+                lineStyle: { width: 3, type: 'solid', opacity: 1 },
                 data: [[0, toDisplayRoR(10, 'F')]],
             },
         ]);
@@ -145,7 +158,7 @@ describe('buildCompareChartOption display unit', () => {
         expect(ror?.data[0]?.[1]).toBe(toDisplayRoR(10, 'F'));
     });
 
-    it('uses one rate axis when only BT and ET RoR are selected, retaining their line patterns', () => {
+    it('uses one rate axis and solid lines when only BT and ET RoR are selected', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
         const input = [{ ...series[0], points: [{ ...series[0].points[0], rorEt: 4 }] }];
@@ -158,8 +171,8 @@ describe('buildCompareChartOption display unit', () => {
         expect(option.grid).toMatchObject([{ right: 8 }]);
         expect(option.yAxis).toMatchObject([{ name: '°F/min', position: 'left' }]);
         expect(option.series).toMatchObject([
-            { name: 'ror|a', yAxisIndex: 0, lineStyle: { type: 'dotted' }, data: [[0, 18]] },
-            { name: 'rorEt|a', yAxisIndex: 0, lineStyle: { type: [5, 2, 1, 2] }, data: [[0, 7.2]] },
+            { name: 'ror|a', yAxisIndex: 0, lineStyle: { type: 'solid' }, data: [[0, 18]] },
+            { name: 'rorEt|a', yAxisIndex: 0, lineStyle: { type: 'solid' }, data: [[0, 7.2]] },
         ]);
     });
 

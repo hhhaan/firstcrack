@@ -224,16 +224,7 @@ export const buildCompareChartOption = (
                 lineStyle: {
                     color,
                     width: focusedSessionId === s.id ? 4 : singleAxisChannel ? 3 : TEMP_CURVE_WIDTH,
-                    type:
-                        channel.source === 'bt' || channel.source === 'heaterSet'
-                            ? 'solid'
-                            : channel.source === 'et'
-                              ? 'dashed'
-                              : channel.source === 'ror'
-                                ? 'dotted'
-                                : channel.source === 'rorEt'
-                                  ? [5, 2, 1, 2]
-                                  : [10, 3, 2, 3],
+                    type: 'solid',
                     opacity: dimmed ? 0.15 : 1,
                 },
                 itemStyle: { color },

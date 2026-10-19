@@ -96,25 +96,7 @@ export const CompareMultiChart = ({
                                     className="h-3.5 w-3.5 accent-primary"
                                 />
                                 <svg width="20" height="10" aria-hidden="true" className="text-secondary">
-                                    <line
-                                        x1="0"
-                                        x2="20"
-                                        y1="5"
-                                        y2="5"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeDasharray={
-                                            channel.source === 'et'
-                                                ? '6 3'
-                                                : channel.source === 'ror'
-                                                  ? '2 3'
-                                                  : channel.source === 'rorEt'
-                                                    ? '5 2 1 2'
-                                                    : channel.source === 'extra'
-                                                      ? '10 3 2 3'
-                                                      : undefined
-                                        }
-                                    />
+                                    <line x1="0" x2="20" y1="5" y2="5" stroke="currentColor" strokeWidth="2" />
                                 </svg>
                                 {channel.label}
                                 <span className="text-secondary">{channel.unit}</span>
@@ -180,7 +162,7 @@ export const CompareMultiChart = ({
                     <div
                         aria-hidden="true"
                         data-testid="compare-shared-cursor"
-                        className="pointer-events-none absolute inset-y-6 z-10 border-l border-dashed border-secondary"
+                        className="pointer-events-none absolute inset-y-6 z-10 border-l border-solid border-secondary"
                         style={{
                             left: `calc(${cursorRatio * 100}% + ${CHART_GRID_LEFT * (1 - cursorRatio) - rightMargin * cursorRatio}px)`,
                         }}
