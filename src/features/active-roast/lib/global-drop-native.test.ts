@@ -19,9 +19,15 @@ it('maps app bindings to the code names global-hotkey parses', () => {
     expect(nativeDropShortcut('mod+-')).toBe('CommandOrControl+-');
 });
 
-it('expands "+" to the physical Shift+Equal key instead of an unparseable Plus token', () => {
-    expect(nativeDropShortcut('mod++')).toBe('CommandOrControl+Shift+Equal');
-    expect(nativeDropShortcut('mod+shift++')).toBe('CommandOrControl+Shift+Equal');
+it.each([
+    ['mod++', 'CommandOrControl+Shift+Equal'],
+    ['mod+shift++', 'CommandOrControl+Shift+Equal'],
+    ['ctrl+_', 'Control+Shift+Minus'],
+    ['alt+?', 'Alt+Shift+Slash'],
+    ['mod+shift+%', 'CommandOrControl+Shift+Digit5'],
+    ['mod+,', 'CommandOrControl+,'],
+])('encodes %s using native parser key codes', (binding, accelerator) => {
+    expect(nativeDropShortcut(binding)).toBe(accelerator);
 });
 
 it('rejects combinations global-hotkey cannot grab', () => {

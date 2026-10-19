@@ -15,7 +15,11 @@ afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
 });
-it('owns foreground/background presses once, ignores held keys, and unregisters on phase exit', async () => {
+it.each([
+    ['mod+d', 'CommandOrControl+D'],
+    ['mod++', 'CommandOrControl+Shift+Equal'],
+])('registers %s, owns presses once, and unregisters on phase exit', async (binding, accelerator) => {
+    const activeKeys = [binding];
     Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true });
     native.register.mockResolvedValue(undefined);
     native.unregister.mockResolvedValue(undefined);
@@ -23,15 +27,15 @@ it('owns foreground/background presses once, ignores held keys, and unregisters 
     const drop = vi.fn();
     let owns!: { current: boolean };
     const Probe = ({ eligible }: { eligible: boolean }) => {
-        owns = useGlobalDropShortcut(keys, eligible, drop);
+        owns = useGlobalDropShortcut(activeKeys, eligible, drop);
         return null;
     };
     const root = createRoot(document.createElement('div'));
     try {
         await act(async () => root.render(createElement(Probe, { eligible: true })));
         expect(owns.current).toBe(true);
-        expect(native.register).toHaveBeenCalledWith(['CommandOrControl+D'], expect.any(Function));
-        const send = (state: string) => native.register.mock.calls[0][1]({ shortcut: 'CommandOrControl+D', state });
+        expect(native.register).toHaveBeenCalledWith([accelerator], expect.any(Function));
+        const send = (state: string) => native.register.mock.calls[0][1]({ shortcut: accelerator, state });
         act(() => {
             send('Pressed');
             send('Pressed');
@@ -44,7 +48,7 @@ it('owns foreground/background presses once, ignores held keys, and unregisters 
         });
         expect(drop).toHaveBeenCalledTimes(1);
         await act(async () => root.render(createElement(Probe, { eligible: false })));
-        expect(native.unregister).toHaveBeenCalledWith(['CommandOrControl+D']);
+        expect(native.unregister).toHaveBeenCalledWith([accelerator]);
         expect(owns.current).toBe(false);
         act(() => {
             send('Released');

@@ -20,6 +20,29 @@ const NATIVE_KEYS: Record<string, string> = {
     escape: 'Escape',
     space: 'Space',
 };
+const SHIFTED_KEYS: Record<string, string> = {
+    '!': 'Digit1',
+    '@': 'Digit2',
+    '#': 'Digit3',
+    $: 'Digit4',
+    '%': 'Digit5',
+    '^': 'Digit6',
+    '&': 'Digit7',
+    '*': 'Digit8',
+    '(': 'Digit9',
+    ')': 'Digit0',
+    _: 'Minus',
+    '+': 'Equal',
+    '{': 'BracketLeft',
+    '}': 'BracketRight',
+    '|': 'Backslash',
+    ':': 'Semicolon',
+    '"': 'Quote',
+    '<': 'Comma',
+    '>': 'Period',
+    '?': 'Slash',
+    '~': 'Backquote',
+};
 
 const isTauriRuntime = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -28,10 +51,10 @@ export function nativeDropShortcut(shortcut: string): string | null {
     const parsed = parseShortcut(shortcut);
     // global-hotkey needs a real modifier: Shift alone never registers as a background grab.
     if (!parsed?.modifiers.some((modifier) => ['mod', 'ctrl', 'alt'].includes(modifier))) return null;
-    // It has no `+` key code, and the recorder only accepts `+` as Shift+Equal on Latin layouts.
-    const plus = parsed.key === '+';
-    const modifiers = plus ? [...new Set([...parsed.modifiers, 'shift'])] : parsed.modifiers;
-    const key = plus ? 'Equal' : (NATIVE_KEYS[parsed.key] ?? parsed.key.toUpperCase());
+    // The native parser accepts physical key codes, not shifted punctuation tokens.
+    const shiftedKey = SHIFTED_KEYS[parsed.key];
+    const modifiers = shiftedKey ? [...new Set([...parsed.modifiers, 'shift'])] : parsed.modifiers;
+    const key = shiftedKey ?? NATIVE_KEYS[parsed.key] ?? parsed.key.toUpperCase();
     return [...modifiers.map((modifier) => NATIVE_MODIFIERS[modifier]), key].join('+');
 }
 
