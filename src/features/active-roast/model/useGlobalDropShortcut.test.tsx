@@ -61,14 +61,16 @@ it('returns ownership to the local binding if the OS rejects registration', asyn
     native.register.mockRejectedValueOnce(new Error('conflict'));
     useGlobalDropShortcutStore.setState({ enabled: true });
     let owns!: { current: boolean };
-    const Probe = () => {
-        owns = useGlobalDropShortcut(keys, true, vi.fn());
+    const Probe = ({ eligible }: { eligible: boolean }) => {
+        owns = useGlobalDropShortcut(keys, eligible, vi.fn());
         return null;
     };
     const root = createRoot(document.createElement('div'));
     try {
-        await act(async () => root.render(createElement(Probe)));
+        await act(async () => root.render(createElement(Probe, { eligible: true })));
         expect(owns.current).toBe(false);
+        expect(useGlobalDropShortcutStore.getState().status).toBe('failed');
+        await act(async () => root.render(createElement(Probe, { eligible: false })));
         expect(useGlobalDropShortcutStore.getState().status).toBe('failed');
     } finally {
         await act(async () => root.unmount());

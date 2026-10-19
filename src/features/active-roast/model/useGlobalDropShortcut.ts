@@ -32,7 +32,9 @@ export function useGlobalDropShortcut(keys: string[], eligible: boolean, onDrop:
     }, [onDrop]);
     useEffect(() => {
         if (!enabled || !eligible || !keys.length) {
-            useGlobalDropShortcutStore.setState({ status: 'idle' });
+            const { status } = useGlobalDropShortcutStore.getState();
+            if (!enabled || !keys.length || (status !== 'failed' && status !== 'unsupported'))
+                useGlobalDropShortcutStore.setState({ status: 'idle' });
             return;
         }
         const nativeKeys = keys.map(nativeDropShortcut);
