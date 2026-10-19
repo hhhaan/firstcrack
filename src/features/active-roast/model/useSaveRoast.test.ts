@@ -118,6 +118,29 @@ describe('saveRoastCore', () => {
         );
     });
 
+    it('stores the green bean name as the title when the form has no title', async () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        qc.setQueryData(['beans', 'user-1'], [{ id: 'bean-1', name: 'Aricha' }]);
+        const deps = makeDeps({ qc });
+        await saveRoastCore(deps, baseParams);
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        // Snapshot once — a later bean relink in History must not rename the roast.
+        expect(arg.session.batch_name).toBe('Aricha');
+        expect(arg.session.bean_id).toBe('bean-1');
+    });
+
+    it('snapshots a free-text bean label as the title', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            selectedBeanId: null,
+            formData: { ...baseParams.formData, beanId: null, beanLabel: 'Sample bag' },
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.batch_name).toBe('Sample bag');
+        expect(arg.session.bean_label).toBe('Sample bag');
+    });
+
     beforeEach(() => vi.clearAllMocks());
 
     it('월 배치 캡 도달 → BatchLimitError, saveOp 없음', async () => {

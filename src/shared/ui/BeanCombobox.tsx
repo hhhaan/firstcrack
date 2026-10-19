@@ -9,8 +9,12 @@ type BeanComboboxProps = {
     items: BeanComboboxOption[];
     selectedId: string;
     onSelect: (id: string) => void;
-    /** Called when text does not match a selected inventory bean. */
+    /** Called when text does not match a selected inventory bean (also while typing). */
     onFreeText?: (name: string) => void;
+    /** Called only when the typed value is committed (Enter/blur) — safe to persist from here. */
+    onFreeTextCommit?: (name: string) => void;
+    /** Initial display when no inventory bean is selected (e.g. a saved free-text label). */
+    initialQuery?: string;
     placeholder?: string;
     disabled?: boolean;
     className?: string;
@@ -31,6 +35,8 @@ export const BeanCombobox = ({
     selectedId,
     onSelect,
     onFreeText,
+    onFreeTextCommit,
+    initialQuery = '',
     placeholder = '',
     disabled = false,
     className = '',
@@ -42,7 +48,7 @@ export const BeanCombobox = ({
     const listId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
     const selected = items.find((i) => i.id === selectedId);
-    const [query, setQuery] = useState(selected?.name ?? '');
+    const [query, setQuery] = useState(selected?.name ?? initialQuery);
     const [open, setOpen] = useState(false);
     const prevSelectedIdRef = useRef(selectedId);
     const itemsRef = useRef(items);
@@ -69,17 +75,22 @@ export const BeanCombobox = ({
         return () => document.removeEventListener('mousedown', onDoc);
     }, [open]);
 
+    const selectedName = selected?.name.trim().toLowerCase() ?? '';
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q) return items;
-        return items.filter((i) => i.name.toLowerCase().includes(q));
-    }, [items, query]);
+        // Unedited selection, or a saved free-text name that matches nothing: show the whole list.
+        if (q === selectedName) return items;
+        const matches = items.filter((i) => i.name.toLowerCase().includes(q));
+        return matches.length > 0 ? matches : items;
+    }, [items, query, selectedName]);
 
     const commitFreeOrMatch = (raw: string) => {
         const trimmed = raw.trim();
         if (!trimmed) {
             onSelect('');
             onFreeText?.('');
+            onFreeTextCommit?.('');
             setQuery('');
             return;
         }
@@ -91,6 +102,7 @@ export const BeanCombobox = ({
         }
         onSelect('');
         onFreeText?.(trimmed);
+        onFreeTextCommit?.(trimmed);
         setQuery(trimmed);
     };
 

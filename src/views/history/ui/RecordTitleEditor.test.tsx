@@ -71,13 +71,17 @@ describe('record title edits', () => {
         expect(state.update.mock.calls[0][0]).not.toHaveProperty('notes');
         expect(state.update.mock.calls[0][0]).not.toHaveProperty('bean_id');
     });
-    it('clears an override back to the inventory name without a write when unchanged', async () => {
+    it('stores a title equal to the inventory name instead of clearing it', async () => {
         await render({ ...session, batch_name: 'Sample lot' });
         await open();
         await set('Ethiopia · Yirgacheffe · Aricha · Heirloom');
         await blur();
-        expect(state.update).toHaveBeenCalledWith({ id: 'session', batch_name: null });
-        state.update.mockClear();
+        expect(state.update).toHaveBeenCalledWith({
+            id: 'session',
+            batch_name: 'Ethiopia · Yirgacheffe · Aricha · Heirloom',
+        });
+    });
+    it('does not seed a title when the legacy row is committed unchanged', async () => {
         await render();
         await open();
         await blur();

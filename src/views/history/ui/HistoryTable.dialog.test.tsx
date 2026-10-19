@@ -33,6 +33,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     return { ...actual, useQueryClient: () => ({}) };
 });
 vi.mock('@entities/bean', () => ({
+    useBeans: () => ({ data: [] }),
     useUpdateBean: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@entities/roast-profile', () => ({

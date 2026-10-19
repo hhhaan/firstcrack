@@ -25,7 +25,21 @@ vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => queryClient }));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: true }),
 }));
-vi.mock('@entities/bean', () => ({ useUpdateBean: () => ({ mutateAsync: updateBean, isPending: false }) }));
+vi.mock('@entities/bean', () => ({
+    useBeans: () => ({
+        data: [
+            { id: 'bean-1', name: 'Aricha' },
+            { id: 'bean-2', name: 'Kenya Nyeri' },
+        ],
+    }),
+    useUpdateBean: () => ({ mutateAsync: updateBean, isPending: false }),
+}));
+vi.mock('@shared/store/auth', () => ({
+    useAuthStore: (selector: (state: unknown) => unknown) => selector({ user: { id: 'owner' } }),
+}));
+vi.mock('@shared/store/catalog-visibility', () => ({
+    useCatalogVisibility: () => ({ hidden: new Set<string>(), setHidden: vi.fn() }),
+}));
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [{ id: 'p1', name: 'Washed' }] }),
 }));
@@ -85,6 +99,35 @@ describe('SummaryMetaEditor', () => {
         return el;
     };
 
+    const beanInput = () => host.querySelector('[data-testid="history-bean"] input') as HTMLInputElement;
+
+    const pickBean = async (name: string) => {
+        await act(async () => {
+            beanInput().focus();
+        });
+        const option = [...host.querySelectorAll('[role="option"]')].find((el) => el.textContent === name);
+        expect(option).not.toBeUndefined();
+        await act(async () => {
+            option?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        });
+    };
+
+    /** Type into the bean combobox and commit it the way blur does (120ms close guard). */
+    const typeBean = async (value: string) => {
+        const input = beanInput();
+        await act(async () => {
+            input.focus();
+        });
+        await act(async () => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await act(async () => {
+            input.blur();
+            await new Promise((resolve) => setTimeout(resolve, 150));
+        });
+    };
+
     it('writes the bean origin and refreshes sessions that join it', async () => {
         await render();
         const input = host.querySelector('[data-testid="history-origin"]') as HTMLInputElement;
@@ -121,6 +164,52 @@ describe('SummaryMetaEditor', () => {
         await render();
         await setControl('history-profile', 'p1');
         expect(updateSession).toHaveBeenCalledWith({ id: 's1', profile_id: 'p1' });
+    });
+
+    it('relinks the roast to another green bean and drops the free-text label', async () => {
+        await render({ ...session, bean_id: null, beans: null, bean_label: 'Sample bag', batch_name: 'Batch C' });
+        await pickBean('Kenya Nyeri');
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+    });
+
+    it('freezes the bean-derived title before relinking, so the title stops following the bean', async () => {
+        await render({ ...session, batch_name: null });
+        await pickBean('Kenya Nyeri');
+        expect(updateSession).toHaveBeenCalledWith({
+            id: 's1',
+            bean_id: 'bean-2',
+            bean_label: null,
+            batch_name: 'Aricha',
+        });
+    });
+
+    it('keeps a stored title when the green bean changes', async () => {
+        await render({ ...session, batch_name: 'Batch C' });
+        await pickBean('Kenya Nyeri');
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+    });
+
+    it('keeps a typed custom name as the bean label with no inventory link', async () => {
+        await render();
+        await typeBean('Sample bag');
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: null, bean_label: 'Sample bag' });
+    });
+
+    it('clears the green bean and the label when the text is emptied', async () => {
+        await render();
+        await typeBean('');
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: null, bean_label: null });
+    });
+
+    it('can link a green bean to a roast saved without one', async () => {
+        await render({ ...session, bean_id: null, beans: null });
+        await pickBean('Kenya Nyeri');
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+    });
+
+    it('shows a saved free-text label in the bean field', async () => {
+        await render({ ...session, bean_id: null, beans: null, bean_label: 'Sample bag' });
+        expect(beanInput().value).toBe('Sample bag');
     });
 
     it('saves roast level and refreshes the unmeasured inbound estimate', async () => {

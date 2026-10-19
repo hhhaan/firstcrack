@@ -129,6 +129,14 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const pendingBbp = params.bbpSummary;
     const bbpSummary = pendingBbp?.sessionId === sessionId ? pendingBbp : null;
 
+    // Green bean (or free-text label) name — the roast title snapshot written at save.
+    const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
+    const resolvedBeanName =
+        effectiveBatch?.beanName ??
+        handoffBeanName ??
+        beanLabel ??
+        (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);
+
     const payload: RoastSessionInsert = {
         // Client session uuid as PK — save_roast_op converges retries on one row.
         // The pending coordinator durably allocates IDs even for unrecorded roasts.
@@ -148,7 +156,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         ambient_humidity_pct: payloadParams.ambientHumidity ?? null,
         bean_id: resolvedBeanId,
         bean_label: beanLabel,
-        batch_name: formData.batchName?.trim() || null,
+        // Title is a snapshot of the bean name, then edited in History. Never re-derived from the bean.
+        batch_name: formData.batchName?.trim() || resolvedBeanName,
         profile_id: payloadParams.targetProfileId,
         tsv_path: null,
         bbp_tsv_path: null,
@@ -168,13 +177,6 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
               roastLevel: formData.roastLevel,
           })
         : null;
-
-    const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
-    const resolvedBeanName =
-        effectiveBatch?.beanName ??
-        handoffBeanName ??
-        beanLabel ??
-        (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);
 
     // provisional plan for grams/canDeduct — reference filled after save
     const provisionalPlan = canTouchStock

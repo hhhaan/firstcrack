@@ -39,7 +39,8 @@ export const RecordTitleEditor = ({ session }: { session: RoastSessionWithRelati
         }
         if (!canWrite || isPending || saving.current) return;
         const next = draft.trim();
-        const nextLabel = !next || next === fallback ? null : next;
+        // Title is an independent field: store the typed value verbatim (empty clears it).
+        const nextLabel = next || null;
         const unchanged = nextLabel === stored || (stored === null && next === fallback);
         if (unchanged) {
             setError(false);
