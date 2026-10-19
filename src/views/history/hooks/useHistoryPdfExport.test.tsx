@@ -81,6 +81,25 @@ it('exports the selected batch title in the filename and PDF header while retain
                 header: expect.not.objectContaining({ roastTitle: expect.anything() }),
             }),
         );
+        for (const value of [
+            { ...session, batch_name: null, bean_label: 'Green B', beans: null },
+            { ...session, batch_name: null, bean_label: 'Green B' },
+        ]) {
+            await act(async () => root.render(createElement(Probe, { value })));
+            await act(async () => latest.onExportPdf());
+            expect(mocks.exportPdf).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    header: expect.not.objectContaining({ roastTitle: expect.anything() }),
+                }),
+            );
+        }
+        await act(async () => root.render(createElement(Probe, { value: { ...session, batch_name: 'Green B' } })));
+        await act(async () => latest.onExportPdf());
+        expect(mocks.exportPdf).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                header: expect.objectContaining({ bean: 'Green B', roastTitle: 'Green B' }),
+            }),
+        );
     } finally {
         act(() => root.unmount());
     }

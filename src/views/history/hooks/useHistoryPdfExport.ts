@@ -32,13 +32,16 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
         }
         setExporting(true);
         try {
-            const distinctTitle = session.batch_name?.trim() || session.bean_label?.trim() || undefined;
+            const beanName = sessionBeanName(session)?.trim() || '—';
+            const batchTitle = session.batch_name?.trim();
+            const legacyTitle = session.bean_label?.trim();
+            const distinctTitle = batchTitle || (legacyTitle !== beanName ? legacyTitle : undefined);
             await exportPdf({
                 title: t('history.title'),
                 filename: historyPdfFilename(sessionRoastTitle(session), session.roasted_at),
                 chartDataUrl,
                 header: {
-                    bean: sessionBeanName(session) ?? '—',
+                    bean: beanName,
                     ...(distinctTitle ? { roastTitle: distinctTitle } : {}),
                     date: formatDateShort(session.roasted_at),
                     duration: formatDuration(session.duration_seconds),
