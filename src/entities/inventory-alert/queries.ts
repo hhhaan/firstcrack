@@ -1,4 +1,4 @@
-import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { inventoryAlertApi } from './api';
 
@@ -20,6 +20,7 @@ export const useDismissInventoryAlert = (userId: string) => {
         mutationFn: inventoryAlertApi.dismiss,
         onSuccess: () => {
             void qc.invalidateQueries({ queryKey: inventoryAlertKeys.list(userId) });
+            void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
         },
     });
 };

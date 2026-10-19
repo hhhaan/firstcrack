@@ -1913,6 +1913,7 @@
         "freeLabel": "Custom sample label",
         "freeLabelPlaceholder": "e.g. Blind A, Competition lot…",
         "noRoasts": "No completed roasts yet.",
+        "loadMoreRoasts": "Load older roasts",
         "noSamples": "This session has no samples yet. Add coffees first, then open one session QR for everyone.",
         "noRoastLink": "—",
         "add": "Add",
@@ -2273,6 +2274,7 @@
             "adjustment": "Adjustment",
             "write_off": "Write-off",
             "history": "History",
+            "recentLimit": "Showing the latest {{count}} events. Older history is available.",
             "order_fulfillment": "Order fulfillment",
             "order_cancel": "Order cancel"
         }

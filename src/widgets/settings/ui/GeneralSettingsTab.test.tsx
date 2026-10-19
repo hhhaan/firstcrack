@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { inventoryStore } from '@shared/lib/inventoryStore';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -52,5 +53,67 @@ describe.skip('GeneralSettingsTab theme picker', () => {
 
         act(() => options[0]?.click());
         expect(setTheme).toHaveBeenCalledWith('light');
+    });
+});
+
+describe('GeneralSettingsTab delayed inventory horizon', () => {
+    let container: HTMLDivElement;
+    let root: Root;
+    let resolveRead: (days: number) => void;
+    const input = () => container.querySelector('#settings-horizon') as HTMLInputElement;
+    const change = (value: string) =>
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input(), value);
+            input().dispatchEvent(new Event('input', { bubbles: true }));
+        });
+
+    beforeEach(() => {
+        vi.mocked(inventoryStore.getHorizonDays).mockReturnValue(
+            new Promise((resolve) => {
+                resolveRead = resolve;
+            }),
+        );
+        vi.mocked(inventoryStore.setHorizonDays).mockClear();
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        root = createRoot(container);
+        act(() => root.render(createElement(GeneralSettingsTab)));
+    });
+    afterEach(() => {
+        act(() => root.unmount());
+        container.remove();
+    });
+
+    it('keeps the committed 30 when the initial read later returns 14', async () => {
+        change('30');
+        await act(async () => resolveRead(14));
+        expect(input().value).toBe('30');
+        expect(inventoryStore.setHorizonDays).toHaveBeenLastCalledWith(30);
+        change('');
+        act(() => input().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+        expect(input().value).toBe('30');
+    });
+
+    it('initializes the saved value when there was no edit', async () => {
+        await act(async () => resolveRead(14));
+        expect(input().value).toBe('14');
+        expect(inventoryStore.setHorizonDays).not.toHaveBeenCalled();
+    });
+
+    it('preserves a cleared draft during the initial load and restores the last commit on blur', async () => {
+        change('');
+        await act(async () => resolveRead(14));
+        expect(input().value).toBe('');
+        act(() => input().dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+        expect(input().value).toBe('28');
+    });
+
+    it('commits only integers within 1–365', () => {
+        change('30.7');
+        expect(input().value).toBe('31');
+        change('999');
+        expect(input().value).toBe('365');
+        change('0');
+        expect(input().value).toBe('1');
     });
 });

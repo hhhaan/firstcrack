@@ -1913,6 +1913,7 @@
         "freeLabel": "カスタムラベル",
         "freeLabelPlaceholder": "例: Blind A, 競技ロット…",
         "noRoasts": "完了したローストがありません。",
+        "loadMoreRoasts": "以前の焙煎をさらに表示",
         "noSamples": "このセッションにサンプルがありません。コーヒーを追加してから、セッションQRを1つ共有してください。",
         "noRoastLink": "—",
         "add": "追加",
@@ -2273,6 +2274,7 @@
             "adjustment": "調整",
             "write_off": "廃棄",
             "history": "履歴",
+            "recentLimit": "最新{{count}}件を表示しています。以前の履歴もあります。",
             "order_fulfillment": "注文履行",
             "order_cancel": "注文キャンセル"
         }

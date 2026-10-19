@@ -1,15 +1,8 @@
-import {
-    type CuppingEventSummary,
-    cuppingApi,
-    cuppingKeys,
-    cuppingResultsUrl,
-    useCuppingEvent,
-} from '@entities/cupping';
+import { type CuppingEventSummary, cuppingResultsUrl, useCuppingEvent, useEnsureResultsToken } from '@entities/cupping';
 import { logger } from '@shared/lib/logger';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Link2, QrCode } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type CuppingResultsShareProps = {
@@ -20,46 +13,19 @@ type CuppingResultsShareProps = {
 
 export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResultsShareProps) => {
     const { t } = useTranslation();
-    const qc = useQueryClient();
     const { data: detail } = useCuppingEvent(eventId);
-    const [resultsToken, setResultsToken] = useState<string | null>(
-        () => detail?.results_token ?? listEvent?.results_token ?? null,
-    );
-    const [ensuring, setEnsuring] = useState(false);
+    const { mutate: ensureToken, isPending: ensuring, isError } = useEnsureResultsToken(userId);
+    const requestedEventRef = useRef<string | null>(null);
+    const resultsToken = detail?.results_token ?? listEvent?.results_token ?? null;
     const [showQr, setShowQr] = useState(false);
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const token = detail?.results_token ?? listEvent?.results_token ?? null;
-        if (token) setResultsToken(token);
-    }, [detail?.results_token, listEvent?.results_token]);
-
-    useEffect(() => {
-        if (resultsToken) return;
-        let cancelled = false;
-        setEnsuring(true);
-        void cuppingApi
-            .ensureResultsToken(eventId)
-            .then((ev) => {
-                if (cancelled) return;
-                setResultsToken(ev.results_token);
-                qc.setQueryData(cuppingKeys.event(eventId), ev);
-                qc.setQueryData(cuppingKeys.events(userId), (old: CuppingEventSummary[] | undefined) =>
-                    (old ?? []).map((e) => (e.id === eventId ? { ...e, results_token: ev.results_token } : e)),
-                );
-            })
-            .catch((err: unknown) => {
-                logger.capture(err, { scope: 'cupping.ensureResultsToken', eventId });
-                if (!cancelled) setError(t('cupping.resultsLinkError'));
-            })
-            .finally(() => {
-                if (!cancelled) setEnsuring(false);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [eventId, resultsToken, qc, userId, t]);
+        if (resultsToken || requestedEventRef.current === eventId) return;
+        requestedEventRef.current = eventId;
+        ensureToken(eventId);
+    }, [eventId, resultsToken, ensureToken]);
 
     useEffect(() => {
         if (!copied) return;
@@ -94,7 +60,9 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
                         <p className="text-[12px] leading-relaxed tracking-[0.14px] text-muted">
                             {t('cupping.resultsShareBody')}
                         </p>
-                        {error ? <p className="mt-2 text-[12px] text-muted">{error}</p> : null}
+                        {error || isError ? (
+                            <p className="mt-2 text-[12px] text-muted">{error ?? t('cupping.resultsLinkError')}</p>
+                        ) : null}
                         {url ? (
                             <p className="mt-2 break-all font-mono text-[11px] text-secondary">{url}</p>
                         ) : (

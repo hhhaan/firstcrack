@@ -1913,6 +1913,7 @@
         "freeLabel": "自定义标签",
         "freeLabelPlaceholder": "例如 Blind A、比赛批次…",
         "noRoasts": "暂无已完成烘焙。",
+        "loadMoreRoasts": "加载更早的烘焙记录",
         "noSamples": "本场还没有样品。先添加咖啡，再用一个场次 QR 分享全部样品。",
         "noRoastLink": "—",
         "add": "添加",
@@ -2273,6 +2274,7 @@
             "adjustment": "调整",
             "write_off": "报废",
             "history": "历史",
+            "recentLimit": "仅显示最近 {{count}} 条记录，还有更早的历史记录。",
             "order_fulfillment": "订单履约",
             "order_cancel": "订单取消"
         }

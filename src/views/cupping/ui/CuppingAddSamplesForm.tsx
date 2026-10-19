@@ -4,7 +4,7 @@ import {
     useAddCuppingSamples,
     useUpdateCuppingSample,
 } from '@entities/cupping';
-import { useRoastSessions } from '@entities/roast';
+import { useRoastSession, useRoastSessionsInfinite } from '@entities/roast';
 import { formatDateShort } from '@shared/lib/format';
 import { modalHeaderChrome, tabCls } from '@shared/ui/form-styles';
 import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
@@ -12,6 +12,7 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -26,7 +27,16 @@ type CuppingAddSamplesFormProps = {
 
 export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: CuppingAddSamplesFormProps) => {
     const { t } = useTranslation();
-    const { data: roastSessions = [] } = useRoastSessions(userId, 'completed');
+    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useRoastSessionsInfinite(
+        userId,
+        'completed',
+    );
+    // An existing sample can refer to a roast older than the first page.
+    const { data: sampleRoast } = useRoastSession(userId, sample?.roast_session_id ?? '');
+    const roastSessions = useMemo(() => {
+        const rows = data?.pages.flatMap((page) => page.data) ?? [];
+        return sampleRoast && !rows.some((row) => row.id === sampleRoast.id) ? [sampleRoast, ...rows] : rows;
+    }, [data, sampleRoast]);
     const addSamples = useAddCuppingSamples(userId, eventId);
     const updateSample = useUpdateCuppingSample(eventId);
     const isEdit = !!sample;
@@ -78,7 +88,7 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                     const opt = roastOptions.find((o) => o.id === id);
                     await updateSample.mutateAsync({
                         sampleId: sample.id,
-                        label: opt?.label ?? t('cupping.unknownBean'),
+                        label: opt?.label ?? sample.label,
                         roastSessionId: id,
                     });
                 } else {
@@ -171,7 +181,9 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                         </p>
                         <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-border-subtle p-2 dark:border-[#585d61]">
                             {roastOptions.length === 0 ? (
-                                <div className="p-2 text-xs text-muted">{t('cupping.noRoasts')}</div>
+                                <div className="p-2 text-xs text-muted">
+                                    {t(isLoading ? 'common.loading' : 'cupping.noRoasts')}
+                                </div>
                             ) : (
                                 roastOptions.map((o) => (
                                     <label
@@ -200,6 +212,11 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                                         </span>
                                     </label>
                                 ))
+                            )}
+                            {hasNextPage && (
+                                <SurfaceButton onClick={() => void fetchNextPage()} disabled={isFetchingNextPage}>
+                                    {t(isFetchingNextPage ? 'common.loading' : 'cupping.loadMoreRoasts')}
+                                </SurfaceButton>
                             )}
                         </div>
                     </>

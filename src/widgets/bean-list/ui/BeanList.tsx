@@ -1,5 +1,6 @@
 import { getStatus, statusConfig, stockBarClass, stockLevelPct } from '@entities/bean/lib';
 import type { BeanAssetLine, StockSummary } from '@entities/bean-stock-event';
+import { cn } from '@shared/lib/cn';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { CatalogVisibilityButton } from '@shared/ui/CatalogVisibilityControls';
@@ -42,6 +43,7 @@ const Skeleton = () => (
 export const BeanList = ({
     beans,
     isLoading,
+    selectedId,
     onSelect,
     search,
     onSearchChange,
@@ -88,7 +90,11 @@ export const BeanList = ({
                                 data-testid={`bean-list-item-${bean.id}`}
                                 data-stock-kg={(currentGrams / 1000).toFixed(2)}
                                 onClick={() => onSelect(bean.id)}
-                                className="cursor-pointer rounded-lg bg-main-bg px-4 py-3.5 transition-all duration-150 dark:border dark:border-[#585d61]"
+                                aria-current={bean.id === selectedId ? 'true' : undefined}
+                                className={cn(
+                                    'cursor-pointer rounded-lg bg-main-bg px-4 py-3.5 transition-all duration-150 dark:border dark:border-[#585d61]',
+                                    bean.id === selectedId && 'ring-2 ring-primary',
+                                )}
                             >
                                 <div className="mb-2 flex items-start justify-between">
                                     <div>

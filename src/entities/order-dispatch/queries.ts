@@ -4,14 +4,17 @@ import { orderDispatchApi } from './api';
 
 export const orderDispatchKeys = {
     all: (userId: string) => ['order-dispatches', userId] as const,
+    byOrders: (userId: string, ids: string[]) => ['order-dispatches', userId, 'orders', ids] as const,
 };
 
-export const useOrderDispatches = (userId: string) =>
-    useQuery({
-        queryKey: orderDispatchKeys.all(userId),
-        queryFn: () => orderDispatchApi.listByUser(userId),
-        enabled: !!userId,
+export const useOrderDispatches = (userId: string, orderIds: string[]) => {
+    const ids = [...new Set(orderIds)].sort();
+    return useQuery({
+        queryKey: orderDispatchKeys.byOrders(userId, ids),
+        queryFn: () => orderDispatchApi.listByOrders(userId, ids),
+        enabled: !!userId && ids.length > 0,
     });
+};
 
 export const useDispatchOrder = (userId: string) => {
     const qc = useQueryClient();

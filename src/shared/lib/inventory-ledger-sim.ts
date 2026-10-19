@@ -42,12 +42,20 @@ function beanKey(e: BeanEvent): string | null {
     return `bean:${e.reference_id}:${e.bean_id}`;
 }
 
-/** roasted roast_inbound: unique (reference_id); packaging/blend: unique on conflict do nothing by ref+type+source */
+/** Keys from 20260720112954_roasted_stock_events + 20260720113032_inventory_ledger_fixes. */
 function roastedKey(e: RoastedEvent): string | null {
     if (!e.reference_id) return null;
-    if (e.event_type === 'roast_inbound') return `roasted:inbound:${e.reference_id}`;
-    const source = e.blend_id ? `blend:${e.blend_id}` : `bean:${e.bean_id ?? ''}`;
-    return `roasted:${e.event_type}:${e.reference_id}:${source}`;
+    switch (e.event_type) {
+        case 'roast_inbound':
+        case 'packaging':
+        case 'blend_produce':
+            return `roasted:${e.event_type}:${e.reference_id}`;
+        case 'blend_consume':
+            // Postgres unique indexes allow multiple NULL bean_id values.
+            return e.bean_id ? `roasted:blend_consume:${e.reference_id}:${e.bean_id}` : null;
+        default:
+            return null;
+    }
 }
 
 /** product: unique (reference_id, product_id, event_type) */
@@ -80,7 +88,17 @@ export function applyRoastedEvents(ledger: InventoryLedger, events: RoastedEvent
     const seen = new Set(ledger.roasted.map((e) => roastedKey(e)).filter((k): k is string => k != null));
     let inserted = 0;
     for (const e of events) {
-        if (appendUnique(ledger.roasted, e, roastedKey(e), seen)) inserted++;
+        const key = roastedKey(e);
+        if (e.event_type === 'roast_inbound' && key && seen.has(key)) {
+            const index = ledger.roasted.findIndex((row) => roastedKey(row) === key);
+            ledger.roasted[index] = {
+                ...ledger.roasted[index],
+                delta_grams: e.delta_grams,
+                is_estimate: e.is_estimate ?? false,
+            };
+        } else if (appendUnique(ledger.roasted, e, key, seen)) {
+            inserted++;
+        }
     }
     return inserted;
 }
@@ -94,16 +112,18 @@ export function applyProductEvents(ledger: InventoryLedger, events: ProductEvent
     return inserted;
 }
 
-/** Packaging op = product + roasted in one "tx" (both apply or neither if we used all-or-nothing — here sequential like ON CONFLICT). */
+/** insert_packaging_op commits both ledgers only after both inserts succeed. */
 export function applyPackagingOp(
     ledger: InventoryLedger,
     productEvents: ProductEvent[],
     roastedEvents: RoastedEvent[],
 ): { productInserted: number; roastedInserted: number } {
-    return {
-        productInserted: applyProductEvents(ledger, productEvents),
-        roastedInserted: applyRoastedEvents(ledger, roastedEvents),
-    };
+    const staged = { ...ledger, product: [...ledger.product], roasted: [...ledger.roasted] };
+    const productInserted = applyProductEvents(staged, productEvents);
+    const roastedInserted = applyRoastedEvents(staged, roastedEvents);
+    ledger.product = staged.product;
+    ledger.roasted = staged.roasted;
+    return { productInserted, roastedInserted };
 }
 
 export function sumBeanGrams(ledger: InventoryLedger, beanId: string): number {

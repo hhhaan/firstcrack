@@ -1,4 +1,4 @@
-import { inventoryQueryRoots, planQueryRoots } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots, planQueryRoots } from '@shared/lib/query-keys';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { buildRRule } from '@shared/lib/rrule';
 import { calcPlanBatchCount } from '@shared/lib/stock-calc';
@@ -45,6 +45,7 @@ export const scheduledBatchInvalidationKeys = () =>
         planKeys.monthSummaryRoot,
         inventoryQueryRoots.beanStockSummaries,
         inventoryQueryRoots.beanStockSummary,
+        dashboardKeys.root,
     ] as const;
 
 export const invalidateScheduledBatchQueries = (qc: QueryClient) => {

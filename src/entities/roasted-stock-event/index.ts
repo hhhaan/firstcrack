@@ -1,5 +1,5 @@
-export type { RoastedStockEvent, RoastedStockEventInsert, RoastedStockSummary } from './api';
-export { mapRoastedStockRecord, roastedStockEventApi } from './api';
+export type { RoastedStockEvent, RoastedStockEventInsert, RoastedStockLot, RoastedStockSummary } from './api';
+export { mapRoastedStockRecord, ROASTED_HISTORY_LIMIT, roastedStockEventApi } from './api';
 export {
     ensureRoastedStock,
     prefetchRoastedStock,

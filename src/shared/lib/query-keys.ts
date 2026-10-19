@@ -5,6 +5,7 @@
  */
 
 export const dashboardKeys = {
+    root: ['dashboard'] as const,
     all: (userId: string) => ['dashboard', userId] as const,
 };
 
@@ -39,6 +40,8 @@ export const roastedStockKeys = {
     root: inventoryQueryRoots.roastedStock,
     byUser: (userId: string) => [...inventoryQueryRoots.roastedStock, userId] as const,
     events: (userId: string) => [...inventoryQueryRoots.roastedStock, userId, 'events'] as const,
+    lotEvents: (userId: string, kind: 'bean' | 'blend', id: string) =>
+        [...inventoryQueryRoots.roastedStock, userId, 'events', kind, id] as const,
 };
 
 /** Product stock + per-product events nested under `byUser`. */
