@@ -75,6 +75,63 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     };
 };
 
+describe('192°C gas cutoff across batches', () => {
+    it('stops without consuming gas-off when the writer acknowledges a nonzero setting', async () => {
+        const h = await renderReplay({
+            referencePoints: [],
+            profileHeaterEvents: [{ t: 0, bt: 192, heater: 0, trigger: 'time' }],
+        });
+        try {
+            h.writeHeater.mockResolvedValue(1);
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(0);
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('writeFailed');
+            expect(h.get().firedCount).toBe(0);
+            h.writeHeater.mockClear().mockResolvedValue(0);
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(0);
+            expect(h.get().firedCount).toBe(1);
+        } finally {
+            h.unmount();
+        }
+    });
+
+    it('fires zero after crossing 192°C, including recovery from a rejected sample in later batches', async () => {
+        const source = {
+            referencePoints: [],
+            profileHeaterEvents: [
+                { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                { t: 600, bt: 192, heater: 0, trigger: 'bt' },
+            ],
+            elapsed: 130,
+            liveBt: 191.8,
+            confirmedTurningPoint: {},
+        };
+        const h = await renderReplay(source);
+        try {
+            for (let batch = 0; batch < 3; batch += 1) {
+                if (batch > 0) {
+                    await h.rerender({ ...source, roasting: false, roastFinished: true });
+                    await h.rerender({ ...source, roasting: true, roastFinished: false });
+                }
+                await act(async () => h.get().toggle());
+                expect(h.writeHeater).toHaveBeenLastCalledWith(80);
+                const before = h.writeHeater.mock.calls.length;
+                await h.rerender({ ...source, elapsed: 131, liveBt: 192.2, observationQuality: 'spike' });
+                expect(h.writeHeater).toHaveBeenCalledTimes(before);
+                await h.rerender({ ...source, elapsed: 132, liveBt: 192.3, observationQuality: 'valid' });
+                expect(h.writeHeater).toHaveBeenLastCalledWith(0);
+                expect(h.get().firedCount).toBe(2);
+                await h.rerender({ ...source, elapsed: 133, liveBt: 192.4 });
+                expect(h.writeHeater).toHaveBeenCalledTimes(before + 1);
+            }
+        } finally {
+            h.unmount();
+        }
+    });
+});
+
 describe('stored reference TP', () => {
     it.each([false, true])('stops on a reference boundary change with savedOnly=%s', async (savedOnly) => {
         const source = savedOnly

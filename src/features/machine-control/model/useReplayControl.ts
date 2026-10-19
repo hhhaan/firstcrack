@@ -547,7 +547,8 @@ export const useReplayControl = ({
             if (gen !== writeGenRef.current) return;
             setPendingWrite(null);
             setWriting(false);
-            if (applied != null) {
+            // A nonzero acknowledgement must never consume a gas-off event.
+            if (applied != null && (heater !== 0 || applied === 0)) {
                 const current = labeledEventsRef.current;
                 setIndex(current ? remapReplayIndex(pending.oldEvents, pending.nextIndex, current) : result.nextIndex);
                 return;
