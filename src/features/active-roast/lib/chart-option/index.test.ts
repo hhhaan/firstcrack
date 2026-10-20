@@ -1261,7 +1261,7 @@ describe('buildRoastChartOption', () => {
             ).markPoint.data;
             const tail = marks[marks.length - 1];
             expect(tail?.label.position).toBe('top');
-            expect(tail?.label.distance).toBe(Math.round(6 * fontScale));
+            expect(tail?.label.distance).toBe(2);
             expect(tail?.label.align).toBe('right');
         }
     });
@@ -1300,6 +1300,26 @@ describe('buildRoastChartOption', () => {
             chart.dispose();
         },
     );
+
+    it('holds a change label until 5s after the write', () => {
+        const heatMarks = (tailSec: number) => {
+            const byName = seriesByName({
+                ...baseParams(),
+                controlData: {
+                    xs: [0, tailSec],
+                    drumTemp: [40, 40],
+                    heatPower: [70, 70],
+                    fanSpeed: [30, 30],
+                    changes: [{ timeSec: 60, values: { heater: 70 } }],
+                },
+            });
+            return (
+                byName.Heat as { markPoint?: { data: { coord: number[]; label: { formatter: string } }[] } }
+            ).markPoint?.data.map((mark) => mark.coord[0]);
+        };
+        expect(heatMarks(64.9)).toEqual([64.9]);
+        expect(heatMarks(65)).toEqual([60, 65]);
+    });
 
     it('does not label a heater write that repeats the previous setpoint', () => {
         const byName = seriesByName({
