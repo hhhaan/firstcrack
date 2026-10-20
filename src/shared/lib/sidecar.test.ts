@@ -23,6 +23,20 @@ describe('sidecar.waitUntilReady', () => {
         vi.unstubAllGlobals();
     });
 
+    it.each([undefined, { connectionEpoch: 0 }, { connectionEpoch: 7 }])(
+        'binds a control retry to its original epoch %j',
+        async (retry) => {
+            const fetchMock = vi
+                .fn()
+                .mockResolvedValue(new Response(JSON.stringify({ ok: true, applied: { heater: 0 } }), { status: 200 }));
+            vi.stubGlobal('fetch', fetchMock);
+            await sidecar.setControl({ heater: 0 }, retry);
+            expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(
+                retry ? { heater: 0, retry_epoch: retry.connectionEpoch } : { heater: 0 },
+            );
+        },
+    );
+
     it('retries startup failures and returns the first healthy status', async () => {
         let sidecarCalls = 0;
         vi.stubGlobal(

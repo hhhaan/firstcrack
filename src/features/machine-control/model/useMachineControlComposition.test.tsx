@@ -143,6 +143,84 @@ describe('useMachineControlComposition', () => {
         await hook.unmount();
     });
 
+    it('preserves an unverified step after a sidecar readback failure without sending the next step', async () => {
+        setControl.mockRejectedValueOnce(new Error('S7 setting readback mismatch'));
+        const input: MachineControlCompositionInput = {
+            ...base(),
+            elapsed: 0,
+            replayHeaterEvents: [
+                { t: 0, bt: 180, heater: 0, trigger: 'time' },
+                { t: 1, bt: 180, heater: 25, trigger: 'time' },
+            ],
+        };
+        const hook = await renderComposition(input);
+        await act(async () => hook.get().replay.toggle());
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ heater: 0 });
+        expect(hook.get().replay.active).toBe(false);
+        expect(hook.get().replay.stopReason).toBe('writeFailed');
+        expect(hook.get().replay.firedCount).toBe(0);
+        await hook.rerender({ ...input, elapsed: 1 });
+        expect(setControl).toHaveBeenCalledTimes(1);
+        await hook.unmount();
+    });
+
+    it('automatically retries a failed Replay delivery with the original connection epoch', async () => {
+        getStatus.mockResolvedValue({ ...writableHeaterStatus, connection_epoch: 7 });
+        setControl.mockRejectedValueOnce(new Error('readback response lost'));
+        const hook = await renderComposition({
+            ...base(),
+            elapsed: 0,
+            replayHeaterEvents: [{ t: 0, bt: 180, heater: 0, trigger: 'time' }],
+        });
+        await act(async () => hook.get().replay.toggle());
+        expect(hook.get().replay.active).toBe(true);
+        expect(hook.get().replay.firedCount).toBe(0);
+        expect(setControl).toHaveBeenCalledTimes(1);
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(setControl).toHaveBeenLastCalledWith({ heater: 0 }, { connectionEpoch: 7 });
+        expect(hook.get().replay.active).toBe(true);
+        expect(hook.get().replay.firedCount).toBe(1);
+        expect(hook.get().replay.stopReason).toBeNull();
+        await hook.unmount();
+    });
+
+    it('stops only after the bounded retry budget is exhausted', async () => {
+        getStatus.mockResolvedValue({ ...writableHeaterStatus, connection_epoch: 7 });
+        setControl.mockRejectedValue(new Error('PLC unavailable'));
+        const hook = await renderComposition({
+            ...base(),
+            elapsed: 0,
+            replayHeaterEvents: [{ t: 0, bt: 180, heater: 0, trigger: 'time' }],
+        });
+        await act(async () => hook.get().replay.toggle());
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(setControl.mock.calls).toEqual([
+            [{ heater: 0 }],
+            [{ heater: 0 }, { connectionEpoch: 7 }],
+            [{ heater: 0 }, { connectionEpoch: 7 }],
+        ]);
+        expect(hook.get().replay.active).toBe(false);
+        expect(hook.get().replay.stopReason).toBe('writeFailed');
+        expect(hook.get().replay.firedCount).toBe(0);
+        await hook.unmount();
+    });
+
+    it('cancels scheduled retries before a manual heater commit', async () => {
+        getStatus.mockResolvedValue({ ...writableHeaterStatus, connection_epoch: 7 });
+        setControl.mockRejectedValueOnce(new Error('PLC write failed'));
+        const hook = await renderComposition({ ...base(), elapsed: 0 });
+        await act(async () => hook.get().replay.toggle());
+        await act(async () => {
+            hook.get().changeManual('heater', 30);
+            hook.get().commitManual();
+        });
+        await act(async () => vi.advanceTimersByTimeAsync(2000));
+        expect(setControl.mock.calls).toEqual([[{ heater: 60 }], [{ heater: 30 }]]);
+        expect(hook.get().replay.stopReason).toBe('manual');
+        expect(hook.get().replay.firedCount).toBe(0);
+        await hook.unmount();
+    });
+
     it('reports acknowledged gas-off with nonzero feedback while Replay stays on and sends no extra commands', async () => {
         getStatus.mockResolvedValue({ ...writableHeaterStatus, capabilities: ['heater'] });
         const input: MachineControlCompositionInput = {

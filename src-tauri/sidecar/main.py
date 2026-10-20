@@ -260,7 +260,8 @@ async def handle_control(request: web.Request) -> web.Response:
         cmd = control_guard.parse_command(body)
         if not cmd:
             return web.json_response({"ok": True, "applied": {}})
-        applied = await manager.control(**cmd)
+        retry_epoch = control_guard.parse_retry_epoch(body)
+        applied = await manager.control(**cmd, retry_epoch=retry_epoch)
     except control_guard.ControlRangeError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     except control_guard.ControlUnavailable as exc:
@@ -268,7 +269,7 @@ async def handle_control(request: web.Request) -> web.Response:
     except Exception as exc:
         # exc_info=True 먼저 쓰면 LoggingIntegration이 태그 없는 이벤트를 만들고 dedupe가
         # 아래 tagged capture를 삭제한다 (#771).
-        manager._capture_hardware_error(exc, "control_write_failed")
+        manager._capture_hardware_error(exc, "control_write_failed", once=True)
         _log.warning("control 실패 (%s)", type(exc).__name__, exc_info=True)
         return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
     return web.json_response({"ok": True, "applied": applied})

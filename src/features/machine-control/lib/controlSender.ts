@@ -2,6 +2,9 @@ export type ControlRole = 'heater' | 'fan' | 'drum';
 export type ControlCommand = Partial<Record<ControlRole, number>>;
 /** commit 출처 — Replay 자동화 중단 시 미전송 heater만 고른다. safety는 DROP zero. */
 export type ControlOrigin = 'manual' | 'replay' | 'safety';
+export interface ControlRetry {
+    connectionEpoch: number;
+}
 
 export interface ControlSendObserver {
     dispatched: (command: ControlCommand, origins: Partial<Record<ControlRole, ControlOrigin>>) => void;
@@ -36,19 +39,20 @@ export const settledRoles = (
     });
 
 interface Options {
-    send: (cmd: ControlCommand) => Promise<ControlCommand>;
+    send: (cmd: ControlCommand, retry?: ControlRetry) => Promise<ControlCommand>;
     observer?: ControlSendObserver;
     /** 사용자가 전송을 확정한 값. 전송 성공 여부와 무관하게 commit당 한 번 호출한다. */
     onCommitted?: (committed: ControlCommand) => void;
     /** 전송 성공 시 사이드카가 범위로 자른 실제 값 */
     onApplied?: (applied: ControlCommand) => void;
-    onError?: (err: unknown) => void;
+    onError?: (err: unknown, origins?: Partial<Record<ControlRole, ControlOrigin>>) => void;
     onSendingChange?: (sending: boolean) => void;
 }
 
 interface Waiter {
     requested: ControlCommand;
     origin: ControlOrigin;
+    retry?: ControlRetry;
     resolve: (result: ControlCommand | null) => void;
     settled: boolean;
 }
@@ -75,6 +79,7 @@ const keepLeftover = (waiter: Waiter, leftover: ControlCommand, into: Waiter[]) 
     into.push({
         requested: leftover,
         origin: waiter.origin,
+        retry: waiter.retry,
         resolve: () => {},
         settled: true,
     });
@@ -133,25 +138,28 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
 
     const flush = async (): Promise<void> => {
         if (inFlight) return;
-        const cmd = committed;
-        if (Object.keys(cmd).length === 0) return;
+        if (Object.keys(committed).length === 0) return;
         const gen = generation;
         // A late ACK belongs to the observer/session that sent the command.
         const appliedObserver = appliedListener;
         const transmissionObserver = sendObserver;
-        const sentWaiters = queuedWaiters;
+        // A guarded retry must not inherit unrelated manual/fan/drum commands.
+        const retry = queuedWaiters[0]?.retry;
+        const count = retry ? 1 : queuedWaiters.findIndex((waiter) => waiter.retry != null);
+        const sentWaiters = queuedWaiters.slice(0, count < 0 ? undefined : count);
+        const cmd = mergeQueued(sentWaiters);
         const origins: Partial<Record<ControlRole, ControlOrigin>> = {};
         for (const waiter of sentWaiters) {
             for (const role of rolesOf(waiter.requested)) origins[role] = waiter.origin;
         }
-        committed = {};
-        queuedWaiters = [];
+        queuedWaiters = queuedWaiters.slice(sentWaiters.length);
+        committed = mergeQueued(queuedWaiters);
         inFlightWaiters = sentWaiters;
         inFlight = true;
         notify(() => onSendingChange?.(true));
         notify(() => transmissionObserver?.dispatched(cmd, origins));
         try {
-            const applied = await send(cmd);
+            const applied = await (retry ? send(cmd, retry) : send(cmd));
             if (gen === generation) {
                 notify(() => transmissionObserver?.applied(cmd, applied));
                 for (const waiter of sentWaiters) {
@@ -165,7 +173,7 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
                 notify(() => transmissionObserver?.failed(cmd));
                 for (const waiter of sentWaiters) settle(waiter, null);
                 inFlightWaiters = [];
-                notify(() => onError?.(err));
+                notify(() => onError?.(err, origins));
             }
         } finally {
             inFlight = false;
@@ -187,9 +195,9 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
          * 같은 role 일부만 대체되면 겹친 role은 성공이 아니고, 남은 role은 실제 전송 결과에 귀속한다.
          * 빈 commit은 즉시 `{}` — 대기 중인 다른 요청의 성공을 만들지 않는다.
          */
-        commitNow(origin: ControlOrigin = 'manual'): Promise<ControlCommand | null> {
-            const snapshot = draft;
-            draft = {};
+        commitNow(origin: ControlOrigin = 'manual', retry?: ControlRetry): Promise<ControlCommand | null> {
+            const snapshot = retry ? (draft.heater == null ? {} : { heater: draft.heater }) : draft;
+            draft = retry ? omitRoles(draft, new Set(['heater'])) : {};
             if (Object.keys(snapshot).length === 0) {
                 void flush();
                 return Promise.resolve({});
@@ -211,7 +219,7 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
                 remaining.push(waiter);
             }
             return new Promise((resolve) => {
-                remaining.push({ requested: snapshot, origin, resolve, settled: false });
+                remaining.push({ requested: snapshot, origin, retry, resolve, settled: false });
                 queuedWaiters = remaining;
                 committed = mergeQueued(queuedWaiters);
                 void flush();

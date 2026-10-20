@@ -813,6 +813,63 @@ describe('createControlSender 미전송 Replay heater 취소 (#368 R03)', () => 
     });
 });
 
+describe('guarded Replay retries share the control queue', () => {
+    it('keeps a retry separate from queued fan and drum commands', async () => {
+        const deferred = deferredSend();
+        const send = vi.fn(deferred.send);
+        const sender = createControlSender({ send });
+        sender.queue('fan', 40);
+        const first = sender.commitNow();
+        sender.queue('heater', 0);
+        const retry = sender.commitNow('replay', { connectionEpoch: 7 });
+        sender.queue('drum', 55);
+        const last = sender.commitNow();
+        deferred.resolve();
+        await first;
+        expect(send).toHaveBeenLastCalledWith({ heater: 0 }, { connectionEpoch: 7 });
+        deferred.resolve();
+        await retry;
+        expect(send).toHaveBeenLastCalledWith({ drum: 55 });
+        deferred.resolve();
+        await last;
+        expect(deferred.calls).toEqual([{ fan: 40 }, { heater: 0 }, { drum: 55 }]);
+    });
+
+    it('does not commit a fan drag draft when retrying heater', async () => {
+        const deferred = deferredSend();
+        const sender = createControlSender({ send: deferred.send });
+        sender.queue('fan', 42);
+        sender.queue('heater', 0);
+        const retry = sender.commitNow('replay', { connectionEpoch: 7 });
+        expect(deferred.calls).toEqual([{ heater: 0 }]);
+        deferred.resolve();
+        await retry;
+        const manual = sender.commitNow();
+        expect(deferred.calls).toEqual([{ heater: 0 }, { fan: 42 }]);
+        deferred.resolve();
+        await manual;
+    });
+
+    it('cancels a queued retry when a manual heater command replaces it', async () => {
+        const deferred = deferredSend();
+        const send = vi.fn(deferred.send);
+        const sender = createControlSender({ send });
+        sender.queue('fan', 40);
+        const first = sender.commitNow();
+        sender.queue('heater', 0);
+        const retry = sender.commitNow('replay', { connectionEpoch: 7 });
+        sender.queue('heater', 30);
+        const manual = sender.commitNow();
+        await expect(retry).resolves.toBeNull();
+        deferred.resolve();
+        await first;
+        expect(send).toHaveBeenLastCalledWith({ heater: 30 });
+        deferred.resolve();
+        await manual;
+        expect(deferred.calls).toEqual([{ fan: 40 }, { heater: 30 }]);
+    });
+});
+
 describe('applied control chart observers', () => {
     it('notifies only after ACK with the clamped values, and keeps the observer from the sent request', async () => {
         const d = deferredSend();

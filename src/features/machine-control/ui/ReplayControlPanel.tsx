@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { REPLAY_DELIVERY_LIMIT } from '../lib/replayDelivery';
 import { formatReplayCondition, formatReplayHeater } from '../lib/replayDisplay';
 import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
@@ -31,7 +32,7 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
     manual: '수동 조작으로 재생 중지',
     profileChanged: '프로파일 변경으로 재생 중지',
     timingGap: '화면이 멈췄던 동안 재생 중지 — 현재 화력을 확인하세요',
-    writeFailed: '화력 명령 전송 실패로 재생 중지 — 현재 화력을 확인하세요',
+    writeFailed: '화력 명령 전송·설정 확인 실패로 재생 중지 — 현재 화력을 확인하세요',
     observationStale: '온도 데이터가 끊겨 재생 중지 — 현재 화력을 확인하세요',
 };
 
@@ -161,6 +162,11 @@ const ReplayPanelMessages = ({
             {replay.active && observationHold && (
                 <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
                     {REPLAY_OBSERVATION_HOLD_TEXT}
+                </p>
+            )}
+            {replay.active && replay.deliveryAttempt > 1 && (
+                <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500" role="status">
+                    화력 명령 확인 재시도 {replay.deliveryAttempt}/{REPLAY_DELIVERY_LIMIT}
                 </p>
             )}
             {replay.active && !observationHold && isReplayTpHold(chrome) && (

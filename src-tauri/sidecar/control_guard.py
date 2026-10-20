@@ -26,6 +26,15 @@ class ControlUnavailable(RuntimeError):
     """지금 쓸 수 없음 (미연결, 쓰기 맵 없음) — HTTP 409."""
 
 
+def parse_retry_epoch(body: dict[str, Any]) -> int | None:
+    if "retry_epoch" not in body:
+        return None
+    value = body["retry_epoch"]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ControlRangeError("retry_epoch must be a nonnegative integer")
+    return value
+
+
 def parse_command(body: Any) -> dict[str, float]:
     """요청 바디에서 쓸 role만 뽑아 float으로 정규화한다 (형식 검증만).
 

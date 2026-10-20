@@ -231,6 +231,7 @@ _GIESEN_DB2_WRITE_MAP: dict[str, dict[str, Any]] = {
         "max": 100,
         "unit": "%",
         "value_offset": 1,
+        "verify_readback": True,
     },
 }
 
