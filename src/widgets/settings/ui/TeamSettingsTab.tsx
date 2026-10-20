@@ -101,7 +101,7 @@ export function TeamSettingsTab() {
     const okMsg = successKey ? t(`settings.tabs.team.success.${successKey}`) : null;
 
     return (
-        <div className="grid gap-6">
+        <div className="grid gap-8">
             {isForeignWorkspace && (
                 <div className="text-[13px] px-3 py-2 rounded-lg bg-[#F3F4F6] dark:bg-surface-elevated text-[#6B7280] dark:text-muted">
                     {t('settings.tabs.team.ownOrgNote')}

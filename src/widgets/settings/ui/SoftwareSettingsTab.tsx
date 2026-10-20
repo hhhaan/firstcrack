@@ -8,7 +8,7 @@ export const SoftwareSettingsTab = () => {
     const version = useAppVersion();
 
     return (
-        <div className="grid gap-6">
+        <div className="grid gap-8">
             <SettingsSection>
                 <SettingsSection.Header
                     title={t('settings.tabs.software.version')}

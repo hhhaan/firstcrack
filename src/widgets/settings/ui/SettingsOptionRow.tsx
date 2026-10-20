@@ -1,12 +1,12 @@
 import type { InputHTMLAttributes, ReactNode } from 'react';
 
-const rowBase =
-    'flex min-w-0 gap-3 py-3 border-b border-border-subtle first:pt-0 last:border-b-0 last:pb-0 in-[.settings-compact]:gap-2.5 in-[.settings-compact]:border-0 in-[.settings-compact]:py-2 in-[.settings-compact]:first:pt-2 in-[.settings-compact]:last:pb-2';
-const checkboxCls = 'w-4 h-4 accent-primary shrink-0';
+const rowBase = 'flex min-w-0 gap-4 border-b border-border-subtle py-4 first:pt-0 last:border-b-0 last:pb-0';
+const checkboxCls =
+    'h-4 w-4 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40';
 const switchCls =
-    'relative h-6 w-10 shrink-0 cursor-pointer appearance-none rounded-full bg-primary/15 transition-colors checked:bg-primary before:absolute before:left-1 before:top-1 before:h-4 before:w-4 before:rounded-full before:bg-main-bg before:transition-transform checked:before:translate-x-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 forced-colors:appearance-auto';
-const labelCls = 'text-[13px] font-medium text-primary';
-const descCls = 'text-xs leading-relaxed text-secondary mt-0.5';
+    'relative h-5 w-9 shrink-0 cursor-pointer appearance-none rounded-full bg-primary/15 transition-colors checked:bg-primary before:absolute before:left-0.5 before:top-0.5 before:h-4 before:w-4 before:rounded-full before:bg-main-bg before:transition-transform checked:before:translate-x-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 forced-colors:appearance-auto';
+const labelCls = 'text-sm text-primary';
+const descCls = 'mt-0.5 text-xs leading-relaxed text-muted';
 
 type SettingsOptionRowProps = {
     children: ReactNode;
@@ -43,7 +43,7 @@ export function SettingsOptionRow({
 }
 
 type SettingsCheckRowProps = {
-    type?: 'checkbox' | 'radio';
+    type?: 'switch' | 'checkbox' | 'radio';
     checked: boolean;
     onChange: () => void;
     label: string;
@@ -53,9 +53,9 @@ type SettingsCheckRowProps = {
     trailing?: ReactNode;
 } & Pick<InputHTMLAttributes<HTMLInputElement>, 'disabled'>;
 
-/** Checkbox / radio option row used across settings sections. */
+/** Switches for preferences; native checkboxes and radios for selection. */
 export function SettingsCheckRow({
-    type = 'checkbox',
+    type = 'switch',
     checked,
     onChange,
     label,
@@ -65,7 +65,7 @@ export function SettingsCheckRow({
     trailing,
 }: SettingsCheckRowProps) {
     return (
-        <SettingsOptionRow as="label" interactive className="in-[.settings-compact]:items-start">
+        <SettingsOptionRow as="label" interactive className={type === 'radio' ? 'border-b-0 py-0!' : undefined}>
             {description ? (
                 <div className="min-w-0 flex-1">
                     <div className={labelCls}>{label}</div>
@@ -76,12 +76,13 @@ export function SettingsCheckRow({
             )}
             {trailing ? <span className="ml-auto flex items-center gap-1.5 shrink-0">{trailing}</span> : null}
             <input
-                type={type}
+                type={type === 'switch' ? 'checkbox' : type}
+                {...(type === 'switch' ? { role: 'switch', 'aria-checked': checked } : {})}
                 name={name}
                 checked={checked}
                 disabled={disabled}
                 onChange={onChange}
-                className={`${type === 'checkbox' ? switchCls : checkboxCls} in-[.settings-compact]:order-first in-[.settings-compact]:h-4 in-[.settings-compact]:w-4 in-[.settings-compact]:appearance-auto in-[.settings-compact]:accent-primary in-[.settings-compact]:before:hidden`}
+                className={type === 'switch' ? switchCls : `${checkboxCls} order-first`}
             />
         </SettingsOptionRow>
     );

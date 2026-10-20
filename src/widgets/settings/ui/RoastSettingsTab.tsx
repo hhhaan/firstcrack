@@ -31,7 +31,7 @@ import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { Lock, Play } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
 import { CurveStyleSection } from './CurveStyleSection';
@@ -42,6 +42,7 @@ import {
     SettingsOptionRow,
     settingsOptionDescCls,
     settingsOptionLabelCls,
+    settingsOptionSwitchCls,
 } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 
@@ -156,6 +157,7 @@ const RoastCheckRows = ({ options }: { options: readonly RoastCheckOption[] }) =
     return options.map(({ key, labelKey, descKey }) => (
         <SettingsCheckRow
             key={key}
+            type="checkbox"
             checked={roastSettings[key]}
             label={t(labelKey)}
             description={t(descKey)}
@@ -268,23 +270,33 @@ const TimeAlertRow = ({
     description: string;
     onEnabled: () => void;
     onMinutes: (v: number) => void;
-}) => (
-    <SettingsOptionRow justify="between" align="start">
-        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
-            <input
-                type="checkbox"
-                checked={enabled}
-                onChange={onEnabled}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
-            />
-            <div className="min-w-0">
+}) => {
+    const id = useId();
+    return (
+        <SettingsOptionRow justify="between">
+            <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
                 <div className={settingsOptionLabelCls}>{label}</div>
-                <div className={settingsOptionDescCls}>{description}</div>
+                <div id={`${id}-description`} className={settingsOptionDescCls}>
+                    {description}
+                </div>
+            </label>
+            <div className="flex shrink-0 items-center gap-4">
+                <NumberInput value={minutes} onChange={onMinutes} min={1} max={30} suffix="min" />
+                <input
+                    id={id}
+                    type="checkbox"
+                    role="switch"
+                    aria-checked={enabled}
+                    aria-label={label}
+                    aria-describedby={`${id}-description`}
+                    checked={enabled}
+                    onChange={onEnabled}
+                    className={settingsOptionSwitchCls}
+                />
             </div>
-        </label>
-        <NumberInput value={minutes} onChange={onMinutes} min={1} max={30} suffix="min" />
-    </SettingsOptionRow>
-);
+        </SettingsOptionRow>
+    );
+};
 
 const RangeRow = ({
     label,
@@ -792,7 +804,7 @@ export const RoastSettingsTab = () => {
     const storeRoR = (display: number) => fromDisplayRoR(display, unit);
 
     return (
-        <div className="settings-compact grid gap-0">
+        <div className="grid gap-8">
             <RoastingSettingsImport />
             <SettingsSection group="general">
                 <SettingsSection.Header title={tk('temperatureUnit')} description={tk('temperatureUnitDescription')} />
@@ -812,84 +824,78 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection group="alerts">
                 <SettingsSection.Header title={tk('alerts')} description={tk('alertsDescription')} />
-                <SettingsSection.Body className="grid gap-1.5">
-                    <div className="grid gap-1.5 border-b border-border-subtle pb-3">
-                        <SettingsCheckRow
-                            checked={roastSettings.alertsEnabled}
-                            label={tk('alertsEnabled')}
-                            description={tk('alertsEnabledDescription')}
-                            onChange={() => updateRoastSettings({ alertsEnabled: !roastSettings.alertsEnabled })}
+                <SettingsSection.Body>
+                    <SettingsCheckRow
+                        checked={roastSettings.alertsEnabled}
+                        label={tk('alertsEnabled')}
+                        description={tk('alertsEnabledDescription')}
+                        onChange={() => updateRoastSettings({ alertsEnabled: !roastSettings.alertsEnabled })}
+                    />
+                    <SettingsCheckRow
+                        checked={roastSettings.alertSoundEnabled}
+                        label={tk('alertSound')}
+                        description={tk('alertSoundDescription')}
+                        onChange={() => updateRoastSettings({ alertSoundEnabled: !roastSettings.alertSoundEnabled })}
+                    />
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('alertSoundKind')}</div>
+                            <div className={settingsOptionDescCls}>{tk('alertSoundKindDescription')}</div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <Select
+                                value={roastSettings.alertSoundKind}
+                                onValueChange={(v) => {
+                                    if (isAlertSoundKind(v)) updateRoastSettings({ alertSoundKind: v });
+                                }}
+                                disabled={!roastSettings.alertSoundEnabled}
+                            >
+                                <SelectTrigger className="w-36" aria-label={tk('alertSoundKind')}>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ALERT_SOUND_KINDS.map((kind) => (
+                                        <SelectItem key={kind} value={kind}>
+                                            {tk(`alertSoundKinds.${kind}`)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <SurfaceButton
+                                icon={<Play size={14} strokeWidth={2} />}
+                                disabled={!roastSettings.alertSoundEnabled}
+                                onClick={() => playAlertSound(roastSettings.alertSoundKind)}
+                            >
+                                {tk('alertSoundPreview')}
+                            </SurfaceButton>
+                        </div>
+                    </SettingsOptionRow>
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('alertRorCrash')}</div>
+                            <div className={settingsOptionDescCls}>{tk('alertRorCrashDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.alertRorCrashCPerMin}
+                            onChange={(v) => updateRoastSettings({ alertRorCrashCPerMin: v })}
+                            min={-20}
+                            max={20}
+                            suffix="°C/min"
                         />
-                        <SettingsCheckRow
-                            checked={roastSettings.alertSoundEnabled}
-                            label={tk('alertSound')}
-                            description={tk('alertSoundDescription')}
-                            onChange={() =>
-                                updateRoastSettings({ alertSoundEnabled: !roastSettings.alertSoundEnabled })
-                            }
+                    </SettingsOptionRow>
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('alertBtMax')}</div>
+                            <div className={settingsOptionDescCls}>{tk('alertBtMaxDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={dispT(roastSettings.alertBtMaxC)}
+                            onChange={(v) => updateRoastSettings({ alertBtMaxC: storeT(v) })}
+                            min={dispT(100)}
+                            max={dispT(400)}
+                            suffix={tempSuffix}
                         />
-                        <SettingsOptionRow justify="between">
-                            <div>
-                                <div className={settingsOptionLabelCls}>{tk('alertSoundKind')}</div>
-                                <div className={settingsOptionDescCls}>{tk('alertSoundKindDescription')}</div>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                                <Select
-                                    value={roastSettings.alertSoundKind}
-                                    onValueChange={(v) => {
-                                        if (isAlertSoundKind(v)) updateRoastSettings({ alertSoundKind: v });
-                                    }}
-                                    disabled={!roastSettings.alertSoundEnabled}
-                                >
-                                    <SelectTrigger className="w-36" aria-label={tk('alertSoundKind')}>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {ALERT_SOUND_KINDS.map((kind) => (
-                                            <SelectItem key={kind} value={kind}>
-                                                {tk(`alertSoundKinds.${kind}`)}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <SurfaceButton
-                                    icon={<Play size={14} strokeWidth={2} />}
-                                    disabled={!roastSettings.alertSoundEnabled}
-                                    onClick={() => playAlertSound(roastSettings.alertSoundKind)}
-                                >
-                                    {tk('alertSoundPreview')}
-                                </SurfaceButton>
-                            </div>
-                        </SettingsOptionRow>
-                    </div>
-                    <div className="grid gap-1.5 border-b border-border-subtle pb-3">
-                        <SettingsOptionRow justify="between">
-                            <div>
-                                <div className={settingsOptionLabelCls}>{tk('alertRorCrash')}</div>
-                                <div className={settingsOptionDescCls}>{tk('alertRorCrashDescription')}</div>
-                            </div>
-                            <NumberInput
-                                value={roastSettings.alertRorCrashCPerMin}
-                                onChange={(v) => updateRoastSettings({ alertRorCrashCPerMin: v })}
-                                min={-20}
-                                max={20}
-                                suffix="°C/min"
-                            />
-                        </SettingsOptionRow>
-                        <SettingsOptionRow justify="between">
-                            <div>
-                                <div className={settingsOptionLabelCls}>{tk('alertBtMax')}</div>
-                                <div className={settingsOptionDescCls}>{tk('alertBtMaxDescription')}</div>
-                            </div>
-                            <NumberInput
-                                value={dispT(roastSettings.alertBtMaxC)}
-                                onChange={(v) => updateRoastSettings({ alertBtMaxC: storeT(v) })}
-                                min={dispT(100)}
-                                max={dispT(400)}
-                                suffix={tempSuffix}
-                            />
-                        </SettingsOptionRow>
-                    </div>
+                    </SettingsOptionRow>
                     <TimeAlertRow
                         enabled={roastSettings.alertAfterChargeEnabled}
                         minutes={roastSettings.alertAfterChargeMin}
@@ -1059,28 +1065,35 @@ export const RoastSettingsTab = () => {
                     description={tk('phaseTemperaturesDescription')}
                 />
                 <SettingsSection.Body className="grid gap-1.5">
-                    <SettingsOptionRow justify="between" align="start">
-                        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                    <SettingsOptionRow justify="between">
+                        <label htmlFor="roast-auto-yellow" className="min-w-0 flex-1 cursor-pointer">
+                            <div className={settingsOptionLabelCls}>{tk('yellowPoint')}</div>
+                            <div id="roast-auto-yellow-description" className={settingsOptionDescCls}>
+                                {tk('yellowPointDescription')}
+                            </div>
+                        </label>
+                        <div className="flex shrink-0 items-center gap-4">
+                            <NumberInput
+                                value={dispT(roastSettings.yellowTempC)}
+                                onChange={(v) => updateRoastSettings({ yellowTempC: storeT(v) })}
+                                min={dispT(50)}
+                                max={dispT(300)}
+                                suffix={tempSuffix}
+                            />
                             <input
+                                id="roast-auto-yellow"
                                 type="checkbox"
+                                role="switch"
+                                aria-checked={roastSettings.autoYellowEnabled}
+                                aria-label={tk('yellowPoint')}
+                                aria-describedby="roast-auto-yellow-description"
                                 checked={roastSettings.autoYellowEnabled}
                                 onChange={() =>
                                     updateRoastSettings({ autoYellowEnabled: !roastSettings.autoYellowEnabled })
                                 }
-                                className="mt-0.5 h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
+                                className={settingsOptionSwitchCls}
                             />
-                            <div className="min-w-0">
-                                <div className={settingsOptionLabelCls}>{tk('yellowPoint')}</div>
-                                <div className={settingsOptionDescCls}>{tk('yellowPointDescription')}</div>
-                            </div>
-                        </label>
-                        <NumberInput
-                            value={dispT(roastSettings.yellowTempC)}
-                            onChange={(v) => updateRoastSettings({ yellowTempC: storeT(v) })}
-                            min={dispT(50)}
-                            max={dispT(300)}
-                            suffix={tempSuffix}
-                        />
+                        </div>
                     </SettingsOptionRow>
                 </SettingsSection.Body>
             </SettingsSection>
@@ -1100,14 +1113,14 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />
-                <SettingsSection.Body className="grid items-start gap-x-6 gap-y-1 @[480px]:grid-cols-2">
+                <SettingsSection.Body>
                     <RoastCheckRows options={visibilityOptions} />
                 </SettingsSection.Body>
             </SettingsSection>
 
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('profileSeries')} description={tk('profileSeriesDescription')} />
-                <SettingsSection.Body className="grid items-start gap-x-6 gap-y-1 @[480px]:grid-cols-2">
+                <SettingsSection.Body>
                     <RoastCheckRows options={profileSeriesOptions} />
                 </SettingsSection.Body>
             </SettingsSection>
@@ -1116,7 +1129,7 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('eventMarkers')} description={tk('eventMarkersDescription')} />
-                <SettingsSection.Body className="grid gap-x-6 gap-y-1 @[480px]:grid-cols-3">
+                <SettingsSection.Body className="grid gap-4">
                     {eventMarkerStyleOptions.map(({ value, labelKey, descKey }) => (
                         <SettingsCheckRow
                             key={value}

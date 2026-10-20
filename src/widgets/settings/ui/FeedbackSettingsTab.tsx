@@ -23,7 +23,7 @@ export function FeedbackSettingsTab() {
     const { t } = useTranslation();
 
     return (
-        <div className="grid gap-6">
+        <div className="grid gap-8">
             <SettingsSection>
                 <SettingsSection.Header
                     icon={<Mail size={16} strokeWidth={1.8} />}

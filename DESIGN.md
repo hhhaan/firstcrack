@@ -232,6 +232,8 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 
 The ten primary views share an inset content panel in `src/App.tsx`: 0px top and 8px right/bottom margin, 16px corners, `bg-main-bg`, and a 1px border and `shadow-xs`. The sidebar shares the shell background (`shell-bg`); its current item uses `main-bg` with a border and `shadow-xs`. Its logo header uses 12px top and 8px bottom padding. Settings applies the same panel geometry in `SettingsLayout`, using `shell-bg` for its light navigation/frame and `main-bg` for content; its dark navigation uses the same `shell-bg` frame. Its navigation starts with 12px top padding. Active roast uses 24px top/side padding, 12px bottom padding and no extra header gap; its windowed chart frame has no extra horizontal padding and uses 20px vertical padding to clear the legends. The chart retains fixed height with independently scrolling control/sensor panels. Dashboard overview and supporting panels use `main-bg` with 16px corners and thin `border` dividers. Windows 11 keeps native window decorations and uses `shell-bg` (`#F3F4F6`) for the titlebar with `primary` (`#101828`) text, applied in `src-tauri/src/window_chrome.rs`; Windows 10 falls back to a native light titlebar. These native colors follow the current light-only app theme.
 
+Settings content is centered at a maximum of 680px, or 760px for roasting controls. Sections use 18px/28px medium headings, 32px spacing, and 16px rounded cards with thin row dividers. Row labels are 14px with 12px muted descriptions. Independent preferences use right-aligned switches; multi-selection uses left-aligned checkboxes and exclusive choices use radios. Profile forms place labels above inputs and pair business fields on wider screens.
+
 ---
 
 ## Components / primitives

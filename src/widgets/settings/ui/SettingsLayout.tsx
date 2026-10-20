@@ -67,7 +67,7 @@ export function SettingsLayout({
                     aria-labelledby="settings-page-title"
                     className="@container mr-2 mb-2 min-h-0 min-w-0 flex-1 overflow-y-auto rounded-2xl border border-border-subtle bg-main-bg px-6 py-8 shadow-xs sm:px-8"
                 >
-                    <div className="mx-auto w-full max-w-[760px]">
+                    <div className={`mx-auto w-full ${activeTab === 'roast' ? 'max-w-[760px]' : 'max-w-[680px]'}`}>
                         <header className="mb-6">
                             {groupLabel && <p className="m-0 mb-2 text-xs text-muted">{tab?.label}</p>}
                             <h1
