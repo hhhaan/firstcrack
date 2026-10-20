@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
+import * as Sentry from '@sentry/react';
+import { buildSentryOptions } from '@shared/lib/sentry';
 import { act, createElement, type ReactElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
+import { createSentryMemoryTransport } from '../lib/controlDiagnostics.fixtures';
 import type { ReplayPoint } from '../lib/replay';
 import { type ReplayControlInputs, useReplayControl } from './useReplayControl';
 
@@ -40,6 +43,53 @@ const mount = (probe: ReactElement) => {
 };
 
 describe('useReplayControl render loop', () => {
+    it('reports each committed timing stop once under StrictMode, including after resume', async () => {
+        const events: Sentry.Event[] = [];
+        Sentry.init({
+            ...buildSentryOptions(),
+            transport: () => createSentryMemoryTransport(events),
+        });
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const writeHeater = vi.fn(async (value: number) => value);
+        const cancelUnsentHeater = vi.fn();
+        let latest!: ReturnType<typeof useReplayControl>;
+        const Probe = ({ elapsed }: { elapsed: number }) => {
+            latest = useReplayControl({ ...BASE, sessionId: 'batch-1', elapsed, writeHeater, cancelUnsentHeater });
+            return null;
+        };
+        const root = createRoot(document.createElement('div'));
+        const render = (elapsed: number) =>
+            act(async () => root.render(createElement(StrictMode, null, createElement(Probe, { elapsed }))));
+        try {
+            await render(30);
+            await act(async () => latest.toggle());
+            await render(36);
+            await Sentry.flush(2000);
+            expect(latest.stopReason).toBe('timingGap');
+            expect(events).toHaveLength(1);
+            expect(events[0].fingerprint).toEqual(['replay-stopped', 'timingGap']);
+            expect(events[0].extra).toMatchObject({
+                sessionId: 'batch-1',
+                reason: 'timingGap',
+                elapsed: 36,
+                firedCount: 1,
+            });
+            await render(37);
+            await Sentry.flush(2000);
+            expect(events).toHaveLength(1);
+            await act(async () => latest.toggle());
+            await render(43);
+            await Sentry.flush(2000);
+            expect(latest.stopReason).toBe('timingGap');
+            expect(events).toHaveLength(2);
+            expect(writeHeater).toHaveBeenCalledTimes(2);
+        } finally {
+            act(() => root.unmount());
+            await Sentry.close();
+            consoleError.mockRestore();
+        }
+    });
+
     it('does not loop under StrictMode with a stable reference curve', () => {
         const writeHeater = vi.fn(async (value: number) => value);
         const cancelUnsentHeater = vi.fn();

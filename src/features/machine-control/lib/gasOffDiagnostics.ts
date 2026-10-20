@@ -51,11 +51,17 @@ export const createGasOffDiagnostics = () => {
     let watch: GasOffWatch | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let sequence = 0;
+    let responseMismatchReported = false;
 
-    const reset = () => {
+    const clearWatch = () => {
         if (timer !== undefined) clearTimeout(timer);
         timer = undefined;
         watch = null;
+    };
+
+    const reset = () => {
+        clearWatch();
+        responseMismatchReported = false;
     };
 
     const report = () => {
@@ -135,7 +141,30 @@ export const createGasOffDiagnostics = () => {
         applied(requested, applied) {
             if (requested.heater !== 0 || !watch) return;
             if (applied.heater !== 0) {
-                reset();
+                const incident = watch;
+                clearWatch();
+                if (responseMismatchReported) return;
+                responseMismatchReported = true;
+                try {
+                    logger.capture(new Error(`Gas-off applied response differed from zero (${incident.commandId})`), {
+                        tags: { feature: 'machine-control' },
+                        level: 'warning',
+                        fingerprint: ['gas-off-response-mismatch'],
+                        extra: {
+                            sessionId: incident.context.sessionId,
+                            roaster: incident.context.roaster,
+                            connectionEpoch: incident.context.connectionEpoch,
+                            commandId: incident.commandId,
+                            requested: 0,
+                            applied: applied.heater ?? null,
+                            elapsedAtSend: incident.context.elapsed,
+                            btAtSend: incident.context.bt,
+                            origins: [...incident.origins],
+                        },
+                    });
+                } catch {
+                    // Observation only: preserve the applied response and existing Replay policy.
+                }
                 return;
             }
             if (watch.acknowledgement.state === 'pending') {

@@ -9,11 +9,14 @@ import {
     type ReplayEvent,
     type ReplayPoint,
 } from '../lib/replay';
+import { useReplayStopDiagnostics } from './useReplayStopDiagnostics';
 
 /** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
 export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
 
 export interface ReplayControlInputs {
+    /** Diagnostic correlation only; never used to decide Replay behavior. */
+    sessionId?: string | null;
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
     referencePoints: ReplayPoint[] | null;
     /**
@@ -157,6 +160,7 @@ const replayProfileEventsKey = (events: unknown): string => (events == null ? ''
  * 마지막으로 충족한 화력 하나를 적용하고, 이후 이벤트부터 이어간다.
  */
 export const useReplayControl = ({
+    sessionId,
     referencePoints,
     referenceMachineMismatch,
     referenceDropTime,
@@ -255,6 +259,14 @@ export const useReplayControl = ({
     const [index, setIndex] = useState(0);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
+    useReplayStopDiagnostics({
+        stopReason,
+        sessionId: sessionId ?? null,
+        elapsed,
+        bt: liveBt,
+        firedCount: index,
+        observationQuality,
+    });
     /** zero 정책의 safe-off write가 나갔다 — 기기가 따라올 때까지 재시도 대상 (#316) */
     const [safeOffIssued, setSafeOffIssued] = useState(false);
     /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */

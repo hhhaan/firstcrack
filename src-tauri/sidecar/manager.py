@@ -712,8 +712,9 @@ class RoasterManager:
                 await self._adapter.control(heater=0.0)
                 # control()을 우회하는 쓰기 — heater_set도 같이 맞춘다 (어댑터와 같은 클램프)
                 self._last_applied.update(clamp_command({"heater": 0.0}, self.write_limits()))
-        except Exception:
-            pass
+                self._hw_alerts_sent.discard("reconnect_safe_off_failed")
+        except Exception as exc:
+            self._capture_hardware_error(exc, "reconnect_safe_off_failed", once=True)
 
     def _reconnecting(self) -> bool:
         return self._reconnect_task is not None and not self._reconnect_task.done()
