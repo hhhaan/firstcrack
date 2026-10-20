@@ -335,13 +335,10 @@ export const useReplayControl = ({
     const [previousConnectionEpoch, setPreviousConnectionEpoch] = useState(connectionEpoch);
     if (connectionEpoch !== previousConnectionEpoch) {
         setPreviousConnectionEpoch(connectionEpoch);
+        // A new connection invalidates old deliveries; reconnecting holds Replay without switching it off.
         // eslint-disable-next-line react-hooks/refs -- connection replacement invalidates the pending owner immediately
         bumpWriteGenOnRenderStop();
         if (writing) setWriting(false);
-        if (active) {
-            setActive(false);
-            setStopReason('disconnected');
-        }
     }
 
     // Hold cancels queued Replay writes too; an already-sent response cannot consume the held event.

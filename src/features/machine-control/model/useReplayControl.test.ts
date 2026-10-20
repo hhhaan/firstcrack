@@ -252,13 +252,22 @@ describe('Replay retries retain step ownership', () => {
             if (boundary === 'manual') await act(async () => h.get().stop());
             if (boundary === 'pid') await h.rerender({ ...inputs, pidEngaged: true });
             if (boundary === 'drop') await h.rerender({ ...inputs, roastFinished: true });
-            if (boundary === 'connection') await h.rerender({ ...inputs, connectionEpoch: 2 });
+            if (boundary === 'connection') await h.rerender({ ...inputs, connectionEpoch: 2, reconnecting: true });
             if (boundary === 'observation') await h.rerender({ ...inputs, observationQuality: 'spike' });
             if (boundary === 'profile') await h.rerender({ ...inputs, referencePoints: [] });
             if (boundary === 'batch') await h.rerender({ ...inputs, roasting: false });
             if (boundary === 'unmount') h.unmount();
             await act(async () => vi.advanceTimersByTimeAsync(60_000));
             expect(retryHeater).not.toHaveBeenCalled();
+            if (boundary === 'connection') {
+                expect(h.get().active).toBe(true);
+                expect(h.get().stopReason).toBeNull();
+                expect(h.get().firedCount).toBe(0);
+                expect(h.writeHeater).toHaveBeenCalledTimes(1);
+                await h.rerender({ ...inputs, connectionEpoch: 2, reconnecting: false });
+                expect(h.writeHeater).toHaveBeenCalledTimes(2);
+                expect(h.get().firedCount).toBe(1);
+            }
             if (boundary !== 'unmount') h.unmount();
         },
     );
@@ -282,6 +291,56 @@ describe('Replay retries retain step ownership', () => {
         expect(h.get().firedCount).toBe(0);
         h.unmount();
     });
+
+    it.each(['success', 'failure'] as const)(
+        'keeps Replay and its recovered delivery pending after an old connection retry %s',
+        async (outcome) => {
+            let finishOldRetry!: () => void;
+            let confirmRecoveredWrite!: (value: number) => void;
+            const retryHeater = vi.fn(
+                () =>
+                    new Promise<number>((resolve, reject) => {
+                        finishOldRetry = () => {
+                            if (outcome === 'success') resolve(80);
+                            else reject(new Error('old connection failed'));
+                        };
+                    }),
+            );
+            const inputs = { retryHeater, connectionEpoch: 1 };
+            const h = await renderReplay(inputs);
+            h.writeHeater.mockResolvedValueOnce(null);
+            await act(async () => h.get().toggle());
+            await act(async () => vi.advanceTimersByTimeAsync(REPLAY_RETRY_DELAY_MS));
+            expect(retryHeater).toHaveBeenCalledExactlyOnceWith(80);
+
+            await h.rerender({ ...inputs, connectionEpoch: 2, reconnecting: true });
+            expect(h.get().active).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            expect(h.get().firedCount).toBe(0);
+            expect(h.get().deliveryAttempt).toBe(0);
+            h.writeHeater.mockImplementationOnce(
+                () =>
+                    new Promise<number>((resolve) => {
+                        confirmRecoveredWrite = resolve;
+                    }),
+            );
+            await h.rerender({ ...inputs, connectionEpoch: 2, reconnecting: false });
+            expect(h.writeHeater).toHaveBeenCalledTimes(2);
+            expect(h.get().deliveryAttempt).toBe(1);
+
+            await act(async () => finishOldRetry());
+            expect(h.get().active).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            expect(h.get().firedCount).toBe(0);
+            expect(h.get().deliveryAttempt).toBe(1);
+            expect(h.writeHeater).toHaveBeenCalledTimes(2);
+            await act(async () => confirmRecoveredWrite(80));
+            expect(h.get().firedCount).toBe(1);
+            expect(h.get().deliveryAttempt).toBe(0);
+            expect(retryHeater).toHaveBeenCalledTimes(1);
+            h.unmount();
+        },
+    );
 });
 
 describe('#946 gas cutoff regressions', () => {
@@ -559,17 +618,19 @@ describe('useReplayControl', () => {
             { t: 60, bt: 95, heaterSet: 70 },
             { t: 300, bt: 155, heaterSet: 40 },
         ];
-        const h = await renderReplay({ referencePoints: pts });
+        const h = await renderReplay({ referencePoints: pts, connectionEpoch: 1 });
         await act(async () => h.get().toggle());
         expect(h.writeHeater).toHaveBeenCalledWith(80);
-        await h.rerender({ referencePoints: pts, elapsed: 1, liveBt: 170, reconnecting: true });
-        await h.rerender({ referencePoints: pts, elapsed: 31, liveBt: 140, reconnecting: true });
-        await h.rerender({ referencePoints: pts, elapsed: 35, liveBt: 140, reconnecting: true });
+        await h.rerender({ referencePoints: pts, elapsed: 1, liveBt: 170, reconnecting: true, connectionEpoch: 2 });
+        await h.rerender({ referencePoints: pts, elapsed: 31, liveBt: 140, reconnecting: true, connectionEpoch: 3 });
+        await h.rerender({ referencePoints: pts, elapsed: 35, liveBt: 140, reconnecting: true, connectionEpoch: 3 });
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
         expect(h.get().active).toBe(true);
+        expect(h.get().stopReason).toBeNull();
         expect(h.get().nextEvent?.heater).toBe(70);
-        await h.rerender({ referencePoints: pts, elapsed: 36, liveBt: 138, reconnecting: false });
+        await h.rerender({ referencePoints: pts, elapsed: 36, liveBt: 138, reconnecting: false, connectionEpoch: 3 });
         expect(h.writeHeater).toHaveBeenLastCalledWith(70);
+        expect(h.writeHeater).toHaveBeenCalledTimes(2);
         h.unmount();
     });
 
