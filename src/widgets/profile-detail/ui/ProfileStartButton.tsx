@@ -5,6 +5,7 @@ import {
     profileSourceCandidates,
     type RoastProfileWithSource,
     type RoastSourceCandidate,
+    useProfileSourceHistory,
 } from '@entities/roast-profile';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import type { View } from '@shared/types/view';
@@ -23,7 +24,8 @@ export const ProfileStartButton = ({
     const { workspaceOwnerId } = useActiveWorkspace();
     const { data: beans = [], isSuccess: beansReady } = useBeans(workspaceOwnerId);
     const { data: blends = [], isSuccess: blendsReady } = useBlends(workspaceOwnerId);
-    const sources = profileSourceCandidates(profile, [], beans, blends);
+    const { data: history = [], isSuccess: historyReady } = useProfileSourceHistory(workspaceOwnerId, profile.id);
+    const sources = profileSourceCandidates(profile, history, beans, blends);
     const [open, setOpen] = useState(false);
     const start = (source?: RoastSourceCandidate) => {
         useRoastingStore.getState().setPendingProfile(profile.id, source);
@@ -36,7 +38,7 @@ export const ProfileStartButton = ({
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    disabled={!beansReady || !blendsReady}
+                    disabled={!beansReady || !blendsReady || !historyReady}
                     onClick={() => {
                         if (sources.length <= 1) start(sources[0]);
                     }}

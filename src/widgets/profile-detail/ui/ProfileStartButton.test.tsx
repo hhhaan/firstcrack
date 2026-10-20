@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import type { ProfileSource } from '@entities/roast-profile';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -6,7 +8,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProfileStartButton } from './ProfileStartButton';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-const inventory = vi.hoisted(() => ({ ready: true }));
+const inventory = vi.hoisted(() => {
+    const history: ProfileSource[] = [];
+    return { ready: true, history, historyReady: true };
+});
 vi.mock('@entities/bean/queries', () => ({
     useBeans: () => ({ data: [{ id: 'b1', name: 'Single' }], isSuccess: inventory.ready }),
 }));
@@ -14,6 +19,10 @@ vi.mock('@entities/blend', () => ({
     useBlends: () => ({ data: [{ id: 'x1', name: 'Modern' }], isSuccess: inventory.ready }),
 }));
 vi.mock('@entities/organization', () => ({ useActiveWorkspace: () => ({ workspaceOwnerId: 'owner' }) }));
+vi.mock('@entities/roast-profile', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@entities/roast-profile')>()),
+    useProfileSourceHistory: () => ({ data: inventory.history, isSuccess: inventory.historyReady }),
+}));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 describe('ProfileStartButton', () => {
@@ -40,6 +49,8 @@ describe('ProfileStartButton', () => {
         act(() => root?.unmount());
         host?.remove();
         inventory.ready = true;
+        inventory.history = [];
+        inventory.historyReady = true;
         onNavigate.mockClear();
         useRoastingStore.getState().reset();
     });
@@ -82,6 +93,41 @@ describe('ProfileStartButton', () => {
         act(() => button.click());
         expect(onNavigate).toHaveBeenCalledWith('roast');
         expect(useRoastingStore.getState().pendingProfileSource).toBeNull();
+    });
+
+    it('offers sources found only in previous roasts before navigating', () => {
+        inventory.history = [
+            { bean_id: 'b1', blend_id: null },
+            { bean_id: null, blend_id: 'x1' },
+        ];
+        const button = render([]);
+        act(() => button.click());
+        expect(onNavigate).not.toHaveBeenCalled();
+        const choices = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')];
+        expect(choices).toHaveLength(2);
+        act(() => choices[0].click());
+        expect(onNavigate).toHaveBeenCalledWith('roast');
+        expect(useRoastingStore.getState().pendingProfileSource).toEqual({
+            beanId: 'b1',
+            blendId: null,
+            name: 'Single',
+        });
+    });
+
+    it('automatically starts with the sole historical source', () => {
+        inventory.history = [{ bean_id: null, blend_id: 'x1' }];
+        const button = render([]);
+        act(() => button.click());
+        expect(onNavigate).toHaveBeenCalledWith('roast');
+        expect(useRoastingStore.getState().pendingProfileSource?.blendId).toBe('x1');
+    });
+
+    it('waits for history before deciding whether a choice is needed', () => {
+        inventory.historyReady = false;
+        const button = render([{ bean_id: 'b1', blend_id: null }]);
+        expect(button.disabled).toBe(true);
+        act(() => button.click());
+        expect(onNavigate).not.toHaveBeenCalled();
     });
 
     it('waits for inventory before deciding whether a choice is needed', () => {
