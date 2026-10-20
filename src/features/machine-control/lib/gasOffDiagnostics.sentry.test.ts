@@ -1,11 +1,11 @@
 import * as Sentry from '@sentry/react';
-import { createTransport } from '@sentry/react';
 import { i18n } from '@shared/i18n';
 import ko from '@shared/i18n/locales/ko.json';
 import { buildSentryOptions } from '@shared/lib/sentry';
 import { useToastStore } from '@shared/store/toast';
 import { afterEach, expect, it, vi } from 'vitest';
-import { createGasOffDiagnostics, type GasOffDiagnosticContext } from './gasOffDiagnostics';
+import { createSentryMemoryTransport, gasOffDiagnosticContext } from './controlDiagnostics.fixtures';
+import { createGasOffDiagnostics } from './gasOffDiagnostics';
 
 afterEach(async () => {
     vi.useRealTimers();
@@ -18,29 +18,14 @@ it('delivers consecutive incidents to the existing Sentry client with a stable i
     await i18n.init({ lng: 'ko', resources: { ko: { translation: ko } } });
     const events: Sentry.Event[] = [];
     Sentry.init({
-        dsn: 'https://public@errors.ingest.us.sentry.io/4511400857042944',
-        transport: (options) => createTransport(options, () => Promise.resolve({ statusCode: 200 })),
-        beforeSend: (event) => {
-            events.push(event);
-            return event;
-        },
+        ...buildSentryOptions(),
+        transport: () => createSentryMemoryTransport(events),
     });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.useFakeTimers();
     for (let batch = 1; batch <= 2; batch++) {
         const diagnostics = createGasOffDiagnostics();
-        const context: GasOffDiagnosticContext = {
-            sessionId: `batch-${batch}`,
-            roaster: 'giesen_w45a_w60a',
-            connectionEpoch: 1,
-            connected: true,
-            reconnecting: false,
-            heaterReadable: true,
-            elapsed: 570,
-            bt: 192,
-            receivedAtMs: Date.now(),
-            sample: { heater: 19, timestamp: 100 },
-        };
+        const context = gasOffDiagnosticContext(`batch-${batch}`);
         diagnostics.updateContext(context);
         diagnostics.dispatched({ heater: 0 }, { heater: 'replay' });
         diagnostics.applied({ heater: 0 }, { heater: 0 });
@@ -66,31 +51,12 @@ it('delivers separate response mismatches through SDK dedupe with a stable finge
     const events: Sentry.Event[] = [];
     Sentry.init({
         ...buildSentryOptions(),
-        transport: () => ({
-            send: async (envelope) => {
-                for (const [header, payload] of envelope[1]) {
-                    if (header.type === 'event') events.push(payload as Sentry.Event);
-                }
-                return { statusCode: 200 };
-            },
-            flush: async () => true,
-        }),
+        transport: () => createSentryMemoryTransport(events),
     });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     for (let batch = 1; batch <= 2; batch++) {
         const diagnostic = createGasOffDiagnostics();
-        diagnostic.updateContext({
-            sessionId: `batch-${batch}`,
-            roaster: 'giesen_w45a_w60a',
-            connectionEpoch: 1,
-            connected: true,
-            reconnecting: false,
-            heaterReadable: true,
-            elapsed: 570,
-            bt: 192,
-            receivedAtMs: Date.now(),
-            sample: { heater: 19, timestamp: 100 },
-        });
+        diagnostic.updateContext(gasOffDiagnosticContext(`batch-${batch}`));
         for (let retry = 0; retry < 3; retry++) {
             diagnostic.dispatched({ heater: 0 }, { heater: 'replay' });
             diagnostic.applied({ heater: 0 }, { heater: 7 });

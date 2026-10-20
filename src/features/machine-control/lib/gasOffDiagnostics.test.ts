@@ -3,20 +3,8 @@ import ko from '@shared/i18n/locales/ko.json';
 import { logger } from '@shared/lib/logger';
 import { useToastStore } from '@shared/store/toast';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createGasOffDiagnostics, type GasOffDiagnosticContext } from './gasOffDiagnostics';
-
-const context = (): GasOffDiagnosticContext => ({
-    sessionId: 'batch-1',
-    roaster: 'giesen_w45a_w60a',
-    connectionEpoch: 1,
-    connected: true,
-    reconnecting: false,
-    heaterReadable: true,
-    elapsed: 570,
-    bt: 192,
-    receivedAtMs: Date.now(),
-    sample: { heater: 19, timestamp: 100, sensor_clock: 'clock-1', stale: false },
-});
+import { gasOffDiagnosticContext as context } from './controlDiagnostics.fixtures';
+import { createGasOffDiagnostics } from './gasOffDiagnostics';
 
 describe('gas-off feedback diagnostics', () => {
     beforeAll(async () => {

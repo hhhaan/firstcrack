@@ -87,7 +87,7 @@ describe('Replay diagnostics preserve control behavior', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it.each(['timingGap', 'observationStale', 'writeFailed'] as const)(
-        'records %s once and allows explicit resume even when logging throws',
+        'preserves %s and explicit resume even when diagnostic capture throws',
         async (reason) => {
             const h = await renderReplay({ sessionId: 'batch-1', lastValidReceivedAtMs: 1000, nowMs: 1000 });
             if (reason === 'writeFailed') h.writeHeater.mockResolvedValueOnce(null);
@@ -105,15 +105,18 @@ describe('Replay diagnostics preserve control behavior', () => {
             expect(h.get().stopReason).toBe(reason);
             expect(h.get().firedCount).toBe(reason === 'writeFailed' ? 0 : 1);
             expect(h.writeHeater).toHaveBeenCalledTimes(1);
-            expect(logger.capture).toHaveBeenCalledExactlyOnceWith(
-                expect.objectContaining({ message: expect.stringContaining(`Replay stopped: ${reason}`) }),
-                expect.objectContaining({
-                    fingerprint: ['replay-stopped', reason],
-                    extra: expect.objectContaining({ sessionId: 'batch-1' }),
-                }),
-            );
+            const reports = reason === 'writeFailed' ? 0 : 1;
+            if (reports > 0)
+                expect(logger.capture).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({ message: expect.stringContaining(`Replay stopped: ${reason}`) }),
+                    expect.objectContaining({
+                        fingerprint: ['replay-stopped', reason],
+                        extra: expect.objectContaining({ sessionId: 'batch-1' }),
+                    }),
+                );
+            else expect(logger.capture).not.toHaveBeenCalled();
             await h.rerender({ elapsed: 31, lastValidReceivedAtMs: 8000, nowMs: 8000 });
-            expect(logger.capture).toHaveBeenCalledTimes(1);
+            expect(logger.capture).toHaveBeenCalledTimes(reports);
             expect(h.writeHeater).toHaveBeenCalledTimes(1);
             await act(async () => h.get().toggle());
             expect(h.get().active).toBe(true);

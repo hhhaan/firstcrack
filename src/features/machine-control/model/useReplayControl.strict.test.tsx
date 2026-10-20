@@ -4,6 +4,7 @@ import { buildSentryOptions } from '@shared/lib/sentry';
 import { act, createElement, type ReactElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
+import { createSentryMemoryTransport } from '../lib/controlDiagnostics.fixtures';
 import type { ReplayPoint } from '../lib/replay';
 import { type ReplayControlInputs, useReplayControl } from './useReplayControl';
 
@@ -46,15 +47,7 @@ describe('useReplayControl render loop', () => {
         const events: Sentry.Event[] = [];
         Sentry.init({
             ...buildSentryOptions(),
-            transport: () => ({
-                send: async (envelope) => {
-                    for (const [header, payload] of envelope[1]) {
-                        if (header.type === 'event') events.push(payload as Sentry.Event);
-                    }
-                    return { statusCode: 200 };
-                },
-                flush: async () => true,
-            }),
+            transport: () => createSentryMemoryTransport(events),
         });
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         const writeHeater = vi.fn(async (value: number) => value);
