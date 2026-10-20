@@ -13,6 +13,7 @@ export interface DetermineStockDeductionParams {
     planBatchHandoff: PlanBatchHandoff | null;
     saveWeight: number;
     selectedBeanId: string | null;
+    selectedBlendId?: string | null;
     referenceId: string;
     handoffBeanName: string | null;
 }
@@ -28,7 +29,7 @@ export const determineStockDeduction = (params: DetermineStockDeductionParams): 
               ? Math.round(planBatchHandoff.batchSizeKg * 1000)
               : 0;
 
-    const blendId = planBatchHandoff?.blendId ?? null;
+    const blendId = planBatchHandoff?.blendId ?? params.selectedBlendId ?? null;
     const canDeduct = deductionGrams > 0 && Boolean(selectedBeanId || blendId);
 
     if (!canDeduct) {
@@ -39,7 +40,7 @@ export const determineStockDeduction = (params: DetermineStockDeductionParams): 
 
     return {
         deductionGrams,
-        singleBeanId: selectedBeanId,
+        singleBeanId: blendId ? null : selectedBeanId,
         blendId,
         referenceId,
         beanName,

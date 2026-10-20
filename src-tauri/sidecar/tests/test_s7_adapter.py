@@ -54,6 +54,9 @@ def adapter():
     plc.get_connected.return_value = True
     plc.get_cpu_state.return_value = "S7CpuStatusRun"
     plc.db_read.return_value = _int_bytes(0)
+    registers: dict[tuple[int, int], bytearray] = {}
+    plc.db_write.side_effect = lambda db, offset, payload: registers.update({(db, offset): bytearray(payload)})
+    plc.db_read.side_effect = lambda db, offset, size: registers.get((db, offset), plc.db_read.return_value)
     a._plc = plc
     a._min_interval = 0.0  # 스로틀은 이 테스트의 대상이 아님
     # connect()가 채우는 채널 캐시 — 없으면 read()가 db_read를 한 번도 부르지 않는다

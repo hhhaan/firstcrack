@@ -84,11 +84,11 @@ Artisan는 TP·FC 같은 이벤트 이후 상대 시간 알림과 알림 세트 
 
 ### 6. 단축키와 제어 단위
 
-단축키 재지정은 화면의 키 안내와 실제 동작을 함께 바꾸고 충돌을 검사해야 한다. 현재 Drop의 두 번 누르기와 모달·세션 상태에 따른 활성화 조건은 유지한다.
+단축키 재지정은 화면의 키 안내와 실제 동작을 함께 바꾸고 충돌을 검사해야 한다. Drop은 이제 한 번 누르기(`⌘⇧D` 기본)이며, 로스팅 중에는 창이 비활성이어도 기록되도록 OS 전역 단축키로 잡고 로스팅이 끝나면 즉시 놓는다. 모달·세션 상태에 따른 활성화 조건은 그대로다.
 
 장비 제어 단위는 화면 개인화보다 후순위다. 지원 장비의 허용 범위·해상도 안에서 조작 단위만 고르게 하고, 실제 제어 한계를 사용자 설정으로 덮어쓰지 않는다.
 
-근거: [단축키·Drop 이중 입력](../../src/features/active-roast/model/useRoastKeyboardShortcuts.ts#L56), [Fan/Drum 증감 단위](../../src/features/machine-control/ui/ChannelChip.tsx#L41).
+근거: [단축키·Drop 전역 등록](../../src/features/active-roast/model/useGlobalDropShortcut.ts), [Fan/Drum 증감 단위](../../src/features/machine-control/ui/ChannelChip.tsx#L41).
 
 목표 허용 범위·ΔBT/ΔET 구간·단축키 재지정은 현재 앱 코드에서 찾은 자체 제안이다. 이번 조사에서 경쟁사의 동일 설정 제공 여부까지 확인하지는 않았다.
 

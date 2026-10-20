@@ -14,7 +14,7 @@ import {
     TIME_X_INTERVAL_SEC,
     Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
-import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { toDisplayRoR, toDisplayTemp, toDisplayTempDelta } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
 import type { TemperatureUnit } from '../../model/settings';
@@ -108,6 +108,18 @@ const formatTick = (value: number): string => String(Number(value.toFixed(6)));
 const matchesTick = (value: number, interval: number): boolean =>
     Math.abs(value / interval - Math.round(value / interval)) < 1e-6;
 
+const ticksFromInterval = (min: number, max: number, interval: number): number[] => {
+    if (!(interval > 0) || !Number.isFinite(min) || !Number.isFinite(max) || max < min) return [];
+    const start = Math.ceil(min / interval - 1e-9) * interval;
+    const ticks: number[] = [];
+    for (let i = 0; i < 1000; i += 1) {
+        const value = Number((start + i * interval).toFixed(6));
+        if (value > max + 1e-9) break;
+        ticks.push(value);
+    }
+    return ticks;
+};
+
 const reportTimeIntervalSec = (durationSec: number): number => {
     if (durationSec <= 60) return 5;
     if (durationSec <= 180) return 15;
@@ -130,18 +142,41 @@ export const applyChartAxisSettings = (
     const rorAxis = (Array.isArray(axes.yAxis) ? axes.yAxis : []).find(
         (axis) => axis.gridIndex === 0 && axis.position === 'right',
     );
+    const gridInterval = settings.horizontalGridInterval
+        ? toDisplayTempDelta(settings.horizontalGridInterval, temperatureUnit)
+        : 0;
     if (rorAxis?.type === 'value') {
+        const numberInterval = toDisplayRoR(settings.rorLabelInterval ?? 5, temperatureUnit);
+        rorAxis.splitLine = { ...rorAxis.splitLine, show: false };
+        if (numberInterval > 0) {
+            rorAxis.interval = numberInterval;
+            rorAxis.minInterval = numberInterval;
+            rorAxis.maxInterval = numberInterval;
+            const pointer = rorAxis.axisPointer;
+            if (pointer && typeof pointer === 'object') {
+                pointer.label = {
+                    ...pointer.label,
+                    formatter: (p: { value: unknown }) => {
+                        const n = Number(p.value);
+                        if (!Number.isFinite(n)) return '';
+                        return formatTick(Math.round(n / numberInterval) * numberInterval);
+                    },
+                };
+            }
+        }
         const ticks = settings.rorTicksC?.map((value) => Number(toDisplayRoR(value, temperatureUnit).toFixed(6)));
         const customValues = ticks?.length ? ticks : undefined;
-        rorAxis.axisTick = { ...rorAxis.axisTick, customValues };
-        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true };
+        rorAxis.axisTick = { ...rorAxis.axisTick, customValues, show: Boolean(customValues) };
+        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true, verticalAlign: 'middle' };
         if (customValues) {
             rorAxis.axisLabel.formatter = formatTick;
-        } else if (settings.rorGridInterval && settings.rorGridInterval > 0) {
-            rorAxis.interval = toDisplayRoR(settings.rorGridInterval, temperatureUnit);
-            const step = Number(rorAxis.interval) * (settings.rorLabelEvery || 1);
+        } else if (numberInterval > 0) {
+            const step = numberInterval;
             rorAxis.axisLabel = {
                 ...rorAxis.axisLabel,
+                customValues: ticksFromInterval(Number(rorAxis.min), Number(rorAxis.max), step),
+                hideOverlap: true,
+                verticalAlign: 'middle',
                 formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
             };
         }
@@ -165,24 +200,25 @@ export const applyChartAxisSettings = (
         (axis) => axis.gridIndex === 0 && axis.position !== 'right',
     );
     if (temperatureAxis?.type !== 'value') return;
+    temperatureAxis.splitLine = { ...temperatureAxis.splitLine, show: true };
+    if (gridInterval > 0) {
+        temperatureAxis.interval = gridInterval;
+        temperatureAxis.minInterval = gridInterval;
+        temperatureAxis.maxInterval = gridInterval;
+    }
     const ticks = settings.tempTicksC?.map((value) => toDisplayTemp(value, temperatureUnit));
-    const customValues = ticks?.length ? ticks : undefined;
-    temperatureAxis.axisTick = { ...temperatureAxis.axisTick, customValues };
-    temperatureAxis.axisLabel = { ...temperatureAxis.axisLabel, customValues, hideOverlap: true };
-    if (customValues) {
-        temperatureAxis.axisLabel.formatter = formatTick;
-        return;
-    }
-    if (settings.tempGridInterval > 0) {
-        temperatureAxis.interval = settings.tempGridInterval;
-    }
-    if (settings.tempLabelEvery > 0 || settings.tempGridInterval > 0) {
-        const interval = Number(temperatureAxis.interval) * (settings.tempLabelEvery || 1);
-        temperatureAxis.axisLabel = {
-            ...temperatureAxis.axisLabel,
-            formatter: (value: number) => (matchesTick(value, interval) ? formatTick(value) : ''),
-        };
-    }
+    const customValues = ticks?.length
+        ? ticks
+        : ticksFromInterval(Number(temperatureAxis.min), Number(temperatureAxis.max), settings.tempLabelInterval);
+    temperatureAxis.axisTick = { ...temperatureAxis.axisTick, customValues: ticks?.length ? ticks : undefined };
+    temperatureAxis.axisLabel = {
+        ...temperatureAxis.axisLabel,
+        customValues,
+        hideOverlap: true,
+        verticalAlign: 'middle',
+        formatter: (value: number) =>
+            ticks?.length || matchesTick(value, settings.tempLabelInterval) ? formatTick(value) : '',
+    };
 };
 
 export const applyReportAxes = (
@@ -190,7 +226,7 @@ export const applyReportAxes = (
     colors: ResolvedChartColors,
     durationSec: number,
     temperatureUnit: TemperatureUnit,
-    tempGridInterval = 0,
+    tempIntervalOverride = 0,
 ) => {
     for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
         axis.axisLine = { show: false };
@@ -211,7 +247,7 @@ export const applyReportAxes = (
             axis.interval = axis.position === 'right' && axis.gridIndex === 0 ? (temperatureUnit === 'F' ? 10 : 5) : 50;
             if (axis.gridIndex === 0 && axis.position !== 'right') {
                 const span = Number(axis.max) - Number(axis.min);
-                axis.interval = reportTempInterval(span, tempGridInterval);
+                axis.interval = reportTempInterval(span, tempIntervalOverride);
                 axis.min = Math.floor(Number(axis.min) / axis.interval) * axis.interval;
                 axis.max = Math.ceil(Number(axis.max) / axis.interval) * axis.interval;
                 axis.axisLabel = { ...axis.axisLabel, formatter: (value: number) => String(Math.round(value)) };
@@ -344,7 +380,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             axisTick: { show: false },
             axisLabel: rightYAxisLabel,
             axisPointer: yAxisPointer,
-            splitLine: { show: false },
+            splitLine: { show: false, lineStyle: { color: colors.gridLine, width: 0.5 } },
             min: rorYMin,
             max: rorYMax,
             interval: 20,
@@ -440,6 +476,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
             min: xMin,
             max: xMax,
             axisLabel: { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
+            axisLine: { onZero: false },
             axisPointer: xAxisPointer,
             interval: TIME_X_INTERVAL_SEC,
             minorTick: { show: false, splitNumber: AXIS_MINOR_SPLIT_NUMBER },
@@ -478,7 +515,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
             axisTick: { show: false },
             axisLabel: rightYAxisLabel,
             axisPointer: yAxisPointer,
-            splitLine: { show: false },
+            splitLine: { show: false, lineStyle: { color: colors.gridLine } },
             min: rorYMin,
             max: rorYMax,
             interval: 20,

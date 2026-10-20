@@ -1,4 +1,4 @@
-import type { SessionSummary } from '@entities/roast-profile';
+import type { ProfileSource, SessionSummary } from '@entities/roast-profile';
 import { formatDuration } from '@shared/lib/format';
 import type { Bean } from '@shared/types/database.types';
 import { FormSelect } from '@shared/ui/FormSelect';
@@ -14,7 +14,7 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { Check, ChevronRight, History, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fmtDate } from '../lib/format';
-import { type ProfileDefaultType, type ProfileFormState, ROAST_LEVELS } from '../lib/types';
+import { type ProfileFormState, ROAST_LEVELS } from '../lib/types';
 import { ProfileCurveSummary } from './ProfileCurveSummary';
 import { ProfileDefaultSourceFields } from './ProfileDefaultSourceFields';
 
@@ -38,12 +38,8 @@ type ProfileFormBodyProps = {
     summary: SessionSummary | null;
     beans: Bean[];
     blends: BlendOption[];
-    defaultType: ProfileDefaultType;
-    setDefaultType: (t: ProfileDefaultType) => void;
-    defaultBeanId: string | null;
-    setDefaultBeanId: (id: string | null) => void;
-    defaultBlendId: string | null;
-    setDefaultBlendId: (id: string | null) => void;
+    sources: ProfileSource[];
+    setSources: (sources: ProfileSource[]) => void;
     /** Back to the session list; absent when editing (the source session is fixed). */
     onBack?: () => void;
     onClose: () => void;
@@ -61,12 +57,8 @@ export const ProfileFormBody = ({
     summary,
     beans,
     blends,
-    defaultType,
-    setDefaultType,
-    defaultBeanId,
-    setDefaultBeanId,
-    defaultBlendId,
-    setDefaultBlendId,
+    sources,
+    setSources,
     onBack,
     onClose,
     onSubmit,
@@ -167,12 +159,8 @@ export const ProfileFormBody = ({
                     <ProfileDefaultSourceFields
                         beans={beans}
                         blends={blends}
-                        defaultType={defaultType}
-                        setDefaultType={setDefaultType}
-                        defaultBeanId={defaultBeanId}
-                        setDefaultBeanId={setDefaultBeanId}
-                        defaultBlendId={defaultBlendId}
-                        setDefaultBlendId={setDefaultBlendId}
+                        sources={sources}
+                        setSources={setSources}
                     />
                 </div>
             </div>

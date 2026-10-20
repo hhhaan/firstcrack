@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type ControlCommand, createControlSender, settledRoles } from './controlSender';
+import { type ControlCommand, type ControlSendObserver, createControlSender, settledRoles } from './controlSender';
 
 /** 수동으로 resolve하는 send — in-flight 구간을 정확히 제어하기 위해 */
 const deferredSend = () => {
@@ -70,6 +70,57 @@ describe('settledRoles', () => {
 describe('createControlSender', () => {
     beforeEach(() => {
         vi.useFakeTimers();
+    });
+
+    it('observes only dispatched commands with the origin of each merged role', async () => {
+        const d = deferredSend();
+        const observer = { dispatched: vi.fn(), applied: vi.fn(), failed: vi.fn() } satisfies ControlSendObserver;
+        const sender = createControlSender({ send: d.send, observer });
+        sender.queue('heater', 50);
+        const first = sender.commitNow('manual');
+        sender.queue('heater', 0);
+        const second = sender.commitNow('replay');
+        sender.queue('fan', 70);
+        const third = sender.commitNow('manual');
+        expect(observer.dispatched).toHaveBeenCalledExactlyOnceWith({ heater: 50 }, { heater: 'manual' });
+        d.resolve();
+        await first;
+        expect(observer.dispatched).toHaveBeenLastCalledWith(
+            { heater: 0, fan: 70 },
+            { heater: 'replay', fan: 'manual' },
+        );
+        expect(observer.applied).toHaveBeenCalledWith({ heater: 50 }, { heater: 50 });
+        d.resolve();
+        await Promise.all([second, third]);
+        expect(observer.applied).toHaveBeenLastCalledWith({ heater: 0, fan: 70 }, { heater: 0, fan: 70 });
+    });
+
+    it('never observes cancelled queued commands or acknowledges an obsolete generation', async () => {
+        const d = deferredSend();
+        const observer = { dispatched: vi.fn(), applied: vi.fn(), failed: vi.fn() } satisfies ControlSendObserver;
+        const sender = createControlSender({ send: d.send, observer });
+        sender.queue('heater', 50);
+        const first = sender.commitNow();
+        sender.queue('heater', 0);
+        const queued = sender.commitNow('replay');
+        sender.cancelUnsent({ origin: 'replay', role: 'heater' });
+        sender.dispose();
+        d.resolve();
+        await Promise.all([first, queued]);
+        expect(observer.dispatched).toHaveBeenCalledTimes(1);
+        expect(observer.applied).not.toHaveBeenCalled();
+    });
+
+    it('isolates diagnostic observer failures from the command and its acknowledgement', async () => {
+        const fail = () => {
+            throw new Error('observer failure');
+        };
+        const sender = createControlSender({
+            send: async (cmd) => cmd,
+            observer: { dispatched: fail, applied: fail, failed: fail },
+        });
+        sender.queue('heater', 0);
+        await expect(sender.commitNow('replay')).resolves.toEqual({ heater: 0 });
     });
 
     it('드래그 중간값은 기기로 나가지 않는다 — 손을 뗄 때 마지막 값 하나만', async () => {
@@ -759,6 +810,63 @@ describe('createControlSender 미전송 Replay heater 취소 (#368 R03)', () => 
         await expect(pHeater).resolves.toEqual({ heater: 10 });
         expect(d.calls).toEqual([{ heater: 10 }, { fan: 80, drum: 40 }]);
         expect(d.calls.some((cmd) => cmd.heater === 50)).toBe(false);
+    });
+});
+
+describe('guarded Replay retries share the control queue', () => {
+    it('keeps a retry separate from queued fan and drum commands', async () => {
+        const deferred = deferredSend();
+        const send = vi.fn(deferred.send);
+        const sender = createControlSender({ send });
+        sender.queue('fan', 40);
+        const first = sender.commitNow();
+        sender.queue('heater', 0);
+        const retry = sender.commitNow('replay', { connectionEpoch: 7 });
+        sender.queue('drum', 55);
+        const last = sender.commitNow();
+        deferred.resolve();
+        await first;
+        expect(send).toHaveBeenLastCalledWith({ heater: 0 }, { connectionEpoch: 7 });
+        deferred.resolve();
+        await retry;
+        expect(send).toHaveBeenLastCalledWith({ drum: 55 });
+        deferred.resolve();
+        await last;
+        expect(deferred.calls).toEqual([{ fan: 40 }, { heater: 0 }, { drum: 55 }]);
+    });
+
+    it('does not commit a fan drag draft when retrying heater', async () => {
+        const deferred = deferredSend();
+        const sender = createControlSender({ send: deferred.send });
+        sender.queue('fan', 42);
+        sender.queue('heater', 0);
+        const retry = sender.commitNow('replay', { connectionEpoch: 7 });
+        expect(deferred.calls).toEqual([{ heater: 0 }]);
+        deferred.resolve();
+        await retry;
+        const manual = sender.commitNow();
+        expect(deferred.calls).toEqual([{ heater: 0 }, { fan: 42 }]);
+        deferred.resolve();
+        await manual;
+    });
+
+    it('cancels a queued retry when a manual heater command replaces it', async () => {
+        const deferred = deferredSend();
+        const send = vi.fn(deferred.send);
+        const sender = createControlSender({ send });
+        sender.queue('fan', 40);
+        const first = sender.commitNow();
+        sender.queue('heater', 0);
+        const retry = sender.commitNow('replay', { connectionEpoch: 7 });
+        sender.queue('heater', 30);
+        const manual = sender.commitNow();
+        await expect(retry).resolves.toBeNull();
+        deferred.resolve();
+        await first;
+        expect(send).toHaveBeenLastCalledWith({ heater: 30 });
+        deferred.resolve();
+        await manual;
+        expect(deferred.calls).toEqual([{ fan: 40 }, { heater: 30 }]);
     });
 });
 

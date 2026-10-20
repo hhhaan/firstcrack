@@ -5,9 +5,13 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, expect, it, vi } from 'vitest';
 import { RoastHeader } from './RoastHeader';
 
+vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', name: 'Modern' }] }) }));
+
 vi.mock('@entities/bean/queries', () => ({
     useBeans: () => ({ data: [] }),
 }));
+
+vi.mock('@features/active-roast/model/useBatchNumber', () => ({ useBatchNumber: () => 1 }));
 
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'user-1' }),
@@ -62,6 +66,19 @@ const props = {
     onTargetProfileChange: () => {},
     onBeanChange: () => {},
 };
+
+it.each([
+    { targetProfileId: null, historyReferenceName: null, visible: false },
+    { targetProfileId: 'missing', historyReferenceName: null, visible: false },
+    { targetProfileId: 'prof-1', historyReferenceName: null, visible: true },
+    { targetProfileId: null, historyReferenceName: 'Reference roast', visible: true },
+])('shows the batch number only for a resolved target: %j', ({ visible, ...target }) => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastHeader, { ...props, ...target })));
+    expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]') != null).toBe(visible);
+    act(() => root.unmount());
+});
 
 it('renders reconnecting status when store.reconnecting is true', () => {
     useRoastingStore.setState({ reconnecting: true });
@@ -154,5 +171,18 @@ it('hides reconnecting status when store.reconnecting is false', () => {
     const root = createRoot(host);
     act(() => root.render(createElement(RoastHeader, props)));
     expect(host.querySelector('[role="status"]')).toBeNull();
+    act(() => root.unmount());
+});
+
+it('shows a grouped blend option and selects the recipe independently of beans', () => {
+    const onBlendChange = vi.fn();
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastHeader, { ...props, selectedBlendId: 'blend-1', onBlendChange })));
+    const select = host.querySelector('select');
+    expect(select?.value).toBe('blend:blend-1');
+    expect(host.textContent).toContain('Modern');
+    act(() => select?.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(onBlendChange).toHaveBeenCalledWith('blend-1', 'Modern');
     act(() => root.unmount());
 });

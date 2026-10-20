@@ -1,5 +1,6 @@
+import { invalidateAfterRoastRecordEdit } from '@entities/roast/queries';
 import type { RoastProfile } from '@shared/types/database.types';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryCache, QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 import type { RoastProfileWithSource } from './api';
 import { applyCreatedRoastProfileCache, applyUpdatedRoastProfileCache, roastProfileKeys } from './queries';
@@ -74,10 +75,33 @@ describe('roast profile mutation cache (#471)', () => {
             target_level: 'Medium-Light',
             source_session: existing.source_session,
         });
-        expect(qc.getQueryData(roastProfileKeys.detail('p1'))).toMatchObject({
-            name: 'QA Smoke 0917b',
-            target_level: 'Medium-Light',
-        });
         expect(qc.getQueryState(roastProfileKeys.all(uid))?.isInvalidated).toBe(true);
+    });
+
+    it('profile update + history record edit does not refetch an orphan detail cache (FC-27)', async () => {
+        const missingQueryFnErrors: string[] = [];
+        const qc = new QueryClient({
+            defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+            queryCache: new QueryCache({
+                onError: (error) => {
+                    if (String(error).includes('Missing queryFn')) {
+                        missingQueryFnErrors.push(String(error));
+                    }
+                },
+            }),
+        });
+        const rows = [listRow({ id: 'p1' })];
+        await qc.fetchQuery({
+            queryKey: roastProfileKeys.all(uid),
+            queryFn: async () => rows,
+            staleTime: Infinity,
+        });
+
+        applyUpdatedRoastProfileCache(qc, uid, profile({ id: 'p1', name: 'Renamed' }));
+
+        await invalidateAfterRoastRecordEdit(qc, uid);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(missingQueryFnErrors).toEqual([]);
     });
 });

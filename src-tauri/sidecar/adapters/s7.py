@@ -4,6 +4,7 @@ import socket
 import threading
 import time
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import config
@@ -11,6 +12,10 @@ from adapters.base import Reading
 from protocol_trace import TRACE
 
 _log = logging.getLogger(__name__)
+
+
+class CommandReadbackMismatch(IOError):
+    """Fresh command bytes differ; a retry may write again while it still owns control."""
 
 
 def _client_alive(plc: Any) -> bool:
@@ -425,13 +430,34 @@ class S7Adapter:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, _read_one)
 
+    def _confirm_command_bytes(
+        self,
+        role: str,
+        target: dict[str, Any],
+        command_payload: bytearray,
+        connection: Any,
+    ) -> None:
+        """이미 쓴 설정 셀을 새로 읽어 확인한다. 실측 채널이나 캐시는 쓰지 않는다."""
+        block_number = target["db"]
+        start_byte = target["offset"]
+        self._throttle()
+        TRACE.record("tx", "s7", f"write_readback db={block_number} offset={start_byte} role={role}")
+        observed_payload = bytes(connection.db_read(block_number, start_byte, len(command_payload)))
+        TRACE.record("rx", "s7", f"write_readback db={block_number} offset={start_byte} role={role}", observed_payload)
+        # raw 0(AUTO)을 논리 0으로 clamp해 성공 처리하지 않도록 인코딩 바이트로 비교한다.
+        if observed_payload != bytes(command_payload):
+            TRACE.record("err", "s7", f"write_readback mismatch role={role}")
+            raise CommandReadbackMismatch(f"S7 설정값 확인 불일치: role={role}")
+
     def _write_channel_sync(
-        self, role: str, spec: dict[str, Any], value: float, plc: Any
+        self, role: str, spec: dict[str, Any], value: float, plc: Any,
+        *, confirm_first: bool = False, check_current: Callable[[], None] | None = None,
     ) -> int | float:
         """스레드에서 실행. clamp → div 역스케일 → value_offset → 인코딩 → db_write.
 
         읽기의 역순이다(읽기는 ÷10/÷100, 쓰기는 ×10/×100).
-        반환값은 PLC에 실제로 쓴 raw 값.
+        verify_readback 맵은 같은 셀을 새로 읽어 인코딩 바이트까지 확인한다.
+        반환값은 PLC에 쓴 raw 값이며 실측 화력 확인은 아니다.
         """
         from snap7.util.setters import set_int, set_real  # type: ignore[import]
 
@@ -462,22 +488,36 @@ class S7Adapter:
         raw: int | float
         if ch_type == 1:
             raw = float(scaled)
-            ba = bytearray(4)
-            set_real(ba, 0, raw)
+            command_payload = bytearray(4)
+            set_real(command_payload, 0, raw)
         else:
             raw = int(round(scaled))
             if not (self._INT16_MIN <= raw <= self._INT16_MAX):
                 raise ValueError(f"INT16 범위 초과: role={role} raw={raw}")
-            ba = bytearray(2)
-            set_int(ba, 0, raw)
+            command_payload = bytearray(2)
+            set_int(command_payload, 0, raw)
 
+        if confirm_first and spec.get("verify_readback") is True:
+            try:
+                self._confirm_command_bytes(role, spec, command_payload, plc)
+            except CommandReadbackMismatch:
+                # A fresh mismatch permits one resend; read failures do not.
+                pass
+            else:
+                return raw
+        if check_current is not None:
+            check_current()
         self._throttle()
         TRACE.record(
             "tx", "s7",
             f"db_write db={db} offset={offset} role={role} value={value} raw={raw}",
-            bytes(ba),
+            bytes(command_payload),
         )
-        plc.db_write(db, offset, ba)
+        if check_current is not None:
+            check_current()
+        plc.db_write(db, offset, command_payload)
+        if spec.get("verify_readback") is True:
+            self._confirm_command_bytes(role, spec, command_payload, plc)
         return raw
 
     async def control(
@@ -485,6 +525,9 @@ class S7Adapter:
         heater: float | None = None,
         fan: float | None = None,
         drum: float | None = None,
+        *,
+        _confirm_first: bool = False,
+        _is_current: Callable[[], bool] | None = None,
     ) -> None:
         """write_map에 매핑된 role만 PLC에 쓴다.
 
@@ -501,23 +544,37 @@ class S7Adapter:
             return
         if self._plc is None:
             raise ConnectionError("S7 PLC가 연결되지 않음")
+        plc = self._plc
+        session = self._session
+
+        def _check_session() -> None:
+            if session != self._session or plc is not self._plc:
+                raise ConnectionError("S7 제어 중 연결이 변경되었습니다.")
+            if _is_current is not None and not _is_current():
+                raise ConnectionError("S7 재시도 중 제어권이 변경되었습니다.")
 
         def _write_all() -> None:
-            # 최악: 락 0.5s + (스로틀 0.04 + RecvTimeout 0.5) = 1.04s.
-            # PID tick이 느린 read와 경합해도 WRITE_FAIL 누적 대신 1회 실패로 끝난다.
+            # One delivery attempt; Replay owns the bounded retry schedule.
             if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 획득 실패 — 이전 요청이 아직 진행 중입니다.")
             try:
-                plc = self._plc
-                if plc is None:  # 사전 검사 이후 disconnect된 경우
-                    raise ConnectionError("S7 PLC가 연결되지 않음")
+                # 락을 기다리던 구 연결의 명령이 새 PLC에 쓰이지 않게 한다.
+                _check_session()
                 for role, spec, value in targets:
-                    self._write_channel_sync(role, spec, value, plc)
+                    self._write_channel_sync(
+                        role, spec, value, plc,
+                        confirm_first=_confirm_first, check_current=_check_session,
+                    )
+                    _check_session()
             finally:
                 self._io_lock.release()
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _write_all)
+
+    async def retry_control(self, heater: float, is_current: Callable[[], bool]) -> None:
+        """Confirm a possibly applied command before deciding whether to send it again."""
+        await self.control(heater=heater, _confirm_first=True, _is_current=is_current)
 
     @property
     def write_map(self) -> dict[str, dict[str, Any]]:

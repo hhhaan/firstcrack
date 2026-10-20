@@ -1,10 +1,10 @@
-import { sessionBeanName } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
@@ -56,10 +56,17 @@ type Column = {
 const columnsFor = (unit: TemperatureUnit): Column[] => [
     { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
     {
+        key: null,
+        label: 'roastTitle',
+        width: '180px',
+        sortable: false,
+        render: (s) => sessionRoastTitle(s) || '—',
+    },
+    {
         key: 'bean',
         label: 'Bean',
         sortable: true,
-        render: (s) => s.bean_label?.trim() || sessionBeanName(s) || '—',
+        render: (s) => s.beans?.name?.trim() || '—',
     },
     {
         key: 'profile',
@@ -217,7 +224,8 @@ export const HistoryTable = ({
     const colLabel = (key: string) => {
         const map: Record<string, string> = {
             date: t('history.table.date'),
-            bean: t('history.table.bean'),
+            bean: t('activeRoast.summary.bean'),
+            roastTitle: t('history.recordText.title'),
             profile: t('history.table.profile'),
             weight: t('history.table.weight'),
             charge: t('history.table.chargeTemp'),

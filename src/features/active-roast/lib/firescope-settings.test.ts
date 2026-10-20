@@ -62,14 +62,13 @@ describe('Firescope graph mapping', () => {
             timeTickIntervalSec: 60,
             timeTickCustom: false,
             timeMinorTickIntervalSec: 15,
-            tempAxisMode: 'list',
             tempTickMode: 'interval',
-            tempLabelCustom: true,
-            tempGridInterval: 10,
-            tempLabelEvery: 5,
+            tempLabelInterval: 50,
         });
         expect(
-            fields.filter((item) => !item.field.startsWith('indicator.')).every((item) => item.status === 'mapped'),
+            fields
+                .filter((item) => !item.field.startsWith('indicator.') && item.field !== 'yAxisSubScaleUnit')
+                .every((item) => item.status === 'mapped'),
         ).toBe(true);
     });
 
@@ -87,13 +86,12 @@ describe('Firescope graph mapping', () => {
             null,
         );
         expect(patch).not.toHaveProperty('timeMinorTickIntervalSec');
-        expect(patch).not.toHaveProperty('tempGridInterval');
+        expect(patch).not.toHaveProperty('tempLabelInterval');
         expect(patch).not.toHaveProperty('showRoRET');
         expect(patch).not.toHaveProperty('curveStyles');
         expect(fields.filter((item) => item.status === 'invalid').map((item) => item.field)).toEqual([
             'xAxisSubScaleUnit',
             'yAxisScaleUnit',
-            'yAxisSubScaleUnit',
             'burnerLineColor',
             'etRorLineVisible',
         ]);
@@ -103,7 +101,7 @@ describe('Firescope graph mapping', () => {
             normalizeRoastSettings({}),
             null,
         );
-        expect(unknownUnit.patch).not.toHaveProperty('tempGridInterval');
+        expect(unknownUnit.patch).not.toHaveProperty('tempLabelInterval');
     });
 
     it('converts Fahrenheit bounds and seconds while activating custom range and preset ticks', () => {

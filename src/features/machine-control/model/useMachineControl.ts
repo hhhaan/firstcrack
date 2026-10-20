@@ -7,7 +7,9 @@ import { convergeTolerance } from '../lib/controlScale';
 import {
     type ControlCommand,
     type ControlOrigin,
+    type ControlRetry,
     type ControlRole,
+    type ControlSendObserver,
     createControlSender,
     settledRoles,
 } from '../lib/controlSender';
@@ -43,6 +45,7 @@ export const useMachineControl = (
     feedback: MachineFeedback,
     onCommitted?: (committed: ControlCommand) => void,
     onApplied?: (applied: ControlCommand) => void,
+    observer?: ControlSendObserver,
 ) => {
     const [connectionStatus, setConnectionStatus] = useState<SidecarStatus | null>(null);
     const capability = connectionStatus?.control;
@@ -57,10 +60,12 @@ export const useMachineControl = (
     const sender = useMemo(
         () =>
             createControlSender({
-                send: async (cmd) => (await sidecar.setControl(cmd)).applied,
+                send: async (cmd, retry) =>
+                    (await (retry ? sidecar.setControl(cmd, retry) : sidecar.setControl(cmd))).applied,
                 onApplied: (applied) => setTracking((t) => ({ ...t, desired: { ...t.desired, ...applied } })),
-                onError: (err) => {
+                onError: (err, origins) => {
                     logger.capture(err, { feature: 'machine-control', action: 'setControl' });
+                    if (origins?.heater === 'replay') return;
                     useToastStore
                         .getState()
                         .show(err instanceof Error ? err.message : '제어 명령을 보내지 못했습니다.', 'error');
@@ -71,6 +76,7 @@ export const useMachineControl = (
     );
 
     useEffect(() => sender.setOnCommitted(onCommitted), [onCommitted, sender]);
+    useEffect(() => sender.setObserver(observer), [observer, sender]);
     const handleApplied = useCallback(
         (applied: ControlCommand) => {
             setTracking((t) => ({ ...t, desired: { ...t.desired, ...applied } }));
@@ -168,7 +174,10 @@ export const useMachineControl = (
     );
 
     /** 전송 성공 여부 — 슬라이더는 무시하고, Replay는 실패 시 이벤트를 보존한다 (#312) */
-    const commitNow = useCallback((origin?: ControlOrigin) => sender.commitNow(origin), [sender]);
+    const commitNow = useCallback(
+        (origin?: ControlOrigin, retry?: ControlRetry) => sender.commitNow(origin, retry),
+        [sender],
+    );
     /** 미전송 Replay heater만 — fan/drum·수동·DROP zero는 남긴다 (#368 R03) */
     const cancelUnsentReplayHeater = useCallback(() => {
         const cancelled = sender.cancelUnsent({ origin: 'replay', role: 'heater' });

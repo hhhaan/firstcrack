@@ -33,6 +33,123 @@ export type Database = {
     };
     public: {
         Tables: {
+            polar_notification_outbox: {
+                Row: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    payload: Json;
+                    lease_id: string | null;
+                    lease_until: string | null;
+                    attempts: number;
+                    created_at: string;
+                    sent_at: string | null;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    payload: Json;
+                    lease_id?: string | null;
+                    lease_until?: string | null;
+                    attempts?: number;
+                    created_at?: string;
+                    sent_at?: string | null;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    event_id?: string;
+                    payload?: Json;
+                    lease_id?: string | null;
+                    lease_until?: string | null;
+                    attempts?: number;
+                    created_at?: string;
+                    sent_at?: string | null;
+                };
+                Relationships: [];
+            };
+
+            billing_customers: {
+                Row: {
+                    polar_organization_id: string;
+                    polar_customer_id: string;
+                    user_id: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    polar_customer_id: string;
+                    user_id: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    polar_customer_id?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'billing_customers_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            polar_subscription_state: {
+                Row: {
+                    polar_organization_id: string;
+                    polar_subscription_id: string;
+                    user_id: string;
+                    polar_customer_id: string | null;
+                    plan: string | null;
+                    payload: Json;
+                    event_at: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    polar_subscription_id: string;
+                    user_id: string;
+                    polar_customer_id?: string | null;
+                    plan?: string | null;
+                    payload: Json;
+                    event_at: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    polar_subscription_id?: string;
+                    user_id?: string;
+                    polar_customer_id?: string | null;
+                    plan?: string | null;
+                    payload?: Json;
+                    event_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'polar_subscription_state_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            polar_webhook_events: {
+                Row: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    event_at: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    event_at: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    event_id?: string;
+                    event_at?: string;
+                };
+                Relationships: [];
+            };
+
             bean_stock_events: {
                 Row: {
                     bean_id: string;
@@ -1681,6 +1798,7 @@ export type Database = {
             };
             roast_sessions: {
                 Row: {
+                    batch_name: string | null;
                     ambient_humidity_pct: number | null;
                     ambient_temp_celsius: number | null;
                     bbp_seconds: number | null;
@@ -1721,8 +1839,11 @@ export type Database = {
                     updated_at: string;
                     user_id: string;
                     weight_grams: number;
+
+                    blend_id: string | null;
                 };
                 Insert: {
+                    batch_name?: string | null;
                     ambient_humidity_pct?: number | null;
                     ambient_temp_celsius?: number | null;
                     bbp_seconds?: number | null;
@@ -1758,8 +1879,11 @@ export type Database = {
                     updated_at?: string;
                     user_id: string;
                     weight_grams: number;
+
+                    blend_id?: string | null;
                 };
                 Update: {
+                    batch_name?: string | null;
                     ambient_humidity_pct?: number | null;
                     ambient_temp_celsius?: number | null;
                     bbp_seconds?: number | null;
@@ -1795,6 +1919,8 @@ export type Database = {
                     updated_at?: string;
                     user_id?: string;
                     weight_grams?: number;
+
+                    blend_id?: string | null;
                 };
                 Relationships: [
                     {
@@ -1823,6 +1949,13 @@ export type Database = {
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_sessions_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
                         referencedColumns: ['id'];
                     },
                 ];
@@ -2032,6 +2165,51 @@ export type Database = {
                     },
                 ];
             };
+
+            roast_profile_sources: {
+                Row: {
+                    bean_id: string | null;
+                    blend_id: string | null;
+                    id: string;
+                    profile_id: string;
+                };
+                ComputedFields: never;
+                Insert: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    id?: string;
+                    profile_id: string;
+                };
+                Update: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    id?: string;
+                    profile_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'roast_profile_sources_bean_id_fkey';
+                        columns: ['bean_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'beans';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_profile_sources_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_profile_sources_profile_id_fkey';
+                        columns: ['profile_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'roast_profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
         };
         Views: {
             active_subscriptions: {
@@ -2107,6 +2285,27 @@ export type Database = {
             };
         };
         Functions: {
+            claim_polar_notification: {
+                Args: { p_org_id: string; p_event_id: string; p_payload: Json };
+                Returns: Json;
+            };
+            finish_polar_notification: {
+                Args: { p_org_id: string; p_event_id: string; p_lease_id: string; p_sent: boolean };
+                Returns: boolean;
+            };
+            apply_polar_subscription_event: {
+                Args: {
+                    p_org_id: string;
+                    p_event_id: string;
+                    p_event_at: string;
+                    p_user_id: string | null;
+                    p_customer_id: string;
+                    p_subscription: Json;
+                    p_plan: string | null;
+                };
+                Returns: string;
+            };
+
             admin_auth_session_ips: {
                 Args: never;
                 Returns: {
@@ -2284,6 +2483,7 @@ export type Database = {
                 Returns: {
                     ambient_humidity_pct: number | null;
                     ambient_temp_celsius: number | null;
+                    batch_name: string | null;
                     bbp_seconds: number | null;
                     bbp_tsv_path: string | null;
                     bean_id: string | null;
@@ -2318,6 +2518,8 @@ export type Database = {
                     updated_at: string;
                     user_id: string;
                     weight_grams: number;
+
+                    blend_id: string | null;
                 };
                 SetofOptions: {
                     from: '*';
@@ -2415,6 +2617,39 @@ export type Database = {
                     sample_id: string;
                     total_score: number;
                 }[];
+            };
+
+            save_roast_profile_sources: {
+                Args: { p_id?: string; p_profile: Json; p_sources: Json };
+                Returns: {
+                    charge_temp_celsius: number | null;
+                    created_at: string;
+                    default_bean_id: string | null;
+                    default_blend_id: string | null;
+                    description: string | null;
+                    dev_pct: number | null;
+                    dev_time_sec: number | null;
+                    drop_temp_celsius: number | null;
+                    duration_sec: number | null;
+                    heater_events: Json | null;
+                    id: string;
+                    machine_brand: string | null;
+                    machine_id: string | null;
+                    machine_name: string | null;
+                    machine_protocol: string | null;
+                    machine_roaster_key: string | null;
+                    name: string;
+                    source_session_id: string;
+                    target_level: string;
+                    updated_at: string;
+                    user_id: string;
+                };
+                SetofOptions: {
+                    from: '*';
+                    to: 'roast_profiles';
+                    isOneToOne: true;
+                    isSetofReturn: false;
+                };
             };
         };
         Enums: {
@@ -2556,6 +2791,7 @@ export type RoastProfile = Database['public']['Tables']['roast_profiles']['Row']
 
 export type RoastSession = Database['public']['Tables']['roast_sessions']['Row'];
 export type RoastSessionWithRelations = RoastSession & {
+    blends?: { name: string } | null;
     beans: Pick<Bean, 'name' | 'origin' | 'region' | 'variety' | 'process' | 'farm'> | null;
     roast_profiles: Pick<RoastProfile, 'name' | 'target_level'> | null;
 };

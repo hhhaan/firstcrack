@@ -98,6 +98,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 rawBT: snapshot ? snapshot.rawBT : rawBT,
                 ambientTemperature,
                 ambientHumidity,
+                selectedBlendId: (snapshot ? snapshot.selection.blendId : selection.blendId) ?? null,
                 selectedBeanId: snapshot ? snapshot.selection.beanId : selection.beanId,
                 targetProfileId:
                     forcedProfileId !== undefined
@@ -161,10 +162,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 // Recovered (auto-saved) by PendingRoastRecovery on next launch.
                 const formPatch: SaveRoastFormData = {
                     notes: formData.notes,
+                    batchName: formData.batchName,
                     weightGrams: formData.weightGrams,
                     outputWeightKg: formData.outputWeightKg,
                     roastLevel: formData.roastLevel,
                     beanId: formData.beanId,
+                    blendId: formData.blendId ?? null,
                     beanLabel: formData.beanId ? null : formData.beanLabel,
                     linkedBatch,
                     deductStock: formData.deductStock,
@@ -311,6 +314,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                         weightGrams: snapshot.selection.planBatchHandoff?.batchSizeKg ?? 0,
                         roastLevel: null,
                         beanId: snapshot.selection.beanId,
+                        blendId: snapshot.selection.blendId ?? null,
                         beanLabel: null,
                         linkedBatch: null,
                         deductStock: false,

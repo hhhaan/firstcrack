@@ -45,6 +45,9 @@ export interface RoastingState extends BatchState, BatchActions {
     /** Raw BT control-path quality/freshness. Display consumers keep selecting `liveData`. */
     observation: SensorObservation | null;
     updateSensorObservation: (observation: SensorObservation | null) => void;
+    /** Display-stream quality, independent of optional raw BT used for machine control. */
+    displayObservation: SensorObservation | null;
+    updateDisplayObservation: (observation: SensorObservation | null) => void;
     /** 사이드카 PID 런타임 상태 (/temperatures에 실려 온다). PID 미사용이면 null. */
     pid: PidRuntime | null;
     reconnecting: boolean;
@@ -59,7 +62,7 @@ export interface RoastingState extends BatchState, BatchActions {
     updateLiveData: (data: LiveData) => void;
     setPid: (pid: PidRuntime | null) => void;
     setPendingBean: (beanId: string | null, beanName?: string | null) => void;
-    setPendingProfile: (profileId: string | null) => void;
+    setPendingProfile: (profileId: string | null, source?: BatchState['pendingProfileSource']) => void;
     rememberMachineSnapshot: (snapshot: MachineSnapshot) => void;
     reset: () => void;
 }
@@ -76,10 +79,12 @@ const initialState = {
     liveData: null as LiveData | null,
     rawTemperature: null as RawTemperatureSample | null,
     observation: null as SensorObservation | null,
+    displayObservation: null as SensorObservation | null,
     pid: null as PidRuntime | null,
     pendingBeanId: null as string | null,
     pendingBeanName: null as string | null,
     pendingProfileId: null as string | null,
+    pendingProfileSource: null as BatchState['pendingProfileSource'],
     sessionId: null as string | null,
     sessionOwnerId: null as string | null,
     reconnecting: false,
@@ -102,6 +107,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             pendingBeanId: state.pendingBeanId,
             pendingBeanName: state.pendingBeanName,
             pendingProfileId: state.pendingProfileId,
+            pendingProfileSource: state.pendingProfileSource,
             ...patch,
         });
     }),
@@ -157,7 +163,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         set({ pendingBeanId: beanId, pendingBeanName: beanId ? (beanName ?? null) : null });
     },
 
-    setPendingProfile: (profileId) => set({ pendingProfileId: profileId }),
+    setPendingProfile: (profileId, source = null) =>
+        set({ pendingProfileId: profileId, pendingProfileSource: profileId ? source : null }),
 
     rememberMachineSnapshot: (snapshot) => {
         const current = get().machineSnapshot;
@@ -169,7 +176,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current?.machine_protocol === snapshot.machine_protocol
         )
             return;
-        set({ machineSnapshot: snapshot, rawTemperature: null, observation: null });
+        set({ machineSnapshot: snapshot, rawTemperature: null, observation: null, displayObservation: null });
     },
 
     updateRawTemperature: (rawTemperature) => set({ rawTemperature }),
@@ -177,6 +184,10 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     updateSensorObservation: (observation) => {
         if (get().observation === observation) return;
         set({ observation });
+    },
+    updateDisplayObservation: (displayObservation) => {
+        if (get().displayObservation === displayObservation) return;
+        set({ displayObservation });
     },
 
     updateLiveData: (data) => {

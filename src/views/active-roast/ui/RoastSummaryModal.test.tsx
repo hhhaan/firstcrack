@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, it, vi } from 'vitest';
 import { RoastSummaryModal } from './RoastSummaryModal';
+
+vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', name: 'Modern' }] }) }));
 
 vi.mock('@entities/bean/queries', () => ({
     useBeans: () => ({
@@ -66,6 +69,7 @@ const baseProps = {
 afterEach(() => {
     planMock.batches = [];
     useRoastingStore.getState().reset();
+    useBbpStore.setState({ active: false, recording: false, startMs: 0, points: [] });
 });
 
 const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {}) => {
@@ -81,6 +85,15 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
         },
     };
 };
+
+it('keeps the live BBP readout parked off the summary', () => {
+    useBbpStore.setState({ active: true, recording: true, startMs: Date.now() - 15_000, points: [] });
+    const { unmount } = renderModal({ bbpEnabled: true, ambientTemp: 13, ambientHumidity: 60 });
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(document.querySelector('[data-testid="roast-summary-bbp"]')).toBeNull();
+    expect(dialog?.textContent).toContain('activeRoast.summary.temperature 13°C');
+    unmount();
+});
 
 it('keeps the overlay from passing clicks through to the roast screen', () => {
     const { unmount } = renderModal();
@@ -248,5 +261,25 @@ it('unchecks deductStock when a custom bean name is typed', () => {
     });
     const checkbox = document.querySelector('[data-testid="roast-summary-deduct"]') as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
+    unmount();
+});
+
+it('prefills an ad-hoc blend independently of the previous single-origin roast', async () => {
+    useRoastingStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: 'Medium' });
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { unmount } = renderModal({ selectedBlendId: 'blend-1', onSave });
+    const input =
+        document.querySelector<HTMLInputElement>('[data-testid="roast-summary-bean"] input') ??
+        document.querySelector<HTMLInputElement>('input[role="combobox"]');
+    expect(input?.value).toBe('Modern');
+    const save =
+        document.querySelector<HTMLButtonElement>('[data-testid="roast-summary-save"]') ??
+        [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('activeRoast.summary.save'));
+    await act(async () => {
+        save?.click();
+    });
+    expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ beanId: null, blendId: 'blend-1', weightGrams: 5, deductStock: true }),
+    );
     unmount();
 });

@@ -26,8 +26,10 @@ import {
 
 describe('keyboard shortcuts', () => {
     beforeEach(() => {
+        localStorage.clear();
         useShortcutStore.getState().resetBindings();
         vi.mocked(settingsGet).mockReset().mockResolvedValue(undefined);
+        vi.mocked(settingsSet).mockClear();
     });
     afterEach(() => vi.unstubAllGlobals());
 
@@ -154,6 +156,43 @@ describe('keyboard shortcuts', () => {
         expect(useShortcutStore.getState().disabled).toEqual([]);
         expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+1']);
         act(() => root.unmount());
+    });
+
+    it('upgrades a stored Drop binding that is only the superseded default', async () => {
+        vi.mocked(settingsGet).mockImplementation(async (key) =>
+            key === 'keyboard.bindings' ? { drop: ['mod+d'], yellow: ['mod+5'] } : undefined,
+        );
+        await hydrateShortcutBindings();
+
+        expect(useShortcutStore.getState().bindings.drop).toEqual(['mod+shift+d']);
+        expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+5']);
+        expect(settingsSet).toHaveBeenCalledWith(
+            'keyboard.bindings',
+            expect.objectContaining({ drop: ['mod+shift+d'] }),
+        );
+        expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 2);
+    });
+
+    it('keeps a Drop key the user records again after the upgrade ran', async () => {
+        vi.mocked(settingsGet).mockImplementation(async (key) => {
+            if (key === 'keyboard.bindings') return { drop: ['mod+d'] };
+            if (key === 'keyboard.bindingsVersion') return 2;
+            return undefined;
+        });
+        await hydrateShortcutBindings();
+
+        expect(useShortcutStore.getState().bindings.drop).toEqual(['mod+d']);
+        expect(settingsSet).not.toHaveBeenCalledWith('keyboard.bindings', expect.anything());
+    });
+
+    it('leaves a custom Drop binding untouched while upgrading', async () => {
+        vi.mocked(settingsGet).mockImplementation(async (key) =>
+            key === 'keyboard.bindings' ? { drop: ['mod+shift+e'] } : undefined,
+        );
+        await hydrateShortcutBindings();
+
+        expect(useShortcutStore.getState().bindings.drop).toEqual(['mod+shift+e']);
+        expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 2);
     });
 
     it('ignores malformed saved toggle state', async () => {

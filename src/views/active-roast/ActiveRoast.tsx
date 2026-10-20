@@ -36,7 +36,7 @@ import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@feature
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
-import { selectDropCancelable, selectReviewSnapshot } from '@features/active-roast/model/batch';
+import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -76,6 +76,7 @@ import {
     isReplayMachineMismatch,
     isWaitingForCharge,
     latestSampleTime,
+    liveWindowTitle,
     orEmpty,
     orNull,
     profileSelectionEpoch,
@@ -105,6 +106,7 @@ import { appendReviewEntry, useReviewCurveEdit } from './model/useReviewCurveEdi
 import { useRoastLifecycle } from './model/useRoastLifecycle';
 import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
+import { useRoastSourceCandidates } from './model/useRoastSourceCandidates';
 import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
@@ -168,6 +170,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayBt,
         observationQuality,
         lastValidReceivedAtMs,
+        feedbackReceivedAtMs,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -181,6 +184,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             replayBt: s.rawTemperature?.bt ?? null,
             observationQuality: s.observation?.quality ?? null,
             lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
+            feedbackReceivedAtMs: s.displayObservation?.receivedAtMs ?? null,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -228,19 +232,30 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayStopRef.current('profileChanged');
     }, []);
     const selectionEpoch = profileSelectionEpoch(workspaceOwnerId, sessionId);
-    const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
-        useRoastProfileSelection({
-            isActive,
-            charged,
-            userProfile,
-            beans,
-            beansReady,
-            confirmTargetChange,
-            commitApprovedTarget,
-            saveDefaultProfile,
-            selectionEpoch,
-            workspaceOwnerId,
-        });
+    const candidateProfileId = useRoastingStore((s) => selectRoastSelection(s).profileId);
+    const sourceOptions = useRoastSourceCandidates(workspaceOwnerId, candidateProfileId);
+    const {
+        targetProfileId,
+        selectedBeanId,
+        selectedBlendId,
+        setSelectedBlendId,
+        setSelectedBeanId,
+        handoffBeanName,
+        setUserSelectedTarget,
+    } = useRoastProfileSelection({
+        isActive,
+        charged,
+        userProfile,
+        beans,
+        beansReady,
+        sourceCandidates: sourceOptions.candidates,
+        sourceCandidatesReady: sourceOptions.ready,
+        confirmTargetChange,
+        commitApprovedTarget,
+        saveDefaultProfile,
+        selectionEpoch,
+        workspaceOwnerId,
+    });
 
     // ── UI 상태 ───────────────────────────────────────────────────
     // 진행 중은 phase === 'roasting'. 화면 로컬 boolean을 두지 않는다.
@@ -756,15 +771,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── Effect: 타이틀바에 실시간 온도 표시 ─────────────────────
     useEffect(() => {
         if (!('__TAURI_INTERNALS__' in window)) return;
-        const isActivePhase = phase === 'roasting' || phase === 'preheating' || phase === 'standby';
-        if (!isActivePhase) {
-            void getCurrentWindow().setTitle('First Crack');
-            return;
-        }
-        const bt = formatTemp(rawBT, unit);
-        const et = formatTemp(rawET, unit);
-        void getCurrentWindow().setTitle(`First Crack — BT ${bt} | ET ${et} | ${timeStr}`);
-    }, [phase, rawBT, rawET, timeStr, unit]);
+        void getCurrentWindow().setTitle(
+            liveWindowTitle({
+                bbpElapsed: bbpTimer,
+                btLabel: formatTemp(rawBT, unit),
+                etLabel: formatTemp(rawET, unit),
+                roastElapsed: timeStr,
+                activePhase: phase === 'roasting' || phase === 'preheating' || phase === 'standby',
+            }),
+        );
+    }, [phase, rawBT, rawET, timeStr, unit, bbpTimer]);
 
     // ── 단계 표시 및 파생값 ──────────────────────────────────────
     const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries, bbpChargeWait);
@@ -1082,6 +1098,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
         onApplied: handleControlApplied,
+        diagnostics: { sessionId: charged ? sessionId : null, receivedAtMs: feedbackReceivedAtMs, sample: liveData },
     });
     useEffect(() => {
         if (reviewing) machineControl.replay.stop();
@@ -1224,6 +1241,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
                 selectedBeanId={selectedBeanId}
+                selectedBlendId={selectedBlendId}
+                onBlendChange={setSelectedBlendId}
+                sourceCandidates={sourceOptions.candidates}
                 fallbackBeanName={handoffBeanName}
                 onTargetProfileChange={(id) => {
                     void setUserSelectedTarget(id).then((applied) => {
@@ -1412,12 +1432,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onConfirm={confirmEndRoast}
             />
             <RoastSummaryModal
+                bbpEnabled={bbpEnabled}
                 open={saveFlow.flow.summaryModal}
                 summaryData={saveFlow.flow.summaryData}
                 isSaving={saveFlow.isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
                 selectedBeanId={orNull(saveFlow.flow.summaryData?.selectedBeanId)}
+                selectedBlendId={orNull(saveFlow.flow.summaryData?.selectedBlendId)}
                 planBatchHandoff={orNull(saveFlow.flow.summaryData?.planBatchHandoff)}
                 fallbackBeanName={orNull(saveFlow.flow.summaryData?.handoffBeanName)}
                 onClose={saveFlow.flow.closeSummary}

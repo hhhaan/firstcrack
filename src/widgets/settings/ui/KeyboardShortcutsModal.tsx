@@ -180,7 +180,7 @@ export function KeyboardShortcutsModal() {
                                             </label>
                                             {id === 'drop' && (
                                                 <p className="m-0 mt-1 text-xs text-muted">
-                                                    {t('shortcuts.doubleTap')}
+                                                    {t('shortcuts.globalHint')}
                                                 </p>
                                             )}
                                         </div>

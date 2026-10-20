@@ -135,10 +135,12 @@ describe('useRoastingStore observation vs display', () => {
     it('clears observation on machine change and reset, not on charge', () => {
         const observation = reduceSensorObservation(null, sample(1_000));
         useRoastingStore.getState().updateSensorObservation(observation);
+        useRoastingStore.getState().updateDisplayObservation(observation);
         useRoastingStore.getState().enterPreheating();
         useRoastingStore.getState().enterStandby();
         useRoastingStore.getState().startCharge(1_000);
         expect(useRoastingStore.getState().observation).toEqual(observation);
+        expect(useRoastingStore.getState().displayObservation).toEqual(observation);
 
         useRoastingStore.getState().rememberMachineSnapshot({
             machine_id: 'b',
@@ -148,10 +150,13 @@ describe('useRoastingStore observation vs display', () => {
             machine_protocol: 'modbus',
         });
         expect(useRoastingStore.getState().observation).toBeNull();
+        expect(useRoastingStore.getState().displayObservation).toBeNull();
         expect(useRoastingStore.getState().rawTemperature).toBeNull();
 
         useRoastingStore.getState().updateSensorObservation(observation);
+        useRoastingStore.getState().updateDisplayObservation(observation);
         useRoastingStore.getState().reset();
         expect(useRoastingStore.getState().observation).toBeNull();
+        expect(useRoastingStore.getState().displayObservation).toBeNull();
     });
 });

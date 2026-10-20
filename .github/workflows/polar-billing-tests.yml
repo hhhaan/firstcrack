@@ -1,0 +1,64 @@
+name: Polar billing tests
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/polar*.ts'
+      - 'supabase/functions/_shared/webhook-auth.ts'
+      - 'supabase/functions/_shared/slack.ts'
+      - 'supabase/functions/polar-webhook/**'
+      - 'supabase/functions/create-polar-checkout/**'
+      - 'supabase/migrations/*polar*'
+      - 'supabase/tests/polar-cutover.test.ts'
+      - 'supabase/tests/polar-database-types.ts'
+      - 'src/shared/types/database.types.ts'
+      - 'src/shared/types/database*.ts'
+      - 'supabase/tests/polar-database-types.ts'
+      - '.github/workflows/polar-billing-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/polar*.ts'
+      - 'supabase/functions/_shared/webhook-auth.ts'
+      - 'supabase/functions/_shared/slack.ts'
+      - 'supabase/functions/polar-webhook/**'
+      - 'supabase/functions/create-polar-checkout/**'
+      - 'supabase/migrations/*polar*'
+      - 'supabase/tests/polar-cutover.test.ts'
+      - 'supabase/tests/polar-database-types.ts'
+      - 'src/shared/types/database.types.ts'
+      - '.github/workflows/polar-billing-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  billing-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: v2.x
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11.3.0
+          run_install: false
+      - name: Install isolated billing test dependencies
+        run: |
+          mkdir -p "$RUNNER_TEMP/polar-billing-tests"
+          printf '{"private":true}\n' > "$RUNNER_TEMP/polar-billing-tests/package.json"
+          pnpm --dir "$RUNNER_TEMP/polar-billing-tests" add --ignore-scripts --save-exact @electric-sql/pglite@0.3.14 typescript@5.9.3
+      - name: Billing public schema type regression
+        run: node "$RUNNER_TEMP/polar-billing-tests/node_modules/typescript/bin/tsc" --noEmit --strict --skipLibCheck --target ES2020 --module ESNext --moduleResolution bundler supabase/tests/polar-database-types.ts
+      - name: Billing unit and delivery failure tests
+        run: node --test supabase/functions/_shared/polar.test.ts supabase/functions/_shared/polar-notifications.test.ts
+      - name: PostgreSQL entitlement and outbox transaction tests
+        env:
+          POLAR_PGLITE_MODULE: ${{ runner.temp }}/polar-billing-tests/node_modules/@electric-sql/pglite/dist/index.js
+        run: node supabase/tests/polar-cutover.test.ts
+      - name: Billing Edge typecheck
+        run: deno check --node-modules-dir=none --no-lock supabase/functions/polar-webhook/index.ts supabase/functions/create-polar-checkout/index.ts

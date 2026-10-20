@@ -110,6 +110,35 @@ const renderProbe = (pollIntervalMs: number) => {
     return root;
 };
 
+it('publishes display quality when a legacy sidecar omits raw BT, including unchanged stale readings', async () => {
+    vi.useFakeTimers();
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    stubTemps();
+    mocks.getTemperatures.mockResolvedValue({
+        bt: 200,
+        et: 210,
+        ror: 5,
+        ror_et: 4,
+        heater: 80,
+        fan: 40,
+        drum: 60,
+        timestamp: 1,
+    });
+    const root = renderProbe(1000);
+    try {
+        await flushReady();
+        expect(useRoastingStore.getState().observation?.quality).toBe('null');
+        expect(useRoastingStore.getState().displayObservation?.quality).toBe('valid');
+        const display = useRoastingStore.getState().liveData;
+        mocks.getTemperatures.mockResolvedValue({ ...display, timestamp: 2, stale: true });
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().liveData).toBe(display);
+        expect(useRoastingStore.getState().displayObservation?.quality).toBe('stale');
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
 it('keeps the recorded curve across an error-boundary remount and resumes without duplicate samples', async () => {
     vi.useFakeTimers();
     mocks.initSessionTsv.mockResolvedValue(undefined);

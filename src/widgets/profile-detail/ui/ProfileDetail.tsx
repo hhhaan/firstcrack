@@ -8,7 +8,6 @@ import {
 } from '@entities/roast-profile';
 import { useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
-import { useRoastingStore } from '@features/active-roast/model/status';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { useCsvFileExport } from '@features/export-csv';
 import { profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
@@ -31,6 +30,7 @@ import {
 } from '../lib/export-profile-csv';
 import { useProfileTableRows } from '../model/useProfileTableRows';
 import { ConsistencyCard } from './ConsistencyCard';
+import { ProfileStartButton } from './ProfileStartButton';
 
 interface ProfileDetailProps {
     selected: RoastProfileWithSource;
@@ -284,16 +284,7 @@ export const ProfileDetail = ({
             )}
 
             <div className="flex gap-2.5">
-                <button
-                    type="button"
-                    onClick={() => {
-                        useRoastingStore.getState().setPendingProfile(selected.id);
-                        onNavigate('roast');
-                    }}
-                    className="flex-1 py-2.5 rounded-full border-none bg-action text-on-action text-sm font-medium cursor-pointer tracking-[0.14px] "
-                >
-                    {t('profiles.detail.startWith')}
-                </button>
+                <ProfileStartButton profile={selected} onNavigate={onNavigate} />
                 <button
                     type="button"
                     onClick={() => onDelete(selected.id)}

@@ -3,7 +3,7 @@ import asyncio
 import json
 import time
 from collections import deque
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
@@ -1350,3 +1350,38 @@ class TestSafetyAfterReconnect:
         await manager._safety_after_reconnect()
         assert pid.stopped == [("reconnect", "zero")]
         assert fake.control_calls == [{"heater": 0.0, "fan": None, "drum": None}]
+
+    async def test_failed_fallback_zero_reports_once_until_a_success(self, manager):
+        fake = await self._connected(manager)
+        manager._pid = self._Pid("running")
+        manager._last_applied = {"heater": 70.0}
+        failure = OSError("write failed")
+        fake.control = AsyncMock(side_effect=[failure, failure, None, failure])
+        scope = MagicMock()
+        with (
+            patch("manager.sentry_sdk.new_scope") as new_scope,
+            patch("slack_notify.notify_hardware_error"),
+        ):
+            new_scope.return_value.__enter__.return_value = scope
+            for _ in range(2):
+                await manager._safety_after_reconnect()
+                assert scope.capture_exception.call_count == 1
+                assert manager._last_applied == {"heater": 70.0}
+            await manager._safety_after_reconnect()
+            assert manager._last_applied == {"heater": 0.0}
+            await manager._safety_after_reconnect()
+            assert scope.capture_exception.call_count == 2
+        assert fake.control.call_args_list == [call(heater=0.0)] * 4
+        assert manager._pid.stopped == [("reconnect", "zero")] * 4
+        scope.set_tag.assert_any_call("event", "reconnect_safe_off_failed")
+
+    async def test_failed_fallback_zero_is_still_swallowed_when_sentry_raises(self, manager):
+        fake = await self._connected(manager)
+        manager._pid = self._Pid("running")
+        manager._last_applied = {"heater": 70.0}
+        fake.control = AsyncMock(side_effect=OSError("write failed"))
+        with patch("manager.sentry_sdk.new_scope", side_effect=RuntimeError("Sentry unavailable")):
+            await manager._safety_after_reconnect()
+        fake.control.assert_awaited_once_with(heater=0.0)
+        assert manager._connected
+        assert manager._last_applied == {"heater": 70.0}

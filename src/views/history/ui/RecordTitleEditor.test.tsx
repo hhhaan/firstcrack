@@ -67,17 +67,21 @@ describe('record title edits', () => {
         await open();
         await set('  Sample lot  ');
         await blur();
-        expect(state.update).toHaveBeenCalledWith({ id: 'session', bean_label: 'Sample lot' });
+        expect(state.update).toHaveBeenCalledWith({ id: 'session', batch_name: 'Sample lot' });
         expect(state.update.mock.calls[0][0]).not.toHaveProperty('notes');
         expect(state.update.mock.calls[0][0]).not.toHaveProperty('bean_id');
     });
-    it('clears an override back to the inventory name without a write when unchanged', async () => {
-        await render({ ...session, bean_label: 'Sample lot' });
+    it('stores a title equal to the inventory name instead of clearing it', async () => {
+        await render({ ...session, batch_name: 'Sample lot' });
         await open();
         await set('Ethiopia · Yirgacheffe · Aricha · Heirloom');
         await blur();
-        expect(state.update).toHaveBeenCalledWith({ id: 'session', bean_label: null });
-        state.update.mockClear();
+        expect(state.update).toHaveBeenCalledWith({
+            id: 'session',
+            batch_name: 'Ethiopia · Yirgacheffe · Aricha · Heirloom',
+        });
+    });
+    it('does not seed a title when the legacy row is committed unchanged', async () => {
         await render();
         await open();
         await blur();
@@ -85,11 +89,21 @@ describe('record title edits', () => {
         expect(host.querySelector('input')).toBeNull();
     });
     it('keeps a date fallback from becoming a stored title', async () => {
-        await render({ ...session, beans: null, bean_label: null });
+        await render({ ...session, beans: null, batch_name: null });
         expect(host.querySelector('h1')?.textContent).toBe(formatDateShort(session.roasted_at));
         await open();
         await blur();
         expect(state.update).not.toHaveBeenCalled();
+    });
+    it('preserves a legacy free-text name when assigning a new independent batch title', async () => {
+        await render({ ...session, bean_label: 'Legacy green label', batch_name: null });
+        expect(host.querySelector('h1')?.textContent).toBe('Legacy green label');
+        await open();
+        await set('Batch C');
+        await blur();
+        expect(state.update).toHaveBeenCalledWith({ id: 'session', batch_name: 'Batch C' });
+        expect(state.update.mock.calls[0][0]).not.toHaveProperty('bean_label');
+        expect(state.update.mock.calls[0][0]).not.toHaveProperty('profile_id');
     });
     it('keeps the draft and reports failure', async () => {
         state.update.mockRejectedValueOnce(new Error('offline'));
@@ -101,7 +115,7 @@ describe('record title edits', () => {
         expect((control() as HTMLInputElement).value).toBe('Renamed');
     });
     it('escape drops the draft without a write', async () => {
-        await render({ ...session, bean_label: 'Sample lot' });
+        await render({ ...session, batch_name: 'Sample lot' });
         await open();
         await set('draft');
         await act(async () => {

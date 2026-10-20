@@ -37,6 +37,8 @@ const hasNumericSample = (values: readonly (number | null)[] | undefined): boole
 
 const CONTROL_CHANGE_FONT_SIZE = 10;
 const CONTROL_CHANGE_DOT_PX = 4;
+/** Change stamp appears once the live tail is this far past the write. */
+const CONTROL_CHANGE_LABEL_DELAY_SEC = 5;
 
 type ControlPoint = readonly [number, number | null];
 
@@ -56,7 +58,7 @@ const controlMarks = (
         fontWeight: PHASE_BAR_FONT_WEIGHT,
         fontSize: scaleChartPx(CONTROL_CHANGE_FONT_SIZE, fontScale),
     };
-    const mark = (time: number, value: number, current: boolean) => ({
+    const mark = (time: number, value: number) => ({
         coord: [time, value] as [number, number],
         symbol: 'circle' as const,
         symbolSize: scaleChartPx(CONTROL_CHANGE_DOT_PX, fontScale),
@@ -64,11 +66,14 @@ const controlMarks = (
         itemStyle: { color: 'transparent', borderWidth: 0, opacity: style.opacity ?? 1 },
         label: {
             ...text,
-            position: current ? ('left' as const) : ('top' as const),
-            distance: current ? 4 : 2,
+            position: 'top' as const,
+            align: 'right' as const,
+            distance: 2,
             formatter: String(Number(value.toFixed(2))),
         },
     });
+    const tail = data.length > 0 ? data[data.length - 1] : undefined;
+    const tailTime = tail && typeof tail[1] === 'number' && Number.isFinite(tail[1]) ? tail[0] : undefined;
     const ordered = [...(changes ?? [])].sort((a, b) => a.timeSec - b.timeSec);
     let previousHeater: number | undefined;
     const marks = ordered.flatMap((change) => {
@@ -77,10 +82,10 @@ const controlMarks = (
         // Clicking the heater that is already set is not another change label.
         if (role === 'heater' && previousHeater === value) return [];
         if (role === 'heater') previousHeater = value;
-        return [mark(change.timeSec, value, false)];
+        if (tailTime != null && tailTime - change.timeSec < CONTROL_CHANGE_LABEL_DELAY_SEC) return [];
+        return [mark(change.timeSec, value)];
     });
-    const tail = data.length > 0 ? data[data.length - 1] : undefined;
-    if (tail && typeof tail[1] === 'number' && Number.isFinite(tail[1])) marks.push(mark(tail[0], tail[1], true));
+    if (tailTime != null && typeof tail?.[1] === 'number') marks.push(mark(tailTime, tail[1]));
     return {
         step: 'end' as const,
         markPoint: { silent: true, animation: false, data: marks },
