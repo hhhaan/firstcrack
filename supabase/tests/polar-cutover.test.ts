@@ -12,7 +12,7 @@ CREATE TABLE subscriptions(id uuid DEFAULT gen_random_uuid(),user_id uuid,polar_
 status text CHECK(status IN ('active','trialing','incomplete','incomplete_expired','past_due','canceled','unpaid')),trial_end timestamptz,current_period_start timestamptz,current_period_end timestamptz,cancel_at_period_end boolean,canceled_at timestamptz,
 ends_at timestamptz,polar_product_id text,amount integer,currency text,recurring_interval text,updated_at timestamptz);
 INSERT INTO profiles VALUES('11111111-1111-4111-8111-111111111111','trial',null);`);
-await db.exec(await readFile(new URL('../migrations/20261020000000_polar_org_cutover.sql', import.meta.url), 'utf8'));
+await db.exec(await readFile(new URL('../migrations/20261020133500_polar_org_cutover.sql', import.meta.url), 'utf8'));
 const old = 'f0ef6666-e89c-4a50-8808-78ff4b4d3a1d',
     next = '3b6494cb-8248-47d1-a5f2-65ff7ca9b8a8';
 const user = '11111111-1111-4111-8111-111111111111';
