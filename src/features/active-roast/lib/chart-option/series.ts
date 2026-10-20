@@ -63,8 +63,9 @@ const controlMarks = (
         itemStyle: { color: 'transparent', borderWidth: 0, opacity: style.opacity ?? 1 },
         label: {
             ...text,
-            position: current ? ('left' as const) : ('top' as const),
-            distance: current ? 4 : 2,
+            position: 'top' as const,
+            align: current ? ('right' as const) : ('center' as const),
+            distance: current ? scaleChartPx(6, fontScale) : 2,
             formatter: String(Number(value.toFixed(2))),
         },
     });

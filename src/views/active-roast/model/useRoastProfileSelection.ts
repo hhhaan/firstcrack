@@ -38,12 +38,16 @@ export interface UseRoastProfileSelectionParams {
      */
     selectionEpoch?: string;
     workspaceOwnerId?: string | null;
+    sourceCandidates?: { beanId: string | null; blendId: string | null; name: string }[];
+    sourceCandidatesReady?: boolean;
 }
 
 export interface UseRoastProfileSelectionReturn {
     targetProfileId: string | null;
     setTargetProfileId: (id: string | null) => Promise<boolean | undefined>;
     selectedBeanId: string | null;
+    selectedBlendId: string | null;
+    setSelectedBlendId: (id: string | null, name?: string | null) => void;
     setSelectedBeanId: (id: string | null) => void;
     handoffBeanName: string | null;
     setUserSelectedTarget: (id: string | null) => Promise<boolean | undefined>;
@@ -158,21 +162,35 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     useEffect(() => {
         if (charged || !beansReady || !selection.beanId || selection.beanName) return;
         if (beans.some((bean) => bean.id === selection.beanId)) return;
-        useRoastingStore.getState().prepareBean(null);
+        useRoastingStore.getState().invalidatePreparedBean(selection.beanId);
         try {
             localStorage.removeItem(DEFAULT_BEAN_KEY);
         } catch (err) {
             logger.capture(err, { scope: 'roastProfileSelection.clearDefaultBean' });
         }
     }, [charged, beansReady, beans, selection.beanId, selection.beanName]);
+    useEffect(() => {
+        if (!isActive || charged || !params.sourceCandidatesReady) return;
+        const candidates = params.sourceCandidates ?? [];
+        useRoastingStore
+            .getState()
+            .applyProfileSource(candidates.length === 1 ? candidates[0] : null, candidates.length > 1);
+    }, [isActive, charged, params.sourceCandidatesReady, params.sourceCandidates]);
+    const setSelectedBlendId = useCallback((id: string | null, name: string | null = null) => {
+        const store = useRoastingStore.getState();
+        if (!isChargedPhase(store.phase)) store.prepareBlend(id, name);
+    }, []);
     const setUserSelectedTarget = useCallback((id: string | null) => applyTarget(id, 'user'), [applyTarget]);
     const setSelectedBeanId = useCallback((id: string | null) => {
         const store = useRoastingStore.getState();
-        store.prepareBean(id, id ? null : store.prepared.beanName);
+        if (isChargedPhase(store.phase)) return;
+        store.prepareBean(id);
     }, []);
     return {
         targetProfileId: selection.profileId,
         selectedBeanId: selection.beanId,
+        selectedBlendId: selection.blendId ?? null,
+        setSelectedBlendId,
         handoffBeanName: selection.beanName,
         setSelectedBeanId,
         setTargetProfileId: setUserSelectedTarget,

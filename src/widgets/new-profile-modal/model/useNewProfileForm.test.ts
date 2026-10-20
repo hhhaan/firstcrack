@@ -21,9 +21,7 @@ describe('resolveNewProfileFormState (#471)', () => {
             mode: 'session-list',
             form: INITIAL_PROFILE_FORM,
             selectedSessionId: null,
-            defaultType: 'none',
-            defaultBeanId: null,
-            defaultBlendId: null,
+            sources: [],
         });
     });
 
@@ -41,10 +39,23 @@ describe('resolveNewProfileFormState (#471)', () => {
                 target_level: 'Medium-Light',
             },
             selectedSessionId: 's1',
-            defaultType: 'bean',
-            defaultBeanId: 'bean-1',
-            defaultBlendId: null,
+            sources: [{ bean_id: 'bean-1', blend_id: null }],
         });
+    });
+
+    it('preserves a legacy default when an older client has no registered source rows', () => {
+        expect(resolveNewProfileFormState(true, { ...editing, sources: [] }).sources).toEqual([
+            { bean_id: 'bean-1', blend_id: null },
+        ]);
+    });
+
+    it('hydrates all registered single-origin and blend sources', () => {
+        const sources = [
+            { bean_id: 'bean-1', blend_id: null },
+            { bean_id: null, blend_id: 'blend-1' },
+        ];
+        expect(resolveNewProfileFormState(true, { ...editing, sources }).sources).toEqual(sources);
+        expect(resolveNewProfileFormState(false, { ...editing, sources }).sources).toEqual([]);
     });
 
     it('close after edit also clears so the next create is clean', () => {

@@ -640,3 +640,46 @@ describe('useSaveRoast workspace owner boundary', () => {
         act(() => root.unmount());
     });
 });
+
+it('saves an ad-hoc blend with no bean FK or fake schedule and sends inventory work atomically', async () => {
+    const deps = makeDeps();
+    const result = await saveRoastCore(deps, {
+        ...baseParams,
+        selectedBeanId: null,
+        selectedBlendId: 'blend-1',
+        handoffBeanName: 'Modern',
+        formData: { ...baseParams.formData, beanId: null, blendId: 'blend-1' },
+    });
+    expect(deps.saveOp).toHaveBeenCalledWith(
+        expect.objectContaining({
+            session: expect.objectContaining({
+                bean_id: null,
+                blend_id: 'blend-1',
+                plan_batch_id: null,
+                batch_name: 'Modern',
+            }),
+            deduct: true,
+            deductionGrams: 5000,
+            inboundGrams: 4200,
+        }),
+    );
+    expect(result.shouldOpenContinue).toBe(false);
+});
+
+it('a form single or free-text override clears the frozen blend identity', async () => {
+    for (const form of [
+        { beanId: 'other', blendId: null },
+        { beanId: null, beanLabel: 'Sample', blendId: null },
+    ]) {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            selectedBeanId: null,
+            selectedBlendId: 'blend-1',
+            formData: { ...baseParams.formData, ...form },
+        });
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({ session: expect.objectContaining({ blend_id: null }) }),
+        );
+    }
+});

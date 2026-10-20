@@ -959,6 +959,7 @@
         },
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
+            "profileSources": "曲线候选原料",
             "noBeanSelected": "未选生豆",
             "target": "目标:",
             "noTarget": "无目标",
@@ -1629,6 +1630,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "关联生豆和拼配",
+        "registeredSourcesHint": "可注册多个生豆和拼配。只有一个候选时，投豆前自动选择。",
+        "searchSources": "搜索生豆和拼配",
         "editTitle": "编辑烘焙曲线",
         "fromSession": "从烘焙记录创建曲线",
         "newTitle": "新建烘焙曲线",

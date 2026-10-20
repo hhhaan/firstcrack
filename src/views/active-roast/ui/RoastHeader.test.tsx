@@ -5,6 +5,8 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, expect, it, vi } from 'vitest';
 import { RoastHeader } from './RoastHeader';
 
+vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', name: 'Modern' }] }) }));
+
 vi.mock('@entities/bean/queries', () => ({
     useBeans: () => ({ data: [] }),
 }));
@@ -154,5 +156,18 @@ it('hides reconnecting status when store.reconnecting is false', () => {
     const root = createRoot(host);
     act(() => root.render(createElement(RoastHeader, props)));
     expect(host.querySelector('[role="status"]')).toBeNull();
+    act(() => root.unmount());
+});
+
+it('shows a grouped blend option and selects the recipe independently of beans', () => {
+    const onBlendChange = vi.fn();
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastHeader, { ...props, selectedBlendId: 'blend-1', onBlendChange })));
+    const select = host.querySelector('select');
+    expect(select?.value).toBe('blend:blend-1');
+    expect(host.textContent).toContain('Modern');
+    act(() => select?.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(onBlendChange).toHaveBeenCalledWith('blend-1', 'Modern');
     act(() => root.unmount());
 });

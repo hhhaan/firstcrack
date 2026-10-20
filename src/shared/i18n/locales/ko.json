@@ -1310,6 +1310,7 @@
         },
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
+            "profileSources": "프로파일 연결 항목",
             "noBeanSelected": "생두 미선택",
             "target": "Target:",
             "noTarget": "Target 없음",
@@ -1617,6 +1618,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "연결 생두·블렌드",
+        "registeredSourcesHint": "여러 생두와 블렌드를 등록할 수 있습니다. 후보가 하나면 로스팅 준비 시 자동 선택됩니다.",
+        "searchSources": "생두·블렌드 검색",
         "editTitle": "로스팅 프로파일 수정",
         "fromSession": "세션에서 프로파일 만들기",
         "newTitle": "새 로스팅 프로파일",

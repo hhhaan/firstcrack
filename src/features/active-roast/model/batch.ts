@@ -10,6 +10,7 @@ export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended
 export const isChargedPhase = (phase: RoastPhase): boolean => phase === 'roasting' || phase === 'ended';
 
 export interface RoastSelection {
+    blendId?: string | null;
     beanId: string | null;
     beanName: string | null;
     profileId: string | null;
@@ -17,6 +18,7 @@ export interface RoastSelection {
 }
 export interface PreparedRoast extends RoastSelection {
     workspaceOwnerId: string | null;
+    sourceOrigin?: 'default' | 'profile' | 'user' | 'handoff';
     beanInitialized: boolean;
     profileInitialized: boolean;
     profileUserSelected: boolean;
@@ -34,6 +36,7 @@ export interface RoastSummaryData {
     sessionId?: string | null;
     elapsedSec?: number;
     selectedBeanId?: string | null;
+    selectedBlendId?: string | null;
     planBatchHandoff?: PlanBatchHandoff | null;
     handoffBeanName?: string | null;
 }
@@ -88,6 +91,7 @@ export interface BatchState {
     reviewSessionId: string | null;
 }
 export const emptySelection: RoastSelection = {
+    blendId: null,
     beanId: null,
     beanName: null,
     profileId: null,
@@ -124,6 +128,7 @@ export const selectDropCancelable = (state: BatchState): boolean => {
 };
 const copySelection = (selection: RoastSelection): RoastSelection =>
     structuredClone({
+        blendId: selection.blendId ?? null,
         beanId: selection.beanId,
         beanName: selection.beanName,
         profileId: selection.profileId,
@@ -138,6 +143,7 @@ const snapshotBatch = (state: BatchState, summary: RoastSummaryData, rawBT: numb
     rawBT,
     selection: copySelection({
         ...selectRoastSelection(state),
+        ...(summary.selectedBlendId !== undefined && { blendId: summary.selectedBlendId }),
         ...(summary.selectedBeanId !== undefined && { beanId: summary.selectedBeanId }),
         ...(summary.handoffBeanName !== undefined && { beanName: summary.handoffBeanName }),
         ...(summary.planBatchHandoff !== undefined && { planBatchHandoff: summary.planBatchHandoff }),
@@ -150,6 +156,7 @@ const summaryForSnapshot = (summary: RoastSummaryData, snapshot: CompletedRoastS
     ...summary,
     sessionId: snapshot.sessionId,
     logEntries: snapshot.logEntries,
+    selectedBlendId: snapshot.selection.blendId ?? null,
     selectedBeanId: snapshot.selection.beanId,
     planBatchHandoff: snapshot.selection.planBatchHandoff,
     handoffBeanName: snapshot.selection.beanName,
@@ -180,7 +187,7 @@ export const createBatchActions = (
     initializeBean: (beanId: string | null) => {
         const prepared = get().prepared;
         if (prepared.beanInitialized) return;
-        set({ prepared: { ...prepared, beanId, beanInitialized: true } });
+        set({ prepared: { ...prepared, beanId, sourceOrigin: 'default', beanInitialized: true } });
     },
     initializeProfile: (profileId: string | null) => {
         const state = get();
@@ -189,7 +196,55 @@ export const createBatchActions = (
         set({ prepared: { ...state.prepared, profileId, profileInitialized: true } });
     },
     prepareBean: (beanId: string | null, beanName: string | null = null) => {
-        set({ prepared: { ...get().prepared, beanId, beanName, beanInitialized: true } });
+        const state = get();
+        set({
+            prepared: {
+                ...state.prepared,
+                beanId,
+                blendId: null,
+                beanName,
+                sourceOrigin: 'user',
+                beanInitialized: true,
+            },
+        });
+    },
+    invalidatePreparedBean: (expectedBeanId: string) => {
+        const state = get();
+        if (state.activeSelection || state.prepared.beanId !== expectedBeanId) return;
+        set({ prepared: { ...state.prepared, beanId: null, beanName: null } });
+    },
+    prepareBlend: (blendId: string | null, beanName: string | null = null) => {
+        const state = get();
+        if (isChargedPhase(state.phase)) return;
+        set({
+            prepared: {
+                ...state.prepared,
+                beanId: null,
+                blendId,
+                beanName,
+                sourceOrigin: 'user',
+                beanInitialized: true,
+            },
+        });
+    },
+    applyProfileSource: (
+        source: { beanId: string | null; blendId: string | null; name: string } | null,
+        requiresChoice = false,
+    ) => {
+        const state = get();
+        const prepared = state.prepared;
+        if (isChargedPhase(state.phase) || prepared.planBatchHandoff || prepared.sourceOrigin === 'user') return;
+        if (!source && !requiresChoice && prepared.sourceOrigin !== 'profile') return;
+        set({
+            prepared: {
+                ...prepared,
+                beanId: source?.beanId ?? null,
+                blendId: source?.blendId ?? null,
+                beanName: source?.name ?? null,
+                sourceOrigin: 'profile',
+                beanInitialized: true,
+            },
+        });
     },
     commitProfile: (
         profileId: string | null,
@@ -200,7 +255,17 @@ export const createBatchActions = (
         if (state.sessionId !== expectedSessionId || state.prepared.workspaceOwnerId !== expectedWorkspaceOwnerId)
             return false;
         set({
-            prepared: { ...state.prepared, profileId, profileInitialized: true, profileUserSelected: true },
+            prepared: {
+                ...state.prepared,
+                profileId,
+                profileInitialized: true,
+                profileUserSelected: true,
+                ...(!isChargedPhase(state.phase) &&
+                state.prepared.sourceOrigin === 'profile' &&
+                !state.prepared.planBatchHandoff
+                    ? { beanId: null, blendId: null, beanName: null }
+                    : {}),
+            },
             ...(state.activeSelection && { activeSelection: { ...state.activeSelection, profileId } }),
         });
         return true;
@@ -209,6 +274,8 @@ export const createBatchActions = (
         set({
             prepared: {
                 ...get().prepared,
+                blendId: handoff.blendId ?? null,
+                sourceOrigin: 'handoff',
                 beanId: handoff.beanId ?? null,
                 beanName: handoff.beanName || null,
                 planBatchHandoff: structuredClone(handoff),

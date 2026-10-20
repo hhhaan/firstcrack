@@ -81,12 +81,8 @@ const NewProfileModalOpen = ({
                         summary={form.summary}
                         beans={form.beans}
                         blends={form.blends}
-                        defaultType={form.defaultType}
-                        setDefaultType={form.setDefaultType}
-                        defaultBeanId={form.defaultBeanId}
-                        setDefaultBeanId={form.setDefaultBeanId}
-                        defaultBlendId={form.defaultBlendId}
-                        setDefaultBlendId={form.setDefaultBlendId}
+                        sources={form.sources}
+                        setSources={form.setSources}
                         // History 진입(initialSessionId)은 목록으로 돌아가면 즉시 재선택되므로 뒤로가기 없음
                         onBack={editingProfile || initialSessionId ? undefined : () => form.setMode('session-list')}
                         onClose={onClose}
