@@ -448,7 +448,7 @@
                 "rorAxisMin": "RoR 最小值",
                 "rorAxisMax": "RoR 最大值",
                 "rorGridInterval": "RoR 刻度间隔",
-                "rorGridIntervalCapped": "轴范围较宽，刻度最多显示 {{maxTicks}} 个。图表使用 {{effective}}{{suffix}} 间隔，您保存的 {{requested}}{{suffix}} 设置不变。",
+                "rorGridIntervalCapped": "该范围所需刻度超过 {{maxTicks}} 个的上限，因此已精简刻度，图表使用 {{effective}}{{suffix}} 间隔。您保存的 {{requested}}{{suffix}} 设置不变。",
                 "horizontalGridInterval": "水平网格间隔",
                 "rorNumberMode": "RoR数字显示",
                 "rorTickList": "指定 RoR",
