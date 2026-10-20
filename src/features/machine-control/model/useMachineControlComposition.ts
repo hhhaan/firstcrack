@@ -126,6 +126,7 @@ export const useMachineControlComposition = ({
         void machine.commitNow('manual');
     }, [machine.commitNow]);
     const replay = useReplayControl({
+        sessionId: diagnostics?.sessionId ?? null,
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,
         referenceDropTime: replayDropTime,

@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
+
+import { logger } from '@shared/lib/logger';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type ControlCommand, createControlSender } from '../lib/controlSender';
+import { createGasOffDiagnostics } from '../lib/gasOffDiagnostics';
 import type { ReplayPoint } from '../lib/replay';
 import { type ReplayControlInputs, useReplayControl } from './useReplayControl';
 
@@ -74,6 +77,95 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
         unmount: () => act(() => root.unmount()),
     };
 };
+
+describe('Replay diagnostics preserve control behavior', () => {
+    beforeEach(() => {
+        vi.spyOn(logger, 'capture').mockImplementation(() => {
+            throw new Error('diagnostic unavailable');
+        });
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each(['timingGap', 'observationStale', 'writeFailed'] as const)(
+        'records %s once and allows explicit resume even when logging throws',
+        async (reason) => {
+            const h = await renderReplay({ sessionId: 'batch-1', lastValidReceivedAtMs: 1000, nowMs: 1000 });
+            if (reason === 'writeFailed') h.writeHeater.mockResolvedValueOnce(null);
+            await act(async () => h.get().toggle());
+            if (reason === 'timingGap') await h.jump({ sessionId: 'batch-1', elapsed: 30 });
+            if (reason === 'observationStale')
+                await h.jump({
+                    sessionId: 'batch-1',
+                    elapsed: 1,
+                    lastValidReceivedAtMs: 1000,
+                    nowMs: 6001,
+                    observationQuality: 'stale',
+                });
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe(reason);
+            expect(h.get().firedCount).toBe(reason === 'writeFailed' ? 0 : 1);
+            expect(h.writeHeater).toHaveBeenCalledTimes(1);
+            expect(logger.capture).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ message: expect.stringContaining(`Replay stopped: ${reason}`) }),
+                expect.objectContaining({
+                    fingerprint: ['replay-stopped', reason],
+                    extra: expect.objectContaining({ sessionId: 'batch-1' }),
+                }),
+            );
+            await h.rerender({ elapsed: 31, lastValidReceivedAtMs: 8000, nowMs: 8000 });
+            expect(logger.capture).toHaveBeenCalledTimes(1);
+            expect(h.writeHeater).toHaveBeenCalledTimes(1);
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            expect(h.writeHeater).toHaveBeenCalledTimes(2);
+            h.unmount();
+        },
+    );
+
+    it('accepts a nonzero applied response to zero and continues Replay when logging throws', async () => {
+        const diagnostic = createGasOffDiagnostics();
+        diagnostic.updateContext({
+            sessionId: 'batch-1',
+            roaster: 'giesen_w45a_w60a',
+            connectionEpoch: 1,
+            connected: true,
+            reconnecting: false,
+            heaterReadable: true,
+            elapsed: 0,
+            bt: 180,
+            receivedAtMs: null,
+            sample: null,
+        });
+        const send = vi.fn(async (command: ControlCommand) => command);
+        send.mockResolvedValueOnce({ heater: 7 });
+        const sender = createControlSender({ send, observer: diagnostic });
+        const inputs: Partial<ReplayControlInputs> = {
+            profileHeaterEvents: [
+                { t: 0, bt: 180, heater: 0 },
+                { t: 5, bt: 150, heater: 25 },
+            ],
+            writeHeater: async (value) => {
+                sender.queue('heater', value);
+                return (await sender.commitNow('replay'))?.heater ?? null;
+            },
+        };
+        const h = await renderReplay(inputs);
+        await act(async () => h.get().toggle());
+        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 0 });
+        expect(logger.capture).toHaveBeenCalledTimes(1);
+        expect(h.get().active).toBe(true);
+        expect(h.get().stopReason).toBeNull();
+        expect(h.get().firedCount).toBe(1);
+        await h.rerender({ ...inputs, elapsed: 5 });
+        expect(send).toHaveBeenCalledTimes(2);
+        expect(send).toHaveBeenLastCalledWith({ heater: 25 });
+        expect(h.get().active).toBe(true);
+        expect(h.get().firedCount).toBe(2);
+        h.unmount();
+        diagnostic.reset();
+    });
+});
 
 describe('stored reference TP', () => {
     it.each([false, true])('stops on a reference boundary change with savedOnly=%s', async (savedOnly) => {
