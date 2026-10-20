@@ -62,7 +62,7 @@ export interface RoastingState extends BatchState, BatchActions {
     updateLiveData: (data: LiveData) => void;
     setPid: (pid: PidRuntime | null) => void;
     setPendingBean: (beanId: string | null, beanName?: string | null) => void;
-    setPendingProfile: (profileId: string | null) => void;
+    setPendingProfile: (profileId: string | null, source?: BatchState['pendingProfileSource']) => void;
     rememberMachineSnapshot: (snapshot: MachineSnapshot) => void;
     reset: () => void;
 }
@@ -84,6 +84,7 @@ const initialState = {
     pendingBeanId: null as string | null,
     pendingBeanName: null as string | null,
     pendingProfileId: null as string | null,
+    pendingProfileSource: null as BatchState['pendingProfileSource'],
     sessionId: null as string | null,
     sessionOwnerId: null as string | null,
     reconnecting: false,
@@ -106,6 +107,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             pendingBeanId: state.pendingBeanId,
             pendingBeanName: state.pendingBeanName,
             pendingProfileId: state.pendingProfileId,
+            pendingProfileSource: state.pendingProfileSource,
             ...patch,
         });
     }),
@@ -161,7 +163,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         set({ pendingBeanId: beanId, pendingBeanName: beanId ? (beanName ?? null) : null });
     },
 
-    setPendingProfile: (profileId) => set({ pendingProfileId: profileId }),
+    setPendingProfile: (profileId, source = null) =>
+        set({ pendingProfileId: profileId, pendingProfileSource: profileId ? source : null }),
 
     rememberMachineSnapshot: (snapshot) => {
         const current = get().machineSnapshot;

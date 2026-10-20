@@ -84,6 +84,7 @@ export interface BatchState {
     pendingBeanId: string | null;
     pendingBeanName: string | null;
     pendingProfileId: string | null;
+    pendingProfileSource: { beanId: string | null; blendId: string | null; name: string } | null;
     prepared: PreparedRoast;
     activeSelection: RoastSelection | null;
     completed: CompletedRoast | null;
@@ -181,6 +182,7 @@ export const createBatchActions = (
                 pendingBeanId: null,
                 pendingBeanName: null,
                 pendingProfileId: null,
+                pendingProfileSource: null,
             }),
         });
     },
@@ -250,6 +252,7 @@ export const createBatchActions = (
         profileId: string | null,
         expectedSessionId: string | null,
         expectedWorkspaceOwnerId: string | null,
+        source: BatchState['pendingProfileSource'] = null,
     ) => {
         const state = get();
         if (state.sessionId !== expectedSessionId || state.prepared.workspaceOwnerId !== expectedWorkspaceOwnerId)
@@ -264,6 +267,16 @@ export const createBatchActions = (
                 state.prepared.sourceOrigin === 'profile' &&
                 !state.prepared.planBatchHandoff
                     ? { beanId: null, blendId: null, beanName: null }
+                    : {}),
+                ...(!isChargedPhase(state.phase) && source
+                    ? {
+                          beanId: source.beanId,
+                          blendId: source.blendId,
+                          beanName: source.name,
+                          sourceOrigin: 'user',
+                          beanInitialized: true,
+                          planBatchHandoff: null,
+                      }
                     : {}),
             },
             ...(state.activeSelection && { activeSelection: { ...state.activeSelection, profileId } }),
@@ -284,9 +297,15 @@ export const createBatchActions = (
             pendingBeanId: null,
             pendingBeanName: null,
             pendingProfileId: handoff.profileId ?? null,
+            pendingProfileSource: null,
         });
     },
-    completeBatch: () => set({ prepared: { ...get().prepared, planBatchHandoff: null }, pendingProfileId: null }),
+    completeBatch: () =>
+        set({
+            prepared: { ...get().prepared, planBatchHandoff: null },
+            pendingProfileId: null,
+            pendingProfileSource: null,
+        }),
     recordAdhocSave: (lastAdhocSave: LastAdhocSave) => set({ lastAdhocSave }),
     startCharge: (originMs?: number, ownerId?: string, charge?: { bt: number | null; unit: TemperatureUnit }) => {
         const state = get();
