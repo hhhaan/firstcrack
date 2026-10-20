@@ -8,12 +8,125 @@ export type Database = {
     };
     graphql_public: {
         Tables: {
+            polar_notification_outbox: {
+                Row: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    payload: Json;
+                    lease_id: string | null;
+                    lease_until: string | null;
+                    attempts: number;
+                    created_at: string;
+                    sent_at: string | null;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    payload: Json;
+                    lease_id?: string | null;
+                    lease_until?: string | null;
+                    attempts?: number;
+                    created_at?: string;
+                    sent_at?: string | null;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    event_id?: string;
+                    payload?: Json;
+                    lease_id?: string | null;
+                    lease_until?: string | null;
+                    attempts?: number;
+                    created_at?: string;
+                    sent_at?: string | null;
+                };
+                Relationships: [];
+            };
+
+            billing_customers: {
+                Row: {
+                    polar_organization_id: string;
+                    polar_customer_id: string;
+                    user_id: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    polar_customer_id: string;
+                    user_id: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    polar_customer_id?: string;
+                    user_id?: string;
+                };
+                Relationships: [];
+            };
+            polar_subscription_state: {
+                Row: {
+                    polar_organization_id: string;
+                    polar_subscription_id: string;
+                    user_id: string;
+                    polar_customer_id: string | null;
+                    plan: string | null;
+                    payload: Json;
+                    event_at: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    polar_subscription_id: string;
+                    user_id: string;
+                    polar_customer_id?: string | null;
+                    plan?: string | null;
+                    payload: Json;
+                    event_at: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    polar_subscription_id?: string;
+                    user_id?: string;
+                    polar_customer_id?: string | null;
+                    plan?: string | null;
+                    payload?: Json;
+                    event_at?: string;
+                };
+                Relationships: [];
+            };
+            polar_webhook_events: {
+                Row: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    event_at: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    event_at: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    event_id?: string;
+                    event_at?: string;
+                };
+                Relationships: [];
+            };
+
             [_ in never]: never;
         };
         Views: {
             [_ in never]: never;
         };
         Functions: {
+            claim_polar_notification: {
+                Args: { p_org_id: string; p_event_id: string; p_payload: Json };
+                Returns: Json;
+            };
+            finish_polar_notification: {
+                Args: { p_org_id: string; p_event_id: string; p_lease_id: string; p_sent: boolean };
+                Returns: boolean;
+            };
+            apply_polar_subscription_event: {
+                Args: { p_org_id: string; p_event_id: string; p_event_at: string; p_user_id: string | null; p_customer_id: string; p_subscription: Json; p_plan: string | null };
+                Returns: string;
+            };
             graphql: {
                 Args: {
                     extensions?: Json;
