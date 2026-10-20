@@ -9,7 +9,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 function toBase64(bytes: Uint8Array): string {
     let value = '';
-    for (const byte of bytes) value += String.fromCharCode(byte);
+    for (const byte of bytes) value += String.fromCodePoint(byte);
     return btoa(value);
 }
 
@@ -33,7 +33,7 @@ export async function verifyPolarStandardSignature(
             encoded = encoded.replace(/-/g, '+').replace(/_/g, '/');
             encoded += '='.repeat((4 - (encoded.length % 4)) % 4);
         }
-        keys.push(Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0)));
+        keys.push(Uint8Array.from(atob(encoded), (c) => c.codePointAt(0) ?? 0));
     } catch {
         // Invalid Standard key must not prevent the explicitly old-slot SDK fallback.
     }

@@ -2,29 +2,35 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, readdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+function compareFunctionNames(left, right) {
+    if (left === right) return 0;
+    return left < right ? -1 : 1;
+}
+
 export function resolveFunctions(paths, all) {
     const functions = new Set();
     for (const path of paths) {
         if (!path.startsWith('supabase/functions/')) continue;
         if (path.startsWith('supabase/functions/_shared/')) {
             // Only Polar-specific top-level modules/tests have a narrow dependency fanout.
-            if (!/^supabase\/functions\/_shared\/polar[^/]*\.ts$/.test(path)) return [...all].sort();
+            if (!/^supabase\/functions\/_shared\/polar[^/]*\.ts$/.test(path))
+                return [...all].sort(compareFunctionNames);
             functions.add('polar-webhook');
             functions.add('create-polar-checkout');
         } else {
             const name = path.split('/')[2];
-            if (!all.includes(name)) return [...all].sort();
+            if (!all.includes(name)) return [...all].sort(compareFunctionNames);
             functions.add(name);
         }
     }
-    return [...functions].sort();
+    return [...functions].sort(compareFunctionNames);
 }
 export function chooseFunctions({ input, event, paths, all }) {
     if (input) {
         if (!all.includes(input)) throw new Error('Unknown function input');
         return [input];
     }
-    if (event === 'workflow_dispatch' || paths === null) return [...all].sort();
+    if (event === 'workflow_dispatch' || paths === null) return [...all].sort(compareFunctionNames);
     return resolveFunctions(paths, all);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -39,7 +45,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
                 before && before !== '0'.repeat(40)
                     ? ['diff', '--name-only', `${before}...HEAD`, '--', 'supabase/functions/']
                     : ['diff', '--name-only', 'HEAD~1', '--', 'supabase/functions/'];
-            paths = execFileSync('git', args, { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+            // Deploy jobs run on Ubuntu; use its trusted system executable, never a writable PATH entry.
+            paths = execFileSync('/usr/bin/git', args, { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
         } catch {
             paths = null;
         } // Uncertain diff must never silently omit consumers.
