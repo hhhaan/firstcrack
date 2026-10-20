@@ -11,6 +11,8 @@ vi.mock('@entities/bean/queries', () => ({
     useBeans: () => ({ data: [] }),
 }));
 
+vi.mock('@features/active-roast/model/useBatchNumber', () => ({ useBatchNumber: () => 1 }));
+
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'user-1' }),
 }));
@@ -64,6 +66,19 @@ const props = {
     onTargetProfileChange: () => {},
     onBeanChange: () => {},
 };
+
+it.each([
+    { targetProfileId: null, historyReferenceName: null, visible: false },
+    { targetProfileId: 'missing', historyReferenceName: null, visible: false },
+    { targetProfileId: 'prof-1', historyReferenceName: null, visible: true },
+    { targetProfileId: null, historyReferenceName: 'Reference roast', visible: true },
+])('shows the batch number only for a resolved target: %j', ({ visible, ...target }) => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastHeader, { ...props, ...target })));
+    expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]') != null).toBe(visible);
+    act(() => root.unmount());
+});
 
 it('renders reconnecting status when store.reconnecting is true', () => {
     useRoastingStore.setState({ reconnecting: true });

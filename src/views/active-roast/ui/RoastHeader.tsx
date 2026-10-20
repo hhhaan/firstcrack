@@ -103,6 +103,7 @@ export const RoastHeader = ({
           (selectedBean.name !== beanTitle ? selectedBean.name : '')
         : '';
     const defaultProfileId = userProfile?.default_roast_profile_id;
+    const hasTarget = historyReferenceName != null || dbProfiles.some((profile) => profile.id === targetProfileId);
     const sortedProfiles = dbProfiles
         .filter((profile) => profile.id === targetProfileId || !profileVisibility.hidden.has(profile.id))
         .sort((a, b) => {
@@ -195,7 +196,7 @@ export const RoastHeader = ({
                         onProfileChange={handleProfileChange}
                         onChooseHistory={onChooseHistoryReference}
                     />
-                    {batchNumber != null && (
+                    {hasTarget && batchNumber != null && (
                         <span className="text-[13px] text-muted" title={t('activeRoast.header.batchNumberHint')}>
                             {t('activeRoast.header.batchNumber', { number: batchNumber })}
                         </span>
