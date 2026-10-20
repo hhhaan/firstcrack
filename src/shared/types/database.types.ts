@@ -33,6 +33,123 @@ export type Database = {
     };
     public: {
         Tables: {
+            polar_notification_outbox: {
+                Row: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    payload: Json;
+                    lease_id: string | null;
+                    lease_until: string | null;
+                    attempts: number;
+                    created_at: string;
+                    sent_at: string | null;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    payload: Json;
+                    lease_id?: string | null;
+                    lease_until?: string | null;
+                    attempts?: number;
+                    created_at?: string;
+                    sent_at?: string | null;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    event_id?: string;
+                    payload?: Json;
+                    lease_id?: string | null;
+                    lease_until?: string | null;
+                    attempts?: number;
+                    created_at?: string;
+                    sent_at?: string | null;
+                };
+                Relationships: [];
+            };
+
+            billing_customers: {
+                Row: {
+                    polar_organization_id: string;
+                    polar_customer_id: string;
+                    user_id: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    polar_customer_id: string;
+                    user_id: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    polar_customer_id?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'billing_customers_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            polar_subscription_state: {
+                Row: {
+                    polar_organization_id: string;
+                    polar_subscription_id: string;
+                    user_id: string;
+                    polar_customer_id: string | null;
+                    plan: string | null;
+                    payload: Json;
+                    event_at: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    polar_subscription_id: string;
+                    user_id: string;
+                    polar_customer_id?: string | null;
+                    plan?: string | null;
+                    payload: Json;
+                    event_at: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    polar_subscription_id?: string;
+                    user_id?: string;
+                    polar_customer_id?: string | null;
+                    plan?: string | null;
+                    payload?: Json;
+                    event_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'polar_subscription_state_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            polar_webhook_events: {
+                Row: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    event_at: string;
+                };
+                Insert: {
+                    polar_organization_id: string;
+                    event_id: string;
+                    event_at: string;
+                };
+                Update: {
+                    polar_organization_id?: string;
+                    event_id?: string;
+                    event_at?: string;
+                };
+                Relationships: [];
+            };
+
             bean_stock_events: {
                 Row: {
                     bean_id: string;
@@ -2168,6 +2285,27 @@ export type Database = {
             };
         };
         Functions: {
+            claim_polar_notification: {
+                Args: { p_org_id: string; p_event_id: string; p_payload: Json };
+                Returns: Json;
+            };
+            finish_polar_notification: {
+                Args: { p_org_id: string; p_event_id: string; p_lease_id: string; p_sent: boolean };
+                Returns: boolean;
+            };
+            apply_polar_subscription_event: {
+                Args: {
+                    p_org_id: string;
+                    p_event_id: string;
+                    p_event_at: string;
+                    p_user_id: string | null;
+                    p_customer_id: string;
+                    p_subscription: Json;
+                    p_plan: string | null;
+                };
+                Returns: string;
+            };
+
             admin_auth_session_ips: {
                 Args: never;
                 Returns: {
