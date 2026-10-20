@@ -20,6 +20,16 @@ export const roastProfileQueryRoots = {
     beanHistory: ['profile-bean-history'] as const,
 };
 
+/** Green bean list — the roast-session join (`beans`) is re-derived from this cache on edit. */
+export const beanQueryRoots = {
+    all: ['beans'] as const,
+};
+
+/** Per-session “stock already booked” probe across both ledgers (History relink guard). */
+export const roastSessionStockKeys = {
+    bySession: (sessionId: string) => ['roast-session-stock', sessionId] as const,
+};
+
 /** Inventory / stock — used by bean-stock-event, inventory-alert, roast deduct, packaging, dashboard */
 export const inventoryQueryRoots = {
     beanStockSummaries: ['bean-stock-summaries'] as const,

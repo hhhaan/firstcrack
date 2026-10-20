@@ -18,6 +18,7 @@ const qMatch = (s: RoastSessionWithRelations, q: string): boolean => {
     return (
         (sessionBeanName(s) ?? '').toLowerCase().includes(needle) ||
         (s.bean_label ?? '').toLowerCase().includes(needle) ||
+        (s.batch_name ?? '').toLowerCase().includes(needle) ||
         (s.roast_profiles?.name ?? '').toLowerCase().includes(needle) ||
         (s.beans?.origin ?? '').toLowerCase().includes(needle)
     );
@@ -89,7 +90,7 @@ export const sortSessions = (
             case 'date':
                 return compareNullable(a.roasted_at, b.roasted_at, dir);
             case 'bean':
-                return compareNullable(sessionBeanName(a), sessionBeanName(b), dir);
+                return compareNullable(a.beans?.name?.trim() || null, b.beans?.name?.trim() || null, dir);
             case 'profile':
                 return compareNullable(a.roast_profiles?.name, b.roast_profiles?.name, dir);
             case 'weight':

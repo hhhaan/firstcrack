@@ -25,6 +25,7 @@ export {
     formatTemp,
     fromDisplayRoR,
     fromDisplayTemp,
+    fromDisplayTempDelta,
     rorUnitLabel,
     tempUnitLabel,
     toDisplayRoR,

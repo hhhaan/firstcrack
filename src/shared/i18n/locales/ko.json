@@ -10,7 +10,7 @@
         "recordingHint": "새 키 조합을 누르세요. Esc로 취소할 수 있습니다.",
         "change": "단축키 변경: {{action}}",
         "fixed": "변경할 수 없는 단축키",
-        "doubleTap": "400ms 안에 두 번 누르기",
+        "globalHint": "창이 활성 상태가 아니어도 동작합니다. 로스팅 중에만 시스템 전역 키로 등록됩니다.",
         "noResults": "일치하는 단축키가 없습니다",
         "groups": {
             "app": "앱",
@@ -423,21 +423,18 @@
                 "pidDropHoldDescription": "버너를 그대로 둬 다음 배치를 예열된 드럼에서 시작합니다. 이상 정지·과열 시에는 설정과 무관하게 화력을 0으로 내립니다.",
                 "pidDropZero": "화력 0으로",
                 "pidDropZeroDescription": "배출 즉시 버너를 끕니다",
-                "axisTicks": "축 눈금",
-                "axisTicksDescription": "실시간·기록 차트의 눈금 간격과 숫자 표시 주기. 온도 간격은 선택한 온도 단위 기준",
-                "tempGridInterval": "온도 격자",
-                "tempLabelEvery": "온도 숫자 표시 주기",
+                "axisTicks": "눈금·보조선",
+                "axisTicksDescription": "가로선과 축 옆 숫자 간격을 각각 설정합니다. 예: 보조선 10°C, 온도 숫자 50°C, RoR 숫자 2°C/min. 공간이 부족하면 숫자만 일부 생략합니다.",
+                "tempLabelInterval": "온도 숫자 간격",
+                "rorLabelInterval": "RoR 숫자 간격",
+                "tempNumberMode": "온도 숫자 표시",
                 "timeTickInterval": "시간 눈금 간격",
                 "axisTicksCustom": "직접 입력",
                 "axisTicksDefault": "{{value}} (기본)",
-                "tempLabelEveryValue": "{{count}}칸마다",
                 "timeTickSeconds": "{{count}}초",
-                "tempTickMode": "입력 방식",
                 "tempTickInterval": "일정 간격",
                 "tempTickList": "특정 온도 지정",
-                "axisTickSteps": "칸",
                 "axisTickSeconds": "초",
-                "customTempInterval": "온도 간격",
                 "customTempTicks": "온도 눈금 목록",
                 "customTempTicksDescription": "쉼표로 구분한 온도 목록(예: 100, 150, 180). 축 범위 안의 값만 표시하며, 비우면 기본 눈금 사용",
                 "customTempTicksError": "유효한 숫자를 최대 100개 입력하세요. 온도는 0~500°C 범위여야 합니다.",
@@ -452,11 +449,12 @@
                 "rorAxisMax": "RoR 최대",
                 "rorGridInterval": "RoR 눈금 간격",
                 "rorGridIntervalCapped": "축 범위가 넓어 눈금은 최대 {{maxTicks}}개까지 표시됩니다. 차트에는 {{effective}}{{suffix}} 간격을 쓰고, 저장된 {{requested}}{{suffix}} 설정은 그대로입니다.",
+                "horizontalGridInterval": "가로 보조선 간격",
+                "rorNumberMode": "RoR 숫자 표시",
                 "rorTickList": "특정 RoR 지정",
                 "customRorTicks": "RoR 눈금 목록",
                 "customRorTicksDescription": "쉼표로 구분한 RoR 목록(예: -5, 0, 5, 10). 축 범위 안의 값만 표시하며, 비우면 기본 눈금 사용",
                 "customRorTicksError": "유효한 숫자를 최대 100개 입력하세요. RoR은 -100~300°C/min 범위여야 합니다.",
-                "rorLabelEvery": "RoR 숫자 표시 주기",
                 "controlChart": "컨트롤 차트",
                 "controlChartDescription": "컨트롤 차트의 표시 항목과 축 범위. 차트 표시 여부는 데이터 표시에서 설정",
                 "controlDrum": "드럼",
@@ -786,6 +784,7 @@
         "enterpriseOnly": "이 모델은 Enterprise 계정에서만 연결할 수 있습니다.",
         "sidecarStarting": "연결 준비 중...",
         "linkUnstable": "머신 연결이 불안정합니다. 케이블과 네트워크 상태를 확인해 주세요.",
+        "gasOffUnconfirmed": "화력 0 명령 후 기기 피드백이 0인지 확인되지 않았습니다. 실제 화력을 확인하고 필요하면 기기에서 직접 조작해 주세요.",
         "startRoasting": "로스팅 시작",
         "selectMachine": "머신을 선택하세요",
         "limit": {
@@ -1078,6 +1077,7 @@
         },
         "expanded": {
             "origin": "산지",
+            "beanLocked": "이 로스팅에 이미 재고 기록이 있어 생두를 변경할 수 없습니다.",
             "chargeTemp": "투입 온도",
             "dropTemp": "배출 온도",
             "duration": "시간",
@@ -1231,7 +1231,8 @@
         "recordText": {
             "title": "로스팅 제목",
             "add": "노트 추가",
-            "failed": "저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해 주세요."
+            "failed": "저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해 주세요.",
+            "inputName": "직접 입력명"
         }
     },
     "beans": {
@@ -1321,7 +1322,9 @@
             "roastComplete": "로스팅 완료",
             "settings": "로스팅 설정",
             "openSettings": "로스팅 설정 열기",
-            "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요"
+            "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "기능 적용 이후 이 기기의 Charge를 작업공간·프로파일별로 집계합니다. 취소·폐기 배치도 번호를 유지합니다."
         },
         "readings": {
             "beanTemp": "생두 온도",
@@ -1375,7 +1378,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "log": {
             "expand": "로스팅 로그 펼치기",
@@ -1466,7 +1469,9 @@
             "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다.",
             "sessionExpired": "로그인 세션이 만료되었습니다. 다시 로그인하면 이 기록이 자동으로 저장됩니다.",
             "workspaceLoading": "작업 공간을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
-            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다."
+            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다.",
+            "bbpLive": "BBP · 현재 로스터 상태",
+            "liveUnavailable": "새 측정값을 기다리는 중"
         },
         "planBatch": {
             "title": "다음 로스팅을 진행할까요?",

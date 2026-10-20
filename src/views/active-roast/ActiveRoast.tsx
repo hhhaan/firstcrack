@@ -76,6 +76,7 @@ import {
     isReplayMachineMismatch,
     isWaitingForCharge,
     latestSampleTime,
+    liveWindowTitle,
     orEmpty,
     orNull,
     profileSelectionEpoch,
@@ -168,6 +169,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayBt,
         observationQuality,
         lastValidReceivedAtMs,
+        feedbackReceivedAtMs,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -181,6 +183,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             replayBt: s.rawTemperature?.bt ?? null,
             observationQuality: s.observation?.quality ?? null,
             lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
+            feedbackReceivedAtMs: s.displayObservation?.receivedAtMs ?? null,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -756,15 +759,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── Effect: 타이틀바에 실시간 온도 표시 ─────────────────────
     useEffect(() => {
         if (!('__TAURI_INTERNALS__' in window)) return;
-        const isActivePhase = phase === 'roasting' || phase === 'preheating' || phase === 'standby';
-        if (!isActivePhase) {
-            void getCurrentWindow().setTitle('First Crack');
-            return;
-        }
-        const bt = formatTemp(rawBT, unit);
-        const et = formatTemp(rawET, unit);
-        void getCurrentWindow().setTitle(`First Crack — BT ${bt} | ET ${et} | ${timeStr}`);
-    }, [phase, rawBT, rawET, timeStr, unit]);
+        void getCurrentWindow().setTitle(
+            liveWindowTitle({
+                bbpElapsed: bbpTimer,
+                btLabel: formatTemp(rawBT, unit),
+                etLabel: formatTemp(rawET, unit),
+                roastElapsed: timeStr,
+                activePhase: phase === 'roasting' || phase === 'preheating' || phase === 'standby',
+            }),
+        );
+    }, [phase, rawBT, rawET, timeStr, unit, bbpTimer]);
 
     // ── 단계 표시 및 파생값 ──────────────────────────────────────
     const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries, bbpChargeWait);
@@ -1082,6 +1086,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
         onApplied: handleControlApplied,
+        diagnostics: { sessionId: charged ? sessionId : null, receivedAtMs: feedbackReceivedAtMs, sample: liveData },
     });
     useEffect(() => {
         if (reviewing) machineControl.replay.stop();
@@ -1408,6 +1413,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onConfirm={confirmEndRoast}
             />
             <RoastSummaryModal
+                bbpEnabled={bbpEnabled}
                 open={saveFlow.flow.summaryModal}
                 summaryData={saveFlow.flow.summaryData}
                 isSaving={saveFlow.isSaving}

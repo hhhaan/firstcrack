@@ -25,6 +25,19 @@ const session = (overrides: Partial<RoastSessionWithRelations> = {}): RoastSessi
     }) as RoastSessionWithRelations;
 
 describe('filterSessions', () => {
+    it('searches independent batch titles as well as bean names', () => {
+        const records = [session({ batch_name: 'Batch C', bean_label: null })];
+        expect(
+            filterSessions(records, {
+                search: 'Batch C',
+                levelFilter: 'all',
+                originFilter: 'all',
+                fromYM: '',
+                toYM: '',
+            }),
+        ).toHaveLength(1);
+    });
+
     const sessions = [
         session({ id: '1', beans: bean('Ethiopia', 'Ethiopia'), roast_level: 'Light' }),
         session({ id: '2', beans: bean('Colombia', 'Colombia'), roast_level: 'Dark' }),
@@ -114,6 +127,14 @@ describe('sortSessions', () => {
             session({ id: 'b', beans: bean('Apple', 'Kenya') }),
         ];
         expect(sortSessions(sessions, 'bean', true).map((s) => s.id)).toEqual(['b', 'a']);
+    });
+
+    it('sorts the green bean column without interpreting an unlinked roast title as a bean', () => {
+        const sessions = [
+            session({ id: 'unlinked', beans: null, bean_label: 'ZZZ batch' }),
+            session({ id: 'linked', beans: bean('Zambia', 'Zambia'), bean_label: 'ZZZ batch' }),
+        ];
+        expect(sortSessions(sessions, 'bean', true).map((s) => s.id)).toEqual(['unlinked', 'linked']);
     });
 
     it('sorts duration by Drop-first roast duration, not record End', () => {

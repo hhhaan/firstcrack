@@ -67,62 +67,30 @@ const emptyNote: RoastNoteValues = { gas: '', airflow: '', drum: '', note: '' };
 
 type ChartAxisInput = Pick<
     RoastSettings,
-    | 'tempGridInterval'
-    | 'tempGridPresetInterval'
-    | 'tempLabelPresetEvery'
-    | 'timeTickPresetSec'
-    | 'tempAxisMode'
+    | 'tempLabelInterval'
     | 'tempTickMode'
     | 'tempTicksC'
-    | 'tempLabelEvery'
+    | 'timeTickPresetSec'
     | 'timeTickIntervalSec'
     | 'timeMinorTickIntervalSec'
-    | 'tempLabelCustom'
     | 'timeTickCustom'
-    | 'rorGridInterval'
-    | 'rorGridPresetInterval'
-    | 'rorAxisMode'
+    | 'horizontalGridInterval'
+    | 'horizontalGridPresetInterval'
+    | 'horizontalGridMode'
     | 'rorTickMode'
     | 'rorTicksC'
-    | 'rorLabelEvery'
-    | 'rorLabelPresetEvery'
-    | 'rorLabelCustom'
+    | 'rorLabelInterval'
 >;
 
-const usesCustomTickList = (settings: Pick<ChartAxisInput, 'tempAxisMode' | 'tempTickMode' | 'tempTicksC'>): boolean =>
-    settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' && settings.tempTicksC.length > 0;
-
-const gridIntervalFor = (settings: ChartAxisInput): number => {
-    if (settings.tempAxisMode === 'preset') return settings.tempGridPresetInterval;
-    if (settings.tempTickMode === 'interval') return settings.tempGridInterval;
-    return 10;
-};
-
-const rorIntervalFor = (settings: ChartAxisInput): number => {
-    if (settings.rorAxisMode === 'preset') return settings.rorGridPresetInterval;
-    if (settings.rorTickMode === 'interval') return settings.rorGridInterval;
-    return 5;
-};
-
-const rorLabelEveryFor = (settings: ChartAxisInput): number => {
-    if (settings.rorAxisMode === 'list' && settings.rorTickMode === 'list') return 1;
-    if (settings.rorLabelCustom) return settings.rorLabelEvery;
-    return settings.rorLabelPresetEvery;
-};
-
-const labelEveryFor = (settings: ChartAxisInput): number => {
-    if (settings.tempAxisMode === 'list' && settings.tempTickMode === 'list') return 5;
-    if (settings.tempLabelCustom) return settings.tempLabelEvery;
-    return settings.tempLabelPresetEvery;
-};
-
 const chartAxisSettings = (settings: ChartAxisInput) => ({
-    rorGridInterval: rorIntervalFor(settings),
-    rorTicksC: settings.rorAxisMode === 'list' && settings.rorTickMode === 'list' ? settings.rorTicksC : [],
-    rorLabelEvery: rorLabelEveryFor(settings),
-    tempGridInterval: gridIntervalFor(settings),
-    tempTicksC: settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' ? settings.tempTicksC : [],
-    tempLabelEvery: labelEveryFor(settings),
+    horizontalGridInterval:
+        settings.horizontalGridMode === 'preset'
+            ? settings.horizontalGridPresetInterval
+            : settings.horizontalGridInterval,
+    rorLabelInterval: settings.rorLabelInterval,
+    rorTicksC: settings.rorTickMode === 'list' ? settings.rorTicksC : [],
+    tempLabelInterval: settings.tempLabelInterval,
+    tempTicksC: settings.tempTickMode === 'list' ? settings.tempTicksC : [],
     timeTickIntervalSec: settings.timeTickCustom ? settings.timeTickIntervalSec : settings.timeTickPresetSec,
     timeMinorTickIntervalSec: settings.timeMinorTickIntervalSec,
 });
@@ -385,7 +353,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const curves = useCurveStyles();
     const fontScale = roastSettings.fontScalePct / 100;
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
-    const yRangeInterval = usesCustomTickList(roastSettings) ? undefined : axisSettings.tempGridInterval;
 
     const dragStateRef = useRef<{ pointerId: number; logId: string; event: string; timeSec: number } | null>(null);
     const PIXEL_THRESHOLD = 10;
@@ -669,7 +636,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!chart || !point) return null;
             const xMin = xViewMin ?? xs[0] ?? 0;
             const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
-            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit, yRangeInterval).tempYMax;
+            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
                     if (hideChargeLabel && marker.event === 'Charge') return [];
@@ -784,7 +751,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             onEventMarkerEdit,
             tempMaxC,
             tempMinC,
-            yRangeInterval,
             temperatureUnit,
             turningPoints,
             savedReview,

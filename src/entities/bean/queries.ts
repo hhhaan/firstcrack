@@ -1,5 +1,5 @@
 import { isOptimisticId } from '@shared/lib/optimistic-id';
-import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { beanQueryRoots, inventoryQueryRoots } from '@shared/lib/query-keys';
 import type { Bean } from '@shared/types/database.types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { beanApi } from './api';
@@ -24,7 +24,7 @@ export const replaceOptimisticBean = (list: Bean[], real: Bean, tempId?: string)
 };
 
 export const beanKeys = {
-    all: (userId: string) => ['beans', userId] as const,
+    all: (userId: string) => [...beanQueryRoots.all, userId] as const,
     detail: (id: string) => ['beans', 'detail', id] as const,
 };
 

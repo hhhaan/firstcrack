@@ -6,6 +6,7 @@ import {
 } from '@entities/cupping';
 import { useRoastSessions } from '@entities/roast';
 import { formatDateShort } from '@shared/lib/format';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { modalHeaderChrome, tabCls } from '@shared/ui/form-styles';
 import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -48,6 +49,7 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                     /** Sample label stored on cupping_samples — bean name, not roast date */
                     label: beanName,
                     beanName,
+                    roastTitle: sessionRoastTitle(s) ?? beanName,
                     beanMeta,
                     roastedAt: s.roasted_at,
                     roastLevel: s.roast_level,
@@ -186,7 +188,12 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                                             onChange={() => toggleRoast(o.id)}
                                         />
                                         <span className="min-w-0 flex-1">
-                                            <span className="block font-medium text-primary">{o.beanName}</span>
+                                            <span className="block font-medium text-primary">{o.roastTitle}</span>
+                                            {o.roastTitle !== o.beanName && (
+                                                <span className="mt-0.5 block text-[11px] text-secondary">
+                                                    {t('history.table.bean')}: {o.beanName}
+                                                </span>
+                                            )}
                                             {o.beanMeta ? (
                                                 <span className="mt-0.5 block text-[11px] leading-snug text-muted">
                                                     {o.beanMeta}

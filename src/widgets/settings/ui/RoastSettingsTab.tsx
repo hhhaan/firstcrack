@@ -7,6 +7,7 @@ import {
     fontScaleToSlider,
     fromDisplayRoR,
     fromDisplayTemp,
+    fromDisplayTempDelta,
     isAlertSoundKind,
     // type PidDropBehavior, // PID 배출 화력 UI 복구 시 주석 해제
     type PollIntervalMs,
@@ -20,6 +21,7 @@ import {
     TIME_RANGE_PRESET_MIN,
     toDisplayRoR,
     toDisplayTemp,
+    toDisplayTempDelta,
     updateRoastSettings,
     useBbpStore,
     useEffectivePollIntervalMs,
@@ -396,8 +398,7 @@ const TimeRangeRow = ({ custom, presetMin, customMin }: { custom: boolean; prese
     );
 };
 
-const ROR_GRID_PRESETS = [5, 10] as const;
-const ROR_LABEL_PRESETS = [1, 2, 5] as const;
+const HORIZONTAL_GRID_PRESETS = [5, 10] as const;
 const isPresetValue = (presets: readonly number[], value: string) => presets.includes(Number(value));
 
 type TickMode = 'interval' | 'list';
@@ -504,53 +505,84 @@ const RorTickListField = ({ unit, suffix }: { unit: TemperatureUnit; suffix: str
     );
 };
 
-const RorLabelEveryRow = () => {
+const RorLabelIntervalRow = () => {
+    const { t } = useTranslation();
+    const roastSettings = useRoastSettings();
+    const unit = roastSettings.temperatureUnit;
+    return (
+        <SettingsOptionRow justify="between">
+            <label className={settingsOptionLabelCls} htmlFor="roast-ror-label-interval">
+                {t('settings.tabs.roast.rorLabelInterval')}
+            </label>
+            <NumberInput
+                id="roast-ror-label-interval"
+                integer
+                value={Number(toDisplayRoR(roastSettings.rorLabelInterval, unit).toFixed(6))}
+                onChange={(value) => updateRoastSettings({ rorLabelInterval: fromDisplayRoR(value, unit) })}
+                min={1}
+                max={toDisplayRoR(10000, unit)}
+                suffix={rorUnitLabel(unit)}
+            />
+        </SettingsOptionRow>
+    );
+};
+
+const HorizontalGridIntervalRow = () => {
     const { t } = useTranslation();
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
     const roastSettings = useRoastSettings();
-    const labelFor = (value: number) => t('settings.tabs.roast.tempLabelEveryValue', { count: value });
+    const unit = roastSettings.temperatureUnit;
+    const suffix = `°${unit}`;
+    const show = (deltaC: number) => Number(toDisplayTempDelta(deltaC, unit).toFixed(6));
+    const custom = roastSettings.horizontalGridMode === 'custom';
     return (
         <SettingsOptionRow justify="between" align="start">
-            <label
-                className={settingsOptionLabelCls}
-                htmlFor={roastSettings.rorLabelCustom ? 'roast-rorLabelEvery-custom' : undefined}
-            >
-                {tk('rorLabelEvery')}
+            <label className={settingsOptionLabelCls} htmlFor={custom ? 'roast-horizontal-grid-interval' : undefined}>
+                {tk('horizontalGridInterval')}
             </label>
             <div className="flex flex-col items-end gap-2">
                 <Select
-                    value={roastSettings.rorLabelCustom ? 'custom' : String(roastSettings.rorLabelPresetEvery)}
+                    value={custom ? 'custom' : String(roastSettings.horizontalGridPresetInterval)}
                     onValueChange={(value) => {
                         if (value === 'custom') {
-                            updateRoastSettings({ rorLabelCustom: true });
+                            updateRoastSettings({ horizontalGridMode: 'custom' });
                             return;
                         }
-                        if (!isPresetValue(ROR_LABEL_PRESETS, value)) return;
-                        updateRoastSettings({ rorLabelCustom: false, rorLabelPresetEvery: Number(value) });
+                        if (!isPresetValue(HORIZONTAL_GRID_PRESETS, value)) return;
+                        updateRoastSettings({
+                            horizontalGridMode: 'preset',
+                            horizontalGridPresetInterval: Number(value),
+                        });
                     }}
                 >
-                    <SelectTrigger className="w-48" aria-label={tk('rorLabelEvery')}>
+                    <SelectTrigger className="w-48" aria-label={tk('horizontalGridInterval')}>
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {ROR_LABEL_PRESETS.map((value) => (
+                        {HORIZONTAL_GRID_PRESETS.map((value) => (
                             <SelectItem key={value} value={String(value)}>
-                                {value === ROR_LABEL_PRESETS[0]
-                                    ? t('settings.tabs.roast.axisTicksDefault', { value: labelFor(value) })
-                                    : labelFor(value)}
+                                {value === HORIZONTAL_GRID_PRESETS[0]
+                                    ? t('settings.tabs.roast.axisTicksDefault', { value: `${show(value)}${suffix}` })
+                                    : `${show(value)}${suffix}`}
                             </SelectItem>
                         ))}
                         <SelectItem value="custom">{tk('axisTicksCustom')}</SelectItem>
                     </SelectContent>
                 </Select>
-                {roastSettings.rorLabelCustom && (
+                {custom && (
                     <NumberInput
-                        id="roast-rorLabelEvery-custom"
-                        value={roastSettings.rorLabelEvery}
-                        onChange={(value) => updateRoastSettings({ rorLabelEvery: Math.round(value) })}
+                        id="roast-horizontal-grid-interval"
+                        integer
+                        step={1}
+                        value={Math.round(show(roastSettings.horizontalGridInterval))}
+                        onChange={(value) =>
+                            updateRoastSettings({
+                                horizontalGridInterval: fromDisplayTempDelta(Math.round(value), unit),
+                            })
+                        }
                         min={1}
-                        max={100}
-                        suffix={tk('axisTickSteps')}
+                        max={Math.round(show(100))}
+                        suffix={suffix}
                     />
                 )}
             </div>
@@ -564,93 +596,33 @@ const RorTickSection = () => {
     const roastSettings = useRoastSettings();
     const unit = roastSettings.temperatureUnit;
     const suffix = rorUnitLabel(unit);
-    const show = (cPerMin: number) => Number(toDisplayRoR(cPerMin, unit).toFixed(6));
-    const custom = roastSettings.rorAxisMode === 'list';
-    const usesIntervalSpacing =
-        roastSettings.rorAxisMode === 'preset' ||
-        (roastSettings.rorAxisMode === 'list' && roastSettings.rorTickMode === 'interval');
-    const storedIntervalC =
-        roastSettings.rorAxisMode === 'preset' ? roastSettings.rorGridPresetInterval : roastSettings.rorGridInterval;
     const intervalCap = useMemo(() => {
-        if (!usesIntervalSpacing) return null;
+        if (roastSettings.rorTickMode === 'list') return null;
         const minDisplay = Number(toDisplayRoR(roastSettings.rorYMin, unit).toFixed(6));
         const maxDisplay = Number(toDisplayRoR(roastSettings.rorYMax, unit).toFixed(6));
-        return resolveRorAxisInterval(minDisplay, maxDisplay, storedIntervalC, unit);
-    }, [usesIntervalSpacing, roastSettings.rorYMin, roastSettings.rorYMax, storedIntervalC, unit]);
-    const presetLabel = (cPerMin: number) => {
-        const text = `${show(cPerMin)}${suffix}`;
-        return cPerMin === ROR_GRID_PRESETS[0] ? t('settings.tabs.roast.axisTicksDefault', { value: text }) : text;
-    };
+        return resolveRorAxisInterval(minDisplay, maxDisplay, roastSettings.rorLabelInterval, unit);
+    }, [roastSettings.rorTickMode, roastSettings.rorYMin, roastSettings.rorYMax, roastSettings.rorLabelInterval, unit]);
     return (
-        <>
-            <SettingsOptionRow justify="between" className={custom ? 'border-b-0!' : undefined}>
-                <span className={settingsOptionLabelCls}>{tk('rorGridInterval')}</span>
-                <Select
-                    value={custom ? 'list' : String(roastSettings.rorGridPresetInterval)}
-                    onValueChange={(value) => {
-                        if (value === 'list') {
-                            updateRoastSettings({ rorAxisMode: 'list' });
-                            return;
-                        }
-                        if (!isPresetValue(ROR_GRID_PRESETS, value)) return;
-                        updateRoastSettings({ rorAxisMode: 'preset', rorGridPresetInterval: Number(value) });
-                    }}
-                >
-                    <SelectTrigger className="w-48" aria-label={tk('rorGridInterval')}>
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {ROR_GRID_PRESETS.map((value) => (
-                            <SelectItem key={value} value={String(value)}>
-                                {presetLabel(value)}
-                            </SelectItem>
-                        ))}
-                        <SelectItem value="list">{tk('axisTicksCustom')}</SelectItem>
-                    </SelectContent>
-                </Select>
-            </SettingsOptionRow>
-            {custom && (
-                <div className="grid gap-3 border-b border-border-subtle pb-3">
-                    <TickModeTabs
-                        idPrefix="roast-ror-mode"
-                        mode={roastSettings.rorTickMode}
-                        label={tk('tempTickMode')}
-                        intervalLabel={tk('tempTickInterval')}
-                        listLabel={tk('rorTickList')}
-                        onChange={(mode) => updateRoastSettings({ rorTickMode: mode })}
-                    />
-                    <div
-                        role="tabpanel"
-                        id="roast-ror-mode-panel"
-                        aria-labelledby={`roast-ror-mode-${roastSettings.rorTickMode}`}
-                    >
-                        {roastSettings.rorTickMode === 'interval' ? (
-                            <SettingsOptionRow justify="between">
-                                <label className={settingsOptionLabelCls} htmlFor="roast-ror-interval">
-                                    {tk('rorGridInterval')}
-                                </label>
-                                <NumberInput
-                                    id="roast-ror-interval"
-                                    integer
-                                    step={1}
-                                    value={Math.round(show(roastSettings.rorGridInterval))}
-                                    onChange={(value) =>
-                                        updateRoastSettings({
-                                            rorGridInterval: fromDisplayRoR(Math.round(value), unit),
-                                        })
-                                    }
-                                    min={1}
-                                    max={Math.round(show(100))}
-                                    suffix={suffix}
-                                />
-                            </SettingsOptionRow>
-                        ) : (
-                            <RorTickListField unit={unit} suffix={suffix} />
-                        )}
-                    </div>
-                </div>
-            )}
-            {!(custom && roastSettings.rorTickMode === 'list') && <RorLabelEveryRow />}
+        <div className="grid gap-3">
+            <TickModeTabs
+                idPrefix="roast-ror-mode"
+                mode={roastSettings.rorTickMode}
+                label={tk('rorNumberMode')}
+                intervalLabel={tk('tempTickInterval')}
+                listLabel={tk('rorTickList')}
+                onChange={(mode) => updateRoastSettings({ rorTickMode: mode })}
+            />
+            <div
+                role="tabpanel"
+                id="roast-ror-mode-panel"
+                aria-labelledby={`roast-ror-mode-${roastSettings.rorTickMode}`}
+            >
+                {roastSettings.rorTickMode === 'list' ? (
+                    <RorTickListField unit={unit} suffix={suffix} />
+                ) : (
+                    <RorLabelIntervalRow />
+                )}
+            </div>
             {intervalCap?.capped && (
                 <p className={settingsOptionDescCls}>
                     {t('settings.tabs.roast.rorGridIntervalCapped', {
@@ -661,7 +633,7 @@ const RorTickSection = () => {
                     })}
                 </p>
             )}
-        </>
+        </div>
     );
 };
 
@@ -805,7 +777,6 @@ export const RoastSettingsTab = () => {
     // (델타/변화율 값 — alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
     const unit = roastSettings.temperatureUnit;
     const ticksInvalid = ticksError && ticksDraft?.unit === unit;
-    const customTicksActive = roastSettings.tempAxisMode === 'list';
     const tempSuffix = `°${unit}`;
     const rorSuffix = rorUnitLabel(unit);
     const dispT = (celsius: number) => Math.round(toDisplayTemp(celsius, unit));
@@ -1208,197 +1179,136 @@ export const RoastSettingsTab = () => {
             <SettingsSection group="axes">
                 <SettingsSection.Header title={tk('axisTicks')} description={tk('axisTicksDescription')} />
                 <SettingsSection.Body className="grid gap-1.5">
-                    <SettingsOptionRow justify="between" className={customTicksActive ? 'border-b-0!' : undefined}>
-                        <span className={settingsOptionLabelCls}>{tk('tempGridInterval')}</span>
-                        <Select
-                            value={customTicksActive ? 'list' : String(roastSettings.tempGridPresetInterval)}
-                            onValueChange={(value) => {
-                                if (value === 'list') updateRoastSettings({ tempAxisMode: 'list' });
-                                else if ([10, 15, 20, 30].includes(Number(value)))
-                                    updateRoastSettings({
-                                        tempAxisMode: 'preset',
-                                        tempGridPresetInterval: Number(value),
-                                    });
-                                else return;
+                    <HorizontalGridIntervalRow />
+                    <div className="grid gap-3 border-b border-border-subtle pb-3">
+                        <TickModeTabs
+                            idPrefix="roast-temp-mode"
+                            mode={roastSettings.tempTickMode}
+                            label={tk('tempNumberMode')}
+                            intervalLabel={tk('tempTickInterval')}
+                            listLabel={tk('tempTickList')}
+                            onChange={(mode) => {
+                                updateRoastSettings({ tempTickMode: mode });
                                 setTicksDraft(null);
                                 setTicksError(false);
                             }}
+                        />
+                        <div
+                            role="tabpanel"
+                            id="roast-temp-mode-panel"
+                            aria-labelledby={`roast-temp-mode-${roastSettings.tempTickMode}`}
                         >
-                            <SelectTrigger className="w-48" aria-label={tk('tempGridInterval')}>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {[10, 15, 20, 30].map((value) => (
-                                    <SelectItem key={value} value={String(value)}>
-                                        {value === 10
-                                            ? t('settings.tabs.roast.axisTicksDefault', { value: `10°${unit}` })
-                                            : `${value}°${unit}`}
-                                    </SelectItem>
-                                ))}
-                                <SelectItem value="list">{tk('axisTicksCustom')}</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </SettingsOptionRow>
-                    {customTicksActive && (
-                        <div className="grid gap-3 border-b border-border-subtle pb-3">
-                            <TickModeTabs
-                                idPrefix="roast-temp-mode"
-                                mode={roastSettings.tempTickMode}
-                                label={tk('tempTickMode')}
-                                intervalLabel={tk('tempTickInterval')}
-                                listLabel={tk('tempTickList')}
-                                onChange={(mode) => {
-                                    updateRoastSettings({ tempTickMode: mode });
-                                    setTicksDraft(null);
-                                    setTicksError(false);
-                                }}
-                            />
-                            <div
-                                role="tabpanel"
-                                id="roast-temp-mode-panel"
-                                aria-labelledby={`roast-temp-mode-${roastSettings.tempTickMode}`}
-                            >
-                                {roastSettings.tempTickMode === 'interval' ? (
-                                    <SettingsOptionRow justify="between">
-                                        <label className={settingsOptionLabelCls} htmlFor="roast-temp-grid-custom">
-                                            {tk('customTempInterval')}
-                                        </label>
-                                        <NumberInput
-                                            id="roast-temp-grid-custom"
-                                            value={roastSettings.tempGridInterval}
-                                            onChange={(value) => updateRoastSettings({ tempGridInterval: value })}
-                                            min={1}
-                                            max={500}
-                                            suffix={tempSuffix}
-                                        />
-                                    </SettingsOptionRow>
-                                ) : (
-                                    <div className="grid gap-2">
-                                        <label className={settingsOptionLabelCls} htmlFor="roast-temp-ticks">
-                                            {tk('customTempTicks')} (°{unit})
-                                        </label>
-                                        <input
-                                            id="roast-temp-ticks"
-                                            type="text"
-                                            maxLength={2000}
-                                            value={
-                                                ticksDraft?.unit === unit
-                                                    ? ticksDraft.value
-                                                    : roastSettings.tempTicksC
-                                                          .map((value) => Number(toDisplayTemp(value, unit).toFixed(6)))
-                                                          .join(', ')
-                                            }
-                                            placeholder="100, 150, 180, 200, 250"
-                                            aria-invalid={ticksInvalid}
-                                            aria-describedby="roast-temp-ticks-hint"
-                                            className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-xs text-primary outline-none focus:border-primary"
-                                            onChange={(event) =>
-                                                setTicksDraft({ value: event.currentTarget.value, unit })
-                                            }
-                                            onKeyDown={(event) => {
-                                                if (event.key === 'Enter' && !event.nativeEvent.isComposing)
-                                                    event.currentTarget.blur();
-                                            }}
-                                            onBlur={(event) => {
-                                                if (ticksDraft?.unit !== unit) return;
-                                                const ticks = parseTemperatureTicks(event.currentTarget.value, unit);
-                                                setTicksError(ticks === null);
-                                                if (ticks !== null) {
-                                                    updateRoastSettings({ tempTicksC: ticks });
-                                                    setTicksDraft(null);
-                                                }
-                                            }}
-                                        />
-                                        <p
-                                            id="roast-temp-ticks-hint"
-                                            role={ticksInvalid ? 'alert' : undefined}
-                                            className={`text-xs ${ticksInvalid ? 'text-red-600 dark:text-red-400' : 'text-muted'}`}
-                                        >
-                                            {tk(ticksInvalid ? 'customTempTicksError' : 'customTempTicksDescription')}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                    {(
-                        [
-                            {
-                                key: 'tempLabelEvery',
-                                mode: 'tempLabelCustom',
-                                preset: 'tempLabelPresetEvery',
-                                values: [5, 1, 2, 3],
-                                label: 'tempLabelEvery',
-                                defaultValue: 5,
-                                max: 500,
-                                suffix: tk('axisTickSteps'),
-                            },
-                            {
-                                key: 'timeTickIntervalSec',
-                                mode: 'timeTickCustom',
-                                preset: 'timeTickPresetSec',
-                                values: [60, 30, 90, 120],
-                                label: 'timeTickInterval',
-                                defaultValue: 60,
-                                max: 3600,
-                                suffix: tk('axisTickSeconds'),
-                            },
-                        ] as const
-                    ).map(({ key, mode, preset, values, label, defaultValue, max, suffix }) => {
-                        const disabled =
-                            key === 'tempLabelEvery' && customTicksActive && roastSettings.tempTickMode === 'list';
-                        if (disabled) return null;
-                        const formatValue = (count: number) =>
-                            key === 'tempLabelEvery'
-                                ? t('settings.tabs.roast.tempLabelEveryValue', { count })
-                                : t('settings.tabs.roast.timeTickSeconds', { count });
-                        return (
-                            <SettingsOptionRow key={key} justify="between" align="start">
-                                <label
-                                    className={settingsOptionLabelCls}
-                                    htmlFor={roastSettings[mode] ? `roast-${key}-custom` : undefined}
-                                >
-                                    {tk(label)}
-                                </label>
-                                <div className="flex flex-col items-end gap-2">
-                                    <Select
-                                        value={roastSettings[mode] ? 'custom' : String(roastSettings[preset])}
-                                        onValueChange={(value) => {
-                                            if (value === 'custom') updateRoastSettings({ [mode]: true });
-                                            else if (values.some((presetValue) => presetValue === Number(value)))
-                                                updateRoastSettings({ [mode]: false, [preset]: Number(value) });
+                            {roastSettings.tempTickMode === 'interval' ? (
+                                <SettingsOptionRow justify="between">
+                                    <label className={settingsOptionLabelCls} htmlFor="roast-temp-label-interval">
+                                        {tk('tempLabelInterval')}
+                                    </label>
+                                    <NumberInput
+                                        id="roast-temp-label-interval"
+                                        value={roastSettings.tempLabelInterval}
+                                        onChange={(value) => updateRoastSettings({ tempLabelInterval: value })}
+                                        min={1}
+                                        max={250000}
+                                        suffix={tempSuffix}
+                                    />
+                                </SettingsOptionRow>
+                            ) : (
+                                <div className="grid gap-2">
+                                    <label className={settingsOptionLabelCls} htmlFor="roast-temp-ticks">
+                                        {tk('customTempTicks')} (°{unit})
+                                    </label>
+                                    <input
+                                        id="roast-temp-ticks"
+                                        type="text"
+                                        maxLength={2000}
+                                        value={
+                                            ticksDraft?.unit === unit
+                                                ? ticksDraft.value
+                                                : roastSettings.tempTicksC
+                                                      .map((value) => Number(toDisplayTemp(value, unit).toFixed(6)))
+                                                      .join(', ')
+                                        }
+                                        placeholder="100, 150, 180, 200, 250"
+                                        aria-invalid={ticksInvalid}
+                                        aria-describedby="roast-temp-ticks-hint"
+                                        className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-xs text-primary outline-none focus:border-primary"
+                                        onChange={(event) => setTicksDraft({ value: event.currentTarget.value, unit })}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter' && !event.nativeEvent.isComposing)
+                                                event.currentTarget.blur();
                                         }}
+                                        onBlur={(event) => {
+                                            if (ticksDraft?.unit !== unit) return;
+                                            const ticks = parseTemperatureTicks(event.currentTarget.value, unit);
+                                            setTicksError(ticks === null);
+                                            if (ticks !== null) {
+                                                updateRoastSettings({ tempTicksC: ticks });
+                                                setTicksDraft(null);
+                                            }
+                                        }}
+                                    />
+                                    <p
+                                        id="roast-temp-ticks-hint"
+                                        role={ticksInvalid ? 'alert' : undefined}
+                                        className={`text-xs ${ticksInvalid ? 'text-red-600 dark:text-red-400' : 'text-muted'}`}
                                     >
-                                        <SelectTrigger className="w-48" aria-label={tk(label)}>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {values.map((value) => (
-                                                <SelectItem key={value} value={String(value)}>
-                                                    {value === defaultValue
-                                                        ? t('settings.tabs.roast.axisTicksDefault', {
-                                                              value: formatValue(value),
-                                                          })
-                                                        : formatValue(value)}
-                                                </SelectItem>
-                                            ))}
-                                            <SelectItem value="custom">{tk('axisTicksCustom')}</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    {roastSettings[mode] && (
-                                        <NumberInput
-                                            id={`roast-${key}-custom`}
-                                            value={roastSettings[key]}
-                                            onChange={(value) => updateRoastSettings({ [key]: Math.round(value) })}
-                                            min={1}
-                                            max={max}
-                                            suffix={suffix}
-                                        />
-                                    )}
+                                        {tk(ticksInvalid ? 'customTempTicksError' : 'customTempTicksDescription')}
+                                    </p>
                                 </div>
-                            </SettingsOptionRow>
-                        );
-                    })}
+                            )}
+                        </div>
+                    </div>
+                    <SettingsOptionRow justify="between" align="start">
+                        <label
+                            className={settingsOptionLabelCls}
+                            htmlFor={roastSettings.timeTickCustom ? 'roast-timeTickIntervalSec-custom' : undefined}
+                        >
+                            {tk('timeTickInterval')}
+                        </label>
+                        <div className="flex flex-col items-end gap-2">
+                            <Select
+                                value={
+                                    roastSettings.timeTickCustom ? 'custom' : String(roastSettings.timeTickPresetSec)
+                                }
+                                onValueChange={(value) => {
+                                    if (value === 'custom') updateRoastSettings({ timeTickCustom: true });
+                                    else if ([60, 30, 90, 120].includes(Number(value)))
+                                        updateRoastSettings({
+                                            timeTickCustom: false,
+                                            timeTickPresetSec: Number(value),
+                                        });
+                                }}
+                            >
+                                <SelectTrigger className="w-48" aria-label={tk('timeTickInterval')}>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {[60, 30, 90, 120].map((value) => (
+                                        <SelectItem key={value} value={String(value)}>
+                                            {value === 60
+                                                ? t('settings.tabs.roast.axisTicksDefault', {
+                                                      value: t('settings.tabs.roast.timeTickSeconds', { count: value }),
+                                                  })
+                                                : t('settings.tabs.roast.timeTickSeconds', { count: value })}
+                                        </SelectItem>
+                                    ))}
+                                    <SelectItem value="custom">{tk('axisTicksCustom')}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {roastSettings.timeTickCustom && (
+                                <NumberInput
+                                    id="roast-timeTickIntervalSec-custom"
+                                    value={roastSettings.timeTickIntervalSec}
+                                    onChange={(value) =>
+                                        updateRoastSettings({ timeTickIntervalSec: Math.round(value) })
+                                    }
+                                    min={1}
+                                    max={3600}
+                                    suffix={tk('axisTickSeconds')}
+                                />
+                            )}
+                        </div>
+                    </SettingsOptionRow>
                     <RorTickSection />
                 </SettingsSection.Body>
             </SettingsSection>

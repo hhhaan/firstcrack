@@ -1,6 +1,7 @@
 import type { PidRuntime } from '@entities/machine';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
+import { createGasOffDiagnostics, type GasOffDiagnosticContext } from '../lib/gasOffDiagnostics';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
@@ -41,6 +42,7 @@ export interface MachineControlCompositionInput {
     /** Raw applied command. Tests use this; the heater log uses onHeaterCommitted. */
     onCommitted?: (committed: ControlCommand) => void;
     onApplied?: (applied: ControlCommand) => void;
+    diagnostics?: Pick<GasOffDiagnosticContext, 'sessionId' | 'receivedAtMs' | 'sample'>;
 }
 
 /**
@@ -70,7 +72,9 @@ export const useMachineControlComposition = ({
     onHeaterCommitted,
     onCommitted,
     onApplied,
+    diagnostics,
 }: MachineControlCompositionInput) => {
+    const gasOffDiagnostics = useMemo(() => createGasOffDiagnostics(), []);
     const heaterUnitRef = useRef('%');
     const handleCommitted = useCallback(
         (committed: ControlCommand) => {
@@ -79,7 +83,22 @@ export const useMachineControlComposition = ({
         },
         [onCommitted, onHeaterCommitted],
     );
-    const machine = useMachineControl(sidecarConnected, liveData, handleCommitted, onApplied);
+    const machine = useMachineControl(sidecarConnected, liveData, handleCommitted, onApplied, gasOffDiagnostics);
+    useEffect(() => {
+        gasOffDiagnostics.updateContext({
+            sessionId: diagnostics?.sessionId ?? null,
+            receivedAtMs: diagnostics?.receivedAtMs ?? null,
+            sample: diagnostics?.sample ?? null,
+            roaster: machine.connectionStatus?.roaster ?? null,
+            connectionEpoch: machine.connectionStatus?.connection_epoch ?? null,
+            connected: sidecarConnected,
+            reconnecting,
+            heaterReadable: (machine.connectionStatus?.capabilities ?? []).includes('heater'),
+            elapsed,
+            bt: liveBt,
+        });
+    }, [gasOffDiagnostics, diagnostics, machine.connectionStatus, sidecarConnected, reconnecting, elapsed, liveBt]);
+    useEffect(() => () => gasOffDiagnostics.reset(), [gasOffDiagnostics]);
     useEffect(() => {
         heaterUnitRef.current = machine.limits.heater?.unit ?? '%';
     }, [machine.limits.heater?.unit]);

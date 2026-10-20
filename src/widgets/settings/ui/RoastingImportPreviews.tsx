@@ -76,9 +76,7 @@ export function RoastingGraphPreview({
         if (target === 'timeRangeMin' && typeof value === 'number') return tk('minutes', { value });
         if ((target === 'timeTickIntervalSec' || target === 'timeMinorTickIntervalSec') && typeof value === 'number')
             return tk('seconds', { value });
-        if (target === 'tempGridInterval' && typeof value === 'number') return `${value} °${displayUnit}`;
-        if (target === 'tempLabelEvery' && typeof value === 'number')
-            return tk('temperatureLabelEvery', { count: value });
+        if (target === 'tempLabelInterval' && typeof value === 'number') return `${value} °${displayUnit}`;
         if (typeof value === 'boolean') return tk(value ? 'show' : 'hide');
         return value == null ? '—' : String(value);
     };
