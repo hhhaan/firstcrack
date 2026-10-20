@@ -3,7 +3,10 @@ export const NEW_POLAR_ORG = '3b6494cb-8248-47d1-a5f2-65ff7ca9b8a8';
 type Env = (name: string) => string | undefined;
 export function polarPlans(env: Env, org: string): Record<string, string> {
     const map: Record<string, string> = {};
-    for (const [key, plan] of [['PRO', 'pro'], ['PRO_PLUS', 'pro_plus']] as const) {
+    for (const [key, plan] of [
+        ['PRO', 'pro'],
+        ['PRO_PLUS', 'pro_plus'],
+    ] as const) {
         const prefix = org === OLD_POLAR_ORG ? 'POLAR_LEGACY_' : 'POLAR_';
         for (const market of ['US', 'KR', 'JP']) {
             for (const suffix of ['', '_YEARLY']) {
@@ -13,7 +16,11 @@ export function polarPlans(env: Env, org: string): Record<string, string> {
         }
     }
     if (org === OLD_POLAR_ORG) {
-        for (const [key, plan] of [['PRO', 'pro'], ['PRO_PLUS', 'pro_plus'], ['ENTERPRISE', 'enterprise']]) {
+        for (const [key, plan] of [
+            ['PRO', 'pro'],
+            ['PRO_PLUS', 'pro_plus'],
+            ['ENTERPRISE', 'enterprise'],
+        ]) {
             const id = env(`POLAR_LEGACY_${key}_PRODUCT_ID`) ?? env(`POLAR_${key}_PRODUCT_ID`);
             if (id) map[id] = plan;
         }

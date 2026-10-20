@@ -8,6 +8,31 @@ export type Database = {
     };
     graphql_public: {
         Tables: {
+            [_ in never]: never;
+        };
+        Views: {
+            [_ in never]: never;
+        };
+        Functions: {
+            graphql: {
+                Args: {
+                    extensions?: Json;
+                    operationName?: string;
+                    query?: string;
+                    variables?: Json;
+                };
+                Returns: Json;
+            };
+        };
+        Enums: {
+            [_ in never]: never;
+        };
+        CompositeTypes: {
+            [_ in never]: never;
+        };
+    };
+    public: {
+        Tables: {
             polar_notification_outbox: {
                 Row: {
                     polar_organization_id: string;
@@ -58,7 +83,15 @@ export type Database = {
                     polar_customer_id?: string;
                     user_id?: string;
                 };
-                Relationships: [];
+                Relationships: [
+                    {
+                        foreignKeyName: 'billing_customers_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
             };
             polar_subscription_state: {
                 Row: {
@@ -88,7 +121,15 @@ export type Database = {
                     payload?: Json;
                     event_at?: string;
                 };
-                Relationships: [];
+                Relationships: [
+                    {
+                        foreignKeyName: 'polar_subscription_state_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
             };
             polar_webhook_events: {
                 Row: {
@@ -109,43 +150,6 @@ export type Database = {
                 Relationships: [];
             };
 
-            [_ in never]: never;
-        };
-        Views: {
-            [_ in never]: never;
-        };
-        Functions: {
-            claim_polar_notification: {
-                Args: { p_org_id: string; p_event_id: string; p_payload: Json };
-                Returns: Json;
-            };
-            finish_polar_notification: {
-                Args: { p_org_id: string; p_event_id: string; p_lease_id: string; p_sent: boolean };
-                Returns: boolean;
-            };
-            apply_polar_subscription_event: {
-                Args: { p_org_id: string; p_event_id: string; p_event_at: string; p_user_id: string | null; p_customer_id: string; p_subscription: Json; p_plan: string | null };
-                Returns: string;
-            };
-            graphql: {
-                Args: {
-                    extensions?: Json;
-                    operationName?: string;
-                    query?: string;
-                    variables?: Json;
-                };
-                Returns: Json;
-            };
-        };
-        Enums: {
-            [_ in never]: never;
-        };
-        CompositeTypes: {
-            [_ in never]: never;
-        };
-    };
-    public: {
-        Tables: {
             bean_stock_events: {
                 Row: {
                     bean_id: string;
@@ -2223,6 +2227,27 @@ export type Database = {
             };
         };
         Functions: {
+            claim_polar_notification: {
+                Args: { p_org_id: string; p_event_id: string; p_payload: Json };
+                Returns: Json;
+            };
+            finish_polar_notification: {
+                Args: { p_org_id: string; p_event_id: string; p_lease_id: string; p_sent: boolean };
+                Returns: boolean;
+            };
+            apply_polar_subscription_event: {
+                Args: {
+                    p_org_id: string;
+                    p_event_id: string;
+                    p_event_at: string;
+                    p_user_id: string | null;
+                    p_customer_id: string;
+                    p_subscription: Json;
+                    p_plan: string | null;
+                };
+                Returns: string;
+            };
+
             admin_auth_session_ips: {
                 Args: never;
                 Returns: {

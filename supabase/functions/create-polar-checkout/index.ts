@@ -58,12 +58,11 @@ serveWithSentry('create-polar-checkout', async (req) => {
     });
 
     if (!checkoutRes.ok) {
-        const errBody = await checkoutRes.text();
-        console.error('[create-polar-checkout] checkout create:', errBody);
+        console.error('[create-polar-checkout] checkout create failed:', checkoutRes.status);
         await captureEdgeException(new Error(`polar checkout ${checkoutRes.status}`), {
             function: 'create-polar-checkout',
             status: 500,
-            extra: { polarStatus: checkoutRes.status, polarBody: errBody.slice(0, 500) },
+            extra: { polarStatus: checkoutRes.status },
         });
         return jsonResponse({ error: 'Failed to create checkout' }, 500);
     }

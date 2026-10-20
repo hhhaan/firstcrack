@@ -1,5 +1,5 @@
-import { appendFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { appendFileSync, readdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export function resolveFunctions(paths, all) {
@@ -28,16 +28,26 @@ export function chooseFunctions({ input, event, paths, all }) {
     return resolveFunctions(paths, all);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-    const all = readdirSync('supabase/functions', { withFileTypes: true }).filter(x => x.isDirectory() && x.name !== '_shared').map(x => x.name);
+    const all = readdirSync('supabase/functions', { withFileTypes: true })
+        .filter((x) => x.isDirectory() && x.name !== '_shared')
+        .map((x) => x.name);
     let paths = null;
     if (process.env.EVENT_NAME !== 'workflow_dispatch' && !process.env.FUNCTION_INPUT) {
         const before = process.env.BEFORE_SHA;
         try {
-            const args = before && before !== '0'.repeat(40) ? ['diff','--name-only',`${before}...HEAD`,'--','supabase/functions/'] : ['diff','--name-only','HEAD~1','--','supabase/functions/'];
-            paths = execFileSync('git', args, { encoding:'utf8' }).trim().split('\n').filter(Boolean);
-        } catch { paths = null; } // Uncertain diff must never silently omit consumers.
+            const args =
+                before && before !== '0'.repeat(40)
+                    ? ['diff', '--name-only', `${before}...HEAD`, '--', 'supabase/functions/']
+                    : ['diff', '--name-only', 'HEAD~1', '--', 'supabase/functions/'];
+            paths = execFileSync('git', args, { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+        } catch {
+            paths = null;
+        } // Uncertain diff must never silently omit consumers.
     }
-    const functions = chooseFunctions({ input:process.env.FUNCTION_INPUT, event:process.env.EVENT_NAME, paths, all });
-    appendFileSync(process.env.GITHUB_OUTPUT, `functions=${JSON.stringify(functions)}\nproject_ref=vjdgdolfxvnxushxrmff\n`);
+    const functions = chooseFunctions({ input: process.env.FUNCTION_INPUT, event: process.env.EVENT_NAME, paths, all });
+    appendFileSync(
+        process.env.GITHUB_OUTPUT,
+        `functions=${JSON.stringify(functions)}\nproject_ref=vjdgdolfxvnxushxrmff\n`,
+    );
     console.log(`Selected ${functions.length} Edge functions`);
 }
