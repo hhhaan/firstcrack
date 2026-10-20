@@ -108,9 +108,15 @@ export const BeanList = ({
                                             onToggle={() => onToggleHidden(bean.id)}
                                         />
                                     )}
-                                    <Badge color={cfg.color} bg={cfg.bg} className="ml-2 px-[7px]">
-                                        {cfg.label}
-                                    </Badge>
+                                    {status === 'Good' ? (
+                                        <Badge tone="good" className="ml-2">
+                                            {cfg.label}
+                                        </Badge>
+                                    ) : (
+                                        <Badge color={cfg.color} bg={cfg.bg} className="ml-2 px-[7px]">
+                                            {cfg.label}
+                                        </Badge>
+                                    )}
                                 </div>
 
                                 <div className="mb-1 h-1 overflow-hidden rounded-full bg-surface">

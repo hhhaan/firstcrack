@@ -93,9 +93,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                         {total}%
                     </Badge>
                     {roastable.maxGrams > 0 ? (
-                        <Badge tone="good" className="text-xs px-2.25">
-                            {t('beans.blend.roastableKg', { kg: roastableKg })}
-                        </Badge>
+                        <Badge tone="good">{t('beans.blend.roastableKg', { kg: roastableKg })}</Badge>
                     ) : (
                         <Badge tone="neutral" className="text-xs px-2.25">
                             {t('beans.blend.noStock')}

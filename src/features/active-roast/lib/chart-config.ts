@@ -1,7 +1,8 @@
 import { isCustomRoastEvent } from './event-buttons';
 
 // ── Grid margins ─────────────────────────────────────────────────────────────
-export const CHART_GRID_LEFT = 38;
+/** Y-tick lines up with the roast title: 3-digit label plus AXIS_LABEL_MARGIN. */
+export const CHART_GRID_LEFT = 32;
 /** Gap between an axis tick label and the plot. */
 export const AXIS_LABEL_MARGIN = 8;
 export const CHART_GRID_TOP = 10;

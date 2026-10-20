@@ -82,7 +82,7 @@ export const BatchCard = ({
                 <div className="flex items-center gap-2 shrink-0">
                     <Badge
                         tone={statusTone[status] ?? 'neutral'}
-                        className={`px-1.5 rounded-md${status === 'skipped' ? ' line-through' : ''}`}
+                        className={`px-1.5${status === 'done' ? '' : ' rounded-md'}${status === 'skipped' ? ' line-through' : ''}`}
                     >
                         {status === 'in-progress'
                             ? `In Progress ${batch.completed_sessions}/${batch.batch_count}`

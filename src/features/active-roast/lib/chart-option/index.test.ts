@@ -1,4 +1,5 @@
 import {
+    CHART_GRID_LEFT,
     CONTROL_CURVE_WIDTH,
     MARKER_LABEL_FONT,
     markerLabelFont,
@@ -92,7 +93,7 @@ describe('buildRoastChartOption font scale', () => {
             });
             const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
             expect(yAxis[0]?.axisLabel?.fontSize).toBe(11);
-            expect(option.grid).toMatchObject([{ left: 38, right: 32, bottom: 65 }]);
+            expect(option.grid).toMatchObject([{ left: CHART_GRID_LEFT, right: 32, bottom: 65 }]);
             const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
             expect(bbp?.markArea?.label?.fontSize).toBe(12 * fontScale);
             expect(markerLabelFont(fontScale)).toBe(`600 ${10 * fontScale}px monospace`);

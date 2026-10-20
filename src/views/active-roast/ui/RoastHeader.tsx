@@ -6,7 +6,7 @@ import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
-import { ChevronDown, Settings2 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { TargetMenu } from './TargetMenu';
 
@@ -97,6 +97,8 @@ export const RoastHeader = ({
             if (b.id === defaultProfileId) return 1;
             return 0;
         });
+    void onOpenRoastSettings;
+
     return (
         <div className="flex items-end justify-between">
             <div>
@@ -160,7 +162,8 @@ export const RoastHeader = ({
                 </div>
             </div>
 
-            {/* ─── Right side: settings ─────────────────────────────────── */}
+            {/* ─── Right side: settings (hidden for now) ───────────────── */}
+            {/*
             <div className="flex items-start gap-3">
                 {onOpenRoastSettings && (
                     <button
@@ -175,6 +178,7 @@ export const RoastHeader = ({
                     </button>
                 )}
             </div>
+            */}
         </div>
     );
 };

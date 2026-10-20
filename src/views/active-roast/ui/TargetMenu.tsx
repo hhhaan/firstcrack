@@ -53,7 +53,7 @@ export const TargetMenu = ({
             <PopoverContent
                 align="start"
                 sideOffset={6}
-                className="w-80 overflow-hidden rounded-lg bg-main-bg p-1 shadow-ring"
+                className="w-80 overflow-hidden rounded-lg border border-black/15 bg-main-bg p-1 shadow-[0_2px_10px_rgba(0,0,0,0.06)]"
             >
                 <div className="max-h-56 overflow-x-hidden overflow-y-auto">
                     <button

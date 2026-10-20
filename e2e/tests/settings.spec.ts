@@ -290,13 +290,14 @@ test('settings is a responsive page and preserves existing preferences and entry
 
     await page.setViewportSize({ width: 1280, height: 800 });
     await goNav(page, 'roast');
-    await page.getByRole('button', { name: 'Open roast settings', exact: true }).click();
-    await expect(
-        settings.getByRole('main').getByRole('heading', { name: 'Units & sampling', exact: true }),
-    ).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(settings).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Open roast settings', exact: true })).toBeVisible();
+    // Roast header settings button is commented out for now.
+    // await page.getByRole('button', { name: 'Open roast settings', exact: true }).click();
+    // await expect(
+    //     settings.getByRole('main').getByRole('heading', { name: 'Units & sampling', exact: true }),
+    // ).toBeVisible();
+    // await page.keyboard.press('Escape');
+    // await expect(settings).toBeHidden();
+    // await expect(page.getByRole('button', { name: 'Open roast settings', exact: true })).toBeVisible();
 });
 
 test('roasting submenus filter sections while search and saved preferences span every group', async ({
