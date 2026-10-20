@@ -1242,6 +1242,85 @@ describe('buildRoastChartOption', () => {
         expect(byName['Heat set']).not.toHaveProperty('markPoint');
     });
 
+    it.each([1, 1.5, 2])('keeps current control values above their own lines at scale %s', (fontScale) => {
+        const byName = seriesByName({
+            ...baseParams(),
+            fontScale,
+            controlData: {
+                xs: [0, 60],
+                drumTemp: [28, 38],
+                heatPower: [38, 28],
+                fanSpeed: [100, 100],
+            },
+        });
+        for (const name of ['Drum', 'Heat', 'Fan']) {
+            const marks = (
+                byName[name] as {
+                    markPoint: { data: { label: { position: string; distance: number; align: string } }[] };
+                }
+            ).markPoint.data;
+            const tail = marks[marks.length - 1];
+            expect(tail?.label.position).toBe('top');
+            expect(tail?.label.distance).toBe(2);
+            expect(tail?.label.align).toBe('right');
+        }
+    });
+
+    it.each([1, 1.5, 2])(
+        'renders legible tail labels above the control lines, including the upper boundary (%s)',
+        (fontScale) => {
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 1000, height: 600 });
+            chart.setOption(
+                buildRoastChartOption({
+                    ...baseParams(),
+                    fontScale,
+                    currentTimeSec: 60,
+                    controlData: { xs: [0, 60], drumTemp: [28, 28], heatPower: [38, 38], fanSpeed: [100, 100] },
+                }) as echarts.EChartsOption,
+            );
+            const display = chart.getZr().storage.getDisplayList();
+            for (const [name, value, axis, color] of [
+                ['Drum', 28, 2, mockColors.controlDrum],
+                ['Heat', 38, 3, mockColors.controlHeat],
+                ['Fan', 100, 3, mockColors.controlFan],
+            ] as const) {
+                const label = display.find((item) => {
+                    const style = item.style as { text?: string; fill?: string };
+                    return style.text === String(value) && style.fill === color;
+                });
+                expect(label, name).toBeDefined();
+                if (!label) continue;
+                const box = label.getBoundingRect().clone();
+                if (label.transform) box.applyTransform(label.transform);
+                const point = chart.convertToPixel({ xAxisIndex: 1, yAxisIndex: axis }, [60, value]);
+                expect(box.y + box.height).toBeLessThan(point[1] - 1);
+                expect(box.y).toBeGreaterThan(0);
+                expect(box.x + box.width).toBeLessThanOrEqual(chart.getWidth());
+            }
+            chart.dispose();
+        },
+    );
+
+    it('holds a change label until 5s after the write', () => {
+        const heatMarks = (tailSec: number) => {
+            const byName = seriesByName({
+                ...baseParams(),
+                controlData: {
+                    xs: [0, tailSec],
+                    drumTemp: [40, 40],
+                    heatPower: [70, 70],
+                    fanSpeed: [30, 30],
+                    changes: [{ timeSec: 60, values: { heater: 70 } }],
+                },
+            });
+            return (
+                byName.Heat as { markPoint?: { data: { coord: number[]; label: { formatter: string } }[] } }
+            ).markPoint?.data.map((mark) => mark.coord[0]);
+        };
+        expect(heatMarks(64.9)).toEqual([64.9]);
+        expect(heatMarks(65)).toEqual([60, 65]);
+    });
+
     it('does not label a heater write that repeats the previous setpoint', () => {
         const byName = seriesByName({
             ...baseParams(),

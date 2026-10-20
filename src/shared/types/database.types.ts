@@ -1722,6 +1722,8 @@ export type Database = {
                     updated_at: string;
                     user_id: string;
                     weight_grams: number;
+
+                    blend_id: string | null;
                 };
                 Insert: {
                     batch_name?: string | null;
@@ -1760,6 +1762,8 @@ export type Database = {
                     updated_at?: string;
                     user_id: string;
                     weight_grams: number;
+
+                    blend_id?: string | null;
                 };
                 Update: {
                     batch_name?: string | null;
@@ -1798,6 +1802,8 @@ export type Database = {
                     updated_at?: string;
                     user_id?: string;
                     weight_grams?: number;
+
+                    blend_id?: string | null;
                 };
                 Relationships: [
                     {
@@ -1826,6 +1832,13 @@ export type Database = {
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_sessions_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
                         referencedColumns: ['id'];
                     },
                 ];
@@ -2031,6 +2044,51 @@ export type Database = {
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+
+            roast_profile_sources: {
+                Row: {
+                    bean_id: string | null;
+                    blend_id: string | null;
+                    id: string;
+                    profile_id: string;
+                };
+                ComputedFields: never;
+                Insert: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    id?: string;
+                    profile_id: string;
+                };
+                Update: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    id?: string;
+                    profile_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'roast_profile_sources_bean_id_fkey';
+                        columns: ['bean_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'beans';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_profile_sources_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_profile_sources_profile_id_fkey';
+                        columns: ['profile_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'roast_profiles';
                         referencedColumns: ['id'];
                     },
                 ];
@@ -2322,6 +2380,8 @@ export type Database = {
                     updated_at: string;
                     user_id: string;
                     weight_grams: number;
+
+                    blend_id: string | null;
                 };
                 SetofOptions: {
                     from: '*';
@@ -2419,6 +2479,39 @@ export type Database = {
                     sample_id: string;
                     total_score: number;
                 }[];
+            };
+
+            save_roast_profile_sources: {
+                Args: { p_id?: string; p_profile: Json; p_sources: Json };
+                Returns: {
+                    charge_temp_celsius: number | null;
+                    created_at: string;
+                    default_bean_id: string | null;
+                    default_blend_id: string | null;
+                    description: string | null;
+                    dev_pct: number | null;
+                    dev_time_sec: number | null;
+                    drop_temp_celsius: number | null;
+                    duration_sec: number | null;
+                    heater_events: Json | null;
+                    id: string;
+                    machine_brand: string | null;
+                    machine_id: string | null;
+                    machine_name: string | null;
+                    machine_protocol: string | null;
+                    machine_roaster_key: string | null;
+                    name: string;
+                    source_session_id: string;
+                    target_level: string;
+                    updated_at: string;
+                    user_id: string;
+                };
+                SetofOptions: {
+                    from: '*';
+                    to: 'roast_profiles';
+                    isOneToOne: true;
+                    isSetofReturn: false;
+                };
             };
         };
         Enums: {
@@ -2560,6 +2653,7 @@ export type RoastProfile = Database['public']['Tables']['roast_profiles']['Row']
 
 export type RoastSession = Database['public']['Tables']['roast_sessions']['Row'];
 export type RoastSessionWithRelations = RoastSession & {
+    blends?: { name: string } | null;
     beans: Pick<Bean, 'name' | 'origin' | 'region' | 'variety' | 'process' | 'farm'> | null;
     roast_profiles: Pick<RoastProfile, 'name' | 'target_level'> | null;
 };

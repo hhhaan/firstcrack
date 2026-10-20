@@ -959,6 +959,7 @@
         },
         "autoChargeHeld": "温度が回復すると自動投入されます。今すぐ始めるには Charge を押してください。",
         "header": {
+            "profileSources": "プロファイルの候補",
             "noBeanSelected": "生豆未選択",
             "target": "ターゲット:",
             "noTarget": "ターゲットなし",
@@ -1617,6 +1618,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "登録した豆・ブレンド",
+        "registeredSourcesHint": "複数の豆とブレンドを登録できます。候補が1つなら投入前に自動選択します。",
+        "searchSources": "豆・ブレンドを検索",
         "editTitle": "ローストプロファイルを編集",
         "fromSession": "セッションから作成",
         "newTitle": "新規ローストプロファイル",

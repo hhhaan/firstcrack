@@ -959,6 +959,7 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
+            "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",
             "noTarget": "No Target",
@@ -1617,6 +1618,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "Linked beans and blends",
+        "registeredSourcesHint": "Register multiple beans and blends. A single candidate is selected automatically before Charge.",
+        "searchSources": "Search beans and blends",
         "editTitle": "Edit Roast Profile",
         "fromSession": "Profile from Session",
         "newTitle": "New Roast Profile",

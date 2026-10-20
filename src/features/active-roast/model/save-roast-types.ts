@@ -22,6 +22,7 @@ export type SaveRoastFormData = {
     outputWeightKg?: number;
     roastLevel: string | null;
     beanId: string | null;
+    blendId?: string | null;
     /**
      * Free-text bean name for sample / no-inventory roasts.
      * Stored on session.bean_label; never creates beans rows or stock events.
@@ -46,6 +47,7 @@ export interface SaveRoastParams {
     ambientTemperature?: number | null;
     ambientHumidity?: number | null;
     selectedBeanId: string | null;
+    selectedBlendId?: string | null;
     targetProfileId: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
     logEntries: LogEntry[];

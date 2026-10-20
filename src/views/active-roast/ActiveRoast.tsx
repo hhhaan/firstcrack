@@ -36,7 +36,7 @@ import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@feature
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
-import { selectDropCancelable, selectReviewSnapshot } from '@features/active-roast/model/batch';
+import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -106,6 +106,7 @@ import { appendReviewEntry, useReviewCurveEdit } from './model/useReviewCurveEdi
 import { useRoastLifecycle } from './model/useRoastLifecycle';
 import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
+import { useRoastSourceCandidates } from './model/useRoastSourceCandidates';
 import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
@@ -231,19 +232,30 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayStopRef.current('profileChanged');
     }, []);
     const selectionEpoch = profileSelectionEpoch(workspaceOwnerId, sessionId);
-    const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
-        useRoastProfileSelection({
-            isActive,
-            charged,
-            userProfile,
-            beans,
-            beansReady,
-            confirmTargetChange,
-            commitApprovedTarget,
-            saveDefaultProfile,
-            selectionEpoch,
-            workspaceOwnerId,
-        });
+    const candidateProfileId = useRoastingStore((s) => selectRoastSelection(s).profileId);
+    const sourceOptions = useRoastSourceCandidates(workspaceOwnerId, candidateProfileId);
+    const {
+        targetProfileId,
+        selectedBeanId,
+        selectedBlendId,
+        setSelectedBlendId,
+        setSelectedBeanId,
+        handoffBeanName,
+        setUserSelectedTarget,
+    } = useRoastProfileSelection({
+        isActive,
+        charged,
+        userProfile,
+        beans,
+        beansReady,
+        sourceCandidates: sourceOptions.candidates,
+        sourceCandidatesReady: sourceOptions.ready,
+        confirmTargetChange,
+        commitApprovedTarget,
+        saveDefaultProfile,
+        selectionEpoch,
+        workspaceOwnerId,
+    });
 
     // ── UI 상태 ───────────────────────────────────────────────────
     // 진행 중은 phase === 'roasting'. 화면 로컬 boolean을 두지 않는다.
@@ -1225,6 +1237,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
                 selectedBeanId={selectedBeanId}
+                selectedBlendId={selectedBlendId}
+                onBlendChange={setSelectedBlendId}
+                sourceCandidates={sourceOptions.candidates}
                 fallbackBeanName={handoffBeanName}
                 onTargetProfileChange={(id) => {
                     void setUserSelectedTarget(id).then((applied) => {
@@ -1420,6 +1435,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
                 selectedBeanId={orNull(saveFlow.flow.summaryData?.selectedBeanId)}
+                selectedBlendId={orNull(saveFlow.flow.summaryData?.selectedBlendId)}
                 planBatchHandoff={orNull(saveFlow.flow.summaryData?.planBatchHandoff)}
                 fallbackBeanName={orNull(saveFlow.flow.summaryData?.handoffBeanName)}
                 onClose={saveFlow.flow.closeSummary}
