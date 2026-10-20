@@ -4,6 +4,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
+import { configDefaults } from 'vitest/config';
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -62,7 +63,17 @@ export default defineConfig(async ({ command, mode }) => {
         },
         test: {
             globals: true,
-            include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/pinned-tool.test.mjs', 'supabase/functions/**/*.test.ts'],
+            include: [
+                'src/**/*.{test,spec}.{ts,tsx}',
+                'scripts/pinned-tool.test.mjs',
+                'supabase/functions/**/*.test.ts',
+            ],
+            // These suites use node:test and are mandatory in Polar billing CI and the deployment job.
+            exclude: [
+                ...configDefaults.exclude,
+                'supabase/functions/_shared/polar.test.ts',
+                'supabase/functions/_shared/polar-notifications.test.ts',
+            ],
             // CI has no .env — prevent createClient() throw on import chains that touch supabase.
             env: {
                 VITE_SUPABASE_URL: 'https://vjdgdolfxvnxushxrmff.supabase.co',
