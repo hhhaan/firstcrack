@@ -9,7 +9,15 @@ import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/s
 import { useBatchNumber } from '@features/active-roast/model/useBatchNumber';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
-import { ChevronDown } from 'lucide-react';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from '@shared/ui/select/Select';
 import { useTranslation } from 'react-i18next';
 import { TargetMenu } from './TargetMenu';
 
@@ -126,60 +134,76 @@ export const RoastHeader = ({
                     <p className="text-xs text-red-400 mb-1.5 max-w-xs">{sidecarError}</p>
                 )}
 
-                <div className="relative inline-flex items-center mb-1 min-w-0">
-                    <span className="font-(--font-display) text-[28px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
-                        {beanTitle}
-                    </span>
-
-                    <select
-                        aria-label={t('activeRoast.summary.bean')}
-                        value={selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? '')}
-                        onChange={(e) => {
-                            const value = e.target.value;
+                <div className="mb-1 min-w-0">
+                    <Select
+                        value={selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? 'none')}
+                        onValueChange={(value) => {
                             if (value.startsWith('blend:')) {
                                 const id = value.slice(6);
                                 onBlendChange?.(id, blends.find((b) => b.id === id)?.name ?? null);
                                 localStorage.removeItem(DEFAULT_BEAN_KEY);
-                            } else handleBeanChange(value || null);
+                            } else handleBeanChange(value === 'none' ? null : value);
                         }}
                         disabled={charged}
-                        className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
                     >
-                        <option value="">No Bean Selected</option>
-                        {sourceCandidates.length > 1 && (
-                            <optgroup label={t('activeRoast.header.profileSources')}>
-                                {sourceCandidates.map((source) => (
-                                    <option
-                                        key={source.blendId ? `blend:${source.blendId}` : source.beanId}
-                                        value={source.blendId ? `blend:${source.blendId}` : (source.beanId ?? '')}
-                                    >
-                                        {source.name}
-                                    </option>
-                                ))}
-                            </optgroup>
-                        )}
-                        <optgroup label={t('newProfileModal.singleOrigin')}>
-                            {visibleBeans.map((b) => (
-                                <option key={b.id} value={b.id}>
-                                    {beanOptionDisplay(b)}
-                                </option>
-                            ))}
-                        </optgroup>
-                        <optgroup label={t('newProfileModal.blend')}>
-                            {blends.map((b) => (
-                                <option key={b.id} value={`blend:${b.id}`}>
-                                    {b.name}
-                                </option>
-                            ))}
-                        </optgroup>
-                    </select>
-
-                    {!charged && (
-                        <ChevronDown
-                            size={18}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-muted"
-                        />
-                    )}
+                        <SelectTrigger
+                            aria-label={t('activeRoast.summary.bean')}
+                            className="h-auto max-w-full gap-2 rounded-none border-none bg-transparent p-0 font-(--font-display) text-[28px] font-normal leading-[1.13] tracking-[-0.4px] shadow-none disabled:cursor-default disabled:opacity-100 [&>svg]:size-4.5 disabled:[&>svg]:hidden"
+                        >
+                            <SelectValue>{beanTitle}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent
+                            position="popper"
+                            align="start"
+                            collisionPadding={8}
+                            className="max-h-[min(14rem,var(--radix-select-content-available-height))] max-w-[calc(100vw-1rem)]"
+                        >
+                            <SelectItem value="none">No Bean Selected</SelectItem>
+                            {sourceCandidates.length > 1 && (
+                                <SelectGroup>
+                                    <SelectLabel>{t('activeRoast.header.profileSources')}</SelectLabel>
+                                    {sourceCandidates.map((source) => (
+                                        <SelectItem
+                                            key={source.blendId ? `blend:${source.blendId}` : source.beanId}
+                                            value={
+                                                source.blendId ? `blend:${source.blendId}` : (source.beanId ?? 'none')
+                                            }
+                                        >
+                                            {source.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            )}
+                            <SelectGroup>
+                                <SelectLabel>{t('newProfileModal.singleOrigin')}</SelectLabel>
+                                {visibleBeans
+                                    .filter(
+                                        (bean) =>
+                                            sourceCandidates.length <= 1 ||
+                                            !sourceCandidates.some((source) => source.beanId === bean.id),
+                                    )
+                                    .map((bean) => (
+                                        <SelectItem key={bean.id} value={bean.id}>
+                                            {beanOptionDisplay(bean)}
+                                        </SelectItem>
+                                    ))}
+                            </SelectGroup>
+                            <SelectGroup>
+                                <SelectLabel>{t('newProfileModal.blend')}</SelectLabel>
+                                {blends
+                                    .filter(
+                                        (blend) =>
+                                            sourceCandidates.length <= 1 ||
+                                            !sourceCandidates.some((source) => source.blendId === blend.id),
+                                    )
+                                    .map((blend) => (
+                                        <SelectItem key={blend.id} value={`blend:${blend.id}`}>
+                                            {blend.name}
+                                        </SelectItem>
+                                    ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* ─── Bean secondary info: farm · variety · process ───── */}

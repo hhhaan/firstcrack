@@ -124,7 +124,7 @@ it('locks bean change while roasting or ended and unlocks it in standby', () => 
     const host = document.createElement('div');
     const root = createRoot(host);
     act(() => root.render(createElement(RoastHeader, props)));
-    const beanSelect = host.querySelector('select') as HTMLSelectElement;
+    const beanSelect = host.querySelector('[role="combobox"]') as HTMLButtonElement;
     expect(beanSelect.disabled).toBe(true);
     act(() => useRoastingStore.setState({ phase: 'ended' }));
     expect(beanSelect.disabled).toBe(true);
@@ -177,12 +177,14 @@ it('hides reconnecting status when store.reconnecting is false', () => {
 it('shows a grouped blend option and selects the recipe independently of beans', () => {
     const onBlendChange = vi.fn();
     const host = document.createElement('div');
+    document.body.append(host);
     const root = createRoot(host);
-    act(() => root.render(createElement(RoastHeader, { ...props, selectedBlendId: 'blend-1', onBlendChange })));
-    const select = host.querySelector('select');
-    expect(select?.value).toBe('blend:blend-1');
-    expect(host.textContent).toContain('Modern');
-    act(() => select?.dispatchEvent(new Event('change', { bubbles: true })));
+    act(() => root.render(createElement(RoastHeader, { ...props, onBlendChange })));
+    const select = host.querySelector('[role="combobox"]');
+    act(() => select?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
+    const blend = [...document.querySelectorAll('[role="option"]')].find((option) => option.textContent === 'Modern');
+    expect(blend?.closest('[role="group"]')?.textContent).toContain('newProfileModal.blend');
+    click(blend);
     expect(onBlendChange).toHaveBeenCalledWith('blend-1', 'Modern');
     act(() => root.unmount());
 });
