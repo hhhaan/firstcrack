@@ -2032,7 +2032,11 @@
             "empty": "미출고 주문이 없어 로스팅할 물량이 없습니다.",
             "bean": "원두",
             "green": "필요 생두",
-            "available": "보유"
+            "available": "보유",
+            "expandBreakdown": "{{bean}} 프로파일별 필요량 보기",
+            "collapseBreakdown": "{{bean}} 프로파일별 필요량 숨기기",
+            "profileAmount": "{{name}} · {{amount}} kg",
+            "profileUnassigned": "프로파일 없음"
         },
         "order": {
             "newTitle": "새 주문",
@@ -2043,6 +2047,7 @@
             "addLine": "+ 품목 추가",
             "quantity": "수량",
             "quantityMin": "수량은 1 이상이어야 합니다",
+            "createFailed": "주문을 저장하지 못했습니다. 다시 시도해 주세요.",
             "fulfill": "출고",
             "fulfilled": "출고 완료",
             "col": {

@@ -2032,7 +2032,11 @@
             "empty": "未処理の注文はありません — 焙煎の必要はありません。",
             "bean": "豆",
             "green": "必要な生豆",
-            "available": "利用可能"
+            "available": "利用可能",
+            "expandBreakdown": "{{bean}} のプロファイル別必要量を表示",
+            "collapseBreakdown": "{{bean}} のプロファイル別必要量を非表示",
+            "profileAmount": "{{name}} · {{amount}} kg",
+            "profileUnassigned": "プロファイルなし"
         },
         "order": {
             "newTitle": "新規注文",
@@ -2043,6 +2047,7 @@
             "addLine": "+ 商品を追加",
             "quantity": "数量",
             "quantityMin": "数量は1以上にしてください",
+            "createFailed": "注文を保存できませんでした。もう一度お試しください。",
             "fulfill": "出荷処理",
             "fulfilled": "出荷済み",
             "col": {
