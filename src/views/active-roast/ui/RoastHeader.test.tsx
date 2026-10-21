@@ -9,7 +9,10 @@ vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', 
 
 vi.mock('@entities/bean/queries', () => ({
     useBeans: () => ({
-        data: [{ id: 'bean-1', name: 'Santander Cooperative', origin: 'Colombia', region: 'Santander' }],
+        data: [
+            { id: 'bean-1', name: 'Santander Cooperative', origin: 'Colombia', region: 'Santander' },
+            { id: 'bean-2', name: '마라닉', origin: null, region: null },
+        ],
     }),
 }));
 
@@ -74,13 +77,14 @@ it.each([
     { targetProfileId: 'missing', historyReferenceName: null },
     { targetProfileId: 'prof-1', historyReferenceName: null },
     { targetProfileId: null, historyReferenceName: 'Reference roast' },
-])('shows only the bean heading and uses it for automatic batch titles: %j', (target) => {
+])('shows the automatic batch title in the existing heading: %j', (target) => {
     const state = useRoastingStore.getState();
     state.prepareWorkspace('user-1');
     state.prepareBean('bean-1');
     const host = document.createElement('div');
     const root = createRoot(host);
     act(() => root.render(createElement(RoastHeader, { ...props, ...target, selectedBeanId: 'bean-1' })));
+    expect(host.querySelector('span')?.textContent).toBe('Colombia Santander');
     act(() => {
         const id = state.startCharge(undefined, 'user-1') ?? '';
         state.assignBatchNumbers(id, 'user-1', 3, 10, 'profile');
@@ -89,9 +93,33 @@ it.each([
     expect(host.querySelector('input')).toBeNull();
     expect(host.querySelector('label')).toBeNull();
     expect(host.textContent).not.toContain('activeRoast.header.batchTitle');
-    expect(host.textContent).toContain('Colombia Santander');
+    expect(host.querySelector('span')?.textContent).toBe('Colombia Santander #3');
     expect(host.querySelector('select')?.disabled).toBe(true);
     expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]')).toBeNull();
+    act(() => root.unmount());
+});
+
+it.each([
+    { selectedBeanId: 'bean-2', selectedBlendId: null, name: '마라닉' },
+    { selectedBeanId: null, selectedBlendId: 'blend-1', name: 'Modern' },
+])('keeps the source name separate from the numbered heading: $name', (source) => {
+    const state = useRoastingStore.getState();
+    state.prepareWorkspace('user-1');
+    if (source.selectedBlendId) state.prepareBlend(source.selectedBlendId, source.name);
+    else state.prepareBean(source.selectedBeanId, source.name);
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastHeader, { ...props, ...source })));
+    let sessionId = '';
+    act(() => {
+        sessionId = state.startCharge(undefined, 'user-1') ?? '';
+        state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile');
+    });
+    expect(host.querySelector('span')?.textContent).toBe(`${source.name} #3`);
+    expect(useRoastingStore.getState().prepared.beanName).toBe(source.name);
+    expect(useRoastingStore.getState().activeSelection?.identity?.name).toBe(source.name);
+    act(() => state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile'));
+    expect(host.querySelector('span')?.textContent).toBe(`${source.name} #3`);
     act(() => root.unmount());
 });
 

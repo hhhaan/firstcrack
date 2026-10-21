@@ -63,6 +63,7 @@ export const RoastHeader = ({
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
     useBatchNumber();
+    const batchTitle = useRoastingStore((state) => state.activeSelection?.identity?.title);
     const charged = useRoastingStore((s) => isChargedPhase(s.phase));
     const preparedOwnerId = useRoastingStore((state) => state.prepared.workspaceOwnerId);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
@@ -139,7 +140,7 @@ export const RoastHeader = ({
 
                 <div className="relative inline-flex items-center mb-1 min-w-0">
                     <span className="font-(--font-display) text-[28px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
-                        {beanTitle}
+                        {batchTitle || beanTitle}
                     </span>
 
                     <select
