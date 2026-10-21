@@ -1,16 +1,13 @@
-import { useActiveWorkspace } from '@entities/organization';
-import { useRoastingStore } from '@features/active-roast/model/status';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRoastTitleEdit } from '../model/useRoastTitleEdit';
 
 const titleCls =
     'm-0 min-w-0 border-0 bg-transparent p-0 text-left font-(--font-display) text-[28px] leading-[1.13] tracking-[-0.4px] text-primary outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--color-primary)';
 
-export const RoastTitleEditor = ({ sessionId, title }: { sessionId: string; title: string }) => {
+export const RoastTitleEditor = ({ sessionId, title: fallbackTitle }: { sessionId: string; title: string }) => {
     const { t } = useTranslation();
-    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const sessionOwnerId = useRoastingStore((state) => state.sessionOwnerId);
-    const canWrite = isWorkspaceReady && !!workspaceOwnerId && sessionOwnerId === workspaceOwnerId;
+    const { title, canWrite, save, isPending, failed } = useRoastTitleEdit(sessionId, fallbackTitle);
     const [draft, setDraft] = useState<string | null>(null);
     const dirty = useRef(false);
 
@@ -27,8 +24,7 @@ export const RoastTitleEditor = ({ sessionId, title }: { sessionId: string; titl
                 setDraft(event.target.value);
             }}
             onBlur={() => {
-                if (dirty.current && draft.trim() !== title)
-                    useRoastingStore.getState().setRunningBatchTitle(sessionId, draft);
+                if (dirty.current && draft.trim() !== title) void save(draft);
                 dirty.current = false;
                 setDraft(null);
             }}
@@ -47,18 +43,26 @@ export const RoastTitleEditor = ({ sessionId, title }: { sessionId: string; titl
             className={`${titleCls} w-full border-b border-border`}
         />
     ) : (
-        <button
-            type="button"
-            title={t('activeRoast.header.batchTitle')}
-            onClick={() => {
-                dirty.current = false;
-                setDraft(title);
-            }}
-            className={`${titleCls} cursor-text`}
-        >
-            <span className="underline decoration-border decoration-1 underline-offset-[7px] hover:decoration-primary">
-                {title}
-            </span>
-        </button>
+        <>
+            <button
+                type="button"
+                disabled={isPending}
+                title={t('activeRoast.header.batchTitle')}
+                onClick={() => {
+                    dirty.current = false;
+                    setDraft(title);
+                }}
+                className={`${titleCls} cursor-text`}
+            >
+                <span className="underline decoration-border decoration-1 underline-offset-[7px] hover:decoration-primary">
+                    {title}
+                </span>
+            </button>
+            {failed && (
+                <span role="alert" className="text-xs text-red-400">
+                    {t('history.edit.saveFailed')}
+                </span>
+            )}
+        </>
     );
 };

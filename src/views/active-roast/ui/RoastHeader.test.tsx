@@ -23,6 +23,12 @@ vi.mock('@entities/organization', () => ({
 }));
 
 const profileMutate = vi.hoisted(() => vi.fn());
+const savedTitle = vi.hoisted(() => ({ value: 'Saved roast' }));
+const updateSession = vi.hoisted(() => vi.fn());
+vi.mock('@entities/roast', () => ({
+    useRoastSession: () => ({ data: { batch_name: savedTitle.value } }),
+    useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
+}));
 
 vi.mock('@entities/profile', () => ({
     useProfile: () => ({ data: { default_roast_profile_id: 'prof-1' } }),
@@ -335,5 +341,55 @@ describe('inline running title edits', () => {
         expect(titleButton()).toBeNull();
         expect(input()).toBeNull();
         expect(host.querySelector('span')?.textContent).toBe('마라닉 #3');
+    });
+
+    const reviewSaved = () => {
+        act(() => {
+            const state = useRoastingStore.getState();
+            state.abortRoast(200, 'C');
+            state.saveSucceeded('user-1', sessionId);
+            state.prepareBean('bean-1', 'Next bean');
+        });
+    };
+
+    it('edits the saved snapshot title and locks its source without changing the next batch', async () => {
+        updateSession.mockResolvedValue({});
+        reviewSaved();
+        expect(titleButton()?.textContent).toBe('Saved roast');
+        expect(host.querySelector('select')?.disabled).toBe(true);
+        expect(host.querySelector('select')?.value).toBe('bean-2');
+        click(titleButton());
+        type('  Reviewed roast  ');
+        await act(async () => press('Enter'));
+        expect(updateSession).toHaveBeenLastCalledWith({ id: sessionId, batch_name: 'Reviewed roast' });
+        const state = useRoastingStore.getState();
+        expect(state.completed?.snapshot.selection.identity?.title).toBe('Reviewed roast');
+        expect(state.completed?.snapshot.selection.beanId).toBe('bean-2');
+        expect(state.prepared.beanId).toBe('bean-1');
+        expect(state.prepared.beanName).toBe('Next bean');
+    });
+
+    it('keeps the saved title and shows an error when the snapshot update fails', async () => {
+        updateSession.mockRejectedValueOnce(new Error('offline'));
+        reviewSaved();
+        click(titleButton());
+        type('Failed title');
+        await act(async () => press('Enter'));
+        expect(titleButton()?.textContent).toBe('Saved roast');
+        expect(host.querySelector('[role="alert"]')?.textContent).toBe('history.edit.saveFailed');
+        expect(useRoastingStore.getState().completed?.snapshot.selection.identity?.title).toBe('마라닉 #3');
+    });
+
+    it('does not edit a snapshot belonging to another workspace', () => {
+        reviewSaved();
+        act(() => {
+            const completed = useRoastingStore.getState().completed;
+            if (completed)
+                useRoastingStore.setState({
+                    completed: { ...completed, snapshot: { ...completed.snapshot, sessionOwnerId: 'other' } },
+                });
+        });
+        expect(titleButton()).toBeNull();
+        expect(host.querySelector('select')?.disabled).toBe(true);
     });
 });

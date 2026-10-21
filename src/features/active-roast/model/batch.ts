@@ -619,6 +619,26 @@ export const createBatchActions = (
         return true;
     },
     dismissCompletedReview: () => set({ reviewSessionId: null }),
+    replaceReviewTitle: (sessionId: string, ownerId: string | null, title: string) => {
+        const completed = get().completed;
+        if (!completed || completed.snapshot.sessionId !== sessionId || completed.snapshot.sessionOwnerId !== ownerId)
+            return;
+        const selection = completed.snapshot.selection;
+        const identity = selection.identity ?? {
+            profileId: selection.profileId,
+            name: selection.beanName,
+            numbering: 'none' as const,
+        };
+        set({
+            completed: {
+                ...completed,
+                snapshot: {
+                    ...completed.snapshot,
+                    selection: { ...selection, identity: { ...identity, title, edited: true } },
+                },
+            },
+        });
+    },
     replaceReviewLog: (entries: LogEntry[]) => {
         const completed = get().completed;
         if (!get().reviewSessionId || !completed) return;

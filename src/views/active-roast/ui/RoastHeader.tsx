@@ -5,6 +5,7 @@ import { useProfile } from '@entities/profile';
 import type { RoastSourceCandidate } from '@entities/roast-profile';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
+import { selectReviewSnapshot } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchNumber } from '@features/active-roast/model/useBatchNumber';
 import { useAuthStore } from '@shared/store/auth';
@@ -33,11 +34,11 @@ const beanOptionDisplay: BeanOptionDisplay = (b) => joinDisplay([b.origin, b.reg
 export const RoastHeader = ({
     phase: _phase,
     targetProfileId,
-    selectedBeanId,
-    selectedBlendId = null,
+    selectedBeanId: currentBeanId,
+    selectedBlendId: currentBlendId = null,
     onBlendChange,
     sourceCandidates = [],
-    fallbackBeanName,
+    fallbackBeanName: currentBeanName,
     onTargetProfileChange,
     onBeanChange,
     onOpenRoastSettings,
@@ -64,8 +65,14 @@ export const RoastHeader = ({
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
     useBatchNumber();
-    const batchTitle = useRoastingStore((state) => state.activeSelection?.identity?.title);
-    const editingSessionId = useRoastingStore((state) => (state.phase === 'roasting' ? state.sessionId : null));
+    const review = useRoastingStore(selectReviewSnapshot);
+    const selectedBeanId = review ? review.selection.beanId : currentBeanId;
+    const selectedBlendId = review ? review.selection.blendId : currentBlendId;
+    const fallbackBeanName = review ? review.selection.beanName : currentBeanName;
+    const runningTitle = useRoastingStore((state) => state.activeSelection?.identity?.title);
+    const batchTitle = review?.selection.identity?.title ?? runningTitle;
+    const runningSessionId = useRoastingStore((state) => (state.phase === 'roasting' ? state.sessionId : null));
+    const editingSessionId = review?.sessionId ?? runningSessionId;
     const charged = useRoastingStore((s) => isChargedPhase(s.phase));
     const sessionOwnerId = useRoastingStore((state) => state.sessionOwnerId);
     const preparedOwnerId = useRoastingStore((state) => state.prepared.workspaceOwnerId);
@@ -74,7 +81,8 @@ export const RoastHeader = ({
     const reconnecting = useRoastingStore((s) => s.reconnecting);
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const canSelectSource = isWorkspaceReady && !!workspaceOwnerId && (!charged || sessionOwnerId === workspaceOwnerId);
+    const canSelectSource =
+        !review && isWorkspaceReady && !!workspaceOwnerId && (!charged || sessionOwnerId === workspaceOwnerId);
     const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
@@ -111,14 +119,14 @@ export const RoastHeader = ({
           : (fallbackBeanName ?? 'No Bean Selected');
     const sourceDisplayName = selectedBlend || selectedBean ? beanTitle : (fallbackBeanName ?? null);
     useEffect(() => {
-        if (preparedOwnerId === workspaceOwnerId)
+        if (!review && preparedOwnerId === workspaceOwnerId)
             useRoastingStore
                 .getState()
                 .setSourceDisplayName(
                     { beanId: selectedBeanId, blendId: selectedBlendId, beanName: sourceDisplayName },
                     workspaceOwnerId,
                 );
-    }, [selectedBeanId, selectedBlendId, sourceDisplayName, workspaceOwnerId, preparedOwnerId]);
+    }, [selectedBeanId, selectedBlendId, sourceDisplayName, workspaceOwnerId, preparedOwnerId, review]);
     const beanSecondary = selectedBean
         ? joinDisplay([selectedBean.farm, selectedBean.variety, selectedBean.process]) ||
           (selectedBean.name !== beanTitle ? selectedBean.name : '')
@@ -164,6 +172,7 @@ export const RoastHeader = ({
                             aria-label={t('activeRoast.summary.bean')}
                             value={selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? '')}
                             onChange={(e) => {
+                                if (!canSelectSource) return;
                                 const value = e.target.value;
                                 if (value.startsWith('blend:')) {
                                     const id = value.slice(6);
