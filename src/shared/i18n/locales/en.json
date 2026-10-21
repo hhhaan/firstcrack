@@ -964,6 +964,8 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
+            "sourceChangeTitle": "Change roast source",
+            "sourceChangeUnlinks": "Changing the source unlinks this batch from its schedule.",
             "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",

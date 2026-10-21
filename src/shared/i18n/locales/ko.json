@@ -1315,6 +1315,8 @@
         },
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
+            "sourceChangeTitle": "로스팅 원료 변경",
+            "sourceChangeUnlinks": "원료를 변경하면 현재 배치의 일정 연결이 해제됩니다.",
             "profileSources": "프로파일 연결 항목",
             "noBeanSelected": "생두 미선택",
             "target": "Target:",

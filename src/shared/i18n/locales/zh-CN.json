@@ -964,6 +964,8 @@
         },
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
+            "sourceChangeTitle": "更改烘焙原料",
+            "sourceChangeUnlinks": "更改原料会解除当前批次与生产计划的关联。",
             "profileSources": "曲线候选原料",
             "noBeanSelected": "未选生豆",
             "target": "目标:",
