@@ -10,6 +10,7 @@ import {
     MARKER_LABEL_MIN_WIDTH_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
+    REFERENCE_CURVE_OPACITY,
     scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
 import { controlChangeLabel, formatRoastNote } from '@features/active-roast/lib/roast-note';
@@ -141,6 +142,7 @@ export interface CurveLabelItem {
     y: number;
     text: string;
     color: string;
+    opacity?: number;
     below: boolean;
     showDot: boolean;
     /** Extra pixels below the anchor. Notes use this to clear the top axis line. */
@@ -154,6 +156,7 @@ export interface CurveLabelLayoutInput {
     text: string;
     below: boolean;
     color: string;
+    opacity?: number;
     showDot: boolean;
     topInsetPx?: number;
 }
@@ -168,6 +171,7 @@ export interface CurveLabelBox {
     below: boolean;
     text: string;
     color: string;
+    opacity: number;
     showDot: boolean;
     anchorX: number;
     anchorY: number;
@@ -207,6 +211,7 @@ const makeLabelBox = (
         below: item.below,
         text: item.text,
         color: item.color,
+        opacity: item.opacity ?? 1,
         showDot: item.showDot,
         anchorX: item.xPx,
         anchorY: item.yPx,
@@ -406,10 +411,10 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     const eventMarkLines = lineEvents.map((m) => ({
         xAxis: m.timeSec,
         lineStyle: {
-            color: m.reference ? colors.axisLabel : markerColor(m.event),
+            color: markerColor(m.event),
             width: EVENT_MARK_LINE_WIDTH,
-            type: m.reference ? ('dashed' as const) : ('solid' as const),
-            opacity: m.reference ? 0.4 : 1,
+            type: 'solid' as const,
+            opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
         },
         label: { show: false },
     }));
@@ -445,15 +450,14 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             return {
                 timeSec: m.timeSec,
                 y,
-                text: m.reference
-                    ? `Ref ${m.note?.trim() || roastEventLabel(m.event)}`
-                    : eventLabelText(
-                          m.event,
-                          m.timeSec,
-                          markerTemp(m, nearest),
-                          m.event === 'Note' ? formatRoastNote(m) : m.note,
-                      ),
-                color: m.reference ? colors.axisLabel : markerLabelColor(m.event),
+                text: eventLabelText(
+                    m.event,
+                    m.timeSec,
+                    markerTemp(m, nearest),
+                    m.event === 'Note' ? formatRoastNote(m) : m.note,
+                ),
+                color: markerLabelColor(m.event),
+                opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
                 below: atTop || LABEL_BELOW_EVENTS.has(m.event),
                 showDot: m.event === 'Charge' ? false : showDot,
                 topInsetPx: noteLabelTopInsetPx(atTop, fontScale),
