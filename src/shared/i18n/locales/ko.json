@@ -889,6 +889,7 @@
         "batchCount": "{{count}}회"
     },
     "schedule": {
+        "title": "Roast Schedule",
         "dateFormat": "yyyy년 M월 d일 (eee)",
         "monthFormat": "yyyy년 M월",
         "weekDateFormat": "M/d",

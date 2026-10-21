@@ -1215,6 +1215,7 @@
         }
     },
     "schedule": {
+        "title": "Roast Schedule",
         "dateFormat": "MMM d, yyyy (eee)",
         "monthFormat": "MMMM yyyy",
         "weekDateFormat": "M/d",
