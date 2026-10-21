@@ -87,7 +87,7 @@ it.each([
     expect(host.querySelector('span')?.textContent).toBe('Colombia Santander');
     act(() => {
         const id = state.startCharge(undefined, 'user-1') ?? '';
-        state.assignBatchNumbers(id, 'user-1', 3, 10, 'profile');
+        state.assignBatchNumbers(id, 'user-1', 3, 10, 'profile', null);
     });
     expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander #3');
     expect(host.querySelector('input')).toBeNull();
@@ -113,12 +113,12 @@ it.each([
     let sessionId = '';
     act(() => {
         sessionId = state.startCharge(undefined, 'user-1') ?? '';
-        state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile');
+        state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile', null);
     });
     expect(host.querySelector('span')?.textContent).toBe(`${source.name} #3`);
     expect(useRoastingStore.getState().prepared.beanName).toBe(source.name);
     expect(useRoastingStore.getState().activeSelection?.identity?.name).toBe(source.name);
-    act(() => state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile'));
+    act(() => state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile', null));
     expect(host.querySelector('span')?.textContent).toBe(`${source.name} #3`);
     act(() => root.unmount());
 });
@@ -258,7 +258,7 @@ describe('inline running title edits', () => {
         act(() => root.render(createElement(RoastHeader, { ...props, selectedBeanId: 'bean-2' })));
         act(() => {
             sessionId = state.startCharge(undefined, 'user-1') ?? '';
-            state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile');
+            state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile', null);
         });
     });
     afterEach(() => act(() => root.unmount()));
@@ -274,7 +274,7 @@ describe('inline running title edits', () => {
         expect(input()).toBeNull();
         expect(titleButton()?.textContent).toBe('Morning roast');
         expect(useRoastingStore.getState().prepared.beanName).toBe('마라닉');
-        act(() => useRoastingStore.getState().assignBatchNumbers(sessionId, 'user-1', 4, 11, 'profile'));
+        act(() => useRoastingStore.getState().assignBatchNumbers(sessionId, 'user-1', 4, 11, 'profile', null));
         expect(titleButton()?.textContent).toBe('Morning roast');
     });
 
@@ -301,7 +301,7 @@ describe('inline running title edits', () => {
 
     it('keeps a late number allocation when an untouched editor is closed', () => {
         click(titleButton());
-        act(() => useRoastingStore.getState().assignBatchNumbers(sessionId, 'user-1', 4, 11, 'profile'));
+        act(() => useRoastingStore.getState().assignBatchNumbers(sessionId, 'user-1', 4, 11, 'profile', null));
         act(() => input()?.blur());
         expect(titleButton()?.textContent).toBe('마라닉 #4');
         expect(useRoastingStore.getState().activeSelection?.identity?.edited).not.toBe(true);
@@ -324,7 +324,7 @@ describe('inline running title edits', () => {
             const state = useRoastingStore.getState();
             state.resetCurrentBatch();
             const nextId = state.startCharge(undefined, 'user-1') ?? '';
-            state.assignBatchNumbers(nextId, 'user-1', 4, 11, 'profile');
+            state.assignBatchNumbers(nextId, 'user-1', 4, 11, 'profile', null);
         });
         expect(input()).toBeNull();
         expect(titleButton()?.textContent).toBe('마라닉 #4');

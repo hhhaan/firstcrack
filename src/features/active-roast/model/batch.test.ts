@@ -38,14 +38,14 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId ?? '';
-        state.assignBatchNumbers(id, 'owner', 42, 100, 'both');
+        state.assignBatchNumbers(id, 'owner', 42, 100, 'both', 'profile-a');
         expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A #42 · Σ#100');
         state.setRunningBatchTitle(id, 'Morning production');
         state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Santander' }, 'owner');
-        state.assignBatchNumbers(id, 'owner', 42, 100, 'profile');
+        state.assignBatchNumbers(id, 'owner', 42, 100, 'profile', 'profile-a');
         drop();
         expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Morning production');
-        state.assignBatchNumbers(id, 'owner', 42, 100, 'both');
+        state.assignBatchNumbers(id, 'owner', 42, 100, 'both', 'profile-a');
         state.cancelDrop();
         expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Morning production');
     });
@@ -55,7 +55,7 @@ describe('central batch ownership and transitions', () => {
         state.prepareWorkspace('owner');
         state.prepareBean('bean-a');
         const id = state.startCharge(undefined, 'owner') ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile');
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', null);
         state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Santander' }, 'owner');
         expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander #3');
         state.setRunningBatchTitle(id, 'Custom title');
@@ -71,7 +71,7 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile');
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', 'profile-a');
         state.setSourceDisplayName({ beanId: 'bean-b', beanName: 'Other bean' }, 'owner');
         state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Other workspace' }, 'other');
         state.setSourceDisplayName({ beanId: 'bean-a', blendId: 'blend-a', beanName: 'Other blend' }, 'owner');
@@ -79,18 +79,37 @@ describe('central batch ownership and transitions', () => {
         expect(useRoastingStore.getState().prepared.beanName).toBe('Lot A');
     });
 
-    it('uses the blend name without changing the Charge profile numbering scope', () => {
+    it('keeps the blend name while reassigning its profile number', () => {
         const state = useRoastingStore.getState();
         state.prepareWorkspace('owner');
         state.prepareBlend('blend-a', 'Modern');
         state.commitProfile('profile-a', null, 'owner');
         const id = state.startCharge(undefined, 'owner') ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile');
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', 'profile-a');
         state.commitProfile('profile-b', id, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.number).toBeUndefined();
+        state.assignBatchNumbers(id, 'owner', 7, 10, 'profile', 'profile-b');
         expect(useRoastingStore.getState().activeSelection?.identity).toMatchObject({
-            profileId: 'profile-a',
-            title: 'Modern #3',
+            profileId: 'profile-b',
+            number: 7,
+            totalNumber: 10,
+            title: 'Modern #7',
         });
+    });
+
+    it('rejects late allocations for a profile that was changed before Drop', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId ?? '';
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', 'profile-a');
+        state.commitProfile('profile-b', id, 'owner');
+        state.assignBatchNumbers(id, 'owner', 99, 10, 'profile', 'profile-a');
+        expect(useRoastingStore.getState().activeSelection?.identity?.number).toBeUndefined();
+        drop();
+        state.assignBatchNumbers(id, 'owner', 99, 10, 'profile', 'profile-a');
+        expect(useRoastingStore.getState().completed?.snapshot.selection.identity?.number).toBeUndefined();
+        state.assignBatchNumbers(id, 'owner', 7, 10, 'profile', 'profile-b');
+        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Lot A #7');
     });
 
     it.each([
@@ -100,7 +119,7 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId;
-        state.assignBatchNumbers(id ?? '', 'owner', 3, 10, 'profile');
+        state.assignBatchNumbers(id ?? '', 'owner', 3, 10, 'profile', 'profile-a');
         state.setRunningSource(source, id, 'owner');
         const next = useRoastingStore.getState();
         expect(next.activeSelection).toMatchObject({
@@ -123,7 +142,7 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile');
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', 'profile-a');
         state.setRunningBatchTitle(id, 'Morning production');
         state.setRunningSource({ beanId: null, blendId: 'blend-b', beanName: 'Blend' }, id, 'owner');
         state.setRunningSource({ beanId: 'bean-b', beanName: 'Bean' }, id, 'owner');
@@ -175,7 +194,7 @@ describe('central batch ownership and transitions', () => {
         const id = useRoastingStore.getState().sessionId ?? '';
         drop();
         useRoastingStore.getState().startCharge(undefined, 'owner');
-        useRoastingStore.getState().assignBatchNumbers(id, 'owner', 7, 20, 'profile');
+        useRoastingStore.getState().assignBatchNumbers(id, 'owner', 7, 20, 'profile', 'profile-a');
         const state = useRoastingStore.getState();
         expect(state.completed?.snapshot.selection.identity?.number).toBe(7);
         expect(state.activeSelection?.identity?.number).toBeUndefined();

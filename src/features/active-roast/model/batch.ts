@@ -268,6 +268,12 @@ export const createBatchActions = (
         const state = get();
         if (state.sessionId !== expectedSessionId || state.prepared.workspaceOwnerId !== expectedWorkspaceOwnerId)
             return false;
+        const activeSelection = state.activeSelection ? { ...state.activeSelection, profileId } : null;
+        if (activeSelection?.identity && activeSelection.identity.profileId !== profileId) {
+            activeSelection.identity = { ...activeSelection.identity, profileId, number: undefined };
+            if (!activeSelection.identity.edited)
+                activeSelection.identity.title = automaticBatchTitle(activeSelection.identity);
+        }
         set({
             prepared: {
                 ...state.prepared,
@@ -290,7 +296,7 @@ export const createBatchActions = (
                       }
                     : {}),
             },
-            ...(state.activeSelection && { activeSelection: { ...state.activeSelection, profileId } }),
+            ...(activeSelection && { activeSelection }),
         });
         return true;
     },
@@ -380,13 +386,14 @@ export const createBatchActions = (
         number: number,
         totalNumber: number | null,
         numbering: BatchTitleNumbering,
+        profileId: string | null,
     ) => {
         const state = get();
         const assign = (selection: RoastSelection): RoastSelection => {
             const identity: RoastBatchIdentity = {
-                profileId: selection.profileId,
                 name: selection.beanName,
                 ...selection.identity,
+                profileId,
                 number,
                 totalNumber,
                 numbering,
@@ -395,10 +402,18 @@ export const createBatchActions = (
             return { ...selection, identity };
         };
         const patch: Partial<BatchState> = {};
-        if (state.sessionId === sessionId && state.sessionOwnerId === ownerId && state.activeSelection)
+        if (
+            state.sessionId === sessionId &&
+            state.sessionOwnerId === ownerId &&
+            state.activeSelection?.profileId === profileId
+        )
             patch.activeSelection = assign(state.activeSelection);
         const completed = state.completed;
-        if (completed?.snapshot.sessionId === sessionId && completed.snapshot.sessionOwnerId === ownerId) {
+        if (
+            completed?.snapshot.sessionId === sessionId &&
+            completed.snapshot.sessionOwnerId === ownerId &&
+            completed.snapshot.selection.profileId === profileId
+        ) {
             const selection = assign(completed.snapshot.selection);
             patch.completed = {
                 ...completed,

@@ -8,7 +8,7 @@ describe('batch titles and overall Charge numbering', () => {
         const second = allocateBatchNumber(first.ledger, 'owner', 'p2', 's2');
         expect([second.number, second.totalNumber]).toEqual([1, 2]);
         const restored = allocateBatchNumber(second.ledger, 'owner', 'p2', 's1');
-        expect([restored.number, restored.totalNumber]).toEqual([1, 1]);
+        expect([restored.number, restored.totalNumber]).toEqual([2, 1]);
         expect(allocateBatchNumber(second.ledger, 'other', 'p1', 's3').totalNumber).toBe(1);
     });
     it('starts overall numbering from the existing device profile counters', () => {

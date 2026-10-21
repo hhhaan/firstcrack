@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { logger } from '@shared/lib/logger';
-import { settingsSet } from '@shared/lib/settings-store';
+import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -20,6 +20,7 @@ beforeEach(() => {
     storage.value = undefined;
     localStorage.clear();
     vi.mocked(logger.capture).mockClear();
+    vi.mocked(settingsGet).mockImplementation(async () => storage.value);
     vi.mocked(settingsSet).mockImplementation(async (_key, value) => {
         storage.value = value;
     });
@@ -65,8 +66,15 @@ it('does not report an already captured persistence failure twice', async () => 
     await act(async () => chargeProfile());
     expect(logger.capture).toHaveBeenCalledExactlyOnceWith(error, { scope: 'settings-store.set' });
 });
-it('counts the Charge profile while the header is absent and preserves that number after a reference edit', async () => {
-    localStorage.clear();
+it('follows the selected profile while preserving overall identity through remounts and A → B → A', async () => {
+    storage.value = {
+        counters: {
+            [JSON.stringify(['owner', 'a'])]: 4,
+            [JSON.stringify(['owner', 'b'])]: 8,
+            [JSON.stringify(['owner', null, 'total'])]: 12,
+        },
+        sessions: {},
+    };
     const initial = useRoastingStore.getInitialState();
     const root = createRoot(document.createElement('div'));
     let number: number | null = null;
@@ -83,24 +91,80 @@ it('counts the Charge profile while the header is absent and preserves that numb
         useRoastingStore.getState().startCharge(undefined, 'owner');
     };
     try {
-        await act(async () => {
-            charge('a');
-            const state = useRoastingStore.getState();
-            if (state.activeSelection)
-                useRoastingStore.setState({ activeSelection: { ...state.activeSelection, profileId: 'b' } });
-        });
-        await act(async () => root.render(createElement(Probe)));
-        expect(number).toBe(1);
-        await act(async () => charge('b'));
-        expect(number).toBe(1);
         await act(async () => charge('a'));
-        expect(number).toBe(2);
+        await act(async () => root.render(createElement(Probe)));
+        expect(number).toBe(5);
+        const id = useRoastingStore.getState().sessionId;
+        await act(async () => {
+            useRoastingStore.getState().commitProfile('b', id, 'owner');
+        });
+        expect(number).toBe(9);
+        expect(useRoastingStore.getState().activeSelection?.identity).toMatchObject({
+            profileId: 'b',
+            number: 9,
+            totalNumber: 13,
+        });
+        await act(async () => {
+            useRoastingStore.getState().commitProfile('a', id, 'owner');
+        });
+        expect(number).toBe(5);
+        expect(useRoastingStore.getState().activeSelection?.identity?.totalNumber).toBe(13);
         await act(async () => root.render(null));
         await act(async () => root.render(createElement(Probe)));
-        expect(number).toBe(2);
+        expect(number).toBe(5);
+        await act(async () => charge('b'));
+        expect(number).toBe(10);
+        expect(useRoastingStore.getState().activeSelection?.identity?.totalNumber).toBe(14);
+        await act(async () => charge('a'));
+        expect(number).toBe(6);
     } finally {
         await act(async () => root.unmount());
         useRoastingStore.setState(initial, true);
         localStorage.clear();
     }
+});
+
+it('updates profile numbers while keeping a manually edited title', async () => {
+    await act(async () => chargeProfile());
+    const state = useRoastingStore.getState();
+    const id = state.sessionId ?? '';
+    state.setRunningBatchTitle(id, 'Morning production');
+    await act(async () => {
+        useRoastingStore.getState().commitProfile('other', id, 'owner');
+    });
+    expect(useRoastingStore.getState().activeSelection?.identity).toMatchObject({
+        profileId: 'other',
+        number: 1,
+        totalNumber: 1,
+        title: 'Morning production',
+        edited: true,
+    });
+});
+
+it('applies delayed reservations only to the matching profile and completed session', async () => {
+    let release: (() => void) | undefined;
+    vi.mocked(settingsGet).mockImplementationOnce(
+        () =>
+            new Promise((resolve) => {
+                release = () => resolve(storage.value);
+            }),
+    );
+    await act(async () => chargeProfile());
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    const state = useRoastingStore.getState();
+    const id = state.sessionId;
+    act(() => {
+        state.commitProfile('other', id, 'owner');
+        state.abortRoast(200, 'C');
+        state.startCharge(undefined, 'owner');
+        release?.();
+    });
+    await vi.waitFor(() => {
+        const current = useRoastingStore.getState();
+        expect(current.activeSelection?.identity?.number).toBe(2);
+        expect(current.activeSelection?.identity?.totalNumber).toBe(2);
+    });
+    const completed = useRoastingStore.getState().completed;
+    expect(completed?.snapshot.selection.identity).toMatchObject({ profileId: 'other', number: 1, totalNumber: 1 });
+    expect(completed?.summary?.batchName).toBe('Roast #1');
 });
