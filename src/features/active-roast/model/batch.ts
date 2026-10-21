@@ -318,6 +318,37 @@ export const createBatchActions = (
             pendingProfileSource: null,
         }),
     recordAdhocSave: (lastAdhocSave: LastAdhocSave) => set({ lastAdhocSave }),
+    setRunningSource: (
+        source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>,
+        expectedSessionId: string | null,
+        ownerId: string | null,
+    ) => {
+        const state = get();
+        const selection = state.activeSelection;
+        if (
+            !isChargedPhase(state.phase) ||
+            !expectedSessionId ||
+            state.sessionId !== expectedSessionId ||
+            !ownerId ||
+            state.sessionOwnerId !== ownerId ||
+            state.prepared.workspaceOwnerId !== ownerId ||
+            !selection
+        )
+            return;
+        if (selection.beanId === source.beanId && (selection.blendId ?? null) === (source.blendId ?? null)) return;
+        const identity = selection.identity ? { ...selection.identity, name: source.beanName } : undefined;
+        if (identity && !identity.edited) identity.title = automaticBatchTitle(identity);
+        // A different source cannot keep a schedule handoff that would override it at save.
+        set({
+            activeSelection: {
+                ...selection,
+                ...source,
+                blendId: source.blendId ?? null,
+                identity,
+                planBatchHandoff: null,
+            },
+        });
+    },
     setSourceDisplayName: (source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>, ownerId: string) => {
         if (!source.beanName) return;
         const state = get();

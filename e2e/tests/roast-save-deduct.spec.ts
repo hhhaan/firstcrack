@@ -12,13 +12,14 @@ test.describe('2c roast save with stock deduct', () => {
         );
     });
 
-    test('clicks, cancels, restores and saves the numbered bean title', async ({ authedPage: page, db }, testInfo) => {
+    test('edits the numbered title and changes beans independently', async ({ authedPage: page, db }, testInfo) => {
         const bean = db.seedBean({
             name: 'Santander Cooperative',
             origin: 'Colombia',
             region: 'Santander',
             stockGrams: 10_000,
         });
+        const otherBean = db.seedBean({ name: '마라닉', origin: '', stockGrams: 10_000 });
         await page.evaluate((ownerId) => {
             localStorage.setItem(
                 'roast.batchNumbers',
@@ -53,19 +54,35 @@ test.describe('2c roast save with stock deduct', () => {
         await title.press('Enter');
         await expect(automaticTitle).toBeVisible();
         await page.screenshot({ path: testInfo.outputPath('bean-batch-title.png') });
-        await automaticTitle.click();
+        const source = page.getByRole('combobox', { name: 'Green Bean', exact: true });
+        await expect(source).toBeEnabled();
+        await source.click();
+        await source.press('Escape');
+        await source.selectOption(otherBean.id);
+        const otherAutomaticTitle = page.getByRole('button', { name: '마라닉 #3', exact: true });
+        await expect(otherAutomaticTitle).toBeVisible();
+        await otherAutomaticTitle.click();
         await title.fill('Morning production');
         await title.press('Tab');
         await expect(editedTitle).toBeVisible();
+        await source.selectOption(bean.id);
+        await expect(editedTitle).toBeVisible();
+        await source.selectOption(otherBean.id);
+        await expect(editedTitle).toBeVisible();
         await page.evaluate(() => window.__FC_E2E__?.remountRoast?.());
         await expect(editedTitle).toBeVisible();
+        await expect(source).toHaveValue(otherBean.id);
+        await page.screenshot({ path: testInfo.outputPath('independent-title-and-source.png') });
 
         await page.getByTestId('roast-end').click();
         await page.getByTestId('end-roast-confirm').click();
         await page.getByTestId('roast-summary-weight').fill('2');
         const saveRequest = page.waitForRequest('**/rest/v1/rpc/save_roast_op');
         await page.getByTestId('roast-summary-save').click();
-        expect((await saveRequest).postDataJSON().p_session.batch_name).toBe('Morning production');
+        expect((await saveRequest).postDataJSON().p_session).toMatchObject({
+            bean_id: otherBean.id,
+            batch_name: 'Morning production',
+        });
         await expect(page.getByTestId('roast-summary-save')).toBeHidden();
     });
 

@@ -94,7 +94,7 @@ it.each([
     expect(host.querySelector('label')).toBeNull();
     expect(host.textContent).not.toContain('activeRoast.header.batchTitle');
     expect(host.querySelector('span')?.textContent).toBe('Colombia Santander #3');
-    expect(host.querySelector('select')?.disabled).toBe(true);
+    expect(host.querySelector('select')?.disabled).toBe(false);
     expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]')).toBeNull();
     act(() => root.unmount());
 });
@@ -162,17 +162,19 @@ it('delegates a profile change and does not save the account default', () => {
     vi.useRealTimers();
 });
 
-it('locks bean change while roasting or ended and unlocks it in standby', () => {
-    useRoastingStore.setState({ phase: 'roasting' });
+it('keeps bean selection available beside the editable title while roasting or ended', () => {
+    const state = useRoastingStore.getState();
+    state.prepareWorkspace('user-1');
+    state.startCharge(undefined, 'user-1');
     const host = document.createElement('div');
     const root = createRoot(host);
     act(() => root.render(createElement(RoastHeader, props)));
-    const beanSelect = host.querySelector('select') as HTMLSelectElement;
-    expect(beanSelect.disabled).toBe(true);
+    const beanSelect = host.querySelector('select');
+    expect(beanSelect?.disabled).toBe(false);
     act(() => useRoastingStore.setState({ phase: 'ended' }));
-    expect(beanSelect.disabled).toBe(true);
+    expect(beanSelect?.disabled).toBe(false);
     act(() => useRoastingStore.setState({ phase: 'standby' }));
-    expect(beanSelect.disabled).toBe(false);
+    expect(beanSelect?.disabled).toBe(false);
     act(() => root.unmount());
 });
 

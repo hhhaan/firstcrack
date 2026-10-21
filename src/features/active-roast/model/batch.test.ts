@@ -93,6 +93,83 @@ describe('central batch ownership and transitions', () => {
         });
     });
 
+    it.each([
+        { beanId: 'bean-b', blendId: null, beanName: 'New lot' },
+        { beanId: null, blendId: 'blend-b', beanName: 'New blend' },
+    ])('corrects the running source without resetting the roast or its number: $beanName', (source) => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId;
+        state.assignBatchNumbers(id ?? '', 'owner', 3, 10, 'profile');
+        state.setRunningSource(source, id, 'owner');
+        const next = useRoastingStore.getState();
+        expect(next.activeSelection).toMatchObject({
+            ...source,
+            profileId: 'profile-a',
+            identity: { profileId: 'profile-a', number: 3, totalNumber: 10, title: `${source.beanName} #3` },
+        });
+        expect(next.sessionId).toBe(id);
+        expect(next.roastStartMs).toBe(state.roastStartMs);
+        expect(next.livePoints).toBe(state.livePoints);
+        expect(next.logState).toBe(state.logState);
+        expect(next.prepared).toBe(state.prepared);
+        drop();
+        expect(useRoastingStore.getState().completed?.snapshot.selection).toMatchObject(source);
+        state.cancelDrop();
+        expect(useRoastingStore.getState().activeSelection).toMatchObject(source);
+    });
+
+    it('keeps an edited title when switching between blends and beans', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId ?? '';
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile');
+        state.setRunningBatchTitle(id, 'Morning production');
+        state.setRunningSource({ beanId: null, blendId: 'blend-b', beanName: 'Blend' }, id, 'owner');
+        state.setRunningSource({ beanId: 'bean-b', beanName: 'Bean' }, id, 'owner');
+        expect(useRoastingStore.getState().activeSelection).toMatchObject({
+            beanId: 'bean-b',
+            blendId: null,
+            identity: { number: 3, name: 'Bean', title: 'Morning production', edited: true },
+        });
+    });
+
+    it('rejects source corrections from stale sessions and other workspaces', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const source = { beanId: 'bean-b', beanName: 'Other' };
+        state.setRunningSource(source, 'stale-session', 'owner');
+        state.setRunningSource(source, state.sessionId, 'other-owner');
+        state.setRunningSource(source, state.sessionId, null);
+        expect(useRoastingStore.getState().activeSelection).toBe(state.activeSelection);
+    });
+
+    it('detaches a changed source from its schedule without overwriting the next preparation', () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('owner');
+        state.startBatch({
+            planBatchId: 'batch-a',
+            planId: 'plan-a',
+            beanId: 'bean-a',
+            beanName: 'Planned lot',
+            profileId: 'profile-a',
+            batchSizeKg: 1,
+            batchCount: 1,
+            completedSessions: 0,
+        });
+        const id = state.startCharge(undefined, 'owner');
+        const prepared = useRoastingStore.getState().prepared;
+        state.setRunningSource({ beanId: 'bean-b', beanName: 'Actual lot' }, id, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.planBatchHandoff).toBeNull();
+        expect(useRoastingStore.getState().prepared).toBe(prepared);
+        state.abortRoast(200, 'C');
+        expect(useRoastingStore.getState().completed?.summary).toMatchObject({
+            selectedBeanId: 'bean-b',
+            handoffBeanName: 'Actual lot',
+            planBatchHandoff: null,
+        });
+    });
+
     it('fills a late allocation after Drop without assigning it to the next batch', () => {
         charge();
         const id = useRoastingStore.getState().sessionId ?? '';

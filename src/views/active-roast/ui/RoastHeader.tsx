@@ -54,7 +54,7 @@ export const RoastHeader = ({
     sourceCandidates?: RoastSourceCandidate[];
     fallbackBeanName?: string | null;
     onTargetProfileChange: (id: string | null) => void;
-    onBeanChange: (id: string | null) => void;
+    onBeanChange: (id: string | null, name?: string | null) => void;
     onOpenRoastSettings?: () => void;
     historyReferenceName?: string | null;
     historyReferenceFailed?: boolean;
@@ -67,12 +67,14 @@ export const RoastHeader = ({
     const batchTitle = useRoastingStore((state) => state.activeSelection?.identity?.title);
     const editingSessionId = useRoastingStore((state) => (state.phase === 'roasting' ? state.sessionId : null));
     const charged = useRoastingStore((s) => isChargedPhase(s.phase));
+    const sessionOwnerId = useRoastingStore((state) => state.sessionOwnerId);
     const preparedOwnerId = useRoastingStore((state) => state.prepared.workspaceOwnerId);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
     const reconnecting = useRoastingStore((s) => s.reconnecting);
     const user = useAuthStore((s) => s.user);
-    const { workspaceOwnerId } = useActiveWorkspace();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+    const canSelectSource = isWorkspaceReady && !!workspaceOwnerId && (!charged || sessionOwnerId === workspaceOwnerId);
     const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
@@ -90,7 +92,11 @@ export const RoastHeader = ({
     };
 
     const handleBeanChange = (id: string | null) => {
-        onBeanChange(id);
+        const bean = beans.find((bean) => bean.id === id);
+        const name = bean
+            ? joinDisplay([bean.origin, bean.region], ' ') || bean.name
+            : (sourceCandidates.find((source) => source.beanId && source.beanId === id)?.name ?? null);
+        onBeanChange(id, name);
         // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
         if (id) localStorage.setItem(DEFAULT_BEAN_KEY, id);
         else localStorage.removeItem(DEFAULT_BEAN_KEY);
@@ -140,7 +146,7 @@ export const RoastHeader = ({
                     <p className="text-xs text-red-400 mb-1.5 max-w-xs">{sidecarError}</p>
                 )}
 
-                <div className="relative inline-flex items-center mb-1 min-w-0">
+                <div className="inline-flex items-center gap-2 mb-1 min-w-0">
                     {editingSessionId ? (
                         <RoastTitleEditor
                             key={editingSessionId}
@@ -148,60 +154,57 @@ export const RoastHeader = ({
                             title={batchTitle || beanTitle}
                         />
                     ) : (
-                        <span className="font-(--font-display) text-[28px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
+                        <span className="font-(--font-display) text-[28px] leading-[1.13] text-primary tracking-[-0.4px]">
                             {batchTitle || beanTitle}
                         </span>
                     )}
 
-                    <select
-                        aria-label={t('activeRoast.summary.bean')}
-                        value={selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? '')}
-                        onChange={(e) => {
-                            const value = e.target.value;
-                            if (value.startsWith('blend:')) {
-                                const id = value.slice(6);
-                                onBlendChange?.(id, blends.find((b) => b.id === id)?.name ?? null);
-                                localStorage.removeItem(DEFAULT_BEAN_KEY);
-                            } else handleBeanChange(value || null);
-                        }}
-                        disabled={charged}
-                        className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'pointer-events-none cursor-default' : 'cursor-pointer'}`}
-                    >
-                        <option value="">No Bean Selected</option>
-                        {sourceCandidates.length > 1 && (
-                            <optgroup label={t('activeRoast.header.profileSources')}>
-                                {sourceCandidates.map((source) => (
-                                    <option
-                                        key={source.blendId ? `blend:${source.blendId}` : source.beanId}
-                                        value={source.blendId ? `blend:${source.blendId}` : (source.beanId ?? '')}
-                                    >
-                                        {source.name}
+                    <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded focus-within:outline-2 focus-within:outline-(--color-primary)">
+                        <select
+                            aria-label={t('activeRoast.summary.bean')}
+                            value={selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? '')}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                if (value.startsWith('blend:')) {
+                                    const id = value.slice(6);
+                                    onBlendChange?.(id, blends.find((b) => b.id === id)?.name ?? null);
+                                    localStorage.removeItem(DEFAULT_BEAN_KEY);
+                                } else handleBeanChange(value || null);
+                            }}
+                            disabled={!canSelectSource}
+                            className="absolute inset-0 h-full w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] cursor-pointer disabled:cursor-default"
+                        >
+                            <option value="">No Bean Selected</option>
+                            {sourceCandidates.length > 1 && (
+                                <optgroup label={t('activeRoast.header.profileSources')}>
+                                    {sourceCandidates.map((source) => (
+                                        <option
+                                            key={source.blendId ? `blend:${source.blendId}` : source.beanId}
+                                            value={source.blendId ? `blend:${source.blendId}` : (source.beanId ?? '')}
+                                        >
+                                            {source.name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+                            <optgroup label={t('newProfileModal.singleOrigin')}>
+                                {visibleBeans.map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                        {beanOptionDisplay(b)}
                                     </option>
                                 ))}
                             </optgroup>
-                        )}
-                        <optgroup label={t('newProfileModal.singleOrigin')}>
-                            {visibleBeans.map((b) => (
-                                <option key={b.id} value={b.id}>
-                                    {beanOptionDisplay(b)}
-                                </option>
-                            ))}
-                        </optgroup>
-                        <optgroup label={t('newProfileModal.blend')}>
-                            {blends.map((b) => (
-                                <option key={b.id} value={`blend:${b.id}`}>
-                                    {b.name}
-                                </option>
-                            ))}
-                        </optgroup>
-                    </select>
+                            <optgroup label={t('newProfileModal.blend')}>
+                                {blends.map((b) => (
+                                    <option key={b.id} value={`blend:${b.id}`}>
+                                        {b.name}
+                                    </option>
+                                ))}
+                            </optgroup>
+                        </select>
 
-                    {!charged && (
-                        <ChevronDown
-                            size={18}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-muted"
-                        />
-                    )}
+                        <ChevronDown size={18} className="pointer-events-none text-muted" />
+                    </div>
                 </div>
 
                 {/* ─── Bean secondary info: farm · variety · process ───── */}
