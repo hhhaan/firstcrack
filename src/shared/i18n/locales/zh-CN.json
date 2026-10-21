@@ -985,9 +985,7 @@
             "openSettings": "打开烘焙设置",
             "reconnecting": "正在重新连接 — 曲线已暂停。请勿刷新窗口",
             "batchNumber": "#{{number}}",
-            "batchNumberHint": "统计启用此功能后本设备的Charge，按工作区和曲线分别累计。取消或丢弃批次仍保留编号。",
-            "batchTitle": "烘焙标题",
-            "batchTitleHint": "保留手动修改的标题。清空可恢复自动标题。"
+            "batchNumberHint": "统计启用此功能后本设备的Charge，按工作区和曲线分别累计。取消或丢弃批次仍保留编号。"
         },
         "readings": {
             "beanTemp": "豆温",

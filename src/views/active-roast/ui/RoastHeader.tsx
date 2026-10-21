@@ -10,8 +10,8 @@ import { useBatchNumber } from '@features/active-roast/model/useBatchNumber';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown } from 'lucide-react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RoastBatchTitle } from './RoastBatchTitle';
 import { TargetMenu } from './TargetMenu';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -63,8 +63,8 @@ export const RoastHeader = ({
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
     useBatchNumber();
-    const titleSessionId = useRoastingStore((state) => state.sessionId);
     const charged = useRoastingStore((s) => isChargedPhase(s.phase));
+    const preparedOwnerId = useRoastingStore((state) => state.prepared.workspaceOwnerId);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
     const reconnecting = useRoastingStore((s) => s.reconnecting);
@@ -100,6 +100,16 @@ export const RoastHeader = ({
         : selectedBean
           ? joinDisplay([selectedBean.origin, selectedBean.region], ' ') || selectedBean.name
           : (fallbackBeanName ?? 'No Bean Selected');
+    const sourceDisplayName = selectedBlend || selectedBean ? beanTitle : (fallbackBeanName ?? null);
+    useEffect(() => {
+        if (preparedOwnerId === workspaceOwnerId)
+            useRoastingStore
+                .getState()
+                .setSourceDisplayName(
+                    { beanId: selectedBeanId, blendId: selectedBlendId, beanName: sourceDisplayName },
+                    workspaceOwnerId,
+                );
+    }, [selectedBeanId, selectedBlendId, sourceDisplayName, workspaceOwnerId, preparedOwnerId]);
     const beanSecondary = selectedBean
         ? joinDisplay([selectedBean.farm, selectedBean.variety, selectedBean.process]) ||
           (selectedBean.name !== beanTitle ? selectedBean.name : '')
@@ -118,12 +128,6 @@ export const RoastHeader = ({
     return (
         <div className="flex items-end justify-between">
             <div>
-                <RoastBatchTitle
-                    key={titleSessionId ?? 'waiting'}
-                    beanId={selectedBeanId}
-                    blendId={selectedBlendId}
-                    beanName={selectedBlend || selectedBean ? beanTitle : (fallbackBeanName ?? null)}
-                />
                 {reconnecting && (
                     <p role="status" aria-live="assertive" className="text-xs text-amber-400 mb-1.5 max-w-xs">
                         {t('activeRoast.header.reconnecting')}

@@ -985,9 +985,7 @@
             "openSettings": "ロースト設定を開く",
             "reconnecting": "再接続中 — 曲線が停止しています。ウィンドウを再読み込みしないでください",
             "batchNumber": "#{{number}}",
-            "batchNumberHint": "機能適用後のこの端末のChargeをワークスペース・プロファイル別に集計します。キャンセル・破棄したバッチも番号を保持します。",
-            "batchTitle": "ローストタイトル",
-            "batchTitleHint": "編集したタイトルを保持します。空欄にすると自動タイトルに戻ります。"
+            "batchNumberHint": "機能適用後のこの端末のChargeをワークスペース・プロファイル別に集計します。キャンセル・破棄したバッチも番号を保持します。"
         },
         "readings": {
             "beanTemp": "ベーン温度",

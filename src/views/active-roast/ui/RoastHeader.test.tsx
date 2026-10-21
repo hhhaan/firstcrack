@@ -74,7 +74,7 @@ it.each([
     { targetProfileId: 'missing', historyReferenceName: null },
     { targetProfileId: 'prof-1', historyReferenceName: null },
     { targetProfileId: null, historyReferenceName: 'Reference roast' },
-])('uses the bean heading for the editable title instead of the target: %j', (target) => {
+])('shows only the bean heading and uses it for automatic batch titles: %j', (target) => {
     const state = useRoastingStore.getState();
     state.prepareWorkspace('user-1');
     state.prepareBean('bean-1');
@@ -85,7 +85,12 @@ it.each([
         const id = state.startCharge(undefined, 'user-1') ?? '';
         state.assignBatchNumbers(id, 'user-1', 3, 10, 'profile');
     });
-    expect(host.querySelector('input')?.value).toBe('Colombia Santander #3');
+    expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander #3');
+    expect(host.querySelector('input')).toBeNull();
+    expect(host.querySelector('label')).toBeNull();
+    expect(host.textContent).not.toContain('activeRoast.header.batchTitle');
+    expect(host.textContent).toContain('Colombia Santander');
+    expect(host.querySelector('select')?.disabled).toBe(true);
     expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]')).toBeNull();
     act(() => root.unmount());
 });

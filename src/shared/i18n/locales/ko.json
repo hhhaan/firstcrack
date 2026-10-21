@@ -1336,9 +1336,7 @@
             "openSettings": "로스팅 설정 열기",
             "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요",
             "batchNumber": "#{{number}}",
-            "batchNumberHint": "기능 적용 이후 이 기기의 Charge를 작업공간·프로파일별로 집계합니다. 취소·폐기 배치도 번호를 유지합니다.",
-            "batchTitle": "로스팅 제목",
-            "batchTitleHint": "직접 수정한 제목은 유지됩니다. 빈칸은 자동 제목으로 되돌립니다."
+            "batchNumberHint": "기능 적용 이후 이 기기의 Charge를 작업공간·프로파일별로 집계합니다. 취소·폐기 배치도 번호를 유지합니다."
         },
         "readings": {
             "beanTemp": "생두 온도",
