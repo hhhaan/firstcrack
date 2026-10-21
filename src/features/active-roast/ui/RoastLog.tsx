@@ -132,6 +132,15 @@ export const RoastLog = ({
                       : 'var(--color-primary)';
 
                 if (variant !== 'main') {
+                    const compactControl = isControlEvent(entry.event) && Boolean(note);
+                    const dot = (
+                        <span
+                            className="size-1.5 shrink-0 rounded-full"
+                            style={{
+                                background: entry.current ? STATUS_COLORS.active : eventMarkerCssColor(entry.event),
+                            }}
+                        />
+                    );
                     return (
                         <div
                             key={key}
@@ -140,37 +149,58 @@ export const RoastLog = ({
                                 borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : undefined,
                             }}
                         >
-                            <div className="flex items-center gap-1.5">
-                                <span
-                                    className="size-1.5 shrink-0 rounded-full"
-                                    style={{
-                                        background: entry.current
-                                            ? STATUS_COLORS.active
-                                            : eventMarkerCssColor(entry.event),
-                                    }}
-                                />
-                                <span
-                                    className="min-w-0 flex-1 break-keep text-[13px] font-medium leading-5"
-                                    style={{ color: categoryTextColor }}
-                                >
-                                    {roastEventLabel(entry.event)}
-                                </span>
-                                {actions}
-                            </div>
-                            <div className="font-mono text-[11px] text-muted">
-                                <span>{entry.time}</span>
-                                <span aria-hidden="true"> · </span>
-                                <span className="whitespace-nowrap">{entry.temp}</span>
-                            </div>
-                            {note && (
+                            {compactControl ? (
                                 <div
-                                    className="break-keep text-[11px] leading-4"
-                                    style={{
-                                        color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
-                                    }}
+                                    role="group"
+                                    className="group relative flex items-center gap-1.5"
+                                    aria-label={`${roastEventLabel(entry.event)} ${note} ${entry.time} ${entry.temp}`}
                                 >
-                                    {note}
+                                    {dot}
+                                    <span className="whitespace-nowrap leading-5">
+                                        <span className="text-[13px] font-medium" style={{ color: categoryTextColor }}>
+                                            {note}
+                                        </span>
+                                        <span className="font-mono text-[11px] text-muted">
+                                            <span aria-hidden="true"> · </span>
+                                            <span>{entry.time}</span>
+                                            <span aria-hidden="true"> · </span>
+                                            <span>{entry.temp}</span>
+                                        </span>
+                                    </span>
+                                    <div className="absolute top-1/2 right-0 hidden -translate-y-1/2 bg-roast-bg pl-1 group-focus-within:block group-hover:block">
+                                        {actions}
+                                    </div>
                                 </div>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-1.5">
+                                        {dot}
+                                        <span
+                                            className="min-w-0 flex-1 break-keep text-[13px] font-medium leading-5"
+                                            style={{ color: categoryTextColor }}
+                                        >
+                                            {roastEventLabel(entry.event)}
+                                        </span>
+                                        {actions}
+                                    </div>
+                                    <div className="font-mono text-[11px] text-muted">
+                                        <span>{entry.time}</span>
+                                        <span aria-hidden="true"> · </span>
+                                        <span className="whitespace-nowrap">{entry.temp}</span>
+                                    </div>
+                                    {note && (
+                                        <div
+                                            className="break-keep text-[11px] leading-4"
+                                            style={{
+                                                color: isControlEvent(entry.event)
+                                                    ? categoryTextColor
+                                                    : 'var(--color-muted)',
+                                            }}
+                                        >
+                                            {note}
+                                        </div>
+                                    )}
+                                </>
                             )}
                             {editor}
                         </div>

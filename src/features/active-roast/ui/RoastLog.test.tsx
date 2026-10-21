@@ -67,6 +67,21 @@ describe('RoastLog removable entries', () => {
         },
     );
 
+    it.each(['sidebar', 'panel'] as const)('shows %s heater as value, time, and temperature on one line', (variant) => {
+        act(() => root.render(createElement(RoastLog, { variant, entries: [entry('Heater', 'heater-1')] })));
+        expect(container.textContent).toContain('50%');
+        expect(container.textContent).toContain('1:00');
+        expect(container.textContent).toContain('180.0°C');
+        expect(container.textContent).not.toContain('Heater');
+        expect(container.querySelector('[aria-label^="Heater"]')?.textContent).toContain('50%');
+    });
+
+    it('keeps the Heater label on the main log', () => {
+        act(() => root.render(createElement(RoastLog, { variant: 'main', entries: [entry('Heater', 'heater-1')] })));
+        expect(container.textContent).toContain('Heater');
+        expect(container.textContent).toContain('50%');
+    });
+
     it('deletes Heater and Note rows, not Charge', () => {
         const onRemoveEntry = vi.fn();
         act(() => {
