@@ -7,6 +7,9 @@ export const formatElapsed = (secs: number): string => {
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 
+/** History BBP sits before Charge; prefix minus instead of breaking m:ss math. */
+export const formatSignedElapsed = (secs: number): string => `${secs < 0 ? '-' : ''}${formatElapsed(Math.abs(secs))}`;
+
 /** Recorded duration: round fractional seconds; null → "—". 90.6 → "1:31" */
 export const formatDuration = (seconds: number | null): string => {
     if (seconds == null) return '—';

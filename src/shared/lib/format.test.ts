@@ -5,6 +5,7 @@ import {
     formatDateShort,
     formatDuration,
     formatElapsed,
+    formatSignedElapsed,
     pctChange,
     sanitizeDecimal,
 } from './format';
@@ -23,6 +24,14 @@ describe('formatElapsed', () => {
         expect(formatElapsed(65)).toBe('1:05');
         expect(formatElapsed(90.6)).toBe('1:30');
         expect(formatElapsed(125.9)).toBe('2:05');
+    });
+});
+
+describe('formatSignedElapsed', () => {
+    it('prefixes minus for times before Charge', () => {
+        expect(formatSignedElapsed(-180)).toBe('-3:00');
+        expect(formatSignedElapsed(-90)).toBe('-1:30');
+        expect(formatSignedElapsed(90.6)).toBe('1:30');
     });
 });
 

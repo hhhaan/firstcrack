@@ -9,6 +9,8 @@ export type LiveChartView = {
     xMin: number;
     xMaxFloor: number | undefined;
     bbpRange?: { start: number; end: number };
+    /** Subtract from End-relative BBP event times to match the drawn 0-based axis. */
+    eventTimeOrigin: number;
 };
 
 const sampleExtent = (points: { t: number }[]) => {
@@ -37,6 +39,7 @@ export const resolveLiveChartView = (input: {
             targetPoints: input.roastTarget,
             xMin: 0,
             xMaxFloor: undefined,
+            eventTimeOrigin: 0,
         };
     }
 
@@ -49,6 +52,7 @@ export const resolveLiveChartView = (input: {
     const windowed = rebaseBbpWindow(input.bbpPoints, lastT);
     const measuredStart = windowed[0]?.t ?? 0;
     const measuredEnd = (windowed[windowed.length - 1]?.t ?? measuredStart) - measuredStart;
+    const clipOrigin = Math.max(0, lastT - BBP_MAX_SECONDS);
 
     return {
         livePoints: livePointsFromBbp(windowed.map((p) => ({ ...p, t: p.t - measuredStart }))),
@@ -56,5 +60,6 @@ export const resolveLiveChartView = (input: {
         xMin: 0,
         xMaxFloor: BBP_MAX_SECONDS,
         bbpRange: measuredEnd > 0 ? { start: 0, end: measuredEnd } : undefined,
+        eventTimeOrigin: clipOrigin + measuredStart,
     };
 };

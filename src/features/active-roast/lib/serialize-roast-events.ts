@@ -3,7 +3,7 @@ import { fanDrumMarkersFromStored } from '@features/active-roast/lib/fan-drum-ma
 import { omitRepeatHeaterMarks } from '@features/active-roast/lib/repeat-heater';
 import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
-import { formatElapsed } from '@shared/lib/format';
+import { formatSignedElapsed } from '@shared/lib/format';
 import { parseEditTime } from '@shared/lib/time-edit';
 import type { AppliedRoastControl, LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
 
@@ -100,7 +100,7 @@ export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: Tempe
         .sort((a, b) => a.time_sec - b.time_sec)
         .map((e) => ({
             id: e.id,
-            time: formatElapsed(e.time_sec),
+            time: formatSignedElapsed(e.time_sec),
             timeSec: e.time_sec,
             event: e.type,
             temp: formatStoredEventTemp(e.temp_c, unit),
@@ -129,10 +129,10 @@ export const storedEventsToMarkers = (
             .filter((e) => isChartEventMarker(e.type) || e.type === 'TP')
             .map((e) => ({
                 logId: e.id,
-                timeSec: Math.max(0, e.time_sec),
+                timeSec: e.time_sec,
                 event: e.type,
                 color: getResolvedEventColor(e.type),
-                timeStr: formatElapsed(e.time_sec),
+                timeStr: formatSignedElapsed(e.time_sec),
                 temp: e.temp_c != null ? `${Math.round(toDisplayTemp(e.temp_c, unit))}` : '',
                 tempC: e.temp_c ?? null,
                 note: e.note ?? '',

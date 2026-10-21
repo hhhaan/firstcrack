@@ -62,6 +62,8 @@ describe('parseHeaterEvents', () => {
 describe('parseEditTime', () => {
     it('m:ss 와 초 60을 허용한다', () => {
         expect(parseEditTime('1:30')).toBe(90);
+        expect(parseEditTime('-3:00')).toBe(-180);
+        expect(parseEditTime('-1:30')).toBe(-90);
         expect(parseEditTime('0:60')).toBe(60);
         expect(parseEditTime('12:05')).toBe(725);
         expect(parseEditTime('1:99')).toBeNull();

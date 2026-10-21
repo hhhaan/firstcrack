@@ -179,10 +179,13 @@ export const commitEditTime = (value: string): string => {
 };
 
 export const parseEditTime = (value: string): number | null => {
-    const match = SOFT_TIME_RE.exec(value.trim());
+    const trimmed = value.trim();
+    const negative = trimmed.startsWith('-');
+    const match = SOFT_TIME_RE.exec(negative ? trimmed.slice(1) : trimmed);
     if (!match) return null;
     const raw = match[2];
     const seconds = raw == null || raw === '' ? 0 : raw.length === 1 ? Number(raw) * 10 : Number(raw);
     if (seconds > 60) return null;
-    return Number(match[1]) * 60 + seconds;
+    const parsed = Number(match[1]) * 60 + seconds;
+    return negative ? -parsed : parsed;
 };
