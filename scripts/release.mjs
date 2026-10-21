@@ -132,6 +132,6 @@ runInherit(process.execPath, ['scripts/version-bump.mjs', version]);
 runInherit('git', ['add', 'package.json', 'src-tauri/tauri.conf.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock']);
 runInherit('git', ['commit', '-m', `chore(release): bump version to ${version}`]);
 runInherit('git', ['tag', tagName]);
-// --atomic: 한 번의 push = pre-push verify:all 1회. 비원자적 2회 push는 main 거부 시
+// --atomic: 한 번의 push = pre-push verify:push 1회. 비원자적 2회 push는 main 거부 시
 // 태그만 올라가 "push 안 된 커밋에 태그"(v1.1.18) 재발.
 runInherit('git', ['push', '--atomic', 'origin', 'main', tagName]);
