@@ -72,6 +72,40 @@ it('rejects a legacy batch without a bean or blend before changing its status', 
     });
     expect(from).toHaveBeenCalledTimes(3);
 });
+it('joins a start that already won the revision check', async () => {
+    const lost = query(null);
+    const latest = query({ ...batch, status: 'in-progress', updated_at: 'next' });
+    from.mockReturnValueOnce(query(batch))
+        .mockReturnValueOnce(query({ user_id: 'owner' }))
+        .mockReturnValueOnce(query(null, null, 0))
+        .mockReturnValueOnce(lost)
+        .mockReturnValueOnce(latest);
+    await expect(startForRoast('owner', source)).resolves.toMatchObject({
+        status: 'in-progress',
+        completed_sessions: 0,
+    });
+    expect(lost.maybeSingle).toHaveBeenCalled();
+});
+it('still fails when the revision misses and the row did not start', async () => {
+    from.mockReturnValueOnce(query(batch))
+        .mockReturnValueOnce(query({ user_id: 'owner' }))
+        .mockReturnValueOnce(query(null, null, 0))
+        .mockReturnValueOnce(query(null))
+        .mockReturnValueOnce(query(batch));
+    await expect(startForRoast('owner', source)).rejects.toThrow(/changed/);
+});
+it('sends one status write when the same start overlaps', async () => {
+    const update = query({ ...batch, status: 'in-progress' });
+    from.mockReturnValueOnce(query(batch))
+        .mockReturnValueOnce(query({ user_id: 'owner' }))
+        .mockReturnValueOnce(query(null, null, 0))
+        .mockReturnValueOnce(update);
+    const first = startForRoast('owner', source);
+    const second = startForRoast('owner', source);
+    expect(second).toBe(first);
+    await first;
+    expect(update.update).toHaveBeenCalledTimes(1);
+});
 it('allows a valid blend with no single bean', async () => {
     const blendBatch = { ...batch, bean_id: null, blend_id: 'blend-1' };
     const update = query({ ...blendBatch, status: 'in-progress' });
