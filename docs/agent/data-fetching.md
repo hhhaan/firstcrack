@@ -44,6 +44,20 @@ Typical defaults (confirm in `src/main.tsx`):
 
 ## Key factories
 
+### Overlapping History edits
+
+`entities/roast/historyOptimistic.ts` owns a journal per QueryClient/workspace.
+Failed operations are removed and surviving patches are replayed from the shared
+baseline, so a failed field cannot restore a workspace-wide stale snapshot over
+another edit. Explicit query successes refresh that baseline and reapply pending
+patches. All affected invalidations are retained until the edit group settles;
+new edits wait for final reconciliation. Server data determines final same-field
+write order; the journal does not serialize transport writes.
+
+Bean-origin edits compose bean persistence with this journal through
+`features/update-roast-bean-origin`, keeping cross-entity orchestration out of views
+and entities. Tests use a real QueryClient with deferred write promises.
+
 Entity factories compose from shared roots so partial invalidation stays consistent.
 
 ```ts

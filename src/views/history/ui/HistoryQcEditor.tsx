@@ -1,6 +1,5 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useSetChargeWeight, useUpdateRoastSession } from '@entities/roast';
-import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { MAX_BATCH_WEIGHT_KG } from '@features/active-roast/lib/roastSummarySchema';
 import { isDecimalDraft } from '@features/machine-control/lib/heater-events';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -90,17 +89,10 @@ export const ChargeWeightEditor = ({ session }: { session: RoastSessionWithRelat
         setInvalid(false);
         if (next === session.weight_grams) return;
         if (!isWorkspaceReady || !workspaceOwnerId) return;
-        const inbound = buildRoastedInbound({
-            greenGrams: next,
-            outputWeightGrams: session.output_weight_grams,
-            roastLevel: session.roast_level,
-        });
         try {
             await setChargeWeight({
                 sessionId: session.id,
                 weightGrams: next,
-                inboundGrams: inbound?.grams ?? 0,
-                inboundIsEstimate: inbound?.isEstimate ?? false,
             });
         } catch {
             setDraft(String(session.weight_grams));

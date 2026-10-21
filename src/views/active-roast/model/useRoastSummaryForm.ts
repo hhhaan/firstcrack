@@ -71,7 +71,6 @@ export const useRoastSummaryForm = ({
 
     const selectedBeanIdRef = useRef(selectedBeanId);
     const selectedBlendIdRef = useRef(selectedBlendId);
-    selectedBlendIdRef.current = selectedBlendId;
     const handoffRef = useRef(planBatchHandoff);
     const lastAdhoc = useRoastingStore((s) => s.lastAdhocSave);
     const lastAdhocRef = useRef(lastAdhoc);
@@ -86,7 +85,8 @@ export const useRoastSummaryForm = ({
     });
     useEffect(() => {
         selectedBeanIdRef.current = selectedBeanId;
-    }, [selectedBeanId]);
+        selectedBlendIdRef.current = selectedBlendId;
+    }, [selectedBeanId, selectedBlendId]);
     useEffect(() => {
         handoffRef.current = planBatchHandoff;
     }, [planBatchHandoff]);
