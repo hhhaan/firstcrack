@@ -23,6 +23,21 @@ const baseLog = [
 ];
 
 describe('reviewEventsFromLog', () => {
+    it('edits a BBP note at negative time while rejecting a new negative phase mark', () => {
+        const bbpNote = { id: 'bbp', type: 'Note', time_sec: -90, temp_c: null, note: 'before charge' };
+        const edited = reviewEventsFromLog(
+            [...stored, bbpNote],
+            [...baseLog, entry({ id: 'bbp', event: 'Note', timeSec: -60, note: 'soak' })],
+        );
+        expect(edited.ok).toBe(true);
+        if (!edited.ok) return;
+        expect(edited.events).toContainEqual({ ...bbpNote, time_sec: -60, note: 'soak' });
+        expect(reviewEventsFromLog(stored, [...baseLog, entry({ id: 'fc', event: 'FC Start', timeSec: -1 })])).toEqual({
+            ok: false,
+            reason: 'protected',
+        });
+    });
+
     it('adds a yellow mark without a note and keeps stored charge and control fields', () => {
         const result = reviewEventsFromLog(stored, [
             ...baseLog,

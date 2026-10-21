@@ -1,9 +1,4 @@
-import {
-    clipBbpEventsToWindow,
-    isBbpAllowedEvent,
-    rebaseBbpEvents,
-    toChargeRelativeBbpEvents,
-} from '@features/active-roast/lib/bbp-events';
+import { isBbpAllowedEvent, rebaseBbpEvents, toChargeRelativeBbpEvents } from '@features/active-roast/lib/bbp-events';
 import { feedbackValue } from '@shared/lib/feedback';
 import { formatTsvRows, TSV_HEADER } from '@shared/lib/tsv-writer';
 import type { LogEntry, StoredRoastEvent } from '@shared/types/roast';
@@ -280,9 +275,9 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         if (t < 0) return;
         if (points.length > 0 && t - points[points.length - 1].t < 1) return;
         const next = clipBbpWindow([...points, { t, ...sample }], t);
-        const nextEvents = clipBbpEventsToWindow(events, t);
-        if (recording) persistLive(true, liveGeneration, startMs, next, nextEvents);
-        set({ points: next, events: nextEvents });
+        // Sample retention must not erase notes accepted ahead of the latest reading.
+        if (recording) persistLive(true, liveGeneration, startMs, next, events);
+        set({ points: next });
     },
 
     setEvents: (action) => {
@@ -359,7 +354,7 @@ export const hydrateLiveBbp = (): boolean => {
         liveGeneration: live.generation,
         startMs: live.startMs,
         points: clipBbpWindow(live.points, endT),
-        events: clipBbpEventsToWindow(live.events, endT),
+        events: live.events,
     });
     return true;
 };

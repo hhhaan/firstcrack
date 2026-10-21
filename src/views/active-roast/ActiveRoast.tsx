@@ -951,7 +951,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             const displayNow = Math.max(0, bbpNowSec - origin);
             const display = bbpEventsForDisplay(useBbpStore.getState().events, origin);
             const next = applyEventMarkerEdit(display, logId, patch, chartView.livePoints, unit, displayNow);
-            useBbpStore.getState().setEvents(bbpEventsFromDisplay(next, origin));
+            useBbpStore
+                .getState()
+                .setEvents((prev) => [
+                    ...prev.filter((entry) => entry.timeSec != null && entry.timeSec < origin),
+                    ...bbpEventsFromDisplay(next, origin),
+                ]);
         },
         [bbpNowSec, chartView.eventTimeOrigin, chartView.livePoints, unit],
     );

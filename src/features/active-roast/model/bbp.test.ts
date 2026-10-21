@@ -390,6 +390,37 @@ describe('bbp store', () => {
         }
     });
 
+    it('keeps accepted notes through polling and reload independently of sample retention', () => {
+        installStorage();
+        try {
+            const store = useBbpStore.getState();
+            store.begin(1_000);
+            store.append(sample(210), 1_000);
+            store.setEvents(
+                [30, 960, 1200].map((timeSec) => ({
+                    id: `note-${timeSec}`,
+                    event: 'Note',
+                    time: `${timeSec}`,
+                    timeSec,
+                    temp: '',
+                    tempC: null,
+                    note: 'keep',
+                })),
+            );
+            store.append(sample(200), 961_000);
+            expect(useBbpStore.getState().points.map((point) => point.t)).toEqual([960]);
+            expect(useBbpStore.getState().events.map((event) => event.timeSec)).toEqual([30, 960, 1200]);
+            useBbpStore.setState({ active: false, liveGeneration: '', startMs: 0, points: [], events: [] });
+            expect(hydrateLiveBbp()).toBe(true);
+            expect(useBbpStore.getState().events.map((event) => event.timeSec)).toEqual([30, 960, 1200]);
+            store.append(sample(195), 1_201_000);
+            const finalized = store.finalize(1_201_000, 'with-future-note');
+            expect(finalized?.events.map((event) => event.id)).toEqual(['note-960', 'note-1200']);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
     it('drops an unscoped legacy blob instead of restoring it', () => {
         const { local } = installStorage();
         try {

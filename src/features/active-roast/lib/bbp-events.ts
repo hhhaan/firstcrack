@@ -19,7 +19,7 @@ export const bbpDisplayTime = (storedSec: number, origin: number) => storedSec -
 
 export const bbpStoredTime = (displaySec: number, origin: number) => displaySec + origin;
 
-/** Drop events that slid out of the live 15-minute window. Times stay End-relative. */
+/** At Charge, keep events in the archived BBP interval. Times stay End-relative. */
 export const clipBbpEventsToWindow = (
     events: readonly LogEntry[],
     endT: number,

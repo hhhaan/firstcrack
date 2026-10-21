@@ -134,6 +134,36 @@ describe('record notes edits', () => {
             { id: 'n', type: 'Note', time_sec: 61, note: 'sweeter' },
         ]);
     });
+    it('pastes and saves a BBP note time without losing its sign', async () => {
+        await render({
+            ...session,
+            events: [
+                { id: 'c', type: 'Charge', time_sec: 0 },
+                { id: 'n', type: 'Note', time_sec: -61, note: 'aroma' },
+            ],
+        });
+        const time = host.querySelector('[data-testid="history-recorded-note-time"]') as HTMLInputElement;
+        expect(time.value).toBe('-1:01');
+        await act(async () => {
+            time.focus();
+            time.setSelectionRange(0, time.value.length);
+            time.dispatchEvent(
+                new InputEvent('beforeinput', {
+                    inputType: 'insertFromPaste',
+                    data: '-01:30',
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            );
+        });
+        expect(time.value).toBe('-01:30');
+        await act(async () => time.blur());
+        expect(state.saveEvents).toHaveBeenCalledWith([
+            { id: 'c', type: 'Charge', time_sec: 0 },
+            { id: 'n', type: 'Note', time_sec: -90, note: 'aroma' },
+        ]);
+    });
+
     it('rejects letters in a note time', async () => {
         await render();
         const time = host.querySelector('[data-testid="history-recorded-note-time"]') as HTMLInputElement;
