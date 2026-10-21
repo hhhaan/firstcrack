@@ -8,13 +8,10 @@ import { RoastHeader } from './RoastHeader';
 vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', name: 'Modern' }] }) }));
 
 vi.mock('@entities/bean/queries', () => ({
-    useBeans: () => ({
-        data: [{ id: 'bean-1', name: 'Santander Cooperative', origin: 'Colombia', region: 'Santander' }],
-    }),
+    useBeans: () => ({ data: [] }),
 }));
 
-const numbering = vi.hoisted(() => ({ number: 3 as number | null }));
-vi.mock('@features/active-roast/model/useBatchNumber', () => ({ useBatchNumber: () => numbering.number }));
+vi.mock('@features/active-roast/model/useBatchNumber', () => ({ useBatchNumber: () => 1 }));
 
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'user-1' }),
@@ -41,16 +38,12 @@ vi.mock('@shared/store/auth', () => ({
 }));
 
 vi.mock('react-i18next', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: { number: number }) =>
-            key === 'activeRoast.header.batchNumber' ? `#${options?.number}` : key,
-    }),
+    useTranslation: () => ({ t: (key: string) => key }),
 }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 afterEach(() => {
-    numbering.number = 3;
     useRoastingStore.getState().reset();
     document.body.replaceChildren();
 });
@@ -75,29 +68,15 @@ const props = {
 };
 
 it.each([
-    { targetProfileId: null, historyReferenceName: null },
-    { targetProfileId: 'missing', historyReferenceName: null },
-    { targetProfileId: 'prof-1', historyReferenceName: null },
-    { targetProfileId: null, historyReferenceName: 'Reference roast' },
-])('shows the batch number next to the bean instead of the target: %j', (target) => {
+    { targetProfileId: null, historyReferenceName: null, visible: false },
+    { targetProfileId: 'missing', historyReferenceName: null, visible: false },
+    { targetProfileId: 'prof-1', historyReferenceName: null, visible: true },
+    { targetProfileId: null, historyReferenceName: 'Reference roast', visible: true },
+])('shows the batch number only for a resolved target: %j', ({ visible, ...target }) => {
     const host = document.createElement('div');
     const root = createRoot(host);
-    act(() => root.render(createElement(RoastHeader, { ...props, selectedBeanId: 'bean-1', ...target })));
-    const number = host.querySelector('[title="activeRoast.header.batchNumberHint"]');
-    expect(number?.parentElement?.textContent).toBe('Colombia Santander #3');
-    expect(
-        host.querySelector('button[aria-label="activeRoast.header.target"]')?.parentElement?.textContent,
-    ).not.toContain('#3');
-    act(() => root.unmount());
-});
-
-it('leaves the bean title unnumbered before Charge', () => {
-    numbering.number = null;
-    const host = document.createElement('div');
-    const root = createRoot(host);
-    act(() => root.render(createElement(RoastHeader, { ...props, selectedBeanId: 'bean-1' })));
-    expect(host.textContent).toContain('Colombia Santander');
-    expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]')).toBeNull();
+    act(() => root.render(createElement(RoastHeader, { ...props, ...target })));
+    expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]') != null).toBe(visible);
     act(() => root.unmount());
 });
 
