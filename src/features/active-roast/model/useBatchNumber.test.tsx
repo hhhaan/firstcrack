@@ -5,7 +5,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useRoastingStore } from './status';
-import { useBatchNumber } from './useBatchNumber';
+import { getBatchNumber, useBatchNumber } from './useBatchNumber';
 
 const storage = vi.hoisted(() => ({ value: undefined as unknown }));
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
@@ -38,6 +38,28 @@ const chargeProfile = () => {
     });
     useRoastingStore.getState().startCharge(undefined, 'owner');
 };
+
+it('looks up the completed session number after the next Charge without reserving again', async () => {
+    chargeProfile();
+    const sessionId = useRoastingStore.getState().sessionId;
+    if (!sessionId) throw new Error('Charge did not start');
+    expect(await getBatchNumber('owner', sessionId)).toBe(1);
+    chargeProfile();
+    expect(await getBatchNumber('owner', sessionId)).toBe(1);
+    expect(await getBatchNumber('other-owner', sessionId)).toBeNull();
+    expect(storage.value).toMatchObject({ counters: { [JSON.stringify(['owner', 'p'])]: 2 } });
+});
+
+it.each(['local', 'settings'])('reads a recovered session number from %s storage', async (target) => {
+    const ledger = {
+        counters: { scope: 3 },
+        sessions: { [JSON.stringify(['owner', 'recovered'])]: { scope: 'scope', number: 3 } },
+    };
+    if (target === 'local') localStorage.setItem('roast.batchNumbers', JSON.stringify(ledger));
+    else storage.value = ledger;
+    expect(await getBatchNumber('owner', 'recovered')).toBe(3);
+    expect(await getBatchNumber('owner', 'missing')).toBeNull();
+});
 
 it.each(['local', 'settings'])('continues numbering after a partial %s write failure', async (target) => {
     await act(async () => chargeProfile());

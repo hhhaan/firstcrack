@@ -11,6 +11,7 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBbpStore } from './bbp';
 import { useRoastingStore } from './status';
+import { getBatchNumber } from './useBatchNumber';
 import { refreshCachesAfterRoastSave, type SaveRoastDeps, saveRoastCore, useSaveRoast } from './useSaveRoast';
 
 const hookMocks = vi.hoisted(() => ({
@@ -48,6 +49,8 @@ vi.mock('@shared/lib/tsv-writer', () => ({
     TSV_HEADER: 'time\tbt\n',
     flushTsv: (...args: unknown[]) => hookMocks.flushTsv(...args),
 }));
+
+vi.mock('./useBatchNumber', () => ({ getBatchNumber: vi.fn().mockResolvedValue(null) }));
 
 const baseParams: Parameters<typeof saveRoastCore>[1] = {
     formData: {
@@ -115,6 +118,49 @@ describe('saveRoastCore', () => {
                     profile_id: 'profile-a',
                 }),
             }),
+        );
+    });
+
+    it('saves the header bean title and the completed session number', async () => {
+        const deps = makeDeps();
+        deps.qc.setQueryData(
+            ['beans', 'user-1'],
+            [{ id: 'bean-1', name: 'Santander Cooperative', origin: 'Colombia', region: 'Santander' }],
+        );
+        vi.mocked(getBatchNumber).mockResolvedValueOnce(3);
+        await saveRoastCore(deps, { ...baseParams, planBatchHandoff: handoff });
+        expect(getBatchNumber).toHaveBeenCalledWith(baseParams.userId, baseParams.sessionId);
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({ session: expect.objectContaining({ batch_name: 'Colombia Santander #3' }) }),
+        );
+    });
+
+    it.each([
+        {
+            handoffBeanName: 'Modern',
+            selectedBlendId: 'blend-1',
+            form: { beanId: null, blendId: 'blend-1' },
+            title: 'Modern #3',
+        },
+        {
+            handoffBeanName: null,
+            selectedBlendId: null,
+            form: { beanId: null, beanLabel: 'Sample bag' },
+            title: 'Sample bag #3',
+        },
+        { handoffBeanName: 'Aricha', selectedBlendId: null, form: { beanId: 'bean-1' }, title: 'Aricha #3' },
+        {
+            handoffBeanName: 'Aricha',
+            selectedBlendId: null,
+            form: { beanId: 'bean-1', batchName: '  Custom title  ' },
+            title: 'Custom title',
+        },
+    ])('numbers the default title and preserves custom titles: $title', async ({ form, title, ...selection }) => {
+        const deps = makeDeps();
+        vi.mocked(getBatchNumber).mockResolvedValueOnce(3);
+        await saveRoastCore(deps, { ...baseParams, ...selection, formData: { ...baseParams.formData, ...form } });
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({ session: expect.objectContaining({ batch_name: title }) }),
         );
     });
 

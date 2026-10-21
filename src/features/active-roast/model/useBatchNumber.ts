@@ -8,23 +8,29 @@ import { useRoastingStore } from './status';
 const KEY = 'roast.batchNumbers';
 const useNumbers = create<Record<string, number>>(() => ({}));
 let queue: Promise<void> = Promise.resolve();
+async function readLedger() {
+    const stored = await settingsGet<unknown>(KEY);
+    let fallback: unknown;
+    try {
+        fallback = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    } catch {
+        /* no local ledger */
+    }
+    return mergeBatchNumberLedgers(stored, fallback);
+}
+
+export async function getBatchNumber(ownerId: string, sessionId: string): Promise<number | null> {
+    await queue;
+    const ledger = await readLedger();
+    const id = JSON.stringify([ownerId, sessionId]);
+    return id in ledger.sessions ? ledger.sessions[id].number : null;
+}
+
 function reserve(sessionId: string | null, ownerId: string | null, profileId: string | null) {
     if (!sessionId || !ownerId) return;
     queue = queue
         .then(async () => {
-            const stored = await settingsGet<unknown>(KEY);
-            let fallback: unknown;
-            try {
-                fallback = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-            } catch {
-                /* no local ledger */
-            }
-            const result = allocateBatchNumber(
-                mergeBatchNumberLedgers(stored, fallback),
-                ownerId,
-                profileId,
-                sessionId,
-            );
+            const result = allocateBatchNumber(await readLedger(), ownerId, profileId, sessionId);
             let localSaved = false;
             try {
                 localStorage.setItem(KEY, JSON.stringify(result.ledger));

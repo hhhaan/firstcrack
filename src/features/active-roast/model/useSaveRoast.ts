@@ -32,6 +32,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { resumePendingRoastSave } from '../lib/resumePendingRoastSave';
 import type { PendingRoastSave } from './pendingRoastSave';
 import type { SaveRoastFormData, SaveRoastParams, SaveRoastResult, SyncRoastCurve } from './save-roast-types';
+import { getBatchNumber } from './useBatchNumber';
 
 export type { SaveRoastFormData, SaveRoastParams, SaveRoastResult, SyncRoastCurve };
 
@@ -148,6 +149,11 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
             ? cachedBlends?.find((b) => b.id === blendId)?.name
             : cachedBeans?.find((b) => b.id === resolvedBeanId)?.name) ??
         (unchangedSource ? handoffBeanName : null);
+    const batchNumber = await getBatchNumber(userId, sessionId);
+    const titleBean = cachedBeans?.find((b) => b.id === resolvedBeanId);
+    const batchTitle = titleBean
+        ? [titleBean.origin, titleBean.region].filter(Boolean).join(' ') || titleBean.name
+        : resolvedBeanName;
 
     const payload: RoastSessionInsert = {
         // Client session uuid as PK — save_roast_op converges retries on one row.
@@ -170,7 +176,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         blend_id: blendId,
         bean_label: beanLabel,
         // Title is a snapshot of the bean name, then edited in History. Never re-derived from the bean.
-        batch_name: formData.batchName?.trim() || resolvedBeanName,
+        batch_name:
+            formData.batchName?.trim() ||
+            (batchTitle && batchNumber != null ? `${batchTitle} #${batchNumber}` : resolvedBeanName),
         profile_id: payloadParams.targetProfileId,
         tsv_path: null,
         bbp_tsv_path: null,
