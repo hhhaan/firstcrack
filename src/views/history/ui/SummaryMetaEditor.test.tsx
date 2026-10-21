@@ -8,28 +8,17 @@ import { SummaryMetaEditor } from './SummaryMetaEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const {
-    updateBean,
-    updateSession,
-    setOutputWeight,
-    invalidate,
-    queryClient,
-    patchOrigin,
-    restoreCaches,
-    stockRecorded,
-} = vi.hoisted(() => ({
+const { updateBean, updateSession, setRoastLevel, stockRecorded } = vi.hoisted(() => ({
     updateBean: vi.fn(async () => ({ id: 'bean-1' })),
     updateSession: vi.fn(async () => ({ id: 's1' })),
-    setOutputWeight: vi.fn(async () => undefined),
-    invalidate: vi.fn(async () => undefined),
-    queryClient: { cancelQueries: vi.fn(async () => undefined) },
-    patchOrigin: vi.fn(),
-    restoreCaches: vi.fn(),
+    setRoastLevel: vi.fn(async () => undefined),
     stockRecorded: { value: false },
 }));
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => queryClient }));
+vi.mock('@features/update-roast-bean-origin', () => ({
+    useUpdateRoastBeanOrigin: () => ({ mutateAsync: updateBean, isPending: false }),
+}));
 vi.mock('../hooks/useRoastStockRecorded', () => ({
     useRoastStockRecorded: () => ({ data: stockRecorded.value, isPending: false }),
 }));
@@ -55,13 +44,8 @@ vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [{ id: 'p1', name: 'Washed' }] }),
 }));
 vi.mock('@entities/roast', () => ({
-    invalidateRoastSessionQueries: invalidate,
-    roastSessionKeys: { all: (userId: string) => ['roast_sessions', userId] },
-    snapshotRoastSessionCaches: () => [],
-    restoreRoastSessionCaches: restoreCaches,
-    applyOptimisticSessionBeanOrigin: patchOrigin,
     useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
-    useSetOutputWeight: () => ({ mutateAsync: setOutputWeight, isPending: false }),
+    useSetRoastLevel: () => ({ mutateAsync: setRoastLevel, isPending: false }),
 }));
 
 const session = {
@@ -85,10 +69,7 @@ describe('SummaryMetaEditor', () => {
         stockRecorded.value = false;
         updateBean.mockClear();
         updateSession.mockClear();
-        setOutputWeight.mockClear();
-        invalidate.mockClear();
-        patchOrigin.mockClear();
-        restoreCaches.mockClear();
+        setRoastLevel.mockClear();
     });
 
     const render = async (value: RoastSessionWithRelations = session) => {
@@ -150,11 +131,7 @@ describe('SummaryMetaEditor', () => {
         await act(async () => {
             input.blur();
         });
-        expect(patchOrigin).toHaveBeenCalledWith(queryClient, 'owner', 'bean-1', 'Kenya');
         expect(updateBean).toHaveBeenCalledWith({ id: 'bean-1', origin: 'Kenya' });
-        expect(patchOrigin.mock.invocationCallOrder[0]).toBeLessThan(updateBean.mock.invocationCallOrder[0]);
-        expect(invalidate).toHaveBeenCalledWith(expect.anything(), 'owner');
-        expect(restoreCaches).not.toHaveBeenCalled();
     });
 
     it('restores the session caches when the origin save fails', async () => {
@@ -168,7 +145,6 @@ describe('SummaryMetaEditor', () => {
         await act(async () => {
             input.blur();
         });
-        expect(restoreCaches).toHaveBeenCalledWith(queryClient, []);
         expect(input.value).toBe('Ethiopia');
     });
 
@@ -246,20 +222,26 @@ describe('SummaryMetaEditor', () => {
     it('saves roast level and refreshes the unmeasured inbound estimate', async () => {
         await render();
         await setControl('history-level', 'Dark');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', roast_level: 'Dark' });
-        expect(setOutputWeight).toHaveBeenCalledWith({
+        expect(setRoastLevel).toHaveBeenCalledWith({
             sessionId: 's1',
-            outputGrams: null,
-            inboundGrams: 820,
-            inboundIsEstimate: true,
+            roastLevel: 'Dark',
         });
+        expect(updateSession).not.toHaveBeenCalled();
     });
 
     it('does not rewrite measured output when only the level changes', async () => {
         await render({ ...session, output_weight_grams: 850, roast_level: 'Medium' });
         await setControl('history-level', 'Dark');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', roast_level: 'Dark' });
-        expect(setOutputWeight).not.toHaveBeenCalled();
+        expect(setRoastLevel).toHaveBeenCalledWith({ sessionId: 's1', roastLevel: 'Dark' });
+        expect(updateSession).not.toHaveBeenCalled();
+    });
+
+    it('restores the selected level when its atomic correction fails', async () => {
+        setRoastLevel.mockRejectedValueOnce(new Error('inbound failed'));
+        await render({ ...session, roast_level: 'Medium' });
+        await setControl('history-level', 'Dark');
+        expect((host.querySelector('[data-testid="history-level"]') as HTMLSelectElement).value).toBe('Medium');
+        expect(updateSession).not.toHaveBeenCalled();
     });
 
     it('leaves origin read-only when the roast has no bean', async () => {

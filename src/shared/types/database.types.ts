@@ -2528,6 +2528,33 @@ export type Database = {
                     isSetofReturn: false;
                 };
             };
+            correct_session_charge_weight: {
+                Args: {
+                    p_session_id: string;
+                    p_weight_grams: number;
+                };
+                Returns: undefined;
+            };
+            correct_session_output_weight: {
+                Args: {
+                    p_output_grams: number;
+                    p_session_id: string;
+                };
+                Returns: undefined;
+            };
+            refresh_session_roasted_inbound: {
+                Args: {
+                    p_session_id: string;
+                };
+                Returns: undefined;
+            };
+            set_session_roast_level: {
+                Args: {
+                    p_roast_level: string;
+                    p_session_id: string;
+                };
+                Returns: undefined;
+            };
             set_session_charge_weight: {
                 Args: {
                     p_inbound_grams: number;

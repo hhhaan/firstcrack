@@ -85,8 +85,6 @@ describe('History QC editors', () => {
         expect(setCharge).toHaveBeenCalledWith({
             sessionId: 's1',
             weightGrams: 1200,
-            inboundGrams: 984,
-            inboundIsEstimate: true,
         });
     });
 
@@ -96,8 +94,6 @@ describe('History QC editors', () => {
         expect(setCharge).toHaveBeenCalledWith({
             sessionId: 's1',
             weightGrams: 0,
-            inboundGrams: 0,
-            inboundIsEstimate: false,
         });
     });
 
