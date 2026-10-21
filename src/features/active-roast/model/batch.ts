@@ -229,6 +229,26 @@ export const createBatchActions = (
             },
         });
     },
+    /** Explicit correction of the running batch; future preparation stays independent. */
+    editRunningSource: (
+        source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>,
+        expectedSessionId: string | null,
+        expectedOwnerId: string | null,
+    ) => {
+        const state = get();
+        if (
+            state.phase !== 'roasting' ||
+            !state.activeSelection ||
+            !expectedSessionId ||
+            state.sessionId !== expectedSessionId ||
+            state.sessionOwnerId !== expectedOwnerId
+        )
+            return false;
+        const current = state.activeSelection;
+        const changed = current.beanId !== source.beanId || (current.blendId ?? null) !== (source.blendId ?? null);
+        set({ activeSelection: { ...current, ...source, ...(changed && { planBatchHandoff: null }) } });
+        return true;
+    },
     applyProfileSource: (
         source: { beanId: string | null; blendId: string | null; name: string } | null,
         requiresChoice = false,

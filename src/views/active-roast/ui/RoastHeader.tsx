@@ -10,6 +10,7 @@ import { useBatchNumber } from '@features/active-roast/model/useBatchNumber';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TargetMenu } from './TargetMenu';
 
@@ -68,6 +69,12 @@ export const RoastHeader = ({
     const reconnecting = useRoastingStore((s) => s.reconnecting);
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
+    const currentOwnerId = useRoastingStore((s) => s.sessionOwnerId);
+    const phase = useRoastingStore((s) => s.phase);
+    const scheduled = useRoastingStore((s) => Boolean(s.activeSelection?.planBatchHandoff));
+    const sourceLocked = charged && (phase !== 'roasting' || currentOwnerId !== workspaceOwnerId);
+    const sessionId = useRoastingStore((s) => s.sessionId);
+    const [pendingSource, setPendingSource] = useState<{ value: string; sessionId: string | null } | null>(null);
     const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
@@ -89,6 +96,18 @@ export const RoastHeader = ({
         // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
         if (id) localStorage.setItem(DEFAULT_BEAN_KEY, id);
         else localStorage.removeItem(DEFAULT_BEAN_KEY);
+    };
+    const applySource = (value: string, expectedSessionId?: string | null) => {
+        if (expectedSessionId !== undefined && useRoastingStore.getState().sessionId !== expectedSessionId) {
+            setPendingSource(null);
+            return;
+        }
+        if (value.startsWith('blend:')) {
+            const id = value.slice(6);
+            onBlendChange?.(id, blends.find((b) => b.id === id)?.name ?? null);
+            localStorage.removeItem(DEFAULT_BEAN_KEY);
+        } else handleBeanChange(value || null);
+        setPendingSource(null);
     };
 
     const selectedBlend = blends.find((b) => b.id === selectedBlendId);
@@ -136,14 +155,11 @@ export const RoastHeader = ({
                         value={selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? '')}
                         onChange={(e) => {
                             const value = e.target.value;
-                            if (value.startsWith('blend:')) {
-                                const id = value.slice(6);
-                                onBlendChange?.(id, blends.find((b) => b.id === id)?.name ?? null);
-                                localStorage.removeItem(DEFAULT_BEAN_KEY);
-                            } else handleBeanChange(value || null);
+                            if (charged && scheduled) setPendingSource({ value, sessionId });
+                            else applySource(value);
                         }}
-                        disabled={charged}
-                        className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
+                        disabled={sourceLocked}
+                        className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${sourceLocked ? 'cursor-default' : 'cursor-pointer'}`}
                     >
                         <option value="">No Bean Selected</option>
                         {sourceCandidates.length > 1 && (
@@ -174,13 +190,37 @@ export const RoastHeader = ({
                         </optgroup>
                     </select>
 
-                    {!charged && (
+                    {!sourceLocked && (
                         <ChevronDown
                             size={18}
                             className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-muted"
                         />
                     )}
                 </div>
+
+                {pendingSource !== null && pendingSource.sessionId === sessionId && charged && scheduled && (
+                    <div
+                        className="mb-2 flex max-w-lg flex-wrap items-center gap-2 text-xs"
+                        role="group"
+                        aria-label={t('activeRoast.header.sourceChangeTitle')}
+                    >
+                        <p className="text-secondary">{t('activeRoast.header.sourceChangeUnlinks')}</p>
+                        <button
+                            type="button"
+                            className="rounded border border-border px-2 py-1 text-primary"
+                            onClick={() => applySource(pendingSource.value, pendingSource.sessionId)}
+                        >
+                            {t('common.confirm')}
+                        </button>
+                        <button
+                            type="button"
+                            className="rounded px-2 py-1 text-muted"
+                            onClick={() => setPendingSource(null)}
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </div>
+                )}
 
                 {/* ─── Bean secondary info: farm · variety · process ───── */}
 

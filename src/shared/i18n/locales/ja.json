@@ -964,6 +964,8 @@
         },
         "autoChargeHeld": "温度が回復すると自動投入されます。今すぐ始めるには Charge を押してください。",
         "header": {
+            "sourceChangeTitle": "ロースト原料の変更",
+            "sourceChangeUnlinks": "原料を変更すると、このバッチのスケジュール連携が解除されます。",
             "profileSources": "プロファイルの候補",
             "noBeanSelected": "生豆未選択",
             "target": "ターゲット:",

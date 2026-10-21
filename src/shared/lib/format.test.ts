@@ -3,6 +3,7 @@ import {
     durationDiff,
     formatDate,
     formatDateShort,
+    formatDateTimeShort,
     formatDuration,
     formatElapsed,
     pctChange,
@@ -58,6 +59,24 @@ describe('formatDateShort', () => {
         const iso = '2026-09-18T17:02:00.000Z';
         expect(formatDateShort(iso, 'Asia/Seoul')).toBe('26-09-19');
         expect(formatDate(iso, 'Asia/Seoul')).toBe('Sep 19');
+    });
+});
+
+describe('formatDateTimeShort', () => {
+    it('includes local hours and minutes without seconds', () => {
+        expect(formatDateTimeShort('2026-10-21T14:35:59')).toBe('26-10-21 14:35');
+    });
+
+    it('uses the same timezone for the date and time, including midnight', () => {
+        expect(formatDateTimeShort('2026-09-18T17:02:59Z', 'Asia/Seoul')).toBe('26-09-19 02:02');
+        expect(formatDateTimeShort('2026-09-18T15:00:00Z', 'Asia/Seoul')).toBe('26-09-19 00:00');
+        expect(formatDateTimeShort('2026-09-18T17:02:59Z', 'UTC')).toBe('26-09-18 17:02');
+    });
+
+    it('returns an em dash for missing or invalid dates', () => {
+        expect(formatDateTimeShort(null)).toBe('—');
+        expect(formatDateTimeShort('')).toBe('—');
+        expect(formatDateTimeShort('invalid')).toBe('—');
     });
 });
 

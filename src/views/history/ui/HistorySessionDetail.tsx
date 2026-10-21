@@ -1,6 +1,5 @@
-import { sessionBeanName } from '@entities/roast';
 import { formatTemp, useRoastSettings } from '@features/active-roast';
-import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { formatDateTimeShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
@@ -29,7 +28,6 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
     const { t } = useTranslation();
     const [exportContainer, setExportContainer] = useState<HTMLDivElement | null>(null);
     const { temperatureUnit } = useRoastSettings();
-    const beanName = sessionBeanName(session);
     const metrics = sessionRoastMetrics(session);
     const results = [
         { label: 'history.table.duration', value: formatDuration(metrics.roastDurationSec) },
@@ -52,7 +50,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                 <div className="min-w-0 flex-1">
                     <RecordTitleEditor key={session.id} session={session} />
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
-                        {beanName && <span>{formatDateShort(session.roasted_at)}</span>}
+                        <span>{formatDateTimeShort(session.roasted_at)}</span>
                         {session.beans?.origin && (
                             <span className="text-[12px] text-secondary">{session.beans.origin}</span>
                         )}
