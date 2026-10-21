@@ -20,7 +20,7 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
         bean_label: null,
         beans: { name: 'Green B' },
         roast_profiles: { name: 'Profile A' },
-        roasted_at: '2026-10-19T00:00:00Z',
+        roasted_at: '2026-10-19T14:35:47',
         weight_grams: 1000,
         duration_seconds: 600,
         drop_temp_celsius: 200,
@@ -36,7 +36,14 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
                 createElement(HistoryTable, {
                     sessions: [
                         linked,
-                        { ...linked, id: 'unlinked', batch_name: null, beans: null, bean_label: 'Legacy name' },
+                        {
+                            ...linked,
+                            id: 'unlinked',
+                            batch_name: null,
+                            beans: null,
+                            bean_label: 'Legacy name',
+                            roasted_at: '2026-10-19T14:36:47',
+                        },
                     ],
                     total: 2,
                     filteredTotal: 2,
@@ -56,8 +63,10 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
         );
         const rows = host.querySelectorAll('tbody tr');
         const cells = [...rows[0].querySelectorAll('td')].map((cell) => cell.textContent);
+        expect(cells[0]).toBe('26-10-19 14:35');
         expect(cells.slice(1, 4)).toEqual(['Batch C', 'Green B', 'Profile A']);
         const legacy = [...rows[1].querySelectorAll('td')].map((cell) => cell.textContent);
+        expect(legacy[0]).toBe('26-10-19 14:36');
         expect(legacy.slice(1, 4)).toEqual(['Legacy name', '—', 'Profile A']);
         expect(linked.batch_name).toBe('Batch C');
         expect(linked.bean_label).toBeNull();

@@ -7,7 +7,7 @@ import {
 } from '@entities/roast';
 import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
-import { formatDateShort } from '@shared/lib/format';
+import { formatDateTimeShort } from '@shared/lib/format';
 import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
 import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastProfile } from '@shared/types/database.types';
@@ -391,7 +391,7 @@ export const History = () => {
                     open={deletingId !== null}
                     sessionName={
                         deletingSession
-                            ? `${sessionRoastTitle(deletingSession) ?? ''} (${formatDateShort(deletingSession.roasted_at)})`.trim()
+                            ? `${sessionRoastTitle(deletingSession) ?? ''} (${formatDateTimeShort(deletingSession.roasted_at)})`.trim()
                             : ''
                     }
                     isLoading={deleteSession.isPending}
