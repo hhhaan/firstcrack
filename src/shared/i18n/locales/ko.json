@@ -1393,6 +1393,13 @@
         "log": {
             "expand": "로스팅 로그 펼치기",
             "collapse": "로스팅 로그 접기",
+            "source": "로그 조회 대상",
+            "current": "현재",
+            "reference": "프로파일",
+            "referenceLoading": "기록을 불러오는 중입니다.",
+            "referenceError": "프로파일 기록을 불러오지 못했습니다.",
+            "referenceEmpty": "저장된 이벤트 기록이 없습니다.",
+            "referenceLiveContinues": "조회 중에도 현재 로스팅은 계속 기록됩니다.",
             "title": "로스팅 로그",
             "editRangeHint": "시간은 m:ss 형식, 온도는 측정 곡선 범위 내에서 입력하세요.",
             "deleteNote": "메모 삭제"
