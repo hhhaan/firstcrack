@@ -154,6 +154,13 @@ const applyExisting = (raw: RawEvent, entry: LogEntry): RawEvent => {
     const time = type === 'Charge' ? storedTime(raw) : (editedTime(entry) ?? storedTime(raw));
     const temp = editedTemp(entry);
     if (type === 'Note') return applyNote(raw, entry, time, temp);
+    if (type === 'Control') {
+        const applied = entry.appliedControl;
+        const storedApplied = raw.applied_control;
+        const appliedSame = applied == null || JSON.stringify(storedApplied ?? null) === JSON.stringify(applied);
+        if (sameNumber(raw.time_sec, time) && appliedSame) return raw;
+        return applied ? { ...raw, time_sec: time, applied_control: applied } : { ...raw, time_sec: time };
+    }
     if (type === 'Heater') {
         const note = entry.note.trim();
         const storedNote = typeof raw.note === 'string' ? raw.note : '';

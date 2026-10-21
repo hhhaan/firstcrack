@@ -2,6 +2,7 @@ import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { NEAREST_BT_MAX_SEC } from './chart-option/markers';
+import { parseControlMarkerLogId } from './fan-drum-markers';
 import { logEntryTimeSec } from './serialize-roast-events';
 import { formatTemp } from './temperature';
 
@@ -117,8 +118,37 @@ export function applyEventMarkerEdit(
     maxTimeSec: number,
 ): LogEntry[] {
     if (!logId) return entries;
-    const target = entries.find((entry) => entry.id === logId);
+    const controlMark = parseControlMarkerLogId(logId);
+    const target = entries.find((entry) => entry.id === (controlMark?.id ?? logId));
     if (!target || target.current || target.event === 'Charge') return entries;
+    if (controlMark) {
+        if (target.event !== 'Control') return entries;
+        const nextValue = patch.note == null ? undefined : Number(patch.note);
+        if (patch.note != null && !Number.isFinite(nextValue)) return entries;
+        const nextTimeSec = patch.timeSec;
+        const hasTime = nextTimeSec != null;
+        if (
+            hasTime &&
+            (nextTimeSec == null || !Number.isFinite(nextTimeSec) || !Number.isFinite(maxTimeSec) || maxTimeSec < 0)
+        )
+            return entries;
+        if (!hasTime && nextValue == null) return entries;
+        return entries
+            .map((entry) => {
+                if (entry.id !== target.id) return entry;
+                const applied = { ...entry.appliedControl };
+                if (nextValue != null) applied[controlMark.role] = nextValue;
+                if (!hasTime || nextTimeSec == null) return { ...entry, appliedControl: applied };
+                const boundedTimeSec = Math.max(0, Math.round(nextTimeSec));
+                return {
+                    ...entry,
+                    appliedControl: applied,
+                    time: formatElapsed(boundedTimeSec),
+                    timeSec: boundedTimeSec,
+                };
+            })
+            .sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
+    }
 
     const nextTemp = patch.tempC;
     const hasTemp = nextTemp !== undefined;

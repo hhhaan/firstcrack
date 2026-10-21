@@ -1,5 +1,11 @@
 export { type RoastProfileWithSource, roastProfileCopyInsert } from './api';
 export { profileHeaterEvents, resolveSourceSession, type SourceSessionSnapshot } from './lib/resolve-source-session';
+export {
+    type ProfileSource,
+    profileSourceCandidates,
+    type RoastSourceCandidate,
+    registeredProfileSources,
+} from './lib/source-candidates';
 export { type SessionSummary, summarizeSessionEvents } from './lib/summarize-session-events';
 export {
     type BeanHistoryItem,
@@ -9,6 +15,7 @@ export {
     useDeleteRoastProfile,
     useProfileBeanHistory,
     useProfileConsistency,
+    useProfileSourceHistory,
     useResolvedProfileCurve,
     useRoastProfileCurve,
     useRoastProfileCurves,

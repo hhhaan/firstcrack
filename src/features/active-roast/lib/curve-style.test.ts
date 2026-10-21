@@ -51,6 +51,19 @@ describe('normalizeCurveStyles', () => {
         expect(Object.keys(styles)).toEqual([...CURVE_CHANNELS]);
     });
 
+    it('replaces the previous factory widths with 2 and keeps a chosen width', () => {
+        const styles = normalizeCurveStyles({
+            bt: { ...DEFAULT_CURVE_STYLES.bt, width: 1.8, backgroundWidth: 1.8 },
+            heat: { ...DEFAULT_CURVE_STYLES.heat, width: 1.5, backgroundWidth: 4 },
+            fan: { ...DEFAULT_CURVE_STYLES.fan, width: 3 },
+        });
+        expect(styles.bt.width).toBe(2);
+        expect(styles.bt.backgroundWidth).toBe(2);
+        expect(styles.heat.width).toBe(2);
+        expect(styles.heat.backgroundWidth).toBe(4);
+        expect(styles.fan.width).toBe(3);
+    });
+
     it('rejects colors that could inject CSS into tooltip or legend markup', () => {
         for (const color of ['#fff', 'var(--x)', '#ff0000;background:url(x)', 'rgb(0,0,0)', '#ff00008c']) {
             expect(normalizeCurveStyles({ bt: { color } }).bt.color).toBeNull();

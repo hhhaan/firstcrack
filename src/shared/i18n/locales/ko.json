@@ -10,7 +10,7 @@
         "recordingHint": "새 키 조합을 누르세요. Esc로 취소할 수 있습니다.",
         "change": "단축키 변경: {{action}}",
         "fixed": "변경할 수 없는 단축키",
-        "doubleTap": "400ms 안에 두 번 누르기",
+        "globalHint": "창이 활성 상태가 아니어도 동작합니다. 로스팅 중에만 시스템 전역 키로 등록됩니다.",
         "noResults": "일치하는 단축키가 없습니다",
         "groups": {
             "app": "앱",
@@ -423,21 +423,18 @@
                 "pidDropHoldDescription": "버너를 그대로 둬 다음 배치를 예열된 드럼에서 시작합니다. 이상 정지·과열 시에는 설정과 무관하게 화력을 0으로 내립니다.",
                 "pidDropZero": "화력 0으로",
                 "pidDropZeroDescription": "배출 즉시 버너를 끕니다",
-                "axisTicks": "축 눈금",
-                "axisTicksDescription": "실시간·기록 차트의 눈금 간격과 숫자 표시 주기. 온도 간격은 선택한 온도 단위 기준",
-                "tempGridInterval": "온도 격자",
-                "tempLabelEvery": "온도 숫자 표시 주기",
+                "axisTicks": "눈금·보조선",
+                "axisTicksDescription": "가로선과 축 옆 숫자 간격을 각각 설정합니다. 예: 보조선 10°C, 온도 숫자 50°C, RoR 숫자 2°C/min. 공간이 부족하면 숫자만 일부 생략합니다.",
+                "tempLabelInterval": "온도 숫자 간격",
+                "rorLabelInterval": "RoR 숫자 간격",
+                "tempNumberMode": "온도 숫자 표시",
                 "timeTickInterval": "시간 눈금 간격",
                 "axisTicksCustom": "직접 입력",
                 "axisTicksDefault": "{{value}} (기본)",
-                "tempLabelEveryValue": "{{count}}칸마다",
                 "timeTickSeconds": "{{count}}초",
-                "tempTickMode": "입력 방식",
                 "tempTickInterval": "일정 간격",
                 "tempTickList": "특정 온도 지정",
-                "axisTickSteps": "칸",
                 "axisTickSeconds": "초",
-                "customTempInterval": "온도 간격",
                 "customTempTicks": "온도 눈금 목록",
                 "customTempTicksDescription": "쉼표로 구분한 온도 목록(예: 100, 150, 180). 축 범위 안의 값만 표시하며, 비우면 기본 눈금 사용",
                 "customTempTicksError": "유효한 숫자를 최대 100개 입력하세요. 온도는 0~500°C 범위여야 합니다.",
@@ -450,12 +447,12 @@
                 "axisRoR": "RoR",
                 "rorAxisMin": "RoR 최소",
                 "rorAxisMax": "RoR 최대",
-                "rorGridInterval": "RoR 눈금 간격",
+                "horizontalGridInterval": "가로 보조선 간격",
+                "rorNumberMode": "RoR 숫자 표시",
                 "rorTickList": "특정 RoR 지정",
                 "customRorTicks": "RoR 눈금 목록",
                 "customRorTicksDescription": "쉼표로 구분한 RoR 목록(예: -5, 0, 5, 10). 축 범위 안의 값만 표시하며, 비우면 기본 눈금 사용",
                 "customRorTicksError": "유효한 숫자를 최대 100개 입력하세요. RoR은 -100~300°C/min 범위여야 합니다.",
-                "rorLabelEvery": "RoR 숫자 표시 주기",
                 "controlChart": "컨트롤 차트",
                 "controlChartDescription": "컨트롤 차트의 표시 항목과 축 범위. 차트 표시 여부는 데이터 표시에서 설정",
                 "controlDrum": "드럼",
@@ -785,6 +782,7 @@
         "enterpriseOnly": "이 모델은 Enterprise 계정에서만 연결할 수 있습니다.",
         "sidecarStarting": "연결 준비 중...",
         "linkUnstable": "머신 연결이 불안정합니다. 케이블과 네트워크 상태를 확인해 주세요.",
+        "gasOffUnconfirmed": "화력 0 명령 후 기기 피드백이 0인지 확인되지 않았습니다. 실제 화력을 확인하고 필요하면 기기에서 직접 조작해 주세요.",
         "startRoasting": "로스팅 시작",
         "selectMachine": "머신을 선택하세요",
         "limit": {
@@ -841,6 +839,12 @@
         "phidgetDriverLink": "Phidget22 드라이버 다운로드"
     },
     "dashboard": {
+        "comparedToLastMonth": "전월 대비",
+        "comparedToPreviousClose": "전일 종가 대비",
+        "previousClose": "전일 종가",
+        "lastSixMonths": "최근 6개월",
+        "thisMonth": "이번 달",
+        "refresh": "선물가 새로고침",
         "greeting": {
             "morning": "Good morning",
             "afternoon": "Good afternoon",
@@ -1077,6 +1081,7 @@
         },
         "expanded": {
             "origin": "산지",
+            "beanLocked": "이 로스팅에 이미 재고 기록이 있어 생두를 변경할 수 없습니다.",
             "chargeTemp": "투입 온도",
             "dropTemp": "배출 온도",
             "duration": "시간",
@@ -1196,6 +1201,7 @@
         "exportPdfConfirm": "저장 위치: {{path}}\n이 로스팅 그래프를 가로 A4 한 장 PDF로 저장할까요?",
         "exportPdfUnavailable": "내보낼 차트가 없습니다.",
         "exportPdfFailed": "로스팅 그래프 PDF를 저장하지 못했습니다.",
+        "exportCsvFailed": "CSV 파일을 저장하지 못했습니다.",
         "exportModal": {
             "title": "Export CSV",
             "description": "내보낼 기간을 선택하세요. 위 목록 필터와는 별개로 적용됩니다.",
@@ -1229,7 +1235,8 @@
         "recordText": {
             "title": "로스팅 제목",
             "add": "노트 추가",
-            "failed": "저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해 주세요."
+            "failed": "저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해 주세요.",
+            "inputName": "직접 입력명"
         }
     },
     "beans": {
@@ -1261,6 +1268,12 @@
             "noStock": "재고 부족으로 로스팅 불가",
             "edit": "수정",
             "delete": "삭제",
+            "deleteConfirm": {
+                "title": "블렌드를 삭제할까요?",
+                "description": "\"{{name}}\" 블렌드가 영구 삭제됩니다. 되돌릴 수 없습니다.",
+                "cancel": "취소",
+                "confirm": "삭제"
+            },
             "modal": {
                 "titleCreate": "Add Blend",
                 "titleEdit": "Edit Blend",
@@ -1291,7 +1304,6 @@
             "eventRecorded": "기록됨: {{event}}",
             "futureEventHint": "이벤트는 현재 시점까지만 기록할 수 있습니다.",
             "title": "기록 추가",
-            "editTitle": "기록 수정",
             "time": "시간",
             "gas": "가스",
             "airflow": "배기",
@@ -1303,6 +1315,7 @@
         },
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
+            "profileSources": "프로파일 연결 항목",
             "noBeanSelected": "생두 미선택",
             "target": "Target:",
             "noTarget": "Target 없음",
@@ -1313,7 +1326,9 @@
             "roastComplete": "로스팅 완료",
             "settings": "로스팅 설정",
             "openSettings": "로스팅 설정 열기",
-            "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요"
+            "reconnecting": "기기 재연결 중 — 곡선이 멈춰 있습니다. 창을 새로고침하지 마세요",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "기능 적용 이후 이 기기의 Charge를 작업공간·프로파일별로 집계합니다. 취소·폐기 배치도 번호를 유지합니다."
         },
         "readings": {
             "beanTemp": "생두 온도",
@@ -1367,7 +1382,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "log": {
             "expand": "로스팅 로그 펼치기",
@@ -1384,6 +1399,7 @@
             "machineRequiredMsg": "연결된 머신이 없습니다. 연결 후 다시 시도하세요.",
             "roastInProgressTitle": "로스팅 진행 중",
             "roastInProgressMsg": "로스팅이 진행 중입니다. 정말 종료하시겠습니까?",
+            "unsavedCloseMsg": "저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?",
             "saveFailedTitle": "저장 실패",
             "saveFailedMsg": "로스팅 세션 저장에 실패했습니다.\n\n{{error}}",
             "beanDeletedTitle": "원두를 찾을 수 없음",
@@ -1457,7 +1473,9 @@
             "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다.",
             "sessionExpired": "로그인 세션이 만료되었습니다. 다시 로그인하면 이 기록이 자동으로 저장됩니다.",
             "workspaceLoading": "작업 공간을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
-            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다."
+            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다.",
+            "bbpLive": "BBP · 현재 로스터 상태",
+            "liveUnavailable": "새 측정값을 기다리는 중"
         },
         "planBatch": {
             "title": "다음 로스팅을 진행할까요?",
@@ -1605,6 +1623,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "연결 생두·블렌드",
+        "registeredSourcesHint": "여러 생두와 블렌드를 등록할 수 있습니다. 후보가 하나면 로스팅 준비 시 자동 선택됩니다.",
+        "searchSources": "생두·블렌드 검색",
         "editTitle": "로스팅 프로파일 수정",
         "fromSession": "세션에서 프로파일 만들기",
         "newTitle": "새 로스팅 프로파일",
@@ -2020,6 +2041,7 @@
         },
         "order": {
             "newTitle": "새 주문",
+            "refresh": "새로고침",
             "empty": "주문이 없습니다.",
             "buyer": "주문자",
             "lines": "품목",

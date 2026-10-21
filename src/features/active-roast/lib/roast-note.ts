@@ -12,3 +12,12 @@ export const formatRoastNote = (entry: RoastNoteControls & { note?: string | nul
     ]
         .filter(Boolean)
         .join(' · ');
+
+/** Fan and drum writes use the same `{name} {value}` text as a gas note. */
+export const controlChangeLabel = (role: 'fan' | 'drum', value: number): string => {
+    const name =
+        role === 'fan'
+            ? (i18n.t('activeRoast.controls.fan', { defaultValue: 'Fan' }) ?? 'Fan')
+            : (i18n.t('activeRoast.controls.drum', { defaultValue: 'Drum' }) ?? 'Drum');
+    return `${name} ${String(Number(value.toFixed(2)))}`;
+};

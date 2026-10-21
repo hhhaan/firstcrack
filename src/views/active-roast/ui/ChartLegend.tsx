@@ -27,7 +27,7 @@ export const ChartLegend = ({
             {items.map(({ style, label }) => (
                 <div key={label} className="flex items-center gap-1.5">
                     <CurveSwatch style={style} />
-                    <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
+                    <span className="text-[12px] font-medium text-muted tracking-[0.14px]">{label}</span>
                 </div>
             ))}
         </div>

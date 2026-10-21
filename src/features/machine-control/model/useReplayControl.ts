@@ -9,11 +9,15 @@ import {
     type ReplayEvent,
     type ReplayPoint,
 } from '../lib/replay';
+import { deliverReplayStep } from '../lib/replayDelivery';
+import { useReplayStopDiagnostics } from './useReplayStopDiagnostics';
 
 /** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
 export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
 
 export interface ReplayControlInputs {
+    /** Diagnostic correlation only; never used to decide Replay behavior. */
+    sessionId?: string | null;
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
     referencePoints: ReplayPoint[] | null;
     /**
@@ -67,8 +71,11 @@ export interface ReplayControlInputs {
     lastValidReceivedAtMs?: number | null;
     /** Wall-clock for last-valid age. Omit with lastValid to skip long-gap stop in tests. */
     nowMs?: number | null;
-    /** resolve number = 전송된 세트포인트(실측 확인 아님), null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
+    /** 논리 명령 응답(지원 맵은 설정값 읽기 검증 포함). 요청값 불일치·null은 실패, 실측 확인은 별도. */
     writeHeater: (value: number, origin?: ControlOrigin) => Promise<number | null>;
+    /** Guarded retry: confirm the command first where supported, then resend only if needed. */
+    retryHeater?: (value: number) => Promise<number | null>;
+    connectionEpoch?: number;
     /**
      * 미전송 Replay heater만 선택 취소. fan/drum·수동 commit·DROP zero(safety)는 남긴다.
      */
@@ -157,6 +164,7 @@ const replayProfileEventsKey = (events: unknown): string => (events == null ? ''
  * 마지막으로 충족한 화력 하나를 적용하고, 이후 이벤트부터 이어간다.
  */
 export const useReplayControl = ({
+    sessionId,
     referencePoints,
     referenceMachineMismatch,
     referenceDropTime,
@@ -177,6 +185,8 @@ export const useReplayControl = ({
     lastValidReceivedAtMs,
     nowMs,
     writeHeater,
+    retryHeater,
+    connectionEpoch,
     cancelUnsentHeater,
     heaterMax,
     heaterMin,
@@ -255,6 +265,14 @@ export const useReplayControl = ({
     const [index, setIndex] = useState(0);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
+    useReplayStopDiagnostics({
+        stopReason,
+        sessionId: sessionId ?? null,
+        elapsed,
+        bt: liveBt,
+        firedCount: index,
+        observationQuality,
+    });
     /** zero 정책의 safe-off write가 나갔다 — 기기가 따라올 때까지 재시도 대상 (#316) */
     const [safeOffIssued, setSafeOffIssued] = useState(false);
     /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
@@ -271,6 +289,8 @@ export const useReplayControl = ({
      * 덮거나 새 요청의 writing을 풀면 안 된다 (#368 R02).
      */
     const [writing, setWriting] = useState(false);
+    const [deliveryAttempt, setDeliveryAttempt] = useState(0);
+    const deliveryController = useRef<AbortController | null>(null);
     const writeGenRef = useRef(0);
     const [safeOffNonce, setSafeOffNonce] = useState(0);
     const [pendingWrite, setPendingWrite] = useState<{
@@ -287,6 +307,7 @@ export const useReplayControl = ({
 
     const invalidateInFlightWrite = useCallback(() => {
         writeGenRef.current += 1;
+        deliveryController.current?.abort();
         // 세대만 올리면 늦은 응답은 무시되지만, sender에 남은 Replay heater는 그대로 나간다 (#368 R03).
         cancelUnsentHeater();
         setPendingWrite(null);
@@ -297,9 +318,28 @@ export const useReplayControl = ({
      * 큐 취소도 여기서: effect까지 미루면 in-flight 슬롯이 비며 Replay heater가 먼저 나간다. */
     const bumpWriteGenOnRenderStop = () => {
         writeGenRef.current += 1;
+        deliveryController.current?.abort();
         cancelUnsentHeater();
         if (pendingWrite != null) setPendingWrite(null);
     };
+
+    useEffect(
+        () => () => {
+            writeGenRef.current += 1;
+            deliveryController.current?.abort();
+            cancelUnsentHeater();
+        },
+        [cancelUnsentHeater],
+    );
+
+    const [previousConnectionEpoch, setPreviousConnectionEpoch] = useState(connectionEpoch);
+    if (connectionEpoch !== previousConnectionEpoch) {
+        setPreviousConnectionEpoch(connectionEpoch);
+        // A new connection invalidates old deliveries; reconnecting holds Replay without switching it off.
+        // eslint-disable-next-line react-hooks/refs -- connection replacement invalidates the pending owner immediately
+        bumpWriteGenOnRenderStop();
+        if (writing) setWriting(false);
+    }
 
     // Hold cancels queued Replay writes too; an already-sent response cannot consume the held event.
     if (active && writing && (observationQuality !== 'valid' || reconnecting)) {
@@ -530,8 +570,7 @@ export const useReplayControl = ({
         if (writing) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
         if (result.nextIndex === index || result.heater == null) return;
-        // 성공을 확인한 뒤에만 index를 전진한다 — 실패한 이벤트는 남겨 두고 fail-closed로
-        // 멈춘다. 자동 재시도는 없다: 물리 제어 실패는 사람이 기기를 보고 다시 켠다.
+        // Keep this step pending through bounded retries; later eligible steps cannot replace it.
         const heater = result.heater;
         writeGenRef.current += 1;
         const gen = writeGenRef.current;
@@ -543,11 +582,19 @@ export const useReplayControl = ({
         };
         setPendingWrite(pending);
         setWriting(true);
-        void writeHeater(heater).then((applied) => {
+        const controller = new AbortController();
+        deliveryController.current = controller;
+        void deliverReplayStep({
+            target: heater,
+            write: writeHeater,
+            retry: retryHeater,
+            signal: controller.signal,
+            onAttempt: setDeliveryAttempt,
+        }).then((confirmed) => {
             if (gen !== writeGenRef.current) return;
             setPendingWrite(null);
             setWriting(false);
-            if (applied != null) {
+            if (confirmed) {
                 const current = labeledEventsRef.current;
                 setIndex(current ? remapReplayIndex(pending.oldEvents, pending.nextIndex, current) : result.nextIndex);
                 return;
@@ -568,6 +615,7 @@ export const useReplayControl = ({
         writing,
         observationQuality,
         writeHeater,
+        retryHeater,
     ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
@@ -598,6 +646,7 @@ export const useReplayControl = ({
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
         blocked: stopCause != null,
         active,
+        deliveryAttempt: writing ? deliveryAttempt : 0,
         /** ACK된 이벤트 수. 실행 중 편집에서 이미 보낸 행을 잠글 때 쓴다 */
         firedCount: index,
         /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */

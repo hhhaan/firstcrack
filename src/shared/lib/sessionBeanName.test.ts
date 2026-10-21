@@ -14,3 +14,7 @@ describe('sessionBeanName', () => {
         expect(sessionBeanName({ beans: null, bean_label: null })).toBeNull();
     });
 });
+
+it('displays an ad-hoc blend without substituting a component bean', () => {
+    expect(sessionBeanName({ blends: { name: 'Modern' }, beans: null, bean_label: null })).toBe('Modern');
+});

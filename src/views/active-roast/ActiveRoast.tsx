@@ -30,12 +30,13 @@ import {
     nearestLivePointAt,
     upsertReviewTurningPoint,
 } from '@features/active-roast/lib/event-marker-drag';
+import { dropControlRole, parseControlMarkerLogId } from '@features/active-roast/lib/fan-drum-markers';
 import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
-import { selectDropCancelable, selectReviewSnapshot } from '@features/active-roast/model/batch';
+import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -75,6 +76,7 @@ import {
     isReplayMachineMismatch,
     isWaitingForCharge,
     latestSampleTime,
+    liveWindowTitle,
     orEmpty,
     orNull,
     profileSelectionEpoch,
@@ -104,6 +106,7 @@ import { appendReviewEntry, useReviewCurveEdit } from './model/useReviewCurveEdi
 import { useRoastLifecycle } from './model/useRoastLifecycle';
 import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
+import { useRoastSourceCandidates } from './model/useRoastSourceCandidates';
 import { ActiveRoastSensorNotices } from './ui/ActiveRoastSensorNotices';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
@@ -113,6 +116,8 @@ import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
 import { RoastSidePanel } from './ui/RoastSidePanel';
 import { RoastSummaryModal } from './ui/RoastSummaryModal';
+
+const markerRowId = (logId: string) => parseControlMarkerLogId(logId)?.id ?? logId;
 
 interface ActiveRoastProps {
     isActive: boolean;
@@ -125,6 +130,10 @@ const chartOnlyPreheatBootMs = Date.now();
 
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
     const { t } = useTranslation();
+    const tRef = useRef(t);
+    useEffect(() => {
+        tRef.current = t;
+    }, [t]);
     const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
@@ -161,6 +170,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayBt,
         observationQuality,
         lastValidReceivedAtMs,
+        feedbackReceivedAtMs,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -174,6 +184,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             replayBt: s.rawTemperature?.bt ?? null,
             observationQuality: s.observation?.quality ?? null,
             lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
+            feedbackReceivedAtMs: s.displayObservation?.receivedAtMs ?? null,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -221,19 +232,30 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayStopRef.current('profileChanged');
     }, []);
     const selectionEpoch = profileSelectionEpoch(workspaceOwnerId, sessionId);
-    const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
-        useRoastProfileSelection({
-            isActive,
-            charged,
-            userProfile,
-            beans,
-            beansReady,
-            confirmTargetChange,
-            commitApprovedTarget,
-            saveDefaultProfile,
-            selectionEpoch,
-            workspaceOwnerId,
-        });
+    const candidateProfileId = useRoastingStore((s) => selectRoastSelection(s).profileId);
+    const sourceOptions = useRoastSourceCandidates(workspaceOwnerId, candidateProfileId);
+    const {
+        targetProfileId,
+        selectedBeanId,
+        selectedBlendId,
+        setSelectedBlendId,
+        setSelectedBeanId,
+        handoffBeanName,
+        setUserSelectedTarget,
+    } = useRoastProfileSelection({
+        isActive,
+        charged,
+        userProfile,
+        beans,
+        beansReady,
+        sourceCandidates: sourceOptions.candidates,
+        sourceCandidatesReady: sourceOptions.ready,
+        confirmTargetChange,
+        commitApprovedTarget,
+        saveDefaultProfile,
+        selectionEpoch,
+        workspaceOwnerId,
+    });
 
     // ── UI 상태 ───────────────────────────────────────────────────
     // 진행 중은 phase === 'roasting'. 화면 로컬 boolean을 두지 않는다.
@@ -698,15 +720,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 prompting = true;
                 try {
                     const running = isRunningRef.current;
+                    const translate = tRef.current;
                     const ok = await ask(
                         running
-                            ? '로스팅이 진행 중입니다. 정말 종료하시겠습니까?'
-                            : '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?',
+                            ? translate('activeRoast.dialogs.roastInProgressMsg')
+                            : translate('activeRoast.dialogs.unsavedCloseMsg'),
                         {
-                            title: '로스팅 진행 중',
+                            title: translate('activeRoast.dialogs.roastInProgressTitle'),
                             kind: 'warning',
-                            okLabel: '종료',
-                            cancelLabel: '취소',
+                            okLabel: translate('activeRoast.dialogs.end'),
+                            cancelLabel: translate('activeRoast.dialogs.cancel'),
                         },
                     );
                     if (!ok) {
@@ -748,15 +771,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── Effect: 타이틀바에 실시간 온도 표시 ─────────────────────
     useEffect(() => {
         if (!('__TAURI_INTERNALS__' in window)) return;
-        const isActivePhase = phase === 'roasting' || phase === 'preheating' || phase === 'standby';
-        if (!isActivePhase) {
-            void getCurrentWindow().setTitle('First Crack');
-            return;
-        }
-        const bt = formatTemp(rawBT, unit);
-        const et = formatTemp(rawET, unit);
-        void getCurrentWindow().setTitle(`First Crack — BT ${bt} | ET ${et} | ${timeStr}`);
-    }, [phase, rawBT, rawET, timeStr, unit]);
+        void getCurrentWindow().setTitle(
+            liveWindowTitle({
+                bbpElapsed: bbpTimer,
+                btLabel: formatTemp(rawBT, unit),
+                etLabel: formatTemp(rawET, unit),
+                roastElapsed: timeStr,
+                activePhase: phase === 'roasting' || phase === 'preheating' || phase === 'standby',
+            }),
+        );
+    }, [phase, rawBT, rawET, timeStr, unit, bbpTimer]);
 
     // ── 단계 표시 및 파생값 ──────────────────────────────────────
     const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries, bbpChargeWait);
@@ -868,7 +892,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     );
                     return;
                 }
-                const target = frozen.logEntries.find((entry) => entry.id === logId);
+                const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
                 if (!target || target.event === 'Charge' || target.event === 'Drop') return;
                 frozenLogEdit(
                     applyEventMarkerEdit(
@@ -911,7 +935,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     }
                     return;
                 }
-                const target = frozen.logEntries.find((entry) => entry.id === logId);
+                const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
                 if (!target || target.event === 'Charge' || target.event === 'Drop') return;
                 frozenLogEdit(
                     applyEventMarkerEdit(frozen.logEntries, logId, patch, frozen.livePoints, unit, frozen.elapsed),
@@ -992,6 +1016,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const removeCurveEntry = useCallback(
         (id: string) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
+            if (parseControlMarkerLogId(id)) {
+                const source = frozen?.logEntries ?? useRoastingStore.getState().logState.entries;
+                const next = dropControlRole(source, id);
+                if (!next) return;
+                if (frozen) frozenLogEdit(next);
+                else setLogEntries(next);
+                return;
+            }
             if (frozen) {
                 const target = frozen.logEntries.find((entry) => entry.id === id);
                 if (!target || !isReviewDeletableEvent(target.event)) return;
@@ -1004,7 +1036,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             }
             removeLogEntry(id);
         },
-        [frozenLogEdit, removeLogEntry],
+        [frozenLogEdit, removeLogEntry, setLogEntries],
     );
 
     const handleControlApplied = useCallback(
@@ -1066,6 +1098,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
         onApplied: handleControlApplied,
+        diagnostics: { sessionId: charged ? sessionId : null, receivedAtMs: feedbackReceivedAtMs, sample: liveData },
     });
     useEffect(() => {
         if (reviewing) machineControl.replay.stop();
@@ -1199,11 +1232,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
-        <div className="px-[32px] py-[24px] flex flex-col gap-4 h-full min-h-0 overflow-hidden">
+        <div
+            className={`flex h-full min-h-0 flex-col gap-0 overflow-hidden pt-6 pb-3 ${
+                isFullscreen ? 'px-6' : 'pl-6 pr-0'
+            }`}
+        >
             <RoastHeader
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
                 selectedBeanId={selectedBeanId}
+                selectedBlendId={selectedBlendId}
+                onBlendChange={setSelectedBlendId}
+                sourceCandidates={sourceOptions.candidates}
                 fallbackBeanName={handoffBeanName}
                 onTargetProfileChange={(id) => {
                     void setUserSelectedTarget(id).then((applied) => {
@@ -1392,12 +1432,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onConfirm={confirmEndRoast}
             />
             <RoastSummaryModal
+                bbpEnabled={bbpEnabled}
                 open={saveFlow.flow.summaryModal}
                 summaryData={saveFlow.flow.summaryData}
                 isSaving={saveFlow.isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
                 selectedBeanId={orNull(saveFlow.flow.summaryData?.selectedBeanId)}
+                selectedBlendId={orNull(saveFlow.flow.summaryData?.selectedBlendId)}
                 planBatchHandoff={orNull(saveFlow.flow.summaryData?.planBatchHandoff)}
                 fallbackBeanName={orNull(saveFlow.flow.summaryData?.handoffBeanName)}
                 onClose={saveFlow.flow.closeSummary}

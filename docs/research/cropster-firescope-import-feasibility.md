@@ -1,6 +1,6 @@
 # Cropster·Firescope·Artisan 로스팅 설정 import 가능성
 
-조사일: 2026-10-10 · 관련 이슈: [#710](https://github.com/hhhaan/firstcrack/issues/710)
+조사일: 2026-10-10 · 문서 정리: 2026-10-17 · 관련 이슈: [#710](https://github.com/hhhaan/firstcrack/issues/710)
 
 범위는 머신 연결과 로스팅 그래프·이벤트 설정이다. 프로파일, 히스토리, 재고, 계정·인증 정보는 제외한다. 이번 결과물은 조사 문서이며, FC importer 구현이나 설정 적용은 수행하지 않았다.
 
@@ -178,7 +178,7 @@ FC의 활성 factory는 `virtual`, `kaleido`, `s7`, `modbus`, `probat_ws`, `phid
 | Phidget / Diedrich | hub·센서타입·RTD·전압비 변환 | 일부 TemperatureSensor 읽기만 대응 | 해당 driver 전체 차단 |
 | Probat PLC / Probat WebSocket | 전용 handshake/watchdog 또는 메시지 규약 | 일반 Modbus / 다른 Probat WS 경로 있음 | 해당 driver 전체 차단; 전용 규약 동등성 미확정 |
 | Bullet R1 USB | 전용 USB packet | 활성 adapter 없음 | 차단 |
-| 그래프·indicator·이벤트 | 축·색상·RoR·자동 이벤트 등 | FC에도 각종 표시·이벤트 기능 있음 | 단위·온도/시간 범위·시간 눈금·곡선 색상·ET 표시만 매핑. indicator 전체와 RoR interval·감지/평활화는 동등 매핑 미구현 |
+| 그래프·indicator·이벤트 | 축·색상·RoR·자동 이벤트 등 | FC에도 각종 표시·이벤트 기능 있음 | 단위·온도/시간 범위·주/보조 눈금, BT/ET RoR·화력·드럼·풍량·제어 그래프·기준 프로파일 표시와 곡선 색상 매핑. RoR interval·감지/평활화는 동등 매핑 미구현 |
 
 지원 판단 근거: [FC Modbus 읽기](../../src-tauri/sidecar/adapters/modbus.py), [S7 읽기/feedback/쓰기](../../src-tauri/sidecar/adapters/s7.py), [factory와 쓰기 allowlist](../../src-tauri/sidecar/adapters/__init__.py), [현재 매퍼](../../src/entities/machine/firescope.ts). 매핑 대상 센서의 입력 타입·단위·보정값이 미지원이면 머신 적용 자체를 막는다. 알 수 없는 센서와 `*Setting` 목표값 제외는 별도 비차단 표시다.
 
@@ -217,9 +217,9 @@ JSON을 `strings`나 정규식으로 찾는 방식은 조사 단서에만 사용
 
 ### FC에서 사용할 decoder
 
-기존 Python sidecar를 해독 기능의 실행 위치로 활용할 수 있다. 다만 조사용 ccl reader를 그대로 추가하는 것만으로 제품 importer가 완성되지는 않는다. 고정 버전의 `RawLevelDb`는 CURRENT가 아니라 가장 큰 MANIFEST 파일명을 선택하고 모든 데이터 파일을 스캔하며, CRC를 검증하지 않는다. IndexedDB metadata의 삭제와 최신 값도 별도로 재구성해야 한다. 최신 설정 해독이 실패하면 과거 설정으로 대체하지 않고 읽기 실패를 반환한다. [LevelDB reader 코드](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/ccl_chromium_reader/storage_formats/ccl_leveldb.py), [IndexedDB reader 코드](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/ccl_chromium_reader/ccl_chromium_indexeddb.py)
+현재 제품 decoder는 [Rust IPC](../../src-tauri/src/roasting_import/mod.rs)와 [Firescope reader](../../src-tauri/src/roasting_import/firescope.rs)다. Python ccl reader는 초기 조사에만 사용했으며 제품 실행·패키징 의존성이 아니다. 고정 버전의 `RawLevelDb`는 CURRENT가 아니라 가장 큰 MANIFEST 파일명을 선택하고 모든 데이터 파일을 스캔하며, CRC를 검증하지 않는다. IndexedDB metadata의 삭제와 최신 값도 별도로 재구성해야 한다. 최신 설정 해독이 실패하면 과거 설정으로 대체하지 않고 읽기 실패를 반환한다. [LevelDB reader 코드](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/ccl_chromium_reader/storage_formats/ccl_leveldb.py), [IndexedDB reader 코드](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/ccl_chromium_reader/ccl_chromium_indexeddb.py)
 
-ccl의 일반 package import에는 Brotli/zstd가 포함되고 Snappy 의존성은 Git HEAD를 참조하므로 별도 버전 고정·패키징 검증이 필요하다. native LevelDB를 사용하더라도 Chromium comparator와 Blink/V8 값 해독은 추가로 필요하다. **현재 샘플 추출은 검증됐지만, 출시 가능한 decoder 선택·구현은 미완료다.** 기존 sidecar에서 허용 설정만 읽는 기능을 만들고 합성 DB의 논리값과 대조하는 방향을 우선 검토한다. [ccl package metadata](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/pyproject.toml), [Chromium coding scheme](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md)
+현재 Rust reader는 CURRENT/MANIFEST·CRC·IndexedDB metadata·Blink/V8 값을 검증하고 허용 설정 DTO만 반환한다. 초기 조사용 ccl의 Brotli/zstd·Git Snappy 의존성은 제품에 포함하지 않는다. 제품 검증은 Rust 단위 테스트·Tauri IPC smoke·UI 적용 경로를 기준으로 하며, 실장비 측정값 동등성은 별도로 확인한다. [ccl package metadata](https://github.com/cclgroupltd/ccl_chromium_reader/blob/ef840de30221c4d65bc96d2f4d9057e9ef2f526d/pyproject.toml), [Chromium coding scheme](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md)
 
 ## FC 구현 범위 (2026-10-11)
 
@@ -326,7 +326,7 @@ F1의 보정은 센서 단위에서 머신 온도 단위로 변환한 후 compen
 
 **변수명·타입·단위·센서 역할을 변환해 같은 주소에서 같은 측정값을 얻도록 한다.** 파일 해독, 머신/그래프 변환, 미리보기·적용을 구분한다. 자동 변환이 가능한 항목은 미리 채우고, 의미가 다르거나 FC가 지원하지 않는 항목은 원본값과 이유를 보여준다. 사용자에게 모든 필드의 매핑을 처음부터 다시 입력하게 하지 않는다.
 
-1. **소스 추출:** macOS의 알려진 Firescope 경로를 native backend에서 찾고 종료된 앱의 DB 폴더 복사본을 Python sidecar에서 해독한다. 허용 설정 DTO에 머신 ID·sequence·현재/과거 출처를 붙인다. 데모를 제외하고 머신 ID별 마지막 설정을 고르며 그래프는 별도 키의 현재 값을 사용한다. CRC·CURRENT·삭제·V8 문자열 검증은 앞의 decoder 조건을 충족해야 한다.
+1. **소스 추출:** macOS의 알려진 Firescope 경로를 native backend에서 찾고 종료된 앱의 DB 폴더 복사본을 Rust reader에서 해독한다. 허용 설정 DTO에 머신 ID·sequence·현재/과거 출처를 붙인다. 데모를 제외하고 머신 ID별 마지막 설정을 고르며 그래프는 별도 키의 현재 값을 사용한다. CRC·CURRENT·삭제·V8 문자열 검증은 앞의 decoder 조건을 충족해야 한다.
 2. **명시적 변환:** driver → 선택된 transport/subtype → 센서 schema 순으로 판정하고 소스 경로 → FC 경로 → 타입·enum·단위 변환 규칙을 고정한다. 각 항목에 원본값·변환값과 `mapped`, `needs-review`, `unsupported`를 제공한다. `missing`·`null`·0·false를 구분하고 주소에 임의 ±1/40001 보정을 하지 않는다. 필수 센서의 타입·보정이나 전용 연결 규약을 재현할 수 없으면 해당 머신 적용을 차단한다.
 3. **FC가 읽을 설정 구성:** 초기 머신은 `custom_modbus` 또는 `custom_s7`로 등록하고 소스의 주소·통신 옵션을 명시한다. preset 문자열 유사성으로 FC registry의 기본 주소를 선택하지 않는다. 읽기 센서 주소로 쓰기 `write_map`, PID 또는 제어 capabilities를 만들지 않는다. known preset은 빈 write_map도 기본 쓰기 설정을 상속할 수 있으므로 custom key를 사용하는 것이 필요하다. [FC merge](../../src-tauri/sidecar/manager.py), [custom registry](../../src/entities/machine/roasterRegistry.ts)
 4. **자동 미리보기:** 복구한 머신 목록과 연결·센서·그래프의 변환 결과를 표시하고 가져올 항목을 선택하게 한다. 모든 저장된 주소는 지원 여부와 함께 확인 가능하게 보존한다. `%`, `Pa`, `Hz`, `*Setting` 센서가 있다는 이유만으로 FC의 Gas/Airflow/Drum 제어 주소로 적용하지 않는다. 미지원 주소는 추출 성공과 적용 미지원으로 구분하며, 조용히 누락한 뒤 전체 적용 성공으로 표시하지 않는다.
@@ -353,7 +353,7 @@ F1의 보정은 센서 단위에서 머신 온도 단위로 변환한 후 compen
 
 같은 protocol의 편집은 검증된 기존 읽기 설정을 보존하면서 사용자가 바꾼 필드만 덮도록 보완한다. 초기 지원에 필수인 signed는 표시·저장 양방향에서 유지한다. protocol 변경 시 예전 주소 맵을 옮겨 붙이지 않고, 사용자가 ET를 비우면 기존 ET를 복원하지 않는다. vendor 객체나 쓰기 설정을 일반 spread로 보존하지 않는다.
 
-구현 위치는 DB 해독·로컬 읽기 API를 Python sidecar, 머신 변환을 machine entity, 그래프 변환을 active-roast feature에 두고 widget에서 미리보기·적용을 조합한다. features 간 직접 import를 만들지 않는다. 기존 authenticated sidecar 호출·머신 저장·그래프 저장을 재사용하고, 적용 완료를 확인하는 데 필요한 저장 결과 처리만 보완한다.
+현재 구현 위치는 DB 해독·로컬 읽기 API가 Rust Tauri IPC, 머신 변환이 machine entity, 그래프 변환이 active-roast feature이며 widget에서 미리보기·적용을 조합한다. features 간 직접 import를 만들지 않는다. 기존 머신 저장·그래프 저장 API를 재사용하고 IPC 응답에서도 허용 키·타입·크기를 검증한다.
 
 완료 조건은 **소스 → FC 변환 → 편집 → 저장 → 재시작 → adapter 입력**까지 값·의미가 유지되는 것이다. 합성 snapshot의 머신 덮어쓰기·삭제·compaction, signed 음수와 scale, S7 DB/offset/slot, 단위·미지원 보정, host만 편집, ET 삭제, 재import 중복, 제어 설정 미상속을 테스트한다. 예를 들어 integer register 2500·decimalPlace 1·°C는 FC에서도 250.0°C여야 한다. Intel·ARM 배포 패키지의 파일 탐색·해독을 확인한 뒤 지원 머신의 실제 측정값을 대조한다.
 
@@ -372,19 +372,19 @@ F1의 보정은 센서 단위에서 머신 온도 단위로 변환한 후 compen
 
 Firescope decoder fixture에는 같은 키 덮어쓰기·삭제, WAL에만 최신 값, compaction, orphan table, 서로 다른 DB/store의 동명 키, Unicode, 잘린 파일, external blob 누락, 앱 실행 중 복사 거부, 미지원 runtime을 포함한다. 예상값은 Chromium의 논리값으로 정한다. raw DB나 사용자 식별·인증 자료는 fixture에 넣지 않고 합성 snapshot을 사용한다. [Chromium 명세](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/indexed_db/docs/leveldb_coding_scheme.md), [LevelDB 구현](https://github.com/google/leveldb/blob/main/doc/impl.md)
 
-## macOS Firescope 구현 상태 (2026-10-10)
+## macOS Firescope 구현 상태 (Rust IPC 전환·표시 옵션 반영)
 
-설정 → 로스팅 → 가져오기에 자동 탐색·미리보기·선택 적용을 구현했다. Python 표준 라이브러리만 사용하는 reader가 원본 DB를 읽기 전용으로 잠그고 복사본을 검사한다. CURRENT/MANIFEST의 활성 SST/WAL, CRC32C, Snappy와 IndexedDB schema 5 / Blink 16–21 / V8 15의 일반 객체·문자열을 지원한다. JSON 두 번 파싱이나 raw 문자열 검색을 사용하지 않는다. 외부 blob, 새 포맷, 미완료 Chromium scope/undo/cleanup 작업은 적용을 거부한다.
+설정 → 로스팅 → 가져오기에 자동 탐색·미리보기·선택 적용을 구현했다. [Rust reader](../../src-tauri/src/roasting_import/firescope.rs)가 원본 DB를 읽기 전용으로 잠그고 복사본을 검사하며, [Tauri IPC](../../src-tauri/src/roasting_import/mod.rs)로 허용 설정을 반환한다. CURRENT/MANIFEST의 활성 SST/WAL, CRC32C, Snappy와 IndexedDB schema 5 / Blink 16–21 / V8 15의 일반 객체·문자열을 지원한다. JSON 두 번 파싱이나 raw 문자열 검색을 사용하지 않는다. 외부 blob, 새 포맷, 미완료 Chromium scope/undo/cleanup 작업은 적용을 거부한다.
 
 현재 로컬 복사본에서 그래프와 실머신 3대의 ID별 마지막 설정을 복구했다. 데모는 제외하고 현재 머신과 과거 후보를 별도로 표시한다. source version은 DB만으로 확인되지 않아 null이다. ID는 비어 있지 않은 문자열 또는 JavaScript safe integer를 원래 타입으로 보존한다. 누락·잘못된 ID와 중복 BT/ET는 적용을 차단한다.
 
 일반 Modbus 및 EasysterSmart의 RTU/ASCII/TCP/UDP FC3/4 integer·BCD·float32·float32-le와 S7 Ethernet TCP INT/REAL을 명시적으로 변환한다. Modbus float는 원본 타입에 따라 word order를 유지하고 모든 타입에 decimalPlace 배율을 적용한다. 온도 변환 후 보정하는 Firescope 순서를 유지하며 FC의 섭씨 수집 기준으로 보정 델타도 변환한다. 온도·화력·팬·드럼 외 센서와 읽기 설정값 채널도 이름·단위·주소·배율·보정을 유지해 추가 센서로 가져온다. 추가 읽기값은 라이브 표시, 로스팅·BBP TSV, 기록 표·CSV에 보존한다. 쓰기 함수·write_map·PID는 가져오지 않으며 장비를 자동 연결하지 않는다. 전용 Probat/Phidget/Diedrich/Bullet 동작은 미지원 이유를 표시한다. 기존 머신 편집은 추가 센서와 float·보정 메타데이터를 유지한다. 재가져오기는 없는 채널만 추가하고 사용자 편집은 덮어쓰지 않는다.
 
-그래프는 온도 단위·축 범위, 시간 범위·눈금, BT/ET/RoR 색상, ET 표시를 변환한다. 라이브 축의 단위는 최신 머신의 temperatureUnit이고, 이력 표시에서는 global.temperature를 사용하므로 화면에서 단위를 확인할 수 있다. RoR 계산·평활화, 이벤트 감지와 보조 그래프는 동등성을 확인하지 못해 건너뛴다. 미리보기는 사용자용 설정명과 변경 전후 값을 표시한다. 기존 선 두께·스타일과 매핑하지 않은 FC 설정을 유지한다.
+그래프는 온도 단위·축 범위, 시간 범위·주/보조 눈금, BT/ET/RoR·제어 곡선 색상, BT/ET RoR·화력·드럼·풍량·제어 그래프·기준 프로파일 표시를 변환한다. 라이브 축의 단위는 최신 머신의 temperatureUnit이고, 이력 표시에서는 global.temperature를 사용하므로 화면에서 단위를 확인할 수 있다. RoR 계산·평활화와 이벤트 감지는 동등성을 확인하지 못해 건너뛴다. 표시 옵션을 가져오는 것이 계산 알고리즘 동등성을 뜻하지 않는다. 미리보기는 사용자용 설정명과 변경 전후 값을 표시한다. 기존 선 두께·스타일과 매핑하지 않은 FC 설정을 유지한다.
 
 머신 source ID로 재가져오기 중복을 막고 기존 플랜 한도를 검사한다. 그래프는 저장 성공 후 화면에 적용하며 실패한 LazyStore 캐시는 복원한다. 머신은 한 batch로 저장하고 실패하면 메모리 상태를 복원한다. 두 저장소 사이의 원자적 트랜잭션은 제공하지 않으며 그래프 저장 뒤 머신 저장이 실패하면 부분 성공을 명시한다.
 
-합성 DB decoder 테스트 31개와 전체 sidecar 테스트 527개가 통과했다(기존 skip 3개). 브라우저 테스트 4개에서 자동 탐색·미리보기·적용·재실행 저장 유지·중복 방지·플랜 한도·저장 실패와 장비 자동 연결 없음도 확인했다. Apple Silicon PyInstaller 패키지를 임시 디렉터리에 빌드하고 실제 로컬 DB를 읽는 authenticated HTTP smoke에서 머신 3대와 그래프 50–250°C/720초를 대조했다. 이 검증은 FC 설치 번들 전체의 검증이나 실기기 연결 테스트를 대체하지 않는다.
+초기 Python 구현에서 기록한 decoder·sidecar 테스트 수와 Apple Silicon PyInstaller HTTP smoke는 과거 구현의 근거이며 현재 제품 검증 결과가 아니다. 현재 검증 경로는 `cargo test --manifest-path src-tauri/Cargo.toml roasting_import`, Tauri IPC 조회와 브라우저 적용·저장·재실행 확인이다. 이 문서 정리는 해당 검사를 새로 실행했다는 의미가 아니며, FC 설치 번들 전체나 실기기 연결 검증을 대체하지 않는다.
 
 실제 로컬 머신 3대는 숫자형 ID를 사용한다. 최초 매퍼가 문자열만 허용해 모두 적용 불가로 표시하는 오류를 재현하고 수정했다. 수정 후 3대 모두 매핑되며 선택된 통신 설정과 BT/ET Modbus register·unit ID·FC·scale 및 S7 DB·offset·type·scale가 원본과 일치하는 것을 확인했다. 머신 단위 테스트 26개와 브라우저 테스트 4개가 통과했으며, 숫자 `42`와 문자열 `"42"`를 구분한 재실행 중복 방지도 검증했다. 지원하지 않는 보조 채널은 계속 건너뛴다.
 
@@ -393,3 +393,129 @@ Artisan의 macOS native plist·기본값 생략·연결 매핑 추가 조사는 
 ## 미검증·잔여 위험
 
 Windows/macOS 전체 조합, 실제 Cropster 사용자 설정, Artisan native 설정의 앱 버전·defaults 복원, 브라우저 논리값 대조, Intel 배포 실행과 실제 로스터 측정값 대조는 확인하지 않았다. 가장 큰 위험은 과거·기본값을 현재 설정으로 오인하거나 센서 역할·단위·scale·보정을 바꿔 적용하는 것이다. 지원 범위 밖의 설정은 자동 적용하지 않는다. 로컬에 남지 않은 과거 머신은 복구할 수 없다.
+
+## Windows 확장 조사 (2026-10-11)
+
+
+**Windows 구현에 필요한 저장소·형식·잠금의 정적 근거를 확보했다.** Firescope·Cropster의 공식 Windows 설치 파일을 실행하지 않고 추출했고, Artisan은 FC가 지원하는 v4.2.0의 공식 소스와 Qt backend를 분석했다. 실제 Windows 사용자 저장소 읽기·앱 실행·FC 가져오기 성공은 이번에 검증하지 않았다.
+
+| 제품 | 확인 수준 | 구현에 필요한 핵심 변경 |
+| --- | --- | --- |
+| Firescope 1.0.1/1.0.2 | Windows 설치본, Electron/Chromium 고정 버전 소스 | Roaming AppData 탐색, Windows 프로세스·DB lock, 안전한 복사 |
+| Artisan 4.2.0 | 고정 Artisan/PyQt/Qt 공식 소스 | Registry 읽기, 키별 타입 정규화, 제한된 Colors QVariant 해독 |
+| Cropster RI 5.13 x64 | Windows 설치본·JAR·배포판 지정 JRE 클래스 | 기본 JSON 탐색, 제품 실행 파일 확인; override는 Java Registry 해독 필요 |
+
+### 배포 파일과 재현 근거
+
+| ID | 공식 입력 | SHA-256 |
+| --- | --- | --- |
+| FW1 | [Firescope Windows 1.0.1](https://download.firescope.cropster.com/Firescope-1.0.1.exe) | `b281acefd772aebdb430b9519926a5a82a5f23e83edeabb80d0b2abc7cf236b2` |
+| FW2 | [Firescope Windows 1.0.2](https://download.firescope.cropster.com/Firescope-1.0.2.exe) | `51065a4bda262e76556c13e590bbc93cc40c57641a49c54690aec2359560fb4f` |
+| CW1 | [Cropster RI Windows x64 5.13](https://download.cropster.com/update/Cropster_Roasting_Intelligence_5_windows-x64_5_13.exe) | `8a6ae56fa7a42028fe573378fa20d23b06fa86023b6b0010aa1f2151f2557045` |
+| CW2 | CW1의 `lib/roastingintelligence-5.13.jar` | `823ede5f41420fb019935eaec5da9360f89e5c65e112928d079723239a1075bf` |
+| CW3 | CW1이 지정한 [Windows JRE 17.0.11](https://download.cropster.com/java/windows-amd64-17.0.11.tar.gz) | `b8639bdbbcfd412787ba9b919950feeaa903aabbd182dd0e637b35d61f644801` |
+
+Firescope는 시스템 `bsdtar`로 필요한 `Firescope.exe`·`resources/app.asar`·업데이트 설정만 추출했다. ASAR header의 길이·entry 크기를 검사하며 JS를 읽었다. FW2의 파일 크기 149,152,592 bytes와 SHA-512는 공식 [latest.yml](https://download.firescope.cropster.com/latest.yml)의 값과 일치했다. 조사 시 다운로드 페이지는 FW1, 업데이트 metadata는 FW2를 가리켰다. Metadata 일치는 Authenticode 검증과 다르며 이번에 인증서 체인은 검증하지 않았다.
+
+Cropster는 installer의 embedded ZIP과 JAR를 읽고, 기존 로컬 JDK의 `jimage`·`javap`로 CW3의 Preferences 클래스 bytecode를 분석했다. 다운로드한 앱·JVM·클래스는 실행하지 않았다. CW2와 기존 Linux C1 JAR의 전체 hash는 다르지만 `PreferencesConfiguration`, `FileSystemConfiguration`, `StorageServiceImpl`, `JsonWriter`, `RoastingIntelligenceApp` 다섯 클래스는 바이트가 각각 동일했다. Windows 배포 파일과 내부 클래스가 이번 근거이며 Linux 설치본만으로 Windows 동작을 추정한 결과가 아니다.
+
+### Firescope: 기본 경로와 저장 방식
+
+FW1/FW2 내부 package의 productName은 `Firescope`, 버전은 각각 1.0.1/1.0.2다. 실행 파일은 실제 포함된 **`Firescope.exe`**다. 두 PE에서 `Electron/32.3.3`, `Chrome/128.0.6613.186` 문자열을 확인했다. Electron 32.3.3의 [DEPS](https://github.com/electron/electron/blob/v32.3.3/DEPS#L3-L6)도 같은 Chromium 버전을 지정한다.
+
+FW2의 `resources/app.asar` SHA-256은 `549cfe2c561062534fa741858a8a087bbff489ef54ac016aaa619a1834e8f07b`다. 내부 package와 `out-tsc/main.js`, `app/app-setting.js`, `app/main-window.js`는 이 Mac의 F1 1.0.2와 각각 바이트 동일했다. Renderer는 Windows `dist/main.2f152d1f828d1334.js`, macOS `dist/main.2e097f7be22c8cee.js`로 파일과 바이트가 달랐다. 같은 버전이라는 이유로 renderer 전체가 같다고 간주하지 않았다.
+
+Windows package의 `resolveSettingFilePath()`는 `%APPDATA%/Firescope/setting.json`을 명시하고, packaged BrowserWindow는 `dist/index.html`을 `file:`로 연다. userData·partition을 변경하는 앱 코드 호출은 조사한 초기화 경로에서 발견하지 못했다. Electron은 package productName을 앱 이름에 적용하고 AppData + 앱 이름을 기본 userData로 사용한다. [Electron 앱 이름 적용](https://github.com/electron/electron/blob/v32.3.3/lib/browser/init.ts#L121-L125), [userData 생성·CLI override](https://github.com/electron/electron/blob/v32.3.3/shell/app/electron_main_delegate.cc#L316-L320), [Windows AppData 설명](https://www.electronjs.org/docs/latest/api/app#appgetpathname).
+
+따라서 지원 배포본의 기본 DB 탐색 위치는 다음과 같이 **소스에서 도출**된다. 사용자 Windows에서 실제 생성된 DB 경로를 관찰한 결과는 아니다.
+
+```text
+<Roaming AppData>\Firescope\IndexedDB\file__0.indexeddb.leveldb
+```
+
+Chromium 128은 기본 first-party bucket을 `IndexedDB` 아래에 두고, `file:` origin을 `file__0`으로 직렬화하며 `.indexeddb.leveldb` 확장자를 붙인다. [DB 경로](https://chromium.googlesource.com/chromium/src/+/refs/tags/128.0.6613.186/content/browser/indexed_db/indexed_db_context_impl.cc#693), [파일명](https://chromium.googlesource.com/chromium/src/+/refs/tags/128.0.6613.186/content/browser/indexed_db/file_path_util.cc#53), [file origin 식별자](https://chromium.googlesource.com/chromium/src/+/refs/tags/128.0.6613.186/storage/common/database/database_identifier.cc#198). `--user-data-dir` override나 다른 partition의 저장소까지 기본 경로라고 보장하지 않는다.
+
+FW1/FW2 renderer에서 DB=`ngStorage`, store=`localStorage`, version=1과 기존 그래프·머신·Indicator·Global 키를 확인했다. IndexedDB 구현은 JS 객체를 `put(value, key)`로 저장하고, 머신 unset은 키를 삭제하며 활성 connection.type/protocol의 하위 설정을 선택한다. 이는 기존 F1에서 확인한 설정 처리와 일치한다. 별도의 browser localStorage fallback만 JSON을 직렬화하므로 모든 IndexedDB 값에 JSON 이중 파싱을 적용하면 안 된다. 근거: FW1 `dist/main.aea2e86cac6e17e1.js`, FW2 renderer의 `localStorageIDBDBName`, `localStorageIDBStoreName`, `set`, `validateRoastingMachine`, `cacheOne`, `unsetActiveMachine`.
+
+기존 Rust의 LevelDB/IndexedDB/V8 decoder를 재사용할 근거는 확보했지만 Windows에서 생성된 snapshot을 직접 해독한 것은 아니다. 제품 버전은 DB 응답의 `source.version`을 임의로 채우는 근거로 사용하지 않는다.
+
+### Firescope: 정확한 Windows 잠금
+
+Chromium 128 LevelDB는 `FilesystemImpl::LockFileLocal`을 통해 `LOCK`에 exclusive lock을 잡는다. Windows `File::Lock`은 `LOCKFILE_FAIL_IMMEDIATELY | LOCKFILE_EXCLUSIVE_LOCK`, offset=0, length low/high 각각 `MAXDWORD`로 `LockFileEx`를 호출한다. 공유 모드는 exclusive flag만 생략한다. [LevelDB 호출 경로](https://chromium.googlesource.com/chromium/src/+/refs/tags/128.0.6613.186/third_party/leveldatabase/env_chromium.cc#893), [exclusive 선택](https://chromium.googlesource.com/chromium/src/+/refs/tags/128.0.6613.186/components/services/storage/public/cpp/filesystem/filesystem_impl.cc#263), [Win32 범위·flag](https://chromium.googlesource.com/chromium/src/+/refs/tags/128.0.6613.186/base/files/file_win.cc#252).
+
+**잠금은 최대한 짧게 유지한다.** FC가 shared lock을 유지하는 동안 Firescope가 시작하면 Chromium의 비차단 exclusive lock 획득이 실패할 수 있다. 원본 목록·identity 확인과 일관된 snapshot 복사에 필요한 구간만 잠그고 즉시 해제하며, 복사본 해독·미리보기·사용자 선택 동안 잠금을 유지하지 않는다.
+
+FC는 Chromium의 원본 파일 생성·쓰기 open을 복제할 필요가 없다. **기존 LOCK을 GENERIC_READ/OPEN_EXISTING으로 열고 같은 범위에 비차단 shared lock을 유지**하면 Chromium의 exclusive lock과 충돌할 수 있다. Microsoft는 read-only handle의 잠금 요청을 허용하며 shared/exclusive 중첩 규칙을 명시한다. [LockFileEx 계약](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex).
+
+구현 검증은 별도 프로세스의 exclusive lock과 충돌 → `needs-app-closed`, 해제 후 성공, 앱이 복사 중 다시 열리는 경우, read-only 원본 내용 불변까지 포함한다. 잠금 충돌과 sharing violation을 접근 권한 거부·손상과 구분한다. 단순 LOCK 파일 존재 확인이나 macOS `fcntl` 호출로 대체할 수 없다. 실행 중의 `Firescope.exe` 확인과 기존 목록·identity·hash 재검사는 함께 유지한다.
+
+### Artisan: Registry와 타입 해독
+
+고정 기준은 [Artisan v4.2.0 commit `9334ed75f42a73526bd6da8905164706f06d34fa`](https://github.com/artisan-roaster-scope/artisan/tree/9334ed75f42a73526bd6da8905164706f06d34fa)이다. `PyQt6==6.11.0`을 지정하며, 조사한 Qt backend는 [Qt 6.11.0 commit `8ba7ea4b77a4b8f1948760221e264917ddc9e1c8`](https://github.com/qt/qtbase/tree/8ba7ea4b77a4b8f1948760221e264917ddc9e1c8)이다. 실제 Windows installer에 번들된 Qt patch 버전은 확인하지 않았다.
+
+현대 사용자 키는 `HKCU\Software\artisan-scope\Artisan`이다. QSettings가 한 값을 찾는 우선순위는 HKCU app → HKCU `OrganizationDefaults` → HKLM app → HKLM `OrganizationDefaults`이며, group은 subkey, 마지막 segment는 value name이다. FC가 같은 논리 설정을 재현하려면 허용 키에 한해 이 first-found 순서를 따르거나 fallback 미지원이 있음을 명확히 판정해야 한다. Viewer·legacy를 임의 병합하는 규칙과 다르다. [앱 식별자](https://github.com/artisan-roaster-scope/artisan/blob/9334ed75f42a73526bd6da8905164706f06d34fa/src/artisanlib/util.py#L46-L50), [Qt root 구성](https://github.com/qt/qtbase/blob/8ba7ea4b77a4b8f1948760221e264917ddc9e1c8/src/corelib/io/qsettings_win.cpp#L374-L397), [fallback 조회](https://github.com/qt/qtbase/blob/8ba7ea4b77a4b8f1948760221e264917ddc9e1c8/src/corelib/io/qsettings_win.cpp#L708-L720).
+
+| 원본 의미 | Windows QSettings의 저장 표현 | 필요한 처리 |
+| --- | --- | --- |
+| 정수 | 주로 REG_DWORD | signed 의미·범위 확인 |
+| boolean·실수 | REG_SZ의 `true`/`false`·decimal | 허용된 키별로 strict boolean/finite number 변환 |
+| 숫자 배열 | 주로 REG_MULTI_SZ의 숫자 문자열 | bounded string[] → 검증한 number[] |
+| `Colors` map | REG_BINARY의 UTF-16LE `@Variant(...)` wrapper | 필요한 QVariantMap/QString만 제한적으로 해독 |
+
+이는 Artisan의 Python 값 → PyQt 변환 → Qt Windows writer를 연결한 소스 분석이다. 실제 Registry 덤프를 관찰한 표는 아니다. 숫자 배열은 beginWriteArray의 size/subkey 구조가 아니며, 빈 문자열/NUL 등에서는 binary list 표현도 가능하다. `@StringList(...)` marker를 전제로 파서를 만들면 안 된다. [PyQt 6.11.0 sdist의 Chimera 변환](https://files.pythonhosted.org/packages/8b/47/b25c13eca5bebc6505394d0223e46d7ebf0c57dcac2ed908d7d19b18ab6b/pyqt6-6.11.0.tar.gz), [Qt Registry writer](https://github.com/qt/qtbase/blob/8ba7ea4b77a4b8f1948760221e264917ddc9e1c8/src/corelib/io/qsettings_win.cpp#L625-L688).
+
+Colors는 wrapper 안의 Latin-1 payload를 복원한 뒤 big-endian QDataStream **Qt_4_0** 형식으로 해석한다. 최신 QVariant null flag를 기대하면 잘못 읽는다. unknown/custom 타입 역직렬화는 필요 없고, builtin map/string과 길이·깊이·trailing data만 검증한다. [QSettings wrapper·stream version](https://github.com/qt/qtbase/blob/8ba7ea4b77a4b8f1948760221e264917ddc9e1c8/src/corelib/io/qsettings.cpp#L415-L439), [QVariant 저장](https://github.com/qt/qtbase/blob/8ba7ea4b77a4b8f1948760221e264917ddc9e1c8/src/corelib/kernel/qvariant.cpp#L1271-L1351).
+
+일반 HKCU Software는 32/64 공유지만 HKLM Software fallback은 view가 중요하다. 공식 Artisan x64 배포에 맞는 view를 사용하고 반대 view의 값을 제품 자체 fallback처럼 합치지 않는다. [Microsoft Registry view](https://learn.microsoft.com/en-us/windows/win32/winprog64/shared-registry-keys).
+
+Native는 기본값과 같은 키를 생략하고 `System/artisan_version`은 파일 export에만 기록한다. 버전 누락은 정상이며 설치 exe 버전으로 마지막 writer를 추정하면 안 된다. 현 FC의 명시적인 4.2.0 확인 흐름이 필요하다. Modbus serial 기본값은 COM5·115200/8/N/1이고 일반 `SerialPort` 기본값은 COM4·9600/8/O/1로 서로 다르다. 현재 FC는 일반 SerialPort importer를 지원하지 않는다. [export 버전 기록](https://github.com/artisan-roaster-scope/artisan/blob/9334ed75f42a73526bd6da8905164706f06d34fa/src/artisanlib/main.py#L20310-L20314), [Modbus 기본값](https://github.com/artisan-roaster-scope/artisan/blob/9334ed75f42a73526bd6da8905164706f06d34fa/src/artisanlib/modbusport.py#L109-L182), [일반 Serial 기본값](https://github.com/artisan-roaster-scope/artisan/blob/9334ed75f42a73526bd6da8905164706f06d34fa/src/artisanlib/comm.py#L260-L266).
+
+배포 실행 파일명은 spec의 `artisan.exe`이며 Viewer도 같은 binary의 모드다. 소스 실행의 python/pythonw까지 basename 하나로 찾는다고 보장하지 않는다. [PyInstaller EXE](https://github.com/artisan-roaster-scope/artisan/blob/9334ed75f42a73526bd6da8905164706f06d34fa/src/artisan-win.spec#L161-L178).
+
+기존 매핑의 추가 검토점: Artisan은 legacy `inputNslave`를 읽은 뒤 `inputNdeviceId`가 있으면 덮어쓰지만 FC mapper는 legacy slave를 사용하지 않는다. Rust [native reader](../../src-tauri/src/roasting_import/artisan.rs)는 이미 `Modbus/input{1,2}slave`를 allowlist로 반환한다. 수정이 필요한 범위는 TS mapper의 legacy fallback·deviceId 우선순위이며 Rust reader의 키 추가가 아니다. Windows 원본도 legacy-only라면 정상 연결을 놓칠 수 있으므로 명시적인 지원/차단 검증이 필요하다. 이 문서 정리에서는 제품 코드를 수정하지 않았다. [Artisan 실제 읽기 순서](https://github.com/artisan-roaster-scope/artisan/blob/9334ed75f42a73526bd6da8905164706f06d34fa/src/artisanlib/main.py#L18695-L18702), [FC mapper](../../src/entities/machine/artisan.ts).
+
+### Cropster: Windows 기본 JSON과 Registry override
+
+CW2 `FileSystemConfiguration.createDataDirectory`는 Java `user.home` 아래 `CropsterRoastingIntelligence/<instance 또는 default>`를 만든다. `directories`는 Preferences의 `dataDirectory` override를 우선한다. `PreferencesConfiguration.createPreferences`는 default/null을 같은 node로 처리하고 instance를 `[a-z0-9]+`로 제한한다. instance는 시스템 property `org.cropster.roastingintelligence.instance`로 전달된다. [공식 Windows 폴더 안내](https://help.cropster.com/en_US/general/how-to-find-the-cropsterroastingintelligence-folder-on-your-computer)와 같은 기본 폴더이지만 override까지 보장하는 문서는 아니다.
+
+Registry는 다음 값이 **배포 JAR/JRE 코드 결합으로 예상**된다. Windows에서 실제 생성된 키를 관찰한 결과는 아니다.
+
+```text
+HKCU\Software\JavaSoft\Prefs\org//cropster//roastingintelligence
+  data/Directory
+```
+
+CW2 `createSettingsPath`는 `File.separator`를 쓰므로 Windows Java node 이름은 `org\cropster\roastingintelligence`라는 단일 문자열이다. CW3의 기본 `WindowsPreferencesFactory`·`WindowsPreferences.toWindowsName`이 역슬래시를 `//`, 대문자를 `/A`로 바꾼다. 따라서 `org//cropster//roastingintelligence`는 JavaSoft\Prefs 바로 아래 **단일 subkey**이고 `data/Directory`는 value 이름이다. instance `foo`는 단일 sibling subkey `org//cropster//roastingintelligence//foo`가 된다. 일반 `org\cropster\...` Registry 계층 탐색은 이 배포판의 기본 backend를 재현하지 못한다. CW2의 class/method와 CW3 내부 클래스에서 확인했으며 [OpenJDK WindowsPreferences](https://github.com/openjdk/jdk17u/blob/jdk-17.0.11%2B9/src/java.prefs/windows/classes/java/util/prefs/WindowsPreferences.java)의 대응 구현과 대조했다.
+
+`dataDirectory`의 문자열 값도 Java 인코딩을 되돌려야 한다. 값 인코딩은 `\`→`//`, `/`→`\`, 대문자 `A`→`/A`, 비ASCII와 제어 문자(`<0x20`)→UTF-16 code unit `/uXXXX`다. 해독은 이 규칙의 역변환이며 경로의 슬래시도 복원해야 한다. [값 인코딩·해독](https://github.com/openjdk/jdk17u/blob/jdk-17.0.11%2B9/src/java.prefs/windows/classes/java/util/prefs/WindowsPreferences.java#L1042-L1113). 키 이름의 비ASCII modified Base64 인코딩은 값 인코딩과 다르다. 사용자 JVM/factory override·32-bit 배포·실제 Registry view는 미검증이므로 하나의 경로를 모든 RI 버전에 고정하지 않는다.
+
+CW2의 JSON writer는 UTF-8이며 general preferences에서 sources/channels/states를 제외하고 machine writer는 selectedMachineId/sources/channels/states만 포함한다. 둘 다 version을 추가한다. CW1 launcher는 version property 5.13을 전달하므로 기존 FC의 각 파일 `version="5.13"` 검증을 유지한다. 근거: CW2 `Defaults.<clinit>`, `JsonWriter.write`, `writeMachinePreferences`; CW1 `roastingintelligence.exe` launcher arguments.
+
+재현 시 CW2 JAR와 CW3 JRE를 추출한 경로를 지정하고 **로컬 JDK 도구만** 사용한다. `javap`는 bytecode를 읽으며 다운로드한 앱·클래스를 실행하지 않는다.
+
+```bash
+RI_JAR=/path/to/extracted/lib/roastingintelligence-5.13.jar
+RI_JRE=/path/to/extracted/windows-jre
+RI_CLASSES=/path/to/temporary/jre-classes
+jar tf "$RI_JAR" | rg '/(PreferencesConfiguration|FileSystemConfiguration|StorageServiceImpl|JsonWriter|RoastingIntelligenceApp|Defaults)\.class$' | while IFS= read -r entry; do
+  class_name=$(printf '%s' "$entry" | sed 's#/#.#g; s/\.class$//')
+  javap -p -c -classpath "$RI_JAR" "$class_name"
+done
+jimage extract --dir "$RI_CLASSES" "$RI_JRE/lib/modules"
+javap -p -c "$RI_CLASSES/java.prefs/java/util/prefs/WindowsPreferences.class"
+```
+
+대조할 클래스·메서드: `PreferencesConfiguration.createPreferences/createSettingsPath`, `FileSystemConfiguration.createDataDirectory`, `StorageServiceImpl.loadMachinePreferences/savePreferences`, `JsonWriter.write/writeMachinePreferences`, `RoastingIntelligenceApp.run`, `WindowsPreferences.toWindowsName/toWindowsValueString/toJavaValueString`. `Defaults.<clinit>`의 버전 상수도 같은 방식으로 확인한다. 배포판 hash는 위 CW1–CW3 표와 먼저 대조한다.
+
+Windows JAR의 시작 순서는 **Java Preferences load → 루트 preferences.json으로 Preferences 객체 교체 → 루트 machine.json의 sources/channels/states 적용**이다. outbox나 파일 mtime을 우선순위 근거로 쓰지 않는다. `loadMachinePreferences`는 selectedMachineId를 적용하지 않으므로 machine.json의 ID만으로 현재 활성 머신을 단정하지 않는다. 저장도 두 루트 JSON을 순차적으로 쓴 뒤 outbox로 복사하며 원자적인 쌍 저장은 아니다. 근거: CW2 `RoastingIntelligenceApp.run`, `StorageServiceImpl.loadMachinePreferences`, `savePreferences`.
+
+실제 제품 파일은 **`roastingintelligence.exe`**다. installer의 `bgupdater.exe`·`restart.exe`와 구분하고 모든 `java.exe`를 Cropster로 차단하지 않는다. 제품 exe 존재·launcher main class는 확인했지만 실행 시 프로세스 구조 전체는 이번에 관찰하지 않았다.
+
+### 조사에 따른 구현 범위와 남은 실행 검증
+
+1. Firescope는 기존 native decoder·변환·UI를 재사용하고 Windows 경로·LOCK·프로세스·파일 identity를 추가한다. Windows 1.0.2 DB fixture로 현재/과거 값·삭제·한글·COM10·원본 불변을 검증한다.
+2. Artisan은 Registry allowlist reader와 키별 타입 정규화가 먼저다. Qt fallback의 first-found 순서를 검증하고 Colors를 임의 생략한 상태를 그래프 동등 지원으로 표시하지 않는다.
+3. Cropster 기본 폴더의 RI 5.13 JSON reader는 재사용한다. 사용자 지정 dataDirectory/instance 자동 탐색까지 확장할 때는 위 Registry 이름·값 인코딩을 구현한다. 기본 폴더만 지원하면서 현재 활성 override를 찾았다고 표시하지 않는다.
+4. 세 제품 모두 실제 Windows 앱에서 안전한 설정 변경 전후 논리값·snapshot을 대조하고 FC 선택 저장·재시작 유지·중복 방지·요금제 검사를 확인한다. 조회만으로 장비 연결·제어를 실행하지 않는다.
+
+**남은 검증:** Windows 실제 DB/Registry/JSON fixture, 잠금 충돌·권한·reparse point·사용자 폴더 리디렉션, Artisan bundled Qt patch, Cropster 사용자 JVM override 및 32-bit, 전체 설치 실행·장비 측정값. 이번 결과는 구현 근거이며 Windows 동작 완료 판정은 아니다. 제품 코드는 변경하지 않았다.

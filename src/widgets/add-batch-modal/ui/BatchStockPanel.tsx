@@ -20,7 +20,7 @@ export const BatchStockPanel = ({ selectedBean, effectiveStockKg, greenNeeded, s
             className={`rounded-2xl border p-4 transition-colors ${
                 !stockSufficient
                     ? 'border-amber-200 bg-amber-50'
-                    : 'border-border dark:border-[#585d61] bg-surface/40 dark:bg-[#1a1e23]'
+                    : 'border-border dark:border-border bg-surface/40 dark:bg-main-bg'
             }`}
         >
             <div className="flex items-start justify-between gap-3">

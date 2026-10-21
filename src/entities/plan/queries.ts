@@ -1,4 +1,3 @@
-import { useWriteAccess } from '@shared/lib/features';
 import { inventoryQueryRoots, planQueryRoots } from '@shared/lib/query-keys';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { buildRRule } from '@shared/lib/rrule';
@@ -138,12 +137,10 @@ export const useRecurrenceRules = (userId: string) =>
 // ── Day Plan ──────────────────────────────────────────────────────────────────
 
 export const useDayPlan = (userId: string, date: string) => {
-    // 읽기 화면에서 getOrCreate를 돌리면 read_only 계정이 스케줄만 열어도 INSERT가 나가
-    // 서버 게이트(read_only_plan)에 세 번 재시도로 맞는다. 쓰기는 배치 추가 경로의 getOrCreate.
-    const canWrite = useWriteAccess();
+    // Opening a day is a read. The day row is inserted by the batch-add paths that call getOrCreate.
     return useQuery({
-        queryKey: [...planKeys.day(userId, date), canWrite] as const,
-        queryFn: () => (canWrite ? dayPlanApi.getOrCreate(userId, date) : dayPlanApi.get(userId, date)),
+        queryKey: planKeys.day(userId, date),
+        queryFn: () => dayPlanApi.get(userId, date),
         enabled: !!userId && !!date,
         staleTime: 60_000,
     });
@@ -169,15 +166,21 @@ export const usePlanBatches = (planId: string) =>
         staleTime: 15_000,
     });
 
-export const useDayBatches = (userId: string, date: string, lookbackDays?: number) => {
+/** Same read as `useDayBatches`. Callers fetch this instead of defining `listForDateRange`. */
+export const dayBatchesQuery = (userId: string, date: string, lookbackDays?: number) => {
     const range = lookbackDays && lookbackDays > 0;
     const start = range ? format(subDays(new Date(`${date}T00:00:00`), lookbackDays), 'yyyy-MM-dd') : date;
-    return useQuery({
+    return {
         queryKey: planKeys.dayBatches(userId, date, lookbackDays),
         queryFn: () => planBatchApi.listForDateRange(userId, start, date),
+    };
+};
+
+export const useDayBatches = (userId: string, date: string, lookbackDays?: number) =>
+    useQuery({
+        ...dayBatchesQuery(userId, date, lookbackDays),
         enabled: !!userId && !!date && !Number.isNaN(Date.parse(date)),
     });
-};
 
 export const useRangeBatches = (userId: string, start: string, end: string) =>
     useQuery({

@@ -7,12 +7,14 @@ export const summaryPrefill = (
     handoff: PlanBatchHandoff | null,
     lastAdhoc: LastAdhocSave | null,
     selectedBeanId: string | null,
-): { weightGrams: number; roastLevel: string | null; beanId: string | null } => {
+    selectedBlendId: string | null = null,
+): { weightGrams: number; roastLevel: string | null; beanId: string | null; blendId?: string | null } => {
     const last = handoff ? null : lastAdhoc;
     return {
         weightGrams: handoff?.batchSizeKg ?? last?.weightKg ?? 0,
         roastLevel: last?.roastLevel ?? null,
-        beanId: handoff?.beanId ?? selectedBeanId ?? last?.beanId ?? null,
+        beanId: handoff ? handoff.beanId : selectedBlendId ? null : (selectedBeanId ?? last?.beanId ?? null),
+        ...(!handoff && selectedBlendId && { blendId: selectedBlendId }),
     };
 };
 
@@ -21,18 +23,21 @@ export const summaryFormInitialValues = (
     handoff: PlanBatchHandoff | null,
     lastAdhoc: LastAdhocSave | null,
     selectedBeanId: string | null,
+    selectedBlendId: string | null = null,
 ): RoastSummaryForm => {
-    const prefill = summaryPrefill(handoff, lastAdhoc, selectedBeanId);
+    const prefill = summaryPrefill(handoff, lastAdhoc, selectedBeanId, selectedBlendId);
     return {
         notes: '',
+        batchName: '',
         weightGrams: prefill.weightGrams,
         outputWeightKg: undefined,
         roastLevel: prefill.roastLevel,
         beanId: prefill.beanId,
+        ...(prefill.blendId && { blendId: prefill.blendId }),
         beanLabel: '',
         linkMode: handoff ? 'schedule' : 'none',
         planBatchId: handoff?.planBatchId ?? null,
-        deductStock: Boolean(handoff) || prefill.beanId != null,
+        deductStock: Boolean(handoff) || prefill.beanId != null || prefill.blendId != null,
     };
 };
 

@@ -1,7 +1,10 @@
 import { isCustomRoastEvent } from './event-buttons';
 
 // ── Grid margins ─────────────────────────────────────────────────────────────
-export const CHART_GRID_LEFT = 38;
+/** Y-tick lines up with the roast title: 3-digit label plus AXIS_LABEL_MARGIN. */
+export const CHART_GRID_LEFT = 32;
+/** Gap between an axis tick label and the plot. */
+export const AXIS_LABEL_MARGIN = 8;
 export const CHART_GRID_TOP = 10;
 export const CHART_GRID_RIGHT = 8;
 export const CHART_GRID_RIGHT_WITH_ROR = 32;
@@ -9,14 +12,13 @@ export const Y_AXIS_NAME_GAP = 0;
 
 // ── Phase bar dimensions & text style (temp-grid overlay strip) ──────────────
 export const PHASE_BAR_HEIGHT = 26;
-export const PHASE_BAR_WIDE_THRESHOLD = 70;
 export const PHASE_BAR_NARROW_THRESHOLD = 30;
 export const PHASE_BAR_TEXT_INSET = 6;
 export const PHASE_BAR_STROKE_WIDTH = 0.5;
 /** BT, ET, RoR, and their reference curves. */
-export const TEMP_CURVE_WIDTH = 1.8;
+export const TEMP_CURVE_WIDTH = 2;
 /** Heat, damper, drum, and their reference curves. */
-export const CONTROL_CURVE_WIDTH = 1.5;
+export const CONTROL_CURVE_WIDTH = 2;
 /** Vertical guides for heater, roast events, notes, and turning points. */
 export const EVENT_MARK_LINE_WIDTH = 1;
 /** Stored reference/profile curves fade to a translucent gray so they read as background. */
@@ -27,7 +29,7 @@ export const PHASE_BAR_FONT_FAMILY = 'monospace';
 export const PHASE_BAR_FONT_WEIGHT = 600;
 
 // ── Axis label typography ────────────────────────────────────────────────────
-export const AXIS_LABEL_FONT = { fontSize: 11, fontFamily: 'monospace' as const } as const;
+export const AXIS_LABEL_FONT = { fontSize: 12, fontWeight: 500, fontFamily: 'monospace' as const } as const;
 export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as const } as const;
 
 // ── Curve event labels (`이름|mm:ss|온도`). Axis ticks and the phase bar stay put.
@@ -148,7 +150,7 @@ export const getResolvedChartColors = (print = false) => {
         eventControl: gv('--color-event-control', '#c33'),
         // FC Start–End band fill on temp chart (lighter than phase bar)
         fcBandFill: gv('--color-fc-band-fill', 'rgba(0,157,76,0.1)'),
-        bbpFill: gv('--color-bbp-fill', 'oklch(0.55 0 0 / 0.07)'),
+        bbpFill: gv('--color-bbp-fill', 'oklch(0.55 0 0 / 0.055)'),
 
         // BT−target delta label (canvas)
         targetDeltaWithin: gv('--color-phase-ready', '#81fba5'),

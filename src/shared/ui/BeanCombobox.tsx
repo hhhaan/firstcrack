@@ -9,8 +9,12 @@ type BeanComboboxProps = {
     items: BeanComboboxOption[];
     selectedId: string;
     onSelect: (id: string) => void;
-    /** Called when text does not match a selected inventory bean. */
+    /** Called when text does not match a selected inventory bean (also while typing). */
     onFreeText?: (name: string) => void;
+    /** Called only when the typed value is committed (Enter/blur) — safe to persist from here. */
+    onFreeTextCommit?: (name: string) => void;
+    /** Initial display when no inventory bean is selected (e.g. a saved free-text label). */
+    initialQuery?: string;
     placeholder?: string;
     disabled?: boolean;
     className?: string;
@@ -31,6 +35,8 @@ export const BeanCombobox = ({
     selectedId,
     onSelect,
     onFreeText,
+    onFreeTextCommit,
+    initialQuery = '',
     placeholder = '',
     disabled = false,
     className = '',
@@ -42,7 +48,7 @@ export const BeanCombobox = ({
     const listId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
     const selected = items.find((i) => i.id === selectedId);
-    const [query, setQuery] = useState(selected?.name ?? '');
+    const [query, setQuery] = useState(selected?.name ?? initialQuery);
     const [open, setOpen] = useState(false);
     const prevSelectedIdRef = useRef(selectedId);
     const itemsRef = useRef(items);
@@ -54,11 +60,21 @@ export const BeanCombobox = ({
     // Sync display only when selectedId changes (not when items refetches).
     useEffect(() => {
         if (selectedId === prevSelectedIdRef.current) return;
+        const previousId = prevSelectedIdRef.current;
         prevSelectedIdRef.current = selectedId;
         const name = itemsRef.current.find((i) => i.id === selectedId)?.name;
-        if (name != null) setQuery(name);
-        else if (!selectedId) setQuery('');
-    }, [selectedId]);
+        if (name != null) {
+            setQuery(name);
+            return;
+        }
+        if (selectedId) return;
+        // Clearing the link must not erase free text the operator is typing: only drop a leftover bean name.
+        const previousName = itemsRef.current
+            .find((i) => i.id === previousId)
+            ?.name?.trim()
+            .toLowerCase();
+        setQuery((current) => (previousName && current.trim().toLowerCase() !== previousName ? current : initialQuery));
+    }, [selectedId, initialQuery]);
 
     useEffect(() => {
         if (!open) return;
@@ -69,17 +85,21 @@ export const BeanCombobox = ({
         return () => document.removeEventListener('mousedown', onDoc);
     }, [open]);
 
-    const filtered = useMemo(() => {
+    const selectedName = selected?.name.trim().toLowerCase() ?? '';
+    const matches = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q) return items;
+        if (!q || q === selectedName) return items;
         return items.filter((i) => i.name.toLowerCase().includes(q));
-    }, [items, query]);
+    }, [items, query, selectedName]);
+    // No match still lists every bean so the operator can pick one, but Enter must commit the text.
+    const filtered = matches.length > 0 ? matches : items;
 
     const commitFreeOrMatch = (raw: string) => {
         const trimmed = raw.trim();
         if (!trimmed) {
             onSelect('');
             onFreeText?.('');
+            onFreeTextCommit?.('');
             setQuery('');
             return;
         }
@@ -91,6 +111,7 @@ export const BeanCombobox = ({
         }
         onSelect('');
         onFreeText?.(trimmed);
+        onFreeTextCommit?.(trimmed);
         setQuery(trimmed);
     };
 
@@ -131,9 +152,9 @@ export const BeanCombobox = ({
                             // 한글 조합 확정 Enter는 선택/커밋으로 소비하지 않는다 (#317)
                             if (e.nativeEvent.isComposing) return;
                             e.preventDefault();
-                            if (filtered.length === 1) {
-                                onSelect(filtered[0].id);
-                                setQuery(filtered[0].name);
+                            if (matches.length === 1) {
+                                onSelect(matches[0].id);
+                                setQuery(matches[0].name);
                                 setOpen(false);
                             } else {
                                 commitFreeOrMatch(query);
@@ -173,7 +194,7 @@ export const BeanCombobox = ({
                 <div
                     id={listId}
                     role="listbox"
-                    className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#262b31] rounded-2xl border border-black/8 dark:border-[#585d61] shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
+                    className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-surface-elevated rounded-2xl border border-black/8 dark:border-border shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
                 >
                     <div className="max-h-[200px] overflow-y-auto py-1">
                         {filtered.length === 0 ? (

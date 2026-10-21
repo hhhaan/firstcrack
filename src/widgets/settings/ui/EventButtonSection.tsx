@@ -128,21 +128,24 @@ export function EventButtonSection() {
             <SettingsSection.Header title={tk('eventButtons')} description={tk('eventButtonsDescription')} />
             <SettingsSection.Body>
                 <SettingsCheckRow
+                    type="checkbox"
                     checked={buttons.yellow}
                     label={roastEventLabel('Yellow')}
                     onChange={() => save({ ...buttons, yellow: !buttons.yellow })}
                 />
                 <SettingsCheckRow
+                    type="checkbox"
                     checked={buttons.fcStart}
                     label={roastEventLabel('FC Start')}
                     onChange={() => save({ ...buttons, fcStart: !buttons.fcStart })}
                 />
                 <SettingsCheckRow
+                    type="checkbox"
                     checked={buttons.fcEnd}
                     label={roastEventLabel('FC End')}
                     onChange={() => save({ ...buttons, fcEnd: !buttons.fcEnd })}
                 />
-                <SettingsCheckRow checked disabled label={markDropLabel()} onChange={() => undefined} />
+                <SettingsCheckRow type="checkbox" checked disabled label={markDropLabel()} onChange={() => undefined} />
                 <div className="flex items-center gap-2 py-2">
                     <input
                         value={draft}

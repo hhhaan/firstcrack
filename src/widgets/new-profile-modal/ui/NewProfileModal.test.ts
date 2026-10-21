@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import editorSrc from '../../../features/machine-control/ui/ProfileHeaterEventsEditor.tsx?raw';
 import modalSrc from './NewProfileModal.tsx?raw';
 
 describe('NewProfileModal heater bounds (#435)', () => {
@@ -7,5 +8,7 @@ describe('NewProfileModal heater bounds (#435)', () => {
         expect(modalSrc).not.toMatch(/useEffect/);
         expect(modalSrc).not.toMatch(/getStatus/);
         expect(modalSrc).not.toMatch(/sidecar/);
+        expect(editorSrc).toMatch(/useSidecarStatus\(/);
+        expect(editorSrc).not.toMatch(/sidecar\.getStatus\(/);
     });
 });

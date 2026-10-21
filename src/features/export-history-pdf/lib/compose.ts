@@ -14,12 +14,14 @@ const FONT_VALUE = `500 36px ${FONT_FAMILY}`;
 
 export type HistoryPdfHeader = {
     bean: string;
+    roastTitle?: string;
     date: string;
     duration: string;
     charge: string;
     drop: string;
     labels: {
         bean: string;
+        roastTitle?: string;
         date: string;
         duration: string;
         charge: string;
@@ -126,14 +128,14 @@ export const composeHistoryPdfJpeg = async (
 
     ctx.fillStyle = COLOR_MUTED;
     ctx.font = FONT_UI;
-    ctx.fillText(input.header.labels.bean, margin, margin + 76);
+    ctx.fillText(input.header.labels.roastTitle ?? input.header.labels.bean, margin, margin + 76);
     ctx.font = `600 54px ${FONT_FAMILY}`;
     ctx.fillStyle = COLOR_PRIMARY;
-    const bean = input.header.bean.replace(/\s+/g, ' ').trim();
-    if (ctx.measureText(bean).width <= innerW) {
-        ctx.fillText(bean, margin, margin + 113);
+    const heading = (input.header.roastTitle ?? input.header.bean).replace(/\s+/g, ' ').trim();
+    if (ctx.measureText(heading).width <= innerW) {
+        ctx.fillText(heading, margin, margin + 113);
     } else {
-        const chars = Array.from(bean);
+        const chars = Array.from(heading);
         let end = chars.length;
         while (end > 1 && ctx.measureText(chars.slice(0, end).join('')).width > innerW) end--;
         // Prefer a word boundary, while still wrapping unspaced CJK names.
@@ -145,6 +147,7 @@ export const composeHistoryPdfJpeg = async (
     }
 
     const fields = [
+        ...(input.header.roastTitle != null ? [{ label: input.header.labels.bean, value: input.header.bean }] : []),
         { label: input.header.labels.date, value: input.header.date },
         { label: input.header.labels.duration, value: input.header.duration },
         { label: input.header.labels.charge, value: input.header.charge },

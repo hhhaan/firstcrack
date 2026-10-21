@@ -4,6 +4,7 @@ import {
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
 } from '@features/active-roast/lib/chart-config';
+
 import { describe, expect, it } from 'vitest';
 import {
     buildMarkers,
@@ -531,5 +532,46 @@ describe('Charge marker (#451)', () => {
         expect(curveLabels.some((l) => l.text.includes('Charge'))).toBe(false);
         expect(curveLabels).toEqual([expect.objectContaining({ text: 'FC Start|08:00|196.0°C', timeSec: 480 })]);
         expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
+    });
+});
+
+describe('fan and drum change labels', () => {
+    const marker = (event: 'Fan' | 'Drum', timeSec: number, note: string) => ({
+        logId: `${event}-${timeSec}`,
+        timeSec,
+        event,
+        color: '#old',
+        timeStr: '',
+        temp: '',
+        note,
+    });
+
+    it('stamps fan and drum at the top axis in the gas-note color, with no temperature', () => {
+        const { curveLabels, allMarkLines, controlGuideMarkLines } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'line',
+            hasControlSeries: true,
+            eventMarkers: [marker('Fan', 469, '50'), marker('Drum', 469, '55')],
+        });
+        expect(curveLabels).toEqual([
+            expect.objectContaining({
+                timeSec: 469,
+                y: baseParams.tempYMax,
+                below: true,
+                text: 'Fan 50|07:49',
+                topInsetPx: NOTE_LABEL_TOP_INSET_PX,
+                showDot: false,
+                color: '#eee',
+            }),
+            expect.objectContaining({ timeSec: 469, text: 'Drum 55|07:49', color: '#eee' }),
+        ]);
+        const lineAt = (lines: object[], timeSec: number) =>
+            lines.filter((line) => (line as { xAxis?: number }).xAxis === timeSec);
+        expect(lineAt(allMarkLines, 469)).toHaveLength(2);
+        expect(lineAt(allMarkLines, 469)[0]).toMatchObject({
+            lineStyle: { color: '#888', width: EVENT_MARK_LINE_WIDTH, type: 'solid' },
+            label: { show: false },
+        });
+        expect(lineAt(controlGuideMarkLines, 469)).toHaveLength(2);
     });
 });

@@ -10,7 +10,7 @@
         "recordingHint": "新しいキーの組み合わせを押してください。Escでキャンセルできます。",
         "change": "ショートカットを変更: {{action}}",
         "fixed": "変更できないショートカット",
-        "doubleTap": "400ms以内に2回押す",
+        "globalHint": "ウィンドウが非アクティブでも動作します。ロースト中のみシステム全体のショートカットとして登録されます。",
         "noResults": "一致するショートカットはありません",
         "groups": {
             "app": "アプリ",
@@ -423,21 +423,18 @@
                 "pidDropHoldDescription": "バーナーをそのままにし、次のバッチを温まったドラムから始めます。異常停止・過熱時は設定に関係なく火力を0にします。",
                 "pidDropZero": "火力を0にする",
                 "pidDropZeroDescription": "排出と同時にバーナーを止めます",
-                "axisTicks": "軸の目盛り",
-                "axisTicksDescription": "リアルタイム・履歴チャートに適用します。既定値は温度間隔10°、数値表示5目盛りごと、時間間隔60秒です。温度間隔は表示単位を使用します。",
-                "tempGridInterval": "温度グリッド",
-                "tempLabelEvery": "温度数値の表示周期",
+                "axisTicks": "目盛り・補助線",
+                "axisTicksDescription": "横補助線と軸の数値の間隔を個別に設定します。例：補助線10°C、温度の数値50°C、RoRの数値2°C/min。表示領域が狭い場合は数値のみ一部省略します。",
+                "tempLabelInterval": "温度の数値間隔",
+                "rorLabelInterval": "RoRの数値間隔",
+                "tempNumberMode": "温度の数値表示",
                 "timeTickInterval": "時間目盛り間隔",
                 "axisTicksCustom": "直接入力",
                 "axisTicksDefault": "{{value}} (既定)",
-                "tempLabelEveryValue": "{{count}}目盛りごと",
                 "timeTickSeconds": "{{count}}秒",
-                "tempTickMode": "入力方法",
                 "tempTickInterval": "一定間隔",
                 "tempTickList": "温度を指定",
-                "axisTickSteps": "目盛り",
                 "axisTickSeconds": "秒",
-                "customTempInterval": "温度間隔",
                 "customTempTicks": "温度目盛りの一覧",
                 "customTempTicksDescription": "カンマで区切って入力してください。例: 100, 150, 180。軸範囲内の値だけ表示し、空欄では既定の目盛りを使用します。",
                 "customTempTicksError": "0〜500°Cの範囲で、有効な数値を100個まで入力してください。",
@@ -450,12 +447,12 @@
                 "axisRoR": "RoR",
                 "rorAxisMin": "RoR 最小",
                 "rorAxisMax": "RoR 最大",
-                "rorGridInterval": "RoR 目盛り間隔",
+                "horizontalGridInterval": "横補助線の間隔",
+                "rorNumberMode": "RoRの数値表示",
                 "rorTickList": "RoR を指定",
                 "customRorTicks": "RoR 目盛りの一覧",
                 "customRorTicksDescription": "カンマで区切って入力してください。例: -5, 0, 5, 10。軸範囲内の値だけ表示し、空欄では既定の目盛りを使用します。",
                 "customRorTicksError": "-100〜300°C/min の範囲で、有効な数値を100個まで入力してください。",
-                "rorLabelEvery": "RoR 数値の表示周期",
                 "controlChart": "コントロールチャート",
                 "controlChartDescription": "コントロールチャートの表示項目と軸範囲。チャートの表示切替はデータ表示で設定。",
                 "controlDrum": "ドラム",
@@ -785,6 +782,7 @@
         "enterpriseOnly": "このモデルは Enterprise アカウントでのみ接続できます。",
         "sidecarStarting": "接続の準備中...",
         "linkUnstable": "マシンの接続が不安定です。ケーブルとネットワークの状態を確認してください。",
+        "gasOffUnconfirmed": "火力0の指令後、機器のフィードバックが0であることを確認できていません。実際の火力を確認し、必要に応じて機器で直接操作してください。",
         "startRoasting": "ローストを開始",
         "selectMachine": "マシンを選択してください",
         "limit": {
@@ -841,6 +839,12 @@
         "phidgetDriverLink": "Phidget22ドライバーをダウンロード"
     },
     "dashboard": {
+        "comparedToLastMonth": "前月比",
+        "comparedToPreviousClose": "前日終値比",
+        "previousClose": "前日終値",
+        "lastSixMonths": "過去6か月",
+        "thisMonth": "今月",
+        "refresh": "先物価格を更新",
         "greeting": {
             "morning": "おはようございます",
             "afternoon": "こんにちは",
@@ -913,6 +917,12 @@
             "noStock": "在庫不足のため焙煎不可",
             "edit": "編集",
             "delete": "削除",
+            "deleteConfirm": {
+                "title": "このブレンドを削除しますか？",
+                "description": "「{{name}}」は完全に削除されます。元に戻せません。",
+                "cancel": "キャンセル",
+                "confirm": "削除"
+            },
             "modal": {
                 "titleCreate": "ブレンドを追加",
                 "titleEdit": "ブレンドを編集",
@@ -943,7 +953,6 @@
             "eventRecorded": "記録済み: {{event}}",
             "futureEventHint": "イベントは現在時刻までしか記録できません。",
             "title": "記録を追加",
-            "editTitle": "記録を編集",
             "time": "時間",
             "gas": "ガス",
             "airflow": "排気",
@@ -955,6 +964,7 @@
         },
         "autoChargeHeld": "温度が回復すると自動投入されます。今すぐ始めるには Charge を押してください。",
         "header": {
+            "profileSources": "プロファイルの候補",
             "noBeanSelected": "生豆未選択",
             "target": "ターゲット:",
             "noTarget": "ターゲットなし",
@@ -965,7 +975,9 @@
             "machineConnected": "マシン接続済み · 焙煎準備完了",
             "settings": "ロースト設定",
             "openSettings": "ロースト設定を開く",
-            "reconnecting": "再接続中 — 曲線が停止しています。ウィンドウを再読み込みしないでください"
+            "reconnecting": "再接続中 — 曲線が停止しています。ウィンドウを再読み込みしないでください",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "機能適用後のこの端末のChargeをワークスペース・プロファイル別に集計します。キャンセル・破棄したバッチも番号を保持します。"
         },
         "readings": {
             "beanTemp": "ベーン温度",
@@ -1011,7 +1023,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",
@@ -1093,7 +1105,9 @@
             "lossRateEstimated": "未計量 — 減量率は焙煎レベルに基づく推定値になります。",
             "sessionExpired": "ログインセッションの有効期限が切れました。再ログインすると、この記録は自動的に保存されます。",
             "workspaceLoading": "ワークスペースを読み込み中です。しばらくしてからもう一度お試しください。",
-            "batchUnavailable": "選択したスケジュールバッチは使用できなくなりました。"
+            "batchUnavailable": "選択したスケジュールバッチは使用できなくなりました。",
+            "bbpLive": "BBP · 現在の焙煎機の状態",
+            "liveUnavailable": "新しい測定値を待っています"
         },
         "planBatch": {
             "title": "次のローストを続けますか？",
@@ -1126,6 +1140,7 @@
         "dialogs": {
             "roastInProgressTitle": "ロースト中",
             "roastInProgressMsg": "ローストが進行中です。本当に終了しますか？",
+            "unsavedCloseMsg": "未保存のローストがあります。保存せずに終了しますか？",
             "end": "終了",
             "cancel": "キャンセル",
             "machineRequiredTitle": "マシン接続が必要",
@@ -1392,6 +1407,7 @@
         },
         "expanded": {
             "origin": "産地",
+            "beanLocked": "このロースティングには在庫記録があるため、生豆を変更できません。",
             "chargeTemp": "チャージ温度",
             "dropTemp": "排気温度",
             "duration": "時間",
@@ -1483,6 +1499,7 @@
         "exportPdfConfirm": "保存先: {{path}}\nこの焙煎グラフをA4横向き1ページのPDFに書き出しますか？",
         "exportPdfUnavailable": "書き出せるチャートがありません。",
         "exportPdfFailed": "焙煎グラフPDFを書き出せませんでした。",
+        "exportCsvFailed": "CSVファイルを保存できませんでした。",
         "exportModal": {
             "title": "CSV書き出し",
             "description": "書き出す期間を選択してください。一覧のフィルターとは別に適用されます。",
@@ -1544,7 +1561,8 @@
         "recordText": {
             "title": "焙煎タイトル",
             "add": "ノートを追加",
-            "failed": "保存できませんでした。入力は保持されています。再試行してください。"
+            "failed": "保存できませんでした。入力は保持されています。再試行してください。",
+            "inputName": "自由入力名"
         }
     },
     "profiles": {
@@ -1605,6 +1623,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "登録した豆・ブレンド",
+        "registeredSourcesHint": "複数の豆とブレンドを登録できます。候補が1つなら投入前に自動選択します。",
+        "searchSources": "豆・ブレンドを検索",
         "editTitle": "ローストプロファイルを編集",
         "fromSession": "セッションから作成",
         "newTitle": "新規ローストプロファイル",
@@ -2020,6 +2041,7 @@
         },
         "order": {
             "newTitle": "新規注文",
+            "refresh": "更新",
             "empty": "注文はまだありません。",
             "buyer": "購入者",
             "lines": "商品",

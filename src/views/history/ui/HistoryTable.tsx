@@ -1,10 +1,10 @@
-import { sessionBeanName } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
@@ -56,10 +56,17 @@ type Column = {
 const columnsFor = (unit: TemperatureUnit): Column[] => [
     { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
     {
+        key: null,
+        label: 'roastTitle',
+        width: '180px',
+        sortable: false,
+        render: (s) => sessionRoastTitle(s) || '—',
+    },
+    {
         key: 'bean',
         label: 'Bean',
         sortable: true,
-        render: (s) => s.bean_label?.trim() || sessionBeanName(s) || '—',
+        render: (s) => s.beans?.name?.trim() || '—',
     },
     {
         key: 'profile',
@@ -217,7 +224,8 @@ export const HistoryTable = ({
     const colLabel = (key: string) => {
         const map: Record<string, string> = {
             date: t('history.table.date'),
-            bean: t('history.table.bean'),
+            bean: t('activeRoast.summary.bean'),
+            roastTitle: t('history.recordText.title'),
             profile: t('history.table.profile'),
             weight: t('history.table.weight'),
             charge: t('history.table.chargeTemp'),
@@ -239,7 +247,7 @@ export const HistoryTable = ({
     };
 
     return (
-        <div className="@container overflow-x-auto rounded-lg bg-main-bg dark:border dark:border-[#585d61] [-webkit-overflow-scrolling:touch]">
+        <div className="@container overflow-x-auto rounded-2xl border border-border bg-main-bg [-webkit-overflow-scrolling:touch]">
             <table className="w-full table-fixed border-collapse" style={{ minWidth: tableMinPx }}>
                 <colgroup>
                     {compareMode && <col style={{ width: '40px' }} />}
@@ -248,7 +256,7 @@ export const HistoryTable = ({
                     ))}
                 </colgroup>
                 <thead>
-                    <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                    <tr className="border-b border-divider dark:border-border">
                         {compareMode && <th style={{ width: '40px' }} />}
                         {columns.map((col, colIdx) => {
                             const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
@@ -256,7 +264,7 @@ export const HistoryTable = ({
                                 <th
                                     key={col.key || `col-${colIdx}`}
                                     onClick={() => col.sortable && col.key && onSort(col.key)}
-                                    className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'} ${col.key === null && col.label === '' ? stickyActionsCls : ''}`}
+                                    className={`h-12 px-4 py-0 text-left text-sm font-medium leading-5 text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'} ${col.key === null && col.label === '' ? stickyActionsCls : ''}`}
                                     style={{ width: col.width, minWidth: col.minWidth }}
                                 >
                                     <span className="flex items-center gap-1 whitespace-nowrap">
@@ -285,10 +293,10 @@ export const HistoryTable = ({
                                     event.preventDefault();
                                     onRowClick(session.id);
                                 }}
-                                className="group cursor-pointer border-b border-border-subtle transition hover:bg-[rgba(245,242,239,0.45)] focus-visible:outline-2 focus-visible:outline-(--color-primary) dark:border-[#585d61] dark:hover:bg-[rgba(38,43,48,0.45)]"
+                                className="group cursor-pointer border-b border-divider transition hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-(--color-primary) dark:border-border dark:hover:bg-surface-elevated"
                             >
                                 {compareMode && (
-                                    <td className="px-3 py-3" style={{ width: '40px' }}>
+                                    <td className="px-4 py-4" style={{ width: '40px' }}>
                                         <div
                                             className="flex h-4 w-4 items-center justify-center rounded border transition"
                                             style={
@@ -321,7 +329,7 @@ export const HistoryTable = ({
                                         <td
                                             key={col.key ?? 'actions'}
                                             title={cellTitle}
-                                            className={`overflow-hidden px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
+                                            className={`overflow-hidden px-4 py-4 text-sm whitespace-nowrap ${cellClass} ${responsiveClass}`}
                                             style={{ width: col.width, minWidth: col.minWidth }}
                                         >
                                             {isActions ? (
@@ -351,7 +359,7 @@ export const HistoryTable = ({
                 </tbody>
             </table>
 
-            <div className="flex flex-col gap-3 border-t border-border-subtle dark:border-[#585d61] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-divider dark:border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-xs tracking-[0.14px] text-muted">
                     {filteredTotal === 0
                         ? t('history.noSessionsFound')

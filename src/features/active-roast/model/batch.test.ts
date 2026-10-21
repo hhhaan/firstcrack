@@ -241,3 +241,36 @@ describe('saved roast review keeps collection independent', () => {
         expect(useRoastingStore.getState().reviewSessionId).toBeNull();
     });
 });
+
+describe('ad-hoc blend selection', () => {
+    afterEach(() => useRoastingStore.getState().reset());
+    it('freezes a blend at Charge, retains it through Drop and Cancel, and protects the running selection', () => {
+        const store = useRoastingStore.getState();
+        store.reset();
+        store.prepareBlend('blend-a', 'Modern');
+        store.startCharge(undefined, 'owner', { bt: 180, unit: 'C' });
+        store.applyProfileSource({ beanId: 'bean-b', blendId: null, name: 'Other' });
+        expect(selectRoastSelection(useRoastingStore.getState())).toMatchObject({
+            beanId: null,
+            blendId: 'blend-a',
+            planBatchHandoff: null,
+        });
+        store.drop({ rawBT: 200, unit: 'C', replayActive: false });
+        expect(useRoastingStore.getState().completed?.snapshot.selection.blendId).toBe('blend-a');
+        expect(useRoastingStore.getState().completed?.summary?.selectedBlendId).toBe('blend-a');
+        store.cancelDrop();
+        expect(selectRoastSelection(useRoastingStore.getState()).blendId).toBe('blend-a');
+    });
+    it('replaces previous automatic sources while preserving explicit choices', () => {
+        const store = useRoastingStore.getState();
+        store.reset();
+        store.applyProfileSource({ beanId: null, blendId: 'blend-a', name: 'Modern' });
+        store.applyProfileSource({ beanId: 'bean-a', blendId: null, name: 'Single' });
+        expect(useRoastingStore.getState().prepared.beanId).toBe('bean-a');
+        store.applyProfileSource(null);
+        expect(useRoastingStore.getState().prepared.beanId).toBeNull();
+        store.prepareBean('manual');
+        store.applyProfileSource({ beanId: null, blendId: 'blend-b', name: 'Other' });
+        expect(useRoastingStore.getState().prepared.beanId).toBe('manual');
+    });
+});

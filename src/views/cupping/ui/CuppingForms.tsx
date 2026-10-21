@@ -140,7 +140,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                             type="button"
                             disabled={pending || editor.fields.length < 1}
                             onClick={() => void handleSave()}
-                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[#0d0d0d]"
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-action px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-on-action transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             {pending ? t('cupping.savingForm') : t('cupping.saveForm')}
                         </button>
@@ -152,11 +152,11 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                         value={editor.name}
                         onChange={(e) => setEditor({ ...editor, name: e.target.value })}
                         placeholder={t('cupping.formNamePlaceholder')}
-                        className="rounded-md border border-border-subtle bg-main-bg px-3 py-2 text-[13px] text-primary dark:border-[#585d61]"
+                        className="rounded-md border border-border-subtle bg-main-bg px-3 py-2 text-[13px] text-primary dark:border-border"
                     />
                 </label>
-                <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
-                    <div className="flex shrink-0 items-center justify-between border-b border-border-subtle px-4 py-3 dark:border-[#585d61]">
+                <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-main-bg dark:border-border">
+                    <div className="flex shrink-0 items-center justify-between border-b border-border-subtle px-4 py-3 dark:border-border">
                         <p className="text-[13px] font-semibold text-primary">{t('cupping.formFields')}</p>
                         <button
                             type="button"
@@ -168,7 +168,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                     fields: [...editor.fields, blankField(usedKeys, label)],
                                 });
                             }}
-                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[#262b31] dark:text-[#e5e5e5]"
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:bg-surface-hover hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 dark:bg-surface-elevated dark:text-primary"
                         >
                             <Plus size={14} strokeWidth={2} />
                             {t('cupping.addField')}
@@ -197,7 +197,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                                     onChange={(e) =>
                                                         patch(retargetField(field, e.target.value as FormFieldType))
                                                     }
-                                                    className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-[#585d61]"
+                                                    className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-border"
                                                 >
                                                     <option value="slider">{t('cupping.fieldTypeSlider')}</option>
                                                     <option value="pass_fail">{t('cupping.fieldTypePassFail')}</option>
@@ -209,7 +209,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                                 <input
                                                     value={field.label}
                                                     onChange={(e) => patch({ ...field, label: e.target.value })}
-                                                    className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-[#585d61]"
+                                                    className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-border"
                                                 />
                                             </label>
                                             <button
@@ -240,7 +240,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                                             }
                                                             patch(applyScale(field, id));
                                                         }}
-                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-[#585d61]"
+                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-border"
                                                     >
                                                         <option value="sca">{t('cupping.scaleSca')}</option>
                                                         <option value="five">{t('cupping.scaleFive')}</option>
@@ -260,7 +260,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                                                 min: Number(e.target.value),
                                                             })
                                                         }
-                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 font-mono text-[13px] text-primary dark:border-[#585d61]"
+                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 font-mono text-[13px] text-primary dark:border-border"
                                                     />
                                                 </label>
                                                 <label className="flex flex-col gap-1 text-[11px] text-muted">
@@ -275,7 +275,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                                                 max: Number(e.target.value),
                                                             })
                                                         }
-                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 font-mono text-[13px] text-primary dark:border-[#585d61]"
+                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 font-mono text-[13px] text-primary dark:border-border"
                                                     />
                                                 </label>
                                                 <label className="flex flex-col gap-1 text-[11px] text-muted">
@@ -291,7 +291,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                                                 step: Number(e.target.value),
                                                             })
                                                         }
-                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 font-mono text-[13px] text-primary dark:border-[#585d61]"
+                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 font-mono text-[13px] text-primary dark:border-border"
                                                     />
                                                 </label>
                                             </div>
@@ -313,7 +313,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                                         })
                                                     }
                                                     placeholder={t('cupping.fieldOptionsPlaceholder')}
-                                                    className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-[#585d61]"
+                                                    className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-border"
                                                 />
                                             </label>
                                         ) : null}
@@ -352,7 +352,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                     <button
                         type="button"
                         onClick={openBlank}
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-primary px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px dark:bg-[#0d0d0d]"
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-action px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-on-action transition hover:opacity-85"
                     >
                         <Plus size={14} strokeWidth={2} />
                         {t('cupping.newForm')}
@@ -361,17 +361,17 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                 {isLoading ? (
                     <p className="text-[12px] text-muted">{t('cupping.loading')}</p>
                 ) : templates.length === 0 ? (
-                    <p className="rounded-xl border border-border-subtle px-4 py-8 text-center text-[13px] text-muted dark:border-[#585d61]">
+                    <p className="rounded-2xl border border-border px-4 py-8 text-center text-[13px] text-muted dark:border-border">
                         {t('cupping.formsEmpty')}
                     </p>
                 ) : (
-                    <div className="overflow-hidden rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                    <div className="overflow-hidden rounded-2xl border border-border bg-main-bg dark:border-border">
                         {templates.map((row) => {
                             const schema = formSchemaOrSca(row.schema);
                             return (
                                 <div
                                     key={row.id}
-                                    className="flex items-center justify-between border-b border-border-subtle px-4 py-3 last:border-b-0 dark:border-[#585d61]"
+                                    className="flex items-center justify-between border-b border-border-subtle px-4 py-3 last:border-b-0 dark:border-border"
                                 >
                                     <button
                                         type="button"
@@ -405,11 +405,11 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                 <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                     {t('cupping.systemPreset')}
                 </p>
-                <div className="overflow-hidden rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-hidden rounded-2xl border border-border bg-main-bg dark:border-border">
                     {[SCA_V1_FORM, SIMPLE_5_FORM].map((preset) => (
                         <div
                             key={preset.key}
-                            className="flex items-center justify-between border-b border-border-subtle px-4 py-3 last:border-b-0 dark:border-[#585d61]"
+                            className="flex items-center justify-between border-b border-border-subtle px-4 py-3 last:border-b-0 dark:border-border"
                         >
                             <div>
                                 <p className="text-[13px] font-medium text-primary">
@@ -422,7 +422,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                             <button
                                 type="button"
                                 onClick={() => openClone(preset)}
-                                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]"
+                                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:bg-surface-hover hover:text-primary dark:bg-surface-elevated dark:text-primary"
                             >
                                 {t('cupping.cloneForm')}
                             </button>

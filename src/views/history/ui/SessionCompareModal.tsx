@@ -1,10 +1,11 @@
-import { sessionBeanName, useHistoryCharts } from '@entities/roast';
+import { useHistoryCharts } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { computePhaseSegments, formatTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -71,7 +72,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 const points = curveQueries[i]?.data ?? [];
                 return {
                     id: s.id,
-                    label: sessionBeanName(s) ?? formatDateShort(s.roasted_at),
+                    label: sessionRoastTitle(s) || formatDateShort(s.roasted_at),
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     points,
                     markers: eventsBySession[i]
@@ -93,7 +94,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 return {
                     id: s.id,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
-                    label: sessionBeanName(s) ?? '—',
+                    label: sessionRoastTitle(s) || '—',
                     segments: computePhaseSegments(logs, roastDuration, roastDuration > 0),
                     totalSec: roastDuration,
                     visible: !hiddenIds.has(s.id),
@@ -119,7 +120,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
 
     return (
         <ModalShell onClose={onClose} labelledBy="session-compare-title" contentClassName={modalPanel.compare}>
-            <div className="flex items-center justify-between border-b border-black/5 px-6 py-4 dark:border-[#585d61]">
+            <div className="flex items-center justify-between border-b border-black/5 px-6 py-4 dark:border-border">
                 <h2 id="session-compare-title" className="text-[15px] font-medium tracking-[0.14px] text-primary">
                     {t('history.compare.title', { count: sessions.length })}
                 </h2>
@@ -193,10 +194,10 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                     )}
 
                     {/* Compact metrics strip */}
-                    <div className="mt-6 overflow-x-auto rounded-lg border border-black/5 dark:border-[#585d61]">
+                    <div className="mt-6 overflow-x-auto rounded-lg border border-black/5 dark:border-border">
                         <table className="w-full min-w-[480px] border-collapse text-left">
                             <thead>
-                                <tr className="border-b border-black/5 dark:border-[#585d61]">
+                                <tr className="border-b border-black/5 dark:border-border">
                                     <th className="px-3 py-2 text-[10px] font-medium uppercase tracking-[0.4px] text-muted" />
                                     {items.map((item) => (
                                         <th key={item.session.id} className="px-3 py-2">
@@ -206,7 +207,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                                     style={{ backgroundColor: item.color }}
                                                 />
                                                 <span className="truncate text-[11px] font-semibold text-primary">
-                                                    {sessionBeanName(item.session) ?? '—'}
+                                                    {sessionRoastTitle(item.session) || '—'}
                                                 </span>
                                             </div>
                                         </th>
@@ -290,7 +291,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                 ).map((row) => (
                                     <tr
                                         key={row.key}
-                                        className="border-b border-black/5 last:border-b-0 dark:border-[#585d61]"
+                                        className="border-b border-black/5 last:border-b-0 dark:border-border"
                                     >
                                         <td className="px-3 py-2 text-[11px] font-medium uppercase tracking-[0.4px] text-muted">
                                             {row.label}
@@ -311,7 +312,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 </div>
 
                 {/* Right sidebar */}
-                <aside className="w-[240px] shrink-0 border-l border-black/5 bg-[rgba(248,246,244,0.55)] px-3 py-4 dark:border-[#585d61] dark:bg-[rgba(24,29,33,0.65)]">
+                <aside className="w-[240px] shrink-0 border-l border-black/5 bg-[rgba(248,246,244,0.55)] px-3 py-4 dark:border-border dark:bg-[rgba(24,29,33,0.65)]">
                     <CompareSessionSidebar items={items} onToggle={onToggle} />
                 </aside>
             </div>

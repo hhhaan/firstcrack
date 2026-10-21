@@ -15,12 +15,14 @@ export type SyncRoastCurve = (input: {
 /** Form fields required to persist a completed roast (matches summary modal). */
 export type SaveRoastFormData = {
     notes: string;
+    batchName?: string | null;
     /** Green input, in kg — prefilled from batch size, drives stock deduction. */
     weightGrams: number;
     /** Measured roasted output, in kg. 0/undefined = not weighed. */
     outputWeightKg?: number;
     roastLevel: string | null;
     beanId: string | null;
+    blendId?: string | null;
     /**
      * Free-text bean name for sample / no-inventory roasts.
      * Stored on session.bean_label; never creates beans rows or stock events.
@@ -45,6 +47,7 @@ export interface SaveRoastParams {
     ambientTemperature?: number | null;
     ambientHumidity?: number | null;
     selectedBeanId: string | null;
+    selectedBlendId?: string | null;
     targetProfileId: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
     logEntries: LogEntry[];

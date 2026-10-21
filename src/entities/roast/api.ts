@@ -3,15 +3,16 @@ import type { Json, RoastSession, RoastSessionWithRelations } from '@shared/type
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
-    '*, beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
+    '*, blends(name), beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
 
 /** Insert payload — created_by defaults to auth.uid() in DB. */
 export type RoastSessionInsert = Omit<
     RoastSession,
-    'id' | 'created_at' | 'updated_at' | 'created_by' | 'heater_events'
+    'id' | 'created_at' | 'updated_at' | 'created_by' | 'heater_events' | 'batch_name'
 > & {
     /** Client session uuid — save_roast_op idempotency key. Omit → server generates. */
     id?: string;
+    batch_name?: string | null;
     created_by?: string | null;
 };
 type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
@@ -94,12 +95,6 @@ export const roastSessionApi = {
 
     find: async (id: string): Promise<RoastSession | null> => {
         const { data, error } = await supabase.from('roast_sessions').select('*').eq('id', id).maybeSingle();
-        if (error) throw error;
-        return data;
-    },
-
-    create: async (session: RoastSessionInsert): Promise<RoastSession> => {
-        const { data, error } = await supabase.from('roast_sessions').insert(session).select().single();
         if (error) throw error;
         return data;
     },

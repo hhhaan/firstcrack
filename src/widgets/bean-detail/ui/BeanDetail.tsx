@@ -17,6 +17,7 @@ const EVENT_TYPE_LABEL_KEY: Record<string, string> = {
 
 interface BeanDetailProps {
     bean: Bean | null;
+    hasAny: boolean;
     isLoading: boolean;
     affectedBlendNames: string[];
     assetLine?: BeanAssetLine | null;
@@ -27,7 +28,7 @@ interface BeanDetailProps {
 }
 
 const Skeleton = () => (
-    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7">
+    <div className="bg-main-bg rounded-2xl border border-border px-8 py-7">
         <div className="mb-6">
             <div className="w-50 h-8 rounded-lg bg-surface mb-2.5 animate-pulse" />
             <div className="flex gap-1.5">
@@ -54,7 +55,7 @@ const Skeleton = () => (
 const Empty = ({ hasAny }: { hasAny: boolean }) => {
     const { t } = useTranslation();
     return (
-        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
+        <div className="bg-main-bg rounded-2xl border border-border px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-primary tracking-[0.14px]">
             {hasAny ? t('beanDetail.empty.select') : t('beanDetail.empty.addFirst')}
         </div>
     );
@@ -62,6 +63,7 @@ const Empty = ({ hasAny }: { hasAny: boolean }) => {
 
 export const BeanDetail = ({
     bean,
+    hasAny,
     isLoading,
     affectedBlendNames,
     assetLine = null,
@@ -76,7 +78,7 @@ export const BeanDetail = ({
     const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
 
     if (isLoading) return <Skeleton />;
-    if (!bean) return <Empty hasAny={false} />;
+    if (!bean) return <Empty hasAny={hasAny} />;
 
     const actionsLocked = isOptimisticId(bean.id);
 
@@ -108,13 +110,13 @@ export const BeanDetail = ({
                     setConfirming(false);
                 }}
             />
-            <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative dark:border dark:border-[#585d61]">
+            <div className="bg-main-bg rounded-2xl border border-border px-8 py-7 h-fit relative">
                 <div className="absolute top-6 right-6 flex gap-2 z-2">
                     <button
                         type="button"
                         disabled={actionsLocked}
                         onClick={() => onEdit(bean)}
-                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] text-muted dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-border bg-white dark:bg-surface-elevated text-muted dark:text-primary flex items-center justify-center cursor-pointer transition-[color,background-color,box-shadow,opacity] duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         <Edit3 size={16} />
                     </button>
@@ -122,14 +124,14 @@ export const BeanDetail = ({
                         type="button"
                         disabled={actionsLocked}
                         onClick={() => setConfirming(true)}
-                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] flex items-center justify-center cursor-pointer transition-all duration-200 text-red-600 dark:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-border bg-white dark:bg-surface-elevated flex items-center justify-center cursor-pointer transition-[color,background-color,box-shadow,opacity] duration-200 text-red-600 dark:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         <Trash2 size={16} />
                     </button>
                 </div>
 
                 <div className="mb-6 pr-10">
-                    <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
+                    <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[0.24px] mb-1">
                         {bean.name}
                     </h2>
                     <div className="flex gap-1.5">
@@ -236,7 +238,7 @@ export const BeanDetail = ({
                     </div>
                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                         <div
-                            className={`h-full rounded-full transition-all duration-500 ${stockBarClass[stockStatus]}`}
+                            className={`h-full rounded-full transition-[color,background-color,box-shadow,opacity] duration-500 ${stockBarClass[stockStatus]}`}
                             style={{
                                 width: `${stockPct}%`,
                             }}
@@ -249,7 +251,7 @@ export const BeanDetail = ({
                         type="button"
                         disabled={actionsLocked}
                         onClick={() => onRestock(bean.id)}
-                        className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-sm font-medium cursor-pointer tracking-[0.14px] disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-primary text-sm font-medium cursor-pointer tracking-[0.14px] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {t('beanDetail.restock')}
                     </button>
@@ -257,20 +259,18 @@ export const BeanDetail = ({
                         type="button"
                         disabled={actionsLocked}
                         onClick={onStartRoast}
-                        className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-0 dark:bg-[#0d0d0d] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex-1 py-2.5 rounded-full border border-border dark:border-0 bg-action text-on-action text-sm font-medium cursor-pointer tracking-[0.14px] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {t('beanDetail.startRoast')}
                     </button>
                 </div>
 
                 <div className="mt-6 space-y-3">
-                    <p className="text-xs font-medium text-gray-500 dark:text-[#e5e5e5]">
+                    <p className="text-xs font-medium text-gray-500 dark:text-primary">
                         {t('beanDetail.stockHistory.title')}
                     </p>
                     {events.length === 0 && (
-                        <p className="text-xs text-gray-300 dark:text-[#e5e5e5]">
-                            {t('beanDetail.stockHistory.empty')}
-                        </p>
+                        <p className="text-xs text-gray-300 dark:text-primary">{t('beanDetail.stockHistory.empty')}</p>
                     )}
                     {events.length > 0 && (
                         <div
@@ -287,17 +287,17 @@ export const BeanDetail = ({
                                         <span className="font-medium">
                                             {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
                                         </span>
-                                        <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">
+                                        <span className="text-gray-400 dark:text-primary ml-1">
                                             {t(
                                                 EVENT_TYPE_LABEL_KEY[ev.event_type] ??
                                                     'beanDetail.stockHistory.adjustment',
                                             )}
                                         </span>
                                         {ev.note && (
-                                            <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">— {ev.note}</span>
+                                            <span className="text-gray-400 dark:text-primary ml-1">— {ev.note}</span>
                                         )}
                                     </div>
-                                    <span className="text-gray-300 dark:text-[#e5e5e5] whitespace-nowrap">
+                                    <span className="text-gray-300 dark:text-primary whitespace-nowrap">
                                         {new Date(ev.created_at).toLocaleDateString(i18n.language)}
                                     </span>
                                 </div>

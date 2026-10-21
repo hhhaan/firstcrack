@@ -4,10 +4,11 @@ import {
     type OrderLine,
     type OrderStatusFilter,
     type OrderWithLines,
+    orderKeys,
     useOpenFulfillmentHolds,
     useOrdersPaginated,
 } from '@entities/order';
-import { type OrderDispatch, useOrderDispatches } from '@entities/order-dispatch';
+import { type OrderDispatch, orderDispatchKeys, useOrderDispatches } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProducts } from '@entities/product';
 import { DispatchModal } from '@features/dispatch-order';
@@ -18,12 +19,13 @@ import { Badge } from '@shared/ui/Badge';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TablePagination } from '@shared/ui/TablePagination';
+import { useQueryClient } from '@tanstack/react-query';
 import { confirm } from '@tauri-apps/plugin-dialog';
 import { AddOrderModal } from '@widgets/add-order-modal';
 import { DateRangeFilter } from '@widgets/date-range-filter';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
 import { format, subMonths } from 'date-fns';
-import { AlertTriangle, ChevronDown, ChevronRight, Plus, Search, ShoppingBag, Truck } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Plus, RefreshCw, Search, ShoppingBag, Truck } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrderFilters } from '../hooks/useOrderFilters';
@@ -37,6 +39,7 @@ const PLATFORM_OPTIONS = ['manual', 'naver', 'cafe24', 'shopify'];
 
 export function OrdersTab() {
     const { t } = useTranslation();
+    const qc = useQueryClient();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const f = useOrderFilters();
     const { data: page, isLoading } = useOrdersPaginated({
@@ -58,6 +61,7 @@ export function OrdersTab() {
     const { data: fulfillmentHolds = [] } = useOpenFulfillmentHolds(userId);
     const { data: products = [] } = useProducts(userId);
     const [showAdd, setShowAdd] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [dispatchOrderId, setDispatchOrderId] = useState<string | null>(null);
     const [linkLine, setLinkLine] = useState<{ line: OrderLine; platform: string } | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -90,6 +94,23 @@ export function OrdersTab() {
         );
     }, []);
 
+    const refresh = async () => {
+        if (!userId || refreshing) return;
+        setRefreshing(true);
+        try {
+            // staleTime is Infinity, so the list, roast demand, and dispatch badges stay put until invalidated.
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: orderKeys.all(userId) }),
+                qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) }),
+                qc.invalidateQueries({ queryKey: orderDispatchKeys.all(userId) }),
+            ]);
+        } catch {
+            // QueryCache already reports a failed refetch. Swallow so the click does not reject twice.
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const safePage = Math.min(f.page, totalPages);
     const start = (safePage - 1) * PAGE_SIZE + 1;
@@ -101,11 +122,11 @@ export function OrdersTab() {
         <div className="space-y-5">
             <RoastingRequirementsCard />
 
-            <div className="flex flex-col gap-3 rounded-lg bg-main-bg p-4 lg:flex-row lg:items-center dark:border dark:border-[#585d61]">
-                <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2 dark:bg-surface-elevated">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-64 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
                     <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                     <input
-                        className="w-full border-none bg-transparent font-body text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted"
+                        className="w-full border-none bg-transparent font-body text-sm tracking-[0.14px] text-primary outline-none placeholder:text-muted"
                         value={f.search}
                         onChange={(e) => f.setSearch(e.target.value)}
                         placeholder={t('orders.order.searchPlaceholder')}
@@ -135,6 +156,16 @@ export function OrdersTab() {
                         onFromYM={f.setFromYM}
                         onToYM={f.setToYM}
                     />
+                    <SurfaceButton
+                        onClick={() => void refresh()}
+                        disabled={!userId || refreshing}
+                        icon={
+                            <RefreshCw size={14} strokeWidth={2} className={refreshing ? 'animate-spin' : undefined} />
+                        }
+                        className="px-4 py-2"
+                    >
+                        {t('orders.order.refresh')}
+                    </SurfaceButton>
                     <SurfaceButton
                         onClick={() => setShowAdd(true)}
                         icon={<Plus size={14} strokeWidth={2} />}
@@ -168,15 +199,12 @@ export function OrdersTab() {
                     action={<GhostButton onClick={f.reset}>{t('orders.order.clearFilters')}</GhostButton>}
                 />
             ) : (
-                <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+                <div className="overflow-x-auto rounded-2xl border border-border bg-main-bg dark:border-border">
                     <table className="w-full min-w-[560px] border-collapse text-left">
                         <thead>
-                            <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                            <tr className="border-b border-divider dark:border-border">
                                 {['date', 'platform', 'buyer', 'items', 'status', 'action'].map((c) => (
-                                    <th
-                                        key={c}
-                                        className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted"
-                                    >
+                                    <th key={c} className="h-12 px-4 py-0 text-sm font-medium leading-5 text-muted">
                                         {c === 'action' ? '' : t(`orders.order.col.${c}`)}
                                     </th>
                                 ))}
@@ -208,7 +236,7 @@ export function OrdersTab() {
                         </tbody>
                     </table>
 
-                    <div className="flex flex-col gap-3 border-t border-border-subtle px-5 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-[#585d61]">
+                    <div className="flex flex-col gap-3 border-t border-border-subtle px-5 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-border">
                         <span className="text-xs tracking-[0.14px] text-muted">
                             {t('orders.order.pagination', { start, end, total })}
                         </span>
@@ -288,17 +316,15 @@ function OrderRow({
 
     return (
         <Fragment>
-            <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
-                <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
-                    {formatDateShort(order.ordered_at)}
-                </td>
-                <td className="px-4 py-3.5">
+            <tr className="border-b border-divider last:border-0 transition-colors hover:bg-surface-elevated dark:border-border dark:hover:bg-surface-elevated/40">
+                <td className="px-4 py-4 font-mono text-sm text-secondary">{formatDateShort(order.ordered_at)}</td>
+                <td className="px-4 py-4">
                     <Badge tone="soft" size="sm">
                         {t(`orders.channel.platform.${order.platform}`, { defaultValue: order.platform })}
                     </Badge>
                 </td>
-                <td className="px-4 py-3.5 text-[13px] text-primary tracking-[0.14px]">{order.buyer_name ?? '—'}</td>
-                <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
+                <td className="px-4 py-4 text-sm text-primary tracking-[0.14px]">{order.buyer_name ?? '—'}</td>
+                <td className="px-4 py-4 font-mono text-sm text-secondary">
                     <div className="flex flex-wrap items-center gap-1.5">
                         {/* Toggle lives on the quantity, away from the action buttons in the last cell —
                             a whole-row click target would force stopPropagation on every one of them. */}
@@ -306,7 +332,7 @@ function OrderRow({
                             type="button"
                             onClick={onToggle}
                             aria-expanded={expanded}
-                            className="inline-flex cursor-pointer items-center gap-1 rounded border-none bg-transparent p-0 font-mono text-[13px] text-secondary hover:text-primary"
+                            className="inline-flex cursor-pointer items-center gap-1 rounded border-none bg-transparent p-0 font-mono text-sm text-secondary hover:text-primary"
                         >
                             {expanded ? (
                                 <ChevronDown size={13} strokeWidth={1.75} />
@@ -327,7 +353,7 @@ function OrderRow({
                         ) : null}
                     </div>
                 </td>
-                <td className="px-4 py-3.5">
+                <td className="px-4 py-4">
                     <div className="flex flex-wrap items-center gap-1.5">
                         <Badge tone={orderStatusTone(order.status, fulfilled)} size="sm">
                             {statusLabel}
@@ -353,7 +379,7 @@ function OrderRow({
                         </p>
                     ) : null}
                 </td>
-                <td className="px-4 py-3.5">
+                <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-1.5">
                         {canRetryHold ? (
                             <GhostButton onClick={onRetryFulfillment} disabled={retryPending}>
@@ -364,7 +390,7 @@ function OrderRow({
                             <GhostButton
                                 onClick={onFulfill}
                                 disabled={fulfillPending}
-                                className="text-primary border-primary/15 hover:bg-primary hover:text-white dark:hover:bg-black dark:hover:text-white dark:hover:border-white"
+                                className="text-primary border-primary/15 hover:bg-action hover:text-on-action"
                             >
                                 {t('orders.order.fulfill')}
                             </GhostButton>
@@ -380,11 +406,9 @@ function OrderRow({
                 </td>
             </tr>
             {expanded ? (
-                <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                <tr className="border-b border-divider dark:border-border">
                     <td colSpan={6} className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20">
-                        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                            {t('orders.order.lines')}
-                        </p>
+                        <p className="mb-2 text-sm font-medium leading-5 text-muted">{t('orders.order.lines')}</p>
                         {shortages.length > 0 ? (
                             <ul className="mb-3 space-y-1 text-[12px] text-amber-800 dark:text-amber-300">
                                 {shortages.map((s) => (

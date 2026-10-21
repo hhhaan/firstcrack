@@ -2,19 +2,16 @@
  * Multi-ledger chain integration: real event builders + in-memory ledger
  * mirroring production partial unique keys (no live Postgres required).
  */
-import { buildBatchRoastedInbound } from '@features/active-roast/lib/buildBatchRoastedInbound';
 import { buildRoastStockEvents } from '@features/active-roast/lib/buildRoastStockEvents';
 import { buildBlendingEvents } from '@features/blend-roasted/lib/buildBlendingEvents';
 import { buildPackagingEvents } from '@features/package-product/lib/buildPackagingEvents';
 import { describe, expect, it } from 'vitest';
-import { isGreenRoastAlreadyClaimed } from './f3-green-deduct';
 import {
     applyBeanEvents,
     applyPackagingOp,
     applyProductEvents,
     applyRoastedEvents,
     emptyLedger,
-    roastReferenceIds,
     sumBeanGrams,
     sumProductUnits,
     sumRoastedGrams,
@@ -83,53 +80,6 @@ describe('inventory chain integration', () => {
         expect(ledger.bean.some((e) => e.event_type === 'roast')).toBe(true);
         expect(ledger.roasted.some((e) => e.event_type === 'packaging')).toBe(true);
         expect(ledger.product.some((e) => e.event_type === 'order_fulfillment')).toBe(true);
-    });
-
-    it('F3: batch complete then session save does not double green', () => {
-        const ledger = emptyLedger();
-        const batchId = 'batch-1';
-        const sessionId = 'sess-linked';
-        const grams = 5000;
-
-        applyBeanEvents(ledger, [{ bean_id: BEAN, delta_grams: 20_000, event_type: 'purchase', reference_id: null }]);
-
-        // schedule complete deduct (ref = batch)
-        const batchGreen = buildRoastStockEvents({
-            userId: USER,
-            deductionGrams: grams,
-            singleBeanId: BEAN,
-            blendId: null,
-            referenceId: batchId,
-        });
-        applyBeanEvents(ledger, batchGreen);
-        const inbound = buildBatchRoastedInbound({
-            userId: USER,
-            deductionGrams: grams,
-            beanId: BEAN,
-            blendId: null,
-            referenceId: batchId,
-        });
-        if (inbound) applyRoastedEvents(ledger, [inbound]);
-
-        const claimed = roastReferenceIds(ledger);
-        expect(isGreenRoastAlreadyClaimed(claimed, sessionId, batchId)).toBe(true);
-
-        // session path must skip green (and not apply second roast events)
-        if (!isGreenRoastAlreadyClaimed(claimed, sessionId, batchId)) {
-            applyBeanEvents(
-                ledger,
-                buildRoastStockEvents({
-                    userId: USER,
-                    deductionGrams: grams,
-                    singleBeanId: BEAN,
-                    blendId: null,
-                    referenceId: sessionId,
-                }),
-            );
-        }
-
-        expect(sumBeanGrams(ledger, BEAN)).toBe(20_000 - grams);
-        expect(ledger.bean.filter((e) => e.event_type === 'roast')).toHaveLength(1);
     });
 
     it('packaging same opId twice inserts once (H5 / partial unique)', () => {

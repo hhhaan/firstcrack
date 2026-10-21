@@ -1,4 +1,5 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
+import { fanDrumMarkersFromStored } from '@features/active-roast/lib/fan-drum-markers';
 import { omitRepeatHeaterMarks } from '@features/active-roast/lib/repeat-heater';
 import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
@@ -119,8 +120,11 @@ export const storedEventsToControlChanges = (events: StoredRoastEvent[]) =>
     );
 
 /** Stored events → chart markers. Live TP is a `turningPoints` overlay, not an eventMarker — include it here so history can draw it. */
-export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: TemperatureUnit = 'C'): HistoryEventMarker[] =>
-    omitRepeatHeaterMarks(
+export const storedEventsToMarkers = (
+    events: StoredRoastEvent[],
+    unit: TemperatureUnit = 'C',
+): HistoryEventMarker[] => [
+    ...omitRepeatHeaterMarks(
         events
             .filter((e) => isChartEventMarker(e.type) || e.type === 'TP')
             .map((e) => ({
@@ -136,4 +140,6 @@ export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: Temperat
                 ...(e.airflow ? { airflow: e.airflow } : {}),
                 ...(e.drum ? { drum: e.drum } : {}),
             })),
-    );
+    ),
+    ...fanDrumMarkersFromStored(events),
+];

@@ -88,33 +88,77 @@ test('RLS CLI reports the offending migration and fails', (t) => {
     assert.match(result.stderr, /fixture.sql: Missing ENABLE ROW LEVEL SECURITY/);
 });
 
-test('shared changes deploy every function, including mixed pushes', (t) => {
-    const { cwd, env, mock } = workspace(t);
-    for (const name of ['_shared', 'alpha', 'beta'])
-        mkdirSync(join(cwd, 'supabase/functions', name), { recursive: true });
-    mock('git', 'printf "%s\\n" "$CHANGES"');
-    const output = join(cwd, 'output');
+test('shared changes deploy every consumer, including mixed pushes', (t) => {
+    const all = ['alpha', 'beta', 'create-polar-checkout', 'polar-webhook'];
+    const billing = ['create-polar-checkout', 'polar-webhook'];
+    assert.match(
+        read('.github/workflows/deploy-edge-functions.yml'),
+        /- name: Resolve changed functions\n(?:(?! {6}- ).*\n)* {8}run: node scripts\/resolve-edge-functions\.mjs/,
+    );
     for (const [changes, expected] of [
-        ['supabase/functions/_shared/auth.ts', ['alpha', 'beta']],
-        ['supabase/functions/_shared/auth.ts\nsupabase/functions/alpha/index.ts', ['alpha', 'beta']],
+        ['supabase/functions/_shared/auth.ts', all],
+        ['supabase/functions/_shared/auth.ts\nsupabase/functions/alpha/index.ts', all],
+        ['supabase/functions/_shared/polar.ts', billing],
+        ['supabase/functions/_shared/polar-auth.ts\nsupabase/functions/polar-webhook/index.ts', billing],
+        ['supabase/functions/create-polar-checkout/index.ts\nsupabase/functions/_shared/polar.test.ts', billing],
+        ['supabase/functions/_shared/polar.ts\nsupabase/functions/alpha/index.ts', ['alpha', ...billing]],
+        ['supabase/functions/_shared/polar.ts\nsupabase/functions/_shared/auth.ts', all],
         ['supabase/functions/alpha/index.ts', ['alpha']],
         ['', []],
     ]) {
+        const { cwd } = workspace(t);
+        const env = {
+            ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_'))),
+            GIT_CONFIG_NOSYSTEM: '1',
+            GIT_CONFIG_GLOBAL: '/dev/null',
+        };
+        const git = (...args) => {
+            const result = spawnSync(
+                '/usr/bin/git',
+                [
+                    '-c',
+                    'user.name=Harness Test',
+                    '-c',
+                    'user.email=harness@example.invalid',
+                    '-c',
+                    'commit.gpgsign=false',
+                    '-c',
+                    'core.hooksPath=/dev/null',
+                    ...args,
+                ],
+                { cwd, env, encoding: 'utf8' },
+            );
+            assert.equal(result.status, 0, result.stderr);
+            return result.stdout.trim();
+        };
+        git('init');
+        for (const name of ['_shared', ...all]) {
+            mkdirSync(join(cwd, 'supabase/functions', name), { recursive: true });
+            writeFileSync(join(cwd, 'supabase/functions', name, 'index.ts'), '// baseline\n');
+        }
+        git('add', 'supabase/functions');
+        git('commit', '-m', 'Baseline functions');
+        const before = git('rev-parse', 'HEAD');
+        for (const file of changes.split('\n').filter(Boolean)) writeFileSync(join(cwd, file), '// changed\n');
+        git('add', 'supabase/functions');
+        git('commit', '--allow-empty', '-m', 'Fixture push');
+        const output = join(cwd, 'output');
         writeFileSync(output, '');
-        const result = spawnSync('bash', ['-e', '-c', runBlock('Resolve changed functions')], {
+        const result = spawnSync(process.execPath, [join(root, 'scripts/resolve-edge-functions.mjs')], {
             cwd,
             env: {
                 ...env,
-                CHANGES: changes,
                 FUNCTION_INPUT: '',
                 EVENT_NAME: 'push',
-                BEFORE_SHA: 'base',
+                BEFORE_SHA: before,
                 GITHUB_OUTPUT: output,
             },
             encoding: 'utf8',
         });
         assert.equal(result.status, 0, result.stderr);
-        assert.deepEqual(JSON.parse(readFileSync(output, 'utf8').match(/^functions=(.*)$/m)[1]), expected);
+        const contents = readFileSync(output, 'utf8');
+        assert.match(contents, /^functions=(.*)$/m, changes);
+        assert.deepEqual(JSON.parse(contents.match(/^functions=(.*)$/m)[1]), expected, changes);
     }
 });
 

@@ -63,6 +63,7 @@ export const useUpsertProductChannelSku = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (row: ProductChannelSkuInsert) => productChannelSkuApi.upsert(row),
+        meta: { silentError: true },
         onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.channelSkus(userId) }),
     });
 };

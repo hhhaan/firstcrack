@@ -2,7 +2,7 @@ import type { BadgeTone } from '@shared/ui/Badge';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 const ghostBtn =
-    'inline-flex items-center justify-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer';
+    'inline-flex items-center justify-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:border-border dark:hover:bg-surface-elevated cursor-pointer';
 
 export function GhostButton({
     className = '',
@@ -19,7 +19,7 @@ export function GhostButton({
 
 export function EmptyState({ icon, message, action }: { icon: ReactNode; message: string; action?: ReactNode }) {
     return (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-main-bg px-6 py-16 text-center dark:border-border">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-muted dark:bg-surface-elevated">
                 {icon}
             </div>

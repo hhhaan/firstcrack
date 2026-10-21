@@ -1,7 +1,7 @@
+import type { UpcomingBatch } from '@features/dashboard-summary';
 import { formatDateLocal } from '@shared/lib/rrule';
 import type { View } from '@shared/types/view';
-import type { UpcomingBatch } from '@widgets/dashboard-summary/api/useDashboard';
-import { Calendar, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface UpcomingBatchesProps {
@@ -14,7 +14,7 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
     const { t } = useTranslation();
 
     return (
-        <div className="bg-main-bg rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
+        <section className="min-w-0 border-b border-border p-6 lg:border-r lg:border-b-0 lg:p-8">
             <div className="flex items-center justify-between mb-3.5">
                 <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">
                     {t('dashboard.upcomingBatches')}
@@ -22,6 +22,7 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                 <button
                     type="button"
                     onClick={() => onNavigate('schedule')}
+                    aria-label={t('dashboard.upcomingBatches')}
                     className="flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-primary transition-colors p-0"
                 >
                     <ChevronRight size={13} strokeWidth={2} />
@@ -37,9 +38,6 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                         key={item.id}
                         className={`flex items-center gap-3 py-2.5 ${i < data.length - 1 ? 'border-b border-divider' : ''}`}
                     >
-                        <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0">
-                            <Calendar size={14} strokeWidth={1.5} className="text-secondary" />
-                        </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
@@ -54,7 +52,7 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                                 {item.date === formatDateLocal(new Date()) ? t('dashboard.today') : item.date} ·{' '}
                                 {item.status}
                                 {item.stockShort && (
-                                    <span className="ml-1.5 text-amber-600 font-medium">
+                                    <span className="ml-1.5 text-palette-green font-medium">
                                         · {t('dashboard.upcomingStockShort')}
                                     </span>
                                 )}
@@ -63,6 +61,6 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                     </div>
                 ))
             )}
-        </div>
+        </section>
     );
 };

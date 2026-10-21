@@ -87,12 +87,15 @@ Writes must use **workspace owner id** (`useActiveWorkspace().workspaceOwnerId`)
 
 ## 5. F3 double-deduct guard
 
-Schedule "complete batch" deducts green with `reference_id = plan_batch.id`. A later linked roast save would deduct again with `reference_id = session.id`.
+Schedule "complete batch" deducts green with `reference_id = plan_batch.id`. A linked roast save deducts with `reference_id = session.id`.
 
-- Client: `useRoastSaveFlow` checks `beanStockEventApi.hasRoastDeductionForReference(planBatchId)` and skips UX deduct when present (fail-open if the check itself fails).
-- Server: `save_roast_op` / batch paths also skip or raise `roast_already_deducted` (C2) so status can still complete.
+`roast_deduction_blocked` is one-way:
 
-**Invariant:** one green roast deduction per logical batch/session claim — never both refs for the same physical green.
+- A batch-level `roast` event on `plan_batch.id` blocks another batch deduct and blocks a later session save (`roast_already_deducted`). Completing the batch still proceeds.
+- Session-level `roast` events do not block a later batch deduct. That is the C2 behavior. Do not put the block back.
+- Client: `useRoastSaveFlow` checks `beanStockEventApi.hasRoastDeductionForReference(planBatchId)` and skips UX deduct when a batch event is present (fail-open if the check itself fails). Do not turn that check into fail-closed.
+
+Blend grams: `save_roast_op` and schedule deduct both order components by `bean_id` and give the rounding remainder to the last id. Reserved stock for a blend uses the same split (`allocate_blend_grams`). Single-origin reservation stays a truncated gram total.
 
 ---
 

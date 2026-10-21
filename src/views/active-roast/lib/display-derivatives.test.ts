@@ -152,6 +152,26 @@ describe('buildEventMarkers', () => {
             },
         ]);
     });
+
+    it('adds fan and drum labels for a control write', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
+        const markers = buildEventMarkers([
+            {
+                id: 'control',
+                time: '3:02',
+                timeSec: 182,
+                event: 'Control',
+                temp: '',
+                note: '',
+                appliedControl: { fan: 50, drum: 40 },
+            },
+        ]);
+        expect(markers.map((marker) => [marker.logId, marker.event, marker.note])).toEqual([
+            ['control:fan', 'Fan', '50'],
+            ['control:drum', 'Drum', '40'],
+        ]);
+    });
 });
 
 describe('calcDevTime', () => {

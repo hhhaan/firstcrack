@@ -24,6 +24,7 @@ import {
 import { isRemovableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
+import { isFanDrumMarker } from '@features/active-roast/lib/fan-drum-markers';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
@@ -66,62 +67,30 @@ const emptyNote: RoastNoteValues = { gas: '', airflow: '', drum: '', note: '' };
 
 type ChartAxisInput = Pick<
     RoastSettings,
-    | 'tempGridInterval'
-    | 'tempGridPresetInterval'
-    | 'tempLabelPresetEvery'
-    | 'timeTickPresetSec'
-    | 'tempAxisMode'
+    | 'tempLabelInterval'
     | 'tempTickMode'
     | 'tempTicksC'
-    | 'tempLabelEvery'
+    | 'timeTickPresetSec'
     | 'timeTickIntervalSec'
     | 'timeMinorTickIntervalSec'
-    | 'tempLabelCustom'
     | 'timeTickCustom'
-    | 'rorGridInterval'
-    | 'rorGridPresetInterval'
-    | 'rorAxisMode'
+    | 'horizontalGridInterval'
+    | 'horizontalGridPresetInterval'
+    | 'horizontalGridMode'
     | 'rorTickMode'
     | 'rorTicksC'
-    | 'rorLabelEvery'
-    | 'rorLabelPresetEvery'
-    | 'rorLabelCustom'
+    | 'rorLabelInterval'
 >;
 
-const usesCustomTickList = (settings: Pick<ChartAxisInput, 'tempAxisMode' | 'tempTickMode' | 'tempTicksC'>): boolean =>
-    settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' && settings.tempTicksC.length > 0;
-
-const gridIntervalFor = (settings: ChartAxisInput): number => {
-    if (settings.tempAxisMode === 'preset') return settings.tempGridPresetInterval;
-    if (settings.tempTickMode === 'interval') return settings.tempGridInterval;
-    return 10;
-};
-
-const rorIntervalFor = (settings: ChartAxisInput): number => {
-    if (settings.rorAxisMode === 'preset') return settings.rorGridPresetInterval;
-    if (settings.rorTickMode === 'interval') return settings.rorGridInterval;
-    return 5;
-};
-
-const rorLabelEveryFor = (settings: ChartAxisInput): number => {
-    if (settings.rorAxisMode === 'list' && settings.rorTickMode === 'list') return 1;
-    if (settings.rorLabelCustom) return settings.rorLabelEvery;
-    return settings.rorLabelPresetEvery;
-};
-
-const labelEveryFor = (settings: ChartAxisInput): number => {
-    if (settings.tempAxisMode === 'list' && settings.tempTickMode === 'list') return 5;
-    if (settings.tempLabelCustom) return settings.tempLabelEvery;
-    return settings.tempLabelPresetEvery;
-};
-
 const chartAxisSettings = (settings: ChartAxisInput) => ({
-    rorGridInterval: rorIntervalFor(settings),
-    rorTicksC: settings.rorAxisMode === 'list' && settings.rorTickMode === 'list' ? settings.rorTicksC : [],
-    rorLabelEvery: rorLabelEveryFor(settings),
-    tempGridInterval: gridIntervalFor(settings),
-    tempTicksC: settings.tempAxisMode === 'list' && settings.tempTickMode === 'list' ? settings.tempTicksC : [],
-    tempLabelEvery: labelEveryFor(settings),
+    horizontalGridInterval:
+        settings.horizontalGridMode === 'preset'
+            ? settings.horizontalGridPresetInterval
+            : settings.horizontalGridInterval,
+    rorLabelInterval: settings.rorLabelInterval,
+    rorTicksC: settings.rorTickMode === 'list' ? settings.rorTicksC : [],
+    tempLabelInterval: settings.tempLabelInterval,
+    tempTicksC: settings.tempTickMode === 'list' ? settings.tempTicksC : [],
     timeTickIntervalSec: settings.timeTickCustom ? settings.timeTickIntervalSec : settings.timeTickPresetSec,
     timeMinorTickIntervalSec: settings.timeMinorTickIntervalSec,
 });
@@ -200,13 +169,8 @@ const scalar = (value: unknown): number | null => (typeof value === 'number' && 
 
 /** Notes can sit ahead of the live curve, up to the axis end. Other events stop at now. */
 const clampMarkerTime = (event: string, timeSec: number, nowSec: number, axisMaxSec: number) => {
-    const cap = event === 'Note' ? axisMaxSec : Math.floor(nowSec);
+    const cap = event === 'Note' || event === 'Fan' || event === 'Drum' ? axisMaxSec : Math.floor(nowSec);
     return Math.max(0, Math.min(cap, Math.round(timeSec)));
-};
-
-const parseHeaterNote = (note: string): { value: string; unit: string } => {
-    const match = note.trim().match(/^(-?\d+(?:\.\d+)?)(.*)$/);
-    return match ? { value: match[1], unit: match[2] || '%' } : { value: '', unit: '%' };
 };
 
 /** Omitted profile flags stay on. Kept off the component so each default is not a branch there. */
@@ -384,9 +348,15 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const curves = useCurveStyles();
     const fontScale = roastSettings.fontScalePct / 100;
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
-    const yRangeInterval = usesCustomTickList(roastSettings) ? undefined : axisSettings.tempGridInterval;
 
-    const dragStateRef = useRef<{ pointerId: number; logId: string; event: string; timeSec: number } | null>(null);
+    const dragStateRef = useRef<{
+        pointerId: number;
+        logId: string;
+        event: string;
+        timeSec: number;
+        originTimeSec: number;
+        originX: number;
+    } | null>(null);
     const PIXEL_THRESHOLD = 10;
     const lastChartSizeRef = useRef({ w: 0, h: 0 });
     const [noteForm, setNoteForm] = useState<{ x: number; y: number; timeSec: number } | null>(null);
@@ -399,11 +369,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         x: number;
         y: number;
         time: string;
-        note: string;
-        gas: string;
-        airflow: string;
-        drum: string;
-        heaterUnit: string;
+        title: string;
     } | null>(null);
     const editFormRef = useRef<HTMLFormElement>(null);
     const timeInputRef = useRef<HTMLInputElement>(null);
@@ -668,7 +634,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (!chart || !point) return null;
             const xMin = xViewMin ?? xs[0] ?? 0;
             const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
-            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit, yRangeInterval).tempYMax;
+            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
                     if (hideChargeLabel && marker.event === 'Charge') return [];
@@ -783,7 +749,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             onEventMarkerEdit,
             tempMaxC,
             tempMinC,
-            yRangeInterval,
             temperatureUnit,
             turningPoints,
             savedReview,
@@ -798,16 +763,21 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         (event: Pick<PointerEvent, 'button' | 'clientX' | 'clientY' | 'pointerId'>) => {
             if (event.button !== 0) return false;
             const selected = findDraggableMarker(event.clientX, event.clientY);
-            if (!selected?.logId) return false;
+            const point = localPoint(event.clientX, event.clientY);
+            if (!selected?.logId || !point) return false;
+            // Label text sits to the right of the event. Absolute pointer time would jump there,
+            // and past the live head that clamps to the latest sample.
             dragStateRef.current = {
                 pointerId: event.pointerId,
                 logId: selected.logId,
                 event: selected.event,
                 timeSec: selected.timeSec,
+                originTimeSec: selected.timeSec,
+                originX: point.x,
             };
             return true;
         },
-        [findDraggableMarker],
+        [findDraggableMarker, localPoint],
     );
 
     const hitTestMarker = useCallback(
@@ -824,10 +794,16 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const chart = chartInstanceRef.current;
             const point = localPoint(event.clientX, event.clientY);
             if (!chart || !point) return true;
+            const origin = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, drag.originX));
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
-            if (converted == null) return true;
+            if (origin == null || converted == null) return true;
             const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
-            const nextTimeSec = clampMarkerTime(drag.event, converted, currentTimeSec, axisMax);
+            const nextTimeSec = clampMarkerTime(
+                drag.event,
+                drag.originTimeSec + (converted - origin),
+                currentTimeSec,
+                axisMax,
+            );
             if (nextTimeSec !== drag.timeSec) {
                 onEventMarkerDrag(drag.logId, nextTimeSec);
                 drag.timeSec = nextTimeSec;
@@ -850,7 +826,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const point = localPoint(event.clientX, event.clientY);
             const container = chartRef.current;
             if (!selected?.logId || !point || !container) return false;
-            const heater = parseHeaterNote(selected.note ?? '');
+            const noteTitle = formatRoastNote(selected).trim();
+            const title = isFanDrumMarker(selected.event)
+                ? t(selected.event === 'Fan' ? 'activeRoast.controls.fan' : 'activeRoast.controls.drum')
+                : selected.event === 'Note' && noteTitle
+                  ? noteTitle
+                  : roastEventLabel(selected.event);
             setNoteForm(null);
             setNoteValues(emptyNote);
             setEditForm({
@@ -859,15 +840,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
                 y: Math.max(0, Math.min(point.y, container.clientHeight - 120)),
                 time: formatElapsed(selected.timeSec),
-                note: selected.event === 'Heater' ? heater.value : (selected.note ?? ''),
-                gas: selected.gas ?? '',
-                airflow: selected.airflow ?? '',
-                drum: selected.drum ?? '',
-                heaterUnit: heater.unit,
+                title,
             });
             return true;
         },
-        [findDraggableMarker, localPoint, onEventMarkerEdit],
+        [findDraggableMarker, localPoint, onEventMarkerEdit, t],
     );
 
     const getDataURL = useCallback(
@@ -1084,26 +1061,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         const timeSec = parseEditTime(editForm.time);
         if (timeSec == null) return;
         const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
-        const patch: EventMarkerPatch = {
+        onEventMarkerEdit(editForm.logId, {
             timeSec: clampMarkerTime(editForm.event, timeSec, currentTimeSec, axisMax),
-        };
-        if (editForm.event === 'Note') {
-            const body = editForm.note.trim();
-            if (!body && !editForm.gas.trim() && !editForm.airflow.trim() && !editForm.drum.trim()) return;
-            patch.note = body;
-            patch.gas = editForm.gas.trim();
-            patch.airflow = editForm.airflow.trim();
-            patch.drum = editForm.drum.trim();
-        }
-        if (savedReview && editForm.event === 'Heater') {
-            const heat = editForm.note.trim();
-            if (!heat || Number.isNaN(Number(heat))) return;
-            patch.note = `${heat}${editForm.heaterUnit || '%'}`;
-        }
-        onEventMarkerEdit(editForm.logId, patch);
+        });
         setEditForm(null);
         chartRef.current?.focus();
-    }, [currentTimeSec, editForm, onEventMarkerEdit, savedReview, xs, xViewMax]);
+    }, [currentTimeSec, editForm, onEventMarkerEdit, xs, xViewMax]);
 
     const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>, submit: () => void) => {
         if (event.key === 'Enter' && event.target instanceof HTMLButtonElement && event.target.type === 'button')
@@ -1125,17 +1088,18 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         }
     };
 
+    const canDeleteMarker = useCallback(
+        (event: string) =>
+            isFanDrumMarker(event) || (savedReview ? isReviewDeletableEvent(event) : isRemovableLogEvent(event)),
+        [savedReview],
+    );
+
     const deleteEdit = useCallback(() => {
-        if (
-            !editForm ||
-            !onEventMarkerDelete ||
-            !(savedReview ? isReviewDeletableEvent : isRemovableLogEvent)(editForm.event)
-        )
-            return;
+        if (!editForm || !onEventMarkerDelete || !canDeleteMarker(editForm.event)) return;
         onEventMarkerDelete(editForm.logId);
         setEditForm(null);
         chartRef.current?.focus();
-    }, [editForm, onEventMarkerDelete, savedReview]);
+    }, [editForm, onEventMarkerDelete, canDeleteMarker]);
 
     return (
         <div
@@ -1241,7 +1205,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ref={editFormRef}
                     data-chart-marker-edit
                     onKeyDown={(event) => handleFormKeyDown(event, submitEdit)}
-                    className={`absolute z-20 flex max-w-full max-h-full flex-col gap-1 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md ${editForm.event === 'Note' ? 'w-[260px]' : 'w-[220px]'}`}
+                    className="absolute z-20 flex w-[220px] max-w-full max-h-full flex-col gap-1 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md"
                     style={{ left: editForm.x, top: editForm.y }}
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -1250,11 +1214,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     onPointerDown={(event) => event.stopPropagation()}
                     onWheel={(event) => event.stopPropagation()}
                 >
-                    <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">
-                        {editForm.event === 'Note'
-                            ? t('activeRoast.noteEntry.editTitle')
-                            : roastEventLabel(editForm.event)}
-                    </div>
+                    <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">{editForm.title}</div>
                     <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
                         {t('activeRoast.noteEntry.time')}
                         <input
@@ -1294,33 +1254,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
                         />
                     </label>
-                    {editForm.event === 'Heater' && (
-                        <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
-                            Heat
-                            <input
-                                id="chart-marker-heat"
-                                type="number"
-                                value={editForm.note}
-                                readOnly={!savedReview}
-                                disabled={!savedReview}
-                                onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
-                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none disabled:opacity-60"
-                            />
-                            <span className="font-mono text-[11px]">{editForm.heaterUnit}</span>
-                        </label>
-                    )}
-                    {editForm.event === 'Note' && (
-                        <RoastNoteFields
-                            values={editForm}
-                            onChange={(values) => setEditForm({ ...editForm, ...values })}
-                            prefix="chart-marker"
-                            commentId="chart-marker-note"
-                        />
-                    )}
                     <div className="flex items-center justify-end gap-1">
                         {onEventMarkerDelete &&
-                            ((savedReview ? isReviewDeletableEvent : isRemovableLogEvent)(editForm.event) ||
-                                (savedReview && editForm.event === 'TP')) && (
+                            (canDeleteMarker(editForm.event) || (savedReview && editForm.event === 'TP')) && (
                                 <button
                                     type="button"
                                     data-chart-marker-delete

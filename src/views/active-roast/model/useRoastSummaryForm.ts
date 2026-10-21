@@ -25,11 +25,13 @@ export const useRoastSummaryForm = ({
     open,
     summaryData,
     selectedBeanId,
+    selectedBlendId = null,
     planBatchHandoff,
 }: {
     open: boolean;
     summaryData: RoastSummaryData | null;
     selectedBeanId: string | null;
+    selectedBlendId?: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
 }) => {
     const { t } = useTranslation();
@@ -68,10 +70,16 @@ export const useRoastSummaryForm = ({
     const [beanFieldEpoch, setBeanFieldEpoch] = useState(0);
 
     const selectedBeanIdRef = useRef(selectedBeanId);
+    const selectedBlendIdRef = useRef(selectedBlendId);
+    selectedBlendIdRef.current = selectedBlendId;
     const handoffRef = useRef(planBatchHandoff);
     const lastAdhoc = useRoastingStore((s) => s.lastAdhocSave);
     const lastAdhocRef = useRef(lastAdhoc);
-    const openedBaseRef = useRef<{ weightGrams: number; beanId: string | null }>({ weightGrams: 0, beanId: null });
+    const openedBaseRef = useRef<{ weightGrams: number; beanId: string | null; blendId: string | null }>({
+        weightGrams: 0,
+        beanId: null,
+        blendId: null,
+    });
     const prevLinkRef = useRef<{ mode: 'schedule' | 'none'; batchId: string | null }>({
         mode: 'none',
         batchId: null,
@@ -92,10 +100,15 @@ export const useRoastSummaryForm = ({
                 handoffRef.current,
                 lastAdhocRef.current,
                 selectedBeanIdRef.current,
+                selectedBlendIdRef.current,
             );
-            openedBaseRef.current = { weightGrams: initial.weightGrams, beanId: initial.beanId };
+            openedBaseRef.current = {
+                weightGrams: initial.weightGrams,
+                beanId: initial.beanId,
+                blendId: initial.blendId ?? null,
+            };
             prevLinkRef.current = { mode: initial.linkMode, batchId: initial.planBatchId };
-            reset(initial);
+            reset({ ...initial, blendId: initial.blendId ?? null });
             setBeanFieldEpoch((k) => k + 1);
         }
     }, [open, summaryData, reset]);
@@ -124,6 +137,7 @@ export const useRoastSummaryForm = ({
         prevLinkRef.current = { mode: linkMode, batchId: linkMode === 'schedule' ? linkedBatchId : null };
         if (!patch) return;
         setValue('weightGrams', patch.weightGrams, { shouldDirty: true, shouldValidate: true });
+        setValue('blendId', linkMode === 'none' ? openedBaseRef.current.blendId : null);
         setValue('beanId', patch.beanId, { shouldDirty: true, shouldValidate: true });
         setValue('beanLabel', '', { shouldDirty: true });
         setBeanFieldEpoch((k) => k + 1);

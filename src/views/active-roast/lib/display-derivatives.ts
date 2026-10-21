@@ -1,5 +1,6 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
+import { fanDrumMarkersFromLog } from '@features/active-roast/lib/fan-drum-markers';
 import { omitRepeatHeaterMarks } from '@features/active-roast/lib/repeat-heater';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
@@ -123,8 +124,8 @@ export const calcTargetDelta = (
 };
 
 /** 이벤트 로그를 ECharts 마커 배열로 변환. 같은 화력을 다시 누른 표시는 뺀다. */
-export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
-    omitRepeatHeaterMarks(
+export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] => [
+    ...omitRepeatHeaterMarks(
         logEntries
             .filter((e) => isChartEventMarker(e.event))
             .flatMap((e) => {
@@ -147,7 +148,9 @@ export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
                     },
                 ];
             }),
-    );
+    ),
+    ...fanDrumMarkersFromLog(logEntries),
+];
 
 export interface RoastLogDisplayEntry extends LogEntry {
     current?: boolean;

@@ -1,7 +1,12 @@
-import { dashboardKeys, inventoryQueryRoots, roastedStockKeys, roastProfileQueryRoots } from '@shared/lib/query-keys';
-import { isClientRefusal } from '@shared/lib/sentry';
+import {
+    beanQueryRoots,
+    dashboardKeys,
+    inventoryQueryRoots,
+    roastedStockKeys,
+    roastProfileQueryRoots,
+} from '@shared/lib/query-keys';
 import { shouldPrefetchNextPage } from '@shared/lib/shouldPrefetchNextPage';
-import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { Bean, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roastSessionApi } from './api';
 
@@ -207,6 +212,15 @@ const profileRelation = (
     return { name: found.name, target_level: found.target_level };
 };
 
+/** Bean join re-read from the bean cache so a relinked roast shows the new green bean before the refetch. */
+const beanRelation = (qc: QueryClient, userId: string, beanId: string | null): RoastSessionWithRelations['beans'] => {
+    if (!beanId) return null;
+    const found = qc.getQueryData<Bean[]>([...beanQueryRoots.all, userId])?.find((bean) => bean.id === beanId);
+    if (!found) return null;
+    const { name, origin, region, variety, process, farm } = found;
+    return { name, origin, region, variety, process, farm };
+};
+
 /** Patch tsv paths into session caches under `all(userId)` — never the raw `['roast_sessions']` prefix. */
 export const patchRoastSessionTsvPaths = (
     qc: QueryClient,
@@ -279,17 +293,6 @@ export const useRoastSession = (userId: string, id: string) =>
         enabled: !!userId && !!id,
     });
 
-export const useCreateRoastSession = (userId: string) => {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: roastSessionApi.create,
-        retry: (failureCount, error) => !isClientRefusal(error) && failureCount < 3,
-        onSuccess: () => {
-            void invalidateRoastSessionQueries(qc, userId);
-        },
-    });
-};
-
 export const useUpdateRoastSession = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
@@ -301,8 +304,11 @@ export const useUpdateRoastSession = (userId: string) => {
             patchRoastSessionRows(qc, userId, (row) => {
                 if (row.id !== id) return row;
                 const next: RoastSessionWithRelations = { ...row, ...patch };
-                if (!('profile_id' in patch)) return next;
-                return { ...next, roast_profiles: profileRelation(qc, userId, patch.profile_id ?? null) };
+                if ('profile_id' in patch) {
+                    next.roast_profiles = profileRelation(qc, userId, patch.profile_id ?? null);
+                }
+                if ('bean_id' in patch) next.beans = beanRelation(qc, userId, patch.bean_id ?? null);
+                return next;
             });
             return snapshot;
         },

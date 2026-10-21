@@ -4,6 +4,7 @@ import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roa
 import { formatDuration } from '@shared/lib/format';
 import { deltaOrNull, sessionRoastMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { Badge } from '@shared/ui/Badge';
 import { useTranslation } from 'react-i18next';
 
 // ponytail: 허용 밴드 하드코드 — 설정화는 수요 생기면 (Roast Settings로)
@@ -113,12 +114,8 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             <div className="grid grid-cols-2 gap-x-6 gap-y-5 @min-[640px]:grid-cols-3">
                 {rows.map((row) => {
                     const d = deltaOrNull(row.actual, row.target);
-                    const deltaCls =
-                        d == null
-                            ? 'text-muted'
-                            : Math.abs(d) <= row.band
-                              ? 'bg-palette-green/12 text-palette-green'
-                              : 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
+                    const inBand = d != null && Math.abs(d) <= row.band;
+                    const deltaText = d == null ? '—' : row.formatDelta(d);
                     return (
                         <div key={row.key} className="min-w-0">
                             <div className="mb-2 text-[11px] font-medium text-muted">{t(row.labelKey)}</div>
@@ -128,9 +125,19 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
                                     {' / '}
                                     {row.target != null ? row.format(row.target) : '—'}
                                 </span>
-                                <span className={`rounded px-1.5 py-0.5 text-[11px] ${deltaCls}`}>
-                                    {d == null ? '—' : row.formatDelta(d)}
-                                </span>
+                                {inBand ? (
+                                    <Badge tone="good">{deltaText}</Badge>
+                                ) : (
+                                    <span
+                                        className={`rounded px-1.5 py-0.5 text-[11px] ${
+                                            d == null
+                                                ? 'text-muted'
+                                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                                        }`}
+                                    >
+                                        {deltaText}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     );

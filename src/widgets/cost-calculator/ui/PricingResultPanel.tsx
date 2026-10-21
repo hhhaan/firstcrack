@@ -37,11 +37,11 @@ export const PricingResultPanel = ({
     return (
         <PricingSection title={t('pricing.selling.title')}>
             <div className="flex-1 flex flex-col">
-                <div className="bg-surface-warm-solid rounded-xl px-6 py-6 text-center mb-6">
+                <div className="bg-surface rounded-xl px-6 py-6 text-center mb-6">
                     <span className="text-[11px] font-medium uppercase tracking-[0.5px] text-muted mb-2 block">
                         {t('pricing.selling.price')}
                     </span>
-                    <div className="font-mono font-semibold text-[36px] text-primary tracking-[-0.5px] tabular-nums leading-[1.1]">
+                    <div className="text-3xl font-[450] leading-9 tracking-[0.24px] xl:text-5xl xl:font-[350] xl:leading-12 text-primary">
                         {formatKrw(sellingPricePerKg, lang)}
                     </div>
                     <span className="text-[13px] text-muted tracking-[0.14px]">{perKg}</span>

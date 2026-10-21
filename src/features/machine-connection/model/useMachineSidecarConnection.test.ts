@@ -3,10 +3,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import machinesSrc from '../../../views/machines/Machines.tsx?raw';
+import hookSrc from './useMachineSidecarConnection.ts?raw';
 
 describe('useMachineSidecarConnection', () => {
     it('does not poll from the Machines view (hook owns interval)', () => {
-        expect(machinesSrc).not.toMatch(/setInterval/);
+        expect(machinesSrc).not.toMatch(/setInterval|setTimeout/);
         expect(machinesSrc).toMatch(/useMachineSidecarConnection/);
+        expect(hookSrc).toMatch(/setInterval\(/);
     });
 });

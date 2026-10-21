@@ -102,6 +102,30 @@ describe('reviewEventsFromLog', () => {
         });
     });
 
+    it('keeps a fan edit on the control row', () => {
+        const result = reviewEventsFromLog(stored, [
+            entry({ id: 'c', event: 'Charge', timeSec: 0, tempC: 210, note: 'Bean drop detected' }),
+            entry({ id: 'tp', event: 'TP', timeSec: 119, tempC: 145.3, note: 'Turning Point detected' }),
+            entry({
+                id: 'ctl',
+                event: 'Control',
+                timeSec: 80,
+                tempC: null,
+                appliedControl: { heater: 40, fan: 45 },
+            }),
+        ]);
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.events).toContainEqual({
+            id: 'ctl',
+            type: 'Control',
+            time_sec: 80,
+            temp_c: null,
+            note: null,
+            applied_control: { heater: 40, fan: 45 },
+        });
+    });
+
     it('changes a heater note and removes the heater row', () => {
         const withHeater = [...stored, { id: 'h', type: 'Heater', time_sec: 30, temp_c: null, note: '80%' }];
         const edited = reviewEventsFromLog(withHeater, [

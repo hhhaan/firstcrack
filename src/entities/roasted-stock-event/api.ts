@@ -17,6 +17,18 @@ export const mapRoastedStockRecord = (raw: Record<string, unknown> | null): Reco
 };
 
 export const roastedStockEventApi = {
+    /** 해당 reference_id로 roast_inbound(＝로스팅 산출물) 기록이 있는지 — 생두 재링크 가드용. */
+    hasInboundForReference: async (referenceId: string): Promise<boolean> => {
+        const { data, error } = await supabase
+            .from('roasted_stock_events')
+            .select('id')
+            .eq('reference_id', referenceId)
+            .eq('event_type', 'roast_inbound')
+            .limit(1);
+        if (error) throw error;
+        return (data ?? []).length > 0;
+    },
+
     /** 포장/블렌딩 이벤트 원자적 배치 */
     insertBatch: async (events: RoastedStockEventInsert[]): Promise<void> => {
         if (!events.length) return;

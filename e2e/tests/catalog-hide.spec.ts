@@ -6,6 +6,7 @@ test('hidden beans can be restored without deleting the lot', async ({ authedPag
     const id = db.beans[0].id;
     await page.getByRole('button', { name: 'Hide Hidden bean', exact: true }).click();
     await expect(page.getByTestId(`bean-list-item-${id}`)).toBeHidden();
+    await expect(page.getByText('Select a bean to view details', { exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
     await goNav(page, 'beans');

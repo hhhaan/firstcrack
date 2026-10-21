@@ -9,7 +9,7 @@ import type { RoastNoteControls } from '@shared/types/roast';
 type TempSample = { bt: number | null; et: number | null };
 
 const FULLSCREEN_CHART_CLASS = 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-2.5';
-const WINDOWED_CHART_CLASS = 'rounded relative z-1 pl-2.5 pr-2.5 py-[30px] flex-1 dark:border dark:border-[#585d61]';
+const WINDOWED_CHART_CLASS = 'rounded relative z-1 py-5 flex-1 dark:border dark:border-border';
 
 export const orNull = <T>(value: T | null | undefined): T | null => value ?? null;
 
@@ -18,6 +18,25 @@ export const orEmpty = (value: string | null | undefined) => value ?? '';
 export const bbpFeatureEnabled = (featureOn: boolean, settingOn: boolean) => featureOn && settingOn;
 
 export const bbpElapsedWhenEnabled = <T>(enabled: boolean, elapsed: T): T | null => (enabled ? elapsed : null);
+
+const APP_WINDOW_TITLE = 'First Crack';
+
+/** Native window title while roasting or during BBP (idle Charge-wait included). */
+export const liveWindowTitle = (input: {
+    bbpElapsed: string | null;
+    btLabel: string;
+    etLabel: string;
+    roastElapsed: string;
+    activePhase: boolean;
+}): string => {
+    if (input.bbpElapsed) {
+        return `${APP_WINDOW_TITLE} — BBP ${input.bbpElapsed} | BT ${input.btLabel} | ET ${input.etLabel}`;
+    }
+    if (input.activePhase) {
+        return `${APP_WINDOW_TITLE} — BT ${input.btLabel} | ET ${input.etLabel} | ${input.roastElapsed}`;
+    }
+    return APP_WINDOW_TITLE;
+};
 
 export const bbpChargeWaitActive = (bbpActive: boolean, bbpRecording: boolean, awaitingNextCharge: boolean) =>
     (bbpActive && bbpRecording) || awaitingNextCharge;

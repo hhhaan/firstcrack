@@ -304,7 +304,7 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                     <button
                         type="submit"
                         disabled={busy || drafts.length === 0}
-                        className="cursor-pointer rounded-xl border-none bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50 dark:bg-black"
+                        className="cursor-pointer rounded-xl border-none bg-action px-5 py-2.5 text-sm font-semibold text-on-action disabled:opacity-50"
                     >
                         {busy ? t('history.edit.saving') : t('history.edit.save')}
                     </button>

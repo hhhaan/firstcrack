@@ -3,8 +3,8 @@ import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import type { Product } from '@entities/product';
-import { productStockEventApi, productStockKeys } from '@entities/product-stock-event';
-import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
+import { prefetchProductStock } from '@entities/product-stock-event';
+import { prefetchRoastedStock } from '@entities/roasted-stock-event';
 import { useRoastingStore } from '@features/active-roast';
 import { BlendRoastedModal } from '@features/blend-roasted';
 import { FEATURE, useFeature } from '@shared/lib/features';
@@ -62,18 +62,8 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     // Warm inventory caches so tab switches are cache hits.
     useEffect(() => {
         if (!userId) return;
-        if (canRoasted) {
-            void qc.prefetchQuery({
-                queryKey: roastedStockKeys.byUser(userId),
-                queryFn: () => roastedStockEventApi.getUserRoastedStock(userId),
-            });
-        }
-        if (canProducts) {
-            void qc.prefetchQuery({
-                queryKey: productStockKeys.byUser(userId),
-                queryFn: () => productStockEventApi.getStockByUser(userId),
-            });
-        }
+        if (canRoasted) void prefetchRoastedStock(qc, userId);
+        if (canProducts) void prefetchProductStock(qc, userId);
     }, [userId, canRoasted, canProducts, qc]);
 
     const [activeTab, setActiveTab] = useState<InventoryTab>('green');
@@ -133,7 +123,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     );
 
     const emptyState = (
-        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+        <div className="bg-main-bg rounded-2xl border border-border px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
             <div className="text-[13px] text-muted text-center leading-relaxed">
                 {t('beans.empty.title')}
                 <br />
@@ -171,6 +161,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const detailPanel = (
         <BeanDetail
             bean={selected}
+            hasAny={beans.length > 0}
             isLoading={isLoading}
             affectedBlendNames={affectedBlendNames}
             assetLine={selected ? (assetSummary.byBeanId[selected.id] ?? null) : null}
@@ -191,7 +182,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
     const greenBody = (
         <>
-            <div className="mb-4 flex items-end justify-between gap-3 border-b border-(--color-border) dark:border-[#585d61]">
+            <div className="mb-4 flex items-end justify-between gap-3 border-b border-(--color-border) dark:border-border">
                 <div className="flex min-w-0">
                     <button
                         type="button"

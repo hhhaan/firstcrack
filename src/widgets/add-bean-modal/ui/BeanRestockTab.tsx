@@ -90,7 +90,7 @@ export const BeanRestockTab = ({
                                 const parsed = parseFloat(restockAmount) || 0;
                                 onRestockAmountChange((Math.round((parsed + amount) * 1000) / 1000).toString());
                             }}
-                            className="flex-1 py-3 px-4 rounded-xl border border-black/12 dark:border-[#585d61] bg-white dark:bg-surface-elevated text-primary text-sm font-semibold cursor-pointer transition-all duration-200"
+                            className="flex-1 py-3 px-4 rounded-xl border border-black/12 dark:border-border bg-white dark:bg-surface-elevated text-primary text-sm font-semibold cursor-pointer transition-[color,background-color,box-shadow,opacity] duration-200"
                         >
                             {label}
                         </button>
@@ -98,7 +98,7 @@ export const BeanRestockTab = ({
                     <button
                         type="button"
                         onClick={() => onRestockAmountChange('')}
-                        className="py-3 px-5 rounded-xl border border-black/12 dark:border-[#585d61] bg-white dark:bg-surface-elevated text-[#e74c3c] dark:text-red-400 text-sm font-semibold cursor-pointer"
+                        className="py-3 px-5 rounded-xl border border-black/12 dark:border-border bg-white dark:bg-surface-elevated text-[#e74c3c] dark:text-red-400 text-sm font-semibold cursor-pointer"
                     >
                         {t('addBeanModal.restock.clear')}
                     </button>

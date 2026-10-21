@@ -35,7 +35,7 @@ export const ScheduleDayView = ({
 
     return (
         <>
-            <div className="shrink-0 border-b border-border-subtle dark:border-[#585d61] bg-main-bg px-8 py-2.5 flex items-center gap-2">
+            <div className="shrink-0 border-b border-divider bg-main-bg px-6 py-2.5 flex items-center gap-2">
                 <SurfaceButton
                     onClick={() => hooks.setIsAddModalOpen(true)}
                     disabled={hooks.isLoading}
@@ -45,7 +45,7 @@ export const ScheduleDayView = ({
                 </SurfaceButton>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-8 py-6">
+            <div className="flex-1 overflow-y-auto p-6">
                 {/* Overdue Section — inside the scroll area so it scrolls with the day's batches */}
                 {hooks.overdueBatches.length > 0 && (
                     <div className="bg-amber-50/40 dark:bg-amber-950/8 rounded-xl px-4 py-4 mb-4">
@@ -82,7 +82,7 @@ export const ScheduleDayView = ({
                         <BatchCardSkeleton />
                     </div>
                 ) : hooks.batches.length === 0 ? (
-                    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
+                    <div className="bg-main-bg dark:border dark:border-border rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
                         <div className="text-[13px] text-muted text-center leading-relaxed">
                             {t('schedule.emptyState.title')}
                         </div>

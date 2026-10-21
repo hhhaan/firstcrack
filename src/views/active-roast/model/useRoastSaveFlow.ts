@@ -1,8 +1,9 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { invalidateScheduledBatchQueries, planBatchApi, planKeys, useDayBatches } from '@entities/plan';
+import { dayBatchesQuery, invalidateScheduledBatchQueries, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { formatRoastSaveError } from '@features/active-roast/lib/saveErrorClassification';
+import { startSelectedContinueBatch } from '@features/active-roast/lib/startNextFromContinue';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { type CompletedRoastSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { useBbpStore } from '@features/active-roast/model/bbp';
@@ -97,6 +98,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 rawBT: snapshot ? snapshot.rawBT : rawBT,
                 ambientTemperature,
                 ambientHumidity,
+                selectedBlendId: (snapshot ? snapshot.selection.blendId : selection.blendId) ?? null,
                 selectedBeanId: snapshot ? snapshot.selection.beanId : selection.beanId,
                 targetProfileId:
                     forcedProfileId !== undefined
@@ -160,10 +162,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 // Recovered (auto-saved) by PendingRoastRecovery on next launch.
                 const formPatch: SaveRoastFormData = {
                     notes: formData.notes,
+                    batchName: formData.batchName,
                     weightGrams: formData.weightGrams,
                     outputWeightKg: formData.outputWeightKg,
                     roastLevel: formData.roastLevel,
                     beanId: formData.beanId,
+                    blendId: formData.blendId ?? null,
                     beanLabel: formData.beanId ? null : formData.beanLabel,
                     linkedBatch,
                     deductStock: formData.deductStock,
@@ -223,10 +227,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                                 await qc.invalidateQueries({
                                     queryKey: planKeys.dayBatches(workspaceOwnerId, today),
                                 });
-                                return qc.fetchQuery({
-                                    queryKey: planKeys.dayBatches(workspaceOwnerId, today),
-                                    queryFn: () => planBatchApi.listForDateRange(workspaceOwnerId, today, today),
-                                });
+                                return qc.fetchQuery(dayBatchesQuery(workspaceOwnerId, today));
                             },
                         });
                     } catch (err) {
@@ -313,6 +314,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                         weightGrams: snapshot.selection.planBatchHandoff?.batchSizeKg ?? 0,
                         roastLevel: null,
                         beanId: snapshot.selection.beanId,
+                        blendId: snapshot.selection.blendId ?? null,
                         beanLabel: null,
                         linkedBatch: null,
                         deductStock: false,
@@ -355,12 +357,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             try {
                 if (!isWorkspaceReady || !workspaceOwnerId)
                     throw new Error(i18n.t('activeRoast.summary.workspaceLoading'));
-                const real = await planBatchApi.startForRoast(workspaceOwnerId, row);
+                const handoff = await startSelectedContinueBatch(workspaceOwnerId, row);
                 invalidateScheduledBatchQueries(qc);
                 if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 const liveNow = useRoastingStore.getState();
                 if (liveNow.sessionId) return;
-                useRoastingStore.getState().startBatch(toPlanBatchHandoff(real));
+                useRoastingStore.getState().startBatch(handoff);
                 flow.dismissContinue();
             } catch (err) {
                 invalidateScheduledBatchQueries(qc);

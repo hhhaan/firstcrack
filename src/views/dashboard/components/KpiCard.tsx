@@ -1,55 +1,69 @@
-import { Badge, type BadgeTone } from '@shared/ui/Badge';
-import type { LucideIcon } from 'lucide-react';
+import { cn } from '@shared/lib/cn';
 import { RefreshCw } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface KpiCardProps {
     label: string;
     value: string;
     change: string;
-    icon: LucideIcon;
+    unit?: string;
+    caption: string;
+    comparison: string;
+    className?: string;
+    children: ReactNode;
     onRefresh?: () => void;
     refreshing?: boolean;
 }
 
-export const KpiCard = ({ label, value, change, icon: Icon, onRefresh, refreshing }: KpiCardProps) => {
-    const isPositive = change.startsWith('+');
-    const isNegative = change.startsWith('-');
-    const isNeutral = change === '';
-
-    let changeTone: BadgeTone = 'neutral';
-    if (isPositive) changeTone = 'good';
-    else if (isNegative) changeTone = 'bad';
+export const KpiCard = ({
+    label,
+    value,
+    change,
+    unit,
+    caption,
+    comparison,
+    className,
+    children,
+    onRefresh,
+    refreshing,
+}: KpiCardProps) => {
+    const { t } = useTranslation();
 
     return (
-        <div className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 dark:border dark:border-border">
-            <div className="flex items-start justify-between mb-3.5">
-                <div className="w-8.5 h-8.5 rounded-lg bg-surface dark:bg-surface-elevated flex items-center justify-center">
-                    <Icon size={16} strokeWidth={1.5} className="text-secondary" />
-                </div>
-                {!isNeutral && (
-                    <Badge tone={changeTone} className="text-xs">
-                        {change}
-                    </Badge>
-                )}
-            </div>
-            <div className="text-[26px] font-semibold text-primary leading-[1.2] mb-1 tracking-[-0.5px]">{value}</div>
-            <div className="flex items-center justify-between">
-                <div className="text-[13px] text-muted tracking-[0.14px]">{label}</div>
+        <section className={cn('flex min-w-0 flex-col p-6 lg:p-8', className)}>
+            <div className="mb-4 flex min-h-6 items-center justify-between gap-3">
+                <h2 className="text-lg font-[450] leading-7 tracking-[0.24px] text-primary">{label}</h2>
                 {onRefresh && (
                     <button
                         type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onRefresh();
-                        }}
+                        onClick={onRefresh}
                         disabled={refreshing}
-                        className="size-5 flex items-center justify-center rounded hover:bg-surface dark:hover:bg-surface-elevated text-muted hover:text-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        aria-label="Refresh"
+                        className="flex size-6 items-center justify-center rounded text-muted transition-colors hover:bg-surface hover:text-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label={t('dashboard.refresh')}
                     >
-                        <RefreshCw size={12} strokeWidth={2} className={refreshing ? 'animate-spin' : ''} />
+                        <RefreshCw size={13} strokeWidth={1.5} className={refreshing ? 'animate-spin' : ''} />
                     </button>
                 )}
             </div>
-        </div>
+            <div className="flex min-h-14 items-baseline gap-2">
+                <span className="text-3xl font-[450] leading-9 tracking-[0.24px] text-primary xl:text-5xl xl:font-[350] xl:leading-12">
+                    {value}
+                </span>
+                {unit && <span className="text-sm text-muted">{unit}</span>}
+            </div>
+            <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                <span className="size-2 rounded-full border-[1.5px] border-palette-blue" aria-hidden="true" />
+                {caption}
+            </p>
+            <p className="mt-2 min-h-4 text-[11px] text-muted">
+                {change && (
+                    <>
+                        <span className="font-medium text-secondary">{change}</span> {comparison}
+                    </>
+                )}
+            </p>
+            <div className="mt-5 flex-1">{children}</div>
+        </section>
     );
 };

@@ -84,27 +84,16 @@ export const mapFirescopeGraphSettings = (
         field('xAxisSubScaleUnit', 'timeMinorTickIntervalSec', valid ? 'mapped' : 'invalid');
         if (valid) patch.timeMinorTickIntervalSec = tick;
     }
-    if ('yAxisScaleUnit' in graph || 'yAxisSubScaleUnit' in graph) {
+    if ('yAxisScaleUnit' in graph) {
         const major = graph.yAxisScaleUnit;
-        const minor = graph.yAxisSubScaleUnit;
-        const valid =
-            unit !== null &&
-            finite(major) &&
-            finite(minor) &&
-            minor >= 1 &&
-            major <= 500 &&
-            major >= minor &&
-            Number.isInteger(major / minor);
-        field('yAxisScaleUnit', 'tempLabelEvery', valid ? 'mapped' : 'invalid');
-        field('yAxisSubScaleUnit', 'tempGridInterval', valid ? 'mapped' : 'invalid');
+        const valid = unit !== null && finite(major) && major >= 1 && major <= 250000;
+        field('yAxisScaleUnit', 'tempLabelInterval', valid ? 'mapped' : 'invalid');
         if (valid) {
-            patch.tempGridInterval = minor;
-            patch.tempLabelEvery = major / minor;
-            patch.tempAxisMode = 'list';
+            patch.tempLabelInterval = major;
             patch.tempTickMode = 'interval';
-            patch.tempLabelCustom = true;
         }
     }
+    field('yAxisSubScaleUnit', null, 'unsupported');
     const colors: [string, CurveChannel][] = [
         ['btLineColor', 'bt'],
         ['etLineColor', 'et'],

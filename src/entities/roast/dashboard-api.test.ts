@@ -1,6 +1,6 @@
 /**
  * Drives shipped roastSessionApi dashboard methods (CQ-R6 path).
- * Asserts API surface used by widgets/dashboard-summary — no raw supabase in the widget.
+ * Asserts API surface used by features/dashboard-summary — no raw supabase in the feature.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 

@@ -19,7 +19,7 @@ export const ChipGroup = ({
                 <button
                     type="button"
                     onClick={() => setExpanded(true)}
-                    className="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer border border-black/10 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-muted"
+                    className="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer border border-black/10 dark:border-border bg-white/70 dark:bg-surface-elevated text-muted"
                 >
                     +{hiddenCount}
                 </button>

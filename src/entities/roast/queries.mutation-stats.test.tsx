@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { roastSessionApi } from './api';
 import {
     roastSessionKeys,
-    useCreateRoastSession,
     useDeleteRoastSession,
     useSetChargeWeight,
     useSetOutputWeight,
@@ -20,7 +19,6 @@ import {
 
 vi.mock('./api', () => ({
     roastSessionApi: {
-        create: vi.fn(async () => ({ id: 'created', user_id: 'user-1' })),
         update: vi.fn(async (row: { id: string }) => ({ id: row.id, user_id: 'user-1', status: 'completed' })),
         delete: vi.fn(async () => undefined),
         setOutputWeight: vi.fn(async () => undefined),
@@ -34,7 +32,6 @@ const historyKey = [...roastProfileQueryRoots.beanHistory, 'p1'];
 const consistencyKey = [...roastProfileQueryRoots.consistency, 'p1'];
 
 type Mutations = {
-    create: ReturnType<typeof useCreateRoastSession>;
     update: ReturnType<typeof useUpdateRoastSession>;
     remove: ReturnType<typeof useDeleteRoastSession>;
     weight: ReturnType<typeof useSetOutputWeight>;
@@ -55,7 +52,6 @@ describe('roast mutations refresh profile stats', () => {
 
     function Probe() {
         latest = {
-            create: useCreateRoastSession(uid),
             update: useUpdateRoastSession(uid),
             remove: useDeleteRoastSession(uid),
             weight: useSetOutputWeight(uid),
@@ -68,7 +64,6 @@ describe('roast mutations refresh profile stats', () => {
     beforeEach(() => {
         qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
         root = createRoot(document.createElement('div'));
-        vi.mocked(roastSessionApi.create).mockClear();
         vi.mocked(roastSessionApi.update).mockClear();
         vi.mocked(roastSessionApi.delete).mockClear();
         vi.mocked(roastSessionApi.setOutputWeight).mockClear();
@@ -114,7 +109,6 @@ describe('roast mutations refresh profile stats', () => {
             await expectStatsInvalidated();
         };
 
-        await run(() => latest.create.mutateAsync({} as never));
         await run(() => latest.update.mutateAsync({ id: 's1' } as never));
         await run(() => latest.remove.mutateAsync('s1'));
         await run(() =>

@@ -12,7 +12,7 @@ import {
     MARKER_LABEL_X_OFFSET_PX,
     scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
-import { formatRoastNote } from '@features/active-roast/lib/roast-note';
+import { controlChangeLabel, formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { EventMarkerStyle, TemperatureUnit } from '../../model/settings';
@@ -56,8 +56,8 @@ export const isCurveMarkerVisible = (
     return !xs.some((x, i) => Number.isFinite(x) && Number.isFinite(btActual[i]));
 };
 
-/** Comments hang from the top of the temperature axis, inside the plot. They do not follow BT. */
-export const noteAnchoredAtTop = (event: string) => event === 'Note';
+/** Notes and fan/drum writes hang from the top of the temperature axis. They do not follow BT. */
+export const noteAnchoredAtTop = (event: string) => event === 'Note' || event === 'Fan' || event === 'Drum';
 
 /** Pixels a note label sits below the top of the temperature axis. */
 export const NOTE_LABEL_TOP_INSET_PX = 8;
@@ -75,7 +75,7 @@ export const isEventMarkerVisible = (
     btActual: (number | null)[],
 ): boolean => {
     if (!Number.isFinite(timeSec) || timeSec < xMin || timeSec > xMax) return false;
-    if (event === 'Note') return true;
+    if (event === 'Note' || event === 'Fan' || event === 'Drum') return true;
     return isCurveMarkerVisible(timeSec, xMin, xMax, xs, btActual);
 };
 
@@ -90,6 +90,13 @@ const hasMarkerTemp = (temp: string) => {
 };
 
 export const eventLabelText = (event: string, timeSec: number, temp: string, note?: string) => {
+    if (event === 'Fan' || event === 'Drum') {
+        const value = Number(note);
+        const body = Number.isFinite(value)
+            ? controlChangeLabel(event === 'Fan' ? 'fan' : 'drum', value)
+            : note?.trim() || event;
+        return `${body}|${formatMarkerTime(timeSec)}`;
+    }
     const name =
         event === 'Note'
             ? note?.trim() || event

@@ -32,7 +32,7 @@ describe('localeForDate (dashboard date localization contract)', () => {
     });
 
     it('defaults unknown languages to en-US', async () => {
-        await i18n.changeLanguage('en');
+        await i18n.changeLanguage('fr');
         expect(localeForDate()).toBe('en-US');
     });
 });

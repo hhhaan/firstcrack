@@ -85,7 +85,7 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
 
     return (
         <>
-            <div className="mb-5 rounded-xl border border-border-subtle bg-main-bg p-4 dark:border-[#585d61]">
+            <div className="mb-5 rounded-xl border border-border-subtle bg-main-bg p-4 dark:border-border">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         <p className="mb-1 text-[13px] font-semibold tracking-[0.14px] text-primary">
@@ -108,7 +108,7 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
                             type="button"
                             disabled={!url}
                             onClick={() => void copy()}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-2 text-[12px] font-medium text-primary transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-2 text-[12px] font-medium text-primary transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40 dark:border-border dark:hover:bg-surface-elevated cursor-pointer"
                         >
                             {copied ? <Check size={14} strokeWidth={1.75} /> : <Copy size={14} strokeWidth={1.75} />}
                             {copied ? t('cupping.copied') : t('cupping.copyLink')}
@@ -117,7 +117,7 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
                             type="button"
                             disabled={!url}
                             onClick={() => setShowQr(true)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-2 text-[12px] font-medium text-primary transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-2 text-[12px] font-medium text-primary transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40 dark:border-border dark:hover:bg-surface-elevated cursor-pointer"
                         >
                             <QrCode size={14} strokeWidth={1.75} />
                             {t('cupping.resultsQr')}
@@ -127,7 +127,7 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
                                 href={url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-2 text-[12px] font-medium text-primary no-underline transition-colors hover:bg-surface dark:border-[#585d61] dark:hover:bg-surface-elevated"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-2 text-[12px] font-medium text-primary no-underline transition-colors hover:bg-surface dark:border-border dark:hover:bg-surface-elevated"
                             >
                                 <Link2 size={14} strokeWidth={1.75} />
                                 {t('cupping.openLink')}
@@ -139,7 +139,7 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
 
             {showQr && url ? (
                 <ModalShell onClose={() => setShowQr(false)} labelledBy="cupping-results-qr-title">
-                    <div className="w-full max-w-sm rounded-xl bg-main-bg p-6 shadow-lg dark:border dark:border-[#585d61]">
+                    <div className="w-full max-w-sm rounded-xl bg-main-bg p-6 shadow-lg dark:border dark:border-border">
                         <h2 id="cupping-results-qr-title" className="mb-1 text-base font-semibold text-primary">
                             {t('cupping.resultsShareTitle')}
                         </h2>
@@ -158,7 +158,7 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
                             <button
                                 type="button"
                                 onClick={() => void copy()}
-                                className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-3 py-1.5 text-xs dark:border-[#585d61] cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-3 py-1.5 text-xs dark:border-border cursor-pointer"
                             >
                                 {copied ? <Check size={14} /> : <Copy size={14} />}
                                 {copied ? t('cupping.copied') : t('cupping.copyLink')}
@@ -167,7 +167,7 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
                                 href={url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-3 py-1.5 text-xs dark:border-[#585d61]"
+                                className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-3 py-1.5 text-xs dark:border-border"
                             >
                                 <Link2 size={14} />
                                 {t('cupping.openLink')}

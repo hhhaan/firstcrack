@@ -1,4 +1,4 @@
-import { useUpdateBean } from '@entities/bean';
+import { useBeans, useUpdateBean } from '@entities/bean';
 import { useActiveWorkspace } from '@entities/organization';
 import {
     applyOptimisticSessionBeanOrigin,
@@ -11,11 +11,15 @@ import {
 } from '@entities/roast';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
+import { useAuthStore } from '@shared/store/auth';
+import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRoastStockRecorded } from '../hooks/useRoastStockRecorded';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
@@ -24,16 +28,32 @@ const labelCls = 'mb-1 block text-[11px] font-medium tracking-[0.3px] text-muted
 const isKnownLevel = (level: string): level is (typeof ROAST_LEVELS)[number] =>
     (ROAST_LEVELS as readonly string[]).includes(level);
 
-/** History edit of origin (the green bean), linked profile, and roast level. */
+/**
+ * Rows saved before titles were snapshotted still derive their title from the linked bean.
+ * Freeze what is shown now so changing the bean source cannot rename the roast.
+ */
+const frozenTitleFor = (session: RoastSessionWithRelations): string | null =>
+    session.batch_name?.trim() ? null : session.bean_label?.trim() || session.beans?.name?.trim() || null;
+
+/** History edit of the linked green bean, its origin, linked profile, and roast level. */
 export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelations }) => {
     const { t } = useTranslation();
     const qc = useQueryClient();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { data: profiles = [] } = useRoastProfiles(workspaceOwnerId);
+    const { data: beans = [] } = useBeans(workspaceOwnerId);
+    const authUserId = useAuthStore((state) => state.user?.id ?? '');
+    const { hidden: hiddenBeans } = useCatalogVisibility(authUserId, workspaceOwnerId, 'beans');
     const { mutateAsync: updateBean, isPending: beanPending } = useUpdateBean(workspaceOwnerId);
     const { mutateAsync: updateSession, isPending: sessionPending } = useUpdateRoastSession(workspaceOwnerId);
     const { mutateAsync: setOutputWeight, isPending: weightPending } = useSetOutputWeight(workspaceOwnerId);
     const canWrite = isWorkspaceReady && !!workspaceOwnerId;
+    // Stock that already moved stays booked to the original bean — relinking would desync the ledgers.
+    const { data: stockRecorded = false, isPending: stockCheckPending } = useRoastStockRecorded(
+        session.id,
+        session.plan_batch_id,
+    );
+    const beanLocked = stockRecorded || stockCheckPending;
     const storedOrigin = session.beans?.origin ?? '';
     const [origin, setOrigin] = useState(storedOrigin);
     const [profileId, setProfileId] = useState(session.profile_id ?? '');
@@ -44,6 +64,16 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
         setProfileId(session.profile_id ?? '');
         setLevel(session.roast_level ?? '');
     }, [storedOrigin, session.profile_id, session.roast_level]);
+
+    const beanOptions = useMemo(() => {
+        const visible = beans
+            .filter((bean) => bean.id === session.bean_id || !hiddenBeans.has(bean.id))
+            .map((bean) => ({ id: bean.id, name: bean.name }));
+        if (session.bean_id && !visible.some((bean) => bean.id === session.bean_id)) {
+            visible.unshift({ id: session.bean_id, name: session.beans?.name ?? session.bean_id });
+        }
+        return visible;
+    }, [beans, hiddenBeans, session.bean_id, session.beans?.name]);
 
     const profileOptions = profiles.map((profile) => ({ id: profile.id, name: profile.name }));
     if (session.profile_id && !profileOptions.some((profile) => profile.id === session.profile_id)) {
@@ -69,6 +99,43 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
         } catch {
             restoreRoastSessionCaches(qc, snapshot);
             setOrigin(storedOrigin);
+        }
+    };
+
+    const commitBean = async (raw: string) => {
+        if (beanLocked) return;
+        const next = raw === '' ? null : raw;
+        if (next === session.bean_id || !canWrite) return;
+        const frozenTitle = frozenTitleFor(session);
+        try {
+            // A linked inventory bean supersedes the free-text label in the same write.
+            await updateSession({
+                id: session.id,
+                bean_id: next,
+                ...(next ? { bean_label: null } : {}),
+                ...(frozenTitle ? { batch_name: frozenTitle } : {}),
+            });
+        } catch {
+            // The field falls back to the stored row on the next render.
+        }
+    };
+
+    /** Free-text commit (blur/Enter): no inventory bean, the typed name is the label. */
+    const commitBeanLabel = async (raw: string) => {
+        if (beanLocked) return;
+        const next = raw.trim() || null;
+        if (!canWrite) return;
+        if (next === (session.bean_label?.trim() || null) && !session.bean_id) return;
+        const frozenTitle = frozenTitleFor(session);
+        try {
+            await updateSession({
+                id: session.id,
+                bean_id: null,
+                bean_label: next,
+                ...(frozenTitle ? { batch_name: frozenTitle } : {}),
+            });
+        } catch {
+            // Keep the typed text; the next refetch restores the stored label.
         }
     };
 
@@ -121,6 +188,32 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
 
     return (
         <div className="space-y-4">
+            <div>
+                <label htmlFor={`history-bean-${session.id}`} className={labelCls}>
+                    {t('activeRoast.summary.bean')}
+                </label>
+                <BeanCombobox
+                    id={`history-bean-${session.id}`}
+                    data-testid="history-bean"
+                    items={beanOptions}
+                    selectedId={session.bean_id ?? ''}
+                    initialQuery={session.bean_label ?? ''}
+                    compact
+                    disabled={sessionPending || !canWrite || beanLocked}
+                    placeholder={t('activeRoast.summary.beanComboboxPlaceholder')}
+                    emptyLabel={t('activeRoast.summary.beanComboboxEmpty')}
+                    listToggleLabel={t('activeRoast.summary.beanComboboxToggle')}
+                    onSelect={(id) => {
+                        if (id) void commitBean(id);
+                    }}
+                    onFreeTextCommit={(name) => {
+                        void commitBeanLabel(name);
+                    }}
+                />
+                {stockRecorded && (
+                    <p className="mt-1 mb-0 text-[11px] text-muted">{t('history.expanded.beanLocked')}</p>
+                )}
+            </div>
             <div>
                 <label htmlFor={`history-origin-${session.id}`} className={labelCls}>
                     {t('history.expanded.origin')}

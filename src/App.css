@@ -46,18 +46,25 @@
 
     --color-main-bg: #ffffff;
     --color-roast-bg: #ffffff;
-    --color-surface: #efeff0;
-    --color-surface-elevated: #efeff0;
-    --color-surface-warm: rgba(245, 242, 239, 0.8);
-    --color-surface-warm-solid: #f5f2ef;
+    --color-shell-bg: #f3f4f6;
+    --color-dashboard-card-bg: #ffffff;
+    --color-surface: #f3f4f6;
+    --color-surface-elevated: #f9fafb;
+    --color-surface-warm: rgba(249, 250, 251, 0.8);
+    --color-surface-warm-solid: #f9fafb;
 
-    --color-primary: #171717;
-    --color-secondary: #4e4e4e;
-    --color-muted: #777169;
+    --color-primary: #101828;
+    --color-secondary: #4a5565;
+    --color-muted: #6a7282;
 
-    --color-border: #e5e5e5;
-    --color-border-subtle: rgba(0, 0, 0, 0.05);
-    --color-divider: #efeff0;
+    --color-border: #e5e7eb;
+    --color-border-subtle: #e5e7eb;
+    --color-divider: #e5e7eb;
+    --color-action: #000000;
+    --color-on-action: #ffffff;
+    --color-input-bg: #ffffff;
+    --color-surface-hover: #e5e7eb;
+    --color-strong-border: #d1d5dc;
 
     --color-palette-black: #0b0b0b;
     --color-palette-yellow: #ffff54;
@@ -72,6 +79,8 @@
     --color-palette-gray: #a3a2a2;
     --color-palette-gray-dark: #6c6a6b;
 
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-selected: 0 0 20px rgba(0, 0, 0, 0.04), 0 0 5px rgba(0, 0, 0, 0.06);
     --shadow-inset: rgba(0, 0, 0, 0.075) 0px 0px 0px 0.5px inset;
     --shadow-outline: rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
     --shadow-elevation: rgba(0, 0, 0, 0.04) 0px 4px 4px;
@@ -112,7 +121,7 @@
     --color-phase-development: oklch(0.6 0.18 155);
     --color-phase-development-fill: oklch(0.6 0.18 155 / 0.26);
     --color-fc-band-fill: oklch(0.6 0.18 155 / 0.1);
-    --color-bbp-fill: oklch(0.55 0 0 / 0.07);
+    --color-bbp-fill: oklch(0.55 0 0 / 0.055);
     --color-phase-danger: #dc2626;
     --color-phase-danger-bg: rgba(220, 38, 38, 0.1);
 
@@ -148,20 +157,27 @@
 
 /* ── Dark theme ──────────────────────────────────────────────── */
 html.dark {
-    --color-main-bg: #181d21;
-    --color-roast-bg: #181d21;
-    --color-surface: #181d21;
-    --color-surface-elevated: #262b30;
-    --color-surface-warm: rgba(30, 28, 26, 0.8);
-    --color-surface-warm-solid: #272b30;
+    --color-main-bg: #111111;
+    --color-roast-bg: #111111;
+    --color-shell-bg: #090909;
+    --color-dashboard-card-bg: #111111;
+    --color-surface: #212121;
+    --color-surface-elevated: #181818;
+    --color-surface-warm: rgba(24, 24, 24, 0.8);
+    --color-surface-warm-solid: #181818;
 
-    --color-primary: #e5e5e5;
-    --color-secondary: #a3a3a3;
-    --color-muted: #8a8580;
+    --color-primary: #ffffff;
+    --color-secondary: #c9c9c9;
+    --color-muted: #9e9e9e;
 
-    --color-border: #585d61;
-    --color-border-subtle: rgba(255, 255, 255, 0.08);
-    --color-divider: #585d61;
+    --color-border: #212121;
+    --color-border-subtle: #181818;
+    --color-divider: #212121;
+    --color-action: #ffffff;
+    --color-on-action: #000000;
+    --color-input-bg: #181818;
+    --color-surface-hover: #292929;
+    --color-strong-border: #757575;
 
     --shadow-inset: rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px inset;
     --shadow-outline: rgba(0, 0, 0, 0.3) 0px 0px 0px 1px;
@@ -244,9 +260,11 @@ body,
 body {
     font-family: var(--font-body);
     font-size: 16px;
+    font-weight: 450;
     line-height: 1.5;
+    letter-spacing: 0.24px;
     color: var(--color-primary);
-    background: var(--color-surface);
+    background: var(--color-shell-bg);
     font-variant-numeric: tabular-nums lining-nums;
     font-kerning: normal;
     font-feature-settings:
@@ -254,8 +272,6 @@ body {
         "tnum" 1,
         "lnum" 1,
         "zero" 1;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
 html[lang="en"] {
@@ -263,18 +279,14 @@ html[lang="en"] {
     --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+* {
+    scrollbar-width: none;
+}
+
 ::-webkit-scrollbar {
-    width: 5px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: var(--color-scrollbar-thumb);
-    border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: var(--color-scrollbar-thumb-hover);
+    display: none;
+    width: 0;
+    height: 0;
 }
 
 *,

@@ -2,7 +2,7 @@ import { toDisplayTemp, useRoastSettings } from '@features/active-roast';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatDuration, formatElapsed } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
-import { sessionBeanName } from '@shared/lib/sessionBeanName';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import type { StoredRoastEvent } from '@shared/types/roast';
 import { AlertCircle } from 'lucide-react';
@@ -44,7 +44,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
                 {items.map((item) => {
                     const { session: s, color, hasCurve, events, visible } = item;
-                    const name = sessionBeanName(s) ?? s.roast_profiles?.name ?? '—';
+                    const name = sessionRoastTitle(s) || s.roast_profiles?.name || '—';
                     return (
                         <button
                             key={s.id}
@@ -52,7 +52,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                             onClick={() => onToggle(s.id)}
                             className={`w-full rounded-lg border px-3 py-2.5 text-left transition ${
                                 visible
-                                    ? 'border-black/6 bg-surface dark:border-[#585d61] dark:bg-surface-elevated'
+                                    ? 'border-black/6 bg-surface dark:border-border dark:bg-surface-elevated'
                                     : 'border-transparent bg-transparent opacity-45'
                             }`}
                         >
@@ -135,7 +135,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                             </div>
 
                             <div
-                                className="mt-1.5 space-y-0.5 border-t border-black/5 pt-1.5 pl-5.5 text-[10px] text-muted dark:border-[#585d61]"
+                                className="mt-1.5 space-y-0.5 border-t border-black/5 pt-1.5 pl-5.5 text-[10px] text-muted dark:border-border"
                                 style={{ color }}
                             >
                                 <div className="flex justify-between gap-2 opacity-90">

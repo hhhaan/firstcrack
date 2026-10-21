@@ -109,4 +109,44 @@ BEGIN
   END;
 END;
 $$;
+
+-- F3 belongs to the RPC: request deduction even after the batch already deducted.
+SELECT set_config('request.jwt.claim.sub', :'owner', true);
+DO $$
+DECLARE
+  owner_id uuid := current_setting('test.owner')::uuid;
+  v_bean_id uuid;
+  plan_id uuid;
+  batch_id uuid;
+  session_id uuid := gen_random_uuid();
+  payload jsonb;
+  saved roast_sessions;
+BEGIN
+  INSERT INTO beans(user_id, name) VALUES(owner_id, 'F3 regression') RETURNING id INTO v_bean_id;
+  INSERT INTO roast_day_plans(user_id, date) VALUES(owner_id, '2099-01-02')
+    ON CONFLICT(user_id, date) DO UPDATE SET date = excluded.date RETURNING id INTO plan_id;
+  INSERT INTO roast_plan_batches(plan_id, bean_id, bean_name, batch_size_kg, target_roasted_kg, status)
+    VALUES(plan_id, v_bean_id, 'F3 regression', 5, 4.2, 'done') RETURNING id INTO batch_id;
+  INSERT INTO bean_stock_events(user_id, bean_id, delta_grams, event_type, reference_id)
+    VALUES(owner_id, v_bean_id, 20000, 'purchase', NULL),
+          (owner_id, v_bean_id, -5000, 'roast', batch_id);
+  payload := jsonb_build_object('id', session_id, 'user_id', owner_id,
+    'plan_batch_id', batch_id, 'bean_id', v_bean_id, 'weight_grams', 5000,
+    'roasted_at', now(), 'status', 'completed',
+    'expected_plan_bean_id', v_bean_id, 'expected_plan_blend_id', NULL);
+  saved := save_roast_op(payload, true, 5000, 0, false);
+  ASSERT saved.id = session_id, 'save must create the linked session';
+  ASSERT NOT EXISTS (SELECT 1 FROM bean_stock_events WHERE reference_id = session_id),
+    'save_roast_op must skip green already deducted by the batch';
+  saved := save_roast_op(payload, true, 5000, 0, false);
+  ASSERT (SELECT count(*) FROM roast_sessions WHERE id = session_id) = 1, 'same-ID retry saves once';
+  ASSERT (SELECT count(*) FROM bean_stock_events WHERE bean_id = v_bean_id AND event_type = 'roast') = 1;
+  ASSERT (SELECT sum(delta_grams) FROM bean_stock_events WHERE bean_id = v_bean_id) = 15000;
+  -- Positive control: an unlinked session must still deduct its own charge.
+  saved := save_roast_op((payload - 'plan_batch_id') || jsonb_build_object('id', gen_random_uuid()),
+    true, 5000, 0, false);
+  ASSERT EXISTS (SELECT 1 FROM bean_stock_events WHERE reference_id = saved.id AND delta_grams = -5000);
+  ASSERT (SELECT sum(delta_grams) FROM bean_stock_events WHERE bean_id = v_bean_id) = 10000;
+END;
+$$;
 ROLLBACK;

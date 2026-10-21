@@ -209,7 +209,7 @@ export const GeneralSettingsTab = () => {
     };
 
     return (
-        <div className="grid gap-6">
+        <div className="grid gap-8">
             <SettingsSection>
                 <SettingsSection.Header title={t('settings.groups.workspace')} />
                 <SettingsSection.Body className="divide-y divide-border-subtle p-0">

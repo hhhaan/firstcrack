@@ -1,12 +1,11 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { useDashboard } from '@features/dashboard-summary';
 import { useCoffeeFutures } from '@shared/api/coffee-futures';
 import type { View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
-import { useDashboard } from '@widgets/dashboard-summary/api/useDashboard';
 import { DashboardHeader } from './components/DashboardHeader';
 import { InventoryAlerts } from './components/InventoryAlerts';
 import { KpiSection } from './components/KpiSection';
-import { MonthlyChartSection } from './components/MonthlyChartSection';
 import { RecentSessionsTable } from './components/RecentSessionsTable';
 import { UpcomingBatches } from './components/UpcomingBatches';
 
@@ -28,8 +27,8 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 batchesLastMonth={db.batchesLastMonth}
                 kgRoastedThisMonth={db.kgRoastedThisMonth}
                 kgRoastedLastMonth={db.kgRoastedLastMonth}
-                avgDurationSeconds={db.avgDurationSeconds}
-                avgDurationLastMonthSeconds={db.avgDurationLastMonthSeconds}
+                dailyMetrics={db.dailyMetrics}
+                monthlyBatches={db.monthlyBatches}
                 loading={db.loading}
                 coffeeFutures={coffee.data}
                 coffeeFuturesLoading={coffee.loading}
@@ -37,18 +36,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 onRefreshCoffeeFutures={coffee.refetch}
             />
 
-            <div className="grid grid-cols-[1fr_350px] gap-5 mb-5">
-                <RecentSessionsTable data={db.recentSessions} loading={db.loading} onNavigate={onNavigate} />
-                <MonthlyChartSection
-                    monthlyBatches={db.monthlyBatches}
-                    batchesThisMonth={db.batchesThisMonth}
-                    kgRoastedThisMonth={db.kgRoastedThisMonth}
-                    recentSessions={db.recentSessions}
-                    loading={db.loading}
-                />
-            </div>
+            <RecentSessionsTable data={db.recentSessions} loading={db.loading} onNavigate={onNavigate} />
 
-            <div className="grid grid-cols-2 gap-5">
+            <div className="mt-8 grid overflow-hidden rounded-2xl border border-border bg-main-bg lg:grid-cols-2">
                 <UpcomingBatches data={db.upcomingBatches} loading={db.loading} onNavigate={onNavigate} />
                 <InventoryAlerts data={db.inventoryAlerts} loading={db.loading} />
             </div>

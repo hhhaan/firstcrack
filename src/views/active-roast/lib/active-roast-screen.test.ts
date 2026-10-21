@@ -6,6 +6,7 @@ import {
     canCancelDrop,
     chargeWaitTempBand,
     isReplayMachineMismatch,
+    liveWindowTitle,
     replayPointsForProfile,
     showPendingSummary,
 } from './active-roast-screen';
@@ -201,5 +202,40 @@ describe('active roast screen decisions', () => {
         expect(autoDropUnavailable('roasting', true, true)).toBe(false);
         expect(showPendingSummary(false, { totalTime: '1:00' })).toBe(true);
         expect(showPendingSummary(true, { totalTime: '1:00' })).toBe(false);
+    });
+});
+
+describe('liveWindowTitle', () => {
+    it('shows BBP time on idle Charge-wait, not the roast clock', () => {
+        expect(
+            liveWindowTitle({
+                bbpElapsed: '1:02',
+                btLabel: '180.0°C',
+                etLabel: '200.0°C',
+                roastElapsed: '0:00',
+                activePhase: false,
+            }),
+        ).toBe('First Crack — BBP 1:02 | BT 180.0°C | ET 200.0°C');
+    });
+
+    it('keeps roast time while roasting and falls back to the app name when idle', () => {
+        expect(
+            liveWindowTitle({
+                bbpElapsed: null,
+                btLabel: '180.0°C',
+                etLabel: '200.0°C',
+                roastElapsed: '4:12',
+                activePhase: true,
+            }),
+        ).toBe('First Crack — BT 180.0°C | ET 200.0°C | 4:12');
+        expect(
+            liveWindowTitle({
+                bbpElapsed: null,
+                btLabel: '—',
+                etLabel: '—',
+                roastElapsed: '0:00',
+                activePhase: false,
+            }),
+        ).toBe('First Crack');
     });
 });
