@@ -22,7 +22,7 @@ import {
     useRoastKeyboardShortcuts,
     useRoastSettings,
 } from '@features/active-roast';
-import { bbpEventsToLog } from '@features/active-roast/lib/bbp-log';
+import { bbpEventsToLog, bbpLogMarkers } from '@features/active-roast/lib/bbp-log';
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { isToggleableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import {
@@ -961,7 +961,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const handleChartNote = useCallback(
         (body: string, timeSec: number, controls?: RoastNoteControls) => {
             const wait = useBbpStore.getState();
-            if (wait.active && wait.recording && !isChargedPhase(useRoastingStore.getState().phase)) {
+            if (wait.active && wait.recording && !reviewing) {
                 const t = timeSec + (wait.points[0]?.t ?? 0);
                 const nearest = wait.points.reduce<(typeof wait.points)[number] | null>(
                     (best, point) => (!best || Math.abs(point.t - t) < Math.abs(best.t - t) ? point : best),
@@ -986,7 +986,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             }
             markEvent('Note', body, undefined, { timeSec, tempC }, controls);
         },
-        [frozenLogEdit, livePoints, markEvent, unit],
+        [frozenLogEdit, livePoints, markEvent, reviewing, unit],
     );
 
     const handleHeaterCommitted = useCallback(
@@ -1169,6 +1169,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 : null,
         [roastSettings.showTargetCurve, charged, roastEnded, rawBT, backgroundCurvePoints, elapsed, unit],
     );
+    const finalizedBbpLog = useMemo(
+        () =>
+            finalizedBbp?.sessionId === (reviewSnapshot?.sessionId ?? sessionId)
+                ? bbpEventsToLog(
+                      finalizedBbpEvents,
+                      Math.max(finalizedBbp.seconds, ...finalizedBbpPoints.map((point) => point.t), 0),
+                      unit,
+                      true,
+                  )
+                : [],
+        [finalizedBbp, reviewSnapshot?.sessionId, sessionId, finalizedBbpEvents, finalizedBbpPoints, unit],
+    );
     const displayedBbpLog = useMemo(
         () => bbpEventsToLog(bbpEvents, bbpPoints[0]?.t ?? 0, unit),
         [bbpEvents, bbpPoints, unit],
@@ -1220,26 +1232,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         return editedHeatSet(points, dropTime, reviewHeaterEvents) ?? chart.visibleHeatSet;
     }, [reviewing, reviewHeaterEvents, curveEntries, curveElapsed, chart.visibleControlXs, chart.visibleHeatSet]);
     const manual = useMemo(() => {
-        const initial =
-            finalizedBbp?.sessionId === (reviewSnapshot?.sessionId ?? sessionId)
-                ? bbpEventsToLog(
-                      finalizedBbpEvents,
-                      Math.max(finalizedBbp.seconds, ...finalizedBbpPoints.map((point) => point.t), 0),
-                      unit,
-                      true,
-                  )
-                : [];
-        const entries = bbpActive && !reviewing ? displayedBbpLog : [...initial, ...curveEntries];
+        const entries = bbpActive && !reviewing ? displayedBbpLog : [...finalizedBbpLog, ...curveEntries];
         const end =
             bbpActive && !reviewing ? (chartView.livePoints[chartView.livePoints.length - 1]?.time ?? 0) : curveElapsed;
         return manualControlData(entries, chart.minTime, Math.max(chart.minTime, end));
     }, [
-        finalizedBbp,
-        reviewSnapshot?.sessionId,
-        sessionId,
-        finalizedBbpEvents,
-        finalizedBbpPoints,
-        unit,
+        finalizedBbpLog,
         bbpActive,
         reviewing,
         displayedBbpLog,
@@ -1289,7 +1287,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         elapsed: curveElapsed,
         charged,
         roastEnded,
-        eventMarkers: bbpActive && !reviewing ? buildEventMarkers(displayedBbpLog) : eventMarkers,
+        eventMarkers:
+            bbpActive && !reviewing
+                ? bbpLogMarkers(displayedBbpLog)
+                : [...eventMarkers, ...bbpLogMarkers(finalizedBbpLog)],
         turningPoints: reviewing ? reviewChartTurningPoints : turningPoints,
         phaseSegments,
         showFcBand: roastSettings.showFcBand,
@@ -1419,7 +1420,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         savedReview={reviewing}
                         onAddNote={chartFrame.onAddNote}
                         noteContextKey={
-                            bbpActive ? `bbp:${bbpGeneration}` : (reviewSessionId ?? sessionId ?? 'waiting')
+                            bbpActive && !reviewing
+                                ? `bbp:${bbpGeneration}`
+                                : (reviewSessionId ?? sessionId ?? 'waiting')
                         }
                         onAddEvent={chartFrame.onAddEvent}
                         onMoveEvent={chartFrame.onMoveEvent}
