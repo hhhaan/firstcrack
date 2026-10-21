@@ -36,9 +36,9 @@ import { Lock, Play } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
-import { ControlSourceSettings } from './ControlSourceSettings';
 import { CurveStyleSection } from './CurveStyleSection';
 import { EventButtonSection } from './EventButtonSection';
+import { RoastControlSourceSettings } from './RoastControlSourceSettings';
 import { RoastingSettingsImport } from './RoastingSettingsImport';
 import {
     SettingsCheckRow,
@@ -1345,7 +1345,7 @@ export const RoastSettingsTab = () => {
                     />
                 </SettingsSection.Body>
             </SettingsSection>
-            <ControlSourceSettings />
+            <RoastControlSourceSettings />
             <SmoothingControls />
 
             <SettingsSection group="sensors">

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingsCheckRow } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 
-export const ControlSourceSettings = () => {
+export const RoastControlSourceSettings = () => {
     const { t } = useTranslation();
     const { controlDataSource } = useRoastSettings();
     return (
