@@ -4,6 +4,7 @@ import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc
 import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import { type TemperatureUnit, useRoastSettings } from '@features/active-roast/model/settings';
 import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
@@ -14,6 +15,7 @@ import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
+import { BbpEventForm } from './BbpEventForm';
 import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
 import { RoastSidePanelLayout } from './RoastSidePanelLayout';
@@ -121,6 +123,7 @@ export const RoastSidePanel = ({
     const showStartDev = dtrPct != null || (devTimeStr !== '' && devTimeStr !== '—');
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
+    const bbpReadOnly = useBbpStore((state) => state.active) && !reviewing;
     const canMark = isRoastEventMarkEnabled(phase);
     const marksEnabled = canMark && !reviewing;
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
@@ -137,10 +140,13 @@ export const RoastSidePanel = ({
             roastLogDisplayEntries={roastLogDisplayEntries}
             onRemoveLogEntry={onRemoveLogEntry}
             logEditOptions={logEditOptions}
-            deletableEvent={reviewing ? isReviewDeletableEvent : undefined}
-            editableEvent={reviewing ? (event) => event !== 'Charge' && event !== 'Drop' : undefined}
+            deletableEvent={bbpReadOnly ? () => false : reviewing ? isReviewDeletableEvent : undefined}
+            editableEvent={
+                bbpReadOnly ? () => false : reviewing ? (event) => event !== 'Charge' && event !== 'Drop' : undefined
+            }
         >
             <RoastAlertBanner alerts={activeAlerts} />
+            <BbpEventForm rawBT={rawBT} />
             {/* ET */}
             <div className="text-right">
                 <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>

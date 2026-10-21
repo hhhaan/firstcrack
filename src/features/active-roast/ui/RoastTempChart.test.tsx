@@ -643,6 +643,20 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('[data-chart-note-form]')).toBeNull();
     });
 
+    it('discards an open BBP note when Charge or the reviewed session changes', () => {
+        const onAddNote = vi.fn();
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, onAddNote, noteContextKey: 'bbp:one' })));
+        act(() =>
+            container
+                .querySelector('[tabindex="-1"]')
+                ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
+        );
+        expect(container.querySelector('[data-chart-note-form]')).not.toBeNull();
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, onAddNote, noteContextKey: 'roast:two' })));
+        expect(container.querySelector('[data-chart-note-form]')).toBeNull();
+        expect(onAddNote).not.toHaveBeenCalled();
+    });
+
     it('edits a note mark with time only', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();

@@ -19,7 +19,16 @@ export interface RoastEventMarker extends RoastNoteControls {
     note?: string;
 }
 
+export type ManualControlData = {
+    xs: number[];
+    heater: (number | null)[];
+    fan: (number | null)[];
+    drum: (number | null)[];
+};
+
 export interface ControlData {
+    manual?: ManualControlData;
+    dataSource?: 'auto' | 'manual' | 'both';
     readUnits?: (ReadUnits | undefined)[];
     /** Successful app writes only; measured changes never create these labels. */
     changes?: { timeSec: number; values: AppliedRoastControl }[];

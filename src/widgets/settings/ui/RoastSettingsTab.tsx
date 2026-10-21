@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
 import { CurveStyleSection } from './CurveStyleSection';
 import { EventButtonSection } from './EventButtonSection';
+import { RoastControlSourceSettings } from './RoastControlSourceSettings';
 import { RoastingSettingsImport } from './RoastingSettingsImport';
 import {
     SettingsCheckRow,
@@ -1344,6 +1345,7 @@ export const RoastSettingsTab = () => {
                     />
                 </SettingsSection.Body>
             </SettingsSection>
+            <RoastControlSourceSettings />
             <SmoothingControls />
 
             <SettingsSection group="sensors">

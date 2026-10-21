@@ -1,4 +1,6 @@
+import { BBP_EVENTS_PREFIX, parseBbpEvents } from '@shared/lib/bbp-events';
 import { reportTsvRestoreDroppedRows } from '@shared/lib/sentry';
+import type { StoredBbpEvent } from '@shared/types/roast';
 import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 import { z } from 'zod';
 
@@ -32,6 +34,7 @@ const extraReadingsSchema: z.ZodType<ExtraSensorReading[]> = z.array(
 );
 
 export interface TsvPoint {
+    bbpEvents?: StoredBbpEvent[];
     t: number;
     bt: number;
     et: number | null;
@@ -82,10 +85,19 @@ export const parseTsv = (text: string): TsvPoint[] => {
     const lines = text.split('\n');
     const points: TsvPoint[] = [];
     let processing: TemperatureProcessing | undefined;
+    let bbpEvents: StoredBbpEvent[] = [];
     let droppedExtraReadings = 0;
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].replace(/\r$/, '');
         if (!line) continue;
+        if (line.startsWith(BBP_EVENTS_PREFIX)) {
+            try {
+                bbpEvents = parseBbpEvents(JSON.parse(line.slice(BBP_EVENTS_PREFIX.length)));
+            } catch {
+                bbpEvents = [];
+            }
+            continue;
+        }
         if (line.startsWith('# processing\t')) {
             processing = undefined;
             try {
@@ -120,6 +132,7 @@ export const parseTsv = (text: string): TsvPoint[] => {
             sensorClock: /^[a-f0-9]{32}:\d+$/.test(cols[12] ?? '') ? cols[12] : null,
             ...(extraReadings !== undefined ? { extraReadings } : {}),
             ...(processing ? { processing } : {}),
+            ...(bbpEvents.length ? { bbpEvents } : {}),
         });
     }
     reportTsvRestoreDroppedRows(droppedExtraReadings);

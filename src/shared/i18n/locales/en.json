@@ -1212,6 +1212,22 @@
         },
         "review": {
             "return": "Return to charge wait"
+        },
+        "bbpInput": {
+            "title": "BBP manual record",
+            "gas": "Gas · machine unit",
+            "airflow": "Airflow · machine unit",
+            "drum": "Drum · RPM",
+            "note": "Note",
+            "add": "Record event",
+            "log": "BBP event log"
+        },
+        "controlSource": {
+            "title": "Control graph data",
+            "description": "Auto prefers collected values and falls back to manual records for missing channels. This changes the display only.",
+            "auto": "Auto first",
+            "manual": "Manual values",
+            "both": "Show both sources"
         }
     },
     "schedule": {

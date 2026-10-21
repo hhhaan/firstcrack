@@ -1212,6 +1212,22 @@
         },
         "review": {
             "return": "待機画面に戻る"
+        },
+        "bbpInput": {
+            "title": "BBP手動記録",
+            "gas": "火力 · 機器の単位",
+            "airflow": "排気 · 機器の単位",
+            "drum": "ドラム · RPM",
+            "note": "メモ",
+            "add": "イベント記録",
+            "log": "BBPイベント記録"
+        },
+        "controlSource": {
+            "title": "制御グラフのデータ",
+            "description": "自動は計測値を優先し、ないチャンネルは手動記録を表示します。表示のみを変更します。",
+            "auto": "自動優先",
+            "manual": "手動入力値",
+            "both": "自動と手動を区別"
         }
     },
     "schedule": {

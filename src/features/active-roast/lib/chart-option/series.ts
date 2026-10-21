@@ -275,7 +275,18 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         controlGuideMarkLines,
         fontScale = 1,
     } = params;
-    const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference, changes } = controlData;
+    const {
+        xs: cxs,
+        drumTemp,
+        heatPower,
+        fanSpeed,
+        heatSet,
+        heatTarget,
+        reference,
+        changes,
+        manual,
+        dataSource = 'auto',
+    } = controlData;
     const series: object[] = [];
 
     // 참조(현재 곡선, 투명도 30%)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
@@ -306,7 +317,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         }
     }
 
-    if (showControlDrum) {
+    if (showControlDrum && dataSource !== 'manual') {
         const data = cxs.map((x, i) => [x, drumTemp[i]] as [number, number | null]);
         series.push({
             name: 'Drum',
@@ -334,7 +345,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             step: 'end' as const,
         });
     }
-    if (showControlHeat && heatSet?.some((v) => v != null)) {
+    if (showControlHeat && dataSource !== 'manual' && heatSet?.some((v) => v != null)) {
         series.push({
             name: 'Heat set',
             type: 'line' as const,
@@ -347,7 +358,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             step: 'end' as const,
         });
     }
-    if (showControlHeat) {
+    if (showControlHeat && dataSource !== 'manual') {
         const data = cxs.map((x, i) => [x, heatPower[i]] as [number, number | null]);
         series.push({
             name: 'Heat',
@@ -361,7 +372,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             ...controlMarks(data, changes, 'heater', curves.heat.current, fontScale),
         });
     }
-    if (showControlFan) {
+    if (showControlFan && dataSource !== 'manual') {
         const data = cxs.map((x, i) => [x, fanSpeed[i]] as [number, number | null]);
         series.push({
             name: 'Fan',
@@ -375,7 +386,54 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             ...controlMarks(data, changes, 'fan', curves.fan.current, fontScale),
         });
     }
-    const guideOwner = series.find((item) => ['Drum', 'Heat', 'Fan'].includes((item as { name: string }).name));
+    if (manual) {
+        for (const channel of [
+            {
+                role: 'heater' as const,
+                name: 'Heat (manual)',
+                enabled: showControlHeat,
+                measured: heatPower,
+                style: curves.heat.current,
+                axis: 3,
+            },
+            {
+                role: 'fan' as const,
+                name: 'Fan (manual)',
+                enabled: showControlFan,
+                measured: fanSpeed,
+                style: curves.fan.current,
+                axis: 3,
+            },
+            {
+                role: 'drum' as const,
+                name: 'Drum (manual)',
+                enabled: showControlDrum,
+                measured: drumTemp,
+                style: curves.drum.current,
+                axis: 2,
+            },
+        ]) {
+            if (
+                !channel.enabled ||
+                !hasNumericSample(manual[channel.role]) ||
+                (dataSource === 'auto' && hasNumericSample(channel.measured))
+            )
+                continue;
+            series.push({
+                name: channel.name,
+                type: 'line' as const,
+                color: channel.style.color,
+                xAxisIndex: 1,
+                yAxisIndex: channel.axis,
+                data: manual.xs.map((x, index) => [x, manual[channel.role][index]]),
+                lineStyle: { ...channel.style, type: 'dashed' as const },
+                ...lineSeriesBase,
+                step: 'end' as const,
+            });
+        }
+    }
+    const guideOwner =
+        series.find((item) => ['Drum', 'Heat', 'Fan'].includes((item as { name: string }).name)) ?? series[0];
     if (guideOwner && controlGuideMarkLines.length > 0) {
         Object.assign(guideOwner, {
             markLine: {

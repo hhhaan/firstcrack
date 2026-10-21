@@ -53,6 +53,8 @@ export const historyXView = (input: {
 });
 
 export const historyControls = (input: {
+    manual?: ControlData['manual'];
+    dataSource?: ControlData['dataSource'];
     changes?: ControlData['changes'];
     points: {
         processing?: TemperatureProcessing;
@@ -76,11 +78,13 @@ export const historyControls = (input: {
             (role) => feedbackValue(point[role], role, point.processing?.read_units) != null,
         ),
     );
-    const hasControls = sessionHasControls || input.referenceControls;
+    const hasControls = sessionHasControls || input.referenceControls || Boolean(input.manual);
     if (!hasControls) return { hasControls, controlData: undefined };
     return {
         hasControls,
         controlData: {
+            ...(input.manual && { manual: input.manual }),
+            ...(input.dataSource && { dataSource: input.dataSource }),
             changes: input.changes,
             readUnits: input.points.map((point) => point.processing?.read_units),
             xs: input.points.map((point) => point.t),
