@@ -972,8 +972,6 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
-            "batchTitle": "Roast title",
-            "batchTitleHint": "Your edited title is kept. Clear it to restore the automatic title.",
             "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",
@@ -987,7 +985,9 @@
             "openSettings": "Open roast settings",
             "reconnecting": "Reconnecting — curve paused. Do not reload the window",
             "batchNumber": "#{{number}}",
-            "batchNumberHint": "Counts Charges on this device since this feature was enabled, separately by workspace and profile. Canceled/discarded batches retain their number."
+            "batchNumberHint": "Counts Charges on this device since this feature was enabled, separately by workspace and profile. Canceled/discarded batches retain their number.",
+            "batchTitle": "Roast title",
+            "batchTitleHint": "Your edited title is kept. Clear it to restore the automatic title."
         },
         "readings": {
             "beanTemp": "Bean Temp",

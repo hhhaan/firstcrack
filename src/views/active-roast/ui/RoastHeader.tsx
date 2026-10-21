@@ -10,7 +10,6 @@ import { useBatchNumber } from '@features/active-roast/model/useBatchNumber';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown } from 'lucide-react';
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RoastBatchTitle } from './RoastBatchTitle';
 import { TargetMenu } from './TargetMenu';
@@ -74,10 +73,6 @@ export const RoastHeader = ({
     const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
-    const profileName = dbProfiles.find((profile) => profile.id === targetProfileId)?.name ?? null;
-    useEffect(() => {
-        useRoastingStore.getState().setReferenceDisplayName(targetProfileId, profileName, workspaceOwnerId);
-    }, [targetProfileId, profileName, workspaceOwnerId]);
     const beanVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'beans');
     const profileVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
     const visibleBeans = beans.filter((bean) => bean.id === selectedBeanId || !beanVisibility.hidden.has(bean.id));
