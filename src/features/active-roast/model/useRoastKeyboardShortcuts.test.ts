@@ -64,6 +64,14 @@ describe('Charge hotkey form tags', () => {
     });
 });
 
+describe('Drop hotkey while the window is focused', () => {
+    it('keeps the webview hotkey armed and dedupes it with the OS shortcut', () => {
+        expect(shortcutsSrc).toContain('enableOnFormTags: dropEnabledOnFormTags');
+        expect(shortcutsSrc).toContain('DROP_SHORTCUT_DEDUPE_MS');
+        expect(shortcutsSrc).not.toContain('dropHeldGlobally');
+    });
+});
+
 describe('isRoastRefreshBlocked', () => {
     it('blocks an in-progress roast, an unsaved end, and the gap before the next charge', () => {
         expect(isRoastRefreshBlocked('roasting', false)).toBe(true);

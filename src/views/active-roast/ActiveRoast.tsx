@@ -105,6 +105,7 @@ import {
 import { applyExplicitDisconnectReset } from './lib/explicit-disconnect-reset';
 import { useLeadingLock } from './lib/leading-gate';
 import { resolveLiveChartView } from './lib/live-chart-view';
+import { buildReferenceLog } from './lib/reference-log';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
 import { useChartKeyboard } from './model/useChartKeyboard';
 import { useChartPipeline } from './model/useChartPipeline';
@@ -307,7 +308,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => dbProfiles.find((p) => p.id === targetProfileId && p.user_id === workspaceOwnerId) ?? null,
         [dbProfiles, targetProfileId, workspaceOwnerId],
     );
-    const { points: targetCurvePoints, isLoading: curveLoading } = useResolvedProfileCurve(targetProfile);
+    const {
+        points: targetCurvePoints,
+        isLoading: curveLoading,
+        isError: curveError,
+    } = useResolvedProfileCurve(targetProfile);
     const historyPoints = historyCurve.data ?? [];
     const backgroundCurvePoints = reference ? historyPoints : targetCurvePoints;
     const replayPoints = replayPointsForProfile(
@@ -342,6 +347,27 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
     const referenceTpTime = useMemo(() => sourceEvents.find((e) => e.type === 'TP')?.time_sec ?? null, [sourceEvents]);
     const heatEvents = reference ? reference.heaterEvents : profileHeaterEvents(targetProfile);
+    const referenceLog = useMemo(() => {
+        const name = reference?.name ?? targetProfile?.name;
+        if (!name) return undefined;
+        return {
+            name,
+            entries: buildReferenceLog(sourceEvents, backgroundCurvePoints, unit, heatEvents),
+            loading: reference ? historyCurve.isLoading : curveLoading,
+            error: reference ? historyCurve.isError : curveError,
+        };
+    }, [
+        reference,
+        targetProfile,
+        sourceEvents,
+        backgroundCurvePoints,
+        unit,
+        heatEvents,
+        historyCurve.isLoading,
+        historyCurve.isError,
+        curveLoading,
+        curveError,
+    ]);
     const heatTarget = useMemo(() => {
         if (!reference && !targetProfile) return undefined;
         return profileHeatTarget(backgroundCurvePoints, replayDropTime, heatEvents, referenceTpTime);
@@ -799,7 +825,38 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastPhaseColor = getRoastPhaseColor(charged, roastPhaseName);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
-    const eventMarkers = useMemo(() => buildEventMarkers(bbpChartEntries), [bbpChartEntries, resolvedTheme]);
+    const eventMarkers = useMemo(
+        () => [
+            ...buildEventMarkers(bbpChartEntries),
+            ...((!bbpActive || reviewing) && roastSettings.showTargetCurve && roastSettings.showProfileHeat
+                ? (referenceLog?.entries ?? []).flatMap((entry) =>
+                      entry.event === 'Heater' && entry.timeSec != null
+                          ? [
+                                {
+                                    reference: true,
+                                    timeSec: entry.timeSec,
+                                    event: entry.event,
+                                    color: '',
+                                    timeStr: entry.time,
+                                    temp: entry.temp,
+                                    tempC: entry.tempC,
+                                    note: entry.note,
+                                },
+                            ]
+                          : [],
+                  )
+                : []),
+        ],
+        [
+            bbpChartEntries,
+            bbpActive,
+            reviewing,
+            referenceLog,
+            roastSettings.showTargetCurve,
+            roastSettings.showProfileHeat,
+            resolvedTheme,
+        ],
+    );
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const phaseSegments = useMemo(
         () =>
@@ -1492,6 +1549,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         logEntries={bbpChartEntries}
                         pressedButtons={pressedButtons}
                         roastLogDisplayEntries={roastLogDisplayEntries}
+                        referenceLog={referenceLog}
                         noteInput={noteInput}
                         onNoteChange={setNoteInput}
                         onNoteSubmit={handleNoteSubmit}

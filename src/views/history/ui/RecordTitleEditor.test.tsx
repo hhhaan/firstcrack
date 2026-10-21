@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { formatDateShort } from '@shared/lib/format';
+import { formatDateTimeShort } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -90,7 +90,7 @@ describe('record title edits', () => {
     });
     it('keeps a date fallback from becoming a stored title', async () => {
         await render({ ...session, beans: null, batch_name: null });
-        expect(host.querySelector('h1')?.textContent).toBe(formatDateShort(session.roasted_at));
+        expect(host.querySelector('h1')?.textContent).toBe(formatDateTimeShort(session.roasted_at));
         await open();
         await blur();
         expect(state.update).not.toHaveBeenCalled();

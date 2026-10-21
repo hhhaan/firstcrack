@@ -167,6 +167,10 @@ _Avoid_: Cooling the roasted coffee.
 
 ## Quality
 
+**Saved-roast correction**:
+An operator's correction to an already saved roast's charge weight, measured output, or roast level. Measured output takes precedence over an estimate; correcting a roast does not repeat its plan-batch stock deduction.
+_Avoid_: A new roast save, or a rewrite of the recorded measurement series.
+
 **Development time**:
 1차 크랙 이후 배출까지의 시간.
 _Avoid_: The whole roast duration. The Maillard span.

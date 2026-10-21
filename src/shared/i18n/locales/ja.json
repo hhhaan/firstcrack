@@ -964,6 +964,8 @@
         },
         "autoChargeHeld": "温度が回復すると自動投入されます。今すぐ始めるには Charge を押してください。",
         "header": {
+            "sourceChangeTitle": "ロースト原料の変更",
+            "sourceChangeUnlinks": "原料を変更すると、このバッチのスケジュール連携が解除されます。",
             "profileSources": "プロファイルの候補",
             "noBeanSelected": "生豆未選択",
             "target": "ターゲット:",
@@ -993,6 +995,13 @@
         "log": {
             "expand": "焙煎ログを展開",
             "collapse": "焙煎ログを折りたたむ",
+            "source": "ログの表示対象",
+            "current": "現在",
+            "reference": "プロファイル",
+            "referenceLoading": "記録を読み込み中です。",
+            "referenceError": "プロファイルの記録を読み込めませんでした。",
+            "referenceEmpty": "保存されたイベントはありません。",
+            "referenceLiveContinues": "閲覧中も現在のロースト記録は継続します。",
             "title": "ローストログ",
             "editRangeHint": "時間はm:ss形式、温度は測定曲線の範囲内で入力してください。",
             "deleteNote": "ノート削除"
@@ -1428,6 +1437,10 @@
             "summary": "概要",
             "colorWhole": "色度 (ホール)",
             "colorGround": "色度 (粉砕)",
+            "colorReadingsHint": "複数の測定値はカンマで区切ってください。",
+            "colorAverage_one": "平均 {{value}} · {{count}}回測定",
+            "colorAverage_other": "平均 {{value}} · {{count}}回測定",
+            "colorInvalidNumbers": "数値をカンマで区切って入力してください。",
             "colorTooLong": "色度の入力が長すぎます。",
             "keyEvents": "主要イベント",
             "heatRecord": "火力記録",

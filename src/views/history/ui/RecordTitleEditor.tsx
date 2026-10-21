@@ -1,6 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateRoastSession } from '@entities/roast';
-import { formatDateShort } from '@shared/lib/format';
+import { formatDateTimeShort } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,7 @@ export const RecordTitleEditor = ({ session }: { session: RoastSessionWithRelati
     const { mutateAsync, isPending } = useUpdateRoastSession(workspaceOwnerId);
     const inventoryName = session.beans?.name?.trim() || null;
     const stored = session.batch_name?.trim() || null;
-    const dateLabel = formatDateShort(session.roasted_at);
+    const dateLabel = formatDateTimeShort(session.roasted_at);
     const fallback = session.bean_label?.trim() || inventoryName || dateLabel;
     const displayed = stored || fallback;
     const canWrite = isWorkspaceReady && !!workspaceOwnerId && session.user_id === workspaceOwnerId;

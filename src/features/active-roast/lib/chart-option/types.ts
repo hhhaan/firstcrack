@@ -9,6 +9,8 @@ import type { TurningPoint } from '../turningPoints';
 export type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
 
 export interface RoastEventMarker extends RoastNoteControls {
+    /** Read-only event from the selected reference, drawn behind current events. */
+    reference?: boolean;
     logId?: string;
     timeSec: number;
     event: string;

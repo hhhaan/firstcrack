@@ -35,6 +35,7 @@ const chartInput = {
     heatPower: [2],
     fanSpeed: [3],
     heatSet: [4],
+    controlChanges: [{ timeSec: 1, values: { fan: 40 } }],
     heatTarget: { xs: [0], values: [80] },
     referenceXs: [] as number[],
     referenceDrum: [] as (number | null)[],

@@ -637,6 +637,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
+                    if (marker.reference) return [];
                     if (hideChargeLabel && marker.event === 'Charge') return [];
                     if (!isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual)) return [];
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));

@@ -12,8 +12,11 @@ import {
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { message } from '@tauri-apps/plugin-dialog';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+
+/** One physical press can reach both the OS hotkey and the webview. Collapse that pair. */
+const DROP_SHORTCUT_DEDUPE_MS = 100;
 
 interface UseRoastKeyboardShortcutsParams {
     isActive: boolean;
@@ -112,6 +115,18 @@ export const useRoastKeyboardShortcuts = ({
     const fcEndKeys = useShortcutKeys('fcEnd');
     const dropKeys = useShortcutKeys('drop');
     const chargeEnabledOnFormTags = chargeKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
+    const dropEnabledOnFormTags = dropKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
+    const onMarkDropRef = useRef(onMarkDrop);
+    const lastDropShortcutAt = useRef(0);
+    useEffect(() => {
+        onMarkDropRef.current = onMarkDrop;
+    });
+    const markDropFromShortcut = useCallback(() => {
+        const now = Date.now();
+        if (now - lastDropShortcutAt.current < DROP_SHORTCUT_DEDUPE_MS) return;
+        lastDropShortcutAt.current = now;
+        onMarkDropRef.current();
+    }, []);
     const shortcutsEnabled = !recording && !dialogOpen;
     const enabled =
         shortcutsEnabled &&
@@ -139,8 +154,9 @@ export const useRoastKeyboardShortcuts = ({
         });
     const canMark = shortcutBase && isRoastEventMarkEnabled(phase);
     const canMarkEvents = canMark || (markWhileReviewing && shortcutBase);
-    // Drop is held at OS level while it can be marked, so an unfocused window still records it.
-    const dropHeldGlobally = useGlobalDropShortcut({ enabled: canMark, keys: dropKeys, onFire: onMarkDrop });
+    // OS-level Drop still covers an unfocused window. The webview hotkey stays on so a focused
+    // window records Drop when the OS callback does not.
+    useGlobalDropShortcut({ enabled: canMark, keys: dropKeys, onFire: markDropFromShortcut });
 
     useEffect(() => {
         // `pnpm dev` in a browser keeps F5. Only the desktop webview drops the roast on reload.
@@ -237,17 +253,21 @@ export const useRoastKeyboardShortcuts = ({
         [canMarkEvents, onMarkEvent],
     );
 
-    // Ctrl/Meta + Shift + D → Mark Drop. Global holder owns it while it is registered;
-    // the webview hotkey is only the fallback (browser dev, refused registration).
+    // Ctrl/Meta + Shift + D → Mark Drop. Stays on while the OS hotkey is held; the shared
+    // dedupe drops the second delivery of the same press.
     useHotkeys(
         shortcutHotkeys(dropKeys),
         (e) => {
             e.preventDefault();
             if (e.repeat) return;
-            onMarkDrop();
+            markDropFromShortcut();
         },
-        { enabled: canMark && !dropHeldGlobally && dropKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMark, dropHeldGlobally, onMarkDrop],
+        {
+            enabled: canMark && dropKeys.length > 0,
+            enableOnFormTags: dropEnabledOnFormTags,
+            ...SHORTCUT_HOTKEY_OPTIONS,
+        },
+        [canMark, markDropFromShortcut],
     );
 
     const customEvents = useRoastSettings().eventButtons.custom;

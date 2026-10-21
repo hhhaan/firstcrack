@@ -67,6 +67,51 @@ describe('RoastLog removable entries', () => {
         },
     );
 
+    it.each(['sidebar', 'panel', 'main'] as const)(
+        'shows %s heater as value, time, and temperature on one line',
+        (variant) => {
+            act(() => root.render(createElement(RoastLog, { variant, entries: [entry('Heater', 'heater-1')] })));
+            expect(container.textContent).toContain('50%');
+            expect(container.textContent).toContain('1:00');
+            expect(container.textContent).toContain('180.0°C');
+            expect(container.textContent).not.toContain('Heater');
+            expect(container.querySelector('[aria-label^="Heater"]')?.textContent).toContain('50%');
+        },
+    );
+
+    it.each(['sidebar', 'panel', 'main'] as const)('hides boilerplate notes on %s named events', (variant) => {
+        act(() =>
+            root.render(
+                createElement(RoastLog, {
+                    variant,
+                    entries: [
+                        { ...entry('Charge', 'c'), note: 'Bean drop detected' },
+                        { ...entry('TP', 'tp'), note: 'Turning Point detected' },
+                        { ...entry('Yellow', 'y'), note: 'Auto-marked by temperature' },
+                        { ...entry('End', 'e'), note: 'Roast complete' },
+                        { ...entry('Now', 'n'), note: 'Drying in progress', current: true },
+                    ],
+                }),
+            ),
+        );
+        expect(container.textContent).toContain('Charge');
+        expect(container.textContent).toContain('TP');
+        expect(container.textContent).toContain('Yellow');
+        expect(container.textContent).toContain('End');
+        expect(container.textContent).not.toContain('Bean drop detected');
+        expect(container.textContent).not.toContain('Turning Point detected');
+        expect(container.textContent).not.toContain('Auto-marked by temperature');
+        expect(container.textContent).not.toContain('Roast complete');
+        expect(container.textContent).not.toContain('in progress');
+        expect(container.querySelector('.truncate')).not.toBeNull();
+    });
+
+    it('keeps a user note on the compact sidebar row', () => {
+        act(() => root.render(createElement(RoastLog, { variant: 'sidebar', entries: [entry('Note', 'n1')] })));
+        expect(container.textContent).toContain('aroma');
+        expect(container.textContent).toContain('1:00');
+    });
+
     it('deletes Heater and Note rows, not Charge', () => {
         const onRemoveEntry = vi.fn();
         act(() => {

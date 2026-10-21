@@ -42,6 +42,18 @@ export const formatDateShort = (iso: string | null, timeZone?: string): string =
     return `${year.slice(-2)}-${month}-${day}`;
 };
 
+export const formatDateTimeShort = (iso: string | null, timeZone?: string): string => {
+    const date = formatDateShort(iso, timeZone);
+    if (!iso || date === '—') return '—';
+    const time = new Intl.DateTimeFormat('en-GB', {
+        timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+    }).format(new Date(iso));
+    return `${date} ${time}`;
+};
+
 export const pctChange = (current: number, previous: number): string => {
     if (previous === 0) return '—';
     const diff = ((current - previous) / previous) * 100;

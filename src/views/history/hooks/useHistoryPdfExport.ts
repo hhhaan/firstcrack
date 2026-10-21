@@ -2,7 +2,7 @@ import { sessionBeanName } from '@entities/roast';
 import { formatTemp, type TemperatureUnit } from '@features/active-roast';
 import type { RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { historyPdfChartBox, historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
-import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { formatDateTimeShort, formatDuration } from '@shared/lib/format';
 import { sessionDistinctTitle, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -41,7 +41,7 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
                 header: {
                     bean: beanName,
                     ...(distinctTitle ? { roastTitle: distinctTitle } : {}),
-                    date: formatDateShort(session.roasted_at),
+                    date: formatDateTimeShort(session.roasted_at),
                     duration: formatDuration(session.duration_seconds),
                     charge: formatTemp(session.charge_temp_celsius, unit),
                     drop: formatTemp(session.drop_temp_celsius, unit),
