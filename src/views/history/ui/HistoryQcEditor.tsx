@@ -224,7 +224,7 @@ const MeasurementField = ({
 
 /** Room temp, humidity, moisture, and density. No stock side effects. */
 export const QcMeasurementEditor = ({ session }: { session: RoastSessionWithRelations }) => (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-2">
         {MEASUREMENTS.map((field) => (
             <MeasurementField key={field.column} session={session} {...field} />
         ))}

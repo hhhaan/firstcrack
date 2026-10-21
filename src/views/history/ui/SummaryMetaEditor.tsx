@@ -187,8 +187,8 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     const busy = sessionPending || weightPending;
 
     return (
-        <div className="space-y-4">
-            <div>
+        <div className="grid grid-cols-2 items-start gap-2">
+            <div className="col-span-2 min-w-0">
                 <label htmlFor={`history-bean-${session.id}`} className={labelCls}>
                     {t('activeRoast.summary.bean')}
                 </label>
@@ -199,6 +199,7 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                     selectedId={session.bean_id ?? ''}
                     initialQuery={session.bean_label ?? ''}
                     compact
+                    className="[&_input]:h-8 [&_input]:min-h-8 [&_input]:rounded-md [&_input]:py-1 [&_input]:pl-2 [&_input]:shadow-none"
                     disabled={sessionPending || !canWrite || beanLocked}
                     placeholder={t('activeRoast.summary.beanComboboxPlaceholder')}
                     emptyLabel={t('activeRoast.summary.beanComboboxEmpty')}
@@ -214,7 +215,31 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                     <p className="mt-1 mb-0 text-[11px] text-muted">{t('history.expanded.beanLocked')}</p>
                 )}
             </div>
-            <div>
+            <div className="col-span-2 min-w-0">
+                <label htmlFor={`history-profile-${session.id}`} className={labelCls}>
+                    {t('history.table.profile')}
+                </label>
+                <FormSelect
+                    id={`history-profile-${session.id}`}
+                    data-testid="history-profile"
+                    aria-label={t('history.table.profile')}
+                    value={profileId}
+                    disabled={busy || !canWrite}
+                    onChange={(e) => {
+                        setProfileId(e.target.value);
+                        void commitProfile(e.target.value);
+                    }}
+                    className="min-h-8 rounded-md py-1 pl-2 text-[13px] shadow-none"
+                >
+                    <option value="">—</option>
+                    {profileOptions.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                            {profile.name}
+                        </option>
+                    ))}
+                </FormSelect>
+            </div>
+            <div className="min-w-0">
                 <label htmlFor={`history-origin-${session.id}`} className={labelCls}>
                     {t('history.expanded.origin')}
                 </label>
@@ -231,37 +256,13 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') e.currentTarget.blur();
                         }}
-                        className="w-full rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary outline-none focus:border-border"
+                        className="h-8 w-full min-w-0 rounded-md border border-border-subtle bg-main-bg px-2 py-1 text-[13px] text-primary outline-none focus:border-strong-border focus-visible:ring-2 focus-visible:ring-strong-border/40"
                     />
                 ) : (
-                    <p className="m-0 text-[13px] text-secondary">—</p>
+                    <p className="m-0 flex h-8 items-center text-[13px] text-secondary">—</p>
                 )}
             </div>
-            <div>
-                <label htmlFor={`history-profile-${session.id}`} className={labelCls}>
-                    {t('history.table.profile')}
-                </label>
-                <FormSelect
-                    id={`history-profile-${session.id}`}
-                    data-testid="history-profile"
-                    aria-label={t('history.table.profile')}
-                    value={profileId}
-                    disabled={busy || !canWrite}
-                    onChange={(e) => {
-                        setProfileId(e.target.value);
-                        void commitProfile(e.target.value);
-                    }}
-                    className="py-1.5 text-[13px]"
-                >
-                    <option value="">—</option>
-                    {profileOptions.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                            {profile.name}
-                        </option>
-                    ))}
-                </FormSelect>
-            </div>
-            <div>
+            <div className="min-w-0">
                 <label htmlFor={`history-level-${session.id}`} className={labelCls}>
                     {t('history.table.level')}
                 </label>
@@ -275,7 +276,7 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                         setLevel(e.target.value);
                         void commitLevel(e.target.value);
                     }}
-                    className="py-1.5 text-[13px]"
+                    className="min-h-8 rounded-md py-1 pl-2 text-[13px] shadow-none"
                 >
                     <option value="">—</option>
                     {levelOptions.map((level) => (

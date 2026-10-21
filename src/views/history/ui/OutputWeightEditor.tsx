@@ -76,7 +76,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
         <div>
             <label
                 htmlFor={`history-output-weight-${session.id}`}
-                className="mb-2 block text-[11px] font-medium tracking-[0.3px] text-muted"
+                className="mb-1 block text-[11px] font-medium tracking-[0.3px] text-muted"
             >
                 {t('history.expanded.outputWeight')}
             </label>
