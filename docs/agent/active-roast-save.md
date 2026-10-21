@@ -87,6 +87,22 @@ Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 
 Blends: `buildRoastStockEvents` expands components before batch insert.
 
+### Saved-roast corrections
+
+History sends only the operator's correction: `correct_session_charge_weight`,
+`correct_session_output_weight`, or `set_session_roast_level`. Each locks the
+current session row and derives roasted inbound in the same transaction. A level
+correction preserves measured output and its stock; clearing measured output
+restores the estimate from the current charge and level.
+
+The legacy four-argument `set_session_*_weight` RPCs delegate to these operations
+and ignore client-derived inbound arguments. Existing installed clients still
+perform level and estimate edits separately; only the new level RPC makes that
+operation atomic. Deploy the migration before clients call the new RPCs.
+
+Regression SQL: `supabase/tests/saved_roast_corrections.sql` (local database only;
+run with `psql -v ON_ERROR_STOP=1`). It rolls back all fixtures and injected failures.
+
 ---
 
 ## R2 curve invariants

@@ -418,6 +418,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
                         text: item.text,
                         below: item.below,
                         color: item.color,
+                        opacity: item.opacity,
                         showDot: item.showDot,
                         topInsetPx: item.topInsetPx,
                     },
@@ -436,7 +437,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
                 children.push({
                     type: 'circle',
                     shape: { cx: box.anchorX, cy: box.anchorY, r: scale === 1 ? 2.5 : scaleChartPx(3, scale) },
-                    style: { fill: box.color, stroke: box.color, lineWidth: 1 },
+                    style: { fill: box.color, stroke: box.color, lineWidth: 1, opacity: box.opacity },
                 });
             }
             children.push({
@@ -446,6 +447,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
                 style: {
                     text: box.text,
                     fill: box.color,
+                    opacity: box.opacity,
                     font: markerLabelFont(scale),
                     textAlign: 'left',
                     textVerticalAlign: box.below ? 'top' : 'bottom',

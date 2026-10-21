@@ -3,6 +3,7 @@ import {
     MARKER_LABEL_GAP_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
+    REFERENCE_CURVE_OPACITY,
 } from '@features/active-roast/lib/chart-config';
 
 import { describe, expect, it } from 'vitest';
@@ -16,6 +17,7 @@ import {
     NOTE_LABEL_TOP_INSET_PX,
     nearestBtAt,
 } from './markers';
+import { buildCurveLabelSeries } from './series';
 import type { ResolvedChartColors } from './types';
 
 const colors = {
@@ -49,6 +51,66 @@ const baseParams = {
     hasControlSeries: false,
     showFcBand: false,
 };
+
+it.each(['0%', '60%', '2.5 kPa'])('draws original reference heat events for %s with reduced opacity', (note) => {
+    const result = buildMarkers({
+        ...baseParams,
+        eventMarkerStyle: 'line',
+        eventMarkers: [
+            {
+                reference: true,
+                timeSec: 630,
+                event: 'Heater',
+                color: '',
+                timeStr: '10:30',
+                temp: '204°C',
+                tempC: 204,
+                note,
+            },
+        ],
+    });
+    expect(result.allMarkLines).toContainEqual(
+        expect.objectContaining({
+            xAxis: 630,
+            lineStyle: expect.objectContaining({
+                color: colors.eventControl,
+                opacity: REFERENCE_CURVE_OPACITY,
+                type: 'solid',
+            }),
+        }),
+    );
+    expect(result.curveLabels).toContainEqual(
+        expect.objectContaining({
+            timeSec: 630,
+            y: 204,
+            color: colors.eventControl,
+            opacity: REFERENCE_CURVE_OPACITY,
+            text: `Heater→${note}|10:30|204.0°C`,
+        }),
+    );
+});
+
+it.each([false, true])('renders event text and points with source opacity (reference: %s)', (reference) => {
+    const { curveLabels } = buildMarkers({
+        ...baseParams,
+        eventMarkerStyle: 'point',
+        eventMarkers: [
+            { reference, timeSec: 540, event: 'Heater', color: '', timeStr: '', temp: '', tempC: 204, note: '60%' },
+        ],
+    });
+    const rendered = buildCurveLabelSeries(curveLabels).renderItem(
+        { dataIndex: 0, coordSys: { x: 0, y: 0, width: 400, height: 300 } },
+        { coord: () => [120, 100], getWidth: () => 440 },
+    );
+    const style = { fill: colors.eventControl, opacity: reference ? REFERENCE_CURVE_OPACITY : 1 };
+    expect(rendered?.children).toEqual([
+        expect.objectContaining({ type: 'circle', style: expect.objectContaining(style) }),
+        expect.objectContaining({
+            type: 'text',
+            style: expect.objectContaining({ ...style, text: 'Heater→60%|09:00|204.0°C' }),
+        }),
+    ]);
+});
 
 describe('LABEL_BELOW_EVENTS', () => {
     it('puts FC Rolling / FC End / TP below; FC Start / Yellow / Drop above', () => {

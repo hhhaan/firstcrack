@@ -10,6 +10,7 @@ import {
     MARKER_LABEL_MIN_WIDTH_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
+    REFERENCE_CURVE_OPACITY,
     scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
 import { controlChangeLabel, formatRoastNote } from '@features/active-roast/lib/roast-note';
@@ -141,6 +142,7 @@ export interface CurveLabelItem {
     y: number;
     text: string;
     color: string;
+    opacity?: number;
     below: boolean;
     showDot: boolean;
     /** Extra pixels below the anchor. Notes use this to clear the top axis line. */
@@ -154,6 +156,7 @@ export interface CurveLabelLayoutInput {
     text: string;
     below: boolean;
     color: string;
+    opacity?: number;
     showDot: boolean;
     topInsetPx?: number;
 }
@@ -168,6 +171,7 @@ export interface CurveLabelBox {
     below: boolean;
     text: string;
     color: string;
+    opacity: number;
     showDot: boolean;
     anchorX: number;
     anchorY: number;
@@ -207,6 +211,7 @@ const makeLabelBox = (
         below: item.below,
         text: item.text,
         color: item.color,
+        opacity: item.opacity ?? 1,
         showDot: item.showDot,
         anchorX: item.xPx,
         anchorY: item.yPx,
@@ -362,9 +367,11 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     // tempLine: 온도 차트만. line: 온도 차트와 컨트롤 차트.
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];
-    const markerVisible = (event: string, timeSec: number) =>
-        isEventMarkerVisible(event, timeSec, xMin, xMax, xs, btActual);
-    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge' && markerVisible(m.event, m.timeSec));
+    const markerVisible = (marker: RoastEventMarker) =>
+        marker.reference
+            ? Number.isFinite(marker.timeSec) && marker.timeSec >= xMin && marker.timeSec <= xMax
+            : isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual);
+    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge' && markerVisible(m));
     if (charged && Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
         const nowLineStyle = {
             color: colors.currentTimeLine,
@@ -407,7 +414,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             color: markerColor(m.event),
             width: EVENT_MARK_LINE_WIDTH,
             type: 'solid' as const,
-            opacity: 1,
+            opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
         },
         label: { show: false },
     }));
@@ -428,11 +435,11 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
 
     const showDot = eventMarkerStyle === 'point';
     const labeledEvents = (hideChargeLabel ? eventMarkers.filter((m) => m.event !== 'Charge') : eventMarkers).filter(
-        (m) => markerVisible(m.event, m.timeSec),
+        markerVisible,
     );
     const curveLabels: CurveLabelItem[] = [
         ...labeledEvents.map((m) => {
-            const nearest = nearestBtAt(xs, btActual, m.timeSec);
+            const nearest = m.reference ? null : nearestBtAt(xs, btActual, m.timeSec);
             const atTop = noteAnchoredAtTop(m.event);
             const y = atTop
                 ? tempYMax
@@ -450,6 +457,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                     m.event === 'Note' ? formatRoastNote(m) : m.note,
                 ),
                 color: markerLabelColor(m.event),
+                opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
                 below: atTop || LABEL_BELOW_EVENTS.has(m.event),
                 showDot: m.event === 'Charge' ? false : showDot,
                 topInsetPx: noteLabelTopInsetPx(atTop, fontScale),

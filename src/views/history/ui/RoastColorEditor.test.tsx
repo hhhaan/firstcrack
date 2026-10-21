@@ -10,7 +10,11 @@ import { RoastColorEditor } from './RoastColorEditor';
 
 const { update } = vi.hoisted(() => ({ update: vi.fn(async () => ({ id: 's1' })) }));
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-i18next', () => ({
+    useTranslation: () => ({
+        t: (key: string, values?: { value?: string }) => (values?.value ? `${key}: ${values.value}` : key),
+    }),
+}));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: true }),
 }));
@@ -34,12 +38,12 @@ describe('RoastColorEditor', () => {
         update.mockClear();
     });
 
-    const render = async () => {
+    const render = async (record = session) => {
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
         await act(async () => {
-            root.render(createElement(RoastColorEditor, { session }));
+            root.render(createElement(RoastColorEditor, { session: record }));
         });
     };
 
@@ -53,6 +57,17 @@ describe('RoastColorEditor', () => {
         });
     };
 
+    it('shares one input-format hint between both fields', async () => {
+        await render();
+        const hints = [...host.querySelectorAll('p')].filter(
+            (element) => element.textContent === 'history.expanded.colorReadingsHint',
+        );
+        expect(hints).toHaveLength(1);
+        for (const id of ['history-color-whole', 'history-color-ground']) {
+            expect(field(id).getAttribute('aria-describedby')?.split(' ')).toContain(hints[0].id);
+        }
+    });
+
     it('writes the edited column when the field blurs', async () => {
         await render();
         const input = field('history-color-whole');
@@ -60,6 +75,7 @@ describe('RoastColorEditor', () => {
             input.focus();
         });
         await type(input, '58.4, 58.7, 59.0');
+        expect(host.textContent).toContain('58.70');
         await act(async () => {
             input.blur();
         });
@@ -93,7 +109,7 @@ describe('RoastColorEditor', () => {
         expect(host.textContent).toContain('history.expanded.colorTooLong');
     });
 
-    it('preserves non-numeric free text', async () => {
+    it('rejects new non-numeric free text', async () => {
         await render();
         const input = field('history-color-ground');
         await act(async () => {
@@ -103,6 +119,19 @@ describe('RoastColorEditor', () => {
         await act(async () => {
             input.blur();
         });
-        expect(update).toHaveBeenCalledWith({ id: 's1', color_ground: 'WB 58.4 (avg)' });
+        expect(update).not.toHaveBeenCalled();
+        expect(host.textContent).toContain('history.expanded.colorInvalidNumbers');
+    });
+
+    it('keeps an unchanged legacy annotation without rewriting it', async () => {
+        await render({ ...session, color_whole: 'WB 58.4 (avg)' });
+        const input = field('history-color-whole');
+        await act(async () => {
+            input.focus();
+            input.blur();
+        });
+        expect(input.value).toBe('WB 58.4 (avg)');
+        expect(update).not.toHaveBeenCalled();
+        expect(host.textContent).not.toContain('history.expanded.colorInvalidNumbers');
     });
 });

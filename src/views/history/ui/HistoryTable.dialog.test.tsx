@@ -37,7 +37,9 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 });
 vi.mock('@entities/bean', () => ({
     useBeans: () => ({ data: [] }),
-    useUpdateBean: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@features/update-roast-bean-origin', () => ({
+    useUpdateRoastBeanOrigin: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [] }),
@@ -50,6 +52,7 @@ vi.mock('@entities/roast', async (importOriginal) => {
         useUpdateRoastSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
         useSetChargeWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
         useSetOutputWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
+        useSetRoastLevel: () => ({ mutateAsync: vi.fn(), isPending: false }),
     };
 });
 
