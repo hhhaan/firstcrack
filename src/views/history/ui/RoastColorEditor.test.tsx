@@ -57,6 +57,17 @@ describe('RoastColorEditor', () => {
         });
     };
 
+    it('shares one input-format hint between both fields', async () => {
+        await render();
+        const hints = [...host.querySelectorAll('p')].filter(
+            (element) => element.textContent === 'history.expanded.colorReadingsHint',
+        );
+        expect(hints).toHaveLength(1);
+        for (const id of ['history-color-whole', 'history-color-ground']) {
+            expect(field(id).getAttribute('aria-describedby')?.split(' ')).toContain(hints[0].id);
+        }
+    });
+
     it('writes the edited column when the field blurs', async () => {
         await render();
         const input = field('history-color-whole');
