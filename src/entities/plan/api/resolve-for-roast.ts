@@ -190,12 +190,47 @@ export async function updateRoastStatus(
         .eq('updated_at', batch.updated_at)
         .eq('status', batch.status)
         .select()
-        .single();
+        .maybeSingle();
     if (error) throw error;
-    return { ...data, completed_sessions: batch.completed_sessions };
+    if (data) return { ...data, completed_sessions: batch.completed_sessions };
+
+    // Overlapping start: the other request already committed this status, so the
+    // revision filter matched nothing. .single() turned that into PGRST116.
+    const { data: latest, error: readError } = await supabase
+        .from('roast_plan_batches')
+        .select('*')
+        .eq('id', batch.id)
+        .maybeSingle();
+    if (readError) throw readError;
+    if (
+        latest &&
+        latest.plan_id === batch.plan_id &&
+        latest.exception_type !== 'cancelled' &&
+        latest.status === status
+    ) {
+        return { ...latest, completed_sessions: batch.completed_sessions };
+    }
+    throw new UnresolvablePlanBatchIdError('plan batch changed; retry required');
 }
 
-export async function startForRoast(
+const inFlightStarts = new Map<string, Promise<PlanBatchWithProgress>>();
+
+export function startForRoast(
+    ownerId: string,
+    source: PlanBatchWithProgress | PlanBatchHandoff,
+): Promise<PlanBatchWithProgress> {
+    const sourceId = isHandoff(source) ? source.planBatchId : source.id;
+    const key = `${ownerId}\0${sourceId}`;
+    const existing = inFlightStarts.get(key);
+    if (existing) return existing;
+    const pending = runStartForRoast(ownerId, source).finally(() => {
+        if (inFlightStarts.get(key) === pending) inFlightStarts.delete(key);
+    });
+    inFlightStarts.set(key, pending);
+    return pending;
+}
+
+async function runStartForRoast(
     ownerId: string,
     source: PlanBatchWithProgress | PlanBatchHandoff,
 ): Promise<PlanBatchWithProgress> {

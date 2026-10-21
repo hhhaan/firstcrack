@@ -114,6 +114,60 @@ describe('central batch ownership and transitions', () => {
         expect(useRoastingStore.getState().completed?.snapshot.selection.beanId).toBe('bean-a');
     });
 
+    it('corrects only the running source and preserves it through Drop and Cancel', () => {
+        charge();
+        const before = useRoastingStore.getState();
+        expect(
+            before.editRunningSource({ beanId: 'corrected', blendId: null, beanName: null }, before.sessionId, 'other'),
+        ).toBe(false);
+        expect(before.editRunningSource({ beanId: 'corrected', blendId: null, beanName: null }, 'stale', 'owner')).toBe(
+            false,
+        );
+        expect(
+            before.editRunningSource({ beanId: 'corrected', blendId: null, beanName: null }, before.sessionId, 'owner'),
+        ).toBe(true);
+        const corrected = useRoastingStore.getState();
+        expect(corrected.prepared.beanId).toBe('bean-a');
+        expect(corrected.sessionId).toBe(before.sessionId);
+        expect(corrected.livePoints).toBe(before.livePoints);
+        expect(corrected.activeSelection?.beanId).toBe('corrected');
+        drop();
+        expect(useRoastingStore.getState().completed?.summary?.selectedBeanId).toBe('corrected');
+        useRoastingStore.getState().cancelDrop();
+        expect(useRoastingStore.getState().activeSelection?.beanId).toBe('corrected');
+    });
+
+    it('detaches a corrected scheduled batch while retaining the next preparation', () => {
+        const store = useRoastingStore.getState();
+        store.prepareWorkspace('owner');
+        store.startBatch({
+            planBatchId: 'scheduled',
+            planId: 'plan',
+            beanId: 'planned',
+            blendId: null,
+            beanName: 'Planned',
+            profileId: 'profile-a',
+            batchSizeKg: 1,
+            batchCount: 1,
+            completedSessions: 0,
+        });
+        store.startCharge(undefined, 'owner');
+        const current = useRoastingStore.getState();
+        expect(
+            current.editRunningSource(
+                { beanId: null, blendId: 'corrected-blend', beanName: 'Corrected' },
+                current.sessionId,
+                'owner',
+            ),
+        ).toBe(true);
+        expect(useRoastingStore.getState().activeSelection).toMatchObject({
+            blendId: 'corrected-blend',
+            beanId: null,
+            planBatchHandoff: null,
+        });
+        expect(useRoastingStore.getState().prepared.planBatchHandoff?.planBatchId).toBe('scheduled');
+    });
+
     it('restores the pre-Drop clock, selection, curve and Replay request without including waiting time', () => {
         charge();
         const sessionId = useRoastingStore.getState().sessionId;

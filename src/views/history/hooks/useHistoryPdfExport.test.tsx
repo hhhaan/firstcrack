@@ -34,7 +34,7 @@ it('exports the selected batch title in the filename and PDF header while retain
     const session = {
         batch_name: 'Batch A',
         beans: { name: 'Green B' },
-        roasted_at: '2026-10-19T00:00:00Z',
+        roasted_at: '2026-10-19T14:35:47',
     } as unknown as RoastSessionWithRelations;
     let latest!: ReturnType<typeof useHistoryPdfExport>;
     const Probe = ({ value }: { value: RoastSessionWithRelations }) => {
@@ -51,6 +51,7 @@ it('exports the selected batch title in the filename and PDF header while retain
                 header: expect.objectContaining({
                     roastTitle: 'Batch A',
                     bean: 'Green B',
+                    date: '26-10-19 14:35',
                     labels: expect.objectContaining({ roastTitle: en.history.recordText.title }),
                 }),
             }),
