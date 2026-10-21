@@ -15,6 +15,9 @@ describe('recorded notes', () => {
             { index: 1, timeSec: 125, time: '2:05', comment: 'second' },
         ]);
         expect(recordedNotes(null)).toEqual([]);
+        expect(recordedNotes([{ id: 'b', type: 'Note', time_sec: -180, note: 'soak' }])).toEqual([
+            { index: 0, timeSec: -180, time: '-3:00', comment: 'soak' },
+        ]);
     });
 
     it('adds, edits, and deletes a note without touching the other rows', () => {

@@ -128,7 +128,7 @@ export const autoDropUnavailable = (phase: RoastPhase, enabled: boolean, hasRawT
 const listUnlessBbp = <T>(bbpActive: boolean, items: T[]): T[] => (bbpActive ? [] : items);
 
 const canEditChartMarkers = (charged: boolean, roastEnded: boolean, bbpActive: boolean) =>
-    charged && !roastEnded && !bbpActive;
+    !roastEnded && (bbpActive || charged);
 
 const anySeriesOn = (drum: boolean, heat: boolean, fan: boolean) => drum || heat || fan;
 
@@ -173,7 +173,7 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
         heatPower: input.heatPower,
         fanSpeed: input.fanSpeed,
         heatSet: input.heatSet,
-        changes: input.bbpActive ? undefined : input.controlChanges,
+        changes: input.controlChanges,
         heatTarget: input.bbpActive ? undefined : input.heatTarget,
         reference:
             input.referenceXs.length > 0
@@ -234,8 +234,10 @@ export const buildChartFrame = <TTurningPoint>(input: {
     onAddEvent: (event: string, timeSec: number) => void;
     onMoveEvent: (event: string, timeSec: number) => void;
     reviewing?: boolean;
+    eventTimeOrigin?: number;
 }) => {
     const canEdit = Boolean(input.reviewing) || canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
+    const origin = input.eventTimeOrigin ?? 0;
     return {
         className: `bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
             input.isFullscreen ? FULLSCREEN_CHART_CLASS : WINDOWED_CHART_CLASS
@@ -256,9 +258,9 @@ export const buildChartFrame = <TTurningPoint>(input: {
             !!input.targetProfileId &&
             input.targetCurvePointCount > 0,
         controlData: chartControlData(input),
-        elapsed: input.bbpActive ? input.bbpNowSec : input.elapsed,
+        elapsed: input.bbpActive ? Math.max(0, input.bbpNowSec - origin) : input.elapsed,
         charged: input.charged && !input.bbpActive,
-        eventMarkers: listUnlessBbp(input.bbpActive, input.eventMarkers),
+        eventMarkers: input.eventMarkers,
         turningPoints: listUnlessBbp(input.bbpActive, input.turningPoints),
         phaseSegments: listUnlessBbp(input.bbpActive, input.phaseSegments),
         showFcBand: input.showFcBand && !input.bbpActive,
@@ -266,7 +268,7 @@ export const buildChartFrame = <TTurningPoint>(input: {
         onEventMarkerEdit: canEdit ? input.onEventMarkerEdit : undefined,
         onEventMarkerDelete: canEdit ? input.onEventMarkerDelete : undefined,
         onAddNote: canEdit ? input.onAddNote : undefined,
-        onAddEvent: canEdit ? input.onAddEvent : undefined,
+        onAddEvent: canEdit && !input.bbpActive ? input.onAddEvent : undefined,
         onMoveEvent: input.reviewing && canEdit ? input.onMoveEvent : undefined,
     };
 };

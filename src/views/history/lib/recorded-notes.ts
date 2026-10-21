@@ -1,4 +1,4 @@
-import { formatElapsed } from '@shared/lib/format';
+import { formatSignedElapsed } from '@shared/lib/format';
 import type { Json } from '@shared/types/database.types';
 
 export type RecordedNote = {
@@ -31,7 +31,7 @@ export const recordedNotes = (raw: unknown): RecordedNote[] => {
         notes.push({
             index,
             timeSec,
-            time: formatElapsed(timeSec),
+            time: formatSignedElapsed(timeSec),
             comment: text(row.note),
             ...(gas ? { gas } : {}),
             ...(airflow ? { airflow } : {}),

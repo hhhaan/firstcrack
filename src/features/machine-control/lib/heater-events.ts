@@ -192,7 +192,7 @@ export const editedHeatSet = (
     });
 };
 
-/** Edited plan replaces the recorded Heater log rows (same `${value}${unit}` note as the live log). */
+/** Edited roast plan replaces post-Charge Heater rows; BBP records stay as recorded. */
 export const withEditedHeaterLog = (
     events: StoredRoastEvent[],
     heaterEvents: unknown,
@@ -207,7 +207,9 @@ export const withEditedHeaterLog = (
         temp_c: e.bt,
         note: `${e.heater}${heaterUnit}`,
     }));
-    return [...events.filter((e) => e.type !== 'Heater'), ...rows].sort((a, b) => a.time_sec - b.time_sec);
+    return [...events.filter((e) => e.type !== 'Heater' || e.time_sec < 0), ...rows].sort(
+        (a, b) => a.time_sec - b.time_sec,
+    );
 };
 
 export const heaterEventsToJson = (events: ReplayEvent[]): Json =>
