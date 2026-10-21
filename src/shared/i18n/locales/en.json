@@ -972,6 +972,7 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
+            "batchTitle": "Roast title",
             "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",

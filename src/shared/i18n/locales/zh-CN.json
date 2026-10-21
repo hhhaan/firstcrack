@@ -972,6 +972,7 @@
         },
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
+            "batchTitle": "烘焙标题",
             "profileSources": "曲线候选原料",
             "noBeanSelected": "未选生豆",
             "target": "目标:",

@@ -12,6 +12,7 @@ import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RoastTitleEditor } from './RoastTitleEditor';
 import { TargetMenu } from './TargetMenu';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ export const RoastHeader = ({
     const { t } = useTranslation();
     useBatchNumber();
     const batchTitle = useRoastingStore((state) => state.activeSelection?.identity?.title);
+    const editingSessionId = useRoastingStore((state) => (state.phase === 'roasting' ? state.sessionId : null));
     const charged = useRoastingStore((s) => isChargedPhase(s.phase));
     const preparedOwnerId = useRoastingStore((state) => state.prepared.workspaceOwnerId);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
@@ -139,9 +141,17 @@ export const RoastHeader = ({
                 )}
 
                 <div className="relative inline-flex items-center mb-1 min-w-0">
-                    <span className="font-(--font-display) text-[28px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
-                        {batchTitle || beanTitle}
-                    </span>
+                    {editingSessionId ? (
+                        <RoastTitleEditor
+                            key={editingSessionId}
+                            sessionId={editingSessionId}
+                            title={batchTitle || beanTitle}
+                        />
+                    ) : (
+                        <span className="font-(--font-display) text-[28px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
+                            {batchTitle || beanTitle}
+                        </span>
+                    )}
 
                     <select
                         aria-label={t('activeRoast.summary.bean')}
@@ -155,7 +165,7 @@ export const RoastHeader = ({
                             } else handleBeanChange(value || null);
                         }}
                         disabled={charged}
-                        className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
+                        className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'pointer-events-none cursor-default' : 'cursor-pointer'}`}
                     >
                         <option value="">No Bean Selected</option>
                         {sourceCandidates.length > 1 && (

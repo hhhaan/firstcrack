@@ -12,7 +12,7 @@ test.describe('2c roast save with stock deduct', () => {
         );
     });
 
-    test('edits, restores and saves the numbered bean title', async ({ authedPage: page, db }, testInfo) => {
+    test('clicks, cancels, restores and saves the numbered bean title', async ({ authedPage: page, db }, testInfo) => {
         const bean = db.seedBean({
             name: 'Santander Cooperative',
             origin: 'Colombia',
@@ -34,21 +34,38 @@ test.describe('2c roast save with stock deduct', () => {
         await page.getByTestId('roast-ready').click();
         await page.getByTestId('roast-charge').click();
         const title = page.getByRole('textbox', { name: 'Roast title', exact: true });
+        const automaticTitle = page.getByRole('button', { name: 'Colombia Santander #3', exact: true });
+        await expect(automaticTitle).toBeVisible();
+        await expect(title).toHaveCount(0);
+        await automaticTitle.click();
+        await expect(title).toBeFocused();
         await expect(title).toHaveValue('Colombia Santander #3');
         await title.fill('Morning production');
         await title.press('Enter');
-        await expect(title).toHaveValue('Morning production');
+        const editedTitle = page.getByRole('button', { name: 'Morning production', exact: true });
+        await expect(editedTitle).toBeVisible();
+        await editedTitle.click();
+        await title.fill('Discard this draft');
+        await title.press('Escape');
+        await expect(editedTitle).toBeVisible();
+        await editedTitle.click();
         await title.fill('');
         await title.press('Enter');
-        await expect(title).toHaveValue('Colombia Santander #3');
+        await expect(automaticTitle).toBeVisible();
         await page.screenshot({ path: testInfo.outputPath('bean-batch-title.png') });
+        await automaticTitle.click();
+        await title.fill('Morning production');
+        await title.press('Tab');
+        await expect(editedTitle).toBeVisible();
+        await page.evaluate(() => window.__FC_E2E__?.remountRoast?.());
+        await expect(editedTitle).toBeVisible();
 
         await page.getByTestId('roast-end').click();
         await page.getByTestId('end-roast-confirm').click();
         await page.getByTestId('roast-summary-weight').fill('2');
         const saveRequest = page.waitForRequest('**/rest/v1/rpc/save_roast_op');
         await page.getByTestId('roast-summary-save').click();
-        expect((await saveRequest).postDataJSON().p_session.batch_name).toBe('Colombia Santander #3');
+        expect((await saveRequest).postDataJSON().p_session.batch_name).toBe('Morning production');
         await expect(page.getByTestId('roast-summary-save')).toBeHidden();
     });
 
