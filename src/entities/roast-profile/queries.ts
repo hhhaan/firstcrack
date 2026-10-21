@@ -22,6 +22,13 @@ export const roastProfileKeys = {
     consistency: (profileId: string) => [...consistencyRoot, profileId] as const,
 };
 
+export const useProfileSourceHistory = (userId: string, profileId: string | null) =>
+    useQuery({
+        queryKey: [...beanHistoryRoot, userId, 'source-history', profileId],
+        queryFn: () => roastProfileApi.sourceHistory(userId, profileId ?? ''),
+        enabled: !!userId && !!profileId,
+    });
+
 export const useRoastProfiles = (userId: string) =>
     useQuery({
         queryKey: roastProfileKeys.all(userId),

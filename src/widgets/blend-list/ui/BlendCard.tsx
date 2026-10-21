@@ -18,7 +18,7 @@ export const BlendCard = ({ blend, roastableKg, onSelect }: BlendCardProps) => {
     return (
         <div
             onClick={onSelect}
-            className="rounded-lg bg-main-bg px-4 py-3.5 cursor-pointer transition-all duration-150 dark:border dark:border-[#585d61]"
+            className="rounded-2xl border border-border bg-main-bg px-4 py-3.5 cursor-pointer transition-colors duration-150"
         >
             <div className="flex items-start justify-between gap-2 mb-1">
                 <span className="text-[13px] font-medium text-primary tracking-[0.14px] leading-snug">
@@ -29,7 +29,7 @@ export const BlendCard = ({ blend, roastableKg, onSelect }: BlendCardProps) => {
                         {t('beans.blend.roastableKg', { kg: roastableKg.toFixed(2) })}
                     </span>
                 ) : (
-                    <span className="text-[11px] font-medium text-palette-violet shrink-0 tracking-[0.14px]">
+                    <span className="text-[11px] font-medium text-muted shrink-0 tracking-[0.14px]">
                         {t('beans.blend.noStock')}
                     </span>
                 )}

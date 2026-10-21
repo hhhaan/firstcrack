@@ -9,12 +9,12 @@ export const MasterDetailLayout = ({
     detail?: ReactNode | null;
     placeholder?: ReactNode;
 }) => (
-    <div className="grid min-w-0 items-start gap-5" style={{ gridTemplateColumns: 'minmax(0, 350px) minmax(0, 1fr)' }}>
+    <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,350px)_minmax(0,1fr)]">
         <div className="min-w-0">{left}</div>
-        <div className="min-w-0 sticky top-6">
+        <div className="min-w-0 lg:sticky lg:top-6">
             {detail ??
                 (placeholder && (
-                    <div className="bg-main-bg rounded-lg py-15 px-8 flex items-center justify-center text-muted text-sm dark:border dark:border-[#585d61]">
+                    <div className="flex items-center justify-center rounded-2xl border border-border bg-main-bg px-8 py-15 text-sm text-muted">
                         {placeholder}
                     </div>
                 ))}

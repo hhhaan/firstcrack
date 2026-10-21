@@ -1,17 +1,19 @@
+import type { DailyRoastMetric, MonthlyBatch } from '@features/dashboard-summary';
 import type { CoffeeFuturesData } from '@shared/api/coffee-futures';
-import { durationDiff, formatDuration, pctChange } from '@shared/lib/format';
-import { Clock, Coffee, TrendingUp } from 'lucide-react';
-import { useMemo } from 'react';
+import { pctChange } from '@shared/lib/format';
+import { MetricTrendChart } from '@shared/ui/MetricTrendChart';
 import { useTranslation } from 'react-i18next';
+import { formatDate } from '../lib/format';
 import { KpiCard } from './KpiCard';
+import { MonthlyChartSection } from './MonthlyChartSection';
 
 interface KpiSectionProps {
     batchesThisMonth: number;
     batchesLastMonth: number;
     kgRoastedThisMonth: number;
     kgRoastedLastMonth: number;
-    avgDurationSeconds: number;
-    avgDurationLastMonthSeconds: number;
+    dailyMetrics: DailyRoastMetric[];
+    monthlyBatches: MonthlyBatch[];
     loading: boolean;
     coffeeFutures: CoffeeFuturesData | null;
     coffeeFuturesLoading: boolean;
@@ -19,41 +21,15 @@ interface KpiSectionProps {
     onRefreshCoffeeFutures: () => void;
 }
 
-const KPI_STATS = [
-    {
-        label: 'dashboard.kpi.batchesThisMonth',
-        field: 'batchesThisMonth' as const,
-        changeField: 'batchesLastMonth' as const,
-        icon: Coffee,
-    },
-    {
-        label: 'dashboard.kpi.beansRoasted',
-        field: 'kgRoastedThisMonth' as const,
-        changeField: 'kgRoastedLastMonth' as const,
-        icon: TrendingUp,
-    },
-    {
-        label: 'dashboard.kpi.avgRoastTime',
-        field: 'avgDurationSeconds' as const,
-        changeField: 'avgDurationLastMonthSeconds' as const,
-        icon: Clock,
-    },
-] as const;
-
-const formatCoffeePrice = (price: number): string => (Number.isFinite(price) ? price.toFixed(2) : '—');
-
-const computeCoffeeChange = (price: number, prev: number): string => {
-    if (!Number.isFinite(price) || !Number.isFinite(prev) || prev === 0) return '';
-    return pctChange(price, prev);
-};
+const formatKg = (value: number) => `${value.toFixed(1)} kg`;
 
 export const KpiSection = ({
     batchesThisMonth,
     batchesLastMonth,
     kgRoastedThisMonth,
     kgRoastedLastMonth,
-    avgDurationSeconds,
-    avgDurationLastMonthSeconds,
+    dailyMetrics,
+    monthlyBatches,
     loading,
     coffeeFutures,
     coffeeFuturesLoading,
@@ -61,67 +37,87 @@ export const KpiSection = ({
     onRefreshCoffeeFutures,
 }: KpiSectionProps) => {
     const { t } = useTranslation();
-
-    const coffeeStat = useMemo(() => {
-        if (coffeeFuturesLoading) {
-            return { label: t('dashboard.kpi.coffeeFutures'), value: '—', change: '', icon: TrendingUp };
-        }
-        if (!coffeeFutures) {
-            return {
-                label: t('dashboard.kpi.coffeeFutures'),
-                value: t('common.unavailable'),
-                change: '',
-                icon: TrendingUp,
-            };
-        }
-        return {
-            label: t('dashboard.kpi.coffeeFutures'),
-            value: formatCoffeePrice(coffeeFutures.price),
-            change: computeCoffeeChange(coffeeFutures.price, coffeeFutures.previousClose),
-            icon: TrendingUp,
-        };
-    }, [coffeeFutures, coffeeFuturesLoading, t]);
-
-    const stats = useMemo(
-        () =>
-            KPI_STATS.map((kpi) => ({
-                label: t(kpi.label),
-                value: loading
-                    ? '—'
-                    : String(
-                          kpi.field === 'batchesThisMonth'
-                              ? batchesThisMonth
-                              : kpi.field === 'kgRoastedThisMonth'
-                                ? `${kgRoastedThisMonth.toFixed(1)}`
-                                : formatDuration(avgDurationSeconds),
-                      ),
-                change: loading
-                    ? ''
-                    : kpi.field === 'batchesThisMonth'
-                      ? pctChange(batchesThisMonth, batchesLastMonth)
-                      : kpi.field === 'kgRoastedThisMonth'
-                        ? pctChange(kgRoastedThisMonth, kgRoastedLastMonth)
-                        : durationDiff(avgDurationSeconds, avgDurationLastMonthSeconds),
-                icon: kpi.icon,
-            })),
-        [
-            batchesThisMonth,
-            batchesLastMonth,
-            kgRoastedThisMonth,
-            kgRoastedLastMonth,
-            avgDurationSeconds,
-            avgDurationLastMonthSeconds,
-            loading,
-            t,
-        ],
-    );
+    const now = new Date();
+    const range = `${formatDate(new Date(now.getFullYear(), now.getMonth(), 1))} – ${formatDate(now)}`;
+    const comparison = t('dashboard.comparedToLastMonth');
+    const daily = dailyMetrics.map((day) => ({ ...day, label: formatDate(day.date) }));
+    const coffeePrice = coffeeFutures && Number.isFinite(coffeeFutures.price) ? coffeeFutures.price.toFixed(2) : '—';
+    const coffeeChange =
+        coffeeFutures &&
+        Number.isFinite(coffeeFutures.price) &&
+        Number.isFinite(coffeeFutures.previousClose) &&
+        coffeeFutures.previousClose !== 0
+            ? pctChange(coffeeFutures.price, coffeeFutures.previousClose)
+            : '';
 
     return (
-        <div className="grid grid-cols-4 gap-4 mb-8">
-            {stats.map((stat) => (
-                <KpiCard key={stat.label} {...stat} />
-            ))}
-            <KpiCard {...coffeeStat} onRefresh={onRefreshCoffeeFutures} refreshing={coffeeFuturesRefreshing} />
+        <div
+            className="mb-8 grid overflow-hidden rounded-2xl border border-border bg-main-bg lg:grid-cols-6"
+            data-testid="dashboard-metrics"
+            aria-busy={loading}
+        >
+            <KpiCard
+                label={t('dashboard.kpi.beansRoasted')}
+                value={loading ? '—' : kgRoastedThisMonth.toFixed(1)}
+                unit="kg"
+                change={loading ? '' : pctChange(kgRoastedThisMonth, kgRoastedLastMonth)}
+                caption={range}
+                comparison={comparison}
+                className="border-b border-border lg:col-span-4 lg:border-r"
+            >
+                <div className="h-32 lg:h-36">
+                    {!loading && (
+                        <MetricTrendChart
+                            label={t('dashboard.kpi.beansRoasted')}
+                            data={daily.map((day) => ({ label: day.label, value: day.kgRoasted }))}
+                            formatValue={formatKg}
+                        />
+                    )}
+                </div>
+            </KpiCard>
+            <KpiCard
+                label={t('dashboard.kpi.batchesThisMonth')}
+                value={loading ? '—' : String(batchesThisMonth)}
+                change={loading ? '' : pctChange(batchesThisMonth, batchesLastMonth)}
+                caption={range}
+                comparison={comparison}
+                className="border-b border-border lg:col-span-2"
+            >
+                <div className="h-32 lg:h-36">
+                    {!loading && (
+                        <MetricTrendChart
+                            label={t('dashboard.kpi.batchesThisMonth')}
+                            data={daily.map((day) => ({ label: day.label, value: day.batches }))}
+                        />
+                    )}
+                </div>
+            </KpiCard>
+            <KpiCard
+                label={t('dashboard.kpi.coffeeFutures')}
+                value={coffeeFuturesLoading ? '—' : coffeePrice}
+                unit="US ¢/lb"
+                change={coffeeFuturesLoading ? '' : coffeeChange}
+                caption="ICE · Coffee C"
+                comparison={t('dashboard.comparedToPreviousClose')}
+                className="border-b border-border lg:col-span-3 lg:border-r lg:border-b-0"
+                onRefresh={onRefreshCoffeeFutures}
+                refreshing={coffeeFuturesRefreshing}
+            >
+                <div className="flex h-24 flex-col justify-end lg:h-28">
+                    <div className="flex items-baseline justify-between gap-3 border-t border-divider pt-4 text-xs">
+                        <span className="text-muted">{t('dashboard.previousClose')}</span>
+                        <span className="text-secondary">
+                            {coffeeFuturesLoading || !coffeeFutures || !Number.isFinite(coffeeFutures.previousClose)
+                                ? '—'
+                                : coffeeFutures.previousClose.toFixed(2)}
+                        </span>
+                    </div>
+                    {!coffeeFuturesLoading && coffeePrice === '—' && (
+                        <p className="mt-3 text-xs text-muted">{t('common.unavailable')}</p>
+                    )}
+                </div>
+            </KpiCard>
+            <MonthlyChartSection monthlyBatches={monthlyBatches} loading={loading} />
         </div>
     );
 };

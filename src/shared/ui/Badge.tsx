@@ -19,17 +19,21 @@ export type BadgeTone =
     | 'yellow'
     | 'muted'; // skipped / low emphasis
 
+/** 12px / 20px emerald pill. Tailwind v4 emerald-100/600 are #D0FAE5 / #009966. */
+const emeraldPill =
+    'h-5 rounded-full border-0 bg-emerald-100 px-1.5 py-0.5 font-body text-xs font-medium leading-4 tracking-normal text-emerald-600 shadow-none dark:bg-emerald-900 dark:text-emerald-300';
+
 const toneClass: Record<BadgeTone, string> = {
     neutral: 'text-secondary bg-surface dark:bg-surface-elevated',
     soft: 'text-secondary bg-white/80 dark:bg-surface-elevated shadow-(--shadow-inset)',
-    good: 'text-palette-green bg-palette-green/15',
+    good: emeraldPill,
     bad: 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/15',
     warn: 'text-amber-600 bg-amber-500/10',
     amber: 'text-amber-700 dark:text-amber-300 bg-amber-400/20',
     lavender: 'text-palette-lavender bg-palette-lavender/15',
     lavenderSoft: 'text-palette-lavender bg-palette-lavender/12',
     blue: 'text-palette-blue bg-palette-blue/12',
-    green: 'text-palette-green bg-palette-green/12',
+    green: emeraldPill,
     yellow: 'text-palette-yellow bg-palette-yellow/15',
     muted: 'text-palette-lavender bg-palette-lavender/10',
 };

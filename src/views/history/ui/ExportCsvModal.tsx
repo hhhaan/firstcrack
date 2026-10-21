@@ -114,7 +114,7 @@ export const ExportCsvModal = ({ open, onClose, monthOptions, sessionsMeta, onCo
                     </div>
 
                     {preset === 'custom' && (
-                        <div className="mb-4 flex flex-col gap-3 border-t border-border-subtle pt-4 dark:border-[#585d61]">
+                        <div className="mb-4 flex flex-col gap-3 border-t border-border-subtle pt-4 dark:border-border">
                             <YearMonthRangeFields
                                 fromYM={fromYM}
                                 toYM={toYM}
@@ -136,7 +136,7 @@ export const ExportCsvModal = ({ open, onClose, monthOptions, sessionsMeta, onCo
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 cursor-pointer rounded-full border border-border bg-surface px-4 py-2.5 text-[13px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface-elevated dark:bg-surface-elevated dark:text-[#e5e5e5]"
+                        className="flex-1 cursor-pointer rounded-full border border-border bg-surface px-4 py-2.5 text-[13px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface-elevated dark:bg-surface-elevated dark:text-primary"
                     >
                         {t('history.exportCancelLabel')}
                     </button>
@@ -144,7 +144,7 @@ export const ExportCsvModal = ({ open, onClose, monthOptions, sessionsMeta, onCo
                         type="button"
                         disabled={!canExport}
                         onClick={handleConfirm}
-                        className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-transparent bg-primary px-4 py-2.5 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 dark:border-white dark:bg-[#0d0d0d]"
+                        className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-transparent bg-action px-4 py-2.5 text-[13px] font-medium tracking-[0.14px] text-on-action transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:opacity-50"
                     >
                         <Download size={14} strokeWidth={2} />
                         {t('history.exportOkLabel')}

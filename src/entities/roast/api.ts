@@ -3,7 +3,7 @@ import type { Json, RoastSession, RoastSessionWithRelations } from '@shared/type
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
-    '*, beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
+    '*, blends(name), beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
 
 /** Insert payload — created_by defaults to auth.uid() in DB. */
 export type RoastSessionInsert = Omit<

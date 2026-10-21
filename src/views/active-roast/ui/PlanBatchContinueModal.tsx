@@ -137,7 +137,7 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
                     disabled={busy}
                     data-testid="plan-batch-continue"
                     onClick={() => void start(selected)}
-                    className="w-full py-3 rounded-full border-none bg-primary text-white text-[13px] font-semibold cursor-pointer tracking-[0.1px] hover:opacity-90 transition-opacity"
+                    className="w-full py-3 rounded-full border-none bg-action text-on-action text-[13px] font-semibold cursor-pointer tracking-[0.1px] hover:opacity-90 transition-opacity"
                 >
                     {isSingleSameBatch ? t('activeRoast.planBatch.nextSession') : t('activeRoast.planBatch.nextBatch')}
                 </button>

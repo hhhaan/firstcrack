@@ -26,6 +26,7 @@ import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { Sparkline } from '@shared/ui/Sparkline';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { NewProfileModal } from '@widgets/new-profile-modal';
 import { ProfileCompare } from '@widgets/profile-compare/ui/ProfileCompare';
 import { ProfileDetail } from '@widgets/profile-detail/ui/ProfileDetail';
@@ -36,7 +37,7 @@ import { useTranslation } from 'react-i18next';
 const PROFILE_SKELETON_COUNT = 5;
 
 const ProfileCardSkeleton = () => (
-    <div className="rounded-lg border border-[#E5E5E5] bg-main-bg px-4 pt-4 pb-2 dark:border-[#585d61]">
+    <div className="rounded-2xl border border-border bg-main-bg px-4 pt-4 pb-2 dark:border-border">
         <Skeleton width="100%" height={44} borderRadius="6px" />
         <div className="mt-3 flex flex-col gap-1.5">
             <Skeleton width={132} height={13} borderRadius="4px" />
@@ -54,7 +55,11 @@ const ProfileListSkeleton = ({ label }: { label: string }) => (
 );
 
 const ProfileDetailSkeleton = () => (
-    <div aria-hidden className="min-w-0 rounded-lg bg-main-bg px-8 py-7 dark:border dark:border-[#585d61]">
+    <div
+        aria-hidden
+        data-testid="profile-detail-skeleton"
+        className="min-w-0 rounded-2xl border border-border bg-main-bg px-8 py-7"
+    >
         <div className="mb-5 flex items-start justify-between gap-3">
             <Skeleton width={220} height={28} borderRadius="6px" />
             <div className="flex shrink-0 gap-1.5">
@@ -278,13 +283,13 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const profileList = (
         <div>
             <CatalogVisibilityFilter checked={showHidden} onChange={setShowHidden} />
-            <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
+            <div className="flex items-center gap-2 mb-6 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={t('profiles.searchPlaceholder')}
-                    className="border-none bg-transparent outline-none text-[13px] text-primary font-body w-full tracking-[0.14px]"
+                    className="border-none bg-transparent outline-none text-sm font-[450] leading-5 text-primary font-body w-full tracking-[0.24px]"
                 />
             </div>
             {isLoading ? (
@@ -315,7 +320,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             <div
                                 key={profile.id}
                                 onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
-                                className={`bg-main-bg rounded-lg px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
+                                className={`bg-main-bg rounded-2xl px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-strong-border shadow-xs' : 'border-border hover:border-strong-border'}`}
                             >
                                 {compareMode && (
                                     <div className="flex justify-end -mt-1 mb-1">
@@ -344,7 +349,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 <div className="flex items-start justify-between mt-3">
                                     <div>
                                         <div className="flex items-center gap-1.25 mb-px">
-                                            <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
+                                            <span className="text-sm font-medium leading-5 text-primary tracking-[0.14px]">
                                                 {profile.name}
                                             </span>
                                             {defaultId === profile.id && (
@@ -381,27 +386,22 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 actions={
                     <div className="flex gap-2 items-center">
                         {profiles.length > 1 && (
-                            <button
-                                type="button"
+                            <SurfaceButton
                                 onClick={compareMode ? exitCompareMode : enterCompareMode}
-                                className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition hover:-translate-y-px ${
+                                className={
                                     compareMode
-                                        ? 'bg-primary text-white '
-                                        : 'bg-main-bg dark:bg-[#262b31] text-secondary dark:text-[#e5e5e5] border border-transparent dark:border-[#585d61] hover:text-primary'
-                                }`}
+                                        ? 'border-transparent bg-action text-on-action hover:bg-action hover:opacity-85'
+                                        : undefined
+                                }
                             >
                                 <GitCompare size={14} strokeWidth={2} />
                                 {compareMode ? t('profiles.compare.exit') : t('profiles.compare.enter')}
-                            </button>
+                            </SurfaceButton>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => setShowNewModal(true)}
-                            className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] transition hover:-translate-y-px"
-                        >
+                        <PillButton onClick={() => setShowNewModal(true)}>
                             <Plus size={15} strokeWidth={2.5} />
                             {t('profiles.newProfile')}
-                        </button>
+                        </PillButton>
                     </div>
                 }
             />
@@ -409,12 +409,12 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             {listFailed ? (
                 <div
                     role="alert"
-                    className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted dark:border dark:border-[#585d61]"
+                    className="rounded-2xl border border-border bg-main-bg p-8 text-center text-sm text-muted"
                 >
                     {t('profiles.loadError')}
                 </div>
             ) : !isLoading && profiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
+                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-2xl border border-border bg-main-bg">
                     <p className="text-sm text-muted tracking-[0.14px]">{t('profiles.empty')}</p>
                     <PillButton onClick={() => setShowNewModal(true)}>
                         <Plus size={14} strokeWidth={2.5} />

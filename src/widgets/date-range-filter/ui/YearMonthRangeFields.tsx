@@ -40,7 +40,7 @@ export const YearMonthRangeFields = ({ fromYM, toYM, monthOptions, onFromYM, onT
                             {label}
                         </span>
                         <Select value={yr} onValueChange={(v) => set(mo ? `${v}-${mo}` : v)}>
-                            <SelectTrigger className="w-24 border border-border-subtle dark:border-[#585d61]">
+                            <SelectTrigger className="w-24 border border-border-subtle dark:border-border">
                                 <SelectValue placeholder={t('history.customRange.year')} />
                             </SelectTrigger>
                             <SelectContent>
@@ -52,7 +52,7 @@ export const YearMonthRangeFields = ({ fromYM, toYM, monthOptions, onFromYM, onT
                             </SelectContent>
                         </Select>
                         <Select value={mo} onValueChange={(v) => set(yr ? `${yr}-${v}` : v)}>
-                            <SelectTrigger className="w-20 border border-border-subtle dark:border-[#585d61]">
+                            <SelectTrigger className="w-20 border border-border-subtle dark:border-border">
                                 <SelectValue placeholder={t('history.customRange.month')} />
                             </SelectTrigger>
                             <SelectContent>

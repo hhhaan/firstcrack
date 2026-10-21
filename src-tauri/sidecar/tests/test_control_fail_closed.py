@@ -1,6 +1,6 @@
 """#270: control()은 실제 쓰기가 있을 때만 성공으로 보고한다."""
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
@@ -18,7 +18,7 @@ from manager import RoasterManager
 from roaster_registry import ROASTER_REGISTRY
 from tests.conftest import FakeAdapter, make_reading
 
-from tests.test_s7_adapter import GIESEN_CHANNELS, GIESEN_WRITE_MAP
+from tests.test_s7_adapter import GIESEN_CHANNELS, GIESEN_WRITE_MAP, _int_bytes
 
 _CLIENT_WRITE_MAP = {"heater": {"min": 0, "max": 100, "unit": "%"}}
 
@@ -215,7 +215,58 @@ class TestWritableHonorsProtocol:
             assert pid.status == 409
 
 
-class TestS7PlcNone:
+class TestS7ControlAcknowledgement:
+    @pytest.mark.parametrize("retry_epoch", [None, True, -1, "0"])
+    async def test_retry_epoch_requires_a_nonnegative_integer(self, client, retry_epoch):
+        response = await client.post("/control", json={"heater": 0, "retry_epoch": retry_epoch})
+        assert response.status == 400
+
+    async def test_http_retry_confirms_a_previously_written_value_without_resending(self, client):
+        manager = client.app["manager"]
+        defaults = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
+        adapter = S7Adapter(channels=defaults["channels"], write_map=defaults["write_map"])
+        adapter._min_interval = 0
+        plc = MagicMock()
+        plc.db_read.side_effect = TimeoutError("acknowledgement lost")
+        adapter._plc = plc
+        manager._adapter = adapter
+        manager._connected = True
+        manager._protocol = "s7"
+        manager._merged_params = defaults
+        first = await client.post("/control", json={"heater": 0})
+        assert first.status == 502
+        plc.db_read.side_effect = None
+        plc.db_read.return_value = _int_bytes(1)
+        retried = await client.post("/control", json={"heater": 0, "retry_epoch": 0})
+        assert retried.status == 200
+        assert (await retried.json())["applied"] == {"heater": 0}
+        plc.db_write.assert_called_once()
+
+    @pytest.mark.parametrize("raw, status", [(0, 502), (21, 502), (1, 200)])
+    async def test_giesen_zero_http_ack_requires_command_readback(self, client, raw, status):
+        manager = client.app["manager"]
+        defaults = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
+        adapter = S7Adapter(channels=defaults["channels"], write_map=defaults["write_map"])
+        adapter._min_interval = 0
+        plc = MagicMock()
+        plc.db_read.return_value = _int_bytes(raw)
+        adapter._plc = plc
+        manager._adapter = adapter
+        manager._connected = True
+        manager._protocol = "s7"
+        manager._merged_params = defaults
+        response = await client.post("/control", json={"heater": 0})
+        assert response.status == status
+        body = await response.json()
+        if status == 200:
+            assert body == {"ok": True, "applied": {"heater": 0}}
+            assert manager.last_applied() == {"heater": 0}
+        else:
+            assert "applied" not in body
+            assert manager.last_applied() == {}
+        plc.db_write.assert_called_once()
+        plc.db_read.assert_called_once_with(2, 14, 2)
+
     async def test_s7_plc_none_is_not_success(self, manager):
         adapter = S7Adapter(
             host="127.0.0.1",

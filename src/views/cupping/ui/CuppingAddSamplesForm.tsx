@@ -171,7 +171,7 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                         <p className="mb-3 text-[12px] text-muted">
                             {t(isEdit ? 'cupping.editSamplesHintRoast' : 'cupping.addSamplesHintRoast')}
                         </p>
-                        <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-border-subtle p-2 dark:border-[#585d61]">
+                        <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-border-subtle p-2 dark:border-border">
                             {roastOptions.length === 0 ? (
                                 <div className="p-2 text-xs text-muted">{t('cupping.noRoasts')}</div>
                             ) : (
@@ -219,7 +219,7 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                                 value={freeLabel}
                                 onChange={(e) => setFreeLabel(e.target.value)}
                                 placeholder={t('cupping.freeLabelPlaceholder')}
-                                className="w-full rounded-xl border border-black/8 bg-white/80 px-3.5 py-2.5 text-sm text-primary outline-none transition-all focus:border-black/20 dark:border-[#585d61] dark:bg-[#262b31] dark:focus:border-[#585d61] shadow-(--shadow-inset)"
+                                className="w-full rounded-xl border border-black/8 bg-white/80 px-3.5 py-2.5 text-sm text-primary outline-none transition-[color,background-color,box-shadow,opacity] focus:border-black/20 dark:border-border dark:bg-surface-elevated dark:focus:border-[#585d61] shadow-(--shadow-inset)"
                             />
                         </label>
                     </>

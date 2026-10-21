@@ -59,8 +59,18 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
     const hiddenIds = new Set(hidden);
 
     return (
-        <nav className={cn('flex-1 overflow-y-auto py-1', rail ? 'px-3' : edgePad)}>
-            <div className={cn('flex flex-col', collapsed ? 'gap-1' : 'gap-3')}>
+        <nav
+            className={cn(
+                'flex-1 overflow-y-auto py-1 transition-[padding] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                rail ? 'px-3' : edgePad,
+            )}
+        >
+            <div
+                className={cn(
+                    'flex flex-col transition-[gap] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                    collapsed ? 'gap-1' : 'gap-3',
+                )}
+            >
                 {SIDEBAR_GROUPS.map((group, index) => {
                     const ids = order.filter((id) => groupIdSets[index].has(id) && !hiddenIds.has(id));
                     if (ids.length === 0) return null;
@@ -68,8 +78,8 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                         <div key={group.labelKey}>
                             <div
                                 className={cn(
-                                    'font-medium text-muted transition-all duration-220 overflow-hidden whitespace-nowrap',
-                                    collapsed ? 'h-0 p-0 opacity-0' : 'mb-1.5 px-2.5 text-xs opacity-100',
+                                    'px-2 text-xs leading-4 font-medium text-muted transition-[height,margin,opacity] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden whitespace-nowrap motion-reduce:transition-none',
+                                    collapsed ? 'h-0 mb-0 opacity-0' : 'h-4 mb-1.5 opacity-100',
                                 )}
                             >
                                 {t(group.labelKey)}
@@ -89,16 +99,25 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         data-testid={navTestId(id)}
                                         onClick={() => onNavigate(id)}
                                         aria-label={label}
+                                        aria-current={isActive ? 'page' : undefined}
                                         title={collapsed ? label : undefined}
                                         className={cn(
-                                            'flex h-9 w-full cursor-pointer items-center overflow-hidden rounded-lg border-none bg-transparent mb-0.5 transition-[padding,background-color] duration-220 hover:bg-primary/5',
+                                            'mb-1 flex h-8 w-full cursor-pointer items-center gap-2 overflow-hidden rounded-[7.6px] border border-transparent text-sm leading-5 transition-[padding,background-color] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong-border motion-reduce:transition-none',
+                                            isActive
+                                                ? 'border-border bg-main-bg font-medium shadow-xs dark:border-transparent'
+                                                : 'bg-transparent font-[450] hover:bg-surface-elevated',
                                             collapsed || rail ? 'pl-0' : 'pl-2',
                                         )}
                                     >
-                                        <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
+                                        <div
+                                            className={cn(
+                                                'relative flex shrink-0 items-center justify-center',
+                                                collapsed || rail ? 'size-8' : 'size-4',
+                                            )}
+                                        >
                                             <Icon
                                                 size={16}
-                                                strokeWidth={1.5}
+                                                strokeWidth={2}
                                                 className={isActive ? 'text-primary' : 'text-muted'}
                                             />
                                             {showBadge && collapsed && (
@@ -112,16 +131,16 @@ export const SidebarNav = ({ activeView, onNavigate, collapsed, rail, edgePad }:
                                         </div>
                                         <div
                                             className={cn(
-                                                'flex items-center gap-2 transition-all duration-220 overflow-hidden whitespace-nowrap',
-                                                collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
+                                                'flex min-w-0 items-center gap-2 transition-[opacity,translate] duration-150 overflow-hidden whitespace-nowrap motion-reduce:transition-none',
+                                                collapsed
+                                                    ? 'opacity-0 -translate-x-1'
+                                                    : 'opacity-100 translate-x-0 delay-75 motion-reduce:delay-0',
                                             )}
                                         >
                                             <span
                                                 className={cn(
-                                                    'text-[13px]',
-                                                    isActive
-                                                        ? 'font-medium text-primary'
-                                                        : 'font-normal text-secondary',
+                                                    'text-sm leading-5 tracking-[0.24px]',
+                                                    isActive ? 'font-medium text-primary' : 'font-[450] text-muted',
                                                 )}
                                             >
                                                 {label}

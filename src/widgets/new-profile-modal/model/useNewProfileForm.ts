@@ -4,7 +4,9 @@ import { copyMachineSnapshot } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useRoastSessions } from '@entities/roast';
 import {
+    type ProfileSource,
     type RoastProfileWithSource,
+    registeredProfileSources,
     resolveSourceSession,
     type SessionSummary,
     summarizeSessionEvents,
@@ -13,12 +15,7 @@ import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roa
 import type { RoastProfile } from '@shared/types/database.types';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fmtDate } from '../lib/format';
-import {
-    INITIAL_PROFILE_FORM,
-    type ProfileDefaultType,
-    type ProfileFormMode,
-    type ProfileFormState,
-} from '../lib/types';
+import { INITIAL_PROFILE_FORM, type ProfileFormMode, type ProfileFormState } from '../lib/types';
 
 interface UseNewProfileFormArgs {
     open: boolean;
@@ -34,9 +31,7 @@ export type NewProfileFormFields = {
     mode: ProfileFormMode;
     form: ProfileFormState;
     selectedSessionId: string | null;
-    defaultType: ProfileDefaultType;
-    defaultBeanId: string | null;
-    defaultBlendId: string | null;
+    sources: ProfileSource[];
 };
 
 /** Close/unmount must return the session picker — leftover create values caused #471. */
@@ -49,9 +44,7 @@ export const resolveNewProfileFormState = (
             mode: 'session-list',
             form: INITIAL_PROFILE_FORM,
             selectedSessionId: null,
-            defaultType: 'none',
-            defaultBeanId: null,
-            defaultBlendId: null,
+            sources: [],
         };
     }
     return {
@@ -62,9 +55,7 @@ export const resolveNewProfileFormState = (
             target_level: editingProfile.target_level ?? 'Medium',
         },
         selectedSessionId: editingProfile.source_session_id,
-        defaultType: editingProfile.default_bean_id ? 'bean' : editingProfile.default_blend_id ? 'blend' : 'none',
-        defaultBeanId: editingProfile.default_bean_id ?? null,
-        defaultBlendId: editingProfile.default_blend_id ?? null,
+        sources: registeredProfileSources(editingProfile),
     };
 };
 
@@ -80,9 +71,7 @@ export const useNewProfileForm = ({
     const [mode, setMode] = useState<ProfileFormMode>(initial.mode);
     const [form, setForm] = useState<ProfileFormState>(initial.form);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(initial.selectedSessionId);
-    const [defaultType, setDefaultType] = useState<ProfileDefaultType>(initial.defaultType);
-    const [defaultBeanId, setDefaultBeanId] = useState<string | null>(initial.defaultBeanId);
-    const [defaultBlendId, setDefaultBlendId] = useState<string | null>(initial.defaultBlendId);
+    const [sources, setSources] = useState<ProfileSource[]>(initial.sources);
     const nameRef = useRef<HTMLInputElement>(null);
 
     const { workspaceOwnerId } = useActiveWorkspace();
@@ -100,9 +89,7 @@ export const useNewProfileForm = ({
         setMode(next.mode);
         setForm(next.form);
         setSelectedSessionId(next.selectedSessionId);
-        setDefaultType(next.defaultType);
-        setDefaultBeanId(next.defaultBeanId);
-        setDefaultBlendId(next.defaultBlendId);
+        setSources(next.sources);
     }
 
     useEffect(() => {
@@ -173,18 +160,22 @@ export const useNewProfileForm = ({
         if (!isValid || !workspaceOwnerId) return;
 
         if (editingProfile) {
-            const patch: Partial<Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>> = {
+            const patch: Partial<Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>> & {
+                sources?: ProfileSource[];
+            } = {
+                sources,
                 name: form.name.trim(),
                 description: form.description.trim() || null,
                 target_level: form.target_level,
-                default_bean_id: defaultType === 'bean' ? defaultBeanId : null,
-                default_blend_id: defaultType === 'blend' ? defaultBlendId : null,
+                default_bean_id: sources.length === 1 ? sources[0].bean_id : null,
+                default_blend_id: sources.length === 1 ? sources[0].blend_id : null,
             };
             onUpdated?.({ id: editingProfile.id, ...patch } as RoastProfile);
         } else if (selectedSession && summary) {
             const { fc_time_sec: _fc, ...columns } = summary;
             void _fc;
-            const profile: Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> = {
+            const profile: Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> & { sources?: ProfileSource[] } = {
+                sources,
                 user_id: workspaceOwnerId,
                 name: form.name.trim(),
                 description: form.description.trim() || null,
@@ -192,8 +183,8 @@ export const useNewProfileForm = ({
                 ...columns,
                 source_session_id: selectedSession.id,
                 heater_events: null,
-                default_bean_id: defaultType === 'bean' ? defaultBeanId : null,
-                default_blend_id: defaultType === 'blend' ? defaultBlendId : null,
+                default_bean_id: sources.length === 1 ? sources[0].bean_id : null,
+                default_blend_id: sources.length === 1 ? sources[0].blend_id : null,
                 ...copyMachineSnapshot(selectedSession),
             };
 
@@ -203,6 +194,8 @@ export const useNewProfileForm = ({
     };
 
     return {
+        sources,
+        setSources,
         mode,
         setMode,
         form,
@@ -211,12 +204,6 @@ export const useNewProfileForm = ({
         sessions,
         beans,
         blends,
-        defaultType,
-        setDefaultType,
-        defaultBeanId,
-        setDefaultBeanId,
-        defaultBlendId,
-        setDefaultBlendId,
         selectedSession,
         summary,
         handleSessionSelect,

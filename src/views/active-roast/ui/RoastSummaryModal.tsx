@@ -1,3 +1,4 @@
+import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
@@ -39,6 +40,7 @@ interface RoastSummaryModalProps {
     ambientHumidity?: number | null;
     /** Pre-selected bean from roast header / handoff */
     selectedBeanId?: string | null;
+    selectedBlendId?: string | null;
     /** Existing schedule handoff — link UI is read-only */
     planBatchHandoff?: PlanBatchHandoff | null;
     /** Schedule/inventory display name when beans list not resolved yet */
@@ -74,6 +76,7 @@ export const RoastSummaryModal = ({
     ambientTemp,
     ambientHumidity,
     selectedBeanId = null,
+    selectedBlendId = null,
     planBatchHandoff = null,
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
@@ -93,10 +96,11 @@ export const RoastSummaryModal = ({
         beans,
         effectiveHandoff,
         beanFieldEpoch,
-    } = useRoastSummaryForm({ open, summaryData, selectedBeanId, planBatchHandoff });
+    } = useRoastSummaryForm({ open, summaryData, selectedBeanId, selectedBlendId, planBatchHandoff });
 
     const roastLevel = watch('roastLevel');
     const formBeanId = watch('beanId');
+    const formBlendId = watch('blendId');
     const beanLabel = watch('beanLabel');
     const linkMode = watch('linkMode');
     const formPlanBatchId = watch('planBatchId');
@@ -138,18 +142,21 @@ export const RoastSummaryModal = ({
         customBean: isCustomBean,
         deductionKg,
         resolvedBeanId,
-        blendId: effectiveHandoff?.blendId ?? null,
+        blendId: effectiveHandoff?.blendId ?? formBlendId ?? null,
     });
 
     const authUserId = useAuthStore((state) => state.user?.id ?? '');
     const { workspaceOwnerId } = useActiveWorkspace();
+    const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { hidden: hiddenBeans } = useCatalogVisibility(authUserId, workspaceOwnerId, 'beans');
     const beanComboboxItems = useMemo(
-        () =>
-            beans
+        () => [
+            ...beans
                 .filter((b) => b.id === formBeanId || b.id === selectedBeanId || !hiddenBeans.has(b.id))
                 .map((b) => ({ id: b.id, name: b.name })),
-        [beans, formBeanId, selectedBeanId, hiddenBeans],
+            ...blends.map((b) => ({ id: `blend:${b.id}`, name: b.name })),
+        ],
+        [beans, blends, formBeanId, selectedBeanId, hiddenBeans],
     );
 
     if (!open || !summaryData) {
@@ -283,7 +290,7 @@ export const RoastSummaryModal = ({
                                             }}
                                             className={`flex-1 px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
                                                 linkMode === value
-                                                    ? 'bg-primary text-white'
+                                                    ? 'bg-action text-on-action'
                                                     : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
                                             }`}
                                         >
@@ -358,12 +365,16 @@ export const RoastSummaryModal = ({
                                             key={beanFieldEpoch}
                                             data-testid="roast-summary-bean"
                                             items={beanComboboxItems}
-                                            selectedId={formBeanId ?? ''}
+                                            selectedId={formBlendId ? `blend:${formBlendId}` : (formBeanId ?? '')}
                                             placeholder={t('activeRoast.summary.beanComboboxPlaceholder')}
                                             emptyLabel={t('activeRoast.summary.beanComboboxEmpty')}
                                             listToggleLabel={t('activeRoast.summary.beanComboboxToggle')}
                                             onSelect={(id) => {
-                                                setValue('beanId', id || null, {
+                                                setValue('blendId', id.startsWith('blend:') ? id.slice(6) : null, {
+                                                    shouldDirty: true,
+                                                    shouldValidate: true,
+                                                });
+                                                setValue('beanId', id.startsWith('blend:') ? null : id || null, {
                                                     shouldDirty: true,
                                                     shouldValidate: true,
                                                 });
@@ -375,6 +386,7 @@ export const RoastSummaryModal = ({
                                                 }
                                             }}
                                             onFreeText={(name) => {
+                                                setValue('blendId', null, { shouldDirty: true, shouldValidate: true });
                                                 setValue('beanId', null, { shouldDirty: true, shouldValidate: true });
                                                 setValue('beanLabel', name, {
                                                     shouldDirty: true,
@@ -469,7 +481,7 @@ export const RoastSummaryModal = ({
                                     onClick={() => setValue('roastLevel', roastLevel === value ? null : value)}
                                     className={`px-2.5 py-1 rounded-md text-[11px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
                                         roastLevel === value
-                                            ? 'bg-primary text-white'
+                                            ? 'bg-action text-on-action'
                                             : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
                                     }`}
                                 >
@@ -510,7 +522,7 @@ export const RoastSummaryModal = ({
                     </label>
                 </ModalScrollBody>
 
-                <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-[#585d61] flex flex-col gap-2 bg-main-bg dark:bg-[#181d21]">
+                <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border flex flex-col gap-2 bg-main-bg dark:bg-main-bg">
                     <button
                         type="button"
                         data-testid="roast-summary-save"

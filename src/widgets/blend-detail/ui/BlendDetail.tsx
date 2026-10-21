@@ -51,7 +51,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
     ];
 
     return (
-        <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative dark:border dark:border-[#585d61]">
+        <div className="bg-main-bg rounded-2xl border border-border px-8 py-7 h-fit relative">
             <DeleteBlendModal
                 open={confirmId === blend.id}
                 blendName={blend.name}
@@ -66,7 +66,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                 <button
                     type="button"
                     onClick={() => onEdit(blend)}
-                    className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] text-muted dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer transition-all duration-200"
+                    className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-border bg-white dark:bg-surface-elevated text-muted dark:text-primary flex items-center justify-center cursor-pointer transition-[color,background-color,box-shadow,opacity] duration-200"
                     title={t('beans.blend.edit')}
                 >
                     <Edit3 size={16} />
@@ -74,7 +74,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                 <button
                     type="button"
                     onClick={() => setConfirmId(blend.id)}
-                    className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] flex items-center justify-center cursor-pointer transition-all duration-200 text-red-600 dark:text-red-400"
+                    className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-border bg-white dark:bg-surface-elevated flex items-center justify-center cursor-pointer transition-[color,background-color,box-shadow,opacity] duration-200 text-muted hover:text-red-600 dark:hover:text-red-400"
                     title={t('beans.blend.delete')}
                 >
                     <Trash2 size={16} />
@@ -82,7 +82,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
             </div>
 
             <div className="mb-6 pr-10">
-                <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
+                <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[0.24px] mb-1">
                     {blend.name}
                 </h2>
                 <div className="flex gap-1.5 flex-wrap">
@@ -93,11 +93,9 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                         {total}%
                     </Badge>
                     {roastable.maxGrams > 0 ? (
-                        <Badge tone="good" className="text-xs px-2.25">
-                            {t('beans.blend.roastableKg', { kg: roastableKg })}
-                        </Badge>
+                        <Badge tone="good">{t('beans.blend.roastableKg', { kg: roastableKg })}</Badge>
                     ) : (
-                        <Badge tone="bad" className="text-xs px-2.25">
+                        <Badge tone="neutral" className="text-xs px-2.25">
                             {t('beans.blend.noStock')}
                         </Badge>
                     )}
@@ -157,7 +155,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
                                 </div>
                                 <div className="h-1 bg-surface rounded-full overflow-hidden mt-1.5">
                                     <div
-                                        className="h-full rounded-full transition-all duration-500"
+                                        className="h-full rounded-full transition-[color,background-color,box-shadow,opacity] duration-500"
                                         style={{
                                             width: `${total > 0 ? (Number(c.ratio_pct) / total) * 100 : 0}%`,
                                             backgroundColor: segments[i]?.color,

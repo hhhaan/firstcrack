@@ -51,7 +51,7 @@ export function SettingsLayout({
         if (emptyRef.current) emptyRef.current.hidden = !terms.length || visible > 0;
     }, [query, tab?.label, activeTab, roastGroup, t]);
     return (
-        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-main-bg" data-testid="settings-page">
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-shell-bg" data-testid="settings-page">
             <SettingsSidebar
                 activeTab={activeTab}
                 onTabChange={changeTab}
@@ -61,32 +61,34 @@ export function SettingsLayout({
                 query={query}
                 onQueryChange={search}
             />
-            <main
-                key={`${activeTab}:${roastGroup}`}
-                aria-labelledby="settings-page-title"
-                className="@container min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-8 lg:px-10 lg:py-10"
-            >
-                <div className="mx-auto w-full max-w-[760px]">
-                    <header className="mb-6">
-                        {groupLabel && <p className="m-0 mb-2 text-xs text-muted">{tab?.label}</p>}
-                        <h1
-                            ref={focusHeading}
-                            id="settings-page-title"
-                            tabIndex={-1}
-                            className="m-0 font-(--font-display) text-2xl font-semibold leading-tight tracking-[-0.4px] text-primary outline-none"
-                        >
-                            {groupLabel ?? tab?.label}
-                        </h1>
-                        {!groupLabel && (
-                            <p className="m-0 mt-2 text-[13px] leading-relaxed text-secondary">{tab?.description}</p>
-                        )}
-                    </header>
-                    <div ref={contentRef}>{children}</div>
-                    <p ref={emptyRef} hidden role="status" className="m-0 text-[13px] text-muted">
-                        {t('settings.noSearchResults')}
-                    </p>
-                </div>
-            </main>
+            <div className="flex min-h-0 min-w-0 flex-1 bg-transparent">
+                <main
+                    key={`${activeTab}:${roastGroup}`}
+                    aria-labelledby="settings-page-title"
+                    className="@container mr-2 mb-2 min-h-0 min-w-0 flex-1 overflow-y-auto rounded-2xl border border-border-subtle bg-main-bg px-6 py-8 shadow-xs sm:px-8"
+                >
+                    <div className={`mx-auto w-full ${activeTab === 'roast' ? 'max-w-[760px]' : 'max-w-[680px]'}`}>
+                        <header className="mb-6">
+                            {groupLabel && <p className="m-0 mb-2 text-xs text-muted">{tab?.label}</p>}
+                            <h1
+                                ref={focusHeading}
+                                id="settings-page-title"
+                                tabIndex={-1}
+                                className="m-0 font-(--font-display) text-2xl font-medium leading-8 tracking-[0.24px] text-primary outline-none"
+                            >
+                                {groupLabel ?? tab?.label}
+                            </h1>
+                            {!groupLabel && (
+                                <p className="m-0 mt-2 text-sm font-[450] leading-5 text-muted">{tab?.description}</p>
+                            )}
+                        </header>
+                        <div ref={contentRef}>{children}</div>
+                        <p ref={emptyRef} hidden role="status" className="m-0 text-[13px] text-muted">
+                            {t('settings.noSearchResults')}
+                        </p>
+                    </div>
+                </main>
+            </div>
         </div>
     );
 }

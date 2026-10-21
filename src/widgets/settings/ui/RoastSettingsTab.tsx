@@ -34,7 +34,7 @@ import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { Lock, Play } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
 import { CurveStyleSection } from './CurveStyleSection';
@@ -45,6 +45,7 @@ import {
     SettingsOptionRow,
     settingsOptionDescCls,
     settingsOptionLabelCls,
+    settingsOptionSwitchCls,
 } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 
@@ -159,6 +160,7 @@ const RoastCheckRows = ({ options }: { options: readonly RoastCheckOption[] }) =
     return options.map(({ key, labelKey, descKey }) => (
         <SettingsCheckRow
             key={key}
+            type="checkbox"
             checked={roastSettings[key]}
             label={t(labelKey)}
             description={t(descKey)}
@@ -250,9 +252,9 @@ const NumberInput = ({
                     setLocal(String(next));
                     if (next !== value) onChange(next);
                 }}
-                className="w-14 bg-transparent text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-14 bg-transparent text-[13px] font-medium text-[#111827] dark:text-primary text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
             />
-            {suffix && <span className="text-[12px] text-[#6B7280] dark:text-[#999]">{suffix}</span>}
+            {suffix && <span className="text-[12px] text-[#6B7280] dark:text-muted">{suffix}</span>}
         </div>
     );
 };
@@ -271,23 +273,33 @@ const TimeAlertRow = ({
     description: string;
     onEnabled: () => void;
     onMinutes: (v: number) => void;
-}) => (
-    <SettingsOptionRow justify="between" align="start">
-        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
-            <input
-                type="checkbox"
-                checked={enabled}
-                onChange={onEnabled}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
-            />
-            <div className="min-w-0">
+}) => {
+    const id = useId();
+    return (
+        <SettingsOptionRow justify="between">
+            <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
                 <div className={settingsOptionLabelCls}>{label}</div>
-                <div className={settingsOptionDescCls}>{description}</div>
+                <div id={`${id}-description`} className={settingsOptionDescCls}>
+                    {description}
+                </div>
+            </label>
+            <div className="flex shrink-0 items-center gap-4">
+                <NumberInput value={minutes} onChange={onMinutes} min={1} max={30} suffix="min" />
+                <input
+                    id={id}
+                    type="checkbox"
+                    role="switch"
+                    aria-checked={enabled}
+                    aria-label={label}
+                    aria-describedby={`${id}-description`}
+                    checked={enabled}
+                    onChange={onEnabled}
+                    className={settingsOptionSwitchCls}
+                />
             </div>
-        </label>
-        <NumberInput value={minutes} onChange={onMinutes} min={1} max={30} suffix="min" />
-    </SettingsOptionRow>
-);
+        </SettingsOptionRow>
+    );
+};
 
 const RangeRow = ({
     label,
@@ -785,7 +797,7 @@ export const RoastSettingsTab = () => {
     const storeRoR = (display: number) => fromDisplayRoR(display, unit);
 
     return (
-        <div className="settings-compact grid gap-0">
+        <div className="grid gap-8">
             <RoastingSettingsImport />
             <SettingsSection group="general">
                 <SettingsSection.Header title={tk('temperatureUnit')} description={tk('temperatureUnitDescription')} />
@@ -805,7 +817,7 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection group="alerts">
                 <SettingsSection.Header title={tk('alerts')} description={tk('alertsDescription')} />
-                <SettingsSection.Body className="grid gap-1.5">
+                <SettingsSection.Body>
                     <SettingsCheckRow
                         checked={roastSettings.alertsEnabled}
                         label={tk('alertsEnabled')}
@@ -1046,28 +1058,35 @@ export const RoastSettingsTab = () => {
                     description={tk('phaseTemperaturesDescription')}
                 />
                 <SettingsSection.Body className="grid gap-1.5">
-                    <SettingsOptionRow justify="between" align="start">
-                        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                    <SettingsOptionRow justify="between">
+                        <label htmlFor="roast-auto-yellow" className="min-w-0 flex-1 cursor-pointer">
+                            <div className={settingsOptionLabelCls}>{tk('yellowPoint')}</div>
+                            <div id="roast-auto-yellow-description" className={settingsOptionDescCls}>
+                                {tk('yellowPointDescription')}
+                            </div>
+                        </label>
+                        <div className="flex shrink-0 items-center gap-4">
+                            <NumberInput
+                                value={dispT(roastSettings.yellowTempC)}
+                                onChange={(v) => updateRoastSettings({ yellowTempC: storeT(v) })}
+                                min={dispT(50)}
+                                max={dispT(300)}
+                                suffix={tempSuffix}
+                            />
                             <input
+                                id="roast-auto-yellow"
                                 type="checkbox"
+                                role="switch"
+                                aria-checked={roastSettings.autoYellowEnabled}
+                                aria-label={tk('yellowPoint')}
+                                aria-describedby="roast-auto-yellow-description"
                                 checked={roastSettings.autoYellowEnabled}
                                 onChange={() =>
                                     updateRoastSettings({ autoYellowEnabled: !roastSettings.autoYellowEnabled })
                                 }
-                                className="mt-0.5 h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
+                                className={settingsOptionSwitchCls}
                             />
-                            <div className="min-w-0">
-                                <div className={settingsOptionLabelCls}>{tk('yellowPoint')}</div>
-                                <div className={settingsOptionDescCls}>{tk('yellowPointDescription')}</div>
-                            </div>
-                        </label>
-                        <NumberInput
-                            value={dispT(roastSettings.yellowTempC)}
-                            onChange={(v) => updateRoastSettings({ yellowTempC: storeT(v) })}
-                            min={dispT(50)}
-                            max={dispT(300)}
-                            suffix={tempSuffix}
-                        />
+                        </div>
                     </SettingsOptionRow>
                 </SettingsSection.Body>
             </SettingsSection>
@@ -1087,14 +1106,14 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />
-                <SettingsSection.Body className="grid items-start gap-x-6 gap-y-1 @[480px]:grid-cols-2">
+                <SettingsSection.Body>
                     <RoastCheckRows options={visibilityOptions} />
                 </SettingsSection.Body>
             </SettingsSection>
 
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('profileSeries')} description={tk('profileSeriesDescription')} />
-                <SettingsSection.Body className="grid items-start gap-x-6 gap-y-1 @[480px]:grid-cols-2">
+                <SettingsSection.Body>
                     <RoastCheckRows options={profileSeriesOptions} />
                 </SettingsSection.Body>
             </SettingsSection>
@@ -1103,7 +1122,7 @@ export const RoastSettingsTab = () => {
 
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('eventMarkers')} description={tk('eventMarkersDescription')} />
-                <SettingsSection.Body className="grid gap-x-6 gap-y-1 @[480px]:grid-cols-3">
+                <SettingsSection.Body className="grid gap-4">
                     {eventMarkerStyleOptions.map(({ value, labelKey, descKey }) => (
                         <SettingsCheckRow
                             key={value}

@@ -43,7 +43,7 @@ export function SettingsSidebar({
         onTabChange(id);
     };
     return (
-        <aside className="flex w-[170px] shrink-0 flex-col overflow-y-auto border-r border-border-subtle bg-primary/[0.02] px-3 py-5 sm:w-[200px] lg:w-[220px]">
+        <aside className="flex w-[170px] shrink-0 flex-col overflow-y-auto bg-transparent px-4 pt-3 pb-5 sm:w-[200px] lg:w-[224px]">
             <div className="mb-4 flex items-center gap-1.5 px-1">
                 <button
                     type="button"
@@ -60,7 +60,7 @@ export function SettingsSidebar({
                 <Search
                     size={15}
                     strokeWidth={1.5}
-                    className="pointer-events-none absolute left-3 top-2.5 text-muted"
+                    className="pointer-events-none absolute left-3 top-3 text-muted"
                     aria-hidden
                 />
                 <input
@@ -69,7 +69,7 @@ export function SettingsSidebar({
                     onChange={(event) => onQueryChange(event.target.value)}
                     aria-label={t('settings.search')}
                     placeholder={t('settings.search')}
-                    className="h-9 w-full appearance-none rounded-full border border-border bg-primary/5 pl-9 pr-3 text-[13px] text-primary shadow-none outline-none placeholder:text-muted transition-colors focus-visible:border-primary/25 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
+                    className="h-10 w-full appearance-none rounded-xl border border-border bg-input-bg pl-10 pr-3 text-sm text-primary shadow-xs outline-none placeholder:text-muted transition-colors focus-visible:border-primary/25 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                 />
             </div>
             <nav aria-label={t('settings.pageTitle')} className="space-y-5">
@@ -80,7 +80,7 @@ export function SettingsSidebar({
                             <h2 className="m-0 mb-1.5 px-2.5 text-xs font-medium text-muted">
                                 {t(`settings.groups.${group.key}`)}
                             </h2>
-                            <div className="space-y-0.5">
+                            <div className="space-y-1">
                                 {group.tabs.map((id) => {
                                     const tab = tabs.find((item) => item.id === id);
                                     if (!tab) return null;
@@ -102,10 +102,10 @@ export function SettingsSidebar({
                                                         : undefined
                                                 }
                                                 className={cn(
-                                                    'flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-lg border-none px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary',
+                                                    'flex h-8 w-full cursor-pointer items-center gap-2 rounded-[7.6px] border border-transparent px-2 py-1.5 text-left text-sm leading-5 transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary',
                                                     activeTab === id
-                                                        ? 'bg-primary/[0.07] font-medium text-primary'
-                                                        : 'bg-transparent text-secondary',
+                                                        ? 'border-border bg-main-bg font-medium text-primary shadow-xs dark:border-transparent'
+                                                        : 'bg-transparent font-[450] text-muted',
                                                 )}
                                             >
                                                 <Icon size={16} strokeWidth={1.5} className="shrink-0" aria-hidden />
@@ -129,7 +129,7 @@ export function SettingsSidebar({
                                                 <ul
                                                     id="settings-roast-navigation"
                                                     aria-label={tab.label}
-                                                    className="m-0 ml-[18px] mt-1 list-none space-y-0.5 border-l border-border pl-2"
+                                                    className="m-0 ml-[18px] mt-1 list-none space-y-1 border-l border-border pl-2"
                                                 >
                                                     {roastSettingsGroups.map((group) => (
                                                         <li key={group}>
@@ -140,10 +140,10 @@ export function SettingsSidebar({
                                                                     activeRoastGroup === group ? 'page' : undefined
                                                                 }
                                                                 className={cn(
-                                                                    'flex min-h-8 w-full cursor-pointer items-center rounded-md border-none px-2 py-1.5 text-left text-xs transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary',
+                                                                    'flex min-h-8 w-full cursor-pointer items-center rounded-[7.6px] border border-transparent px-2 py-1.5 text-left text-sm font-medium leading-5 transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary',
                                                                     activeRoastGroup === group
-                                                                        ? 'bg-primary/[0.07] font-medium text-primary'
-                                                                        : 'bg-transparent text-secondary',
+                                                                        ? 'border-border bg-main-bg font-medium text-primary shadow-xs dark:border-transparent'
+                                                                        : 'bg-transparent font-[450] text-muted',
                                                                 )}
                                                             >
                                                                 {t(`settings.tabs.roast.groups.${group}`)}

@@ -125,7 +125,17 @@ export const useMachineControlComposition = ({
     const commitManual = useCallback(() => {
         void machine.commitNow('manual');
     }, [machine.commitNow]);
+    const retryEpoch = machine.connectionStatus?.connection_epoch;
+    const retryHeater = useCallback(
+        async (value: number) => {
+            if (retryEpoch == null) return null;
+            machine.setValue('heater', value);
+            return (await machine.commitNow('replay', { connectionEpoch: retryEpoch }))?.heater ?? null;
+        },
+        [retryEpoch, machine.setValue, machine.commitNow],
+    );
     const replay = useReplayControl({
+        sessionId: diagnostics?.sessionId ?? null,
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,
         referenceDropTime: replayDropTime,
@@ -147,6 +157,8 @@ export const useMachineControlComposition = ({
         lastValidReceivedAtMs,
         nowMs,
         writeHeater,
+        retryHeater: retryEpoch == null ? undefined : retryHeater,
+        connectionEpoch: retryEpoch,
         cancelUnsentHeater: machine.cancelUnsentReplayHeater,
         heaterMax: machine.limits.heater?.max,
         heaterMin: machine.limits.heater?.min,

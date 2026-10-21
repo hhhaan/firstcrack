@@ -51,11 +51,19 @@ export const createGasOffDiagnostics = () => {
     let watch: GasOffWatch | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let sequence = 0;
+    let responseMismatchReported = false;
+    let zeroDispatch: { context: GasOffDiagnosticContext | null; origin: ControlOrigin } | null = null;
 
-    const reset = () => {
+    const clearWatch = () => {
         if (timer !== undefined) clearTimeout(timer);
         timer = undefined;
         watch = null;
+    };
+
+    const reset = () => {
+        clearWatch();
+        responseMismatchReported = false;
+        zeroDispatch = null;
     };
 
     const report = () => {
@@ -103,14 +111,13 @@ export const createGasOffDiagnostics = () => {
         dispatched(command, origins) {
             if (command.heater === undefined) return;
             sequence += 1;
-            if (
-                command.heater !== 0 ||
-                !context?.sessionId ||
-                !context.connected ||
-                context.reconnecting ||
-                !context.heaterReadable
-            ) {
+            if (command.heater !== 0) {
                 reset();
+                return;
+            }
+            zeroDispatch = { context, origin: origins.heater ?? 'manual' };
+            if (!context?.sessionId || !context.connected || context.reconnecting || !context.heaterReadable) {
+                clearWatch();
                 return;
             }
             if (!watch) {
@@ -133,11 +140,39 @@ export const createGasOffDiagnostics = () => {
             if (watch.origins.length < MAX_SAMPLES) watch.origins.push(origins.heater ?? 'manual');
         },
         applied(requested, applied) {
-            if (requested.heater !== 0 || !watch) return;
+            if (requested.heater !== 0 || !zeroDispatch) return;
             if (applied.heater !== 0) {
-                reset();
+                const incident = watch;
+                const dispatched = zeroDispatch;
+                const commandId = incident?.commandId ?? crypto.randomUUID();
+                const sentContext = incident?.context ?? dispatched.context;
+                clearWatch();
+                zeroDispatch = null;
+                if (responseMismatchReported) return;
+                responseMismatchReported = true;
+                try {
+                    logger.capture(new Error(`Gas-off applied response differed from zero (${commandId})`), {
+                        tags: { feature: 'machine-control' },
+                        level: 'warning',
+                        fingerprint: ['gas-off-response-mismatch'],
+                        extra: {
+                            sessionId: sentContext?.sessionId ?? null,
+                            roaster: sentContext?.roaster ?? null,
+                            connectionEpoch: sentContext?.connectionEpoch ?? null,
+                            commandId,
+                            requested: 0,
+                            applied: applied.heater ?? null,
+                            elapsedAtSend: sentContext?.elapsed ?? null,
+                            btAtSend: sentContext?.bt ?? null,
+                            origins: incident ? [...incident.origins] : [dispatched.origin],
+                        },
+                    });
+                } catch {
+                    // Observation only: preserve the applied response and existing Replay policy.
+                }
                 return;
             }
+            if (!watch) return;
             if (watch.acknowledgement.state === 'pending') {
                 watch.acknowledgement = { state: 'applied', atMs: Date.now() };
                 const timestamp = context?.sample?.timestamp;
@@ -164,7 +199,7 @@ export const createGasOffDiagnostics = () => {
                     next.sample?.sensor_clock != null &&
                     context.sample.sensor_clock !== next.sample.sensor_clock) ||
                 !next.connected ||
-                !next.heaterReadable ||
+                context.heaterReadable !== next.heaterReadable ||
                 next.reconnecting
             )
                 reset();

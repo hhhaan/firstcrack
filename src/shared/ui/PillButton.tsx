@@ -1,3 +1,4 @@
+import { cn } from '@shared/lib/cn';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 interface PillButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -6,11 +7,15 @@ interface PillButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     icon?: ReactNode;
 }
 
-/** Primary pill button — bg-primary, dark:bg-[#0d0d0d], dark:border-white, rounded-full */
-export const PillButton = ({ children, icon, className = '', ...props }: PillButtonProps) => (
+/** Primary action: 40px pill, inverted in dark mode. */
+export const PillButton = ({ children, icon, className, type = 'button', ...props }: PillButtonProps) => (
     <button
+        type={type}
         {...props}
-        className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] transition hover:-translate-y-px ${className}`}
+        className={cn(
+            'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-0 bg-action px-5 py-3 font-(--font-display) text-sm font-[550] leading-5 tracking-[0.14px] text-on-action transition-opacity duration-100 hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong-border disabled:pointer-events-none disabled:opacity-50',
+            className,
+        )}
     >
         {icon && <span className="flex items-center">{icon}</span>}
         {children}

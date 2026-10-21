@@ -31,9 +31,9 @@ export const BeanSelector = ({
                         <div
                             key={bean.id}
                             onClick={() => onSelect(bean.id)}
-                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-[#585d61] flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-border flex items-center justify-between cursor-pointer transition-[color,background-color,box-shadow,opacity] duration-200 ${
                                 isSelected
-                                    ? 'bg-primary dark:bg-black dark:border-white text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
+                                    ? 'bg-action text-on-action shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
                                     : 'bg-white/70 dark:bg-surface-elevated text-primary shadow-(--shadow-ring)'
                             }`}
                         >
@@ -58,7 +58,7 @@ export const BeanSelector = ({
                     <button
                         type="button"
                         onClick={onShowAll}
-                        className="py-2.5 rounded-2xl border border-black/6 dark:border-[#585d61] bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-all duration-200"
+                        className="py-2.5 rounded-2xl border border-black/6 dark:border-border bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-[color,background-color,box-shadow,opacity] duration-200"
                     >
                         {t('addBeanModal.more', { count: hiddenBeanCount })}
                     </button>

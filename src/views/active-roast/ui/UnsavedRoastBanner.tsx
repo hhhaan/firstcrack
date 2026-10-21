@@ -19,7 +19,7 @@ export const UnsavedRoastBanner = ({ timeStr, onReopen }: UnsavedRoastBannerProp
                     type="button"
                     data-testid="unsaved-roast-reopen"
                     onClick={onReopen}
-                    className="px-2.5 py-1 rounded-md border-none text-xs font-semibold cursor-pointer bg-primary text-white"
+                    className="px-2.5 py-1 rounded-md border-none text-xs font-semibold cursor-pointer bg-action text-on-action"
                 >
                     {t('activeRoast.unsaved.reopen')}
                 </button>

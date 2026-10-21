@@ -20,7 +20,7 @@ test('collapsed sidebar can be expanded with Tab, Enter, and Space', async ({ au
         await expect(expand).toBeFocused();
         await expect(expand).toHaveCSS('opacity', '1');
         await page.keyboard.press(key);
-        await expect(sidebar).toHaveClass(/w-\[170px\]/);
+
         await expect(sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true })).toHaveAttribute(
             'aria-expanded',
             'true',
@@ -31,7 +31,10 @@ test('collapsed sidebar can be expanded with Tab, Enter, and Space', async ({ au
 test('sidebar order is edited in general settings and roast collapses it', async ({ authedPage: page }) => {
     const sidebar = page.getByTestId('app-sidebar');
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).toHaveClass(/w-\[170px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+    );
     await expect(sidebar.getByText('Roasting & Quality', { exact: true })).toBeVisible();
     await expect(sidebar.getByText('Operations', { exact: true })).toBeVisible();
     expect(await navOrder(page)).toEqual([
@@ -69,7 +72,10 @@ test('sidebar order is edited in general settings and roast collapses it', async
 
     await page.reload();
     await expect(sidebar).toBeVisible();
-    await expect(sidebar).toHaveClass(/w-\[170px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+    );
     expect(await navOrder(page)).toEqual([
         'nav-dashboard',
         'nav-beans',
@@ -84,28 +90,45 @@ test('sidebar order is edited in general settings and roast collapses it', async
     ]);
 
     await page.getByTestId('nav-roast').click();
-    await expect(sidebar).toHaveClass(/w-\[68px\]/);
-    await expect(sidebar).not.toHaveClass(/w-\[170px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Expand sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+    );
 
     await sidebar.getByRole('button', { name: 'Expand sidebar', exact: true }).hover();
     await sidebar.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
-    await expect(sidebar).toHaveClass(/w-\[170px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+    );
 
     await sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
-    await expect(sidebar).toHaveClass(/w-\[68px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Expand sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+    );
     await expect(sidebar.getByText('Roasting & Quality', { exact: true })).toBeHidden();
     await expect(sidebar.getByText('Operations', { exact: true })).toBeHidden();
 
     await page.reload();
-    await expect(sidebar).toHaveClass(/w-\[68px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Expand sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+    );
     await expect(sidebar.getByText('Roasting & Quality', { exact: true })).toBeHidden();
 
     await sidebar.getByRole('button', { name: 'Expand sidebar', exact: true }).hover();
     await sidebar.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
-    await expect(sidebar).toHaveClass(/w-\[170px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+    );
     await expect(sidebar.getByText('Roasting & Quality', { exact: true })).toBeVisible();
     await page.reload();
-    await expect(sidebar).toHaveClass(/w-\[170px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+    );
     expect(await navOrder(page)).toEqual([
         'nav-dashboard',
         'nav-beans',
@@ -134,7 +157,10 @@ test('sidebar order is edited in general settings and roast collapses it', async
     await page.reload();
     await expect(page.getByTestId('nav-cupping')).toHaveCount(0);
     await expect(sidebar.getByText('Operations', { exact: true })).toHaveCount(0);
-    await expect(sidebar).toHaveClass(/w-\[170px\]/);
+    await expect(sidebar.getByRole('button', { name: 'Collapse sidebar', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+    );
 
     await sidebar.getByRole('button', { name: 'Settings', exact: true }).click();
     await settings.getByRole('button', { name: 'Reset sidebar', exact: true }).click();

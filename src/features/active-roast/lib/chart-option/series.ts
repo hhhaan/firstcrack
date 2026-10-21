@@ -1,5 +1,7 @@
 import {
     MARKER_LABEL_CANVAS_GUTTER_PX,
+    MARKER_LABEL_CHAR_WIDTH_PX,
+    MARKER_LABEL_GAP_PX,
     MARKER_LABEL_MAX_WIDTH_PX,
     markerLabelFont,
     PHASE_BAR_FONT_FAMILY,
@@ -10,7 +12,6 @@ import {
     PHASE_BAR_NARROW_THRESHOLD,
     PHASE_BAR_STROKE_WIDTH,
     PHASE_BAR_TEXT_INSET,
-    PHASE_BAR_WIDE_THRESHOLD,
     scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
@@ -36,6 +37,8 @@ const hasNumericSample = (values: readonly (number | null)[] | undefined): boole
 
 const CONTROL_CHANGE_FONT_SIZE = 10;
 const CONTROL_CHANGE_DOT_PX = 4;
+/** Change stamp appears once the live tail is this far past the write. */
+const CONTROL_CHANGE_LABEL_DELAY_SEC = 5;
 
 type ControlPoint = readonly [number, number | null];
 
@@ -55,7 +58,7 @@ const controlMarks = (
         fontWeight: PHASE_BAR_FONT_WEIGHT,
         fontSize: scaleChartPx(CONTROL_CHANGE_FONT_SIZE, fontScale),
     };
-    const mark = (time: number, value: number, current: boolean) => ({
+    const mark = (time: number, value: number) => ({
         coord: [time, value] as [number, number],
         symbol: 'circle' as const,
         symbolSize: scaleChartPx(CONTROL_CHANGE_DOT_PX, fontScale),
@@ -63,11 +66,14 @@ const controlMarks = (
         itemStyle: { color: 'transparent', borderWidth: 0, opacity: style.opacity ?? 1 },
         label: {
             ...text,
-            position: current ? ('left' as const) : ('top' as const),
-            distance: current ? 4 : 2,
+            position: 'top' as const,
+            align: 'right' as const,
+            distance: 2,
             formatter: String(Number(value.toFixed(2))),
         },
     });
+    const tail = data.length > 0 ? data[data.length - 1] : undefined;
+    const tailTime = tail && typeof tail[1] === 'number' && Number.isFinite(tail[1]) ? tail[0] : undefined;
     const ordered = [...(changes ?? [])].sort((a, b) => a.timeSec - b.timeSec);
     let previousHeater: number | undefined;
     const marks = ordered.flatMap((change) => {
@@ -76,10 +82,10 @@ const controlMarks = (
         // Clicking the heater that is already set is not another change label.
         if (role === 'heater' && previousHeater === value) return [];
         if (role === 'heater') previousHeater = value;
-        return [mark(change.timeSec, value, false)];
+        if (tailTime != null && tailTime - change.timeSec < CONTROL_CHANGE_LABEL_DELAY_SEC) return [];
+        return [mark(change.timeSec, value)];
     });
-    const tail = data.length > 0 ? data[data.length - 1] : undefined;
-    if (tail && typeof tail[1] === 'number' && Number.isFinite(tail[1])) marks.push(mark(tail[0], tail[1], true));
+    if (tailTime != null && typeof tail?.[1] === 'number') marks.push(mark(tailTime, tail[1]));
     return {
         step: 'end' as const,
         markPoint: { silent: true, animation: false, data: marks },
@@ -465,14 +471,36 @@ export interface PhaseSeriesParams {
     fontScale?: number;
 }
 
+/** ASCII advance at PHASE_BAR_FONT_SIZE. Same 6px step as marker labels. */
+const phaseBarTextWidth = (text: string, fontSize: number) =>
+    text.length * MARKER_LABEL_CHAR_WIDTH_PX * (fontSize / PHASE_BAR_FONT_SIZE);
+
+export const phaseBarLabelMode = (
+    width: number,
+    name: string,
+    durLabel: string,
+    nameSize: number,
+    narrowSize: number,
+    textInset: number,
+    gap: number,
+    narrowThreshold: number,
+): 'both' | 'time' | 'none' => {
+    const nameWidth = phaseBarTextWidth(name, nameSize);
+    const durWidth = phaseBarTextWidth(durLabel, nameSize);
+    if (nameWidth + durWidth + textInset * 2 + gap <= width) return 'both';
+    const narrowDurWidth = phaseBarTextWidth(durLabel, narrowSize);
+    if (width > narrowThreshold && narrowDurWidth + textInset * 2 <= width) return 'time';
+    return 'none';
+};
+
 // ── Phase bar (온도 plot 하단 오버레이) ───────────────────────────────
 // 별도 grid 없이 temp grid(x0/y0) 하단에 custom series로 그린다.
 // dataZoom/zoom 시 x는 축과 동기화, y는 coordSys 하단 고정 높이.
 export const buildPhaseSeries = (params: PhaseSeriesParams) => {
     const { phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors, fontScale = 1 } = params;
     const barHeight = scaleChartPx(PHASE_BAR_HEIGHT, fontScale);
-    const wideThreshold = scaleChartPx(PHASE_BAR_WIDE_THRESHOLD, fontScale);
     const narrowThreshold = scaleChartPx(PHASE_BAR_NARROW_THRESHOLD, fontScale);
+    const labelGap = scaleChartPx(MARKER_LABEL_GAP_PX, fontScale);
     const textInset = scaleChartPx(PHASE_BAR_TEXT_INSET, fontScale);
     const nameSize = scaleChartPx(PHASE_BAR_FONT_SIZE, fontScale);
     const narrowSize = scaleChartPx(PHASE_BAR_FONT_SIZE_NARROW, fontScale);
@@ -524,8 +552,18 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
                 },
             ];
 
-            // width > WIDE: 단계명 좌 + 시간 우 / NARROW~WIDE: 시간만 중앙 / ≤NARROW: 생략
-            if (width > wideThreshold) {
+            // 둘 다 들어가면 이름 좌 + 시간 우. 시간만 들어가면 중앙. 그것도 못 들어가면 생략.
+            const labelMode = phaseBarLabelMode(
+                width,
+                name,
+                durLabel,
+                nameSize,
+                narrowSize,
+                textInset,
+                labelGap,
+                narrowThreshold,
+            );
+            if (labelMode === 'both') {
                 children.push({
                     type: 'text',
                     style: {
@@ -554,7 +592,7 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
                     },
                     silent: true,
                 });
-            } else if (width > narrowThreshold) {
+            } else if (labelMode === 'time') {
                 children.push({
                     type: 'text',
                     style: {

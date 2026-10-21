@@ -47,7 +47,7 @@ describe('CurveStyleSection', () => {
         expect(heatLine?.disabled).toBe(false);
         expect(heatLine?.textContent).toContain('curveLineType.solid');
         expect(width?.disabled).toBe(false);
-        expect(width?.value).toBe('1.8');
+        expect(width?.value).toBe('2');
 
         const headerRows = container.querySelectorAll('thead tr');
         expect(headerRows).toHaveLength(1);

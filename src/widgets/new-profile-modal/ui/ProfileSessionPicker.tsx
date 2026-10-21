@@ -65,7 +65,7 @@ export const ProfileSessionPicker = ({ sessions, onSelect, onClose }: ProfileSes
                                     key={session.id}
                                     type="button"
                                     onClick={() => onSelect(session.id)}
-                                    className="w-full px-4 py-3 rounded-xl border border-black/6 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-left cursor-pointer hover:bg-white/90 dark:hover:bg-[#262b31] transition-all duration-200 group"
+                                    className="w-full px-4 py-3 rounded-xl border border-black/6 dark:border-border bg-white/70 dark:bg-surface-elevated text-left cursor-pointer hover:bg-white/90 dark:hover:bg-[#262b31] transition-[color,background-color,box-shadow,opacity] duration-200 group"
                                 >
                                     <div className="flex items-center justify-between gap-3">
                                         <div className="flex flex-col gap-0.5 min-w-0">

@@ -15,7 +15,7 @@ export const BatchTypeTabs = ({ batchType, onBatchTypeChange }: Props) => {
     return (
         <div>
             <label className={labelCls}>{t('addBatchModal.type')}</label>
-            <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
+            <div className="flex rounded-full bg-surface-elevated p-1">
                 {BATCH_TYPES.map((bt) => (
                     <button
                         key={bt}

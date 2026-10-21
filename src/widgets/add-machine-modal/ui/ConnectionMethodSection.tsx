@@ -120,7 +120,7 @@ function RoasterModelSelect({
                 <div
                     id="roaster-model-list"
                     role="listbox"
-                    className="mt-1 max-h-64 overflow-y-auto rounded-xl border border-black/8 bg-white shadow-lg dark:border-[#585d61] dark:bg-[#262b31]"
+                    className="mt-1 max-h-64 overflow-y-auto rounded-xl border border-black/8 bg-white shadow-lg dark:border-border dark:bg-surface-elevated"
                 >
                     {groups.length === 0 && (
                         <p className="px-3 py-3 text-sm text-muted">{t('addMachine.noRoasterResults')}</p>
@@ -180,7 +180,7 @@ function RoasterModelSelect({
                         </div>
                     ))}
                     {lockHint && (
-                        <div className="flex items-center gap-1.5 border-t border-black/6 px-3 py-2 text-[12px] text-palette-teal dark:border-[#585d61]">
+                        <div className="flex items-center gap-1.5 border-t border-black/6 px-3 py-2 text-[12px] text-palette-teal dark:border-border">
                             <Lock size={12} className="shrink-0" aria-hidden />
                             {t('machines.enterpriseOnly')}
                         </div>

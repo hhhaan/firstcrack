@@ -119,11 +119,11 @@ export const SearchableSelect = ({
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#262b31] rounded-2xl border border-black/8 dark:border-[#585d61] shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-surface-elevated rounded-2xl border border-black/8 dark:border-border shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
                     <div className="p-2 border-b border-black/4">
                         <input
                             autoFocus
-                            className="w-full px-3 py-2 rounded-xl border border-black/8 dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-sm text-primary outline-none"
+                            className="w-full px-3 py-2 rounded-xl border border-black/8 dark:border-border bg-surface dark:bg-surface-elevated text-sm text-primary outline-none"
                             placeholder={t('addBatchModal.searchPlaceholder')}
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}

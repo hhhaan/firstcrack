@@ -225,7 +225,7 @@ export const AddBatchModal = ({
     return (
         <ModalShell onClose={onClose} labelledBy="add-batch-modal-title" contentClassName={modalPanel.formMd}>
             <SelectMenuGroup>
-                <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61]">
+                <div className="shrink-0 bg-white/60 dark:bg-main-bg backdrop-blur-sm border-b border-black/4 dark:border-border">
                     <ModalHeader
                         titleId="add-batch-modal-title"
                         title={isEdit ? t('addBatchModal.editBatch') : t('addBatchModal.addBatch')}
@@ -313,7 +313,7 @@ export const AddBatchModal = ({
                     </div>
                 </ModalScrollBody>
 
-                <div className="shrink-0 border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23] px-8 py-4 flex items-center justify-between gap-3">
+                <div className="shrink-0 border-t border-black/4 dark:border-border bg-white/60 dark:bg-main-bg px-8 py-4 flex items-center justify-between gap-3">
                     {dateChanged && newDateKey && (
                         <p className="text-[12px] text-amber-600 font-medium">
                             {t('addBatchModal.dateChanged', {
@@ -335,7 +335,7 @@ export const AddBatchModal = ({
                             type="button"
                             onClick={handleSubmit}
                             disabled={!canSubmit}
-                            className="px-5 py-2.5 rounded-xl border border-transparent bg-primary dark:bg-black text-white dark:text-[#e5e5e5] text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="px-5 py-2.5 rounded-xl border border-transparent bg-action text-on-action text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             {saving
                                 ? t('addBatchModal.saving')

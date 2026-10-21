@@ -32,7 +32,7 @@ export const RoastingRequirementsCard = () => {
     }, [req?.beans]);
 
     return (
-        <div className="rounded-xl border border-border-subtle bg-main-bg p-5 dark:border-[#585d61]">
+        <div className="rounded-xl border border-border-subtle bg-main-bg p-5 dark:border-border">
             <div className="mb-4 flex items-center gap-2">
                 <Flame size={16} className="text-primary" />
                 <h3 className="text-sm font-semibold text-primary">{t('orders.requirements.title')}</h3>
@@ -53,7 +53,7 @@ export const RoastingRequirementsCard = () => {
             ) : (
                 <table className="w-full border-collapse text-left">
                     <thead>
-                        <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                        <tr className="border-b border-border-subtle dark:border-border">
                             <th className="pb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                 {t('orders.requirements.bean')}
                             </th>
@@ -71,7 +71,7 @@ export const RoastingRequirementsCard = () => {
                             return (
                                 <tr
                                     key={b.bean_id}
-                                    className="border-b border-border-subtle last:border-0 dark:border-[#585d61]"
+                                    className="border-b border-border-subtle last:border-0 dark:border-border"
                                 >
                                     <td className="py-2.5 text-[13px] font-medium text-primary">
                                         {beanName(b.bean_id)}

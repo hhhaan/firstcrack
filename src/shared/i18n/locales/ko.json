@@ -841,6 +841,12 @@
         "phidgetDriverLink": "Phidget22 드라이버 다운로드"
     },
     "dashboard": {
+        "comparedToLastMonth": "전월 대비",
+        "comparedToPreviousClose": "전일 종가 대비",
+        "previousClose": "전일 종가",
+        "lastSixMonths": "최근 6개월",
+        "thisMonth": "이번 달",
+        "refresh": "선물가 새로고침",
         "greeting": {
             "morning": "Good morning",
             "afternoon": "Good afternoon",
@@ -1300,7 +1306,6 @@
             "eventRecorded": "기록됨: {{event}}",
             "futureEventHint": "이벤트는 현재 시점까지만 기록할 수 있습니다.",
             "title": "기록 추가",
-            "editTitle": "기록 수정",
             "time": "시간",
             "gas": "가스",
             "airflow": "배기",
@@ -1312,6 +1317,7 @@
         },
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
+            "profileSources": "프로파일 연결 항목",
             "noBeanSelected": "생두 미선택",
             "target": "Target:",
             "noTarget": "Target 없음",
@@ -1619,6 +1625,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "연결 생두·블렌드",
+        "registeredSourcesHint": "여러 생두와 블렌드를 등록할 수 있습니다. 후보가 하나면 로스팅 준비 시 자동 선택됩니다.",
+        "searchSources": "생두·블렌드 검색",
         "editTitle": "로스팅 프로파일 수정",
         "fromSession": "세션에서 프로파일 만들기",
         "newTitle": "새 로스팅 프로파일",
@@ -2034,6 +2043,7 @@
         },
         "order": {
             "newTitle": "새 주문",
+            "refresh": "새로고침",
             "empty": "주문이 없습니다.",
             "buyer": "주문자",
             "lines": "품목",

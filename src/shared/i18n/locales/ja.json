@@ -841,6 +841,12 @@
         "phidgetDriverLink": "Phidget22ドライバーをダウンロード"
     },
     "dashboard": {
+        "comparedToLastMonth": "前月比",
+        "comparedToPreviousClose": "前日終値比",
+        "previousClose": "前日終値",
+        "lastSixMonths": "過去6か月",
+        "thisMonth": "今月",
+        "refresh": "先物価格を更新",
         "greeting": {
             "morning": "おはようございます",
             "afternoon": "こんにちは",
@@ -949,7 +955,6 @@
             "eventRecorded": "記録済み: {{event}}",
             "futureEventHint": "イベントは現在時刻までしか記録できません。",
             "title": "記録を追加",
-            "editTitle": "記録を編集",
             "time": "時間",
             "gas": "ガス",
             "airflow": "排気",
@@ -961,6 +966,7 @@
         },
         "autoChargeHeld": "温度が回復すると自動投入されます。今すぐ始めるには Charge を押してください。",
         "header": {
+            "profileSources": "プロファイルの候補",
             "noBeanSelected": "生豆未選択",
             "target": "ターゲット:",
             "noTarget": "ターゲットなし",
@@ -1619,6 +1625,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "登録した豆・ブレンド",
+        "registeredSourcesHint": "複数の豆とブレンドを登録できます。候補が1つなら投入前に自動選択します。",
+        "searchSources": "豆・ブレンドを検索",
         "editTitle": "ローストプロファイルを編集",
         "fromSession": "セッションから作成",
         "newTitle": "新規ローストプロファイル",
@@ -2034,6 +2043,7 @@
         },
         "order": {
             "newTitle": "新規注文",
+            "refresh": "更新",
             "empty": "注文はまだありません。",
             "buyer": "購入者",
             "lines": "商品",

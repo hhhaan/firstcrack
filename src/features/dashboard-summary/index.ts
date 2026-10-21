@@ -1,3 +1,4 @@
+export type { DailyRoastMetric } from './lib/dashboard-roast-stats';
 export type {
     DashboardInventoryAlert,
     DashboardRecentSession,

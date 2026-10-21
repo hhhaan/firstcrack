@@ -3,20 +3,8 @@ import ko from '@shared/i18n/locales/ko.json';
 import { logger } from '@shared/lib/logger';
 import { useToastStore } from '@shared/store/toast';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createGasOffDiagnostics, type GasOffDiagnosticContext } from './gasOffDiagnostics';
-
-const context = (): GasOffDiagnosticContext => ({
-    sessionId: 'batch-1',
-    roaster: 'giesen_w45a_w60a',
-    connectionEpoch: 1,
-    connected: true,
-    reconnecting: false,
-    heaterReadable: true,
-    elapsed: 570,
-    bt: 192,
-    receivedAtMs: Date.now(),
-    sample: { heater: 19, timestamp: 100, sensor_clock: 'clock-1', stale: false },
-});
+import { gasOffDiagnosticContext as context } from './controlDiagnostics.fixtures';
+import { createGasOffDiagnostics } from './gasOffDiagnostics';
 
 describe('gas-off feedback diagnostics', () => {
     beforeAll(async () => {
@@ -193,14 +181,45 @@ describe('gas-off feedback diagnostics', () => {
         expect(logger.capture).not.toHaveBeenCalled();
     });
 
-    it('leaves transport failures and rejected acknowledgements to their existing reports', () => {
+    it('leaves transport failures to their existing reports', () => {
         const h = rig();
         h.diagnostic.failed({ heater: 0 });
         vi.advanceTimersByTime(5000);
-        h.diagnostic.dispatched({ heater: 0 }, { heater: 'replay' });
-        h.diagnostic.applied({ heater: 0 }, { heater: 1 });
-        vi.advanceTimersByTime(5000);
         expect(logger.capture).not.toHaveBeenCalled();
+    });
+
+    it('reports a mismatched applied response once per zero episode without a feedback warning', () => {
+        const diagnostic = createGasOffDiagnostics();
+        diagnostic.updateContext(context());
+        const mismatch = () => {
+            diagnostic.dispatched({ heater: 0 }, { heater: 'replay' });
+            diagnostic.applied({ heater: 0 }, { heater: 1 });
+        };
+        mismatch();
+        mismatch();
+        vi.advanceTimersByTime(10000);
+        expect(logger.capture).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                message: expect.stringContaining('Gas-off applied response differed from zero'),
+            }),
+            expect.objectContaining({
+                level: 'warning',
+                fingerprint: ['gas-off-response-mismatch'],
+                extra: expect.objectContaining({
+                    sessionId: 'batch-1',
+                    requested: 0,
+                    applied: 1,
+                    elapsedAtSend: 570,
+                    btAtSend: 192,
+                    origins: ['replay'],
+                }),
+            }),
+        );
+        expect(useToastStore.getState().toasts).toEqual([]);
+        diagnostic.dispatched({ heater: 25 }, { heater: 'manual' });
+        mismatch();
+        expect(logger.capture).toHaveBeenCalledTimes(2);
+        diagnostic.reset();
     });
 
     it.each(['no-session', 'no-feedback-channel'] as const)('does not arm for %s', (kind) => {
@@ -213,6 +232,41 @@ describe('gas-off feedback diagnostics', () => {
         diagnostic.dispatched({ heater: 0 }, { heater: 'manual' });
         diagnostic.applied({ heater: 0 }, { heater: 0 });
         vi.advanceTimersByTime(5000);
+        expect(logger.capture).not.toHaveBeenCalled();
+    });
+
+    it.each(['no-context', 'no-session', 'no-feedback-channel'] as const)(
+        'retains #946 mismatch reporting with %s without starting feedback diagnostics',
+        (kind) => {
+            const diagnostic = createGasOffDiagnostics();
+            const metadata = {
+                ...context(),
+                sessionId: kind === 'no-session' ? null : 'batch-1',
+                heaterReadable: kind !== 'no-feedback-channel',
+            };
+            for (let attempt = 0; attempt < 3; attempt++) {
+                if (kind !== 'no-context') diagnostic.updateContext(metadata);
+                diagnostic.dispatched({ heater: 0 }, { heater: 'replay' });
+                diagnostic.applied({ heater: 0 }, { heater: 7 });
+            }
+            vi.advanceTimersByTime(10_000);
+            expect(logger.capture).toHaveBeenCalledExactlyOnceWith(
+                expect.any(Error),
+                expect.objectContaining({
+                    fingerprint: ['gas-off-response-mismatch'],
+                    extra: expect.objectContaining({ requested: 0, applied: 7, origins: ['replay'] }),
+                }),
+            );
+            expect(useToastStore.getState().toasts).toEqual([]);
+        },
+    );
+
+    it('ignores an old mismatch after its dispatch context is replaced', () => {
+        const diagnostic = createGasOffDiagnostics();
+        diagnostic.updateContext(context());
+        diagnostic.dispatched({ heater: 0 }, { heater: 'replay' });
+        diagnostic.updateContext({ ...context(), connectionEpoch: 2 });
+        diagnostic.applied({ heater: 0 }, { heater: 7 });
         expect(logger.capture).not.toHaveBeenCalled();
     });
 });

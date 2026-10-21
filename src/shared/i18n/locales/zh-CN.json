@@ -841,6 +841,12 @@
         "phidgetDriverLink": "下载 Phidget22 驱动"
     },
     "dashboard": {
+        "comparedToLastMonth": "较上月",
+        "comparedToPreviousClose": "较前收盘价",
+        "previousClose": "前收盘价",
+        "lastSixMonths": "最近6个月",
+        "thisMonth": "本月",
+        "refresh": "刷新期货价格",
         "greeting": {
             "morning": "早上好",
             "afternoon": "下午好",
@@ -949,7 +955,6 @@
             "eventRecorded": "已记录：{{event}}",
             "futureEventHint": "事件只能记录到当前时刻。",
             "title": "添加记录",
-            "editTitle": "编辑记录",
             "time": "时间",
             "gas": "燃气",
             "airflow": "排风",
@@ -961,6 +966,7 @@
         },
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
+            "profileSources": "曲线候选原料",
             "noBeanSelected": "未选生豆",
             "target": "目标:",
             "noTarget": "无目标",
@@ -1631,6 +1637,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "关联生豆和拼配",
+        "registeredSourcesHint": "可注册多个生豆和拼配。只有一个候选时，投豆前自动选择。",
+        "searchSources": "搜索生豆和拼配",
         "editTitle": "编辑烘焙曲线",
         "fromSession": "从烘焙记录创建曲线",
         "newTitle": "新建烘焙曲线",
@@ -2034,6 +2043,7 @@
         },
         "order": {
             "newTitle": "新建订单",
+            "refresh": "刷新",
             "empty": "暂无订单。",
             "buyer": "买家",
             "lines": "商品明细",

@@ -194,7 +194,7 @@ export const BeanCombobox = ({
                 <div
                     id={listId}
                     role="listbox"
-                    className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#262b31] rounded-2xl border border-black/8 dark:border-[#585d61] shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
+                    className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-surface-elevated rounded-2xl border border-black/8 dark:border-border shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden"
                 >
                     <div className="max-h-[200px] overflow-y-auto py-1">
                         {filtered.length === 0 ? (

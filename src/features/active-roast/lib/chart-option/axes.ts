@@ -1,5 +1,6 @@
 import {
     AXIS_LABEL_FONT,
+    AXIS_LABEL_MARGIN,
     AXIS_MINOR_SPLIT_NUMBER,
     CHART_GRID_LEFT,
     CHART_GRID_RIGHT,
@@ -46,9 +47,10 @@ export const buildAxisStyles = (colors: ResolvedChartColors) => {
     const axisLabelStyle = {
         ...AXIS_LABEL_FONT,
         color: colors.axisLabel,
+        margin: AXIS_LABEL_MARGIN,
     };
     const axisNameStyle = { color: colors.axisLabel };
-    const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
+    const rightYAxisLabel = { ...axisLabelStyle };
     return { axisLabelStyle, axisNameStyle, rightYAxisLabel };
 };
 
@@ -58,11 +60,20 @@ export const buildCrossLineStyle = (colors: ResolvedChartColors) => ({
     type: 'solid' as const,
 });
 
+// Hover copies the tooltip label onto every axis and drops these per-axis formatters.
+type PointerLabelParam = { value: unknown; axisDimension?: string };
+
+const formatPointerLabel = (p: PointerLabelParam) => {
+    const n = Number(p.value);
+    if (!Number.isFinite(n)) return '';
+    return p.axisDimension === 'y' ? n.toFixed(1) : fmtSec(n);
+};
+
 export const buildTooltipCrossPointer = (crossLineStyle: ReturnType<typeof buildCrossLineStyle>) => ({
     type: 'cross' as const,
     snap: false,
     animation: false,
-    label: { show: true },
+    label: { show: true, formatter: formatPointerLabel },
     lineStyle: crossLineStyle,
     crossStyle: crossLineStyle,
 });
@@ -75,7 +86,7 @@ export const buildXAxisPointer = (crossLineStyle: ReturnType<typeof buildCrossLi
     snap: false,
     label: {
         show: true,
-        formatter: (p: { value: unknown }) => fmtSec(Number(p.value)),
+        formatter: (p: { value: unknown }) => formatPointerLabel({ ...p, axisDimension: 'x' }),
     },
     lineStyle: crossLineStyle,
 });
@@ -86,10 +97,7 @@ export const buildYAxisPointer = (crossLineStyle: ReturnType<typeof buildCrossLi
     animation: false,
     label: {
         show: true,
-        formatter: (p: { value: unknown }) => {
-            const n = Number(p.value);
-            return Number.isFinite(n) ? n.toFixed(1) : '';
-        },
+        formatter: (p: { value: unknown }) => formatPointerLabel({ ...p, axisDimension: 'y' }),
     },
     lineStyle: crossLineStyle,
 });

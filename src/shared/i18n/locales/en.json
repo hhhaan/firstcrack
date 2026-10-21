@@ -841,6 +841,12 @@
         "phidgetDriverLink": "Download Phidget22 driver"
     },
     "dashboard": {
+        "comparedToLastMonth": "vs. last month",
+        "comparedToPreviousClose": "vs. previous close",
+        "previousClose": "Previous close",
+        "lastSixMonths": "Last 6 months",
+        "thisMonth": "This month",
+        "refresh": "Refresh futures price",
         "greeting": {
             "morning": "Good morning",
             "afternoon": "Good afternoon",
@@ -949,7 +955,6 @@
             "eventRecorded": "Recorded: {{event}}",
             "futureEventHint": "Events can only be recorded up to the current time.",
             "title": "Add record",
-            "editTitle": "Edit record",
             "time": "Time",
             "gas": "Gas",
             "airflow": "Airflow",
@@ -961,6 +966,7 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
+            "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",
             "noTarget": "No Target",
@@ -1619,6 +1625,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "Linked beans and blends",
+        "registeredSourcesHint": "Register multiple beans and blends. A single candidate is selected automatically before Charge.",
+        "searchSources": "Search beans and blends",
         "editTitle": "Edit Roast Profile",
         "fromSession": "Profile from Session",
         "newTitle": "New Roast Profile",
@@ -2034,6 +2043,7 @@
         },
         "order": {
             "newTitle": "New order",
+            "refresh": "Refresh",
             "empty": "No orders yet.",
             "buyer": "Buyer",
             "lines": "Items",

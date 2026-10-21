@@ -52,7 +52,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                             onClick={() => onToggle(s.id)}
                             className={`w-full rounded-lg border px-3 py-2.5 text-left transition ${
                                 visible
-                                    ? 'border-black/6 bg-surface dark:border-[#585d61] dark:bg-surface-elevated'
+                                    ? 'border-black/6 bg-surface dark:border-border dark:bg-surface-elevated'
                                     : 'border-transparent bg-transparent opacity-45'
                             }`}
                         >
@@ -135,7 +135,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                             </div>
 
                             <div
-                                className="mt-1.5 space-y-0.5 border-t border-black/5 pt-1.5 pl-5.5 text-[10px] text-muted dark:border-[#585d61]"
+                                className="mt-1.5 space-y-0.5 border-t border-black/5 pt-1.5 pl-5.5 text-[10px] text-muted dark:border-border"
                                 style={{ color }}
                             >
                                 <div className="flex justify-between gap-2 opacity-90">

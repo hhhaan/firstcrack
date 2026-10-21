@@ -1,213 +1,125 @@
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
-import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
+import { NEW_POLAR_ORG, OLD_POLAR_ORG, polarPlans, polarUser } from '../_shared/polar.ts';
+import { verifyPolarStandardSignature } from '../_shared/polar-auth.ts';
+import { deliverPolarNotification, polarNotificationPayload } from '../_shared/polar-notifications.ts';
+import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 import { postSlack } from '../_shared/slack.ts';
 import { verifyPolarSignature } from '../_shared/webhook-auth.ts';
 
-const POLAR_WEBHOOK_SECRET = Deno.env.get('POLAR_WEBHOOK_SECRET');
-
-/** product_id → profiles.plan. Empty env keys are omitted so missing secrets never map. */
-const PLAN_MAP: Record<string, string> = {};
-for (const [envKey, plan] of [
-    ['POLAR_PRO_PRODUCT_ID', 'pro'],
-    ['POLAR_PRO_PLUS_PRODUCT_ID', 'pro_plus'],
-    ['POLAR_ENTERPRISE_PRODUCT_ID', 'enterprise'],
-] as const) {
-    const productId = Deno.env.get(envKey);
-    if (productId) PLAN_MAP[productId] = plan;
-}
-
-function sanitize(s: string): string {
-    return s.replace(/[\r\n`]/g, ' ').trim();
-}
-
-function formatMoney(amount: number | null | undefined, currency: string | null | undefined): string {
-    if (amount == null) return '—';
-    const cur = (currency ?? 'usd').toUpperCase();
-    return `${cur} ${(amount / 100).toFixed(2)}`;
-}
-
-async function notifyPayment(lines: string[]): Promise<void> {
-    await postSlack({ text: lines.join('\n') });
-}
+const env = (key: string) => Deno.env.get(key);
 
 serveWithSentry('polar-webhook', async (req) => {
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', {
-            headers: {
-                ...corsHeaders,
-                'Access-Control-Allow-Headers': `${corsHeaders['Access-Control-Allow-Headers']}, x-webhook-signature`,
-            },
-        });
-    }
-
-    if (req.method !== 'POST') {
-        return jsonResponse({ error: 'Method not allowed' }, 405);
-    }
-
+    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+    if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
     const body = await req.text();
-    const signature = req.headers.get('x-webhook-signature');
-
-    if (!(await verifyPolarSignature(POLAR_WEBHOOK_SECRET, body, signature))) {
-        console.error('[polar-webhook] invalid signature');
-        return jsonResponse({ error: 'Unauthorized' }, 401);
+    const standard =
+        req.headers.has('webhook-signature') || req.headers.has('webhook-id') || req.headers.has('webhook-timestamp');
+    let org: string | undefined;
+    for (const [secretName, organization] of [
+        ['POLAR_WEBHOOK_SECRET', OLD_POLAR_ORG],
+        ['POLAR_WEBHOOK_SECRET_NEW', NEW_POLAR_ORG],
+    ]) {
+        const secret = env(secretName);
+        if (
+            standard
+                ? await verifyPolarStandardSignature(
+                      secret,
+                      body,
+                      req.headers,
+                      Date.now(),
+                      organization === OLD_POLAR_ORG,
+                  )
+                : organization === OLD_POLAR_ORG &&
+                  (await verifyPolarSignature(secret, body, req.headers.get('x-webhook-signature')))
+        ) {
+            org = organization;
+            break;
+        }
     }
-
-    let event: { type: string; data: Record<string, unknown> };
+    if (!org) return jsonResponse({ error: 'Unauthorized' }, 401);
+    let event: { type: string; timestamp?: string; data: Record<string, unknown> };
     try {
         event = JSON.parse(body);
+        if (!event || typeof event.type !== 'string' || !event.data || typeof event.data !== 'object')
+            throw new Error();
     } catch {
-        return jsonResponse({ error: 'Invalid JSON' }, 400);
+        return jsonResponse({ error: 'Invalid event' }, 400);
     }
-
-    const supabase = serviceClient();
-
+    if (
+        ![
+            'order.paid',
+            'subscription.created',
+            'subscription.active',
+            'subscription.updated',
+            'subscription.canceled',
+            'subscription.revoked',
+            'subscription.uncanceled',
+        ].includes(event.type)
+    ) {
+        return jsonResponse({ received: true });
+    }
     try {
-        switch (event.type) {
-            case 'subscription.created':
-            case 'subscription.active':
-            case 'subscription.updated': {
-                const sub = event.data as {
-                    id: string;
-                    customer_id: string;
-                    status: string;
-                    current_period_start?: string;
-                    current_period_end?: string;
-                    cancel_at_period_end?: boolean;
-                    canceled_at?: string;
-                    ended_at?: string;
-                    product_id?: string;
-                    price_id?: string;
-                    amount?: number;
-                    currency?: string;
-                    recurring_interval?: string;
-                };
-                const { external_id } = (event.data.customer ?? {}) as { external_id?: string };
-                const userId = external_id ?? sub.customer_id;
-
-                const { error: upsertErr } = await supabase.from('subscriptions').upsert(
-                    {
-                        user_id: userId,
-                        polar_subscription_id: sub.id,
-                        status: sub.status,
-                        current_period_start: sub.current_period_start ?? null,
-                        current_period_end: sub.current_period_end ?? null,
-                        cancel_at_period_end: sub.cancel_at_period_end ?? false,
-                        canceled_at: sub.canceled_at ?? null,
-                        ends_at: sub.ended_at ?? null,
-                        polar_product_id: sub.product_id ?? null,
-                        polar_checkout_id: null,
-                        amount: sub.amount ?? null,
-                        currency: sub.currency ?? null,
-                        recurring_interval: sub.recurring_interval ?? null,
-                    },
-                    { onConflict: 'polar_subscription_id' },
-                );
-
-                if (upsertErr) {
-                    throw new Error(`subscription upsert: ${upsertErr.message}`);
-                }
-
-                if (sub.status === 'active' && sub.product_id) {
-                    const plan = PLAN_MAP[sub.product_id];
-                    if (plan) {
-                        const { error: planErr } = await supabase
-                            .from('profiles')
-                            .update({ plan })
-                            .eq('id', userId);
-                        if (planErr) throw new Error(`plan update: ${planErr.message}`);
-                    } else {
-                        console.error(
-                            '[polar-webhook] unknown product_id, skip plan update',
-                            sub.product_id,
-                        );
-                    }
-                }
-
-                // Prefer order.paid for money; only notify subscription.created once per new sub.
-                if (event.type === 'subscription.created') {
-                    const planLabel = sub.product_id ? (PLAN_MAP[sub.product_id] ?? sub.product_id) : '—';
-                    await notifyPayment([
-                        '*Payment / subscription (edge)*',
-                        `• user: \`${sanitize(String(userId))}\``,
-                        `• status: \`${sanitize(sub.status)}\``,
-                        `• plan: \`${sanitize(String(planLabel))}\``,
-                        `• amount: \`${sanitize(formatMoney(sub.amount, sub.currency))}\``,
-                        ...(sub.recurring_interval
-                            ? [`• interval: \`${sanitize(sub.recurring_interval)}\``]
-                            : []),
-                    ]);
-                }
-                break;
-            }
-
-            case 'order.paid': {
-                const order = event.data as {
-                    amount?: number;
-                    total_amount?: number;
-                    currency?: string;
-                    status?: string;
-                    product_id?: string;
-                    customer_id?: string;
-                };
-                const { external_id } = (event.data.customer ?? {}) as { external_id?: string };
-                const userId = external_id ?? order.customer_id ?? 'unknown';
-                await notifyPayment([
-                    '*Payment received (order.paid / edge)*',
-                    `• user: \`${sanitize(String(userId))}\``,
-                    `• amount: \`${sanitize(formatMoney(order.amount ?? order.total_amount, order.currency))}\``,
-                    `• status: \`${sanitize(order.status ?? 'paid')}\``,
-                ]);
-                break;
-            }
-
-            case 'subscription.canceled':
-            case 'subscription.revoked': {
-                const sub = event.data as { id: string; customer_id: string };
-                const { external_id } = (event.data.customer ?? {}) as { external_id?: string };
-                const userId = external_id ?? sub.customer_id;
-
-                const { error: statusErr } = await supabase
-                    .from('subscriptions')
-                    .update({ status: event.type === 'subscription.canceled' ? 'canceled' : 'ended' })
-                    .eq('polar_subscription_id', sub.id);
-
-                if (statusErr) {
-                    throw new Error(`subscription status update: ${statusErr.message}`);
-                }
-
-                // Cancel/lapse never re-grants free usage — data stays readable, writes stop.
-                const { error: planErr } = await supabase
-                    .from('profiles')
-                    .update({ plan: 'read_only' })
-                    .eq('id', userId);
-
-                if (planErr) {
-                    throw new Error(`plan revert: ${planErr.message}`);
-                }
-                break;
-            }
-
-            default:
-                break;
+        const client = serviceClient();
+        const notify = async () => {
+            if (typeof event.data.id !== 'string' || !event.data.id)
+                throw new Error('Missing notification resource ID');
+            await deliverPolarNotification(
+                client,
+                org!,
+                `${event.type}:${event.data.id}`,
+                polarNotificationPayload(event.type, event.data, polarPlans(env, org!)[String(event.data.product_id)]),
+                postSlack,
+                Boolean(env('SLACK_WEBHOOK_URL')),
+            );
+        };
+        if (event.type === 'order.paid') {
+            await notify();
+            return jsonResponse({ received: true });
         }
-    } catch (err) {
-        console.error('[polar-webhook] error', err);
-        await Promise.all([
-            captureEdgeException(err, {
-                function: 'polar-webhook',
-                status: 500,
-                tags: { component: 'polar-webhook', event_type: event.type },
-            }),
-            postSlack({
-                text: [
-                    '*Polar edge webhook error*',
-                    `• event: \`${sanitize(event.type)}\``,
-                    `• error: \`${sanitize(err instanceof Error ? err.message : String(err))}\``,
-                ].join('\n'),
-            }),
-        ]);
-        return jsonResponse({ error: 'Internal error' }, 500);
+        const sub = { ...event.data };
+        const product = sub.product as Record<string, unknown> | undefined;
+        if (product?.organization_id && product.organization_id !== org)
+            return jsonResponse({ error: 'Organization mismatch' }, 400);
+        if (event.type === 'subscription.revoked') sub.status = 'revoked';
+        if (event.type === 'subscription.canceled') {
+            sub.status = 'canceled';
+            sub.cancel_at_period_end = true;
+        }
+        if (event.type === 'subscription.uncanceled') sub.cancel_at_period_end = false;
+        if (sub.trial_end == null && sub.trial_end_at != null) sub.trial_end = sub.trial_end_at;
+        const userId = polarUser(sub);
+        const plan = typeof sub.product_id === 'string' ? polarPlans(env, org)[sub.product_id] : undefined;
+        if (!plan && !['revoked', 'ended'].includes(String(sub.status))) {
+            return jsonResponse({ error: 'Unknown subscription product' }, 422);
+        }
+        const signedTime = req.headers.get('webhook-timestamp');
+        const eventAt =
+            event.timestamp ?? (standard && signedTime ? new Date(Number(signedTime) * 1000).toISOString() : undefined);
+        if (!eventAt || !Number.isFinite(Date.parse(eventAt)))
+            return jsonResponse({ error: 'Missing event timestamp' }, 400);
+        const eventId =
+            req.headers.get('webhook-id') ??
+            Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body))), (x) =>
+                x.toString(16).padStart(2, '0'),
+            ).join('');
+        const { error } = await client.rpc('apply_polar_subscription_event', {
+            p_org_id: org,
+            p_event_id: eventId,
+            p_event_at: eventAt,
+            p_user_id: userId,
+            p_customer_id: sub.customer_id,
+            p_subscription: sub,
+            p_plan: plan ?? null,
+        });
+        if (error) throw new Error(`Polar event transaction failed: ${error.code}`);
+        // Retry notices even when the entitlement transaction already says duplicate/stale.
+        if (event.type === 'subscription.created') await notify();
+    } catch (error) {
+        // Operational alerts are best effort, separate from idempotent payment notices.
+        await postSlack({
+            text: '*Polar edge webhook error*\nBilling event processing failed; inspect server monitoring.',
+        });
+        return respondServerError('polar-webhook', 'Internal error', error);
     }
-
     return jsonResponse({ received: true });
 });

@@ -2,6 +2,8 @@ mod app_nap;
 #[cfg(desktop)]
 mod poll_clock;
 mod sentry_config;
+#[cfg(any(target_os = "windows", test))]
+mod window_chrome;
 // Local import locations are supported on macOS; keep parsers compiled for portable tests.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 mod roasting_import;
@@ -270,6 +272,7 @@ fn configure_main_window(app: &tauri::App) {
     // Windows: conf 기본값(1260×810)이 DPI 스케일에서 체감상 큼 → 시작 크기만 축소
     #[cfg(target_os = "windows")]
     {
+        window_chrome::match_shell(&window);
         let _ = window.set_size(Size::Logical(LogicalSize::new(1100.0, 720.0)));
         let _ = window.center();
     }

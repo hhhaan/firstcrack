@@ -148,7 +148,7 @@ function ChartLegend({
     const channels = sensorChannels(points, unit).filter((channel) => channel.visible);
     if (points.length === 0) return null;
     return (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-secondary">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] font-medium text-secondary">
             {channels.map((channel) => (
                 <span key={channel.label} className="inline-flex items-center gap-2">
                     <CurveSwatch style={curves[channel.key].current} />

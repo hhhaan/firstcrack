@@ -1,13 +1,15 @@
 import { useBeans } from '@entities/bean/queries';
+import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
+import type { RoastSourceCandidate } from '@entities/roast-profile';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchNumber } from '@features/active-roast/model/useBatchNumber';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
-import { ChevronDown, Settings2 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { TargetMenu } from './TargetMenu';
 
@@ -30,6 +32,9 @@ export const RoastHeader = ({
     phase: _phase,
     targetProfileId,
     selectedBeanId,
+    selectedBlendId = null,
+    onBlendChange,
+    sourceCandidates = [],
     fallbackBeanName,
     onTargetProfileChange,
     onBeanChange,
@@ -42,6 +47,9 @@ export const RoastHeader = ({
     phase: string;
     targetProfileId: string | null;
     selectedBeanId: string | null;
+    selectedBlendId?: string | null;
+    onBlendChange?: (id: string | null, name?: string | null) => void;
+    sourceCandidates?: RoastSourceCandidate[];
     fallbackBeanName?: string | null;
     onTargetProfileChange: (id: string | null) => void;
     onBeanChange: (id: string | null) => void;
@@ -60,6 +68,7 @@ export const RoastHeader = ({
     const reconnecting = useRoastingStore((s) => s.reconnecting);
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
+    const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const beanVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'beans');
@@ -82,15 +91,19 @@ export const RoastHeader = ({
         else localStorage.removeItem(DEFAULT_BEAN_KEY);
     };
 
+    const selectedBlend = blends.find((b) => b.id === selectedBlendId);
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
-    const beanTitle = selectedBean
-        ? joinDisplay([selectedBean.origin, selectedBean.region], ' ') || selectedBean.name
-        : (fallbackBeanName ?? 'No Bean Selected');
+    const beanTitle = selectedBlend
+        ? selectedBlend.name
+        : selectedBean
+          ? joinDisplay([selectedBean.origin, selectedBean.region], ' ') || selectedBean.name
+          : (fallbackBeanName ?? 'No Bean Selected');
     const beanSecondary = selectedBean
         ? joinDisplay([selectedBean.farm, selectedBean.variety, selectedBean.process]) ||
           (selectedBean.name !== beanTitle ? selectedBean.name : '')
         : '';
     const defaultProfileId = userProfile?.default_roast_profile_id;
+    const hasTarget = historyReferenceName != null || dbProfiles.some((profile) => profile.id === targetProfileId);
     const sortedProfiles = dbProfiles
         .filter((profile) => profile.id === targetProfileId || !profileVisibility.hidden.has(profile.id))
         .sort((a, b) => {
@@ -99,6 +112,8 @@ export const RoastHeader = ({
             if (b.id === defaultProfileId) return 1;
             return 0;
         });
+    void onOpenRoastSettings;
+
     return (
         <div className="flex items-end justify-between">
             <div>
@@ -112,22 +127,51 @@ export const RoastHeader = ({
                 )}
 
                 <div className="relative inline-flex items-center mb-1 min-w-0">
-                    <span className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
+                    <span className="font-(--font-display) text-[28px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
                         {beanTitle}
                     </span>
 
                     <select
-                        value={selectedBeanId ?? ''}
-                        onChange={(e) => handleBeanChange(e.target.value || null)}
+                        aria-label={t('activeRoast.summary.bean')}
+                        value={selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? '')}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (value.startsWith('blend:')) {
+                                const id = value.slice(6);
+                                onBlendChange?.(id, blends.find((b) => b.id === id)?.name ?? null);
+                                localStorage.removeItem(DEFAULT_BEAN_KEY);
+                            } else handleBeanChange(value || null);
+                        }}
                         disabled={charged}
                         className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
                     >
                         <option value="">No Bean Selected</option>
-                        {visibleBeans.map((b) => (
-                            <option key={b.id} value={b.id}>
-                                {beanOptionDisplay(b)}
-                            </option>
-                        ))}
+                        {sourceCandidates.length > 1 && (
+                            <optgroup label={t('activeRoast.header.profileSources')}>
+                                {sourceCandidates.map((source) => (
+                                    <option
+                                        key={source.blendId ? `blend:${source.blendId}` : source.beanId}
+                                        value={source.blendId ? `blend:${source.blendId}` : (source.beanId ?? '')}
+                                    >
+                                        {source.name}
+                                    </option>
+                                ))}
+                            </optgroup>
+                        )}
+                        <optgroup label={t('newProfileModal.singleOrigin')}>
+                            {visibleBeans.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                    {beanOptionDisplay(b)}
+                                </option>
+                            ))}
+                        </optgroup>
+                        <optgroup label={t('newProfileModal.blend')}>
+                            {blends.map((b) => (
+                                <option key={b.id} value={`blend:${b.id}`}>
+                                    {b.name}
+                                </option>
+                            ))}
+                        </optgroup>
                     </select>
 
                     {!charged && (
@@ -154,7 +198,7 @@ export const RoastHeader = ({
                         onProfileChange={handleProfileChange}
                         onChooseHistory={onChooseHistoryReference}
                     />
-                    {batchNumber != null && (
+                    {hasTarget && batchNumber != null && (
                         <span className="text-[13px] text-muted" title={t('activeRoast.header.batchNumberHint')}>
                             {t('activeRoast.header.batchNumber', { number: batchNumber })}
                         </span>
@@ -167,7 +211,8 @@ export const RoastHeader = ({
                 </div>
             </div>
 
-            {/* ─── Right side: settings ─────────────────────────────────── */}
+            {/* ─── Right side: settings (hidden for now) ───────────────── */}
+            {/*
             <div className="flex items-start gap-3">
                 {onOpenRoastSettings && (
                     <button
@@ -176,12 +221,13 @@ export const RoastHeader = ({
                         onClick={onOpenRoastSettings}
                         aria-label="Open roast settings"
                         title="Roast settings"
-                        className="w-8.5 h-8.5 rounded-md border border-transparent bg-main-bg dark:bg-[#262b31] text-secondary dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer shrink-0 mt-1.5 hover:-translate-y-px transition"
+                        className="w-8.5 h-8.5 rounded-md border border-transparent bg-main-bg dark:bg-surface-elevated text-secondary dark:text-primary flex items-center justify-center cursor-pointer shrink-0 mt-1.5 hover:bg-surface-hover transition"
                     >
                         <Settings2 size={15} strokeWidth={1.9} />
                     </button>
                 )}
             </div>
+            */}
         </div>
     );
 };

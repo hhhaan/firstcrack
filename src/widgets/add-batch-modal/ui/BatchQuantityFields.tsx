@@ -48,7 +48,7 @@ export const BatchQuantityFields = ({
             </div>
 
             {targetNum > 0 && (
-                <div className="rounded-2xl bg-surface/50 dark:bg-surface-elevated border border-border dark:border-[#585d61] p-4">
+                <div className="rounded-2xl bg-surface/50 dark:bg-surface-elevated border border-border dark:border-border p-4">
                     <div className="flex items-stretch gap-0 divide-x divide-border-subtle">
                         <div className="flex-1 flex flex-col items-center py-1 px-4">
                             <span className="text-[26px] font-bold text-primary tabular-nums leading-none">

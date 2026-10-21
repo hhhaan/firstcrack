@@ -12,7 +12,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { ExternalLink, LogOut, UserRound } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SettingsRow, SettingsSection } from './SettingsSection';
+import { SettingsSection } from './SettingsSection';
 
 type AccountSettingsTabProps = {
     onClose: () => void;
@@ -38,12 +38,13 @@ function FieldRow({
     trailing?: ReactNode;
 }) {
     return (
-        <SettingsRow label={label} controlId={htmlFor}>
-            <div className="flex w-full min-w-0 flex-col gap-2 @[480px]:w-80">
-                {children}
-                {trailing}
-            </div>
-        </SettingsRow>
+        <div className="grid min-w-0 content-start gap-2">
+            <label htmlFor={htmlFor} className="text-sm text-primary">
+                {label}
+            </label>
+            {children}
+            {trailing}
+        </div>
     );
 }
 
@@ -119,10 +120,10 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const empty = '—';
 
     return (
-        <div className="grid gap-6">
+        <div className="grid gap-8">
             <SettingsSection>
                 <SettingsSection.Header icon={<UserRound size={16} strokeWidth={1.8} />} title={tk('profile')} />
-                <SettingsSection.Body className="divide-y divide-border-subtle p-0">
+                <SettingsSection.Body className="gap-5 p-5">
                     <FieldRow label={tk('displayName')} htmlFor="account-display-name">
                         <input
                             id="account-display-name"
@@ -143,25 +144,27 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                             </p>
                         ) : null}
                     </FieldRow>
-                    <FieldRow label={tk('businessName')} htmlFor="account-business-name">
-                        <input
-                            id="account-business-name"
-                            value={businessName}
-                            placeholder={tk('businessNamePlaceholder')}
-                            onChange={(event) => setBusinessName(event.target.value)}
-                            className={valueCls}
-                        />
-                    </FieldRow>
-                    <FieldRow label={tk('businessRegNumber')} htmlFor="account-business-reg">
-                        <input
-                            id="account-business-reg"
-                            value={businessRegNumber}
-                            inputMode="numeric"
-                            placeholder={tk('businessRegNumberPlaceholder')}
-                            onChange={(event) => setBusinessRegNumber(event.target.value)}
-                            className={`${valueCls} tabular-nums tracking-[0.02em]`}
-                        />
-                    </FieldRow>
+                    <div className="grid gap-5 @[480px]:grid-cols-2">
+                        <FieldRow label={tk('businessName')} htmlFor="account-business-name">
+                            <input
+                                id="account-business-name"
+                                value={businessName}
+                                placeholder={tk('businessNamePlaceholder')}
+                                onChange={(event) => setBusinessName(event.target.value)}
+                                className={valueCls}
+                            />
+                        </FieldRow>
+                        <FieldRow label={tk('businessRegNumber')} htmlFor="account-business-reg">
+                            <input
+                                id="account-business-reg"
+                                value={businessRegNumber}
+                                inputMode="numeric"
+                                placeholder={tk('businessRegNumberPlaceholder')}
+                                onChange={(event) => setBusinessRegNumber(event.target.value)}
+                                className={`${valueCls} tabular-nums tracking-[0.02em]`}
+                            />
+                        </FieldRow>
+                    </div>
                     <FieldRow label={tk('email')} htmlFor="account-email">
                         <input
                             id="account-email"
@@ -177,7 +180,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                             <SurfaceButton
                                 onClick={() => openUrl('https://maps.google.com')}
                                 icon={<ExternalLink size={13} aria-hidden />}
-                                className="max-w-full self-start text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                className="max-w-full justify-self-start text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                             >
                                 {tk('copyFromGoogleMaps')}
                             </SurfaceButton>
@@ -191,7 +194,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                             className={`${valueCls} tabular-nums`}
                         />
                     </FieldRow>
-                    <div className="flex flex-wrap items-center justify-end gap-3 px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border-subtle pt-4">
                         {profileSaveStatus === 'saved' && (
                             <span className="text-[13px] font-medium text-green-600 dark:text-green-400">
                                 {tk('saved')}
