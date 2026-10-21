@@ -62,7 +62,7 @@ export const RoastHeader = ({
 }) => {
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
-    const batchNumber = useBatchNumber();
+    useBatchNumber();
     const titleSessionId = useRoastingStore((state) => state.sessionId);
     const charged = useRoastingStore((s) => isChargedPhase(s.phase));
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
@@ -105,7 +105,6 @@ export const RoastHeader = ({
           (selectedBean.name !== beanTitle ? selectedBean.name : '')
         : '';
     const defaultProfileId = userProfile?.default_roast_profile_id;
-    const hasTarget = historyReferenceName != null || dbProfiles.some((profile) => profile.id === targetProfileId);
     const sortedProfiles = dbProfiles
         .filter((profile) => profile.id === targetProfileId || !profileVisibility.hidden.has(profile.id))
         .sort((a, b) => {
@@ -119,7 +118,12 @@ export const RoastHeader = ({
     return (
         <div className="flex items-end justify-between">
             <div>
-                <RoastBatchTitle key={titleSessionId ?? 'waiting'} />
+                <RoastBatchTitle
+                    key={titleSessionId ?? 'waiting'}
+                    beanId={selectedBeanId}
+                    blendId={selectedBlendId}
+                    beanName={selectedBlend || selectedBean ? beanTitle : (fallbackBeanName ?? null)}
+                />
                 {reconnecting && (
                     <p role="status" aria-live="assertive" className="text-xs text-amber-400 mb-1.5 max-w-xs">
                         {t('activeRoast.header.reconnecting')}
@@ -201,11 +205,6 @@ export const RoastHeader = ({
                         onProfileChange={handleProfileChange}
                         onChooseHistory={onChooseHistoryReference}
                     />
-                    {hasTarget && batchNumber != null && (
-                        <span className="text-[13px] text-muted" title={t('activeRoast.header.batchNumberHint')}>
-                            {t('activeRoast.header.batchNumber', { number: batchNumber })}
-                        </span>
-                    )}
                     {historyReferenceFailed && (
                         <span role="alert" className="text-[13px] text-red-400">
                             {t('activeRoast.reference.failed')}

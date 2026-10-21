@@ -8,7 +8,9 @@ import { RoastHeader } from './RoastHeader';
 vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', name: 'Modern' }] }) }));
 
 vi.mock('@entities/bean/queries', () => ({
-    useBeans: () => ({ data: [] }),
+    useBeans: () => ({
+        data: [{ id: 'bean-1', name: 'Santander Cooperative', origin: 'Colombia', region: 'Santander' }],
+    }),
 }));
 
 vi.mock('@features/active-roast/model/useBatchNumber', () => ({ useBatchNumber: () => 1 }));
@@ -68,15 +70,23 @@ const props = {
 };
 
 it.each([
-    { targetProfileId: null, historyReferenceName: null, visible: false },
-    { targetProfileId: 'missing', historyReferenceName: null, visible: false },
-    { targetProfileId: 'prof-1', historyReferenceName: null, visible: true },
-    { targetProfileId: null, historyReferenceName: 'Reference roast', visible: true },
-])('shows the batch number only for a resolved target: %j', ({ visible, ...target }) => {
+    { targetProfileId: null, historyReferenceName: null },
+    { targetProfileId: 'missing', historyReferenceName: null },
+    { targetProfileId: 'prof-1', historyReferenceName: null },
+    { targetProfileId: null, historyReferenceName: 'Reference roast' },
+])('uses the bean heading for the editable title instead of the target: %j', (target) => {
+    const state = useRoastingStore.getState();
+    state.prepareWorkspace('user-1');
+    state.prepareBean('bean-1');
     const host = document.createElement('div');
     const root = createRoot(host);
-    act(() => root.render(createElement(RoastHeader, { ...props, ...target })));
-    expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]') != null).toBe(visible);
+    act(() => root.render(createElement(RoastHeader, { ...props, ...target, selectedBeanId: 'bean-1' })));
+    act(() => {
+        const id = state.startCharge(undefined, 'user-1') ?? '';
+        state.assignBatchNumbers(id, 'user-1', 3, 10, 'profile');
+    });
+    expect(host.querySelector('input')?.value).toBe('Colombia Santander #3');
+    expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]')).toBeNull();
     act(() => root.unmount());
 });
 

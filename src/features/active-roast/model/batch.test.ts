@@ -38,16 +38,59 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId ?? '';
-        state.setReferenceDisplayName('profile-a', 'Filter', 'owner');
         state.assignBatchNumbers(id, 'owner', 42, 100, 'both');
-        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Filter · #42 · Σ#100');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A #42 · Σ#100');
         state.setRunningBatchTitle(id, 'Morning production');
+        state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Santander' }, 'owner');
         state.assignBatchNumbers(id, 'owner', 42, 100, 'profile');
         drop();
         expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Morning production');
         state.assignBatchNumbers(id, 'owner', 42, 100, 'both');
         state.cancelDrop();
         expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Morning production');
+    });
+
+    it('fills a late bean display name and restores it when an edited title is cleared', () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('owner');
+        state.prepareBean('bean-a');
+        const id = state.startCharge(undefined, 'owner') ?? '';
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile');
+        state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Santander' }, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander #3');
+        state.setRunningBatchTitle(id, 'Custom title');
+        state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Huila' }, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Custom title');
+        state.setRunningBatchTitle(id, '');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Huila #3');
+        drop();
+        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Colombia Huila #3');
+    });
+
+    it('ignores names from a different source or workspace', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId ?? '';
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile');
+        state.setSourceDisplayName({ beanId: 'bean-b', beanName: 'Other bean' }, 'owner');
+        state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Other workspace' }, 'other');
+        state.setSourceDisplayName({ beanId: 'bean-a', blendId: 'blend-a', beanName: 'Other blend' }, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A #3');
+        expect(useRoastingStore.getState().prepared.beanName).toBe('Lot A');
+    });
+
+    it('uses the blend name without changing the Charge profile numbering scope', () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('owner');
+        state.prepareBlend('blend-a', 'Modern');
+        state.commitProfile('profile-a', null, 'owner');
+        const id = state.startCharge(undefined, 'owner') ?? '';
+        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile');
+        state.commitProfile('profile-b', id, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity).toMatchObject({
+            profileId: 'profile-a',
+            title: 'Modern #3',
+        });
     });
 
     it('fills a late allocation after Drop without assigning it to the next batch', () => {

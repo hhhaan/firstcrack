@@ -9,7 +9,7 @@ export type RoastBatchIdentity = {
     edited?: boolean;
 };
 
-/** Keep the identifier suffix when a long profile name reaches the batch-name limit. */
+/** Keep the identifier suffix when a long bean name reaches the batch-name limit. */
 export const automaticBatchTitle = (identity: RoastBatchIdentity): string => {
     const suffix = [
         (identity.numbering === 'profile' || identity.numbering === 'both') && identity.number != null
@@ -22,5 +22,5 @@ export const automaticBatchTitle = (identity: RoastBatchIdentity): string => {
         .filter(Boolean)
         .join(' · ');
     const name = identity.name?.trim() || 'Roast';
-    return suffix ? `${name.slice(0, 120 - suffix.length - 3)} · ${suffix}` : name.slice(0, 120);
+    return suffix ? `${name.slice(0, 120 - suffix.length - 1)} ${suffix}` : name.slice(0, 120);
 };

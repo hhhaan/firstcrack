@@ -15,7 +15,17 @@ describe('batch titles and overall Charge numbering', () => {
         const counters = { [JSON.stringify(['owner', 'p1'])]: 4, [JSON.stringify(['owner', 'p2'])]: 3 };
         expect(allocateBatchNumber({ counters, sessions: {} }, 'owner', 'p1', 'next').totalNumber).toBe(8);
     });
-    it('keeps the selected identifiers when a profile name is long', () => {
+    it.each([
+        ['profile', 'Colombia Santander #3'],
+        ['total', 'Colombia Santander Σ#10'],
+        ['both', 'Colombia Santander #3 · Σ#10'],
+        ['none', 'Colombia Santander'],
+    ] as const)('uses the bean name with %s numbering', (numbering, expected) => {
+        expect(
+            automaticBatchTitle({ profileId: 'p', name: 'Colombia Santander', number: 3, totalNumber: 10, numbering }),
+        ).toBe(expected);
+    });
+    it('keeps the selected identifiers when a bean name is long', () => {
         const identity = {
             profileId: 'p',
             name: 'x'.repeat(150),
@@ -26,6 +36,6 @@ describe('batch titles and overall Charge numbering', () => {
         const title = automaticBatchTitle(identity);
         expect(title.length).toBe(120);
         expect(title).toMatch(/#42 · Σ#600$/);
-        expect(automaticBatchTitle({ ...identity, numbering: 'total', name: 'Filter' })).toBe('Filter · Σ#600');
+        expect(automaticBatchTitle({ ...identity, numbering: 'total', name: 'Filter' })).toBe('Filter Σ#600');
     });
 });

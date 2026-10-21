@@ -11,7 +11,6 @@ export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended
 export const isChargedPhase = (phase: RoastPhase): boolean => phase === 'roasting' || phase === 'ended';
 
 export interface RoastSelection {
-    profileName?: string | null;
     identity?: RoastBatchIdentity;
     blendId?: string | null;
     beanId: string | null;
@@ -138,7 +137,6 @@ const copySelection = (selection: RoastSelection): RoastSelection =>
         beanName: selection.beanName,
         profileId: selection.profileId,
         planBatchHandoff: selection.planBatchHandoff,
-        ...(selection.profileName !== undefined && { profileName: selection.profileName }),
         ...(selection.identity && { identity: selection.identity }),
     });
 const snapshotBatch = (state: BatchState, summary: RoastSummaryData, rawBT: number | null): CompletedRoastSnapshot => ({
@@ -206,7 +204,6 @@ export const createBatchActions = (
             prepared: {
                 ...state.prepared,
                 profileId,
-                profileName: state.prepared.profileId === profileId ? state.prepared.profileName : null,
                 profileInitialized: true,
             },
         });
@@ -275,7 +272,6 @@ export const createBatchActions = (
             prepared: {
                 ...state.prepared,
                 profileId,
-                profileName: state.prepared.profileId === profileId ? state.prepared.profileName : null,
                 profileInitialized: true,
                 profileUserSelected: true,
                 ...(!isChargedPhase(state.phase) &&
@@ -322,21 +318,28 @@ export const createBatchActions = (
             pendingProfileSource: null,
         }),
     recordAdhocSave: (lastAdhocSave: LastAdhocSave) => set({ lastAdhocSave }),
-    setReferenceDisplayName: (profileId: string | null, name: string | null, ownerId: string) => {
+    setSourceDisplayName: (source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>, ownerId: string) => {
+        if (!source.beanName) return;
         const state = get();
         const patch: Partial<BatchState> = {};
-        if (state.prepared.workspaceOwnerId === ownerId && state.prepared.profileId === profileId)
-            patch.prepared = { ...state.prepared, profileName: name };
+        const matchesSource = (selection: RoastSelection) =>
+            selection.beanId === source.beanId && (selection.blendId ?? null) === (source.blendId ?? null);
+        if (
+            state.prepared.workspaceOwnerId === ownerId &&
+            matchesSource(state.prepared) &&
+            state.prepared.beanName !== source.beanName
+        )
+            patch.prepared = { ...state.prepared, beanName: source.beanName };
         const selection = state.activeSelection;
         if (
             state.sessionOwnerId === ownerId &&
-            selection?.identity?.profileId === profileId &&
-            selection.identity.name == null &&
-            name
+            selection?.identity &&
+            matchesSource(selection) &&
+            selection.identity.name !== source.beanName
         ) {
-            const identity = { ...selection.identity, name };
+            const identity = { ...selection.identity, name: source.beanName };
             if (!identity.edited) identity.title = automaticBatchTitle(identity);
-            patch.activeSelection = { ...selection, identity };
+            patch.activeSelection = { ...selection, beanName: source.beanName, identity };
         }
         if (Object.keys(patch).length) set(patch);
     },
@@ -351,7 +354,7 @@ export const createBatchActions = (
         const assign = (selection: RoastSelection): RoastSelection => {
             const identity: RoastBatchIdentity = {
                 profileId: selection.profileId,
-                name: selection.profileName ?? selection.beanName,
+                name: selection.beanName,
                 ...selection.identity,
                 number,
                 totalNumber,
@@ -402,7 +405,7 @@ export const createBatchActions = (
                 ...copySelection(state.prepared),
                 identity: {
                     profileId: state.prepared.profileId,
-                    name: state.prepared.profileId ? (state.prepared.profileName ?? null) : state.prepared.beanName,
+                    name: state.prepared.beanName,
                     numbering: 'profile',
                 },
             },

@@ -1,25 +1,24 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { useRoastProfiles } from '@entities/roast-profile';
+import type { RoastSelection } from '@features/active-roast/model/batch';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export const RoastBatchTitle = () => {
+export const RoastBatchTitle = ({
+    beanId,
+    blendId = null,
+    beanName,
+}: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>) => {
     const { t } = useTranslation();
     const phase = useRoastingStore((state) => state.phase);
     const sessionId = useRoastingStore((state) => state.sessionId);
     const title = useRoastingStore((state) => state.activeSelection?.identity?.title ?? '');
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: profiles = [] } = useRoastProfiles(workspaceOwnerId);
-    const profileId = useRoastingStore((state) =>
-        state.activeSelection ? state.activeSelection.profileId : state.prepared.profileId,
-    );
     const preparedOwnerId = useRoastingStore((state) => state.prepared.workspaceOwnerId);
-    const profileName = profiles.find((profile) => profile.id === profileId)?.name ?? null;
     useEffect(() => {
         if (preparedOwnerId === workspaceOwnerId)
-            useRoastingStore.getState().setReferenceDisplayName(profileId, profileName, workspaceOwnerId);
-    }, [profileId, profileName, workspaceOwnerId, preparedOwnerId]);
+            useRoastingStore.getState().setSourceDisplayName({ beanId, blendId, beanName }, workspaceOwnerId);
+    }, [beanId, blendId, beanName, workspaceOwnerId, preparedOwnerId]);
     const [draft, setDraft] = useState('');
     const [editing, setEditing] = useState(false);
     const dirty = useRef(false);
