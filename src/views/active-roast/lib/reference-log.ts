@@ -13,8 +13,10 @@ export const buildReferenceLog = (
 ): LogEntry[] => {
     const heaterUnit =
         points.find((point) => point.processing?.read_units?.heater)?.processing?.read_units?.heater ?? '';
+    const edited = withEditedHeaterLog(events, storedHeatPlan, heaterUnit);
+    if (storedHeatPlan != null) return storedEventsToLogEntries(edited, unit);
     let recorded = events;
-    if (!events.some((event) => event.type === 'Heater')) {
+    if (!events.some((event) => event.type === 'Heater' && event.time_sec >= 0)) {
         const changes: StoredRoastEvent[] = [];
         let previous: number | null = null;
         for (const point of [...points].sort((a, b) => a.t - b.t)) {
@@ -31,5 +33,5 @@ export const buildReferenceLog = (
         }
         recorded = [...events, ...changes];
     }
-    return storedEventsToLogEntries(withEditedHeaterLog(recorded, storedHeatPlan, heaterUnit), unit);
+    return storedEventsToLogEntries(recorded, unit);
 };

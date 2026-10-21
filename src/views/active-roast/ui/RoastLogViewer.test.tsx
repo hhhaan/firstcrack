@@ -85,3 +85,34 @@ it('hides source tabs and restores the current log when the target is removed', 
         act(() => root.unmount());
     }
 });
+
+it.each([
+    { loading: true, error: false, status: 'activeRoast.log.referenceLoading' },
+    { loading: false, error: true, status: 'activeRoast.log.referenceError' },
+])('shows $status even when event rows are already available', ({ loading, error, status }) => {
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    try {
+        act(() =>
+            root.render(
+                <RoastLogViewer
+                    variant="panel"
+                    entries={[]}
+                    reference={{
+                        name: 'Reference A',
+                        loading,
+                        error,
+                        entries: [{ id: 'charge', event: 'Charge', time: '0:00', temp: '190°C', note: '' }],
+                    }}
+                    showReference
+                    onSourceChange={vi.fn()}
+                />,
+            ),
+        );
+        expect(host.querySelector('[role="status"]')?.textContent).toBe(status);
+        expect(host.querySelector('[role="list"]')?.textContent).toContain('190°C');
+        expect(host.textContent).not.toContain('activeRoast.log.referenceEmpty');
+    } finally {
+        act(() => root.unmount());
+    }
+});
