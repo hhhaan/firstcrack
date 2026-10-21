@@ -172,7 +172,7 @@ export const RoastLog = ({
                                     {entry.time}
                                 </span>
                                 {entry.temp ? (
-                                    <span className="@container min-w-0 flex-1">
+                                    <span className="@container flex min-w-0 flex-1 items-center">
                                         <span className="hidden whitespace-nowrap font-mono text-[11px] text-muted @[2.75rem]:inline">
                                             <span aria-hidden="true"> · </span>
                                             {entry.temp}
