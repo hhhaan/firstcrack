@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 /**
  * Drop at OS level, so it lands while the window is unfocused (#936).
  *
- * Returns true when the key is actually held globally: the caller must then skip its webview
- * hotkey — a focused window receives both, and one press must not mark Drop twice.
+ * Returns true when the key is actually held globally. The webview hotkey stays armed: a focused
+ * window can receive both, and the caller dedupes that pair into one Drop.
  */
 export function useGlobalDropShortcut({
     enabled,

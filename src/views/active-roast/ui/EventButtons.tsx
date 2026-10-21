@@ -168,15 +168,16 @@ export const EventButtons = ({
                                     style={{
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: 1,
-                                        fontSize: isSidebar ? 11 : 11,
+                                        maxWidth: '100%',
+                                        fontSize: 10,
+                                        lineHeight: 1,
                                         color: shortcutColor,
-                                        fontFamily: 'var(--font-mono)',
                                         letterSpacing: 'normal',
+                                        whiteSpace: 'nowrap',
                                         transition: 'color 0.15s',
                                     }}
                                 >
-                                    <span>{formatShortcut(keys)}</span>
+                                    {formatShortcut(keys)}
                                 </span>
                             ) : null}
                         </button>
