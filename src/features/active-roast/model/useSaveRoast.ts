@@ -177,7 +177,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         bbp_seconds: bbpSummary?.seconds ?? null,
         charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
         plan_batch_id: effectiveBatch?.planBatchId ?? null,
-        events: serializeRoastEvents(payloadParams.logEntries),
+        events: [...(bbpSummary?.events ?? []), ...serializeRoastEvents(payloadParams.logEntries)].sort(
+            (a, b) => a.time_sec - b.time_sec,
+        ),
         ...copyMachineSnapshot(payloadParams.machineSnapshot ?? EMPTY_MACHINE_SNAPSHOT),
     };
 
