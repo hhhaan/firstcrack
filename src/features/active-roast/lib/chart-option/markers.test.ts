@@ -50,6 +50,34 @@ const baseParams = {
     showFcBand: false,
 };
 
+it('draws read-only reference heat events ahead of the live curve in muted dashed lines', () => {
+    const result = buildMarkers({
+        ...baseParams,
+        eventMarkerStyle: 'line',
+        eventMarkers: [
+            {
+                reference: true,
+                timeSec: 630,
+                event: 'Heater',
+                color: '',
+                timeStr: '10:30',
+                temp: '204°C',
+                tempC: 204,
+                note: '0%',
+            },
+        ],
+    });
+    expect(result.allMarkLines).toContainEqual(
+        expect.objectContaining({
+            xAxis: 630,
+            lineStyle: expect.objectContaining({ color: colors.axisLabel, opacity: 0.4, type: 'dashed' }),
+        }),
+    );
+    expect(result.curveLabels).toContainEqual(
+        expect.objectContaining({ timeSec: 630, color: colors.axisLabel, text: expect.stringContaining('Ref · ') }),
+    );
+});
+
 describe('LABEL_BELOW_EVENTS', () => {
     it('puts FC Rolling / FC End / TP below; FC Start / Yellow / Drop above', () => {
         expect(LABEL_BELOW_EVENTS.has('FC Rolling')).toBe(true);
