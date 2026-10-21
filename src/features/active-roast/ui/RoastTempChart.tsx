@@ -116,6 +116,7 @@ interface Props {
     /** Saved curve. Drag stays put. Right-click labels and the roast log edit the record. */
     savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
+    noteContextKey?: string;
     onAddEvent?: (event: string, timeSec: number) => void;
     /** Saved curve: a right-click label that already exists moves to the clicked time. */
     onMoveEvent?: (event: string, timeSec: number) => void;
@@ -293,6 +294,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onEventMarkerDelete,
         savedReview = false,
         onAddNote,
+        noteContextKey,
         onAddEvent,
         onMoveEvent,
         hideChargeLabel = false,
@@ -359,7 +361,13 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     } | null>(null);
     const PIXEL_THRESHOLD = 10;
     const lastChartSizeRef = useRef({ w: 0, h: 0 });
-    const [noteForm, setNoteForm] = useState<{ x: number; y: number; timeSec: number } | null>(null);
+    const [noteForm, setNoteForm] = useState<{ x: number; y: number; timeSec: number; contextKey?: string } | null>(
+        null,
+    );
+    useEffect(() => {
+        void noteContextKey;
+        setNoteForm(null);
+    }, [noteContextKey]);
     const { t } = useTranslation();
     const [noteValues, setNoteValues] = useState<RoastNoteValues>(emptyNote);
     const noteFormRef = useRef<HTMLFormElement>(null);
@@ -1030,12 +1038,13 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             setNoteValues(emptyNote);
             setEditForm(null);
             setNoteForm({
+                contextKey: noteContextKey,
                 x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
                 y: Math.max(0, Math.min(point.y, container.clientHeight - 72)),
                 timeSec: clampMarkerTime('Note', converted, currentTimeSec, xMax),
             });
         },
-        [currentTimeSec, localPoint, onAddNote, xs, xViewMax, xViewMin],
+        [currentTimeSec, localPoint, onAddNote, noteContextKey, xs, xViewMax, xViewMin],
     );
 
     const submitNote = useCallback(() => {
@@ -1044,6 +1053,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         const airflow = noteValues.airflow.trim();
         const drum = noteValues.drum.trim();
         if (!noteForm || (!note && !gas && !airflow && !drum) || !onAddNote) return;
+        if (noteForm.contextKey !== noteContextKey) {
+            setNoteForm(null);
+            return;
+        }
         if (gas || airflow || drum)
             onAddNote(note, noteForm.timeSec, {
                 ...(gas ? { gas } : {}),
@@ -1054,7 +1067,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         setNoteForm(null);
         setNoteValues(emptyNote);
         chartRef.current?.focus();
-    }, [noteValues, noteForm, onAddNote]);
+    }, [noteValues, noteForm, onAddNote, noteContextKey]);
 
     const submitEdit = useCallback(() => {
         if (!editForm || !onEventMarkerEdit) return;

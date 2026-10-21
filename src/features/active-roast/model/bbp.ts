@@ -1,5 +1,7 @@
+import { bbpEventsMetadata, parseBbpEvents } from '@shared/lib/bbp-events';
 import { feedbackValue } from '@shared/lib/feedback';
 import { formatTsvRows, TSV_HEADER } from '@shared/lib/tsv-writer';
+import type { StoredBbpEvent } from '@shared/types/roast';
 import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
 
@@ -54,6 +56,9 @@ export const rebaseBbpWindow = (points: BbpPoint[], endT: number, windowSeconds 
 };
 
 interface BbpState {
+    events: StoredBbpEvent[];
+    finalizedEvents: StoredBbpEvent[];
+    recordEvent: (event: Omit<StoredBbpEvent, 'id'>) => boolean;
     active: boolean;
     /** First-batch preheat is chart-only; End→Charge is recorded and saved. */
     recording: boolean;
@@ -89,7 +94,7 @@ const BBP_LIVE_KEY = 'fc_bbp_live';
  */
 const BBP_LIVE_GEN_KEY = 'fc_bbp_live_gen';
 
-type LiveBbpRecord = { v: 2; generation: string; startMs: number; points: BbpPoint[] };
+type LiveBbpRecord = { v: 2; generation: string; startMs: number; points: BbpPoint[]; events?: StoredBbpEvent[] };
 
 const browserStorage = (kind: 'localStorage' | 'sessionStorage'): Storage | null => {
     try {
@@ -140,7 +145,14 @@ const storedGeneration = (): string | null => {
  * `claim` is begin(): this tab takes the blob.
  * Later appends stop once another tab's begin() has claimed it.
  */
-const persistLive = (active: boolean, generation: string, startMs: number, points: BbpPoint[], claim = false) => {
+const persistLive = (
+    active: boolean,
+    generation: string,
+    startMs: number,
+    points: BbpPoint[],
+    claim = false,
+    events: StoredBbpEvent[] = [],
+) => {
     const local = browserStorage('localStorage');
     const session = browserStorage('sessionStorage');
     if (!local) return;
@@ -154,7 +166,7 @@ const persistLive = (active: boolean, generation: string, startMs: number, point
         const stored = storedGeneration();
         if (!claim && stored && stored !== generation) return;
         if (!session || !generation) throw new Error('BBP session token unavailable');
-        const record: LiveBbpRecord = { v: 2, generation, startMs, points };
+        const record: LiveBbpRecord = { v: 2, generation, startMs, points, ...(events.length && { events }) };
         local.setItem(BBP_LIVE_KEY, JSON.stringify(record));
         session.setItem(BBP_LIVE_GEN_KEY, generation);
     } catch {
@@ -163,7 +175,12 @@ const persistLive = (active: boolean, generation: string, startMs: number, point
     }
 };
 
-export const readLiveBbp = (): { generation: string; startMs: number; points: BbpPoint[] } | null => {
+export const readLiveBbp = (): {
+    generation: string;
+    startMs: number;
+    points: BbpPoint[];
+    events?: StoredBbpEvent[];
+} | null => {
     const local = browserStorage('localStorage');
     const session = browserStorage('sessionStorage');
     if (!local) return null;
@@ -190,7 +207,8 @@ export const readLiveBbp = (): { generation: string; startMs: number; points: Bb
         }
         // Missing or different token: new tab, app restart, or the other tab owns the blob. Leave their blob.
         if (token !== generation) return null;
-        return { generation, startMs, points };
+        const events = parseBbpEvents(parsed?.events);
+        return { generation, startMs, points, ...(events.length && { events }) };
     } catch {
         clearLiveStorage();
         return null;
@@ -203,8 +221,9 @@ const recordedSpanSeconds = (points: BbpPoint[]): number => {
     return Math.round(points[points.length - 1].t - points[0].t);
 };
 
-export const bbpPointsToTsv = (points: BbpPoint[]): string =>
+export const bbpPointsToTsv = (points: BbpPoint[], events: StoredBbpEvent[] = []): string =>
     TSV_HEADER +
+    bbpEventsMetadata(events) +
     formatTsvRows(
         points,
         (p) =>
@@ -214,6 +233,26 @@ export const bbpPointsToTsv = (points: BbpPoint[]): string =>
 const toTsv = bbpPointsToTsv;
 
 export const useBbpStore = create<BbpState>((set, get) => ({
+    events: [],
+    finalizedEvents: [],
+    recordEvent: (event) => {
+        const state = get();
+        if (!state.active || !state.recording || !state.liveGeneration) return false;
+        if (
+            event.event === 'Note' &&
+            !event.note.trim() &&
+            !event.gas?.trim() &&
+            !event.airflow?.trim() &&
+            !event.drum?.trim()
+        )
+            return false;
+        const parsed = parseBbpEvents([{ ...event, id: crypto.randomUUID() }]);
+        if (!parsed.length) return false;
+        const events = [...state.events, ...parsed].slice(-512);
+        persistLive(true, state.liveGeneration, state.startMs, state.points, false, events);
+        set({ events });
+        return true;
+    },
     active: false,
     recording: false,
     liveGeneration: '',
@@ -227,12 +266,12 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         const points = seed.length > 0 ? clipBbpWindow(seed, seed[seed.length - 1]?.t ?? 0) : [];
         // Chart-only preheat must not claim this tab's token or touch another tab's blob.
         if (!recording) {
-            set({ active: true, recording: false, liveGeneration: '', startMs, points });
+            set({ active: true, recording: false, liveGeneration: '', startMs, points, events: [] });
             return;
         }
         const liveGeneration = crypto.randomUUID();
         persistLive(true, liveGeneration, startMs, points, true);
-        set({ active: true, recording: true, liveGeneration, startMs, points });
+        set({ active: true, recording: true, liveGeneration, startMs, points, events: [] });
     },
 
     append: (sample, nowMs) => {
@@ -243,13 +282,13 @@ export const useBbpStore = create<BbpState>((set, get) => ({
         if (t < 0) return;
         if (points.length > 0 && t - points[points.length - 1].t < 1) return;
         const next = clipBbpWindow([...points, { t, ...sample }], t);
-        if (recording) persistLive(true, liveGeneration, startMs, next);
+        if (recording) persistLive(true, liveGeneration, startMs, next, false, get().events);
         set({ points: next });
     },
 
     abort: () => {
         persistLive(false, get().liveGeneration, 0, []);
-        set({ active: false, recording: false, liveGeneration: '', startMs: 0, points: [] });
+        set({ active: false, recording: false, liveGeneration: '', startMs: 0, points: [], events: [] });
     },
 
     finalize: (chargeMs, sessionId) => {
@@ -274,11 +313,33 @@ export const useBbpStore = create<BbpState>((set, get) => ({
                 points: [],
                 finalized: null,
                 finalizedPoints: [],
+                events: [],
+                finalizedEvents: [],
             });
             return null;
         }
         const chargeTemp = points[points.length - 1].bt;
-        const result: BbpResult = { seconds, chargeTemp, tsv: toTsv(points) };
+        const origin = windowOrigin(cutoff);
+        const inherited: Pick<StoredBbpEvent, 'gas' | 'airflow' | 'drum'> = {};
+        for (const event of [...get().events].sort((a, b) => a.t - b.t)) {
+            if (event.t >= origin) continue;
+            for (const role of ['gas', 'airflow', 'drum'] as const)
+                if (event[role] !== undefined) inherited[role] = event[role];
+        }
+        const events = get()
+            .events.filter((event) => event.t >= origin && event.t <= cutoff)
+            .map((event) => ({ ...event, t: event.t - origin }));
+        if (Object.keys(inherited).length)
+            events.unshift({
+                id: `bbp-carry-${sessionId}`,
+                t: 0,
+                event: 'Note',
+                tempC: points[0].bt,
+                note: '',
+                carried: true,
+                ...inherited,
+            });
+        const result: BbpResult = { seconds, chargeTemp, tsv: toTsv(points, events) };
         persistLive(false, liveGeneration, 0, []);
         set({
             active: false,
@@ -288,6 +349,8 @@ export const useBbpStore = create<BbpState>((set, get) => ({
             points: [],
             finalized: { sessionId, seconds, chargeTemp },
             finalizedPoints: points,
+            events: [],
+            finalizedEvents: events,
         });
         return result;
     },
@@ -307,6 +370,7 @@ export const hydrateLiveBbp = (): boolean => {
         liveGeneration: live.generation,
         startMs: live.startMs,
         points: clipBbpWindow(live.points, endT),
+        events: live.events ?? [],
     });
     return true;
 };

@@ -425,7 +425,9 @@ export const useSidecarPolling = ({
                     );
                     const liveBbp = useBbpStore.getState();
                     if (liveBbp.active && liveBbp.recording && liveBbp.points.length > 0) {
-                        void writeBbpTsv(BBP_INPROGRESS_ID, bbpPointsToTsv(liveBbp.points)).catch(() => {});
+                        void writeBbpTsv(BBP_INPROGRESS_ID, bbpPointsToTsv(liveBbp.points, liveBbp.events)).catch(
+                            () => {},
+                        );
                     }
                 }
 

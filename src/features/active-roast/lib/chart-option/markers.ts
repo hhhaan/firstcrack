@@ -80,8 +80,8 @@ export const isEventMarkerVisible = (
 };
 
 const formatMarkerTime = (timeSec: number) => {
-    const sec = Math.max(0, Math.floor(timeSec));
-    return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+    const sec = Math.floor(Math.abs(timeSec));
+    return `${timeSec < 0 ? '-' : ''}${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 };
 
 const hasMarkerTemp = (temp: string) => {

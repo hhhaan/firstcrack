@@ -10,8 +10,20 @@ export type RoastNoteControls = {
     drum?: string;
 };
 
+/** Archived with its BBP TSV. Time is relative to that file's BBP origin, never Charge. */
+export type StoredBbpEvent = RoastNoteControls & {
+    /** Window-boundary state, not a new operator action. */
+    carried?: boolean;
+    id: string;
+    t: number;
+    event: string;
+    tempC: number | null;
+    note: string;
+};
+
 /** Live roast event log row (UI + in-memory). */
 export interface LogEntry extends RoastNoteControls {
+    bbpCarry?: boolean;
     appliedControl?: AppliedRoastControl;
     id?: string;
     /** Display "m:ss" (derived). */

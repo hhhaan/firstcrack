@@ -73,6 +73,7 @@ interface RoastChartContainerProps {
     onEventMarkerDelete?: (logId: string) => void;
     savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
+    noteContextKey?: string;
     onAddEvent?: (event: string, timeSec: number) => void;
     onMoveEvent?: (event: string, timeSec: number) => void;
 }
@@ -134,6 +135,7 @@ export const RoastChartContainer = ({
     onEventMarkerDelete,
     savedReview = false,
     onAddNote,
+    noteContextKey,
     onAddEvent,
     onMoveEvent,
 }: RoastChartContainerProps) => {
@@ -275,6 +277,7 @@ export const RoastChartContainer = ({
                 onEventMarkerDelete={onEventMarkerDelete}
                 savedReview={savedReview}
                 onAddNote={onAddNote}
+                noteContextKey={noteContextKey}
                 onAddEvent={onAddEvent}
                 onMoveEvent={onMoveEvent}
                 showET={showET}

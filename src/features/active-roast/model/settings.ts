@@ -112,6 +112,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showControlDrum: true,
     showControlHeat: true,
     showControlFan: true,
+    controlDataSource: 'auto',
     controlChartHeightPct: 21,
     controlYMin: 0,
     controlYMax: 100,
@@ -380,6 +381,10 @@ export const normalizeRoastSettings = (
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
+        controlDataSource:
+            merged.controlDataSource === 'manual' || merged.controlDataSource === 'both'
+                ? merged.controlDataSource
+                : 'auto',
         showProfileBt: asBool(merged.showProfileBt, DEFAULT_SETTINGS.showProfileBt),
         showProfileEt: asBool(merged.showProfileEt, DEFAULT_SETTINGS.showProfileEt),
         showProfileRor: asBool(merged.showProfileRor, DEFAULT_SETTINGS.showProfileRor),

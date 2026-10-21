@@ -1212,6 +1212,22 @@
         },
         "review": {
             "return": "返回投豆等待界面"
+        },
+        "bbpInput": {
+            "title": "BBP手动记录",
+            "gas": "火力 · 设备单位",
+            "airflow": "排气 · 设备单位",
+            "drum": "滚筒 · RPM",
+            "note": "备注",
+            "add": "记录事件",
+            "log": "BBP事件记录"
+        },
+        "controlSource": {
+            "title": "控制图表数据",
+            "description": "自动优先显示采集值，缺失通道使用手动记录。此设置仅改变图表显示。",
+            "auto": "自动优先",
+            "manual": "手动输入值",
+            "both": "区分自动与手动"
         }
     },
     "schedule": {

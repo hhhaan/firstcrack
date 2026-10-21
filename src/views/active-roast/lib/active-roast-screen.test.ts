@@ -80,7 +80,7 @@ describe('buildChartFrame', () => {
         expect(frame.onMoveEvent).toBe(chartInput.onMoveEvent);
     });
 
-    it('hides roast markers and labels a recording wait as BBP', () => {
+    it('shows the supplied BBP markers and enables manual notes during a recording wait', () => {
         const frame = buildChartFrame({
             ...chartInput,
             bbpActive: true,
@@ -91,7 +91,8 @@ describe('buildChartFrame', () => {
         expect(frame.bbpSpan).toBe(40);
         expect(frame.elapsed).toBe(12.8);
         expect(frame.charged).toBe(false);
-        expect(frame.eventMarkers).toEqual([]);
+        expect(frame.eventMarkers).toEqual(chartInput.eventMarkers);
+        expect(frame.onAddNote).toBe(chartInput.onAddNote);
         expect(frame.turningPoints).toEqual([]);
         expect(frame.showFcBand).toBe(false);
         expect(frame.controlData?.heatTarget).toBeUndefined();

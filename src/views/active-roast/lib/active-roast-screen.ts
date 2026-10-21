@@ -133,6 +133,8 @@ const canEditChartMarkers = (charged: boolean, roastEnded: boolean, bbpActive: b
 const anySeriesOn = (drum: boolean, heat: boolean, fan: boolean) => drum || heat || fan;
 
 type ControlFrameInput = {
+    manual?: ControlData['manual'];
+    controlDataSource?: ControlData['dataSource'];
     controlChanges?: ControlData['changes'];
     readUnits?: ControlData['readUnits'];
     referenceReadUnits?: ControlData['readUnits'];
@@ -167,6 +169,8 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
     const liveOpen = anySeriesOn(input.showControlDrum, input.showControlHeat, input.showControlFan);
     if (!input.showControlChart || (!liveOpen && !profileControlRequested(input))) return undefined;
     return {
+        ...(input.manual && { manual: input.manual }),
+        ...(input.controlDataSource && { dataSource: input.controlDataSource }),
         readUnits: input.readUnits,
         xs: input.controlXs,
         drumTemp: input.drumTemp,
@@ -189,6 +193,8 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
 };
 
 export const buildChartFrame = <TTurningPoint>(input: {
+    manual?: ControlData['manual'];
+    controlDataSource?: ControlData['dataSource'];
     controlChanges?: ControlData['changes'];
     readUnits?: ControlData['readUnits'];
     referenceReadUnits?: ControlData['readUnits'];
@@ -258,14 +264,14 @@ export const buildChartFrame = <TTurningPoint>(input: {
         controlData: chartControlData(input),
         elapsed: input.bbpActive ? input.bbpNowSec : input.elapsed,
         charged: input.charged && !input.bbpActive,
-        eventMarkers: listUnlessBbp(input.bbpActive, input.eventMarkers),
+        eventMarkers: input.eventMarkers,
         turningPoints: listUnlessBbp(input.bbpActive, input.turningPoints),
         phaseSegments: listUnlessBbp(input.bbpActive, input.phaseSegments),
         showFcBand: input.showFcBand && !input.bbpActive,
         onEventMarkerDrag: canEdit ? input.onEventMarkerDrag : undefined,
         onEventMarkerEdit: canEdit ? input.onEventMarkerEdit : undefined,
         onEventMarkerDelete: canEdit ? input.onEventMarkerDelete : undefined,
-        onAddNote: canEdit ? input.onAddNote : undefined,
+        onAddNote: canEdit || (input.bbpActive && input.bbpRecording) ? input.onAddNote : undefined,
         onAddEvent: canEdit ? input.onAddEvent : undefined,
         onMoveEvent: input.reviewing && canEdit ? input.onMoveEvent : undefined,
     };

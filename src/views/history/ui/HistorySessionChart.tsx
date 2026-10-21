@@ -12,8 +12,10 @@ import {
     useCurveStyles,
     useRoastSettings,
 } from '@features/active-roast';
+import { bbpEventsToLog, bbpLogMarkers } from '@features/active-roast/lib/bbp-log';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { dropStoredControlRole, patchStoredControl } from '@features/active-roast/lib/fan-drum-markers';
+import { manualControlData } from '@features/active-roast/lib/manual-control';
 import {
     referenceCurveFromPoints,
     referenceHasControls,
@@ -26,6 +28,7 @@ import {
     storedEventsToMarkers,
 } from '@features/active-roast/lib/serialize-roast-events';
 import { rorUnitLabel, tempUnitLabel } from '@features/active-roast/lib/temperature';
+import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { formatDuration } from '@shared/lib/format';
@@ -211,6 +214,7 @@ export function HistorySessionChart({
         showProfileDrum,
         showProfileHeat,
         showProfileFan,
+        controlDataSource,
     } = useRoastSettings();
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
     const roast = useHistoryChart(orNull(session.tsv_path));
@@ -260,11 +264,16 @@ export function HistorySessionChart({
         [record, session.events],
     );
     const storedEvents = useMemo(() => parseStoredRoastEvents(session.events), [session.events]);
+    const archivedBbpLog = useMemo(() => {
+        const points = bbp.data ?? [];
+        const duration = Math.max(session.bbp_seconds ?? 0, ...points.map((point) => point.t), 0);
+        return bbpEventsToLog(points[0]?.bbpEvents ?? [], duration, unit, true);
+    }, [bbp.data, session.bbp_seconds, unit]);
     const eventMarkers = useMemo(() => {
         void resolvedTheme;
         const events = withEditedHeaterLog(storedEvents, session.heater_events, heaterUnit);
-        return storedEventsToMarkers(events, unit);
-    }, [storedEvents, session.heater_events, heaterUnit, unit, resolvedTheme]);
+        return [...storedEventsToMarkers(events, unit), ...bbpLogMarkers(archivedBbpLog)];
+    }, [storedEvents, session.heater_events, heaterUnit, unit, resolvedTheme, archivedBbpLog]);
     const { points } = actual;
     const phases = useMemo(
         () =>
@@ -293,6 +302,12 @@ export function HistorySessionChart({
         [points, session],
     );
     const { hasControls, controlData } = historyControls({
+        manual: manualControlData(
+            [...archivedBbpLog, ...storedEventsToLogEntries(storedEvents, unit)],
+            actual.bbpRange?.start ?? 0,
+            points[points.length - 1]?.t ?? session.duration_seconds,
+        ),
+        dataSource: controlDataSource,
         changes: storedEventsToControlChanges(storedEvents),
         points,
         heatSet,
@@ -412,6 +427,16 @@ export function HistorySessionChart({
                 </div>
             )}
             <PhaseShare phases={phases} />
+            {archivedBbpLog.some((entry) => !entry.bbpCarry) && (
+                <details className="mt-3 border-t border-border-subtle pt-2">
+                    <summary className="cursor-pointer text-xs text-muted">{t('activeRoast.bbpInput.log')}</summary>
+                    <RoastLog
+                        entries={archivedBbpLog.filter((entry) => !entry.bbpCarry)}
+                        variant="main"
+                        showHeading={false}
+                    />
+                </details>
+            )}
         </section>
     );
 }
