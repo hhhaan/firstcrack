@@ -445,12 +445,14 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             return {
                 timeSec: m.timeSec,
                 y,
-                text: `${m.reference ? 'Ref · ' : ''}${eventLabelText(
-                    m.event,
-                    m.timeSec,
-                    markerTemp(m, nearest),
-                    m.event === 'Note' ? formatRoastNote(m) : m.note,
-                )}`,
+                text: m.reference
+                    ? `Ref ${m.note?.trim() || roastEventLabel(m.event)}`
+                    : eventLabelText(
+                          m.event,
+                          m.timeSec,
+                          markerTemp(m, nearest),
+                          m.event === 'Note' ? formatRoastNote(m) : m.note,
+                      ),
                 color: m.reference ? colors.axisLabel : markerLabelColor(m.event),
                 below: atTop || LABEL_BELOW_EVENTS.has(m.event),
                 showDot: m.event === 'Charge' ? false : showDot,

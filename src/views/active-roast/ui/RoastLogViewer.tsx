@@ -19,29 +19,30 @@ export const RoastLogViewer = ({
     const active = showReference && reference != null;
     return (
         <>
-            <div
-                role="group"
-                aria-label={t('activeRoast.log.source')}
-                className="mb-2 flex rounded-md bg-surface p-0.5"
-            >
-                <button
-                    type="button"
-                    aria-pressed={!active}
-                    onClick={() => onSourceChange(false)}
-                    className={`flex-1 rounded px-1 py-1 text-[10px] ${!active ? 'bg-main-bg text-primary' : 'text-muted'}`}
+            {reference && (
+                <div
+                    role="group"
+                    aria-label={t('activeRoast.log.source')}
+                    className="mb-2 flex rounded-md bg-surface p-0.5"
                 >
-                    {t('activeRoast.log.current')}
-                </button>
-                <button
-                    type="button"
-                    aria-pressed={active}
-                    disabled={!reference}
-                    onClick={() => onSourceChange(true)}
-                    className={`flex-1 rounded px-1 py-1 text-[10px] disabled:opacity-40 ${active ? 'bg-main-bg text-primary' : 'text-muted'}`}
-                >
-                    {t('activeRoast.log.reference')}
-                </button>
-            </div>
+                    <button
+                        type="button"
+                        aria-pressed={!active}
+                        onClick={() => onSourceChange(false)}
+                        className={`flex-1 rounded px-1 py-1 text-[10px] ${!active ? 'bg-main-bg text-primary' : 'text-muted'}`}
+                    >
+                        {t('activeRoast.log.current')}
+                    </button>
+                    <button
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => onSourceChange(true)}
+                        className={`flex-1 rounded px-1 py-1 text-[10px] ${active ? 'bg-main-bg text-primary' : 'text-muted'}`}
+                    >
+                        {t('activeRoast.log.reference')}
+                    </button>
+                </div>
+            )}
             {active ? (
                 <>
                     <p className="mb-2 break-words text-[11px] text-secondary">{reference.name}</p>

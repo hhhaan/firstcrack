@@ -50,7 +50,7 @@ const baseParams = {
     showFcBand: false,
 };
 
-it('draws read-only reference heat events ahead of the live curve in muted dashed lines', () => {
+it.each(['0%', '60%', '2.5 kPa'])('draws a compact reference heat label for %s ahead of the live curve', (note) => {
     const result = buildMarkers({
         ...baseParams,
         eventMarkerStyle: 'line',
@@ -63,7 +63,7 @@ it('draws read-only reference heat events ahead of the live curve in muted dashe
                 timeStr: '10:30',
                 temp: '204°C',
                 tempC: 204,
-                note: '0%',
+                note,
             },
         ],
     });
@@ -74,7 +74,7 @@ it('draws read-only reference heat events ahead of the live curve in muted dashe
         }),
     );
     expect(result.curveLabels).toContainEqual(
-        expect.objectContaining({ timeSec: 630, color: colors.axisLabel, text: expect.stringContaining('Ref · ') }),
+        expect.objectContaining({ timeSec: 630, y: 204, color: colors.axisLabel, text: `Ref ${note}` }),
     );
 });
 
