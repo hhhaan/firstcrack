@@ -91,7 +91,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const bbp = useBbpStore.getState().finalized;
             const forcedProfileId = savedProfileIdRef.current?.();
             return {
-                formData,
+                formData: { ...formData, batchName: formData.batchName?.trim() || snapshot?.selection.identity?.title },
                 userId: snapshot?.sessionOwnerId ?? useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
                 elapsed: snapshot?.elapsed ?? state.elapsed,
                 roastStartTime: snapshot?.roastStartMs ?? useRoastingStore.getState().roastStartMs,
@@ -162,7 +162,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 // Recovered (auto-saved) by PendingRoastRecovery on next launch.
                 const formPatch: SaveRoastFormData = {
                     notes: formData.notes,
-                    batchName: formData.batchName,
+                    batchName: formData.batchName?.trim() || snapshot.selection.identity?.title,
                     weightGrams: formData.weightGrams,
                     outputWeightKg: formData.outputWeightKg,
                     roastLevel: formData.roastLevel,

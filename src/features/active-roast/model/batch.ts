@@ -2,6 +2,7 @@ import type { MachineSnapshot } from '@entities/machine';
 import { formatElapsed } from '@shared/lib/format';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
+import { automaticBatchTitle, type BatchTitleNumbering, type RoastBatchIdentity } from '../lib/batch-title';
 import { buildDropSummary, type DropOnset, planDropTransition } from '../lib/drop-transition';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
@@ -10,6 +11,8 @@ export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended
 export const isChargedPhase = (phase: RoastPhase): boolean => phase === 'roasting' || phase === 'ended';
 
 export interface RoastSelection {
+    profileName?: string | null;
+    identity?: RoastBatchIdentity;
     blendId?: string | null;
     beanId: string | null;
     beanName: string | null;
@@ -29,6 +32,7 @@ export interface LastAdhocSave {
     roastLevel: string | null;
 }
 export interface RoastSummaryData {
+    batchName?: string;
     totalTime: string;
     development: string;
     finalBt: string;
@@ -134,6 +138,8 @@ const copySelection = (selection: RoastSelection): RoastSelection =>
         beanName: selection.beanName,
         profileId: selection.profileId,
         planBatchHandoff: selection.planBatchHandoff,
+        ...(selection.profileName !== undefined && { profileName: selection.profileName }),
+        ...(selection.identity && { identity: selection.identity }),
     });
 const snapshotBatch = (state: BatchState, summary: RoastSummaryData, rawBT: number | null): CompletedRoastSnapshot => ({
     sessionId: summary.sessionId ?? state.sessionId ?? crypto.randomUUID(),
@@ -161,6 +167,7 @@ const summaryForSnapshot = (summary: RoastSummaryData, snapshot: CompletedRoastS
     selectedBeanId: snapshot.selection.beanId,
     planBatchHandoff: snapshot.selection.planBatchHandoff,
     handoffBeanName: snapshot.selection.beanName,
+    ...(snapshot.selection.identity?.title && { batchName: snapshot.selection.identity.title }),
 });
 export type BatchActions = ReturnType<typeof createBatchActions>;
 /** All actions below change memory only. Callers perform I/O using returned snapshots. */
@@ -195,7 +202,14 @@ export const createBatchActions = (
         const state = get();
         if (isChargedPhase(state.phase) || state.prepared.profileUserSelected) return;
         if (state.prepared.profileInitialized && state.prepared.profileId === profileId) return;
-        set({ prepared: { ...state.prepared, profileId, profileInitialized: true } });
+        set({
+            prepared: {
+                ...state.prepared,
+                profileId,
+                profileName: state.prepared.profileId === profileId ? state.prepared.profileName : null,
+                profileInitialized: true,
+            },
+        });
     },
     prepareBean: (beanId: string | null, beanName: string | null = null) => {
         const state = get();
@@ -261,6 +275,7 @@ export const createBatchActions = (
             prepared: {
                 ...state.prepared,
                 profileId,
+                profileName: state.prepared.profileId === profileId ? state.prepared.profileName : null,
                 profileInitialized: true,
                 profileUserSelected: true,
                 ...(!isChargedPhase(state.phase) &&
@@ -307,6 +322,67 @@ export const createBatchActions = (
             pendingProfileSource: null,
         }),
     recordAdhocSave: (lastAdhocSave: LastAdhocSave) => set({ lastAdhocSave }),
+    setReferenceDisplayName: (profileId: string | null, name: string | null, ownerId: string) => {
+        const state = get();
+        const patch: Partial<BatchState> = {};
+        if (state.prepared.workspaceOwnerId === ownerId && state.prepared.profileId === profileId)
+            patch.prepared = { ...state.prepared, profileName: name };
+        const selection = state.activeSelection;
+        if (
+            state.sessionOwnerId === ownerId &&
+            selection?.identity?.profileId === profileId &&
+            selection.identity.name == null &&
+            name
+        ) {
+            const identity = { ...selection.identity, name };
+            if (!identity.edited) identity.title = automaticBatchTitle(identity);
+            patch.activeSelection = { ...selection, identity };
+        }
+        if (Object.keys(patch).length) set(patch);
+    },
+    assignBatchNumbers: (
+        sessionId: string,
+        ownerId: string,
+        number: number,
+        totalNumber: number | null,
+        numbering: BatchTitleNumbering,
+    ) => {
+        const state = get();
+        const assign = (selection: RoastSelection): RoastSelection => {
+            const identity: RoastBatchIdentity = {
+                profileId: selection.profileId,
+                name: selection.profileName ?? selection.beanName,
+                ...selection.identity,
+                number,
+                totalNumber,
+                numbering,
+            };
+            if (!identity.edited) identity.title = automaticBatchTitle(identity);
+            return { ...selection, identity };
+        };
+        const patch: Partial<BatchState> = {};
+        if (state.sessionId === sessionId && state.sessionOwnerId === ownerId && state.activeSelection)
+            patch.activeSelection = assign(state.activeSelection);
+        const completed = state.completed;
+        if (completed?.snapshot.sessionId === sessionId && completed.snapshot.sessionOwnerId === ownerId) {
+            const selection = assign(completed.snapshot.selection);
+            patch.completed = {
+                ...completed,
+                snapshot: { ...completed.snapshot, selection },
+                summary: completed.summary ? { ...completed.summary, batchName: selection.identity?.title } : null,
+                restore: completed.restore ? { ...completed.restore, selection } : null,
+            };
+        }
+        if (Object.keys(patch).length) set(patch);
+    },
+    setRunningBatchTitle: (sessionId: string, title: string) => {
+        const state = get();
+        const selection = state.activeSelection;
+        if (state.phase !== 'roasting' || state.sessionId !== sessionId || !selection?.identity) return;
+        const identity = { ...selection.identity, edited: Boolean(title.trim()) };
+        identity.title = title.trim().slice(0, 120) || automaticBatchTitle(identity);
+        set({ activeSelection: { ...selection, identity } });
+    },
     startCharge: (originMs?: number, ownerId?: string, charge?: { bt: number | null; unit: TemperatureUnit }) => {
         const state = get();
         if (isChargedPhase(state.phase)) return null;
@@ -322,7 +398,14 @@ export const createBatchActions = (
             elapsed: Math.floor((now - origin) / 1000),
             awaitingNextCharge: false,
             heatHoldAfterDrop: false,
-            activeSelection: copySelection(state.prepared),
+            activeSelection: {
+                ...copySelection(state.prepared),
+                identity: {
+                    profileId: state.prepared.profileId,
+                    name: state.prepared.profileId ? (state.prepared.profileName ?? null) : state.prepared.beanName,
+                    numbering: 'profile',
+                },
+            },
             livePoints: [],
             ...(charge && {
                 logState: {

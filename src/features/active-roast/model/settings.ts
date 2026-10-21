@@ -87,6 +87,7 @@ const AUTO_DROP_START_MIN_MIN = 1;
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
 const DEFAULT_SETTINGS: RoastSettings = {
+    batchTitleNumbering: 'profile',
     pollIntervalMs: 1000,
     rorSpanSec: 30,
     btSmoothing: 0,
@@ -375,6 +376,12 @@ export const normalizeRoastSettings = (
         eventMarkerStyle: eventMarkerStyleOf(merged.eventMarkerStyle),
         eventButtons: normalizeEventButtons(merged.eventButtons),
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
+        batchTitleNumbering:
+            merged.batchTitleNumbering === 'total' ||
+            merged.batchTitleNumbering === 'both' ||
+            merged.batchTitleNumbering === 'none'
+                ? merged.batchTitleNumbering
+                : 'profile',
         // curveStyles: invalid per-field values fall back to channel defaults (see normalizeCurveStyles), not prior settings.
         curveStyles: normalizeCurveStyles(merged.curveStyles),
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),

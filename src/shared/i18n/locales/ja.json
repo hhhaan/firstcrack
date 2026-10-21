@@ -948,6 +948,14 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "バッチタイトルの番号",
+            "description": "この端末・ワークスペースの投入累計です。取消・破棄を含み、次のバッチから適用されます。",
+            "profile": "プロファイル累計",
+            "total": "全体累計",
+            "both": "プロファイル＋全体",
+            "none": "番号なし"
+        },
         "noteEntry": {
             "events": "イベント",
             "eventRecorded": "記録済み: {{event}}",
@@ -964,6 +972,8 @@
         },
         "autoChargeHeld": "温度が回復すると自動投入されます。今すぐ始めるには Charge を押してください。",
         "header": {
+            "batchTitle": "ローストタイトル",
+            "batchTitleHint": "編集したタイトルを保持します。空欄にすると自動タイトルに戻ります。",
             "profileSources": "プロファイルの候補",
             "noBeanSelected": "生豆未選択",
             "target": "ターゲット:",

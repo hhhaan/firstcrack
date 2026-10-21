@@ -3,6 +3,7 @@ import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { allocateBatchNumber, mergeBatchNumberLedgers } from '../lib/batch-number';
+import { getRoastSettings } from './settings';
 import { useRoastingStore } from './status';
 
 const KEY = 'roast.batchNumbers';
@@ -10,6 +11,7 @@ const useNumbers = create<Record<string, number>>(() => ({}));
 let queue: Promise<void> = Promise.resolve();
 function reserve(sessionId: string | null, ownerId: string | null, profileId: string | null) {
     if (!sessionId || !ownerId) return;
+    const numbering = getRoastSettings().batchTitleNumbering;
     queue = queue
         .then(async () => {
             const stored = await settingsGet<unknown>(KEY);
@@ -42,6 +44,9 @@ function reserve(sessionId: string | null, ownerId: string | null, profileId: st
                 Object.fromEntries(Object.entries(result.ledger.sessions).map(([id, value]) => [id, value.number])),
                 true,
             );
+            useRoastingStore
+                .getState()
+                .assignBatchNumbers(sessionId, ownerId, result.number, result.totalNumber, numbering);
         })
         .catch((error) => {
             logger.capture(error, { feature: 'batch-number' });

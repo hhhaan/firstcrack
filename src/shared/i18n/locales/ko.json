@@ -1299,6 +1299,14 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "배치 제목의 번호",
+            "description": "이 기기·작업공간의 Charge 누적 번호입니다. 취소·폐기도 번호를 사용하며, 선택은 다음 배치부터 적용됩니다.",
+            "profile": "프로파일 누적",
+            "total": "전체 누적",
+            "both": "프로파일 + 전체",
+            "none": "번호 없음"
+        },
         "noteEntry": {
             "events": "이벤트",
             "eventRecorded": "기록됨: {{event}}",
@@ -1315,6 +1323,8 @@
         },
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
+            "batchTitle": "로스팅 제목",
+            "batchTitleHint": "직접 수정한 제목은 유지됩니다. 빈칸은 자동 제목으로 되돌립니다.",
             "profileSources": "프로파일 연결 항목",
             "noBeanSelected": "생두 미선택",
             "target": "Target:",

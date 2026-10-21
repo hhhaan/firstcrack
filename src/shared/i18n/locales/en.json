@@ -948,6 +948,14 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "Batch title numbering",
+            "description": "Charge counts for this device and workspace, including canceled or discarded batches. Applies to the next batch.",
+            "profile": "Profile total",
+            "total": "Overall total",
+            "both": "Profile + overall",
+            "none": "No number"
+        },
         "noteEntry": {
             "events": "Events",
             "eventRecorded": "Recorded: {{event}}",
@@ -964,6 +972,8 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
+            "batchTitle": "Roast title",
+            "batchTitleHint": "Your edited title is kept. Clear it to restore the automatic title.",
             "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",

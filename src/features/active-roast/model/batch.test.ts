@@ -114,6 +114,33 @@ describe('central batch ownership and transitions', () => {
         expect(useRoastingStore.getState().completed?.snapshot.selection.beanId).toBe('bean-a');
     });
 
+    it('keeps automatic and edited titles in completed and restored snapshots', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId ?? '';
+        state.setReferenceDisplayName('profile-a', 'Filter', 'owner');
+        state.assignBatchNumbers(id, 'owner', 42, 100, 'both');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Filter · #42 · Σ#100');
+        state.setRunningBatchTitle(id, 'Morning production');
+        state.assignBatchNumbers(id, 'owner', 42, 100, 'profile');
+        drop();
+        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Morning production');
+        state.assignBatchNumbers(id, 'owner', 42, 100, 'both');
+        state.cancelDrop();
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Morning production');
+    });
+
+    it('fills a late allocation after Drop without assigning it to the next batch', () => {
+        charge();
+        const id = useRoastingStore.getState().sessionId ?? '';
+        drop();
+        useRoastingStore.getState().startCharge(undefined, 'owner');
+        useRoastingStore.getState().assignBatchNumbers(id, 'owner', 7, 20, 'profile');
+        const state = useRoastingStore.getState();
+        expect(state.completed?.snapshot.selection.identity?.number).toBe(7);
+        expect(state.activeSelection?.identity?.number).toBeUndefined();
+    });
+
     it('restores the pre-Drop clock, selection, curve and Replay request without including waiting time', () => {
         charge();
         const sessionId = useRoastingStore.getState().sessionId;

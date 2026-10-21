@@ -1,5 +1,6 @@
 import type { AlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
+import type { BatchTitleNumbering } from '../lib/batch-title';
 import type { CurveStyles } from '../lib/curve-style';
 import type { RoastEventButtons } from '../lib/event-buttons';
 import type { TemperatureUnit } from '../lib/temperature';
@@ -20,6 +21,7 @@ export type PidDropBehavior = 'hold' | 'zero';
 
 /** Stored roast-screen settings. Persistence and normalization live in `settings.ts`. */
 export type RoastSettings = {
+    batchTitleNumbering: BatchTitleNumbering;
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
     /** Display smoothing strength, 0–100. 0 shows the sensor sample. */
