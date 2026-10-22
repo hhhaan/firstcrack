@@ -101,6 +101,22 @@ The historical chain cannot bootstrap an empty database: placeholder migrations 
 
 Blends: `buildRoastStockEvents` expands components before batch insert.
 
+### Saved-roast corrections
+
+History sends only the operator's correction: `correct_session_charge_weight`,
+`correct_session_output_weight`, or `set_session_roast_level`. Each locks the
+current session row and derives roasted inbound in the same transaction. A level
+correction preserves measured output and its stock; clearing measured output
+restores the estimate from the current charge and level.
+
+The legacy four-argument `set_session_*_weight` RPCs delegate to these operations
+and ignore client-derived inbound arguments. Existing installed clients still
+perform level and estimate edits separately; only the new level RPC makes that
+operation atomic. Deploy the migration before clients call the new RPCs.
+
+Regression SQL: `supabase/tests/saved_roast_corrections.sql` (local database only;
+run with `psql -v ON_ERROR_STOP=1`). It rolls back all fixtures and injected failures.
+
 ---
 
 ## R2 curve invariants
@@ -130,6 +146,7 @@ Saved events are **not** immutable: History edits key marks (time/temp) and the 
 
 - Single write path: RPC `update_roast_session_record` (`entities/roast` `useUpdateRoastRecord`, view hook `views/history/hooks/useRoastRecordSave.ts`).
 - Compare-and-swap on `events` + `heater_events`; concurrent edit → `PT409`. Key marks change in place (`time_sec`/`temp_c`). A Note may also change `note`, `gas`, `airflow`, and `drum` (string, or omit the key to clear). Unknown rows/fields are rejected if altered.
+- BBP Note/Heater/Control rows retain negative Charge-relative times; phase marks stay nonnegative. A roast Heat set override preserves BBP Heater log rows.
 - Same TX re-derives `drop_temp_celsius`, `duration_seconds` (End only) and summary columns of profiles with `source_session_id` = record.
 - `roast_sessions.heater_events` NULL = recorded TSV Heat set. Replay/heat target precedence: batch > `roast_profiles.heater_events` > source record `heater_events` > TSV (`profileHeaterEvents`).
 - Never re-runs deduct / roasted inbound / save_roast_op. TSV and BBP curves stay as measured. No sidecar command is sent.

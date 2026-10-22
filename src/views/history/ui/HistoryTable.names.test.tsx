@@ -22,7 +22,7 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
         bean_label: null,
         beans: { name: 'Green B' },
         roast_profiles: { name: 'Profile A' },
-        roasted_at: '2026-10-19T00:00:00Z',
+        roasted_at: '2026-10-19T14:35:47',
         weight_grams: 1000,
         duration_seconds: 600,
         drop_temp_celsius: 200,
@@ -46,6 +46,7 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
                             bean_label: 'Legacy name',
                             profile_batch_number: null,
                             total_batch_number: null,
+                            roasted_at: '2026-10-19T14:36:47',
                         },
                     ],
                     total: 2,
@@ -66,8 +67,10 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
         );
         const rows = host.querySelectorAll('tbody tr');
         const cells = [...rows[0].querySelectorAll('td')].map((cell) => cell.textContent);
+        expect(cells[0]).toBe('26-10-19 14:35');
         expect(cells.slice(1, 5)).toEqual(['Batch C', 'Green B', '#9 · Σ#13', 'Profile A']);
         const legacy = [...rows[1].querySelectorAll('td')].map((cell) => cell.textContent);
+        expect(legacy[0]).toBe('26-10-19 14:36');
         expect(legacy.slice(1, 5)).toEqual(['Legacy name', '—', '—', 'Profile A']);
         expect(linked.batch_name).toBe('Batch C');
         expect(linked.bean_label).toBeNull();

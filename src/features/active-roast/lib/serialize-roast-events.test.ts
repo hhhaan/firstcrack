@@ -265,6 +265,24 @@ describe('storedEventsToLogEntries', () => {
 });
 
 describe('storedEventsToMarkers', () => {
+    it('keeps a BBP note before Charge on the negative axis', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
+        const markers = storedEventsToMarkers([
+            { id: 'bbp', type: 'Note', time_sec: -180, note: 'soak', gas: '70' },
+            { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
+        ]);
+        expect(markers[0]).toMatchObject({
+            logId: 'bbp',
+            event: 'Note',
+            timeSec: -180,
+            timeStr: '-3:00',
+            note: 'soak',
+            gas: '70',
+        });
+        vi.unstubAllGlobals();
+    });
+
     it('includes TP/Note/Heater and custom marks while filtering transient and control events', () => {
         // getResolvedEventColor reads CSS vars via getComputedStyle
         vi.stubGlobal('document', { documentElement: {} });

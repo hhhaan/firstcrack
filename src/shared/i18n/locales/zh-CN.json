@@ -973,6 +973,8 @@
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
             "batchTitle": "烘焙标题",
+            "sourceChangeTitle": "更改烘焙原料",
+            "sourceChangeUnlinks": "更改原料会解除当前批次与生产计划的关联。",
             "profileSources": "曲线候选原料",
             "noBeanSelected": "未选生豆",
             "target": "目标:",
@@ -1002,6 +1004,13 @@
         "log": {
             "expand": "展开烘焙日志",
             "collapse": "收起烘焙日志",
+            "source": "日志来源",
+            "current": "当前",
+            "reference": "曲线",
+            "referenceLoading": "正在加载记录。",
+            "referenceError": "无法加载曲线记录。",
+            "referenceEmpty": "没有已保存的事件。",
+            "referenceLiveContinues": "查看期间当前烘焙仍持续记录。",
             "title": "烘焙记录",
             "editRangeHint": "时间请输入 m:ss 格式，温度需在实测曲线范围内。",
             "deleteNote": "删除备注"
@@ -1224,6 +1233,7 @@
         }
     },
     "schedule": {
+        "title": "Roast Schedule",
         "dateFormat": "yyyy年M月d日 (eee)",
         "monthFormat": "yyyy年 M月",
         "weekDateFormat": "M/d",
@@ -1438,6 +1448,10 @@
             "summary": "概要",
             "colorWhole": "色值（整豆）",
             "colorGround": "色值（研磨）",
+            "colorReadingsHint": "多次测量值请用逗号分隔。",
+            "colorAverage_one": "平均 {{value}} · {{count}}次测量",
+            "colorAverage_other": "平均 {{value}} · {{count}}次测量",
+            "colorInvalidNumbers": "请输入以逗号分隔的数字。",
             "colorTooLong": "色值输入过长。",
             "keyEvents": "关键事件",
             "heatRecord": "火力记录",

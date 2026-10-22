@@ -92,7 +92,7 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId;
-        state.setRunningSource(source, id, 'owner');
+        state.editRunningSource(source, id, 'owner');
         const next = useRoastingStore.getState();
         expect(next.activeSelection).toMatchObject({
             ...source,
@@ -115,8 +115,8 @@ describe('central batch ownership and transitions', () => {
         const state = useRoastingStore.getState();
         const id = state.sessionId ?? '';
         state.setRunningBatchTitle(id, 'Morning production');
-        state.setRunningSource({ beanId: null, blendId: 'blend-b', beanName: 'Blend' }, id, 'owner');
-        state.setRunningSource({ beanId: 'bean-b', beanName: 'Bean' }, id, 'owner');
+        state.editRunningSource({ beanId: null, blendId: 'blend-b', beanName: 'Blend' }, id, 'owner');
+        state.editRunningSource({ beanId: 'bean-b', beanName: 'Bean' }, id, 'owner');
         expect(useRoastingStore.getState().activeSelection).toMatchObject({
             beanId: 'bean-b',
             blendId: null,
@@ -128,9 +128,9 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const source = { beanId: 'bean-b', beanName: 'Other' };
-        state.setRunningSource(source, 'stale-session', 'owner');
-        state.setRunningSource(source, state.sessionId, 'other-owner');
-        state.setRunningSource(source, state.sessionId, null);
+        state.editRunningSource(source, 'stale-session', 'owner');
+        state.editRunningSource(source, state.sessionId, 'other-owner');
+        state.editRunningSource(source, state.sessionId, null);
         expect(useRoastingStore.getState().activeSelection).toBe(state.activeSelection);
     });
 
@@ -150,7 +150,7 @@ describe('central batch ownership and transitions', () => {
         });
         const id = state.startCharge(undefined, 'owner');
         const prepared = useRoastingStore.getState().prepared;
-        state.setRunningSource({ beanId: 'bean-b', beanName: 'Actual lot' }, id, 'owner');
+        state.editRunningSource({ beanId: 'bean-b', beanName: 'Actual lot' }, id, 'owner');
         expect(useRoastingStore.getState().activeSelection?.planBatchHandoff).toBeNull();
         expect(useRoastingStore.getState().prepared).toBe(prepared);
         state.abortRoast(200, 'C');
@@ -239,6 +239,60 @@ describe('central batch ownership and transitions', () => {
         expect(drop()).toBeNull();
         useRoastingStore.getState().prepareBean('next');
         expect(useRoastingStore.getState().completed?.snapshot.selection.beanId).toBe('bean-a');
+    });
+
+    it('corrects only the running source and preserves it through Drop and Cancel', () => {
+        charge();
+        const before = useRoastingStore.getState();
+        expect(
+            before.editRunningSource({ beanId: 'corrected', blendId: null, beanName: null }, before.sessionId, 'other'),
+        ).toBe(false);
+        expect(before.editRunningSource({ beanId: 'corrected', blendId: null, beanName: null }, 'stale', 'owner')).toBe(
+            false,
+        );
+        expect(
+            before.editRunningSource({ beanId: 'corrected', blendId: null, beanName: null }, before.sessionId, 'owner'),
+        ).toBe(true);
+        const corrected = useRoastingStore.getState();
+        expect(corrected.prepared.beanId).toBe('bean-a');
+        expect(corrected.sessionId).toBe(before.sessionId);
+        expect(corrected.livePoints).toBe(before.livePoints);
+        expect(corrected.activeSelection?.beanId).toBe('corrected');
+        drop();
+        expect(useRoastingStore.getState().completed?.summary?.selectedBeanId).toBe('corrected');
+        useRoastingStore.getState().cancelDrop();
+        expect(useRoastingStore.getState().activeSelection?.beanId).toBe('corrected');
+    });
+
+    it('detaches a corrected scheduled batch while retaining the next preparation', () => {
+        const store = useRoastingStore.getState();
+        store.prepareWorkspace('owner');
+        store.startBatch({
+            planBatchId: 'scheduled',
+            planId: 'plan',
+            beanId: 'planned',
+            blendId: null,
+            beanName: 'Planned',
+            profileId: 'profile-a',
+            batchSizeKg: 1,
+            batchCount: 1,
+            completedSessions: 0,
+        });
+        store.startCharge(undefined, 'owner');
+        const current = useRoastingStore.getState();
+        expect(
+            current.editRunningSource(
+                { beanId: null, blendId: 'corrected-blend', beanName: 'Corrected' },
+                current.sessionId,
+                'owner',
+            ),
+        ).toBe(true);
+        expect(useRoastingStore.getState().activeSelection).toMatchObject({
+            blendId: 'corrected-blend',
+            beanId: null,
+            planBatchHandoff: null,
+        });
+        expect(useRoastingStore.getState().prepared.planBatchHandoff?.planBatchId).toBe('scheduled');
     });
 
     it('restores the pre-Drop clock, selection, curve and Replay request without including waiting time', () => {

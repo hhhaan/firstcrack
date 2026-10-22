@@ -23,6 +23,7 @@ BEGIN
   END IF;
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION correct_session_output_weight(p_session_id uuid, p_output_grams integer)
 RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
 DECLARE
@@ -39,6 +40,7 @@ BEGIN
   PERFORM refresh_session_roasted_inbound(p_session_id);
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION set_session_roast_level(p_session_id uuid, p_roast_level text)
 RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
 BEGIN
@@ -53,6 +55,7 @@ BEGIN
   END IF;
 END;
 $$;
+
 CREATE OR REPLACE FUNCTION correct_session_charge_weight(
   p_session_id uuid,
   p_weight_grams integer
@@ -163,17 +166,20 @@ BEGIN
   PERFORM refresh_session_roasted_inbound(p_session_id);
 END;
 $$;
+
 -- Compatibility for installed clients; their inventory estimates are no longer authoritative.
 CREATE OR REPLACE FUNCTION set_session_output_weight(
   p_session_id uuid, p_output_grams integer, p_inbound_grams integer, p_inbound_is_estimate boolean
 ) RETURNS void LANGUAGE sql SECURITY INVOKER SET search_path = public AS $$
   SELECT correct_session_output_weight(p_session_id, p_output_grams);
 $$;
+
 CREATE OR REPLACE FUNCTION set_session_charge_weight(
   p_session_id uuid, p_weight_grams integer, p_inbound_grams integer, p_inbound_is_estimate boolean
 ) RETURNS void LANGUAGE sql SECURITY INVOKER SET search_path = public AS $$
   SELECT correct_session_charge_weight(p_session_id, p_weight_grams);
 $$;
+
 REVOKE ALL ON FUNCTION refresh_session_roasted_inbound(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION refresh_session_roasted_inbound(uuid) TO authenticated, service_role;
 REVOKE ALL ON FUNCTION correct_session_output_weight(uuid, integer) FROM PUBLIC, anon;

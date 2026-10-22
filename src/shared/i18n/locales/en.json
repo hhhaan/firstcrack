@@ -973,6 +973,8 @@
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
             "batchTitle": "Roast title",
+            "sourceChangeTitle": "Change roast source",
+            "sourceChangeUnlinks": "Changing the source unlinks this batch from its schedule.",
             "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",
@@ -1002,6 +1004,13 @@
         "log": {
             "expand": "Expand roast log",
             "collapse": "Collapse roast log",
+            "source": "Log source",
+            "current": "Current",
+            "reference": "Profile",
+            "referenceLoading": "Loading recorded events.",
+            "referenceError": "Could not load profile records.",
+            "referenceEmpty": "No recorded events.",
+            "referenceLiveContinues": "The live roast continues recording while you view this log.",
             "title": "Roast Log",
             "editRangeHint": "Enter time as m:ss and temperature within the measured curve range.",
             "deleteNote": "Delete note"
@@ -1224,6 +1233,7 @@
         }
     },
     "schedule": {
+        "title": "Roast Schedule",
         "dateFormat": "MMM d, yyyy (eee)",
         "monthFormat": "MMMM yyyy",
         "weekDateFormat": "M/d",
@@ -1438,6 +1448,10 @@
             "summary": "Summary",
             "colorWhole": "Color (whole)",
             "colorGround": "Color (ground)",
+            "colorReadingsHint": "Separate multiple readings with commas.",
+            "colorAverage_one": "Average {{value}} · {{count}} reading",
+            "colorAverage_other": "Average {{value}} · {{count}} readings",
+            "colorInvalidNumbers": "Enter numbers separated by commas.",
             "colorTooLong": "Color text is too long.",
             "keyEvents": "Key events",
             "heatRecord": "Heat record",

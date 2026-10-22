@@ -164,7 +164,7 @@ it('delegates a profile change and does not save the account default', () => {
     vi.useRealTimers();
 });
 
-it('keeps bean selection available beside the editable title while roasting or ended', () => {
+it('allows source selection during roasting and locks the completed batch', () => {
     const state = useRoastingStore.getState();
     state.prepareWorkspace('user-1');
     state.startCharge(undefined, 'user-1');
@@ -174,7 +174,7 @@ it('keeps bean selection available beside the editable title while roasting or e
     const beanSelect = host.querySelector('select');
     expect(beanSelect?.disabled).toBe(false);
     act(() => useRoastingStore.setState({ phase: 'ended' }));
-    expect(beanSelect?.disabled).toBe(false);
+    expect(beanSelect?.disabled).toBe(true);
     act(() => useRoastingStore.setState({ phase: 'standby' }));
     expect(beanSelect?.disabled).toBe(false);
     act(() => root.unmount());

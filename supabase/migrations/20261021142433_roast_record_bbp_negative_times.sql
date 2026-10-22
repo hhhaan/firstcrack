@@ -266,7 +266,9 @@ begin
   return v_new;
 end;
 $$;
+
 comment on function public.update_roast_session_record(uuid, jsonb, jsonb, jsonb, jsonb, integer, integer, jsonb) is
   'History edit of a completed roast. Notes may change time, temperature, text, gas, airflow, and drum. Heater log rows may change time, temperature, and the recorded heat note, or be removed. An existing Control row may change time and applied_control. Phase marks and End may be removed. Charge, Drop, Now, and Control cannot be deleted. New Charge/Drop/End/Heater/Control are rejected.';
+
 revoke execute on function public.update_roast_session_record(uuid, jsonb, jsonb, jsonb, jsonb, integer, integer, jsonb) from public, anon;
 grant execute on function public.update_roast_session_record(uuid, jsonb, jsonb, jsonb, jsonb, integer, integer, jsonb) to authenticated;

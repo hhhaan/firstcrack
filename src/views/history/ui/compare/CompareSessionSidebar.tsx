@@ -1,4 +1,5 @@
 import { toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import { roastColorDisplay } from '@features/active-roast/lib/roastColorText';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatDuration, formatElapsed } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
@@ -161,6 +162,24 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                                         <span className="font-mono tabular-nums text-secondary">{s.weight_grams}g</span>
                                     </div>
                                 )}
+                                <div className="flex justify-between gap-2">
+                                    <span className="text-muted">{t('history.expanded.colorWhole')}</span>
+                                    <span
+                                        className="min-w-0 break-words text-right font-mono text-secondary"
+                                        title={s.color_whole ?? undefined}
+                                    >
+                                        {roastColorDisplay(s.color_whole)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                    <span className="text-muted">{t('history.expanded.colorGround')}</span>
+                                    <span
+                                        className="min-w-0 break-words text-right font-mono text-secondary"
+                                        title={s.color_ground ?? undefined}
+                                    >
+                                        {roastColorDisplay(s.color_ground)}
+                                    </span>
+                                </div>
                             </div>
                         </button>
                     );

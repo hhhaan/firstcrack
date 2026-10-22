@@ -1,10 +1,10 @@
 import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
-import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { RoastLogEditOptions } from '@features/active-roast/ui/RoastLogEntryEditor';
 import type { LogEntry } from '@shared/types/roast';
 import { Minus, Plus } from 'lucide-react';
-import { type ReactNode, useEffect, useId, useRef } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type ReferenceRoastLog, RoastLogViewer } from './RoastLogViewer';
 
 export const RoastSidePanelLayout = ({
     children,
@@ -13,6 +13,7 @@ export const RoastSidePanelLayout = ({
     logEditOptions,
     deletableEvent,
     editableEvent,
+    referenceLog,
 }: {
     children: ReactNode;
     roastLogDisplayEntries: LogEntry[];
@@ -22,9 +23,11 @@ export const RoastSidePanelLayout = ({
     deletableEvent?: (event: string) => boolean;
     /** Saved-curve review also freezes Drop. Live roast freezes Charge only. */
     editableEvent?: (event: string) => boolean;
+    referenceLog?: ReferenceRoastLog;
 }) => {
     const { t } = useTranslation();
     const { logExpanded } = useRoastSettings();
+    const [showReference, setShowReference] = useState(false);
     const logPanelId = useId();
     const logTriggerRef = useRef<HTMLButtonElement>(null);
     const logCloseRef = useRef<HTMLButtonElement>(null);
@@ -60,7 +63,10 @@ export const RoastSidePanelLayout = ({
                                 <Plus size={14} />
                             </button>
                         </div>
-                        <RoastLog
+                        <RoastLogViewer
+                            reference={referenceLog}
+                            showReference={showReference}
+                            onSourceChange={setShowReference}
                             variant="sidebar"
                             showHeading={false}
                             entries={roastLogDisplayEntries}
@@ -92,7 +98,10 @@ export const RoastSidePanelLayout = ({
                         </button>
                     </div>
                     <div className="min-h-0 overflow-y-auto">
-                        <RoastLog
+                        <RoastLogViewer
+                            reference={referenceLog}
+                            showReference={showReference}
+                            onSourceChange={setShowReference}
                             variant="panel"
                             entries={roastLogDisplayEntries}
                             onRemoveEntry={onRemoveLogEntry}

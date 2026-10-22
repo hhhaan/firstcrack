@@ -3,14 +3,11 @@ import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import {
-    applyOptimisticRoastSessionDelete,
-    applyOptimisticSessionBeanOrigin,
-    invalidateAfterRoastRecordEdit,
-    invalidateRoastSessionQueries,
-    restoreRoastSessionCaches,
-    roastSessionKeys,
-    snapshotRoastSessionCaches,
-} from './queries';
+    beginOptimisticRoastSessionDelete,
+    beginOptimisticSessionBeanOrigin,
+    revertOptimisticRoastSessionEdit,
+} from './historyOptimistic';
+import { invalidateAfterRoastRecordEdit, invalidateRoastSessionQueries, roastSessionKeys } from './queries';
 
 const uid = 'user-1';
 
@@ -84,7 +81,7 @@ describe('roast session mutation invalidation', () => {
         expect(qc.getQueryState(dashKey)?.isInvalidated).toBe(true);
     });
 
-    it('optimistic delete setQueriesData hits real paginated page caches', () => {
+    it('optimistic delete hits real paginated page caches', async () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const pageKey = roastSessionKeys.paginated(uid, 'completed', 1, 10, 'date', false, null, null, null);
         const keep = { id: 'keep', status: 'completed' };
@@ -92,13 +89,13 @@ describe('roast session mutation invalidation', () => {
         qc.setQueryData(pageKey, { data: [keep, gone], total: 2 });
         qc.setQueryData(roastSessionKeys.all(uid), [keep, gone]);
 
-        applyOptimisticRoastSessionDelete(qc, uid, 'gone');
+        await beginOptimisticRoastSessionDelete(qc, uid, 'gone');
 
         expect(qc.getQueryData(pageKey)).toEqual({ data: [keep], total: 1 });
         expect(qc.getQueryData(roastSessionKeys.all(uid))).toEqual([keep]);
     });
 
-    it('optimistic delete removes a row from infinite pages and decrements the shared total once', () => {
+    it('optimistic delete removes a row from infinite pages and decrements the shared total once', async () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const infiniteKey = roastSessionKeys.infinite(uid, 'completed', 10);
         const keep = { id: 'keep', status: 'completed' };
@@ -111,7 +108,7 @@ describe('roast session mutation invalidation', () => {
             pageParams: [1, 2],
         });
 
-        applyOptimisticRoastSessionDelete(qc, uid, 'gone');
+        await beginOptimisticRoastSessionDelete(qc, uid, 'gone');
 
         expect(qc.getQueryData(infiniteKey)).toEqual({
             pages: [
@@ -193,7 +190,7 @@ const sessionRow = (id: string, beanId = 'bean-1', origin = 'Ethiopia') =>
     }) as RoastSessionWithRelations;
 
 describe('optimistic history edits', () => {
-    it('patches every list shape for the bean and leaves counts, filter meta, and other users', () => {
+    it('patches every list shape for the bean and leaves counts, filter meta, and other users', async () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const pageKey = roastSessionKeys.paginated(uid, 'completed', 1, 10, 'date', false, null, null, null);
         const infiniteKey = roastSessionKeys.infinite(uid, 'completed', 10);
@@ -214,8 +211,7 @@ describe('optimistic history edits', () => {
         qc.setQueryData(metaKey, meta);
         qc.setQueryData(countKey, 4);
 
-        const snapshot = snapshotRoastSessionCaches(qc, uid);
-        applyOptimisticSessionBeanOrigin(qc, uid, 'bean-1', 'Colombia');
+        const edit = await beginOptimisticSessionBeanOrigin(qc, uid, 'bean-1', 'Colombia');
 
         const originOf = (row: { beans: { origin: string | null } | null }) => row.beans?.origin;
         expect(originOf((qc.getQueryData(pageKey) as typeof page).data[0])).toBe('Colombia');
@@ -229,7 +225,7 @@ describe('optimistic history edits', () => {
         expect(qc.getQueryData(metaKey)).toEqual(meta);
         expect(qc.getQueryData(countKey)).toBe(4);
 
-        restoreRoastSessionCaches(qc, snapshot);
+        revertOptimisticRoastSessionEdit(qc, uid, edit);
         expect(originOf((qc.getQueryData(pageKey) as typeof page).data[0])).toBe('Ethiopia');
         expect(originOf(qc.getQueryData(detailKey) as typeof match)).toBe('Ethiopia');
     });

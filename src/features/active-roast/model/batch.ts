@@ -240,6 +240,36 @@ export const createBatchActions = (
             },
         });
     },
+    /** Explicit correction of the running batch; future preparation stays independent. */
+    editRunningSource: (
+        source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>,
+        expectedSessionId: string | null,
+        expectedOwnerId: string | null,
+    ) => {
+        const state = get();
+        if (
+            state.phase !== 'roasting' ||
+            !state.activeSelection ||
+            !expectedSessionId ||
+            state.sessionId !== expectedSessionId ||
+            state.sessionOwnerId !== expectedOwnerId
+        )
+            return false;
+        const current = state.activeSelection;
+        const changed = current.beanId !== source.beanId || (current.blendId ?? null) !== (source.blendId ?? null);
+        const identity = current.identity ? { ...current.identity, name: source.beanName } : undefined;
+        if (identity && !identity.edited) identity.title = automaticBatchTitle(identity);
+        set({
+            activeSelection: {
+                ...current,
+                ...source,
+                blendId: source.blendId ?? null,
+                identity,
+                ...(changed && { planBatchHandoff: null }),
+            },
+        });
+        return true;
+    },
     applyProfileSource: (
         source: { beanId: string | null; blendId: string | null; name: string } | null,
         requiresChoice = false,
@@ -319,37 +349,6 @@ export const createBatchActions = (
             pendingProfileSource: null,
         }),
     recordAdhocSave: (lastAdhocSave: LastAdhocSave) => set({ lastAdhocSave }),
-    setRunningSource: (
-        source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>,
-        expectedSessionId: string | null,
-        ownerId: string | null,
-    ) => {
-        const state = get();
-        const selection = state.activeSelection;
-        if (
-            !isChargedPhase(state.phase) ||
-            !expectedSessionId ||
-            state.sessionId !== expectedSessionId ||
-            !ownerId ||
-            state.sessionOwnerId !== ownerId ||
-            state.prepared.workspaceOwnerId !== ownerId ||
-            !selection
-        )
-            return;
-        if (selection.beanId === source.beanId && (selection.blendId ?? null) === (source.blendId ?? null)) return;
-        const identity = selection.identity ? { ...selection.identity, name: source.beanName } : undefined;
-        if (identity && !identity.edited) identity.title = automaticBatchTitle(identity);
-        // A different source cannot keep a schedule handoff that would override it at save.
-        set({
-            activeSelection: {
-                ...selection,
-                ...source,
-                blendId: source.blendId ?? null,
-                identity,
-                planBatchHandoff: null,
-            },
-        });
-    },
     setSourceDisplayName: (source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>, ownerId: string) => {
         if (!source.beanName) return;
         const state = get();

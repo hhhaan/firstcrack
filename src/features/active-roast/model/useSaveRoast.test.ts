@@ -331,6 +331,22 @@ describe('saveRoastCore', () => {
         },
     );
 
+    it('prefixes Charge-relative BBP notes onto the saved event log', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            bbpSummary: {
+                sessionId: '11111111-1111-4111-8111-111111111111',
+                seconds: 240,
+                chargeTemp: 200,
+                events: [{ id: 'bbp-note', type: 'Note', time_sec: -180, note: 'soak', gas: '70' }],
+            },
+        });
+        const events = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0].session.events;
+        expect(events[0]).toMatchObject({ id: 'bbp-note', type: 'Note', time_sec: -180, gas: '70' });
+        expect(events.map((event: { type: string }) => event.type)).toEqual(['Note', 'Charge', 'First Crack', 'Drop']);
+    });
+
     it('멱등키: 로컬 sessionId를 session.id로 전달', async () => {
         const deps = makeDeps();
         await saveRoastCore(deps, baseParams);

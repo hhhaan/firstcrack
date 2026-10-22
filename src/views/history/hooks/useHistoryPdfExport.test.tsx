@@ -36,7 +36,7 @@ it('exports the selected batch title in the filename and PDF header while retain
         profile_batch_number: 9,
         total_batch_number: 13,
         beans: { name: 'Green B' },
-        roasted_at: '2026-10-19T00:00:00Z',
+        roasted_at: '2026-10-19T14:35:47',
     } as unknown as RoastSessionWithRelations;
     let latest!: ReturnType<typeof useHistoryPdfExport>;
     const Probe = ({ value }: { value: RoastSessionWithRelations }) => {
@@ -54,6 +54,7 @@ it('exports the selected batch title in the filename and PDF header while retain
                     roastTitle: 'Batch A',
                     bean: 'Green B',
                     batchNumbers: '#9 · Σ#13',
+                    date: '26-10-19 14:35',
                     labels: expect.objectContaining({ roastTitle: en.history.recordText.title }),
                 }),
             }),

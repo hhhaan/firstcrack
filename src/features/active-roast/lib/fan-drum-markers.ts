@@ -1,6 +1,6 @@
 import { getResolvedEventColor } from '@features/active-roast/lib/chart-config';
 import type { RoastEventMarker } from '@features/active-roast/lib/chart-option/types';
-import { formatElapsed } from '@shared/lib/format';
+import { formatSignedElapsed } from '@shared/lib/format';
 import { parseEditTime } from '@shared/lib/time-edit';
 import type { Json } from '@shared/types/database.types';
 import type { AppliedRoastControl, LogEntry } from '@shared/types/roast';
@@ -34,13 +34,13 @@ export const fanDrumMarkers = (
             if (value === undefined || !Number.isFinite(value) || previous[role] === value) continue;
             previous[role] = value;
             const event = role === 'fan' ? 'Fan' : 'Drum';
-            const timeSec = Math.max(0, row.timeSec);
+            const timeSec = row.timeSec;
             markers.push({
                 logId: controlMarkerLogId(row.id, role),
                 timeSec,
                 event,
                 color: getResolvedEventColor(event),
-                timeStr: formatElapsed(timeSec),
+                timeStr: formatSignedElapsed(timeSec),
                 temp: '',
                 tempC: null,
                 note: controlValueText(value),

@@ -188,7 +188,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         (id: string | null, name: string | null = null) => {
             const store = useRoastingStore.getState();
             if (isChargedPhase(store.phase))
-                store.setRunningSource(
+                store.editRunningSource(
                     { beanId: null, blendId: id, beanName: name },
                     store.sessionId,
                     workspaceOwnerId ?? null,
@@ -202,7 +202,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         (id: string | null, name: string | null = null) => {
             const store = useRoastingStore.getState();
             if (isChargedPhase(store.phase))
-                store.setRunningSource(
+                store.editRunningSource(
                     { beanId: id, blendId: null, beanName: name },
                     store.sessionId,
                     workspaceOwnerId ?? null,

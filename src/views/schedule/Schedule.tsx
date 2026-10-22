@@ -47,7 +47,7 @@ export const Schedule = ({ onStartBatch }: ScheduleProps) => {
 
     return (
         <div className="mx-auto flex min-h-0 w-full max-w-[1280px] flex-1 flex-col overflow-hidden px-6 py-8 sm:px-8">
-            <PageHeader title={t('sidebar.nav.schedule')} actions={<ViewToggle view={view} onChange={setView} />} />
+            <PageHeader title={t('schedule.title')} actions={<ViewToggle view={view} onChange={setView} />} />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-main-bg">
                 <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-divider px-6 py-4">
                     <div className="flex items-center gap-2">

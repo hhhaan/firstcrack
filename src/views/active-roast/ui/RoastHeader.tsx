@@ -12,7 +12,7 @@ import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/s
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RoastTitleEditor } from './RoastTitleEditor';
 import { TargetMenu } from './TargetMenu';
@@ -94,8 +94,15 @@ export const RoastHeader = ({
         (runningIdentity && !runningIdentity.edited
             ? automaticBatchTitle(runningIdentity, batchTitleNumbering, nextNumbers)
             : runningIdentity?.title);
+    const phase = useRoastingStore((state) => state.phase);
+    const scheduled = useRoastingStore((state) => Boolean(state.activeSelection?.planBatchHandoff));
+    const sessionId = useRoastingStore((state) => state.sessionId);
+    const [pendingSource, setPendingSource] = useState<{ value: string; sessionId: string | null } | null>(null);
     const canSelectSource =
-        !review && isWorkspaceReady && !!workspaceOwnerId && (!charged || sessionOwnerId === workspaceOwnerId);
+        !review &&
+        isWorkspaceReady &&
+        !!workspaceOwnerId &&
+        (!charged || (phase === 'roasting' && sessionOwnerId === workspaceOwnerId));
     const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const beanVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'beans');
@@ -120,6 +127,18 @@ export const RoastHeader = ({
         // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
         if (id) localStorage.setItem(DEFAULT_BEAN_KEY, id);
         else localStorage.removeItem(DEFAULT_BEAN_KEY);
+    };
+    const applySource = (value: string, expectedSessionId?: string | null) => {
+        if (expectedSessionId !== undefined && useRoastingStore.getState().sessionId !== expectedSessionId) {
+            setPendingSource(null);
+            return;
+        }
+        if (value.startsWith('blend:')) {
+            const id = value.slice(6);
+            onBlendChange?.(id, blends.find((b) => b.id === id)?.name ?? null);
+            localStorage.removeItem(DEFAULT_BEAN_KEY);
+        } else handleBeanChange(value || null);
+        setPendingSource(null);
     };
 
     const selectedBlend = blends.find((b) => b.id === selectedBlendId);
@@ -186,11 +205,8 @@ export const RoastHeader = ({
                             onChange={(e) => {
                                 if (!canSelectSource) return;
                                 const value = e.target.value;
-                                if (value.startsWith('blend:')) {
-                                    const id = value.slice(6);
-                                    onBlendChange?.(id, blends.find((b) => b.id === id)?.name ?? null);
-                                    localStorage.removeItem(DEFAULT_BEAN_KEY);
-                                } else handleBeanChange(value || null);
+                                if (charged && scheduled) setPendingSource({ value, sessionId });
+                                else applySource(value);
                             }}
                             disabled={!canSelectSource}
                             className="absolute inset-0 h-full w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] cursor-pointer disabled:cursor-default"
@@ -227,6 +243,30 @@ export const RoastHeader = ({
                         <ChevronDown size={18} className="pointer-events-none text-muted" />
                     </div>
                 </div>
+
+                {pendingSource !== null && pendingSource.sessionId === sessionId && charged && scheduled && (
+                    <div
+                        className="mb-2 flex max-w-lg flex-wrap items-center gap-2 text-xs"
+                        role="group"
+                        aria-label={t('activeRoast.header.sourceChangeTitle')}
+                    >
+                        <p className="text-secondary">{t('activeRoast.header.sourceChangeUnlinks')}</p>
+                        <button
+                            type="button"
+                            className="rounded border border-border px-2 py-1 text-primary"
+                            onClick={() => applySource(pendingSource.value, pendingSource.sessionId)}
+                        >
+                            {t('common.confirm')}
+                        </button>
+                        <button
+                            type="button"
+                            className="rounded px-2 py-1 text-muted"
+                            onClick={() => setPendingSource(null)}
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </div>
+                )}
 
                 {/* ─── Bean secondary info: farm · variety · process ───── */}
 
